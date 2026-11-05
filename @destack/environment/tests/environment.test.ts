@@ -300,7 +300,7 @@ test("hash a stream of chunks as its whole bytes, natively and by gathering, cou
         native: hex(await Crypto.system.digest("SHA-256", whole)),
         gathered: hex(await Crypto.system.digest("SHA-256", whole)),
         whole: hex(await Crypto.system.digest("SHA-256", whole)),
-        refused: "TypeError: cannot hash a stream with MD5",
+        refused: "TypeError: cannot hash with MD5",
     });
 });
 
