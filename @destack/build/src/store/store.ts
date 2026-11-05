@@ -459,25 +459,43 @@ export class BuildStore<
         return (await this.contents(digest)).manifest;
     }
 
+    /** Read a stored build's manifest, absent for a build the store does not record. */
+    async find(digest: Digest): Promise<PackageManifest | undefined> {
+        return (await this.#find(digest))?.manifest;
+    }
+
     /** Open a stored build for selective reads, one reader per build, as its files never change. */
     async contents(digest: Digest): Promise<BuildReader> {
+        const contents = await this.#find(digest);
+        if (contents === undefined) {
+            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
+        }
+
+        return contents;
+    }
+
+    /** Open a stored build for selective reads, absent for a build the store does not record. */
+    async #find(digest: Digest): Promise<BuildReader | undefined> {
         // read a layered build in place, the files it leaves out from the store's blobs
         const layered = this.#layer.build(digest, async (path, signal) =>
-            (await this.#open(digest)).stream(path, signal),
+            (await this.#open(await this.head(digest))).stream(path, signal),
         );
         if (layered !== undefined) {
             return await layered;
         }
 
-        // refuse a build the store no longer records, whose reader may outlive it
-        await this.head(digest);
+        // answer absent for a build the store no longer records, whose reader may outlive it
+        const head = await this.#head(digest);
+        if (head === undefined) {
+            return undefined;
+        }
 
         // reuse the build's reader, forgetting one whose opening failed
         const known = this.#readers.get(digest);
         if (known !== undefined) {
             return await known;
         }
-        const opening = this.#open(digest);
+        const opening = this.#open(head);
         this.#readers.set(digest, opening);
         opening.catch(() => this.#readers.delete(digest));
 
@@ -485,9 +503,9 @@ export class BuildStore<
     }
 
     /** Open a stored build's reader over its manifest's listed files. */
-    async #open(digest: Digest): Promise<BuildReader> {
+    async #open(head: PackageFile): Promise<BuildReader> {
         // read and verify the manifest, then index the files it lists directly
-        const bytes = await this.file(await this.head(digest));
+        const bytes = await this.file(head);
         const read = PackageManifest.parse(
             JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)),
         );
@@ -987,6 +1005,16 @@ export class BuildStore<
 
     /** Describe a stored build's manifest file, leaving its bytes unread. */
     async head(digest: Digest): Promise<PackageFile> {
+        const head = await this.#head(digest);
+        if (head === undefined) {
+            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
+        }
+
+        return head;
+    }
+
+    /** Describe a build's manifest file, absent for a build the store does not record. */
+    async #head(digest: Digest): Promise<PackageFile | undefined> {
         // describe a layered build's manifest
         const layered = this.#layer.head(digest);
         if (layered !== undefined) {
@@ -998,11 +1026,10 @@ export class BuildStore<
             .select({ size: buildManifest.size })
             .from(buildManifest)
             .where(eq(buildManifest.digest, digest));
-        if (!stored) {
-            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
-        }
 
-        return { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
+        return stored === undefined
+            ? undefined
+            : { path: "manifest.json", digest, size: stored.size, mediaType: "application/json" };
     }
 
     /** Stream a stored file or manifest, or a range of it. */

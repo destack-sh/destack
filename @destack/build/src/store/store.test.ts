@@ -438,7 +438,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
     });
 });
 
-test("open one reader per stored build, and refuse a collected build", async () => {
+test("open one reader per stored build, find its manifest, and refuse a collected build or find it absent", async () => {
     // store a build and open it twice
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -446,6 +446,7 @@ test("open one reader per stored build, and refuse a collected build", async () 
     const { store } = opened;
     const digest = await store.put(await written(SOURCES, environment.crypto));
     const [first, second] = [await store.contents(digest), await store.contents(digest)];
+    const manifest = await store.find(digest);
 
     // collect it once its lease ends, then open it again
     await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
@@ -454,11 +455,14 @@ test("open one reader per stored build, and refuse a collected build", async () 
         () => "opened",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
+    const collected = await store.find(digest);
 
-    // share the reader while the build is stored, and refuse it once collected
-    expect({ isShared: first === second, reopened }).toEqual({
+    // share the reader and find its manifest while the build is stored, and neither once collected
+    expect({ isShared: first === second, found: manifest, reopened, collected }).toEqual({
         isShared: true,
+        found: first.manifest,
         reopened: `package manifest ${digest} not found`,
+        collected: undefined,
     });
 });
 

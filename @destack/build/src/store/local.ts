@@ -455,14 +455,15 @@ export class LocalBuildStore
             PackageManifest.package(manifest).id,
             runtime,
             async (needed) => {
-                if (!(await this.has(needed))) {
+                const found = await this.find(needed);
+                if (found === undefined) {
                     throw BuildError.of(
                         "DEPENDENCY_UNRESOLVED",
                         `build ${needed} of ${manifest.package.name} is missing from the store`,
                     );
                 }
 
-                return this.get(needed);
+                return found;
             },
             "export",
         );
