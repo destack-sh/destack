@@ -1,4 +1,5 @@
 import { Kernel } from "./kernel.ts";
+import type { TunnelStatus } from "@destack/tunnel";
 import { PackageMount, refusal, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
@@ -240,6 +241,9 @@ export class Computer implements AsyncDisposable {
         await using stack = new AsyncDisposableStack();
         const started = Promise.withResolvers<Computer>();
 
+        // record the tunnel's statuses one after another, in the order the tunnel tells them
+        let recorded = Promise.resolve();
+
         // refuse the held requests of a start that fails, which closes the tunnel
         started.promise.catch(() => undefined);
         stack.defer(() =>
@@ -390,6 +394,16 @@ export class Computer implements AsyncDisposable {
                           ...(options.relay.kind === "url" ? { url: options.relay.url } : {}),
                           fetch: async (request: Request) => (await started.promise).relay(request),
                           report: (error: unknown) => options.report("tunnel.failed", error),
+                          changed: (status: TunnelStatus) => {
+                              recorded = recorded
+                                  .then(async () => {
+                                      const { objects } = await started.promise;
+                                      await ComputerServer.link(objects, machineId, status);
+                                  })
+                                  .catch((error: unknown) =>
+                                      options.report("computer.failed", error),
+                                  );
+                          },
                       },
                   }),
             authenticate: (request, audience, partition) =>

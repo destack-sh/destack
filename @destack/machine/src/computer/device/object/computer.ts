@@ -5,6 +5,10 @@ import { MachineName, ResidencyCode } from "@destack/account/object";
 import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
+import { TUNNEL_STATUSES } from "@destack/tunnel";
+
+/** Whether the machine's relay tunnel runs: none without a relay, else the tunnel's status. */
+export const COMPUTER_TUNNELS = ["none", ...TUNNEL_STATUSES] as const;
 
 /** The fields of every enrollment: its issuer and its validity. */
 const ENROLLMENT_FIELDS = {
@@ -62,6 +66,8 @@ export const computer = defineObject(
             pid: field.integer(),
             /** The machine process's start, in UTC epoch milliseconds. */
             startedAt: field.time(),
+            /** Whether the machine process's relay tunnel runs: none, open, or dialing. */
+            tunnel: field.enum(COMPUTER_TUNNELS).default("none"),
         },
         // let the device do the computer's own work, as its owner acts as the device
         permissions: {
@@ -75,8 +81,9 @@ export const computer = defineObject(
         create: method.create("record", { visibility: "package" }),
         start: method.update("record", {
             visibility: "package",
-            fields: ["version", "pid", "startedAt", "enrollment"],
+            fields: ["version", "pid", "startedAt", "tunnel", "enrollment"],
         }),
+        link: method.update("record", { visibility: "package", fields: ["tunnel"] }),
         enroll: method.mutation({
             permission: "enroll",
             input: schema.object({

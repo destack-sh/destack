@@ -230,6 +230,7 @@ test("record the computer at each start under the same identifier", async () => 
             version: machinePackage.version,
             pid: 4343,
             startedAt,
+            tunnel: "none",
             enrollment: null,
             tags: {},
             ...ObjectReference.columns("createdBy", writer),
@@ -239,6 +240,32 @@ test("record the computer at each start under the same identifier", async () => 
         },
         true,
     ]);
+});
+
+test("record the tunnel opening and dialing on the computer's record, and none again at the next start", async () => {
+    const opened = await TestComputer.open();
+    const client = opened.connect(machinePackage);
+    const machineId = opened.machine.id;
+    const deviceId = opened.device.id;
+    const read = async () => (await client.computer.get({ deviceId, id: machineId })).tunnel;
+
+    // open the tunnel, lose it, then start the next process
+    const tunnels = [await read()];
+    await ComputerServer.link(opened.computer.objects, machineId, "open");
+    tunnels.push(await read());
+    await ComputerServer.link(opened.computer.objects, machineId, "dialing");
+    tunnels.push(await read());
+    const next = { version: machinePackage.version, pid: 4343, startedAt: opened.clock.now() };
+    await ComputerServer.record(
+        opened.computer.objects,
+        { device: deviceId, machine: machineId },
+        next,
+        undefined,
+    );
+    tunnels.push(await read());
+
+    // expect no tunnel without a relay, then each status, then none for the new process
+    expect(tunnels).toEqual(["none", "open", "dialing", "none"]);
 });
 
 test("stop the machine as its device's owner, and refuse another device stopping it", async () => {

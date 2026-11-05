@@ -12,6 +12,7 @@ import {
     PackageHandle,
 } from "@destack/object";
 import { eq } from "@destack/db";
+import type { TunnelStatus } from "@destack/tunnel";
 import { Package } from "@destack/package";
 import objectServer, {
     implementPackage,
@@ -24,7 +25,7 @@ import type { EventStore } from "@destack/event";
 import { DistributionHost, distributionServer } from "@destack/update/server";
 import * as accountObject from "@destack/account/object";
 import type { Device } from "../device/device.ts";
-import { schema, type Identifier } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { buildShape } from "@destack/stack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { Machine } from "../../machine/index.ts";
@@ -261,8 +262,9 @@ export class ComputerServer {
         process: { readonly version: string; readonly pid: number; readonly startedAt: number },
         enrollment: MachineEnrollment | undefined,
     ): Promise<void> {
-        // record the process and a declared enrollment as the device
-        const recorded = enrollment === undefined ? process : { ...process, enrollment };
+        // record the process without a tunnel yet, and a declared enrollment, as the device
+        const started = { ...process, tunnel: "none" as const };
+        const recorded = enrollment === undefined ? started : { ...started, enrollment };
         const [row] = await objects.database
             .select()
             .from(computer.table)
@@ -279,6 +281,23 @@ export class ComputerServer {
                       ...recorded,
                   })
                 : computer.call("start", { ...computer.target(row), ...recorded });
+        await objects.mutate(context, { id: RequestId.create(objects.environment), calls: [call] });
+    }
+
+    /** Record whether the machine process's relay tunnel is open or dialing, as the device. */
+    static async link(
+        objects: Pick<ObjectStore, "database" | "mutate" | "clock" | "as" | "environment">,
+        machine: Identifier<"machine">,
+        tunnel: TunnelStatus,
+    ): Promise<void> {
+        // update the record started already
+        const [row] = await objects.database
+            .select()
+            .from(computer.table)
+            .where(eq(computer.table.machineId, machine));
+        const recorded = present(row, `the record of machine ${machine}`);
+        const call = computer.call("link", { ...computer.target(recorded), tunnel });
+        const context = objects.as(computer, objects.clock.now());
         await objects.mutate(context, { id: RequestId.create(objects.environment), calls: [call] });
     }
 

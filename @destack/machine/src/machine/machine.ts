@@ -44,7 +44,7 @@ import type {
 } from "@destack/object/server";
 import type { PackageId, PackageRelease } from "@destack/package";
 import relayPackage from "@destack/relay/client";
-import { TUNNEL_PATH, TunnelClient } from "@destack/tunnel";
+import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { Health } from "@destack/object/server";
@@ -121,6 +121,8 @@ export type MachineOptions = Pick<
         readonly fetch: (request: Request) => Promise<Response>;
         /** Report a failed publication of the tunnel's name. */
         readonly report: (error: unknown) => void;
+        /** Learn that the tunnel opened, or ended and dials again. */
+        readonly changed: (status: TunnelStatus) => void;
     };
 };
 
@@ -968,6 +970,7 @@ export class Machine {
             renewed: ({ name }) => {
                 this.#origin = `https://${name}`;
             },
+            changed: relayed.changed,
         });
 
         return { [Symbol.asyncDispose]: () => tunnel.close() };
