@@ -1,14 +1,12 @@
 import { testSimulation } from "../src/test/index.ts";
-import { defineObject, field, ObjectDescription } from "../src/index.ts";
-import { users } from "./fixture/user.ts";
+import { defineObject, field } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
-import { AccessContext, Authorization, Caller, none, principal } from "@destack/access";
-import { type Cursor, defineDatabase, Transaction } from "@destack/db";
+import { AccessContext, Caller, none } from "@destack/access";
+import { defineDatabase } from "@destack/db";
 import { reconciliation } from "@destack/db/test";
-import { TestAccess } from "@destack/access/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { subjectContext, testCallKey } from "@destack/object/test";
+import { testCallKey } from "@destack/object/test";
 import { RequestId, Scope } from "@destack/sync";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -116,7 +114,6 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
             readonly claimedAt: number;
         }[] = [];
         let isFailing = true;
-        const take = (cursor: Cursor) => cursor.take(reconciliation());
         const options = { hold: { days: 1 }, batch: { minutes: 1 } };
         const two = tick.cursor(
             "count",
@@ -146,7 +143,7 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
                     isFailing = false;
                     throw new Error("the counter is unreachable");
                 } else if (page.events.length > 1) {
-                    await take(two);
+                    await two.take(reconciliation());
                 }
             },
             options,
@@ -155,21 +152,21 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
         // tick, fail a batch in, tick again, then retry
         const first = await record(tickId(1));
         await simulation.jump(START + BATCH);
-        const failed = await take(one).catch((error: unknown) => String(error));
+        const failed = await one.take(reconciliation()).catch((error: unknown) => String(error));
         await record(tickId(2));
-        await take(one);
+        await one.take(reconciliation());
 
         // tick a batch later, then take the page on host one while host two takes it too
         await simulation.jump(START + 2 * BATCH);
         const third = await record(tickId(3));
         await simulation.jump(START + 3 * BATCH);
-        await take(one);
-        await take(two);
+        await one.take(reconciliation());
+        await two.take(reconciliation());
 
         // tick in another space, then hand its tick over as that space's page
         await openSpace(database, world, OTHER_SPACE_ID);
         const elsewhere = await record(tickId(4), OTHER_SPACE_ID);
-        await take(two);
+        await two.take(reconciliation());
 
         // take the failed page twice unchanged, the next one on both hosts, then the other space's, host two moving past it
         const name = two.name;

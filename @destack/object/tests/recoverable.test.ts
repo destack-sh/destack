@@ -1,14 +1,14 @@
 import { TestObjectStore } from "../src/test/index.ts";
 import { testSimulation } from "../src/test/index.ts";
-import { type Change, eq, defineDatabase } from "@destack/db";
+import { eq, defineDatabase } from "@destack/db";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { principal, relation, through } from "@destack/access";
 
-import { schema, present } from "@destack/schema";
+import { schema } from "@destack/schema";
 
 import { defineObject, field, type CallableName, type ObjectType } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";

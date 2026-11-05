@@ -874,7 +874,7 @@ test("watch a query's value at each change and several queries' latest values to
     const named = async () =>
         (await reached(names, (rows) => rows.length === 2)).map((row) => row.name);
     const joined = async () => {
-        const { books, notes } = await reached(together, ({ books }) => books.length === 2);
+        const { books, notes } = await reached(together, (rows) => rows.books.length === 2);
 
         return [books.map((row) => row.name), notes.map((row) => row.title)];
     };
@@ -945,7 +945,9 @@ test("fail the queries open once the source refuses to follow, and refuse later 
     const failed = await Promise.allSettled([watched.next(), client.query.notebook.findMany()]);
     const again = await Promise.allSettled([client.query.note.findMany()]);
     const reasons = [...failed, ...again].map((settled) =>
-        settled.status === "rejected" ? refusal(Promise.reject(settled.reason)) : settled.value,
+        settled.status === "rejected"
+            ? refusal(Promise.reject(settled.reason))
+            : Promise.resolve(settled.value),
     );
 
     // expect each query to fail with the refusal, which every refused follow reported

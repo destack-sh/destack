@@ -383,6 +383,7 @@ test("refuse a name a postgresql write took after a commit's owners read as a lo
     ]);
 });
 
+/** Serve a space's profiles from their own database, claiming names through a primary. */
 async function serveProfiles(world: Environment, claims: ClaimPrimary) {
     // store the space's profiles in a separate database
     const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);

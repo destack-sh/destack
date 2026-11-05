@@ -17,7 +17,7 @@ import { defineDatabase, eq, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { defineResourceKind, Plan, type Provider } from "@destack/resource";
 import { unreachablePlan } from "@destack/resource/error";
-import { canonicalize, Digest, present, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 
 import { CONSUMER, defineObject, Provisioned, type Resource } from "../src/index.ts";

@@ -2,7 +2,7 @@ import { TestObjectStore } from "../src/test/index.ts";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
-import { reconciliation, TestDatabase } from "@destack/db/test";
+import { TestDatabase } from "@destack/db/test";
 import { settleControl, testEvents, serversOf } from "../src/test/index.ts";
 import { none, principal, relation, universe } from "@destack/access";
 
