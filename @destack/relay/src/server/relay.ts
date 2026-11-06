@@ -1,4 +1,9 @@
-import { TUNNEL_PATH, TunnelProtocol } from "@destack/tunnel";
+import {
+    TUNNEL_METADATA_PATH,
+    TUNNEL_PATH,
+    type TunnelMetadata,
+    TunnelProtocol,
+} from "@destack/tunnel";
 import {
     Directory,
     type Domains,
@@ -23,6 +28,7 @@ import type { Fetch } from "@destack/object";
 import { PackageMount, refusal, reportError } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 import { RelayError } from "../error/index.ts";
+import { PackageId } from "@destack/package";
 import relayPackage from "../package.ts";
 import {
     HANDSHAKE_HEADER,
@@ -114,12 +120,18 @@ export class Relay {
         return new URL(TUNNEL_PATH, this.#origin).href;
     }
 
-    /** Open a machine's tunnel, and relay every other request to its name's machine. */
+    /** Answer its tunnel's metadata, open a machine's tunnel, and relay every other request. */
     async fetch(request: Request): Promise<Response> {
-        // forward requests for names
+        // answer the tunnel's metadata, naming the relay's package as the resource its tokens are for
         const url = new URL(request.url);
-        const isTunnel = url.host === this.#origin.host && url.pathname === TUNNEL_PATH;
-        if (!isTunnel) {
+        const isOwn = url.host === this.#origin.host;
+        if (isOwn && url.pathname === TUNNEL_METADATA_PATH) {
+            const metadata: TunnelMetadata = { resource: PackageId.resource(relayPackage.id) };
+
+            return Response.json(metadata);
+        }
+        // forward requests for names
+        else if (!isOwn || url.pathname !== TUNNEL_PATH) {
             return this.#relay(request);
         }
 

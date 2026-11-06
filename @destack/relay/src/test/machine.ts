@@ -256,7 +256,7 @@ export class TestTunnelMachine implements AsyncDisposable {
         const client = TunnelClient.open({
             url: relay.url,
             machineId: this.machine.id,
-            token: () => this.machine.token(relayPackage.id),
+            token: (audience) => this.machine.token(audience),
             fetch: async (request) => {
                 // record the request, and greet it with its method, path and body
                 const url = new URL(request.url);
