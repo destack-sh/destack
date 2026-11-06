@@ -16,7 +16,7 @@ import {
     FileSystemError,
 } from "@destack/environment";
 import { BunFileSystem } from "@destack/environment/bun";
-import { Digest, present, schema } from "@destack/schema";
+import { Digest, present, schema, type Version } from "@destack/schema";
 import type { TestMatrix } from "../project/index.ts";
 
 /** The shared test options: one module graph per worker, cached modules, and quick polls. */
@@ -67,6 +67,8 @@ export type ProjectConfiguration = TestProjectInlineConfiguration & {
 export type TestConfiguration = Omit<ViteUserConfig, "test"> & {
     /** The values its tests run against by kind, where its projects declare none. */
     readonly targets?: TestMatrix;
+    /** The versions its tests load source packages at, as a build stamps them, by name. */
+    readonly versions?: Readonly<Record<string, Version>>;
     /** The test options, whose projects may declare separate targets. */
     readonly test?: Omit<NonNullable<ViteUserConfig["test"]>, "projects"> & {
         /** The projects, each run once per combination of its targets. */
@@ -80,7 +82,7 @@ export function defineConfiguration(
     environment: Environment<"files" | "process">,
 ): ViteUserConfig {
     // split off the targets, the projects and the global setup the projects run in the root's place
-    const { targets, test, ...rest } = configuration;
+    const { targets, versions, test, ...rest } = configuration;
     const { projects: declared, globalSetup, ...options } = test ?? {};
     const setup = globalSetup === undefined ? {} : { globalSetup };
     const projects = configuredProjects(declared, targets, setup)?.map((project) => ({
@@ -97,7 +99,7 @@ export function defineConfiguration(
             server: withCaches(options.server, environment),
         },
         plugins: [
-            modulePlugin(new ModuleTransformer(environment.files)),
+            modulePlugin(new ModuleTransformer(environment.files, versions)),
             cachePlugin(environment),
             ...(rest.plugins ?? []).map(withoutServer),
         ],
