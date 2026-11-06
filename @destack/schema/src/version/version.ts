@@ -80,6 +80,14 @@ export const Version = Object.assign(z.string().regex(VERSION), {
 /** A package release version. */
 export type Version = z.infer<typeof Version>;
 
+/** The versions from an oldest to a newest, both included. */
+export interface VersionRange {
+    /** The oldest version in the range. */
+    readonly oldest: Version;
+    /** The newest version in the range. */
+    readonly newest: Version;
+}
+
 /** Read a version's numbers, stage and dev sequence, in comparison order. */
 function components(version: string) {
     // read the calendar numbers and the dev build's sequence
