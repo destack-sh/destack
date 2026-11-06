@@ -94,7 +94,7 @@ test(
             palette: [
                 "palette",
                 "Commands",
-                "https://start--home--account-39751c3a0e7f.destack.space/command",
+                `https://start--home--${world.owner.handle}.destack.space/command`,
             ],
             tray: [
                 { action: "tray.set", tooltip: "Destack: ⁨Serving 0 spaces⁩" },
