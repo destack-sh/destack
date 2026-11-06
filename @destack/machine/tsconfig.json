@@ -18,8 +18,6 @@
         "noUncheckedSideEffectImports": true,
         "erasableSyntaxOnly": true,
         "verbatimModuleSyntax": true,
-        "jsx": "preserve",
-        "jsxImportSource": "@destack/view",
         "lib": [
             "ES2024",
             "ESNext.Array",
@@ -36,6 +34,7 @@
         "tests/fixture/apps",
         "tests/fixture/board",
         "tests/fixture/mention",
-        "tests/fixture/stack"
+        "tests/fixture/stack",
+        "tests/fixture/start"
     ]
 }

@@ -43,7 +43,6 @@ import type {
     Server,
 } from "@destack/object/server";
 import type { PackageId, PackageRelease } from "@destack/package";
-import relayPackage from "@destack/relay/client";
 import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
 import { createClient, type ClientOf } from "@destack/object/client";
@@ -980,8 +979,8 @@ export class Machine {
             machineId: this.id,
             fetch: relayed.fetch,
             environment: this.environment,
-            token: () =>
-                this.identity.token(relayPackage.id, issuer, (request) => this.send(request)),
+            token: (audience) =>
+                this.identity.token(audience, issuer, (request) => this.send(request)),
             renewed: ({ name }) => {
                 this.#origin = `https://${name}`;
             },
