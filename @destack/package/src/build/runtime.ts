@@ -6,6 +6,9 @@ import type { Runtime } from "../runtime/index.ts";
 /** Lightning CSS's `light-dark()` flag, `Features.LightDark` in its `node/flags.js`. */
 export const LIGHT_DARK_FEATURE = 1_048_576;
 
+/** The scheme of the modules a Destack host supplies to the code it runs. */
+export const DESTACK_MODULE_SCHEME = "destack:";
+
 /** Workerd's Node modules then, per developers.cloudflare.com/workers/runtime-apis/nodejs. */
 const WORKERD_NODE_MODULES: ReadonlySet<string> = new Set([
     "_stream_wrap",
@@ -114,9 +117,10 @@ export function isHostModule(specifier: string): boolean {
     return isBuiltin(specifier) || specifier === "bun" || specifier.startsWith("bun:");
 }
 
-/** Identify host modules the selected Destack runtime supplies. */
+/** Identify host modules the selected Destack runtime supplies, its Destack host's among them. */
 export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
     return (
+        specifier.startsWith(DESTACK_MODULE_SCHEME) ||
         (runtime === "bun" && isHostModule(specifier)) ||
         (runtime === "workerd" &&
             isBuiltin(specifier) &&

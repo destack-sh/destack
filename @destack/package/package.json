@@ -23,6 +23,7 @@
         "./vite": "./src/vite/index.ts",
         "./bun": "./src/bun/index.ts",
         "./bun/preload": "./src/bun/preload.ts",
+        "./workerd": "./src/workerd/index.ts",
         "./declare": "./src/declare/index.ts",
         "./build": "./src/build/index.ts",
         "./test": "./src/test/index.ts",
