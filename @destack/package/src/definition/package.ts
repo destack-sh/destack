@@ -9,11 +9,22 @@ export const Entrypoint = schema.string().regex(/^\.(?:\/[^\s*]+)?$/u);
 /** The URI scheme prefix of a package as an OAuth resource (RFC 8707 asks an absolute URI). */
 const RESOURCE_PREFIX = "urn:destack:package:";
 
+/** The schema of a package's identifier. */
+const packageIdentifier = schema.identifier("package");
+
 /** The immutable identity retained across package renames and releases. */
-export const PackageId = Object.assign(schema.identifier("package"), {
+export const PackageId = Object.assign(packageIdentifier, {
     /** Name a package as the OAuth resource its access tokens are for, their `aud`. */
     resource(id: PackageId): string {
         return `${RESOURCE_PREFIX}${id}`;
+    },
+    /** Read the package an OAuth resource names, refusing any other resource. */
+    ofResource(resource: string): schema.Infer<typeof packageIdentifier> {
+        if (!resource.startsWith(RESOURCE_PREFIX)) {
+            throw new TypeError(`resource ${resource} names no package`);
+        }
+
+        return packageIdentifier.parse(resource.slice(RESOURCE_PREFIX.length));
     },
 });
 /** The immutable identity retained across package renames and releases. */

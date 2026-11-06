@@ -56,3 +56,104 @@ function definition(extensions: readonly string[]): string {
         extensions,
     });
 }
+
+test("refuse an app's server and providers, test kits and any app in a builtin, outside the importing package and its tests", () => {
+    // import each subpath from a builtin, an app and a test, refusing as the layout says
+    const app = { name: "@acme/notes", role: "app" } as const;
+    const library = { name: "@acme/kit", role: "library" } as const;
+    const importers = {
+        builtin: { name: "@destack/machine", role: "builtin", isTest: false },
+        app: { name: "@acme/board", role: "app", isTest: false },
+        test: { name: "@acme/board", role: "app", isTest: true },
+        own: { name: "@acme/notes", role: "app", isTest: false },
+    } as const;
+    const imports = [
+        [app, "./client"],
+        [app, "./server"],
+        [app, "./provider/stripe"],
+        [library, "./test"],
+        [library, "."],
+    ] as const;
+    const outcomes = Object.fromEntries(
+        Object.entries(importers).map(([key, importer]) => [
+            key,
+            imports.map(([imported, entry]) => {
+                try {
+                    PackageDefinition.requireImport(importer, imported, entry);
+
+                    return "allowed";
+                } catch (error) {
+                    return error instanceof Error ? error.message : String(error);
+                }
+            }),
+        ]),
+    );
+
+    // allow the importing package and tests everything, and an app only interfaces and libraries
+    expect(outcomes).toEqual({
+        builtin: [
+            "builtin @destack/machine imports app @acme/notes/client",
+            "@destack/machine imports @acme/notes/server, private to its app",
+            "@destack/machine imports @acme/notes/provider/stripe, private to its app",
+            "@destack/machine imports @acme/kit/test outside its tests",
+            "allowed",
+        ],
+        app: [
+            "allowed",
+            "@acme/board imports @acme/notes/server, private to its app",
+            "@acme/board imports @acme/notes/provider/stripe, private to its app",
+            "@acme/board imports @acme/kit/test outside its tests",
+            "allowed",
+        ],
+        test: ["allowed", "allowed", "allowed", "allowed", "allowed"],
+        own: [
+            "allowed",
+            "allowed",
+            "allowed",
+            "@acme/notes imports @acme/kit/test outside its tests",
+            "allowed",
+        ],
+    });
+});
+
+test("refuse an app without its package or with a free subpath, and a library with a package", () => {
+    // check each role's exports, keeping each refusal's message
+    const notes = PackageDefinition.parse({
+        $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+        id: "package-01996ab0-0000-7000-8000-000000000a01",
+        role: "app",
+        language: "typescript",
+    });
+    const outcome = (role: PackageDefinition["role"], entries: readonly string[]) => {
+        try {
+            PackageDefinition.requireExports({ ...notes, role }, "@acme/notes", entries);
+
+            return "allowed";
+        } catch (error) {
+            return error instanceof Error ? error.message : String(error);
+        }
+    };
+
+    // allow an app's standard subpaths and providers, a builtin's free ones, and a library without a package
+    expect({
+        app: outcome("app", [
+            "./package",
+            "./object",
+            "./server",
+            "./provider/stripe",
+            "./destack.json",
+        ]),
+        unpackaged: outcome("app", ["./object"]),
+        root: outcome("app", ["./package", "."]),
+        free: outcome("app", ["./package", "./oauth"]),
+        library: outcome("library", [".", "./package"]),
+        builtin: outcome("builtin", [".", "./package", "./cloudflare"]),
+    }).toEqual({
+        app: "allowed",
+        unpackaged: "app @acme/notes exports no ./package",
+        root: "app @acme/notes exports ., outside the standard subpaths",
+        free: "app @acme/notes exports ./oauth, outside the standard subpaths",
+        library: "library @acme/notes exports ./package",
+        builtin: "allowed",
+    });
+});
