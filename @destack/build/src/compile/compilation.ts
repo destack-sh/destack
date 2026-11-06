@@ -28,6 +28,7 @@ import {
     type DeclarationModule,
     HostModuleResolver,
     isHostModule,
+    DESTACK_MODULE_SCHEME,
     isRuntimeModule,
     type OutputDescription,
     runtimeConditions,
@@ -634,9 +635,11 @@ export class OutputCompilation implements Compilation {
         dependencies: Readonly<Record<string, DependencyResolution>>,
         compiled: Pick<OutputBuild, "output" | "npm">,
     ): boolean {
-        // leave host modules to the host plugin, which keeps, empties or refuses them
+        // leave host modules to the host plugin, which keeps, empties or refuses them, and keep the Destack host's
         if (isHostModule(specifier)) {
             return false;
+        } else if (specifier.startsWith(DESTACK_MODULE_SCHEME)) {
+            return true;
         }
 
         // compile the package's own modules into the output, and a dependency's stylesheets, assets and queried files, which no runtime loads by import
