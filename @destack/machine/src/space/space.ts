@@ -640,7 +640,7 @@ export class Space {
         const external = volume.graphs(this.builds);
         const claims = ClaimLookup.of(machine.directory.snapshot.read(claimTable));
         const forge = machine.isBuilding
-            ? new Forge(claims, (account) => this.#residencyHome(account))
+            ? new Forge(claims, (account) => this.#residencyHome(account), machine.id)
             : null;
 
         return new SpaceStore({
