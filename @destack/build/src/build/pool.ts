@@ -44,8 +44,10 @@ export class CompilerPool implements AsyncDisposable {
     readonly #command: CompilerCommand;
     /** The warm compilers. */
     #warm: Warm[] = [];
-    /** The compilers closing, which still count against the cap. */
-    #closing = 0;
+    /** The closes of compilers in flight, which count against the cap and the disposal awaits. */
+    readonly #closing = new Set<Promise<void>>();
+    /** The leases running work, whose released compilers close once the work settles. */
+    readonly #leased = new Set<Promise<void>>();
     /** The uses so far, counting each compiler taken. */
     #uses = 0;
     /** The leases waiting for a compiler, first come first served. */
@@ -79,6 +81,8 @@ export class CompilerPool implements AsyncDisposable {
         });
 
         // run the work, then free the compiler, closing one the pool released meanwhile
+        const leased = Promise.withResolvers<void>();
+        this.#leased.add(leased.promise);
         try {
             return await work(await warm.compiler);
         } finally {
@@ -88,6 +92,8 @@ export class CompilerPool implements AsyncDisposable {
             } else {
                 void this.#dispose(warm);
             }
+            this.#leased.delete(leased.promise);
+            leased.resolve();
             this.#serve();
         }
     }
@@ -123,7 +129,7 @@ export class CompilerPool implements AsyncDisposable {
             .toSorted((left, right) => left.use - right.use);
         const shared = idle.find((warm) => warm.workspace === waiter.workspace);
         const other = idle.find((warm) => warm.workspace !== waiter.workspace);
-        const isFull = this.#warm.length + this.#closing >= MAX_WARM_COMPILERS;
+        const isFull = this.#warm.length + this.#closing.size >= MAX_WARM_COMPILERS;
 
         // take the package's compiler once idle, whose state is warm
         if (matching !== undefined) {
@@ -181,7 +187,10 @@ export class CompilerPool implements AsyncDisposable {
 
     /** Close every warm compiler, then throw the failures of compilers closed in the background. */
     async [Symbol.asyncDispose](): Promise<void> {
+        // close the idle compilers, then wait for the running leases and every close they or idle timers started
         await this.#close(this.#warm);
+        await Promise.all(this.#leased);
+        await Promise.all(this.#closing);
         if (this.#failures.length > 0) {
             throw new AggregateError(this.#failures, "compilers failed to close");
         }
@@ -216,9 +225,19 @@ export class CompilerPool implements AsyncDisposable {
         );
     }
 
-    /** Close a forgotten compiler, recording a failure no lease answers, then serve the waiters. */
-    async #dispose(warm: Warm): Promise<void> {
-        this.#closing++;
+    /** Close a forgotten compiler, tracked until it stopped, then serve the waiters. */
+    #dispose(warm: Warm): Promise<void> {
+        const closing = this.#stop(warm).finally(() => {
+            this.#closing.delete(closing);
+            this.#serve();
+        });
+        this.#closing.add(closing);
+
+        return closing;
+    }
+
+    /** Stop a compiler, recording a failure no lease answers. */
+    async #stop(warm: Warm): Promise<void> {
         try {
             await warm.compiler.then(
                 (started) => started[Symbol.asyncDispose](),
@@ -226,9 +245,6 @@ export class CompilerPool implements AsyncDisposable {
             );
         } catch (error) {
             this.#failures.push(error);
-        } finally {
-            this.#closing--;
-            this.#serve();
         }
     }
 }
