@@ -45,12 +45,19 @@ const WorkspaceSettings = schema.object({
     check: CheckSettings.exactOptional(),
 });
 
+/** What a package is: shipped with the runtime and linked, bundled by its importers, or installed. */
+export const PackageRole = schema.enum(["builtin", "library", "app"]);
+/** What a package is: shipped with the runtime and linked, bundled by its importers, or installed. */
+export type PackageRole = schema.Infer<typeof PackageRole>;
+
 /** The declarations authored in destack.json. */
 const definition = schema.object({
     /** The JSON Schema address of the release that wrote the definition. */
     $schema: SchemaAddress,
     /** The immutable identity assigned when creating this package. */
     id: PackageId,
+    /** What the package is: a builtin, a library or an app. */
+    role: PackageRole,
     /** The language used by the package. */
     language: Language,
     /** Source generation settings for a registry template package. */

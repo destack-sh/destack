@@ -1,6 +1,11 @@
 import type { Crypto } from "@destack/environment";
-import { canonicalize, type Commit, Digest, schema } from "@destack/schema";
-import type { DependencyResolution, NpmPackage, Package } from "../definition/index.ts";
+import { canonicalize, type Commit, Digest, schema, type Version } from "@destack/schema";
+import type {
+    DependencyResolution,
+    NpmPackage,
+    Package,
+    PackageRole,
+} from "../definition/index.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { PackageDefinition } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
@@ -121,6 +126,10 @@ export interface BuildStorage {
 export interface BuildContent {
     /** The package being built: a Destack package, or an npm release built as a unit. */
     readonly package: Package | NpmPackage;
+    /** What the package is, a library for an npm release. */
+    readonly role: PackageRole;
+    /** The Destack version whose toolchain builds it, and whose builtins it links. */
+    readonly destack: Version;
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */
     readonly commit?: Commit;
     /** The named outputs, none when absent. */
@@ -181,6 +190,8 @@ export class BuildWriter {
 
         return await writer.finish({
             package: read.package,
+            role: read.role,
+            destack: read.destack,
             ...(read.commit === undefined ? {} : { commit: read.commit }),
             outputs,
             dependencies,
@@ -297,6 +308,8 @@ export class BuildWriter {
         const manifest: PackageManifest = {
             formatVersion: MANIFEST_FORMAT,
             package: contents.package,
+            role: contents.role,
+            destack: contents.destack,
             language: "typescript",
             ...(contents.commit === undefined ? {} : { commit: contents.commit }),
             lists,

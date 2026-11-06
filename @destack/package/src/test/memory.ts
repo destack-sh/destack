@@ -12,6 +12,9 @@ const ENTRY_MODULE = "src/index.ts";
 /** The schema address of a build's destack.json in memory, the release the fixtures declare. */
 const DEFINITION_SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
 
+/** The Destack version the fixtures are built with: this checkout's. */
+const DESTACK_VERSION = import.meta.destack.package.version;
+
 /** The parts of a declaration a fixture gives, its moniker and symbol filled from its module. */
 const Declared = Declaration.omit({ moniker: true, symbol: true });
 
@@ -20,7 +23,7 @@ export const MemoryBuild = {
     /** Write a build into memory from its files by package path and what its manifest records. */
     async write(
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
-        contents: BuildContent,
+        contents: Omit<BuildContent, "destack">,
         crypto: Crypto,
     ): Promise<BuildReader> {
         // write the files, then the format listing them
@@ -46,7 +49,7 @@ export const MemoryBuild = {
 
         // read the written files back
         return new BuildReader(
-            await writer.finish({ ...contents, package: identity }),
+            await writer.finish({ ...contents, package: identity, destack: DESTACK_VERSION }),
             async (path) => new Blob([found(stored, path)]).stream(),
             crypto,
         );
@@ -64,13 +67,15 @@ export const MemoryBuild = {
             readonly module?: string;
         })[],
         crypto: Crypto,
-        contents: Omit<BuildContent, "package" | "declarations"> & {
+        contents: Omit<BuildContent, "package" | "declarations" | "role" | "destack"> & {
+            /** What the package is, an app unless given. */
+            readonly role?: BuildContent["role"];
             /** Further files by package path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
         } = {},
     ): Promise<BuildReader> {
         // write the package's npm and Destack definitions, as every build has, unless given
-        const { files: further, ...rest } = contents;
+        const { files: further, role = "app", ...rest } = contents;
         const files = new Map(further);
         const encoder = new TextEncoder();
         const definitions = {
@@ -80,7 +85,12 @@ export const MemoryBuild = {
                 type: "module",
                 exports: {},
             },
-            "destack.json": { $schema: DEFINITION_SCHEMA, id: owner.id, language: "typescript" },
+            "destack.json": {
+                $schema: DEFINITION_SCHEMA,
+                id: owner.id,
+                role,
+                language: "typescript",
+            },
         };
         for (const [path, definition] of Object.entries(definitions)) {
             if (!files.has(path)) {
@@ -106,7 +116,7 @@ export const MemoryBuild = {
 
         return await MemoryBuild.write(
             files,
-            { ...rest, package: { id, name, version }, declarations },
+            { ...rest, package: { id, name, version }, role, declarations },
             crypto,
         );
     },

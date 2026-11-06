@@ -43,7 +43,7 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
     release.resolve();
     await Promise.all([first, second]);
     const failure = await failing;
-    const manifest = await writer.finish({ package: app });
+    const manifest = await writer.finish({ destack: "2026.11.0", package: app, role: "app" });
     const reader = new BuildReader(
         manifest,
         (path) => Promise.resolve(new Blob([stored.get(path) ?? new Uint8Array()]).stream()),
@@ -90,8 +90,9 @@ test("write one manifest for one closure listed in any order", async () => {
         kind: "destack" as const,
     };
     const finish = (dependencies: Record<string, typeof schemaRelease>) =>
-        new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({
+        new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({ destack: "2026.11.0",
             package: app,
+            role: "app",
             dependencies,
         });
     const forward = await finish({
@@ -129,8 +130,9 @@ test("list each output's loaded files: its own but maps and types, the package.j
     for (const path of paths) {
         await writer.write(path, new TextEncoder().encode(path));
     }
-    const manifest = await writer.finish({
+    const manifest = await writer.finish({ destack: "2026.11.0",
         package: app,
+        role: "app",
         outputs: { bun: output("bun"), browser: output("browser") },
     });
 

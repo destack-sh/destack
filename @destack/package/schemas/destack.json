@@ -12,6 +12,14 @@
                     "type": "string",
                     "pattern": "^package-[0-9a-f]{8}-[0-9a-f]{4}-[78][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
                 },
+                "role": {
+                    "type": "string",
+                    "enum": [
+                        "builtin",
+                        "library",
+                        "app"
+                    ]
+                },
                 "language": {
                     "type": "string",
                     "enum": [
@@ -542,7 +550,8 @@
             "required": [
                 "$schema",
                 "id",
-                "language"
+                "language",
+                "role"
             ],
             "additionalProperties": false
         },

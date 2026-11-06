@@ -50,6 +50,7 @@ function definition(extensions: readonly string[]): string {
     return JSON.stringify({
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
         id: "package-01996ab0-0000-7000-8000-0000000000a1",
+        role: "library",
         language: "typescript",
         runtimes: ["browser"],
         extensions,

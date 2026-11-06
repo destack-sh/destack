@@ -1,11 +1,17 @@
-import { canonicalize, Commit, Digest, Instant, schema } from "@destack/schema";
-import { DeclarationName, Language, NpmPackage, Package } from "../definition/index.ts";
+import { canonicalize, Commit, Digest, Instant, schema, Version } from "@destack/schema";
+import {
+    DeclarationName,
+    Language,
+    NpmPackage,
+    Package,
+    PackageRole,
+} from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
 import { PackageFile } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
 /** The manifest format a build writes. */
-export const MANIFEST_FORMAT = 2;
+export const MANIFEST_FORMAT = 3;
 
 /** The directory of a build's catalogs, which every runtime loads. */
 export const CATALOG_DIRECTORY = "locale";
@@ -30,6 +36,10 @@ const manifest = schema.object({
     formatVersion: schema.literal(MANIFEST_FORMAT),
     /** The package being built: a Destack package, or an npm release built as a unit. */
     package: schema.union([Package, NpmPackage]),
+    /** What the package is, a library for an npm release. */
+    role: PackageRole,
+    /** The Destack version whose toolchain built it, and whose builtins it links. */
+    destack: Version,
     /** The package's source language. */
     language: Language,
     /** The commit the build compiled, absent for a working tree with uncommitted changes. */

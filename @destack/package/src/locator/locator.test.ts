@@ -21,7 +21,7 @@ async function writePackage(
     );
     await files.writeTextFile(
         join(directory, "destack.json"),
-        JSON.stringify({ $schema: SCHEMA, id, language: "typescript" }),
+        JSON.stringify({ $schema: SCHEMA, id, role: "library", language: "typescript" }),
     );
     await files.writeTextFile(join(directory, "src", "index.ts"), "export {};\n");
 }

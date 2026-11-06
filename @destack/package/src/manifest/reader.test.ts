@@ -22,7 +22,7 @@ test("refuse a distributed file whose bytes differ from its listing, and an unli
     const source = new TextEncoder().encode("export {};\n");
     const build = await MemoryBuild.write(
         new Map([["src/notes.js", source]]),
-        { package: app },
+        { package: app, role: "app" },
         crypto,
     );
     const serving = (bytes: Uint8Array<ArrayBuffer>) =>
@@ -56,7 +56,7 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
     const content = new TextEncoder().encode("export {};");
     const build = await MemoryBuild.write(
         new Map([["src/index.js", content]]),
-        { package: app },
+        { package: app, role: "app" },
         crypto,
     );
     const bytes = new Uint8Array(
@@ -226,7 +226,8 @@ test("read a build a directory keeps: its manifest, its file list and each file'
         world.crypto,
     );
     await writer.write("output/bun/index.js", new TextEncoder().encode("export {};\n"));
-    const written = await writer.finish({
+    const written = await writer.finish({ destack: "2026.11.0",
+        role: "app",
         package: Package.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000a1",
             name: "@example/notes",

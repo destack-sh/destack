@@ -3,7 +3,9 @@ import { PackageManifest } from "./manifest.ts";
 
 /** A manifest's fields beside its package. */
 const FIELDS = {
-    formatVersion: 2,
+    formatVersion: 3,
+    role: "app",
+    destack: "2026.11.0",
     language: "typescript",
     lists: {
         dependencies: {

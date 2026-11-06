@@ -37,7 +37,7 @@ test("attribute an in-app frame to its innermost symbol and its declaration, lea
     const owner = { id: PACKAGE_ID, name: "@example/note", version: "2026.10.0" };
     const build = await MemoryBuild.write(
         new Map([["src/note.ts", bytes]]),
-        { package: owner },
+        { package: owner, role: "app" },
         crypto,
     );
     const modules = [
