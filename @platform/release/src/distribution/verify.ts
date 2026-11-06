@@ -1,44 +1,111 @@
-import { lstat, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { CHECKOUT } from "./distribution.ts";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { COMMANDS, selectPlatform, version } from "./index.ts";
+import { COMMANDS, Platform, releaseVersion } from "./index.ts";
+import type { Environment, HostCapability } from "@destack/environment";
+import { Device } from "@destack/machine/device";
 import { schema } from "@destack/schema";
-import { Release } from "@destack/update/release";
-import { print } from "../output/index.ts";
+import { Release, type Target } from "@destack/update/release";
+import { print } from "./output.ts";
 
-/** Target executable selected for this verification host. */
-const target = new Release(
-    version,
-    process.argv[2] ?? Release.target(process.platform, process.arch),
-).target;
-
-/** Isolated device state used to exercise the compiled host. */
-const directory = await mkdtemp(join(tmpdir(), "destack-release-check-"));
-/** Native CLI built for this runner. */
-const executable = fileURLToPath(
-    new URL(`../../../../dist/${version}/${target}/bin/destack`, import.meta.url),
-);
+/** How long one verified command may run, in milliseconds: a machine start with its keychain. */
+const COMMAND_TIMEOUT_MILLISECONDS = 10_000;
 
 /** A checkout the CLI reports. */
 const Checkout = schema.object({ id: schema.string() }).strip();
 
-/** The CLI's report of the daemon's connection and version. */
-const Status = schema
-    .object({
-        status: schema.string(),
-        daemon: schema.object({ version: schema.string() }).strip().exactOptional(),
-    })
-    .strip();
+/** Verify a compiled distribution's files, then its machine over isolated device state. */
+export async function verifyDistribution(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    // select the target the command line requests, this host's by default
+    const { files } = environment;
+    const { os, architecture } = environment.host;
+    const version = await releaseVersion(CHECKOUT, environment);
+    const [selected] = arguments_;
+    const target = new Release(version, selected ?? Release.target(os, architecture)).target;
 
-/** Run a compiled command with a bounded runtime and read its JSON response. */
-async function run<Output>(arguments_: string[], response: schema.Schema<Output>): Promise<Output> {
+    // create isolated device state and select the native CLI built for this runner
+    const directory = await files.makeTemporaryDirectory("destack-release-check-");
+    const executable = join(CHECKOUT, "dist", version, target, "bin/destack");
+
+    // track whether cleanup must stop the verification machine
+    let isRunning = false;
+    try {
+        // reject incomplete application archives before testing the executable service lifecycle
+        await verifyExecutables(executable, target, environment);
+
+        // start the compiled machine and require the release's version
+        const identity = await run(
+            executable,
+            directory,
+            ["--version"],
+            schema.object({ version: schema.string() }).strip(),
+            environment,
+        );
+        if (identity.version !== version) {
+            throw new Error("CLI version does not match");
+        }
+        await run(executable, directory, ["self", "start"], schema.json(), environment);
+        isRunning = true;
+        const status = await Device.inspect(directory, environment);
+        if (status.kind !== "running" || status.computer.version !== version) {
+            throw new Error("machine version does not match");
+        }
+
+        // register a Git working directory as a checkout
+        const repository = join(directory, "repository");
+        await createRepository(repository, environment);
+        const created = await run(
+            executable,
+            directory,
+            ["checkout", "create", "--directory", repository],
+            Checkout,
+            environment,
+        );
+
+        // restart the machine and read the registered checkout back
+        await run(executable, directory, ["self", "stop"], schema.json(), environment);
+        isRunning = false;
+        await run(executable, directory, ["self", "start"], schema.json(), environment);
+        isRunning = true;
+        const checkouts = await run(
+            executable,
+            directory,
+            ["checkouts"],
+            schema.array(Checkout),
+            environment,
+        );
+        const [checkout] = checkouts;
+        if (checkouts.length !== 1 || checkout?.id !== created.id) {
+            throw new Error("checkout did not survive restart");
+        }
+        print(
+            `Verified ${version} for ${target} on ${Release.target(os, architecture)}.`,
+            environment,
+        );
+    } finally {
+        if (isRunning) {
+            await run(executable, directory, ["self", "stop"], schema.json(), environment);
+        }
+        await files.remove(directory, { recursive: true });
+    }
+}
+
+/** Run a compiled command over a device directory and read its JSON response. */
+async function run<Output>(
+    executable: string,
+    directory: string,
+    words: string[],
+    response: schema.Schema<Output>,
+    environment: Environment<"process">,
+): Promise<Output> {
     // run against isolated device state with a bounded lifetime
-    const child = Bun.spawn([executable, ...arguments_, "--json"], {
-        env: { ...process.env, DESTACK_DIRECTORY: directory },
+    const child = environment.process.spawn([executable, ...words, "--json"], {
+        variables: { ...environment.process.variables, DESTACK_DIRECTORY: directory },
         stdout: "pipe",
         stderr: "pipe",
-        timeout: 10000,
+        signal: environment.clock.timeout(COMMAND_TIMEOUT_MILLISECONDS),
     });
     const [code, output, error] = await Promise.all([
         child.exited,
@@ -52,25 +119,29 @@ async function run<Output>(arguments_: string[], response: schema.Schema<Output>
     return response.parse(JSON.parse(output));
 }
 
-/** Verify every executable before starting the distribution. */
-async function verifyDistribution(): Promise<void> {
+/** Verify every executable of a target's distribution before starting it. */
+async function verifyExecutables(
+    executable: string,
+    target: Target,
+    environment: Environment<"files">,
+): Promise<void> {
     // select the packaged application and its platform-specific executable paths
     const root = dirname(dirname(executable));
-    const { bundle } = selectPlatform(target);
+    const { bundle } = Platform.of(target);
     const application = join(root, bundle.application);
     const helpers = join(application, bundle.helpers);
-    const files = [join(application, bundle.executable), join(helpers, "destack-desktop-host")];
+    const paths = [join(application, bundle.executable), join(helpers, "destack-desktop-host")];
 
     // require the standalone commands and the copies used by native desktop startup
     for (const name of COMMANDS) {
-        files.push(join(root, "bin", name));
-        files.push(join(helpers, name));
+        paths.push(join(root, "bin", name));
+        paths.push(join(helpers, name));
     }
 
     // reject empty files, links and missing executable permissions before runtime checks
-    for (const path of files) {
-        const file = await lstat(path);
-        if (!file.isFile() || file.size === 0) {
+    for (const path of paths) {
+        const file = await environment.files.lstat(path);
+        if (file.kind !== "file" || file.size === 0) {
             throw new Error(`missing packaged file: ${path}`);
         }
         if ((file.mode & 0o111) === 0) {
@@ -79,47 +150,16 @@ async function verifyDistribution(): Promise<void> {
     }
 }
 
-/** Whether cleanup must stop the verification daemon. */
-let isRunning = false;
-try {
-    // reject incomplete application archives before testing the executable service lifecycle
-    await verifyDistribution();
-
-    // start the compiled daemon and require the release's version
-    const identity = await run(["version"], schema.object({ version: schema.string() }).strip());
-    if (identity.version !== version) {
-        throw new Error("CLI version does not match");
-    }
-    await run(["daemon", "start"], schema.json());
-    isRunning = true;
-    const status = await run(["status"], Status);
-    if (status.status !== "connected" || status.daemon?.version !== version) {
-        throw new Error("daemon version does not match");
-    }
-
-    // register a Git working directory as a checkout
-    const repository = join(directory, "repository");
-    if (Bun.spawnSync(["git", "init", "--quiet", repository]).exitCode !== 0) {
+/** Create a Git working directory, refusing a failed creation. */
+async function createRepository(
+    repository: string,
+    environment: Environment<"process">,
+): Promise<void> {
+    const child = environment.process.spawn(["git", "init", "--quiet", repository], {
+        stdout: "ignore",
+        stderr: "ignore",
+    });
+    if ((await child.exited) !== 0) {
         throw new Error("git could not create the verification repository");
     }
-    const created = await run(["checkout", "create", repository], Checkout);
-
-    // restart the daemon and read the registered checkout back
-    await run(["daemon", "stop"], schema.json());
-    isRunning = false;
-    await run(["daemon", "start"], schema.json());
-    isRunning = true;
-    const checkouts = await run(["checkout", "list"], schema.array(Checkout));
-    const [checkout] = checkouts;
-    if (checkouts.length !== 1 || checkout?.id !== created.id) {
-        throw new Error("checkout did not survive restart");
-    }
-    print(
-        `Verified ${version} for ${target} on ${Release.target(process.platform, process.arch)}.`,
-    );
-} finally {
-    if (isRunning) {
-        await run(["daemon", "stop"], schema.json());
-    }
-    await rm(directory, { recursive: true });
 }

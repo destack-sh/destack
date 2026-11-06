@@ -1,170 +1,370 @@
+import { Bookmark } from "@destack/object/client";
 import { expect, test } from "@destack/test";
-import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { testHost } from "@destack/test/host";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import solidPlugin from "@opentui/solid/bun-plugin";
-import { Compiler, PackageBuilder, readDependencies, readOutputs } from "@destack/build";
-import { LocalClient } from "@destack/daemon/client/local";
-import { ReleaseChannel } from "@destack/daemon/process";
-import { buildExecutable, COMPILER } from "./executable.ts";
+import { Compiler, CompilerCommand, CompilerPool, outputsOf, Workspace } from "@destack/build";
+import { testStore } from "@destack/build/test";
+import machinePackage from "@destack/machine/package";
+import { Loopback } from "@destack/machine/computer";
+import { RESIDENCIES } from "@platform/stack";
+import { Stage } from "@destack/update/release";
+import { buildExecutable, compilerOptions, toolchainOptions } from "./executable.ts";
 import { buildToolchain } from "./toolchain.ts";
 import { schema } from "@destack/schema";
+import { TestDatabase } from "@destack/db/test";
+import { LocalUniverse } from "../local/index.ts";
 
 /** Source root used only while producing the executables. */
-const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 
 /** The package the released compiler builds and inspects. */
 const TEMPLATE_STACK = join(ROOT, "@template/stack");
 
-/** How long compiling five executables, building a package twice and starting the daemon twice may take, in milliseconds. */
-const TIMEOUT_MILLISECONDS = 60000;
+/** The keychain an isolated home keeps the machine's keys in, as a user's login keychain. */
+const KEYCHAIN = "login.keychain";
 
-test.skipIf(process.platform !== "darwin" || process.arch !== "arm64")(
-    "run compiled clients, persist daemon state, build with the released compiler and its toolchain, and enforce the macOS sandbox outside the checkout",
+/** The store keeping the universe's releases across runs, so warm runs skip their build. */
+const RELEASES = join(ROOT, "target", "test", "releases");
+
+/** The database of the loopback universe, dropped before and after each run. */
+const DATABASE = "destack_executable";
+
+/** The person signing up on the compiled machine. */
+const PERSON = { email: "ada@destack.test", handle: "ada", residency: "eu", name: "Ada" };
+
+/** The sign-in code in a printed mail. */
+const MAILED_CODE = /code is (?<code>\S+)\./u;
+
+/** How long building the releases cold, compiling and the scenario may take, in milliseconds. */
+const TIMEOUT_MILLISECONDS = 600_000;
+
+/** The real host the executables compile and run on. */
+const HOST = testHost();
+
+test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
+    "run compiled clients, persist machine state, build with the released compiler and its toolchain, and enforce the macOS sandbox outside the checkout",
     async () => {
-        const directory = await realpath(await mkdtemp(join(tmpdir(), "destack-executable-")));
-        const environment = {
+        // remove the isolated home, then drop the universe's database, after everything stopped
+        const { files } = HOST;
+        await using cleanup = new AsyncDisposableStack();
+        const directory = await files.realPath(
+            await files.makeTemporaryDirectory("destack-executable-"),
+        );
+        cleanup.defer(() => files.remove(directory, { recursive: true, force: true }));
+        const server = new URL(TestDatabase.address());
+        server.pathname = "";
+        const database = { server: server.href, database: DATABASE, environment: HOST };
+        await LocalUniverse.drop(database);
+        cleanup.defer(() => LocalUniverse.drop(database));
+
+        // start a loopback universe with its cloud machines over the releases built from the checkout
+        const machines: Record<string, number> = {};
+        for (const residency of RESIDENCIES) {
+            machines[residency.code] = await freePort();
+        }
+        const layout = { universe: await freePort(), machine: await freePort(), machines };
+        const mailbox = new Mailbox();
+        const development = cleanup.use(
+            await LocalUniverse.start({
+                ...database,
+                root: ROOT,
+                directory: join(directory, "universe"),
+                releases: RELEASES,
+                layout,
+                print: (name, line) => mailbox.receive(name, line),
+            }),
+        );
+
+        // run the machine of an isolated home against the universe
+        const variables = {
             PATH: "/usr/bin:/bin",
             HOME: directory,
             DESTACK_DIRECTORY: join(directory, "state"),
+            DESTACK_ISSUER: development.deployment.issuer,
+            DESTACK_PORT: String(await freePort()),
         };
+        const cli = join(directory, "destack");
         let isRunning = false;
-        try {
-            // compile the real programs and a consumer of the packaged sandbox API
-            for (const { source, name } of [
-                { source: "@destack/cli/src/main.ts", name: "destack" },
-                { source: "@destack/daemon/src/main.ts", name: "destack-daemon" },
-                { source: "@destack/sandbox/src/main.ts", name: "destack-sandbox" },
+        cleanup.defer(async () => {
+            if (isRunning) {
+                await run([cli, "self", "stop", "--json"], directory, variables);
+            }
+        });
+
+        // give the isolated home its own keychain, which the machine keeps its keys in from its start
+        await isolateKeychain(directory);
+
+        // compile the real programs for the local stage and a consumer of the packaged sandbox API
+        for (const { source, name } of [
+            { source: "@destack/cli/src/main.ts", name: "destack" },
+            { source: "@destack/desktop/src/machine.ts", name: "destack-machine" },
+            { source: "@destack/sandbox/src/main.ts", name: "destack-sandbox" },
+            {
+                source: "@platform/release/src/distribution/tests/sandbox.ts",
+                name: "sandbox-check",
+            },
+        ]) {
+            await buildExecutable(
                 {
-                    source: "@platform/release/src/distribution/tests/sandbox.ts",
-                    name: "sandbox-check",
-                },
-            ]) {
-                await buildExecutable({
                     root: ROOT,
                     entrypoint: join(ROOT, source),
                     outfile: join(directory, name),
                     target: "aarch64-apple-darwin",
                     runtime: "bun-darwin-arm64",
-                    version: "2026.9.123-nightly.1",
-                    channel: ReleaseChannel.of("nightly"),
-                    plugins: name === "destack" ? [solidPlugin] : [],
-                });
-            }
-            await buildExecutable({
+                    version: machinePackage.version,
+                    stage: Stage.of("local"),
+                    ...(name === "destack-machine"
+                        ? toolchainOptions(files)
+                        : { loading: "bundle" as const }),
+                },
+                HOST,
+            );
+        }
+        await buildExecutable(
+            {
                 root: ROOT,
                 entrypoint: join(ROOT, "@destack/build/src/main.ts"),
                 outfile: join(directory, "destack-build"),
                 target: "aarch64-apple-darwin",
                 runtime: "bun-darwin-arm64",
-                version: "2026.9.123-nightly.1",
-                channel: ReleaseChannel.of("nightly"),
-                ...COMPILER,
-            });
-            await buildToolchain(ROOT, "aarch64-apple-darwin", join(directory, "toolchain"));
+                version: machinePackage.version,
+                stage: Stage.of("local"),
+                ...compilerOptions(files),
+            },
+            HOST,
+        );
+        await buildToolchain(ROOT, "aarch64-apple-darwin", join(directory, "toolchain"), HOST);
 
-            // run commands with no checkout, inherited credentials or installed runtime on PATH
-            const cli = join(directory, "destack");
-            expect(
-                JSON.parse(await run([cli, "version", "--json"], directory, environment)),
-            ).toEqual({
-                version: "2026.9.123-nightly.1",
-            });
-            await run([cli, "daemon", "start", "--json"], directory, environment);
-            isRunning = true;
-            const repository = join(directory, "repository");
-            await run(["/usr/bin/git", "init", "--quiet", repository], directory, environment);
-            const created: unknown = JSON.parse(
-                await run(
-                    [cli, "checkout", "create", repository, "--json"],
-                    directory,
-                    environment,
-                ),
-            );
-            expect(created).toMatchObject({ directory: repository });
-            expect(
-                JSON.parse(await run([cli, "daemon", "stop", "--json"], directory, environment)),
-            ).toEqual({ stopped: true });
-            isRunning = false;
-            await run([cli, "daemon", "start", "--json"], directory, environment);
-            isRunning = true;
-            const checkouts: unknown = JSON.parse(
-                await run([cli, "checkout", "list", "--json"], directory, environment),
-            );
-            expect(checkouts).toEqual([created]);
+        // ship the distribution the universe's machines ship, the desktop's own release among it
+        await files.copy(join(directory, "universe", "distribution"), join(directory, "toolchain"));
 
-            // build a package with the released compiler and its toolchain alone
-            const compiler = Compiler.beside(join(directory, "destack-build"));
-            const outputs = await readOutputs(TEMPLATE_STACK);
-            let built: unknown;
+        // run commands with no checkout, inherited credentials or installed runtime on PATH
+        expect(JSON.parse(await run([cli, "--version", "--json"], directory, variables))).toEqual({
+            version: machinePackage.version,
+        });
+        await run([cli, "self", "start", "--json"], directory, variables);
+        isRunning = true;
 
-            // check and compile the package and evaluate its outputs
-            {
-                await using builder = await PackageBuilder.start(TEMPLATE_STACK, compiler);
-                await using build = await builder.build({
-                    dependencies: await readDependencies(TEMPLATE_STACK),
-                    outputs,
-                });
-                built = [build.manifest.package.name, Object.keys(build.manifest.outputs)];
-            }
-            expect(built).toEqual(["@template/stack", ["bun", "workerd", "browser"]]);
+        // sign a new person up with the code the universe mails, enrolling the machine
+        const signedIn: unknown = JSON.parse(await signUp(cli, directory, variables, mailbox));
+        expect(signedIn).toMatchObject({ login: { name: PERSON.name }, space: "home--ada" });
 
-            // inspect it through the compiled daemon, which starts the compiler beside it
-            const registered: unknown = JSON.parse(
-                await run([cli, "checkout", "create", ROOT, "--json"], directory, environment),
-            );
-            const { id } = Registered.parse(registered);
-            const inspection = await new LocalClient(environment.DESTACK_DIRECTORY)
-                .connect()
-                .inspect({ checkout: id, directory: "@template/stack", output: "bun" });
-            expect(inspection.name).toBe("@template/stack");
-
-            // enforce the same restrictions through the compiled parent and launcher
-            await writeFile(join(directory, "readable.txt"), "public");
-            await writeFile(join(directory, "private.txt"), "private");
-            const sandbox = await run(
-                [join(directory, "sandbox-check"), directory],
+        // keep a checkout across a restart of the enrolled machine
+        const repository = join(directory, "repository");
+        await run(["/usr/bin/git", "init", "--quiet", repository], directory, variables);
+        const created: unknown = JSON.parse(
+            await run(
+                [
+                    cli,
+                    "checkout",
+                    "create",
+                    "--directory",
+                    repository,
+                    "--source-kind",
+                    "existing",
+                    "--json",
+                ],
                 directory,
-                environment,
-            );
-            expect(JSON.parse(sandbox)).toEqual({ allowed: "public", denied: "EPERM" });
-        } finally {
-            if (isRunning) {
-                await run(
-                    [join(directory, "destack"), "daemon", "stop", "--json"],
-                    directory,
-                    environment,
-                );
-            }
-            await rm(directory, { recursive: true, force: true });
+                variables,
+            ),
+        );
+        expect(created).toMatchObject({ directory: repository });
+        expect(
+            JSON.parse(await run([cli, "self", "stop", "--json"], directory, variables)),
+        ).toEqual({ stopped: true });
+        isRunning = false;
+        await run([cli, "self", "start", "--json"], directory, variables);
+        isRunning = true;
+        const checkouts: unknown = JSON.parse(
+            await run([cli, "checkouts", "--json"], directory, variables),
+        );
+        expect(checkouts).toEqual([created]);
+
+        // build a package with the released compiler and its toolchain alone
+        const compiler = CompilerCommand.beside(join(directory, "destack-build"), HOST);
+        let built: unknown;
+
+        // check and compile the package on its closure's unit builds and evaluate its outputs
+        {
+            await using store = await testStore();
+            await using compilers = await CompilerPool.open(store);
+            const workspace = await Workspace.open(TEMPLATE_STACK, compilers);
+            const outputs = outputsOf(workspace.root.packageJson);
+            const dependencies = await workspace.storeDependencies({});
+            await using builder = await Compiler.start(TEMPLATE_STACK, {
+                command: compiler,
+                store,
+            });
+            const build = await builder.build({
+                directory: TEMPLATE_STACK,
+                dependencies,
+                outputs,
+            });
+            built = [build.manifest.package.name, Object.keys(build.manifest.outputs)];
         }
+        expect(built).toEqual(["@template/stack", ["browser", "bun", "workerd"]]);
+
+        // inspect it through the compiled machine, which starts the compiler beside it
+        const registered: unknown = JSON.parse(
+            await run(
+                [
+                    cli,
+                    "checkout",
+                    "create",
+                    "--directory",
+                    ROOT,
+                    "--source-kind",
+                    "existing",
+                    "--json",
+                ],
+                directory,
+                variables,
+            ),
+        );
+        const { id, scope } = Registered.parse(registered);
+        const inspection = await new Loopback(variables.DESTACK_DIRECTORY, HOST, new Bookmark())
+            .connect(machinePackage)
+            .checkout.inspect({
+                machineId: scope,
+                id,
+                directory: "@template/stack",
+                output: "bun",
+            })
+            .catch(async (error: unknown) => {
+                // name the failure with the machine's log, which the test's directory takes with it
+                const log = await files.readTextFile(join(directory, "state", "machine.log"));
+                throw new Error(`inspect failed; the machine logged:\n${log}`, { cause: error });
+            });
+        expect(inspection.name).toBe("@template/stack");
+
+        // enforce the same restrictions through the compiled parent and launcher
+        await files.writeTextFile(join(directory, "readable.txt"), "public");
+        await files.writeTextFile(join(directory, "private.txt"), "private");
+        const sandbox = await run(
+            [join(directory, "sandbox-check"), directory],
+            directory,
+            variables,
+        );
+        expect(JSON.parse(sandbox)).toEqual({ allowed: "public", denied: "EPERM" });
     },
     TIMEOUT_MILLISECONDS,
 );
 
 /** The identifier of a registered checkout. */
-const Registered = schema.object({ id: schema.identifier("checkout") }).strip();
+const Registered = schema
+    .object({ id: schema.identifier("checkout"), scope: schema.identifier("machine") })
+    .strip();
 
-/** Execute one compiled command with a bounded lifetime and retained diagnostics. */
+/** The lines the loopback universe prints, with the sign-in code it mails. */
+class Mailbox {
+    /** The lines printed so far, each under its process's name. */
+    readonly lines: string[] = [];
+    /** The first mailed sign-in code. */
+    readonly #code = Promise.withResolvers<string>();
+
+    /** Keep a printed line, taking the sign-in code from a mail. */
+    receive(name: string, line: string): void {
+        this.lines.push(`${name}: ${line}`);
+        const code = name === "mail" ? MAILED_CODE.exec(line)?.groups?.["code"] : undefined;
+        if (code !== undefined) {
+            this.#code.resolve(code);
+        }
+    }
+
+    /** Wait for the first mailed sign-in code. */
+    code(): Promise<string> {
+        return this.#code.promise;
+    }
+}
+
+/** Sign a new person up through the compiled CLI, typing back the code the universe mails. */
+async function signUp(
+    cli: string,
+    directory: string,
+    variables: Record<string, string>,
+    mailbox: Mailbox,
+): Promise<string> {
+    // ask for a mailed code as a new person in a residency
+    const { email, handle, residency, name } = PERSON;
+    const child = HOST.process.spawn(
+        [
+            cli,
+            "login",
+            "--email",
+            email,
+            "--handle",
+            handle,
+            "--residency",
+            residency,
+            "--name",
+            name,
+            "--json",
+        ],
+        { workingDirectory: directory, variables, stdin: "pipe", stdout: "pipe", stderr: "pipe" },
+    );
+    const printed = Promise.all([
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
+    ]);
+
+    // type the code back once the universe mails it, until the CLI exits
+    void mailbox.code().then(async (code) => {
+        const writer = child.stdin.getWriter();
+        await writer.write(new TextEncoder().encode(`${code}\n`));
+        await writer.close();
+    });
+    const [exited, [output, error]] = await Promise.all([child.exited, printed]);
+    expect(exited, `login: ${error}\n${mailbox.lines.join("\n")}`).toBe(0);
+
+    return output;
+}
+
+/** Find a free loopback port, so the test's machine runs beside one serving this computer. */
+async function freePort(): Promise<number> {
+    const probe = HOST.server.http({ hostname: "127.0.0.1", port: 0, fetch: () => new Response() });
+    const port = Number(probe.url.port);
+    await probe.stop();
+
+    return port;
+}
+
+/** Create an unlocked default keychain in an isolated home, leaving the user's keychains alone. */
+async function isolateKeychain(home: string): Promise<void> {
+    await HOST.files.mkdir(join(home, "Library", "Keychains"), { recursive: true });
+    const variables = { PATH: "/usr/bin:/bin", HOME: home };
+    for (const command of [
+        ["create-keychain", "-p", "", KEYCHAIN],
+        ["default-keychain", "-d", "user", "-s", KEYCHAIN],
+        ["unlock-keychain", "-p", "", KEYCHAIN],
+    ]) {
+        await run(["/usr/bin/security", ...command], home, variables);
+    }
+}
+
+/** Execute one compiled command with retained diagnostics, bounded by the test's timeout. */
 async function run(
     command: string[],
     directory: string,
-    environment: Record<string, string>,
+    variables: Record<string, string>,
 ): Promise<string> {
-    const process = Bun.spawn(command, {
-        cwd: directory,
-        env: environment,
+    const child = HOST.process.spawn(command, {
+        workingDirectory: directory,
+        variables,
         stdout: "pipe",
         stderr: "pipe",
-        timeout: 3000,
     });
     const [code, output, error] = await Promise.all([
-        process.exited,
-        new Response(process.stdout).text(),
-        new Response(process.stderr).text(),
+        child.exited,
+        new Response(child.stdout).text(),
+        new Response(child.stderr).text(),
     ]);
-    expect(code, error).toBe(0);
+
+    // name the failure with the machine's log, which the test's directory takes with it
+    const log = join(directory, "state", "machine.log");
+    const logged =
+        code !== 0 && (await HOST.files.exists(log)) ? await HOST.files.readTextFile(log) : "";
+    expect(code, `${command.join(" ")}: ${error}\n${logged}`).toBe(0);
 
     return output;
 }

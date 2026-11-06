@@ -1,14 +1,18 @@
-import { cp, mkdir, readFile, realpath } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { basename, dirname, join, sep } from "node:path";
+import type { Environment, FileSystem } from "@destack/environment";
 import type { Target } from "@destack/update/release";
 import { schema } from "@destack/schema";
 import { parseSync, Visitor } from "rolldown/utils";
 import MagicString from "magic-string";
-import { selectPlatform } from "./platform.ts";
+import { Platform } from "./platform.ts";
+import { run } from "./command.ts";
 
-/** The bundled packages whose modules read their own files at run time, from their copies in the toolchain. */
-const RUNTIME_FILES: ReadonlySet<string> = new Set(["vite", "lightningcss"]);
+/** The name rewritten modules bind the executable's `Toolchain` to. */
+const TOOLCHAIN_BINDING = "__destackToolchain";
+
+/** The bundled packages reading their own files at run time from their toolchain copies. */
+const RUNTIME_FILES: ReadonlySet<string> = new Set(["vite", "lightningcss", "rolldown"]);
 
 /** The fields of a package.json the toolchain reads. */
 const PackageManifest = schema
@@ -18,7 +22,7 @@ const PackageManifest = schema
     })
     .strip();
 
-/** A package the compiler reads at run time, found through the chain of packages depending on it. */
+/** A package the compiler reads at run time, found through its chain of dependents. */
 interface ToolchainPackage {
     /** The chain of packages from the workspace package to the package itself. */
     readonly chain: readonly string[];
@@ -31,8 +35,10 @@ export async function buildToolchain(
     root: string,
     target: Target,
     destination: string,
+    environment: Environment<"files" | "process">,
 ): Promise<void> {
     // copy each toolchain package into one flat node_modules
+    const { files } = environment;
     const modules = join(destination, "node_modules");
     const copied = new Map<string, string>();
     for (const entry of toolchainPackages(target)) {
@@ -40,37 +46,38 @@ export async function buildToolchain(
         const [workspace, ...names] = entry.chain;
         let directory = join(root, workspace ?? "");
         for (const name of names) {
-            directory = await locate(name, directory);
+            directory = await locate(name, directory, files);
         }
         const name = names.at(-1) ?? "";
 
         // copy only the manifests of a metadata package
         if (entry.contents === "metadata") {
-            await mkdir(join(modules, name), { recursive: true });
+            await files.mkdir(join(modules, name), { recursive: true });
             for (const file of ["package.json", "destack.json"]) {
-                await cp(join(directory, file), join(modules, name, file));
+                await files.copyFile(join(directory, file), join(modules, name, file));
             }
         }
         // copy the package with its dependencies and refuse two copies of one name
         else {
-            await copyPackage(name, directory, modules, copied);
+            await copyPackage(name, directory, modules, copied, files);
         }
     }
 
     // bundle the lint rules into one module
-    const lint = await Bun.build({
-        entrypoints: [join(root, "@destack/check/src/lint/index.ts")],
-        target: "bun",
-        outdir: destination,
-        naming: "lint.js",
-    });
-    if (!lint.success) {
-        throw new AggregateError(lint.logs, "lint rule bundling failed");
-    }
+    await run(
+        environment.process.executable,
+        [
+            "build",
+            join(root, "@destack/check/src/lint/index.ts"),
+            "--target=bun",
+            `--outfile=${join(destination, "lint.js")}`,
+        ],
+        environment,
+    );
 }
 
-/** Point the bundled modules of packages reading their own files at run time to their copies in the toolchain beside the executable. */
-export function toolchainPlugin(): Bun.BunPlugin {
+/** Point modules reading their own files at run time to their toolchain copies. */
+export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
     return {
         name: "destack-executable-toolchain",
         setup(build) {
@@ -81,30 +88,38 @@ export function toolchainPlugin(): Bun.BunPlugin {
                     return;
                 }
 
-                // locate the module's copy relative to the executable
-                const copy = `toolchain/node_modules/${installed.name}/${installed.path}`;
-                const url = `new URL(${JSON.stringify(copy)}, Bun.pathToFileURL(process.execPath)).href`;
-                const source = await readFile(path, "utf8");
+                // locate the module's copy in the executable's toolchain
+                const copy = `node_modules/${installed.name}/${installed.path}`;
+                const url = `Bun.pathToFileURL(${TOOLCHAIN_BINDING}.of(process.execPath) + ${JSON.stringify(`/${copy}`)}).href`;
+                const source = await files.readTextFile(path);
 
-                // require from the copy in a CommonJS module
-                if (path.endsWith(".cjs") || !(await isModulePackage(installed.directory))) {
+                // require from the copy in a CommonJS module, its source taking that require as a parameter
+                const isCommonJs =
+                    path.endsWith(".cjs") ||
+                    (path.endsWith(".js") && !(await isModulePackage(installed.directory, files)));
+                if (isCommonJs) {
+                    const copied = `process.getBuiltinModule("node:module").createRequire(${url})`;
+
                     return {
-                        contents: `var require = process.getBuiltinModule("node:module").createRequire(${url});\n${source}`,
+                        contents: `var ${TOOLCHAIN_BINDING} = require("@destack/check/toolchain").Toolchain;\n(function (require) {\n${source}\n})(${copied});`,
                         loader: "js",
                     };
                 }
 
                 // read the copy's URL as the module's own
-                return { contents: replaceModuleUrl(path, source, url), loader: "js" };
+                return {
+                    contents: `import { Toolchain as ${TOOLCHAIN_BINDING} } from "@destack/check/toolchain";\n${replaceModuleUrl(path, source, url)}`,
+                    loader: "js",
+                };
             });
         },
     };
 }
 
-/** List the packages the compiler reads at run time for a target, with the platform packages of its native tools. */
+/** List the packages the compiler reads at run time for a target, with its native tools. */
 function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     // name the target as package.json fields and napi-rs packages name platforms
-    const { system: os, architecture: cpu } = selectPlatform(target);
+    const { system: os, architecture: cpu } = Platform.of(target);
     const abi = /-(gnu|msvc)$/u.exec(target)?.[1];
     const native = `${os}-${cpu}${abi === undefined ? "" : `-${abi}`}`;
     const build = "@destack/build";
@@ -132,6 +147,7 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
 
         // the packages builds name
         { chain: [build, "@destack/test"], contents: "metadata" },
+        { chain: [build, "@destack/package"], contents: "metadata" },
         { chain: [build, "@destack/resource"], contents: "metadata" },
 
         // the linter, the formatter and the type-aware linter
@@ -146,15 +162,16 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     ];
 }
 
-/** Copy a package and its dependencies into a flat node_modules, refusing two installations of one name. */
+/** Copy a package and its dependencies into a flat node_modules, refusing duplicate names. */
 async function copyPackage(
     name: string,
     directory: string,
     modules: string,
     copied: Map<string, string>,
+    files: FileSystem,
 ): Promise<void> {
     // copy each installation once, refusing another installation of the same name
-    const real = await realpath(directory);
+    const real = await files.realPath(directory);
     const previous = copied.get(name);
     if (previous === real) {
         return;
@@ -166,29 +183,50 @@ async function copyPackage(
     copied.set(name, real);
 
     // copy the package's own files, leaving out its installed dependencies
-    await cp(real, join(modules, name), {
-        recursive: true,
-        dereference: true,
-        filter: (path) => basename(path) !== "node_modules",
-    });
+    await copyTree(real, join(modules, name), files);
 
     // copy its dependencies, resolved from the package
     const manifest = PackageManifest.parse(
-        JSON.parse(await readFile(join(real, "package.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(real, "package.json"))),
     );
     for (const dependency of Object.keys(manifest.dependencies ?? {})) {
-        await copyPackage(dependency, await locate(dependency, real), modules, copied);
+        const located = await locate(dependency, real, files);
+        await copyPackage(dependency, located, modules, copied, files);
+    }
+}
+
+/** Copy a directory's files with their links followed, leaving out installed dependencies. */
+async function copyTree(source: string, destination: string, files: FileSystem): Promise<void> {
+    // create the directory, and list its entries but node_modules
+    await files.mkdir(destination, { recursive: true });
+    const entries = await files.readDirectory(source);
+    const copied = entries.filter((entry) => basename(entry.name) !== "node_modules");
+
+    // copy each entry, a link as what it points at
+    for (const entry of copied) {
+        const from = join(source, entry.name);
+        const to = join(destination, entry.name);
+        const kind = entry.kind === "symlink" ? (await files.stat(from)).kind : entry.kind;
+
+        // copy a directory's entries
+        if (kind === "directory") {
+            await copyTree(from, to, files);
+        }
+        // copy a file's bytes
+        else {
+            await files.copyFile(from, to);
+        }
     }
 }
 
 /** Find an installed package's directory from a package directory. */
-async function locate(name: string, from: string): Promise<string> {
-    return realpath(
+async function locate(name: string, from: string, files: FileSystem): Promise<string> {
+    return files.realPath(
         dirname(createRequire(join(from, "package.json")).resolve(`${name}/package.json`)),
     );
 }
 
-/** Read the installed package containing a module: its name, directory and the module's path within it. */
+/** Read the installed package containing a module: its name, directory and module path. */
 function installation(
     path: string,
 ): { readonly name: string; readonly directory: string; readonly path: string } | undefined {
@@ -210,9 +248,9 @@ function installation(
 }
 
 /** Report whether a package's modules are ECMAScript modules. */
-async function isModulePackage(directory: string): Promise<boolean> {
+async function isModulePackage(directory: string, files: FileSystem): Promise<boolean> {
     const manifest = PackageManifest.parse(
-        JSON.parse(await readFile(join(directory, "package.json"), "utf8")),
+        JSON.parse(await files.readTextFile(join(directory, "package.json"))),
     );
 
     return manifest.type === "module";

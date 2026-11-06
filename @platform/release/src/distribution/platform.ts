@@ -1,4 +1,4 @@
-import { InstallerFormat } from "../catalog/index.ts";
+import { InstallerFormat } from "./catalog.ts";
 import type { Target } from "@destack/update/release";
 
 /** The code signers of the platforms that sign their applications. */
@@ -82,9 +82,9 @@ export interface Platform {
     readonly runner: string;
     /** The Bun runtime compiled into the target's executables. */
     readonly runtime: Bun.Build.CompileTarget;
-    /** The operating system, as Node names it in `process.platform`. */
+    /** The operating system, as Node's `process.platform` gives it. */
     readonly system: NodeJS.Platform;
-    /** The architecture, as Node names it in `process.arch`. */
+    /** The architecture, as Node's `process.arch` gives it. */
     readonly architecture: NodeJS.Architecture;
     /** The layout of the native desktop in the distribution. */
     readonly bundle: Bundle;
@@ -94,6 +94,20 @@ export interface Platform {
     readonly installers: readonly Installer[];
 }
 
+/** A released target's platform. */
+export const Platform = {
+    /** Find the platform of a released target. */
+    of(target: Target): Platform {
+        // refuse a target without a platform row
+        const platform = PLATFORMS.find((candidate) => candidate.target === target);
+        if (platform === undefined) {
+            throw new Error(`unsupported distribution target: ${target}`);
+        }
+
+        return platform;
+    },
+};
+
 /** The layout of a native desktop in a distribution. */
 export interface Bundle {
     /** The Tauri bundle the native desktop builds as, or none for the bare executable. */
@@ -102,7 +116,7 @@ export interface Bundle {
     readonly application: string;
     /** The native desktop executable, relative to the application directory. */
     readonly executable: string;
-    /** The directory of the commands the native desktop starts, relative to the application directory. */
+    /** The directory of the commands the native desktop starts, relative to the application. */
     readonly helpers: string;
 }
 
@@ -116,32 +130,24 @@ export interface Installer {
     readonly runner: string;
 }
 
+/** A native installer built from the applications of every target that lists it. */
+export const Installer = {
+    /** List each installer with the platforms whose applications it ships. */
+    list(): readonly InstallerPlatforms[] {
+        // group the platforms by the installer rows they share
+        const installers = new Set(PLATFORMS.flatMap((platform) => platform.installers));
+
+        return [...installers].map((installer) => ({
+            installer,
+            platforms: PLATFORMS.filter((platform) => platform.installers.includes(installer)),
+        }));
+    },
+};
+
 /** An installer with the platforms whose applications it ships. */
 export interface InstallerPlatforms {
     /** The installer. */
     readonly installer: Installer;
     /** The platforms whose applications the installer ships. */
     readonly platforms: readonly Platform[];
-}
-
-/** Find the platform of a released target. */
-export function selectPlatform(target: Target): Platform {
-    // refuse a target without a platform row
-    const platform = PLATFORMS.find((candidate) => candidate.target === target);
-    if (platform === undefined) {
-        throw new Error(`unsupported distribution target: ${target}`);
-    }
-
-    return platform;
-}
-
-/** List each installer of the released platforms with the platforms whose applications it ships. */
-export function listInstallers(): readonly InstallerPlatforms[] {
-    // group the platforms by the installer rows they share
-    const installers = new Set(PLATFORMS.flatMap((platform) => platform.installers));
-
-    return [...installers].map((installer) => ({
-        installer,
-        platforms: PLATFORMS.filter((platform) => platform.installers.includes(installer)),
-    }));
 }

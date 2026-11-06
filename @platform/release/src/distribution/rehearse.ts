@@ -1,7 +1,12 @@
+import {
+    type Environment,
+    FileSystemError,
+    type HostCapability,
+    type Listener,
+    Pipe,
+} from "@destack/environment";
 import { selectedChannel } from "./identity.ts";
 import { Updater, type UpdaterOptions, Release } from "@destack/update";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
 import {
     type ReleaseKeys,
@@ -10,77 +15,101 @@ import {
     TrustedRoot,
 } from "@destack/update/publish";
 import type { Metadata, Root } from "@tufjs/models";
-import { print } from "../output/index.ts";
+import { print } from "./output.ts";
 import { readCommit } from "./distribution.ts";
 
-/** Exercise a real archive through authenticated download, separate staging and activation sessions. */
-async function rehearse(): Promise<void> {
+/** The milliseconds a rehearsal root stays valid: one day. */
+const ROOT_LIFETIME_MILLISECONDS = 86_400_000;
+
+/** Download, stage and activate a real archive in separate authenticated sessions. */
+export async function rehearseUpdate(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
     // generate disposable signing roles entirely in memory
-    const [version, archive] = process.argv.slice(2);
+    const { crypto, files, host } = environment;
+    const [version, archive] = arguments_;
     if (version === undefined || archive === undefined) {
-        throw new Error("usage: rehearse.ts <version> <archive>");
+        throw new Error("usage: distribution rehearse <version> <archive>");
     }
-    const release = new Release(version, Release.target(process.platform, process.arch));
+    const release = new Release(version, Release.target(host.os, host.architecture));
     const keys = {
-        targets: SigningKey.generate(),
-        snapshot: SigningKey.generate(),
-        timestamp: SigningKey.generate(),
+        targets: await SigningKey.generate("ed25519", crypto),
+        snapshot: await SigningKey.generate("ed25519", crypto),
+        timestamp: await SigningKey.generate("ed25519", crypto),
     };
-    const root = createSignedRoot(keys);
+    const root = await createSignedRoot(keys, environment);
 
     // serve only the temporary authenticated repository on loopback
-    const directory = await mkdtemp(join(tmpdir(), "destack-install-rehearsal-"));
+    const directory = await files.makeTemporaryDirectory("destack-install-rehearsal-");
     const repository = join(directory, "repository");
-    const server = serveRepository(repository);
+    const server = serveRepository(repository, environment);
     try {
         // publish the archive as the only release of a fresh repository
-        await SignedRepository.create(repository, 1, root, keys, [
-            {
-                target: release.target,
-                version: release.version,
-                commit: await readCommit(import.meta.dirname),
-                archive: resolve(archive),
-            },
-        ]);
+        await SignedRepository.create(
+            repository,
+            1,
+            root,
+            keys,
+            [
+                {
+                    target: release.target,
+                    version: release.version,
+                    commit: await readCommit(import.meta.dirname, environment),
+                    archive: resolve(archive),
+                },
+            ],
+            environment,
+        );
         const options = {
             directory: join(directory, "distribution"),
             repository: new URL(server.url),
-            channel: release.channel,
             root: JSON.stringify(root.toJSON()),
             target: release.target,
-            applicationIdentifier: selectedChannel().applicationIdentifier,
-            ...(process.platform === "darwin" && { application: join(directory, "Destack.app") }),
+            applicationIdentifier: selectedChannel(environment).applicationIdentifier,
+            ...(host.os === "darwin" && { application: join(directory, "Destack.app") }),
+            environment,
         };
 
         // stage the release without activating it in the first process lifetime
         await stageUpdate(options);
 
         // renew freshness without the targets key
-        const targets = await readFile(join(repository, "metadata/1.targets.json"));
+        const targets = Buffer.from(
+            await files.readFile(join(repository, "metadata/1.targets.json")),
+        );
         await SignedRepository.renew(
             repository,
             2,
             root,
             { snapshot: keys.snapshot, timestamp: keys.timestamp },
             targets,
+            environment,
         );
 
         // activate from persisted staging in a new process lifetime
         await activateStaged(options, release.version);
-        print(`verified real-archive staging, renewal and activation for ${release.directory}`);
+        print(
+            `verified real-archive staging, renewal and activation for ${release.directory}`,
+            environment,
+        );
     } finally {
         await server.stop(true);
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true, force: true });
     }
 }
 
-/** Create a one-day root over the online keys and sign it with two of three disposable root keys. */
-function createSignedRoot(keys: ReleaseKeys): Metadata<Root> {
+/** Create a one-day root over the online keys, signed by two of three disposable root keys. */
+async function createSignedRoot(
+    keys: ReleaseKeys,
+    environment: Environment<HostCapability>,
+): Promise<Metadata<Root>> {
     // generate the disposable root quorum
+    const { crypto } = environment;
     const [first, second, third] = [
-        SigningKey.generate(),
-        SigningKey.generate(),
-        SigningKey.generate(),
+        await SigningKey.generate("ed25519", crypto),
+        await SigningKey.generate("ed25519", crypto),
+        await SigningKey.generate("ed25519", crypto),
     ];
     const root = TrustedRoot.create(
         1,
@@ -90,19 +119,23 @@ function createSignedRoot(keys: ReleaseKeys): Metadata<Root> {
             snapshot: keys.snapshot.public,
             timestamp: keys.timestamp.public,
         },
-        new Date(Date.now() + 86400000).toISOString(),
+        new Date(environment.clock.now() + ROOT_LIFETIME_MILLISECONDS).toISOString(),
+        environment,
     );
 
     // meet the two-of-three threshold
-    root.sign((bytes) => first.sign(bytes));
-    root.sign((bytes) => second.sign(bytes));
+    await first.sign(root);
+    await second.sign(root);
 
     return root;
 }
 
 /** Serve the files of a repository directory on a loopback port. */
-function serveRepository(repository: string): Bun.Server<undefined> {
-    return Bun.serve({
+function serveRepository(
+    repository: string,
+    environment: Environment<"files" | "server">,
+): Listener {
+    return environment.server.http<undefined>({
         hostname: "127.0.0.1",
         port: 0,
         async fetch(request) {
@@ -114,9 +147,23 @@ function serveRepository(repository: string): Bun.Server<undefined> {
             if (!path.startsWith(repository + sep)) {
                 return new Response(null, { status: 400 });
             }
-            const file = Bun.file(path);
 
-            return (await file.exists()) ? new Response(file) : new Response(null, { status: 404 });
+            // open the file, answering a missing one as not found
+            const file = await environment.files
+                .open(path, { read: true })
+                .catch((error: unknown) => FileSystemError.absent(error));
+            if (file === undefined) {
+                return new Response(null, { status: 404 });
+            }
+
+            // stream the file, closing it once sent
+            const { size } = await file.stat();
+            const closing = new TransformStream<Uint8Array, Uint8Array>({
+                flush: () => file.close(),
+            });
+            const body = Pipe.through(file.readable(), closing);
+
+            return new Response(body, { headers: { "content-length": String(size) } });
         },
     });
 }
@@ -152,5 +199,3 @@ async function activateStaged(options: UpdaterOptions, version: string): Promise
         throw new Error("activation did not select the authenticated release");
     }
 }
-
-await rehearse();

@@ -1,24 +1,22 @@
+import { Bookmark } from "@destack/object/client";
+import { Loopback } from "@destack/machine/computer";
 import { selectedChannel } from "./identity.ts";
+import type { Environment, HostCapability } from "@destack/environment";
 import { Updater, Release } from "@destack/update";
 import type { Target } from "@destack/update/release";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { schema } from "@destack/schema";
 import { RepositoryConfiguration } from "../repository/index.ts";
-import { print } from "../output/index.ts";
+import { print } from "./output.ts";
 
-/** The running host `destack status --json` reports, by its identity. */
-const Status = schema
-    .object({ daemon: schema.object({ id: schema.string().min(1) }).strip() })
-    .strip();
+/** How long one shipped command may run, in milliseconds. */
+const COMMAND_TIMEOUT_MILLISECONDS = 120_000;
 
-/** The staged executable and its daemon state, which cleanup reads after a failure. */
+/** The staged executable and its machine state, which cleanup reads after a failure. */
 interface Installation {
     /** The staged executable, once staging finishes. */
     executable: string | undefined;
-    /** Whether the installed daemon runs. */
+    /** Whether the installed machine runs. */
     isRunning: boolean;
 }
 
@@ -32,17 +30,17 @@ interface Staging {
     executable: string;
 }
 
-/** Install the published native release and verify its persistent daemon and update selection. */
-async function verifyInstallation(): Promise<void> {
+/** Install the published native release and verify its persistent machine and update selection. */
+export async function verifyInstallation(environment: Environment<HostCapability>): Promise<void> {
     // verify inside one temporary directory and keep the first failure
-    const configuration = new RepositoryConfiguration();
-    const target = Release.target(process.platform, process.arch);
-    const directory = await mkdtemp(join(tmpdir(), "destack-published-"));
+    const configuration = new RepositoryConfiguration(environment);
+    const target = Release.target(environment.host.os, environment.host.architecture);
+    const directory = await environment.files.makeTemporaryDirectory("destack-published-");
     const state = join(directory, "state");
     const installation: Installation = { executable: undefined, isRunning: false };
     let failure: Error | undefined;
     try {
-        await verifyRelease(configuration, target, directory, state, installation);
+        await verifyRelease(configuration, target, directory, state, installation, environment);
     } catch (error) {
         // preserve the original verification failure if cleanup also fails
         failure =
@@ -53,7 +51,7 @@ async function verifyInstallation(): Promise<void> {
 
     // complete cleanup before reporting either verification or cleanup failure
     try {
-        await cleanInstallation(directory, state, installation, failure === undefined);
+        await cleanInstallation(directory, state, installation, failure === undefined, environment);
     } catch (error) {
         if (failure !== undefined) {
             throw new AggregateError(
@@ -76,29 +74,32 @@ async function verifyRelease(
     directory: string,
     state: string,
     installation: Installation,
+    environment: Environment<HostCapability>,
 ): Promise<void> {
     // authenticate downloaded executables before invoking the distribution's own installer
-    const { version, archive, executable } = await stageRelease(configuration, directory, target);
+    const staging = await stageRelease(configuration, directory, target, environment);
+    const { version, archive, executable } = staging;
     installation.executable = executable;
 
     // install twice through the shipped CLI and preserve one isolated user directory
-    const environment = {
-        ...process.env,
+    const variables = {
+        ...environment.process.variables,
         DESTACK_DIRECTORY: state,
         DESTACK_UPDATE_URL: configuration.url.href,
     };
-    await command(executable, ["self", "install", "--archive", archive], environment);
-    await command(executable, ["self", "install", "--archive", archive], environment);
-    await verifyDaemonRestart(executable, environment, installation);
+    const install = ["self", "install", "--archive", archive];
+    await command(executable, install, variables, environment);
+    await command(executable, install, variables, environment);
+    await verifyMachineRestart(executable, state, variables, installation, environment);
 
     // require the installed executable to authenticate its current public update feed
     const selection: unknown = JSON.parse(
-        await command(executable, ["self", "update", "--check", "--json"], environment),
+        await command(executable, ["self", "update", "--stage", "--json"], variables, environment),
     );
-    if (!isDeepStrictEqual(selection, { current: version, latest: version, available: false })) {
+    if (!isDeepStrictEqual(selection, { installed: version, staged: null })) {
         throw new Error("installed update selection differs from the published release");
     }
-    print(`verified installation and restart of ${version} on ${target}`);
+    print(`verified installation and restart of ${version} on ${target}`, environment);
 }
 
 /** Download and stage the workflow's published release through a bootstrap updater. */
@@ -106,16 +107,17 @@ async function stageRelease(
     configuration: RepositoryConfiguration,
     directory: string,
     target: Target,
+    environment: Environment<HostCapability>,
 ): Promise<Staging> {
     // open a bootstrap updater on the published repository
     await using updater = await Updater.open({
         directory: join(directory, "bootstrap"),
         repository: configuration.url,
-        channel: configuration.channel,
-        root: JSON.stringify((await configuration.root()).toJSON()),
+        root: JSON.stringify(configuration.root().toJSON()),
         target,
-        applicationIdentifier: selectedChannel().applicationIdentifier,
-        ...(process.platform === "darwin" && {
+        applicationIdentifier: selectedChannel(environment).applicationIdentifier,
+        environment,
+        ...(environment.host.os === "darwin" && {
             application: join(directory, "bootstrap.app"),
         }),
     });
@@ -126,7 +128,7 @@ async function stageRelease(
         throw new Error("published repository contains no installable release");
     }
     const version = update.release.version;
-    if (version !== process.env["DESTACK_RELEASE_VERSION"]) {
+    if (version !== environment.process.variables["DESTACK_RELEASE_VERSION"]) {
         throw new Error("published release differs from the workflow version");
     }
 
@@ -141,52 +143,49 @@ async function stageRelease(
     };
 }
 
-/** Start, stop and start the installed daemon and require the same host identity across the restart. */
-async function verifyDaemonRestart(
+/** Start, stop and start the installed machine, requiring one host identity across the restart. */
+async function verifyMachineRestart(
     executable: string,
-    environment: NodeJS.ProcessEnv,
+    state: string,
+    variables: Readonly<Record<string, string>>,
     installation: Installation,
+    environment: Environment<HostCapability>,
 ): Promise<void> {
-    // record the host of the first daemon
-    await command(executable, ["daemon", "start", "--json"], environment);
+    // record the host of the first machine
+    await command(executable, ["self", "start", "--json"], variables, environment);
     installation.isRunning = true;
-    const before = Status.parse(
-        JSON.parse(await command(executable, ["status", "--json"], environment)),
-    );
+    const before = await new Loopback(state, environment, new Bookmark()).computer();
 
-    // restart the daemon
-    await command(executable, ["daemon", "stop", "--json"], environment);
+    // restart the machine
+    await command(executable, ["self", "stop", "--json"], variables, environment);
     installation.isRunning = false;
-    await command(executable, ["daemon", "start", "--json"], environment);
+    await command(executable, ["self", "start", "--json"], variables, environment);
     installation.isRunning = true;
 
-    // compare the host of the restarted daemon
-    const after = Status.parse(
-        JSON.parse(await command(executable, ["status", "--json"], environment)),
-    );
-    if (before.daemon.id !== after.daemon.id) {
-        throw new Error("installed daemon did not preserve its host across restart");
+    // compare the host of the restarted machine
+    const after = await new Loopback(state, environment, new Bookmark()).computer();
+    if (before.id !== after.id) {
+        throw new Error("installed machine did not preserve its host across restart");
     }
 }
 
-/** Stop a running installed daemon and delete the directory of a verified installation. */
+/** Stop a running installed machine and delete the directory of a verified installation. */
 async function cleanInstallation(
     directory: string,
     state: string,
     installation: Installation,
     isVerified: boolean,
+    environment: Environment<HostCapability>,
 ): Promise<void> {
     // stop verified installations before deleting their temporary executable files
     if (installation.isRunning && installation.executable !== undefined) {
-        await command(installation.executable, ["daemon", "stop", "--json"], {
-            ...process.env,
-            DESTACK_DIRECTORY: state,
-        });
+        const variables = { ...environment.process.variables, DESTACK_DIRECTORY: state };
+        await command(installation.executable, ["self", "stop", "--json"], variables, environment);
     }
 
     // retain failed installations for runner diagnostics
     if (isVerified) {
-        await rm(directory, { recursive: true, force: true });
+        await environment.files.remove(directory, { recursive: true, force: true });
     }
 }
 
@@ -194,15 +193,16 @@ async function cleanInstallation(
 async function command(
     executable: string,
     arguments_: string[],
-    environment: NodeJS.ProcessEnv,
+    variables: Readonly<Record<string, string>>,
+    environment: Environment<"process">,
 ): Promise<string> {
     // retain output for exact assertions without inheriting interactive input
-    const child = Bun.spawn([executable, ...arguments_], {
-        env: environment,
+    const child = environment.process.spawn([executable, ...arguments_], {
+        variables,
         stdin: "ignore",
         stdout: "pipe",
         stderr: "pipe",
-        timeout: 120000,
+        signal: environment.clock.timeout(COMMAND_TIMEOUT_MILLISECONDS),
     });
     const [code, output, diagnostic] = await Promise.all([
         child.exited,
@@ -217,5 +217,3 @@ async function command(
 
     return output;
 }
-
-await verifyInstallation();

@@ -1,36 +1,36 @@
-import { writeFile } from "node:fs/promises";
-import { createReadStream } from "node:fs";
+import { CHECKOUT } from "./distribution.ts";
 import { createHash } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { selectPlatform, version } from "./index.ts";
+import { join } from "node:path";
+import type { Environment, HostCapability } from "@destack/environment";
+import { Platform, releaseVersion } from "./index.ts";
 import { Release } from "@destack/update/release";
-import { print } from "../output/index.ts";
-
-/** Repository containing the compiled target directories. */
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+import { print } from "./output.ts";
 
 /** Package one compiled target and record its digest. */
-async function pack(): Promise<void> {
+export async function packDistribution(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
     // package the desktop and standalone CLI together
-    const target = new Release(
-        version,
-        process.argv[2] ?? Release.target(process.platform, process.arch),
-    ).target;
-    const directory = join(ROOT, "dist", version);
+    const { files, host, process } = environment;
+    const version = await releaseVersion(CHECKOUT, environment);
+    const [selected] = arguments_;
+    const target = new Release(version, selected ?? Release.target(host.os, host.architecture))
+        .target;
+    const directory = join(CHECKOUT, "dist", version);
     const name = `destack-${version}-${target}.tar.gz`;
-    const child = Bun.spawn(
+    const child = process.spawn(
         [
             "tar",
             "-czf",
             join(directory, name),
             "-C",
             join(directory, target),
-            selectPlatform(target).bundle.application,
+            Platform.of(target).bundle.application,
             "bin",
         ],
         {
-            env: { ...process.env, COPYFILE_DISABLE: "1" },
+            variables: { ...process.variables, COPYFILE_DISABLE: "1" },
             stdout: "inherit",
             stderr: "inherit",
         },
@@ -43,18 +43,15 @@ async function pack(): Promise<void> {
     // record the exact bytes published for this target
     const hash = createHash("sha256");
     let size = 0;
-    for await (const chunk of createReadStream(join(directory, name))) {
-        const bytes: unknown = chunk;
-        if (!(bytes instanceof Uint8Array)) {
-            throw new TypeError(`a chunk of ${name} is not bytes`);
-        }
+    await using archive = await files.open(join(directory, name), { read: true });
+    for await (const bytes of archive.readable()) {
         hash.update(bytes);
         size += bytes.length;
     }
     const sha256 = hash.digest("hex");
 
     // persist the digest and size from the same bounded read
-    await writeFile(
+    await files.writeTextFile(
         join(directory, `${target}.json`),
         JSON.stringify(
             {
@@ -67,7 +64,5 @@ async function pack(): Promise<void> {
             4,
         ) + "\n",
     );
-    print(`${name}: ${size} bytes, SHA-256 ${sha256}`);
+    print(`${name}: ${size} bytes, SHA-256 ${sha256}`, environment);
 }
-
-await pack();

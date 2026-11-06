@@ -1,4 +1,3 @@
-import { CHANNELS } from "@destack/update/release";
 import { schema } from "@destack/schema";
 
 /** The native installer formats a release publishes beside its update archives. */
@@ -40,8 +39,6 @@ export type CatalogDistribution = schema.Infer<typeof CatalogDistribution>;
 export const Catalog = schema.object({
     /** Calendar version shared by every download. */
     version: schema.string(),
-    /** The channel publishing the release. */
-    channel: schema.enum(CHANNELS),
     /** Platform-specific archives and installers, by target or installer name. */
     downloads: schema.record(schema.string(), CatalogDistribution),
 });

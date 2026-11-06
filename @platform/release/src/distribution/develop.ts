@@ -1,32 +1,36 @@
-import { ReleaseChannel } from "@destack/daemon/process";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { Stage } from "@destack/update/release";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import type { Environment, HostCapability } from "@destack/environment";
 import { configureApplication } from "./application.ts";
-import { version } from "./distribution.ts";
-
-/** Repository containing the native shell. */
-const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+import { CHECKOUT, releaseVersion } from "./distribution.ts";
 
 /** Run the native shell with the development identity and generated icons. */
-async function develop(): Promise<void> {
+export async function developDistribution(environment: Environment<HostCapability>): Promise<void> {
     // isolate generated native configuration
-    const staging = join(ROOT, "dist/.build");
-    await mkdir(staging, { recursive: true });
-    const directory = await mkdtemp(join(staging, "desktop-dev-"));
-    const identity = ReleaseChannel.of("dev");
+    const { files, process } = environment;
+    const staging = join(CHECKOUT, "dist/.build");
+    await files.mkdir(staging, { recursive: true });
+    const directory = await files.makeTemporaryDirectory("desktop-dev-", { directory: staging });
+    const identity = Stage.of("local");
+    const version = await releaseVersion(CHECKOUT, environment);
 
     // retain generated icons for Cargo's build and the complete interactive lifetime
     try {
-        const configuration = await configureApplication(ROOT, directory, identity, version);
-        const child = Bun.spawn(["cargo", "run", "--manifest-path", "native/Cargo.toml"], {
-            cwd: join(ROOT, "@destack/desktop"),
-            env: {
-                ...process.env,
+        const configuration = await configureApplication(
+            CHECKOUT,
+            directory,
+            identity,
+            version,
+            environment,
+        );
+        const child = process.spawn(["cargo", "run", "--manifest-path", "native/Cargo.toml"], {
+            workingDirectory: join(CHECKOUT, "@destack/desktop"),
+            variables: {
+                ...process.variables,
                 TAURI_CONFIG: configuration,
-                DESTACK_RELEASE_CHANNEL: identity.name,
-                DESTACK_ISSUER: process.env["DESTACK_ISSUER"] ?? identity.issuer,
-                CARGO_TARGET_DIR: join(ROOT, "dist/.native"),
+                DESTACK_STAGE: identity.name,
+                DESTACK_ISSUER: process.variables["DESTACK_ISSUER"] ?? identity.issuer,
+                CARGO_TARGET_DIR: join(CHECKOUT, "dist/.native"),
             },
             stdin: "inherit",
             stdout: "inherit",
@@ -37,8 +41,6 @@ async function develop(): Promise<void> {
             throw new Error(`desktop exited with status ${code}`);
         }
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true, force: true });
     }
 }
-
-await develop();

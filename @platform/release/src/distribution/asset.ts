@@ -1,5 +1,5 @@
-import { realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, sep } from "node:path";
+import type { FileSystem } from "@destack/environment";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseSync, Visitor } from "rolldown/utils";
 import MagicString from "magic-string";
@@ -20,6 +20,7 @@ export async function transformAssets(
     path: string,
     root: string,
     assets: Set<string>,
+    files: FileSystem,
 ): Promise<string | undefined> {
     // leave dependency loaders and modules without directory URLs unchanged
     if (path.includes(`${sep}node_modules${sep}`) || !source.includes("import.meta.url")) {
@@ -40,12 +41,12 @@ export async function transformAssets(
     const output = new MagicString(source);
     for (const location of references) {
         const url = new URL(location.value, pathToFileURL(path));
-        const directory = await realpath(fileURLToPath(url));
+        const directory = await files.realPath(fileURLToPath(url));
         const local = relative(root, directory);
         if (local === ".." || local.startsWith(`..${sep}`) || isAbsolute(local)) {
             throw new Error(`executable asset leaves its root: ${directory}`);
         }
-        if (!(await stat(directory)).isDirectory()) {
+        if ((await files.stat(directory)).kind !== "directory") {
             throw new Error(`executable asset is not a directory: ${directory}`);
         }
         assets.add(directory);
@@ -59,7 +60,7 @@ export async function transformAssets(
     return output.toString();
 }
 
-/** Collect the `new URL("./directory/", import.meta.url)` references of a parsed module. */
+/** Collect the `new URL("./directory", import.meta.url)` references of a parsed module. */
 function directoryReferences(
     program: ReturnType<typeof parseSync>["program"],
 ): DirectoryReference[] {
