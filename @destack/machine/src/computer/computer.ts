@@ -47,7 +47,7 @@ import { ProcessRuntime, type Runtime } from "@destack/stack/runtime";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { BuildCache } from "@destack/stack/server";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
-import { startTelemetry } from "@destack/telemetry/bun";
+import { ProcessExporter, startTelemetry } from "@destack/telemetry/bun";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import stackPackage from "@destack/stack/package";
 import type { Telemetry } from "@destack/telemetry/sdk";
@@ -983,19 +983,28 @@ export class Computer implements AsyncDisposable {
         }
         cleanup.defer(() => lock.close());
 
+        // record the process's telemetry from its start: in its own log, and in its owner's home once enrolled
+        let running: Computer | undefined;
+        const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
+        const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
+        const recorded = { ...environment, telemetry };
+
         // compose the machine with the system's keychains and this channel's distribution
         const stopping = new AbortController();
         const home = StageHome.current(environment);
-        let instruments: TelemetryScope | undefined;
         const started = await Computer.start({
             isolation: "sandbox",
             directory,
-            environment,
+            environment: recorded,
             issuer: configuration.issuer,
             port,
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
-            bundled: await BuildLayer.open(configuration.bundled, environment),
+            shipped: await BunDistribution.read(configuration.shipped, files),
+            layer: await BuildLayer.open(
+                join(configuration.shipped, DISTRIBUTION_LAYER),
+                environment,
+            ),
             keychain: (service) => new BunKeychain(service, files),
             process: {
                 version: MACHINE_PACKAGE.version,
@@ -1006,47 +1015,19 @@ export class Computer implements AsyncDisposable {
                 ? {}
                 : { distribution: home.distribution(environment) }),
             report: (event, error) =>
-                instruments === undefined
-                    ? environment.process.stderr.writeSync(`${event}: ${String(error)}\n`)
-                    : instruments.captureException(error, { isEscaped: true, tags: { event } }),
+                instruments.captureException(error, { isEscaped: true, tags: { event } }),
             shutdown: () => stopping.abort(),
         });
+        running = started;
         cleanup.use(started);
         cleanup.defer(() => stopping.abort());
 
-        // record this machine's own telemetry once it is enrolled, its owner's home receiving it, the process log before
-        const instrument = async () => {
-            const telemetry = await started.#startTelemetry(environment);
-            cleanup.defer(() => telemetry.shutdown());
-            instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
-        };
-        const { machine: own, device } = started;
-        const isEnrolled = () => own.isEnrolled();
-        if (await isEnrolled()) {
-            await instrument();
-        }
-        // start it as the first sign-in enrolls the machine
-        else {
-            void device.database.log
-                .waitUntil(isEnrolled, stopping.signal)
-                .then(async () => {
-                    if (!stopping.signal.aborted) {
-                        await instrument();
-                    }
-                })
-                .catch((error: unknown) => {
-                    if (!stopping.signal.aborted) {
-                        environment.process.stderr.writeSync(`telemetry: ${inspect(error)}\n`);
-                    }
-                });
-        }
-        const note = (event: string, attributes: Readonly<Record<string, number>> = {}) => {
-            if (instruments === undefined) {
-                environment.process.stderr.writeSync(`${event}\n`);
-            } else {
-                instruments.log.info(event, attributes);
-            }
-        };
+        // flush the telemetry before the machine closes, its home's export going through the machine
+        cleanup.defer(() => telemetry.shutdown());
+
+        // note the machine's start and stop in its telemetry
+        const note = (event: string, attributes: Readonly<Record<string, number>> = {}) =>
+            instruments.log.info(event, attributes);
 
         // publish the endpoint once the listener opens
         await serveProcess({
@@ -1185,29 +1166,52 @@ export class Computer implements AsyncDisposable {
         return { server, request: routed.request, isMachine };
     }
 
-    /** Start this machine's own telemetry, posting it to its owner's home as the machine. */
-    async #startTelemetry(environment: Environment<"process">): Promise<Telemetry> {
-        // post each export to the telemetry of the owner's home where its machine answers
-        const { machine } = this;
-        const exporter = OtlpExporter.http(
-            {
-                endpoint: `${OWN_TELEMETRY_ORIGIN}${OTLP_ORIGIN_PATH}`,
-                fetch: async (request) => {
-                    // locate the owner's home and send as this machine bound to it, below the path
-                    const home = await machine.home();
-                    const { url } = await machine.directory.locate(home, machine.clock.now());
-                    const { pathname } = new URL(request.url);
-                    const target = `${SpaceMount.url(url, home)}${pathname}`;
-                    const send = machine.fetch(stackPackage.id, { partition: home });
+    /** Start a machine process's telemetry: its own log, and its owner's home once enrolled. */
+    static async #startTelemetry(
+        environment: Environment<"process">,
+        machine: () => Machine | undefined,
+    ): Promise<Telemetry> {
+        // post each export to the telemetry of the owner's home where its machine answers, nothing before it enrolls
+        const target = {
+            endpoint: `${OWN_TELEMETRY_ORIGIN}${OTLP_ORIGIN_PATH}`,
+            fetch: async (request: Request) => {
+                // locate the owner's home and send as this machine bound to it, below the path
+                const own = present(machine(), "the enrolled machine");
+                const home = await own.home();
+                const { url } = await own.directory.locate(home, own.clock.now());
+                const { pathname } = new URL(request.url);
+                const send = own.fetch(stackPackage.id, { partition: home });
 
-                    return send(new Request(target, request));
-                },
+                return send(new Request(`${SpaceMount.url(url, home)}${pathname}`, request));
+            },
+        };
+        const exporter = new OtlpExporter(
+            async (signal, body) => {
+                const own = machine();
+                if (own !== undefined && (await own.isEnrolled())) {
+                    await OtlpExporter.post(target, signal, body);
+                }
             },
             // print a failure of the telemetry with its causes
             (error) => environment.process.stderr.writeSync(`telemetry: ${inspect(error)}\n`),
         );
 
-        return startTelemetry(exporter.options(MACHINE_PACKAGE), environment);
+        // keep every record in the machine's own log too, beside its owner's home
+        const options = exporter.options(MACHINE_PACKAGE);
+        const local = new ProcessExporter((line) => environment.process.stderr.writeSync(line));
+
+        return startTelemetry(
+            {
+                ...options,
+                signals: (meters) => {
+                    const signals = options.signals(meters);
+                    const processors = [...(signals.logs?.processors ?? []), local.processor];
+
+                    return { ...signals, logs: { ...signals.logs, processors } };
+                },
+            },
+            environment,
+        );
     }
 
     /** Stop serving and close what the machine opened, last opened first. */
