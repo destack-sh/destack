@@ -114,8 +114,8 @@ export const CONNECTION: TestPackage = {
     providers: [],
 };
 
-/** An account's home stack as the platform declares it: its connections and their vault. */
-const ACCOUNT_STACK = {
+/** The connections and their vault of an account's home stack, as the platform declares them. */
+const HOME_STACK = {
     vaults: { credentials: connectionVault.declare() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
@@ -134,7 +134,7 @@ const SETUP_URL = "https://forge.test/github/setup";
 const HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
 
 /** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
-const HOME_STACK = {
+const RESIDENCY_STACK = {
     vaults: { platform: PLATFORM_VAULT.declare(), credentials: credentialVault.declare() },
     gitStorages: { repositories: repositoryStorage.declare() },
     issuers: { github: {} },
@@ -338,7 +338,7 @@ export class TestForge {
 
         // select the App in the forge's setting, then stop serving for the forge to restart with it
         await home.apply(configuring, HOME_TYPES, {
-            ...HOME_STACK,
+            ...RESIDENCY_STACK,
             settings: {
                 github: {
                     ...github.reference,
@@ -353,7 +353,7 @@ export class TestForge {
     /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
         // install the vault, then serve its types, as the machine's restart does
-        const { issuers: _issuers, ...declared } = HOME_STACK;
+        const { issuers: _issuers, ...declared } = RESIDENCY_STACK;
         const vaulted = { installations: { vault: declared.installations.vault } };
         const installingVault = await home.serve();
         await home.apply(installingVault, HOME_TYPES, vaulted);
@@ -368,7 +368,7 @@ export class TestForge {
 
         // declare the GitHub App's issuer once the home serves the forge's types, as the machine's restart does
         const installing = await home.serve();
-        await home.apply(installing, HOME_TYPES, HOME_STACK);
+        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
         await installing.simulation.idle();
 
         // create the publishing account as its owner, then stop serving
@@ -592,13 +592,13 @@ export class TestForge {
             ...TestPackage.options([VAULT, CONNECTION]),
         });
         // install the vault, then its vault and the connections once the store serves the vault's types
-        const vaulted = { installations: { vault: ACCOUNT_STACK.installations.vault } };
+        const vaulted = { installations: { vault: HOME_STACK.installations.vault } };
         const installingVault = await home.serve();
         await home.apply(installingVault, [vaultPackage], vaulted);
         await home.serveInstalled(installingVault.store, home.id);
         await installingVault[Symbol.asyncDispose]();
         const reloaded = await home.serve();
-        await home.apply(reloaded, [vaultPackage], ACCOUNT_STACK);
+        await home.apply(reloaded, [vaultPackage], HOME_STACK);
         await home.serveInstalled(reloaded.store, home.id);
         await reloaded[Symbol.asyncDispose]();
 
