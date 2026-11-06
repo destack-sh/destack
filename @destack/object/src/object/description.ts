@@ -252,8 +252,8 @@ export const ObjectDescription = Object.assign(objectDescription, {
     },
 
     /** Read the object descriptions a build declares. */
-    async read(build: Pick<BuildReader, "declarations">): Promise<ObjectDescription[]> {
-        const declared = OBJECT_KIND.select(await build.declarations());
+    async read(build: BuildReader): Promise<ObjectDescription[]> {
+        const declared = await OBJECT_KIND.read(build);
 
         return declared.map((each) => each.description);
     },

@@ -155,10 +155,8 @@ export const PACKAGE_KIND = defineDeclarationKind("package", packageDescription)
 /** A declared package: the API its objects derive, its adapters and its views. */
 export const PackageDescription = Object.assign(packageDescription, {
     /** Read the package a build declares, absent for a library. */
-    async of(
-        build: Pick<BuildReader, "declarations">,
-    ): Promise<schema.Infer<typeof packageDescription> | undefined> {
-        const [declared] = PACKAGE_KIND.select(await build.declarations());
+    async of(build: BuildReader): Promise<schema.Infer<typeof packageDescription> | undefined> {
+        const [declared] = await PACKAGE_KIND.read(build);
 
         return declared?.description;
     },

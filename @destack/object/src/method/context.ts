@@ -916,7 +916,7 @@ export class MethodContext<
         }
         const release = await this.#release(packageId, version);
 
-        return kind.select(await release.declarations());
+        return await kind.read(release);
     }
 
     /** Read the catalogs of the release of a package the scope runs. */
