@@ -965,7 +965,7 @@ export class TestSpace implements AsyncDisposable {
         defer(() => packages[Symbol.asyncDispose]());
         const registry = new TestRegistry(packages, ids.package);
         const universe = await TestUniverse.open({
-            stacks: { person: source, account: source, space: source },
+            stacks: { home: source, space: source },
             home: source,
             releases: registry,
             ...(storage === undefined ? {} : { storage }),
