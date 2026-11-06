@@ -127,6 +127,7 @@ test("generate the module mounting a view with its package's theme and commands,
         description,
     });
     const command = (name: string, declaring: Package, keybinding?: string) => ({
+        name,
         package: declaring,
         title: { package: declaring.id, id: name, source: name, values: {} },
         packageId: owner.id,
