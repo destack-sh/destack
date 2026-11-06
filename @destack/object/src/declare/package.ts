@@ -129,21 +129,26 @@ export const PackageHandle = {
             secrets = {},
         } = input;
 
-        // key each named declaration by its name, once across the handle
-        const names = new Set<string>();
-        const named = [views, commands, adapters, resources, secrets].flatMap((map) =>
-            Object.entries(map),
-        );
-        for (const [key, declaration] of named) {
-            if (key !== declaration.name) {
-                throw PackageError.of(
-                    "DEFINITION_INVALID",
-                    `declaration ${declaration.name} is listed under another name: ${key}`,
-                );
-            } else if (names.has(key)) {
-                throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
+        // key each named declaration by its name, once per namespace: views, commands, adapters, and bindings
+        const namespaces = [
+            Object.entries(views),
+            Object.entries(commands),
+            Object.entries(adapters),
+            [...Object.entries(resources), ...Object.entries(secrets)],
+        ];
+        for (const named of namespaces) {
+            const names = new Set<string>();
+            for (const [key, declaration] of named) {
+                if (key !== declaration.name) {
+                    throw PackageError.of(
+                        "DEFINITION_INVALID",
+                        `declaration ${declaration.name} is listed under another name: ${key}`,
+                    );
+                } else if (names.has(key)) {
+                    throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
+                }
+                names.add(key);
             }
-            names.add(key);
         }
 
         // refuse an object type another package defines, by its package's name

@@ -3,6 +3,7 @@ import { Package, PackageId } from "@destack/package";
 import { expect, test, refusal } from "@destack/test";
 import { defineProcedure } from "../procedure/index.ts";
 import { defineAdapter, definePackage, type ObjectDeclaration } from "./package.ts";
+import { defineInstallationBinding } from "./binding.ts";
 import { Capability } from "./description.ts";
 
 /** A procedure every object type shares. */
@@ -107,18 +108,20 @@ test("refuse an adapter at an object's routes, which would take its calls", asyn
     ]);
 });
 
-test("refuse a declaration listed under another name, and a name taken twice", async () => {
+test("refuse a declaration listed under another name, and a name taken twice in one namespace, resources and secrets sharing one", async () => {
     const npm = defineAdapter("npm", { path: "/npm" });
+    const module = { package: Package.of(import.meta.destack.package) };
+    const api = defineInstallationBinding("api", definePackage({}), {}, module);
 
-    expect(await refusal(() => definePackage({ adapters: { git: npm } }))).toEqual([
-        "BAD_REQUEST",
-        "DEFINITION_INVALID",
-        "declaration npm is listed under another name: git",
-    ]);
-    expect(await refusal(() => definePackage({ adapters: { npm }, views: { npm } }))).toEqual([
-        "BAD_REQUEST",
-        "DEFINITION_INVALID",
-        "duplicate declaration: npm",
+    // refuse another name, accept one name in two namespaces, and refuse a resource and a secret sharing one
+    expect([
+        await refusal(() => definePackage({ adapters: { git: npm } })),
+        await refusal(() => definePackage({ adapters: { npm }, views: { npm } })),
+        await refusal(() => definePackage({ resources: { api }, secrets: { api } })),
+    ]).toEqual([
+        ["BAD_REQUEST", "DEFINITION_INVALID", "declaration npm is listed under another name: git"],
+        "done",
+        ["BAD_REQUEST", "DEFINITION_INVALID", "duplicate declaration: api"],
     ]);
 });
 
