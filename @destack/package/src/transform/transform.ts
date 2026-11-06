@@ -214,10 +214,15 @@ export async function transformModule(
         return undefined;
     }
 
-    // declare the frozen binding, and import the recorder of a declaring module, before any module code runs
-    source.prepend(`const ${BINDING} = Object.freeze(${JSON.stringify(owner.metadata)});\n`);
+    // declare the frozen binding, and import a declaring module's recorder, first after any hashbang
+    const start = code.startsWith("#!") ? code.indexOf("\n") + 1 : 0;
+    source.prependLeft(
+        start,
+        `const ${BINDING} = Object.freeze(${JSON.stringify(owner.metadata)});\n`,
+    );
     if (isDeclaring) {
-        source.prepend(
+        source.prependLeft(
+            start,
             `import { declare as ${DECLARE} } from ${JSON.stringify(DECLARED_MODULE)};\n`,
         );
     }

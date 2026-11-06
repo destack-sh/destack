@@ -89,3 +89,20 @@ test("pass the calling module to stamped tags and to members of named and namesp
         'export const owned = Note.titled("heading", __destackModule)`Owned`;',
     ]);
 });
+
+test("keep an executable module's hashbang first, the binding after it", async () => {
+    // read the package's id in a module run as a program
+    await using simulation = testSimulation();
+    const { files } = simulation.environment("test");
+    const code = ["#!/usr/bin/env bun", "export const id = import.meta.destack.package.id;"].join(
+        "\n",
+    );
+    const transformed = await transformModule(code, NOTE_PATH, owner, new PackageLocator(files));
+
+    // declare the binding below the hashbang, which only the first line may hold
+    expect(transformed?.code.split("\n")).toEqual([
+        "#!/usr/bin/env bun",
+        `const __destackModule = Object.freeze(${JSON.stringify(owner.metadata)});`,
+        "export const id = __destackModule.package.id;",
+    ]);
+});
