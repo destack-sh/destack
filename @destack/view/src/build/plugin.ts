@@ -16,10 +16,11 @@ const RUNTIME_MODULE = `${VIEW_PACKAGE}/runtime`;
 export function viewPlugins(ssr: boolean): PluginOption[] {
     return [
         frameworkPlugin(),
+        // compile hydratable markup on both runtimes, as any package's components may render in a server-rendered island
         solid({
             ssr,
             serverFunctions: false,
-            solid: { moduleName: RUNTIME_MODULE, hydratable: ssr },
+            solid: { moduleName: RUNTIME_MODULE, hydratable: true },
         }),
     ];
 }

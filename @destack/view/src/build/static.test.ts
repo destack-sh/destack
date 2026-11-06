@@ -186,6 +186,8 @@ test(
         const { loaded, deferred } = await imported(read, entry);
         const exported = build.manifest.outputs["browser"]?.exports["./view/site"];
         const loadedCode = await Promise.all(loaded.map(read));
+        const counter = deferred.find((path) => moduleName(path) === "counter") ?? "";
+        const counterCode = await read(counter);
 
         // render the heading as HTML and the counter as an island root, loading no page code at once
         expect({
@@ -197,6 +199,8 @@ test(
             deferred: deferred.map((path) => moduleName(path)).filter((name) => name === "counter"),
             imports: exported?.imports,
             prerender: build.manifest.outputs["prerender"]?.emit,
+            // claim the island's elements from the prerendered page, as hydration needs, instead of cloning new ones
+            isClaiming: counterCode.includes("getNextElement("),
         }).toEqual({
             headings: ["Static heading"],
             island: '<div data-island="/src/islands/counter.tsx" data-island-id="/src/islands/counter.tsx#0" data-island-properties="{&quot;start&quot;:3}"',
@@ -204,6 +208,7 @@ test(
             deferred: ["counter"],
             imports: ["@destack/view", "@destack/view/runtime", "@destack/view/static/browser"],
             prerender: false,
+            isClaiming: true,
         });
     },
 );
