@@ -1,14 +1,17 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
+set dotenv-load := true
+set dotenv-filename := "../../.env.local"
 
 bun := env("DESTACK_BUN", "bun")
 
 _default:
     @just --list --unsorted
 
-# typecheck
+# typecheck the sources and validate every deployment's root
 typecheck:
     {{bun}} run typecheck
+    {{bun}} run src/main.ts platform validate
 
 # lint
 lint:
@@ -17,6 +20,7 @@ lint:
 # check formatting
 format-check:
     {{bun}} run destack-check format-check src vitest.config.ts package.json destack.json
+    {{bun}} run src/main.ts platform format-check
 
 # typecheck, lint and check formatting
 check: typecheck lint format-check
@@ -28,35 +32,68 @@ test:
 # format
 format *args:
     {{bun}} run destack-check format {{args}} src vitest.config.ts package.json destack.json
+    {{bun}} run src/main.ts platform format
 
 # build
 build target="":
-    {{bun}} run src/distribution/build.ts {{target}}
+    {{bun}} run src/main.ts distribution build {{target}}
 
 # pack
 pack target="":
-    {{bun}} run src/distribution/pack.ts {{target}}
+    {{bun}} run src/main.ts distribution pack {{target}}
 
 # build application icons
 icon *args:
-    {{bun}} run src/icon/icon.ts {{args}}
+    {{bun}} run src/main.ts distribution icon {{args}}
 
 # installer
 installer name="universal-apple-darwin":
-    {{bun}} run src/installer/build.ts {{name}}
+    {{bun}} run src/main.ts installer build {{name}}
 
 # verify a native archive with disposable signing keys
-rehearse version archive:
-    {{bun}} run src/distribution/rehearse.ts "{{version}}" "{{archive}}"
+rehearse-update version archive:
+    {{bun}} run src/main.ts distribution rehearse "{{version}}" "{{archive}}"
 
 # sign
 sign +targets:
-    {{bun}} run src/repository/sign.ts {{targets}}
+    {{bun}} run src/main.ts update sign {{targets}}
 
 # publish
 publish directory="dist/update":
-    {{bun}} run --env-file=../../.env.local src/repository/upload.ts {{directory}}
+    {{bun}} run --env-file=../../.env.local src/main.ts update publish {{directory}}
 
 # refresh
 refresh:
-    {{bun}} run src/repository/renew.ts
+    {{bun}} run src/main.ts update renew
+
+# initialize a deployment's root against its remote state
+init +deployment:
+    {{bun}} run src/main.ts platform init {{deployment}}
+
+# plan a deployment
+diff +deployment:
+    {{bun}} run src/main.ts platform diff {{deployment}}
+
+# apply one root, or deploy an environment: its roots in order, then its Workers
+deploy +deployment:
+    {{bun}} run src/main.ts platform deploy {{deployment}}
+
+# seal the keys a stage's custody record lacks, as the operator does once per key before committing it
+custody verb stage:
+    {{bun}} run src/main.ts custody {{verb}} {{stage}}
+
+# bundle the universe and cloud machine Workers and build their uploads without deploying
+rehearse stage:
+    {{bun}} run src/main.ts platform rehearse {{stage}}
+
+# serve the local universe and cloud machine Workers under workerd over a fresh database, and check they answer
+e2e:
+    {{bun}} run src/main.ts platform e2e
+
+# serve the local universe, its cloud machines and the local stage's machine, or drop their state with local reset
+local verb="serve" *arguments:
+    {{bun}} run src/main.ts local {{verb}} {{arguments}}
+
+# release main now, as the daily run does
+release:
+    gh workflow run release.yml --ref main

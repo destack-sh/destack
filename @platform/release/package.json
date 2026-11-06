@@ -3,13 +3,13 @@
     "version": "2026.11.0",
     "type": "module",
     "exports": {
-        "./catalog": "./src/catalog/index.ts",
-        "./cloudflare/universe": "./src/cloudflare/universe.ts",
-        "./cloudflare/feed": "./src/cloudflare/feed.ts"
+        "./catalog": "./src/distribution/catalog.ts",
+        "./deployment/universe": "./src/deployment/cloudflare/universe.ts",
+        "./repository/feed": "./src/repository/feed/worker.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",
-        "test": "bun run src/main.ts format-check && bun run src/main.ts validate && bun --bun run vitest run --config vitest.config.ts"
+        "test": "bun run src/main.ts platform format-check && bun run src/main.ts platform validate && bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
@@ -19,7 +19,6 @@
         "miniflare": "4.20260730.0"
     },
     "dependencies": {
-        "@app/home": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",

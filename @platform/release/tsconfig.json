@@ -29,9 +29,7 @@
             "DOM",
             "DOM.Iterable"
         ],
-        "types": ["@destack/build/browser"],
-        "jsx": "preserve",
-        "jsxImportSource": "@opentui/solid"
+        "types": ["bun", "@destack/build/browser"]
     },
     "include": ["src", "tests", "*.config.ts"]
 }

@@ -1,20 +1,31 @@
 {
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a109a7-65e2-707d-933c-8f8e69b8be6b",
+    "role": "library",
     "language": "typescript",
     "runtimes": ["bun"],
-    "exports": {
-        "./catalog": {
-            "runtimes": ["browser", "bun", "workerd"]
-        }
-    },
     "check": {
         "expect": [
             {
-                "files": ["src/distribution/build.ts", "src/distribution/distribution.ts"],
-                "rules": ["destack/no-manifest-import"],
-                "reason": "the release reads the Desktop version and the workspace's Bun version from their manifests"
+                "files": ["src/distribution/executable.ts"],
+                "rules": ["destack/no-ambient-effect"],
+                "reason": "the executables bundle with Bun.build and its plugins before compiling, which only Bun's bundler over the host's files runs"
             }
         ]
+    },
+    "entrypoints": [
+        "src/main.ts",
+        "src/key/tests/bitwarden.ts",
+        "src/deployment/cloudflare/universe.ts",
+        "src/repository/feed/worker.ts",
+        "src/distribution/tests/sandbox.ts"
+    ],
+    "exports": {
+        "./catalog": {
+            "runtimes": ["browser", "bun", "workerd"]
+        },
+        "./deployment/universe": {
+            "runtimes": ["workerd"]
+        }
     }
 }
