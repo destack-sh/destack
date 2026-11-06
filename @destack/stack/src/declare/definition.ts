@@ -59,7 +59,7 @@ export async function declaredStack(
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
 ): Promise<JsonObject> {
     // require the package's stack declared at the export the name has
-    const found = STACK_KIND.select(await reader.declarations()).find(
+    const found = (await STACK_KIND.read(reader)).find(
         (entry) => graph.Moniker.name(entry.symbol) === name,
     );
     if (found === undefined) {

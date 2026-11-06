@@ -2,7 +2,7 @@ import { eq, Snapshot } from "@destack/db";
 import { nth, Digest, Identifier } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Package, PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
 import { STACKS } from "@destack/account/test";
@@ -87,10 +87,7 @@ test("serve an installation once its targets are bound and the space's main data
     const open = async (packageId: PackageId, manifest: Digest) =>
         manifest === release.manifest ? notes : builds.pull(fixture.registry, packageId, manifest);
     const served = async (
-        opening: (
-            packageId: PackageId,
-            manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations">> = open,
+        opening: (packageId: PackageId, manifest: Digest) => Promise<BuildReader> = open,
     ) =>
         (await Database.installed(Snapshot.live(connection), ids.space, opening))
             .map((entry) => [
@@ -102,19 +99,10 @@ test("serve an installation once its targets are bound and the space's main data
     // open the stack's build with a vault it declares for its document, which nothing binds to it
     const vaulted = async (packageId: PackageId, manifest: Digest) => {
         const built = await open(packageId, manifest);
-        if (packageId !== stack.installation.packageId) {
-            return built;
-        }
-        const declarations = await built.declarations();
-        const vault = {
-            ...RESOURCE_KIND.identity,
-            name: "credentials",
-            description: {},
-        };
 
-        return {
-            declarations: async () => [...declarations, { ...nth(declarations, 0), ...vault }],
-        };
+        return packageId === stack.installation.packageId
+            ? new VaultedReader(built.manifest, built.stream, fixture.environment.crypto)
+            : built;
     };
 
     // serve nothing while the notes' targets are not bound, though main applied their tables
@@ -203,3 +191,14 @@ test("serve an installation once its targets are bound and the space's main data
         unborn: [],
     });
 });
+
+/** A build that declares a vault besides its own declarations. */
+class VaultedReader extends BuildReader {
+    /** Read the build's declarations with a vault named credentials. */
+    override async declarations() {
+        const declarations = await super.declarations();
+        const vault = { ...RESOURCE_KIND.identity, name: "credentials", description: {} };
+
+        return [...declarations, { ...nth(declarations, 0), ...vault }];
+    }
+}

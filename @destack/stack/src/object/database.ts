@@ -62,10 +62,7 @@ export const Database = {
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        open: (
-            packageId: PackageId,
-            manifest: Digest,
-        ) => Promise<Pick<BuildReader, "declarations">>,
+        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
     ): Promise<
         {
             readonly rollout: InstallationRollout;
