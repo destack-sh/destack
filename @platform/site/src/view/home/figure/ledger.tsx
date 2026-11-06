@@ -1,4 +1,4 @@
-import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
 import { media } from "@destack/style/media.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
@@ -12,6 +12,7 @@ import { chrome } from "./chrome.stylex";
 import { ledgerVariables } from "./ledger.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
+import { cast } from "./cast";
 
 /** The size of a quiet figure, in rem, as typeScale.small sets it. */
 const QUIET_SIZE = 0.8125;
@@ -145,7 +146,10 @@ export function Ledger(properties: {
             .join(" ");
 
     return (
-        <div data-component="Ledger" {...style.attrs(styles.ledger)}>
+        <div
+            data-component="Ledger"
+            {...style.attrs(styles.ledger, properties.isWindow && cast.window)}
+        >
             <div {...style.attrs(styles.frame, properties.isWindow && styles.window)}>
                 {/* table, scrolling its figures under the names where they overflow */}
                 <div
@@ -377,7 +381,6 @@ const styles = style.create({
         borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
-        boxShadow: shadow.raised,
         gridTemplateRows: "minmax(0, 1fr)",
         overflow: "hidden",
     },

@@ -14,6 +14,7 @@ import { SlackChannel } from "../tool/slack";
 import { TrelloBoard } from "../tool/trello";
 import type { Mail, Message, Signup, Task } from "../verb/corner";
 import type { Lane } from "./session";
+import { Cast } from "../figure/cast";
 
 /** A rented app you open to see what your agent did last night. */
 export type Console = "gmail" | "airtable" | "slack" | "trello" | "notion";
@@ -179,35 +180,41 @@ function RentedConsoles(properties: { console: Console }) {
     const shown = () => present(consoles[index()], "shown console");
 
     return (
-        <div
-            data-component="Browser"
-            data-morph="inspect"
-            {...style.attrs(browserStyles.browser, styles.browser)}
-        >
-            <div data-component="TabStrip" data-morph-strip {...style.attrs(browserStyles.strip)}>
-                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                {consoles.map(([key, logo, title]) => (
-                    <span
-                        data-component="Tab"
-                        title={title}
-                        onClick={() => setOpened(key)}
-                        {...style.attrs(
-                            browserStyles.tab,
-                            browserStyles.tabEven,
-                            key === shown()[0] && browserStyles.tabOn,
-                            browserStyles.tabSteady,
-                        )}
-                    >
-                        <TabMark logo={logo} />
-                        <span {...style.attrs(browserStyles.tabTitle)}>{title}</span>
-                    </span>
-                ))}
+        <Cast>
+            <div
+                data-component="Browser"
+                data-morph="inspect"
+                {...style.attrs(browserStyles.browser, styles.browser)}
+            >
+                <div
+                    data-component="TabStrip"
+                    data-morph-strip
+                    {...style.attrs(browserStyles.strip)}
+                >
+                    <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                    {consoles.map(([key, logo, title]) => (
+                        <span
+                            data-component="Tab"
+                            title={title}
+                            onClick={() => setOpened(key)}
+                            {...style.attrs(
+                                browserStyles.tab,
+                                browserStyles.tabEven,
+                                key === shown()[0] && browserStyles.tabOn,
+                                browserStyles.tabSteady,
+                            )}
+                        >
+                            <TabMark logo={logo} />
+                            <span {...style.attrs(browserStyles.tabTitle)}>{title}</span>
+                        </span>
+                    ))}
+                </div>
+                <Address url={shown()[3]} />
+                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                    <div {...style.attrs(styles.scaled)}>{shown()[4]()}</div>
+                </div>
             </div>
-            <Address url={shown()[3]} />
-            <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                <div {...style.attrs(styles.scaled)}>{shown()[4]()}</div>
-            </div>
-        </div>
+        </Cast>
     );
 }
 
@@ -227,24 +234,33 @@ function TabMark(properties: { logo: string }) {
 /** Draw your space in a browser, one tab, on the approval's transaction. */
 function SpaceBrowser(properties: { children: JSX.Element }) {
     return (
-        <div
-            data-component="Browser"
-            data-morph="inspect"
-            {...style.attrs(browserStyles.browser, styles.browser)}
-        >
-            <div data-component="TabStrip" data-morph-strip {...style.attrs(browserStyles.strip)}>
-                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                <span data-component="Tab" {...style.attrs(browserStyles.tab, browserStyles.tabOn)}>
-                    <Favicon icon="user" tint={palette.teal} />
-                    <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
-                    <Glyph name="close" size={12} />
-                </span>
+        <Cast>
+            <div
+                data-component="Browser"
+                data-morph="inspect"
+                {...style.attrs(browserStyles.browser, styles.browser)}
+            >
+                <div
+                    data-component="TabStrip"
+                    data-morph-strip
+                    {...style.attrs(browserStyles.strip)}
+                >
+                    <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                    <span
+                        data-component="Tab"
+                        {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
+                    >
+                        <Favicon icon="user" tint={palette.teal} />
+                        <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
+                        <Glyph name="close" size={12} />
+                    </span>
+                </div>
+                <Address url="destack.app/@florian/log" />
+                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                    <div {...style.attrs(styles.full)}>{properties.children}</div>
+                </div>
             </div>
-            <Address url="destack.app/@florian/log" />
-            <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                <div {...style.attrs(styles.full)}>{properties.children}</div>
-            </div>
-        </div>
+        </Cast>
     );
 }
 

@@ -58,6 +58,15 @@ export function Syllables(properties: { syllables: readonly string[] }) {
     );
 }
 
+/** Set a part of speech as a bracketed tag in small capitals, such as [ VERB ]. */
+export function PartOfSpeech(properties: { children: string }) {
+    return (
+        <span data-part-of-speech={properties.children} {...style.attrs(styles.partOfSpeech)}>
+            [ {properties.children} ]
+        </span>
+    );
+}
+
 /** Head a section with a dictionary entry. */
 export function Entry(properties: { form: Form; isTitle?: boolean }) {
     // draw the definition's underline once, the first time the entry rises past the screen's bottom fifth
@@ -92,7 +101,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
                     <Syllables syllables={properties.form.syllables} />
                 </b>
                 <span>{properties.form.pronunciation}</span>
-                <i>{properties.form.partOfSpeech}</i>
+                <PartOfSpeech>{properties.form.partOfSpeech}</PartOfSpeech>
                 {properties.form.sense.gloss === undefined ? undefined : (
                     <span>[{properties.form.sense.gloss}]</span>
                 )}
@@ -112,7 +121,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
 }
 
 /** Return the anchor of a form's section: its part of speech, such as verb or past-participle. */
-function anchorOf(form: Form): string {
+export function anchorOf(form: Form): string {
     return form.partOfSpeech.replaceAll(" ", "-");
 }
 
@@ -254,6 +263,13 @@ const styles = style.create({
         rowGap: "0.25rem",
         columnGap: "0.625rem",
         margin: 0,
+    },
+    partOfSpeech: {
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
     },
     headword: {
         color: color.primary,

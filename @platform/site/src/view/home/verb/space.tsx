@@ -20,6 +20,7 @@ import { LocalTracker } from "../project/tracker";
 import { VercelChangelog } from "../project/changelog";
 import type { JSX } from "@destack/view";
 import { media } from "@destack/style/media.stylex";
+import { Cast } from "../figure/cast";
 
 /** A browser narrower than a phone screen, which then takes a phone browser's chrome. */
 const NARROW = "@container (max-width: 479px)";
@@ -388,255 +389,258 @@ export function SpaceBrowser(properties: {
     };
 
     return (
-        <div
-            data-component="Browser"
-            data-morph={properties.name}
-            {...style.attrs(browserStyles.browser)}
-        >
-            {/* draw the rail's glyphs out of sight, so they are loaded when the space opens */}
-            <span aria-hidden="true" {...style.attrs(styles.preload)}>
-                {railGlyphs.map((glyph) => (
-                    <span
-                        style={{ "mask-image": `url(/diagram/${glyph}.svg)` }}
-                        {...style.attrs(styles.preloadGlyph)}
-                    />
-                ))}
-            </span>
-            <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
-                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                {properties.isOpenAt(1) ? (
-                    <span
-                        data-component="Tab"
-                        style={{
-                            "view-transition-name": `${properties.name}-tab-${String(properties.page.row)}`,
-                        }}
-                        {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
-                    >
-                        <Favicon icon="user" tint="#2f7d8c" />
-                        <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
-                        <Glyph name="close" size={12} />
-                    </span>
-                ) : (
-                    shown().map(([row, icon, tint, title, isYours], index) => (
-                        <>
-                            {/* set the apps you made apart from the apps you rent */}
-                            {isYours && shown()[index - 1]?.[4] === false ? (
-                                <span
-                                    aria-hidden="true"
-                                    title="Made by you"
-                                    {...style.attrs(styles.divider)}
-                                />
-                            ) : undefined}
-                            <span
-                                data-component="Tab"
-                                title={title}
-                                style={{
-                                    "view-transition-name": `${properties.name}-tab-${String(row)}`,
-                                }}
-                                onClick={() => properties.onChoose(row)}
-                                {...style.attrs(
-                                    browserStyles.tab,
-                                    browserStyles.tabEven,
-                                    row === properties.page.row && browserStyles.tabOn,
-                                    properties.rows.length <= 4 && browserStyles.tabSteady,
-                                )}
-                            >
-                                {/* carry the tab's icon to its app on the rail as the space opens */}
-                                <span
-                                    data-morph-icon=""
-                                    style={{
-                                        "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
-                                    }}
-                                    {...style.attrs(browserStyles.tabIcon)}
-                                >
-                                    <Favicon icon={icon} tint={tint} />
-                                </span>
-                                <span
-                                    {...style.attrs(
-                                        browserStyles.tabTitle,
-                                        row !== properties.page.row &&
-                                            properties.rows.length > 4 &&
-                                            browserStyles.tabTitleHidden,
-                                    )}
-                                >
-                                    {title}
-                                </span>
-                            </span>
-                        </>
-                    ))
-                )}
-                <span {...style.attrs(browserStyles.newTab)}>
-                    <Glyph name="plus" />
+        <Cast>
+            <div
+                data-component="Browser"
+                data-morph={properties.name}
+                {...style.attrs(browserStyles.browser)}
+            >
+                {/* draw the rail's glyphs out of sight, so they are loaded when the space opens */}
+                <span aria-hidden="true" {...style.attrs(styles.preload)}>
+                    {railGlyphs.map((glyph) => (
+                        <span
+                            style={{ "mask-image": `url(/diagram/${glyph}.svg)` }}
+                            {...style.attrs(styles.preloadGlyph)}
+                        />
+                    ))}
                 </span>
-            </div>
-            <div data-component="Toolbar" {...style.attrs(browserStyles.toolbar)}>
-                <span {...style.attrs(browserStyles.tools, browserStyles.desktopOnly)}>
-                    <Glyph name="back" />
-                    <Glyph name="forward" />
-                    <Glyph name="reload" />
-                </span>
-                <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
-                    <Glyph name="lock" size={12} />
-                    {isOpen() ? (
-                        <span {...style.attrs(browserStyles.url)}>
-                            <span {...style.attrs(browserStyles.host)}>destack.app</span>
-                            <span {...style.attrs(browserStyles.path)}>
-                                /@florian{properties.page.path === "/" ? "" : properties.page.path}
-                            </span>
+                <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
+                    <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                    {properties.isOpenAt(1) ? (
+                        <span
+                            data-component="Tab"
+                            style={{
+                                "view-transition-name": `${properties.name}-tab-${String(properties.page.row)}`,
+                            }}
+                            {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
+                        >
+                            <Favicon icon="user" tint="#2f7d8c" />
+                            <span {...style.attrs(browserStyles.tabTitle)}>Florian</span>
+                            <Glyph name="close" size={12} />
                         </span>
                     ) : (
-                        <span {...style.attrs(browserStyles.url)}>
-                            <span {...style.attrs(browserStyles.host)}>{host()}</span>
-                            <span {...style.attrs(browserStyles.path)}>
-                                {site().slice(host().length)}
-                            </span>
-                        </span>
+                        shown().map(([row, icon, tint, title, isYours], index) => (
+                            <>
+                                {/* set the apps you made apart from the apps you rent */}
+                                {isYours && shown()[index - 1]?.[4] === false ? (
+                                    <span
+                                        aria-hidden="true"
+                                        title="Made by you"
+                                        {...style.attrs(styles.divider)}
+                                    />
+                                ) : undefined}
+                                <span
+                                    data-component="Tab"
+                                    title={title}
+                                    style={{
+                                        "view-transition-name": `${properties.name}-tab-${String(row)}`,
+                                    }}
+                                    onClick={() => properties.onChoose(row)}
+                                    {...style.attrs(
+                                        browserStyles.tab,
+                                        browserStyles.tabEven,
+                                        row === properties.page.row && browserStyles.tabOn,
+                                        properties.rows.length <= 4 && browserStyles.tabSteady,
+                                    )}
+                                >
+                                    {/* carry the tab's icon to its app on the rail as the space opens */}
+                                    <span
+                                        data-morph-icon=""
+                                        style={{
+                                            "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
+                                        }}
+                                        {...style.attrs(browserStyles.tabIcon)}
+                                    >
+                                        <Favicon icon={icon} tint={tint} />
+                                    </span>
+                                    <span
+                                        {...style.attrs(
+                                            browserStyles.tabTitle,
+                                            row !== properties.page.row &&
+                                                properties.rows.length > 4 &&
+                                                browserStyles.tabTitleHidden,
+                                        )}
+                                    >
+                                        {title}
+                                    </span>
+                                </span>
+                            </>
+                        ))
                     )}
-                    <Glyph name="star" />
-                </span>
-                {/* count the open tabs as a phone's browser does */}
-                <button
-                    type="button"
-                    data-component="TabCount"
-                    aria-label="Show tabs"
-                    aria-expanded={isOverview() ? "true" : "false"}
-                    onClick={() => setIsOverview((is) => !is)}
-                    {...style.attrs(browserStyles.tabCount)}
-                >
-                    {isOpen() ? 1 : shown().length}
-                </button>
-                <span {...style.attrs(browserStyles.tools)}>
-                    <span {...style.attrs(browserStyles.desktopOnly)}>
-                        <Glyph name="puzzle" />
+                    <span {...style.attrs(browserStyles.newTab)}>
+                        <Glyph name="plus" />
                     </span>
-                    <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
-                        F
+                </div>
+                <div data-component="Toolbar" {...style.attrs(browserStyles.toolbar)}>
+                    <span {...style.attrs(browserStyles.tools, browserStyles.desktopOnly)}>
+                        <Glyph name="back" />
+                        <Glyph name="forward" />
+                        <Glyph name="reload" />
                     </span>
-                    <Glyph name="menu" />
-                </span>
-            </div>
-            {/* show the open tabs as cards over the page while the overview is open */}
-            <div
-                data-component="TabOverview"
-                {...style.attrs(styles.overview, !isOverview() && styles.overviewClosed)}
-            >
-                <span {...style.attrs(styles.overviewHead)}>
-                    <b>{isOpen() ? "1 tab" : `${shown().length} tabs`}</b>
+                    <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
+                        <Glyph name="lock" size={12} />
+                        {isOpen() ? (
+                            <span {...style.attrs(browserStyles.url)}>
+                                <span {...style.attrs(browserStyles.host)}>destack.app</span>
+                                <span {...style.attrs(browserStyles.path)}>
+                                    /@florian
+                                    {properties.page.path === "/" ? "" : properties.page.path}
+                                </span>
+                            </span>
+                        ) : (
+                            <span {...style.attrs(browserStyles.url)}>
+                                <span {...style.attrs(browserStyles.host)}>{host()}</span>
+                                <span {...style.attrs(browserStyles.path)}>
+                                    {site().slice(host().length)}
+                                </span>
+                            </span>
+                        )}
+                        <Glyph name="star" />
+                    </span>
+                    {/* count the open tabs as a phone's browser does */}
                     <button
                         type="button"
-                        onClick={() => setIsOverview(false)}
-                        {...style.attrs(styles.overviewDone)}
+                        data-component="TabCount"
+                        aria-label="Show tabs"
+                        aria-expanded={isOverview() ? "true" : "false"}
+                        onClick={() => setIsOverview((is) => !is)}
+                        {...style.attrs(browserStyles.tabCount)}
                     >
-                        Done
+                        {isOpen() ? 1 : shown().length}
                     </button>
-                </span>
-                <div {...style.attrs(styles.cards)}>
-                    {isOpen() ? (
+                    <span {...style.attrs(browserStyles.tools)}>
+                        <span {...style.attrs(browserStyles.desktopOnly)}>
+                            <Glyph name="puzzle" />
+                        </span>
+                        <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
+                            F
+                        </span>
+                        <Glyph name="menu" />
+                    </span>
+                </div>
+                {/* show the open tabs as cards over the page while the overview is open */}
+                <div
+                    data-component="TabOverview"
+                    {...style.attrs(styles.overview, !isOverview() && styles.overviewClosed)}
+                >
+                    <span {...style.attrs(styles.overviewHead)}>
+                        <b>{isOpen() ? "1 tab" : `${shown().length} tabs`}</b>
                         <button
                             type="button"
-                            onClick={() => chooseTab(properties.page.row)}
-                            {...style.attrs(styles.card, styles.cardOn)}
+                            onClick={() => setIsOverview(false)}
+                            {...style.attrs(styles.overviewDone)}
                         >
-                            <span {...style.attrs(styles.cardTitle)}>
-                                <Favicon icon="user" tint="#2f7d8c" />
-                                Florian
-                            </span>
-                            <span {...style.attrs(styles.cardHost)}>destack.app</span>
+                            Done
                         </button>
-                    ) : (
-                        shown().map(([row, icon, tint, title]) => (
+                    </span>
+                    <div {...style.attrs(styles.cards)}>
+                        {isOpen() ? (
                             <button
                                 type="button"
-                                onClick={() => chooseTab(row)}
-                                {...style.attrs(
-                                    styles.card,
-                                    row === properties.page.row && styles.cardOn,
-                                )}
+                                onClick={() => chooseTab(properties.page.row)}
+                                {...style.attrs(styles.card, styles.cardOn)}
                             >
                                 <span {...style.attrs(styles.cardTitle)}>
-                                    <Favicon icon={icon} tint={tint} />
-                                    {title}
+                                    <Favicon icon="user" tint="#2f7d8c" />
+                                    Florian
                                 </span>
-                                <span {...style.attrs(styles.cardHost)}>
-                                    {hostOf(
-                                        row,
-                                        properties.source,
-                                        properties.vendor,
-                                        properties.lineup,
-                                    )}
-                                </span>
+                                <span {...style.attrs(styles.cardHost)}>destack.app</span>
                             </button>
-                        ))
+                        ) : (
+                            shown().map(([row, icon, tint, title]) => (
+                                <button
+                                    type="button"
+                                    onClick={() => chooseTab(row)}
+                                    {...style.attrs(
+                                        styles.card,
+                                        row === properties.page.row && styles.cardOn,
+                                    )}
+                                >
+                                    <span {...style.attrs(styles.cardTitle)}>
+                                        <Favicon icon={icon} tint={tint} />
+                                        {title}
+                                    </span>
+                                    <span {...style.attrs(styles.cardHost)}>
+                                        {hostOf(
+                                            row,
+                                            properties.source,
+                                            properties.vendor,
+                                            properties.lineup,
+                                        )}
+                                    </span>
+                                </button>
+                            ))
+                        )}
+                    </div>
+                </div>
+                <div
+                    data-component={isOpen() ? "SitePage" : "RentedPage"}
+                    {...style.attrs(browserStyles.viewport)}
+                >
+                    {isOpen() ? (
+                        <div {...style.attrs(appStyles.app, styles.owned)}>
+                            <AppRail
+                                open={appAt(properties.page.row)}
+                                apps={sections
+                                    .filter(
+                                        ([row, , , , seen]) =>
+                                            properties.rows.includes(row) &&
+                                            seen.includes(properties.viewer),
+                                    )
+                                    .map(([, name, icon]) => [icon, name] as const)}
+                                morph={properties.name}
+                                onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
+                            />
+                            <main
+                                style={{ "view-transition-name": `${properties.name}-page` }}
+                                {...style.attrs(appStyles.main)}
+                            >
+                                {isAllowed() ? (
+                                    sectionOf(
+                                        properties.page.job,
+                                        properties.change,
+                                        properties.source,
+                                        isRemixed(),
+                                    )
+                                ) : (
+                                    <p data-component="AccessNote" {...style.attrs(styles.private)}>
+                                        <Glyph name="lock" size={20} />
+                                        {properties.page.viewers.length === 1
+                                            ? "Only you can see this page"
+                                            : "Only you and your agent can see this page"}
+                                    </p>
+                                )}
+                            </main>
+                            {/* your agent's change to the page, asked and then done */}
+                            {remix() !== undefined && (isAsking() || isRemixed()) ? (
+                                <p data-component="RemixNote" {...style.attrs(styles.remixNote)}>
+                                    <AgentAvatar size="small" />
+                                    {isRemixed() ? remix()?.done : remix()?.ask}
+                                </p>
+                            ) : undefined}
+                            <SpaceStatus
+                                page={properties.page}
+                                viewer={properties.viewer}
+                                onViewer={properties.onViewer}
+                                remix={remix() === undefined ? undefined : properties.remix}
+                            />
+                        </div>
+                    ) : (
+                        <div
+                            style={{ "view-transition-name": `${properties.name}-page` }}
+                            {...style.attrs(styles.window)}
+                        >
+                            {pageOf(
+                                properties.page,
+                                properties.source,
+                                properties.vendor,
+                                properties.lineup,
+                            )}
+                        </div>
                     )}
                 </div>
             </div>
-            <div
-                data-component={isOpen() ? "SitePage" : "RentedPage"}
-                {...style.attrs(browserStyles.viewport)}
-            >
-                {isOpen() ? (
-                    <div {...style.attrs(appStyles.app, styles.owned)}>
-                        <AppRail
-                            open={appAt(properties.page.row)}
-                            apps={sections
-                                .filter(
-                                    ([row, , , , seen]) =>
-                                        properties.rows.includes(row) &&
-                                        seen.includes(properties.viewer),
-                                )
-                                .map(([, name, icon]) => [icon, name] as const)}
-                            morph={properties.name}
-                            onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
-                        />
-                        <main
-                            style={{ "view-transition-name": `${properties.name}-page` }}
-                            {...style.attrs(appStyles.main)}
-                        >
-                            {isAllowed() ? (
-                                sectionOf(
-                                    properties.page.job,
-                                    properties.change,
-                                    properties.source,
-                                    isRemixed(),
-                                )
-                            ) : (
-                                <p data-component="AccessNote" {...style.attrs(styles.private)}>
-                                    <Glyph name="lock" size={20} />
-                                    {properties.page.viewers.length === 1
-                                        ? "Only you can see this page"
-                                        : "Only you and your agent can see this page"}
-                                </p>
-                            )}
-                        </main>
-                        {/* your agent's change to the page, asked and then done */}
-                        {remix() !== undefined && (isAsking() || isRemixed()) ? (
-                            <p data-component="RemixNote" {...style.attrs(styles.remixNote)}>
-                                <AgentAvatar size="small" />
-                                {isRemixed() ? remix()?.done : remix()?.ask}
-                            </p>
-                        ) : undefined}
-                        <SpaceStatus
-                            page={properties.page}
-                            viewer={properties.viewer}
-                            onViewer={properties.onViewer}
-                            remix={remix() === undefined ? undefined : properties.remix}
-                        />
-                    </div>
-                ) : (
-                    <div
-                        style={{ "view-transition-name": `${properties.name}-page` }}
-                        {...style.attrs(styles.window)}
-                    >
-                        {pageOf(
-                            properties.page,
-                            properties.source,
-                            properties.vendor,
-                            properties.lineup,
-                        )}
-                    </div>
-                )}
-            </div>
-        </div>
+        </Cast>
     );
 }
 

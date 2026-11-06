@@ -25,6 +25,7 @@ import type { Item } from "../figure/item";
 import type { OptionMark } from "../figure/picker";
 import { typeScale } from "../../layout/type.stylex";
 import { requestFrame } from "@destack/view/primitives/raf";
+import { Cast } from "../figure/cast";
 
 /** A browser narrower than a phone, where each tag shows only its mark. */
 const NARROW = "@container (max-width: 479px)";
@@ -243,139 +244,155 @@ export function XRay(properties: {
     };
 
     return (
-        <div
-            ref={setRoot}
-            data-component="XRay"
-            data-morph="xray"
-            {...style.attrs(browserStyles.browser, styles.root)}
-        >
-            {/* Tabs */}
-            <div data-component="TabStrip" data-morph-strip {...style.attrs(browserStyles.strip)}>
-                <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                {isOwned() ? (
-                    <span
-                        data-component="Tab"
-                        {...style.attrs(browserStyles.tab, styles.tabWide, browserStyles.tabOn)}
-                    >
-                        <Favicon icon={app()[1]} tint={palette.teal} />
-                        <span {...style.attrs(browserStyles.tabTitle)}>{app()[2]}</span>
-                        <Glyph name="close" size={12} />
-                    </span>
-                ) : (
-                    apps.slice(0, 1).map(([page, , title]) => (
+        <Cast>
+            <div
+                ref={setRoot}
+                data-component="XRay"
+                data-morph="xray"
+                {...style.attrs(browserStyles.browser, styles.root)}
+            >
+                {/* Tabs */}
+                <div
+                    data-component="TabStrip"
+                    data-morph-strip
+                    {...style.attrs(browserStyles.strip)}
+                >
+                    <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                    {isOwned() ? (
                         <span
                             data-component="Tab"
-                            title={title}
-                            onClick={() => setRow(page)}
-                            {...style.attrs(
-                                browserStyles.tab,
-                                page === row() ? styles.tabWide : browserStyles.tabEven,
-                                page === row() && browserStyles.tabOn,
-                            )}
+                            {...style.attrs(browserStyles.tab, styles.tabWide, browserStyles.tabOn)}
                         >
-                            <MakerMark maker={properties.maker} />
+                            <Favicon icon={app()[1]} tint={palette.teal} />
+                            <span {...style.attrs(browserStyles.tabTitle)}>{app()[2]}</span>
+                            <Glyph name="close" size={12} />
+                        </span>
+                    ) : (
+                        apps.slice(0, 1).map(([page, , title]) => (
                             <span
+                                data-component="Tab"
+                                title={title}
+                                onClick={() => setRow(page)}
                                 {...style.attrs(
-                                    browserStyles.tabTitle,
-                                    page === row() ? styles.shown : browserStyles.tabTitleHidden,
+                                    browserStyles.tab,
+                                    page === row() ? styles.tabWide : browserStyles.tabEven,
+                                    page === row() && browserStyles.tabOn,
                                 )}
                             >
-                                {title}
+                                <MakerMark maker={properties.maker} />
+                                <span
+                                    {...style.attrs(
+                                        browserStyles.tabTitle,
+                                        page === row()
+                                            ? styles.shown
+                                            : browserStyles.tabTitleHidden,
+                                    )}
+                                >
+                                    {title}
+                                </span>
                             </span>
+                        ))
+                    )}
+                    {rented().map((service) => (
+                        <span
+                            data-component="Tab"
+                            title={`${service.name} dashboard`}
+                            {...style.attrs(browserStyles.tab, browserStyles.tabEven)}
+                        >
+                            <VendorMark mark={service.mark} isTag={false} />
                         </span>
-                    ))
-                )}
-                {rented().map((service) => (
-                    <span
-                        data-component="Tab"
-                        title={`${service.name} dashboard`}
-                        {...style.attrs(browserStyles.tab, browserStyles.tabEven)}
+                    ))}
+                    <span {...style.attrs(browserStyles.newTab)}>
+                        <Glyph name="plus" />
+                    </span>
+                </div>
+
+                {/* Address bar */}
+                <div data-component="Toolbar" {...style.attrs(browserStyles.toolbar)}>
+                    <span {...style.attrs(browserStyles.tools, browserStyles.desktopOnly)}>
+                        <Glyph name="back" />
+                        <Glyph name="forward" />
+                        <Glyph name="reload" />
+                    </span>
+                    <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
+                        <Glyph name="lock" size={12} />
+                        <span data-xray="Hosting" {...style.attrs(browserStyles.url, styles.url)}>
+                            <span {...style.attrs(browserStyles.host)}>{address().host}</span>
+                            <span {...style.attrs(browserStyles.path)}>{address().path}</span>
+                        </span>
+                        <span {...style.attrs(styles.push)} />
+                        <Glyph name="star" />
+                    </span>
+                    <span {...style.attrs(browserStyles.tabCount)}>{1 + rented().length}</span>
+                    <span {...style.attrs(browserStyles.tools)}>
+                        <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
+                            F
+                        </span>
+                        <Glyph name="menu" />
+                    </span>
+                </div>
+
+                {/* Page */}
+                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                    <Fade
+                        isOpen={isOwned()}
+                        isLarge
+                        xstyle={[appStyles.app, styles.app, isStacked() && styles.bare]}
                     >
-                        <VendorMark mark={service.mark} isTag={false} />
-                    </span>
-                ))}
-                <span {...style.attrs(browserStyles.newTab)}>
-                    <Glyph name="plus" />
-                </span>
-            </div>
-
-            {/* Address bar */}
-            <div data-component="Toolbar" {...style.attrs(browserStyles.toolbar)}>
-                <span {...style.attrs(browserStyles.tools, browserStyles.desktopOnly)}>
-                    <Glyph name="back" />
-                    <Glyph name="forward" />
-                    <Glyph name="reload" />
-                </span>
-                <span data-component="AddressBar" {...style.attrs(browserStyles.omnibox)}>
-                    <Glyph name="lock" size={12} />
-                    <span data-xray="Hosting" {...style.attrs(browserStyles.url, styles.url)}>
-                        <span {...style.attrs(browserStyles.host)}>{address().host}</span>
-                        <span {...style.attrs(browserStyles.path)}>{address().path}</span>
-                    </span>
-                    <span {...style.attrs(styles.push)} />
-                    <Glyph name="star" />
-                </span>
-                <span {...style.attrs(browserStyles.tabCount)}>{1 + rented().length}</span>
-                <span {...style.attrs(browserStyles.tools)}>
-                    <span {...style.attrs(browserStyles.profile, browserStyles.desktopOnly)}>
-                        F
-                    </span>
-                    <Glyph name="menu" />
-                </span>
-            </div>
-
-            {/* Page */}
-            <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
-                <Fade
-                    isOpen={isOwned()}
-                    isLarge
-                    xstyle={[appStyles.app, styles.app, isStacked() && styles.bare]}
-                >
-                    {isOwned() ? (
-                        <AppRail
-                            open={app()[1]}
-                            apps={rail}
-                            morph={undefined}
-                            onOpen={(icon) => setRow(rowOfApp(icon))}
-                        />
-                    ) : undefined}
-                    <main {...style.attrs(appStyles.main, styles.page)}>
-                        {isStacked() ? (
-                            <MadeFrame assistant={assistant()} title={app()[2]}>
-                                {sectionOf(
+                        {isOwned() ? (
+                            <AppRail
+                                open={app()[1]}
+                                apps={rail}
+                                morph={undefined}
+                                onOpen={(icon) => setRow(rowOfApp(icon))}
+                            />
+                        ) : undefined}
+                        <main {...style.attrs(appStyles.main, styles.page)}>
+                            {isStacked() ? (
+                                <MadeFrame assistant={assistant()} title={app()[2]}>
+                                    {sectionOf(
+                                        row(),
+                                        "start",
+                                        present(sources[0], "first source"),
+                                        false,
+                                    )}
+                                </MadeFrame>
+                            ) : (
+                                sectionOf(
                                     row(),
                                     "start",
                                     present(sources[0], "first source"),
                                     false,
-                                )}
-                            </MadeFrame>
-                        ) : (
-                            sectionOf(row(), "start", present(sources[0], "first source"), false)
-                        )}
-                    </main>
-                    <p {...style.attrs(appStyles.statusBar)}>
-                        <span data-xray="Code" {...style.attrs(appStyles.statusEnd, styles.commit)}>
-                            <Icon icon={gitCommit} />
-                            <span {...style.attrs(styles.code)}>a1f3c9e</span>· 2h ago
-                        </span>
-                    </p>
-                </Fade>
-            </div>
+                                )
+                            )}
+                        </main>
+                        <p {...style.attrs(appStyles.statusBar)}>
+                            <span
+                                data-xray="Code"
+                                {...style.attrs(appStyles.statusEnd, styles.commit)}
+                            >
+                                <Icon icon={gitCommit} />
+                                <span {...style.attrs(styles.code)}>a1f3c9e</span>· 2h ago
+                            </span>
+                        </p>
+                    </Fade>
+                </div>
 
-            {/* X-ray */}
-            <div aria-hidden="true" data-morph-tags {...style.attrs(styles.overlay)}>
-                {boxes().map((box) => (
-                    <Mark
-                        box={box}
-                        service={present(properties.rented[box.index], "rented service")}
-                        accent={accentAt(properties.rented, properties.isOpenAt, box.index)}
-                        isOwned={properties.isOpenAt(box.index + 1)}
-                        isLit={box.index + 1 === properties.lit}
-                        onLight={properties.onLight}
-                    />
-                ))}
+                {/* X-ray */}
+                <div aria-hidden="true" data-morph-tags {...style.attrs(styles.overlay)}>
+                    {boxes().map((box) => (
+                        <Mark
+                            box={box}
+                            service={present(properties.rented[box.index], "rented service")}
+                            accent={accentAt(properties.rented, properties.isOpenAt, box.index)}
+                            isOwned={properties.isOpenAt(box.index + 1)}
+                            isLit={box.index + 1 === properties.lit}
+                            onLight={properties.onLight}
+                        />
+                    ))}
+                </div>
             </div>
-        </div>
+        </Cast>
     );
 }
 

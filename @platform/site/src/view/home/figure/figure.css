@@ -134,13 +134,9 @@
     z-index: 1;
 }
 
-/* show the live page at once, so only the named parts morph and every figure keeps its own motion */
-::view-transition-old(root) {
-    display: none;
-}
-
-::view-transition-new(root) {
-    animation: none;
+/* leave the page out of a figure's morph, so only the named parts are captured and the rest stays live */
+:root[data-morphing] {
+    view-transition-name: none;
 }
 
 ::view-transition-group(*) {

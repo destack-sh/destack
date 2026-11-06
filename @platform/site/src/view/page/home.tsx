@@ -9,28 +9,26 @@ import {
 } from "@destack/view";
 import { Metadata } from "@destack/view/document";
 
-import { Noun } from "../home/noun/noun";
+import { Noun, noun } from "../home/noun/noun";
 import { BottomBar } from "../home/entry/switch";
-import { Adjective } from "../home/adjective/adjective";
-import { Command } from "../home/command/command";
-import { Participle } from "../home/participle/participle";
+import { Adjective, destackable } from "../home/adjective/adjective";
+import { Command, command } from "../home/command/command";
+import { Participle, participle } from "../home/participle/participle";
+import { anchorOf, type Form } from "../home/entry/entry";
+import { ThumbIndex } from "../home/entry/thumb";
 import { firstPicks, promptOf } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
-import { PastParticiple } from "../home/past/past";
-import { Verb } from "../home/verb/verb";
+import { destacked, PastParticiple } from "../home/past/past";
+import { Verb, verb } from "../home/verb/verb";
 import { lattice } from "../layout/lattice.stylex";
 import "../home/figure/figure.css";
 import { requestIdle } from "@destack/view/primitives/scheduled";
 
+/** The sections' dictionary forms in page order. */
+const FORMS: readonly Form[] = [verb, noun, destacked, destackable, command, participle];
+
 /** The figures' entries in page order, each the anchor of the section it heads. */
-const FIGURES = [
-    "verb",
-    "noun",
-    "past-participle",
-    "adjective",
-    "imperative",
-    "present-participle",
-] as const;
+const FIGURES = FORMS.map(anchorOf);
 
 /** The milliseconds a switch's view transition takes, before off-screen figures switch. */
 const SETTLE_TIME = 320;
@@ -126,15 +124,15 @@ export function Home() {
         <>
             <Metadata alternates={{ canonical: "/" }} />
             <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
-            <Interval />
+            <Interval number={2} form={noun} />
             <Noun isOpen={isOpenAt(1)} />
-            <Interval />
+            <Interval number={3} form={destacked} />
             <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
-            <Interval />
+            <Interval number={4} form={destackable} />
             <Adjective isOpen={isOpenAt(3)} />
-            <Interval />
+            <Interval number={5} form={command} />
             <Command isOpen={isOpenAt(4)} />
-            <Interval />
+            <Interval number={6} form={participle} />
             <Participle
                 isOpen={isOpenAt(5)}
                 picks={picks()}
@@ -143,6 +141,7 @@ export function Home() {
             />
             <BottomBar isOpen={isOpen()} />
             <Interval />
+            <ThumbIndex forms={FORMS} />
         </>
     );
 }
@@ -174,7 +173,33 @@ function spansOf(): readonly (readonly Element[])[] {
     });
 }
 
-/** Space two sections, or the last one and the footer, apart inside the frame. */
-function Interval() {
-    return <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />;
+/** Space two sections, or the last one and the footer, apart, with the next section's head. */
+function Interval(properties: { number?: number; form?: Form }) {
+    return (
+        <div aria-hidden="true" {...style.attrs(lattice.interval)}>
+            {properties.number === undefined || properties.form === undefined ? undefined : (
+                <RunningHead number={properties.number} form={properties.form} />
+            )}
+        </div>
+    );
+}
+
+/** Head the next section as a dictionary page does: number, part of speech, headword. */
+function RunningHead(properties: { number: number; form: Form }) {
+    const number = String(properties.number).padStart(2, "0");
+
+    return (
+        <div {...style.attrs(lattice.head)}>
+            {/* mark the rails with the section's coordinate */}
+            <span {...style.attrs(lattice.coordinate, lattice.coordinateStart)}>{number}</span>
+            <span {...style.attrs(lattice.coordinate, lattice.coordinateEnd)}>{number}</span>
+
+            {/* set the guide words */}
+            <span {...style.attrs(lattice.guide)}>
+                <b {...style.attrs(lattice.number)}>§ {number}</b> /{" "}
+                {String(FIGURES.length).padStart(2, "0")} — {properties.form.partOfSpeech}
+            </span>
+            <span {...style.attrs(lattice.guide)}>{properties.form.syllables.join("·")}</span>
+        </div>
+    );
 }

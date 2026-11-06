@@ -1,6 +1,6 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
-import { color, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, motion, stroke } from "@destack/theme/tokens.stylex";
 
 import { chrome } from "./chrome.stylex";
 import { palette } from "../../palette.stylex";
@@ -16,7 +16,6 @@ export const browserStyles = style.create({
         borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
-        boxShadow: shadow.raised,
         color: color.cardForeground,
         display: "grid",
         fontSize: "0.8125rem",

@@ -66,7 +66,7 @@ const styles = style.create({
     },
     track: {
         borderColor: color.border,
-        borderRadius: "5px",
+        borderRadius: 0,
         borderStyle: "solid",
         borderWidth: "1px",
         display: "inline-flex",
@@ -78,7 +78,7 @@ const styles = style.create({
             default: "transparent",
             ":hover": { default: null, [media.hover]: color.muted },
         },
-        borderRadius: "3px",
+        borderRadius: 0,
         borderWidth: 0,
         color: "inherit",
         cursor: "pointer",

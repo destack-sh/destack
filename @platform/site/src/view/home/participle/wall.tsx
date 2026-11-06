@@ -9,7 +9,7 @@ import {
     type Workload,
     jobWorkloads,
 } from "../figure/price";
-import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { createEffect, createSignal, useEnvironment } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
@@ -29,6 +29,7 @@ import { isMotionReduced } from "@destack/view/motion";
 import { type Category, type Tool, toolOf, tools } from "../tool/tool";
 import { typeScale, tracking } from "../../layout/type.stylex";
 import { requestFrame } from "@destack/view/primitives/raf";
+import { Cast } from "../figure/cast";
 
 /** A wall narrower than its widest row of tools at full size, where its chips tighten. */
 const COMPACT = "@container (max-width: 640px)";
@@ -185,62 +186,69 @@ export function ToolWall(properties: {
     );
 
     return (
-        <div data-component="ToolWall" {...style.attrs(styles.window)}>
-            {/* window strip, level with the bill's beside it */}
-            <div aria-hidden="true" {...style.attrs(styles.strip)}>
-                <span {...style.attrs(browserStyles.lights)} />
-            </div>
+        <Cast>
+            <div data-component="ToolWall" {...style.attrs(styles.window)}>
+                {/* window strip, level with the bill's beside it */}
+                <div aria-hidden="true" {...style.attrs(styles.strip)}>
+                    <span {...style.attrs(browserStyles.lights)} />
+                </div>
 
-            <ol ref={setWall} {...style.attrs(styles.wall)}>
-                {/* column heads, as tall as the bill's beside it so the rows line up */}
-                <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
-                    <span {...style.attrs(styles.label)}>Job</span>
-                    <span {...style.attrs(styles.headLine)}>
-                        <span {...style.attrs(styles.label)}>
-                            Tools · {properties.isOpen ? "in your space" : "pick the ones you use"}
-                        </span>
-
-                        {/* the apps you could make from the jobs your picks cover */}
-                        {properties.isOpen ? (
-                            <span {...style.attrs(styles.makes)}>
-                                <span {...style.attrs(styles.label)}>Make</span>
-                                {makesOf(properties.picks).map((make) => (
-                                    <span
-                                        title={make.jobs.map((job) => apps[job].name).join(" + ")}
-                                        {...style.attrs(styles.chip, styles.make)}
-                                    >
-                                        <Tile icon={make.icon} size="small" />
-                                        <span {...style.attrs(styles.appName)}>{make.name}</span>
-                                        <Glyph name="remix" size={11} />
-                                    </span>
-                                ))}
+                <ol ref={setWall} {...style.attrs(styles.wall)}>
+                    {/* column heads, as tall as the bill's beside it so the rows line up */}
+                    <li aria-hidden="true" {...style.attrs(styles.row, styles.head)}>
+                        <span {...style.attrs(styles.label)}>Job</span>
+                        <span {...style.attrs(styles.headLine)}>
+                            <span {...style.attrs(styles.label)}>
+                                Tools ·{" "}
+                                {properties.isOpen ? "in your space" : "pick the ones you use"}
                             </span>
-                        ) : undefined}
-                    </span>
-                </li>
-                {rows.map((row) => (
-                    <li {...style.attrs(styles.row)}>
-                        <span {...style.attrs(styles.label)}>{row.label}</span>
-                        <span {...style.attrs(styles.marks)}>
+
+                            {/* the apps you could make from the jobs your picks cover */}
                             {properties.isOpen ? (
-                                <>
-                                    <AppMark row={row} picked={pickedOf(row)} />
-                                    <Note picked={pickedOf(row)} />
-                                </>
-                            ) : (
-                                row.tools.map((tool) => (
-                                    <ToolButton
-                                        tool={tool}
-                                        isPicked={properties.picks.includes(tool)}
-                                        onPick={properties.onPick}
-                                    />
-                                ))
-                            )}
+                                <span {...style.attrs(styles.makes)}>
+                                    <span {...style.attrs(styles.label)}>Make</span>
+                                    {makesOf(properties.picks).map((make) => (
+                                        <span
+                                            title={make.jobs
+                                                .map((job) => apps[job].name)
+                                                .join(" + ")}
+                                            {...style.attrs(styles.chip, styles.make)}
+                                        >
+                                            <Tile icon={make.icon} size="small" />
+                                            <span {...style.attrs(styles.appName)}>
+                                                {make.name}
+                                            </span>
+                                            <Glyph name="remix" size={11} />
+                                        </span>
+                                    ))}
+                                </span>
+                            ) : undefined}
                         </span>
                     </li>
-                ))}
-            </ol>
-        </div>
+                    {rows.map((row) => (
+                        <li {...style.attrs(styles.row)}>
+                            <span {...style.attrs(styles.label)}>{row.label}</span>
+                            <span {...style.attrs(styles.marks)}>
+                                {properties.isOpen ? (
+                                    <>
+                                        <AppMark row={row} picked={pickedOf(row)} />
+                                        <Note picked={pickedOf(row)} />
+                                    </>
+                                ) : (
+                                    row.tools.map((tool) => (
+                                        <ToolButton
+                                            tool={tool}
+                                            isPicked={properties.picks.includes(tool)}
+                                            onPick={properties.onPick}
+                                        />
+                                    ))
+                                )}
+                            </span>
+                        </li>
+                    ))}
+                </ol>
+            </div>
+        </Cast>
     );
 }
 
@@ -494,7 +502,6 @@ const styles = style.create({
         borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
-        boxShadow: shadow.raised,
         display: "grid",
         containerType: "inline-size",
         gridTemplateRows: "auto minmax(0, 1fr)",

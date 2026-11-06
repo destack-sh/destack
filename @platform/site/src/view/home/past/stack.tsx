@@ -1,5 +1,5 @@
 import { frame } from "../../layout/frame.stylex";
-import { color, font, motion, shadow, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
 import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { Shader, type ShaderFailure } from "@destack/shader";
@@ -13,7 +13,6 @@ import {
     useTelemetry,
 } from "@destack/view";
 
-import { charge } from "../../effect/goo";
 import {
     type Bergs,
     TRAVEL,
@@ -53,6 +52,7 @@ import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 import { makeTimer, Timeout } from "@destack/view/primitives/timer";
 import { typeScale, tracking } from "../../layout/type.stylex";
 import { requestFrame } from "@destack/view/primitives/raf";
+import { Cast } from "../figure/cast";
 
 /** The rows above the waterline today. */
 const dryRows = 2;
@@ -169,6 +169,9 @@ const layers: readonly Layer[] = [
         },
     },
 ];
+
+/** The number of layers in the stack. */
+export const layerCount = layers.length;
 
 /** The layers each vendor keeps under water, one per submerged row. */
 const locked: Readonly<Record<string, readonly Entity[]>> = {
@@ -483,7 +486,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // store the choice and tell the page
         setStack(next);
         properties.onChange(next === "destack");
-        charge(0);
 
         // bring the open stack to life only once the water has fully drained
         settle.clear();
@@ -578,262 +580,273 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 </span>
             </div>
 
-            <div {...style.attrs(styles.window)}>
-                {/* window strip, level with the other figures' windows */}
-                <div aria-hidden="true" {...style.attrs(styles.strip)}>
-                    <span {...style.attrs(browserStyles.lights)} />
-                </div>
-
-                <figure
-                    ref={figureElement}
-                    aria-label="Apps today compared with Destack"
-                    onPointerMove={skim}
-                    onPointerLeave={() => setLit(undefined)}
-                    style={{
-                        "--reveal-0": "0",
-                        "--reveal-1": "0",
-                        "--reveal-2": "0",
-                        "--reveal-3": "0",
-                        "--reveal-4": "0",
-                        "--reveal-5": "0",
-                    }}
-                    {...style.attrs(styles.figure, isOpen() && styles.marked)}
-                >
-                    {/* say what each layer lets you do, verb first */}
-                    <For each={layers}>
-                        {(layer, index) => (
-                            <div
-                                {...style.attributes([styles.claim, styles.row(index() + 1)], {
-                                    opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))`,
-                                })}
-                            >
-                                {/* set the layer's number beside the count it costs */}
-                                <span {...style.attrs(styles.numberLine)}>
-                                    <span
-                                        {...style.attrs(
-                                            styles.number,
-                                            (isOpen() || lit() === index()) && styles.numberLit,
-                                        )}
-                                    >
-                                        0{index() + 1} {layer.name}
-                                    </span>
-                                    <Swap
-                                        row={index()}
-                                        isOpen={isOpen()}
-                                        today={layer.item.today(count())}
-                                        destack={layer.item.destack(count())}
-                                        xstyle={styles.itemText}
-                                    />
-                                </span>
-                                {/* set the verb and the things the layer is made of on one baseline */}
-                                <span {...style.attrs(styles.claimLine)}>
-                                    <Swap
-                                        row={index()}
-                                        isOpen={isOpen()}
-                                        today={layer.claim.today}
-                                        destack={layer.claim.destack}
-                                        xstyle={styles.claimText}
-                                    />
-                                    <Swap
-                                        row={index()}
-                                        isOpen={isOpen()}
-                                        today={layer.detail.today}
-                                        destack={layer.detail.destack}
-                                        isPlated
-                                        xstyle={styles.detailText}
-                                    />
-                                </span>
-                                {/* say what the layer means for you under the claim */}
-                                <Swap
-                                    row={index()}
-                                    isOpen={isOpen()}
-                                    today={layer.note.today}
-                                    destack={layer.note.destack}
-                                    xstyle={styles.noteText}
-                                />
-                            </div>
-                        )}
-                    </For>
-
-                    {/* stand the icebergs behind the cards, riding the waterline */}
-                    <Shader
-                        aria-hidden="true"
-                        fragmentShader={WATER_FRAGMENT}
-                        uniforms={waterValues("ice")}
-                        speed={1}
-                        maxPixelCount={WATER_PIXELS}
-                        style={spillStyle}
-                        xstyle={[styles.ice, !isPainted() && styles.unpainted]}
-                        onFailure={(failure) => reportFailure(failure, telemetry)}
-                    />
-
-                    {/* draw both configurations in the six middle columns */}
-                    <div ref={drawingElement} {...style.attrs(lattice.ruleRight, styles.drawing)}>
-                        {/* place every entity on its row and column */}
-                        {/* sink each silo's hidden layers under its column, showing only the silo on top of it now */}
-                        {columnLefts.map((left, column) =>
-                            [0, 1, 2, 3].map((index) => (
-                                <div
-                                    style={{
-                                        left: `calc(${frame.cell} * ${left})`,
-                                        width: `calc(${frame.cell} * ${columnWidth})`,
-                                        top: `calc(${frame.cellRow} * ${(dryRows + index) * 9 + 4.5})`,
-                                        opacity: `calc(1 - var(--reveal-${dryRows + index}))`,
-                                    }}
-                                    {...style.attrs(styles.column, styles.sunkSlot)}
-                                >
-                                    {silosOf(column).map((id) => (
-                                        <div
-                                            class={
-                                                style.attrs(
-                                                    styles.sunkCard,
-                                                    siloOn(
-                                                        present(todayScenes[today()], "scene"),
-                                                        column,
-                                                    ) !== id && styles.sunkAway,
-                                                ).class
-                                            }
-                                        >
-                                            <Card
-                                                entity={lockedLayer(id, index)}
-                                                kind="locked"
-                                                xstyle={styles.fill}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            )),
-                        )}
-                        {tapeGaps.map((index) => (
-                            <DuctTape
-                                label={tapeLabel(index, present(todayScenes[today()], "scene"))}
-                                gap={index}
-                                turn={tapeTurns[index] ?? 0}
-                                left={`calc(${frame.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
-                                xstyle={[styles.tape, isOpen() ? styles.tapeGone : styles.tapeBack]}
-                            />
-                        ))}
-                        {shared.map((entity, index) => (
-                            <div
-                                {...style.attributes(
-                                    [
-                                        styles.band,
-                                        styles.row(dryRows + index + 1),
-                                        styles.cascade(`${140 + index * 45}ms`),
-                                    ],
-                                    {
-                                        "--band-reveal": `var(--reveal-${dryRows + index})`,
-                                        "pointer-events": isOpen() ? "auto" : "none",
-                                        ...growOutOfPlates(`var(--reveal-${dryRows + index})`),
-                                    },
-                                )}
-                            >
-                                <Band
-                                    entity={entity.entity}
-                                    items={entity.items}
-                                    active={isLive() ? activeOf(scene(), index) : []}
-                                />
-                            </div>
-                        ))}
-                        {/* move users, agents, and apps around freely over the layers below */}
-                        <Remix
-                            isOpen={isOpen()}
-                            today={today()}
-                            isLive={isLive()}
-                            revealOf={(row) => {
-                                // read how far the water has left a row
-                                const reveal = reveals[row];
-                                if (reveal === undefined) {
-                                    throw new TypeError(`missing row ${row}`);
-                                }
-
-                                return reveal;
-                            }}
-                            onScene={setScene}
-                        />
-
-                        {hosts.map((host, index) => (
-                            <div
-                                style={{
-                                    left: `calc(${frame.cell} * ${quarterLefts[index]})`,
-                                    top: `calc(${frame.cellRow} * 49.5)`,
-                                    width: `calc(${frame.cell} * ${quarterWidth})`,
-                                    opacity: "var(--reveal-5)",
-                                    "pointer-events": isOpen() ? "auto" : "none",
-                                    translate: "0 calc((1 - var(--reveal-5)) * 40%)",
-                                }}
-                                {...style.attrs(styles.column)}
-                            >
-                                <Card entity={host} kind="plain" xstyle={styles.fill} />
-                            </div>
-                        ))}
+            <Cast xstyle={styles.place}>
+                <div {...style.attrs(styles.window)}>
+                    {/* window strip, level with the other figures' windows */}
+                    <div aria-hidden="true" {...style.attrs(styles.strip)}>
+                        <span {...style.attrs(browserStyles.lights)} />
                     </div>
 
-                    {/* stand in for the water until the shader paints its first frame */}
-                    <div
-                        aria-hidden="true"
-                        {...style.attrs(styles.pool, (isPainted() || isOpen()) && styles.poolGone)}
-                    />
-                    <Shader
-                        ref={waterElement}
-                        aria-hidden="true"
-                        fragmentShader={WATER_FRAGMENT}
-                        uniforms={waterValues("water")}
-                        speed={1}
-                        maxPixelCount={WATER_PIXELS}
-                        style={spillStyle}
-                        xstyle={[styles.water, !isPainted() && styles.unpainted]}
-                        onMount={(mount) => {
-                            waterline.mount = mount;
-                            setIsPainted(true);
+                    <figure
+                        ref={figureElement}
+                        aria-label="Apps today compared with Destack"
+                        onPointerMove={skim}
+                        onPointerLeave={() => setLit(undefined)}
+                        style={{
+                            "--reveal-0": "0",
+                            "--reveal-1": "0",
+                            "--reveal-2": "0",
+                            "--reveal-3": "0",
+                            "--reveal-4": "0",
+                            "--reveal-5": "0",
                         }}
-                        onFailure={(failure) => reportFailure(failure, telemetry)}
-                    />
-
-                    {/* tint the lit layer across the drawing and its legend row, fading from row to row */}
-                    {[...layers.keys()].map((index) => (
-                        <span
-                            aria-hidden="true"
-                            style={{ "grid-row": String(index + 1) }}
-                            {...style.attrs(styles.lit, lit() !== index && styles.litGone)}
-                        />
-                    ))}
-
-                    {/* draw the legend's rule over the water, so no line breaks where it rises */}
-                    <span aria-hidden="true" {...style.attrs(styles.columnRule)} />
-                    {/* list the layers' claims under the drawing below desktop, where words over the wires would not read */}
-                    <ol data-component="LayerList" {...style.attrs(styles.list)}>
+                        {...style.attrs(styles.figure, isOpen() && styles.marked)}
+                    >
+                        {/* say what each layer lets you do, verb first */}
                         <For each={layers}>
                             {(layer, index) => (
-                                <li {...style.attrs(styles.listItem)}>
-                                    <span
-                                        {...style.attrs(
-                                            styles.number,
-                                            isOpen() && styles.numberLit,
-                                        )}
-                                    >
-                                        0{index() + 1} {layer.name}
-                                    </span>
-                                    <b {...style.attrs(styles.listClaim)}>
-                                        <Crossfade
+                                <div
+                                    {...style.attributes([styles.claim, styles.row(index() + 1)], {
+                                        opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))`,
+                                    })}
+                                >
+                                    {/* set the layer's number beside the count it costs */}
+                                    <span {...style.attrs(styles.numberLine)}>
+                                        <span
+                                            {...style.attrs(
+                                                styles.number,
+                                                (isOpen() || lit() === index()) && styles.numberLit,
+                                            )}
+                                        >
+                                            0{index() + 1} {layer.name}
+                                        </span>
+                                        <Swap
+                                            row={index()}
                                             isOpen={isOpen()}
-                                            stacked={layer.claim.today}
-                                            destacked={layer.claim.destack}
-                                        />
-                                    </b>
-                                    <span {...style.attrs(styles.listNote)}>
-                                        <Crossfade
-                                            isOpen={isOpen()}
-                                            stacked={layer.note.today}
-                                            destacked={layer.note.destack}
+                                            today={layer.item.today(count())}
+                                            destack={layer.item.destack(count())}
+                                            xstyle={styles.itemText}
                                         />
                                     </span>
-                                </li>
+                                    {/* set the verb and the things the layer is made of on one baseline */}
+                                    <span {...style.attrs(styles.claimLine)}>
+                                        <Swap
+                                            row={index()}
+                                            isOpen={isOpen()}
+                                            today={layer.claim.today}
+                                            destack={layer.claim.destack}
+                                            xstyle={styles.claimText}
+                                        />
+                                        <Swap
+                                            row={index()}
+                                            isOpen={isOpen()}
+                                            today={layer.detail.today}
+                                            destack={layer.detail.destack}
+                                            isPlated
+                                            xstyle={styles.detailText}
+                                        />
+                                    </span>
+                                    {/* say what the layer means for you under the claim */}
+                                    <Swap
+                                        row={index()}
+                                        isOpen={isOpen()}
+                                        today={layer.note.today}
+                                        destack={layer.note.destack}
+                                        xstyle={styles.noteText}
+                                    />
+                                </div>
                             )}
                         </For>
-                    </ol>
-                </figure>
-            </div>
+
+                        {/* stand the icebergs behind the cards, riding the waterline */}
+                        <Shader
+                            aria-hidden="true"
+                            fragmentShader={WATER_FRAGMENT}
+                            uniforms={waterValues("ice")}
+                            speed={1}
+                            maxPixelCount={WATER_PIXELS}
+                            style={spillStyle}
+                            xstyle={[styles.ice, !isPainted() && styles.unpainted]}
+                            onFailure={(failure) => reportFailure(failure, telemetry)}
+                        />
+
+                        {/* draw both configurations in the six middle columns */}
+                        <div
+                            ref={drawingElement}
+                            {...style.attrs(lattice.ruleRight, styles.drawing)}
+                        >
+                            {/* place every entity on its row and column */}
+                            {/* sink each silo's hidden layers under its column, showing only the silo on top of it now */}
+                            {columnLefts.map((left, column) =>
+                                [0, 1, 2, 3].map((index) => (
+                                    <div
+                                        style={{
+                                            left: `calc(${frame.cell} * ${left})`,
+                                            width: `calc(${frame.cell} * ${columnWidth})`,
+                                            top: `calc(${frame.cellRow} * ${(dryRows + index) * 9 + 4.5})`,
+                                            opacity: `calc(1 - var(--reveal-${dryRows + index}))`,
+                                        }}
+                                        {...style.attrs(styles.column, styles.sunkSlot)}
+                                    >
+                                        {silosOf(column).map((id) => (
+                                            <div
+                                                class={
+                                                    style.attrs(
+                                                        styles.sunkCard,
+                                                        siloOn(
+                                                            present(todayScenes[today()], "scene"),
+                                                            column,
+                                                        ) !== id && styles.sunkAway,
+                                                    ).class
+                                                }
+                                            >
+                                                <Card
+                                                    entity={lockedLayer(id, index)}
+                                                    kind="locked"
+                                                    xstyle={styles.fill}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                )),
+                            )}
+                            {tapeGaps.map((index) => (
+                                <DuctTape
+                                    label={tapeLabel(index, present(todayScenes[today()], "scene"))}
+                                    gap={index}
+                                    turn={tapeTurns[index] ?? 0}
+                                    left={`calc(${frame.cell} * ${(centreOf(index) + centreOf(index + 1)) / 2})`}
+                                    xstyle={[
+                                        styles.tape,
+                                        isOpen() ? styles.tapeGone : styles.tapeBack,
+                                    ]}
+                                />
+                            ))}
+                            {shared.map((entity, index) => (
+                                <div
+                                    {...style.attributes(
+                                        [
+                                            styles.band,
+                                            styles.row(dryRows + index + 1),
+                                            styles.cascade(`${140 + index * 45}ms`),
+                                        ],
+                                        {
+                                            "--band-reveal": `var(--reveal-${dryRows + index})`,
+                                            "pointer-events": isOpen() ? "auto" : "none",
+                                            ...growOutOfPlates(`var(--reveal-${dryRows + index})`),
+                                        },
+                                    )}
+                                >
+                                    <Band
+                                        entity={entity.entity}
+                                        items={entity.items}
+                                        active={isLive() ? activeOf(scene(), index) : []}
+                                    />
+                                </div>
+                            ))}
+                            {/* move users, agents, and apps around freely over the layers below */}
+                            <Remix
+                                isOpen={isOpen()}
+                                today={today()}
+                                isLive={isLive()}
+                                revealOf={(row) => {
+                                    // read how far the water has left a row
+                                    const reveal = reveals[row];
+                                    if (reveal === undefined) {
+                                        throw new TypeError(`missing row ${row}`);
+                                    }
+
+                                    return reveal;
+                                }}
+                                onScene={setScene}
+                            />
+
+                            {hosts.map((host, index) => (
+                                <div
+                                    style={{
+                                        left: `calc(${frame.cell} * ${quarterLefts[index]})`,
+                                        top: `calc(${frame.cellRow} * 49.5)`,
+                                        width: `calc(${frame.cell} * ${quarterWidth})`,
+                                        opacity: "var(--reveal-5)",
+                                        "pointer-events": isOpen() ? "auto" : "none",
+                                        translate: "0 calc((1 - var(--reveal-5)) * 40%)",
+                                    }}
+                                    {...style.attrs(styles.column)}
+                                >
+                                    <Card entity={host} kind="plain" xstyle={styles.fill} />
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* stand in for the water until the shader paints its first frame */}
+                        <div
+                            aria-hidden="true"
+                            {...style.attrs(
+                                styles.pool,
+                                (isPainted() || isOpen()) && styles.poolGone,
+                            )}
+                        />
+                        <Shader
+                            ref={waterElement}
+                            aria-hidden="true"
+                            fragmentShader={WATER_FRAGMENT}
+                            uniforms={waterValues("water")}
+                            speed={1}
+                            maxPixelCount={WATER_PIXELS}
+                            style={spillStyle}
+                            xstyle={[styles.water, !isPainted() && styles.unpainted]}
+                            onMount={(mount) => {
+                                waterline.mount = mount;
+                                setIsPainted(true);
+                            }}
+                            onFailure={(failure) => reportFailure(failure, telemetry)}
+                        />
+
+                        {/* tint the lit layer across the drawing and its legend row, fading from row to row */}
+                        {[...layers.keys()].map((index) => (
+                            <span
+                                aria-hidden="true"
+                                style={{ "grid-row": String(index + 1) }}
+                                {...style.attrs(styles.lit, lit() !== index && styles.litGone)}
+                            />
+                        ))}
+
+                        {/* draw the legend's rule over the water, so no line breaks where it rises */}
+                        <span aria-hidden="true" {...style.attrs(styles.columnRule)} />
+                        {/* list the layers' claims under the drawing below desktop, where words over the wires would not read */}
+                        <ol data-component="LayerList" {...style.attrs(styles.list)}>
+                            <For each={layers}>
+                                {(layer, index) => (
+                                    <li {...style.attrs(styles.listItem)}>
+                                        <span
+                                            {...style.attrs(
+                                                styles.number,
+                                                isOpen() && styles.numberLit,
+                                            )}
+                                        >
+                                            0{index() + 1} {layer.name}
+                                        </span>
+                                        <b {...style.attrs(styles.listClaim)}>
+                                            <Crossfade
+                                                isOpen={isOpen()}
+                                                stacked={layer.claim.today}
+                                                destacked={layer.claim.destack}
+                                            />
+                                        </b>
+                                        <span {...style.attrs(styles.listNote)}>
+                                            <Crossfade
+                                                isOpen={isOpen()}
+                                                stacked={layer.note.today}
+                                                destacked={layer.note.destack}
+                                            />
+                                        </span>
+                                    </li>
+                                )}
+                            </For>
+                        </ol>
+                    </figure>
+                </div>
+            </Cast>
         </div>
     );
 }
@@ -1017,6 +1030,9 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
 
 /** The figure styles. */
 const styles = style.create({
+    place: {
+        gridColumn: "1 / -1",
+    },
     shell: {
         backgroundColor: color.background,
         paddingBlock: `1.125rem ${frame.inset}`,
@@ -1045,9 +1061,7 @@ const styles = style.create({
         borderRadius: chrome.radius,
         borderStyle: "solid",
         borderWidth: stroke.border,
-        boxShadow: shadow.raised,
         display: "grid",
-        gridColumn: "1 / -1",
         gridTemplateRows: "auto auto",
         overflow: "hidden",
     },

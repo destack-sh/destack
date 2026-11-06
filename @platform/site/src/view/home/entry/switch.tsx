@@ -4,21 +4,18 @@ import { Icon } from "@destack/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
 import list from "@destack/icon/phosphor/list";
 import { Button } from "@destack/ui/button";
-import { createSignal, onSettled } from "@destack/view";
+import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
+import { Timeout } from "@destack/view/primitives/timer";
 import { isMotionReduced } from "@destack/view/motion";
 import { createEventListener } from "@destack/view/primitives/event-listener";
 import { palette } from "../../palette.stylex";
 
 import { commandEvents } from "../../layout/command";
-import { charge } from "../../effect/goo";
 import { Syllables } from "./entry";
 import { media } from "@destack/style/media.stylex";
 import { typeScale } from "../../layout/type.stylex";
-
-/** How hard the goo charges while the switch is hovered. */
-const hoverCharge = 0.5;
-/** How hard the goo charges while the switch is held down. */
-const heldCharge = 1.8;
+import { press } from "../../layout/press";
 
 /** The switch's word for the stack as it is today. */
 const stacked = ["stacked"];
@@ -29,20 +26,27 @@ const destacked = ["de", "stacked"];
 /** Where a stack switch sits: in a figure's label, or in the phones' bottom bar. */
 export type SwitchPlace = "label" | "bar";
 
+/** The milliseconds a hinted switch waits, untouched on screen, before showing that it switches. */
+const HINT_DELAY = 2000;
+
 /** Switch the whole page and every figure between the stack as it is and destacked. */
-export function StackSwitch(properties: { isOpen: boolean; place: SwitchPlace }) {
+export function StackSwitch(properties: {
+    isOpen: boolean;
+    place: SwitchPlace;
+    isHinted?: boolean;
+}) {
     // leave phones to the bottom bar's switch
     const isInLabel = () => properties.place === "label";
 
     return (
         <span {...style.attrs(styles.place, isInLabel() && styles.placeLabel)}>
             <Toggle
+                isHinted={properties.isHinted === true}
                 isOn={properties.isOpen}
                 off={stacked}
                 on={destacked}
                 label="Destack"
                 title={properties.isOpen ? "Restack" : "Destack"}
-                isCharging
                 onToggle={() => {
                     // flip the figures' rebuilt pieces in from now on and switch every figure
                     document.documentElement.dataset["switched"] = "";
@@ -53,21 +57,36 @@ export function StackSwitch(properties: { isOpen: boolean; place: SwitchPlace })
     );
 }
 
-/** Switch between two states by their words, with a track between them. */
+/** Switch between two states as a title block: two ruled cells, the current one filled. */
 export function Toggle(properties: {
+    isHinted?: boolean;
     isOn: boolean;
     off: readonly string[];
     on: readonly string[];
     label: string;
     title: string;
-    isCharging: boolean;
     onToggle: () => void;
 }) {
-    // charge the goo while hovered or held, when the toggle asks for it
-    const chargeTo = (amount: number) => {
-        if (properties.isCharging) {
-            charge(properties.isOn ? 0 : amount);
-        }
+    // hint once that the switch switches: a sweep across the other cell, the first time it shows untouched
+    const [button, setButton] = createSignal<HTMLElement>();
+    const isShown = createVisibilityObserver(button, { initialValue: false });
+    const [isHinting, setIsHinting] = createSignal(false);
+    const [isTouched, setIsTouched] = createSignal(false);
+    const hint = new Timeout();
+    createEffect(
+        () => properties.isHinted === true && isShown() && !isTouched(),
+        (isDue) => {
+            // wait while it shows untouched, and give up once it is touched or leaves
+            if (isDue) {
+                hint.set(() => setIsHinting(true), HINT_DELAY);
+            } else {
+                hint.clear();
+            }
+        },
+    );
+    const touch = () => {
+        setIsTouched(true);
+        setIsHinting(false);
     };
 
     return (
@@ -78,27 +97,33 @@ export function Toggle(properties: {
                 aria-label={properties.label}
                 aria-checked={properties.isOn ? "true" : "false"}
                 title={properties.title}
-                onClick={() => properties.onToggle()}
-                onPointerEnter={() => chargeTo(hoverCharge)}
-                onPointerLeave={() => chargeTo(0)}
-                onPointerDown={() => chargeTo(heldCharge)}
-                {...style.attrs(styles.switch)}
+                ref={setButton}
+                onPointerEnter={touch}
+                onClick={() => {
+                    touch();
+                    properties.onToggle();
+                }}
+                {...style.attrs(press.key, styles.switch)}
             >
-                <b {...style.attrs(styles.word, !properties.isOn && styles.active)}>
+                <b
+                    onAnimationEnd={touch}
+                    {...style.attrs(
+                        styles.word,
+                        properties.isOn ? styles.idle : styles.active,
+                        properties.isOn && isHinting() && styles.hint,
+                    )}
+                >
                     <Syllables syllables={properties.off} />
                 </b>
-                <span
-                    aria-hidden="true"
-                    {...style.attrs(styles.track, properties.isOn && styles.trackOn)}
+                <b
+                    onAnimationEnd={touch}
+                    {...style.attrs(
+                        styles.word,
+                        styles.second,
+                        properties.isOn ? styles.active : styles.idle,
+                        !properties.isOn && isHinting() && styles.hint,
+                    )}
                 >
-                    <span
-                        {...style.attrs(
-                            styles.knob,
-                            properties.isOn ? styles.knobOn : styles.knobNudge,
-                        )}
-                    />
-                </span>
-                <b {...style.attrs(styles.word, properties.isOn && styles.active)}>
                     <Syllables syllables={properties.on} />
                 </b>
             </button>
@@ -157,12 +182,11 @@ export function BottomBar(properties: { isOpen: boolean }) {
     );
 }
 
-/** The knob's periodic nudge toward destacked. */
-const nudge = style.keyframes({
-    "0%, 80%, 100%": { transform: "translateX(0)" },
-    "86%": { transform: "translateX(0.5rem)" },
-    "91%": { transform: "translateX(0.125rem)" },
-    "95%": { transform: "translateX(0.25rem)" },
+/** A fill sweeping across a cell and back, once, to show it can be chosen. */
+const sweep = style.keyframes({
+    "0%": { backgroundSize: "0% 100%" },
+    "50%": { backgroundSize: "100% 100%" },
+    "100%": { backgroundSize: "0% 100%" },
 });
 
 /** The switch styles. */
@@ -174,57 +198,60 @@ const styles = style.create({
         display: { default: "contents", [media.maxMd]: "none" },
     },
     switch: {
-        alignItems: "center",
-        backgroundColor: "transparent",
-        borderWidth: 0,
+        alignItems: "stretch",
+        backgroundColor: color.background,
+        borderColor: color.foreground,
+        borderStyle: "solid",
+        borderWidth: "1px",
         color: "inherit",
         cursor: "pointer",
         display: "inline-flex",
-        fontFamily: font.text,
-        gap: "0.625rem",
+        fontFamily: font.code,
         padding: 0,
+        position: "relative",
+        zIndex: 1,
     },
     word: {
+        backgroundImage: `linear-gradient(color-mix(in srgb, ${color.primary} 38%, transparent), color-mix(in srgb, ${color.primary} 38%, transparent))`,
+        backgroundPosition: "left",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: "0% 100%",
         color: color.mutedForeground,
-        fontSize: typeScale.small,
+        fontSize: typeScale.label,
         fontWeight: 600,
+        letterSpacing: "0.1em",
+        paddingBlock: "0.4375rem",
+        paddingInline: "0.75rem",
+        textTransform: "uppercase",
         transitionDuration: motion.durationShort,
-        transitionProperty: "color",
+        transitionProperty: "background-color, background-size, color",
         transitionTimingFunction: motion.easingStandard,
     },
+    second: {
+        borderInlineStartColor: color.foreground,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: "1px",
+    },
     active: {
-        color: color.primary,
-    },
-    track: {
-        borderColor: color.primary,
-        borderRadius: "999px",
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        display: "flex",
-        height: "1.25rem",
-        padding: "2px",
-        transition: `background-color ${motion.durationMedium} ${motion.easingStandard}`,
-        width: "2.25rem",
-    },
-    trackOn: {
         backgroundColor: color.primary,
+        color: palette.space,
     },
-    knob: {
-        backgroundColor: color.primary,
-        borderRadius: "50%",
-        height: "0.8125rem",
-        transition: `translate ${motion.durationMedium} ${motion.easingSpring}`,
-        width: "0.8125rem",
+    idle: {
+        backgroundSize: {
+            default: "0% 100%",
+            ":hover": { default: null, [media.hover]: "50% 100%" },
+        },
     },
-    knobOn: {
-        backgroundColor: palette.space,
-        translate: "1rem 0",
+    hint: {
+        animationDuration: "1.6s",
+        animationName: { default: sweep, [media.motionReduce]: "none" },
+        animationTimingFunction: motion.easingStandard,
     },
     bar: {
         alignItems: "center",
         backgroundColor: color.background,
         borderColor: color.border,
-        borderRadius: "999px",
+        borderRadius: 0,
         borderStyle: "solid",
         borderWidth: "1px",
         bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
@@ -255,10 +282,5 @@ const styles = style.create({
         alignItems: "center",
         display: "inline-flex",
         position: "relative",
-    },
-    knobNudge: {
-        animationDuration: "4s",
-        animationIterationCount: "infinite",
-        animationName: { default: nudge, [media.motionReduce]: "none" },
     },
 });

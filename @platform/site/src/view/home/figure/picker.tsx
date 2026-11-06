@@ -254,7 +254,7 @@ const styles = style.create({
     trigger: {
         alignItems: "center",
         borderColor: color.border,
-        borderRadius: "5px",
+        borderRadius: 0,
         borderStyle: "solid",
         borderWidth: "1px",
         color: color.foreground,

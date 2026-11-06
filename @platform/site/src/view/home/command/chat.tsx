@@ -19,6 +19,7 @@ import {
     type Moment,
     WORDS_PER_BEAT,
 } from "./scene";
+import { Cast } from "../figure/cast";
 
 /** The sans the assistants' chrome and your messages set in. */
 const SANS = 'ui-sans-serif, -apple-system, "Segoe UI", system-ui, sans-serif';
@@ -129,293 +130,298 @@ export function AgentChat(properties: {
     const isReplied = () => properties.moment.items.some((item) => item.kind === "reply");
 
     return (
-        <div
-            data-component="AgentChat"
-            data-assistant={nameOf(properties.look)}
-            {...style.attrs(browserStyles.browser, styles.window, themeOf(properties.look))}
-        >
-            {/* title bar, one per assistant */}
-            <div {...style.attrs(styles.stack)}>
-                <Layer isShown={isShown("Claude")}>
-                    <span {...style.attrs(styles.bar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <Glyph name="sidebar" size={15} />
-                        <span {...style.attrs(styles.conversation)}>
-                            Launch day
-                            <Glyph name="caret" size={11} />
-                        </span>
-                        <span {...style.attrs(styles.barEnd)}>
-                            <span {...style.attrs(styles.share)}>Share</span>
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isShown("ChatGPT")}>
-                    <span {...style.attrs(styles.bar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <Glyph name="sidebar" size={15} />
-                        <Glyph name="compose" size={15} />
-                        <span {...style.attrs(styles.barEnd)}>
-                            <span {...style.attrs(styles.share, styles.chatgptShare)}>
-                                <Glyph name="share" size={13} />
-                                Share
-                            </span>
-                            <Glyph name="more" size={15} />
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isShown("Grok")}>
-                    <span {...style.attrs(styles.bar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <Glyph name="sidebar" size={15} />
-                        <span {...style.attrs(styles.conversation)}>Launch day</span>
-                        <span {...style.attrs(styles.barEnd)}>
-                            <Glyph name="share" size={14} />
-                            <Glyph name="more" size={15} />
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isSurface("terminal")}>
-                    <span {...style.attrs(styles.bar, styles.terminalBar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <span {...style.attrs(styles.conversation)}>~/launch-tracker</span>
-                        <span {...style.attrs(styles.barEnd)}>
-                            <SurfaceMark look={surface()} size={13} />
-                            {surface()?.name}
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isSurface("builder")}>
-                    <span {...style.attrs(styles.bar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <SurfaceMark look={surface()} size={15} />
-                        <span {...style.attrs(styles.conversation)}>Launch tracker</span>
-                        <span {...style.attrs(styles.barEnd)}>
-                            <span {...style.attrs(styles.publish)}>Publish</span>
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isShown("Gemini")}>
-                    <span {...style.attrs(styles.bar)}>
-                        <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
-                        <Glyph name="hamburger" size={16} />
-                        <span {...style.attrs(styles.barEnd)}>
-                            <Glyph name="grid" size={15} />
-                            <span {...style.attrs(styles.avatar)}>F</span>
-                        </span>
-                    </span>
-                </Layer>
-            </div>
-
-            {/* the conversation, newest at the bottom, settling into each assistant's type */}
+        <Cast>
             <div
-                {...style.attrs(
-                    styles.messages,
-                    settles() % 2 === 0 ? styles.settleEven : styles.settleOdd,
-                )}
+                data-component="AgentChat"
+                data-assistant={nameOf(properties.look)}
+                {...style.attrs(browserStyles.browser, styles.window, themeOf(properties.look))}
             >
-                <For each={properties.moment.items}>
-                    {(item) => (
-                        <ItemView
-                            item={item}
-                            look={properties.look}
-                            isRunning={item === properties.moment.running}
-                            isDeciding={item === properties.moment.deciding}
-                            isPressed={item === properties.moment.pressed}
-                            isBuilding={item === properties.moment.building}
-                            words={
-                                properties.moment.streaming?.item === item
-                                    ? properties.moment.streaming.words
-                                    : undefined
-                            }
-                        />
-                    )}
-                </For>
-
-                {/* each assistant at work, then its mark or actions under its reply */}
-                <span {...style.attrs(styles.stack, styles.footer)}>
+                {/* title bar, one per assistant */}
+                <div {...style.attrs(styles.stack)}>
                     <Layer isShown={isShown("Claude")}>
-                        {properties.moment.isWorking ? (
-                            <span {...style.attrs(styles.spinning)}>
-                                <Favicon icon="claude" tint={assistant.clay} size={18} />
+                        <span {...style.attrs(styles.bar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <Glyph name="sidebar" size={15} />
+                            <span {...style.attrs(styles.conversation)}>
+                                Launch day
+                                <Glyph name="caret" size={11} />
                             </span>
-                        ) : isReplied() ? (
-                            <Favicon icon="claude" tint={assistant.clay} size={18} />
-                        ) : undefined}
+                            <span {...style.attrs(styles.barEnd)}>
+                                <span {...style.attrs(styles.share)}>Share</span>
+                            </span>
+                        </span>
                     </Layer>
                     <Layer isShown={isShown("ChatGPT")}>
-                        {properties.moment.isWorking ? (
-                            <span {...style.attrs(styles.pulse)} />
-                        ) : isReplied() ? (
-                            <span {...style.attrs(styles.actions)}>
-                                <Glyph name="copy" size={14} />
-                                <Glyph name="like" size={14} />
-                                <Glyph name="dislike" size={14} />
-                                <Glyph name="reload" size={14} />
+                        <span {...style.attrs(styles.bar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <Glyph name="sidebar" size={15} />
+                            <Glyph name="compose" size={15} />
+                            <span {...style.attrs(styles.barEnd)}>
+                                <span {...style.attrs(styles.share, styles.chatgptShare)}>
+                                    <Glyph name="share" size={13} />
+                                    Share
+                                </span>
+                                <Glyph name="more" size={15} />
                             </span>
-                        ) : undefined}
-                    </Layer>
-                    <Layer isShown={isShown("Gemini")}>
-                        {properties.moment.isWorking ? (
-                            <span {...style.attrs(styles.spinning)}>
-                                <Favicon icon="gemini" tint={gemini.spark} size={18} />
-                            </span>
-                        ) : isReplied() ? (
-                            <span {...style.attrs(styles.actions)}>
-                                <Glyph name="like" size={14} />
-                                <Glyph name="dislike" size={14} />
-                                <Glyph name="share" size={14} />
-                                <Glyph name="more" size={14} />
-                            </span>
-                        ) : undefined}
-                    </Layer>
-                    <Layer isShown={isSurface("terminal") || isSurface("builder")}>
-                        {properties.moment.isWorking ? (
-                            <span {...style.attrs(styles.spinning)}>
-                                <SurfaceMark look={surface()} size={16} />
-                            </span>
-                        ) : undefined}
+                        </span>
                     </Layer>
                     <Layer isShown={isShown("Grok")}>
-                        {properties.moment.isWorking ? (
-                            <span {...style.attrs(styles.spinning)}>
-                                <Favicon icon="grok" tint={grok.ink} size={18} />
+                        <span {...style.attrs(styles.bar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <Glyph name="sidebar" size={15} />
+                            <span {...style.attrs(styles.conversation)}>Launch day</span>
+                            <span {...style.attrs(styles.barEnd)}>
+                                <Glyph name="share" size={14} />
+                                <Glyph name="more" size={15} />
                             </span>
-                        ) : isReplied() ? (
-                            <span {...style.attrs(styles.actions)}>
-                                <Glyph name="copy" size={14} />
-                                <Glyph name="reload" size={14} />
-                                <Glyph name="like" size={14} />
-                                <Glyph name="dislike" size={14} />
-                            </span>
-                        ) : undefined}
+                        </span>
                     </Layer>
-                </span>
-            </div>
+                    <Layer isShown={isSurface("terminal")}>
+                        <span {...style.attrs(styles.bar, styles.terminalBar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <span {...style.attrs(styles.conversation)}>~/launch-tracker</span>
+                            <span {...style.attrs(styles.barEnd)}>
+                                <SurfaceMark look={surface()} size={13} />
+                                {surface()?.name}
+                            </span>
+                        </span>
+                    </Layer>
+                    <Layer isShown={isSurface("builder")}>
+                        <span {...style.attrs(styles.bar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <SurfaceMark look={surface()} size={15} />
+                            <span {...style.attrs(styles.conversation)}>Launch tracker</span>
+                            <span {...style.attrs(styles.barEnd)}>
+                                <span {...style.attrs(styles.publish)}>Publish</span>
+                            </span>
+                        </span>
+                    </Layer>
+                    <Layer isShown={isShown("Gemini")}>
+                        <span {...style.attrs(styles.bar)}>
+                            <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
+                            <Glyph name="hamburger" size={16} />
+                            <span {...style.attrs(styles.barEnd)}>
+                                <Glyph name="grid" size={15} />
+                                <span {...style.attrs(styles.avatar)}>F</span>
+                            </span>
+                        </span>
+                    </Layer>
+                </div>
 
-            {/* composer, one per assistant */}
-            <div {...style.attrs(styles.stack, styles.composers)}>
-                <Layer isShown={isShown("Claude")}>
-                    <span {...style.attrs(styles.composer, styles.claudeComposer)}>
-                        <Typed text={properties.moment.typing} placeholder="Reply to Claude…" />
-                        <span {...style.attrs(styles.composerRow)}>
-                            <span {...style.attrs(styles.claudePlus)}>
-                                <Glyph name="plus" size={14} />
-                            </span>
-                            <span {...style.attrs(styles.claudePlus)}>
-                                <Glyph name="sliders" size={14} />
-                            </span>
-                            <Connectors
-                                isOpen={properties.isOpen}
-                                connectors={properties.connectors}
+                {/* the conversation, newest at the bottom, settling into each assistant's type */}
+                <div
+                    {...style.attrs(
+                        styles.messages,
+                        settles() % 2 === 0 ? styles.settleEven : styles.settleOdd,
+                    )}
+                >
+                    <For each={properties.moment.items}>
+                        {(item) => (
+                            <ItemView
+                                item={item}
+                                look={properties.look}
+                                isRunning={item === properties.moment.running}
+                                isDeciding={item === properties.moment.deciding}
+                                isPressed={item === properties.moment.pressed}
+                                isBuilding={item === properties.moment.building}
+                                words={
+                                    properties.moment.streaming?.item === item
+                                        ? properties.moment.streaming.words
+                                        : undefined
+                                }
                             />
-                            <span {...style.attrs(styles.hint, styles.end)}>
-                                Opus 5.5
-                                <Glyph name="caret" size={10} />
-                            </span>
-                            <ClaudeSend send={send()} />
-                        </span>
+                        )}
+                    </For>
+
+                    {/* each assistant at work, then its mark or actions under its reply */}
+                    <span {...style.attrs(styles.stack, styles.footer)}>
+                        <Layer isShown={isShown("Claude")}>
+                            {properties.moment.isWorking ? (
+                                <span {...style.attrs(styles.spinning)}>
+                                    <Favicon icon="claude" tint={assistant.clay} size={18} />
+                                </span>
+                            ) : isReplied() ? (
+                                <Favicon icon="claude" tint={assistant.clay} size={18} />
+                            ) : undefined}
+                        </Layer>
+                        <Layer isShown={isShown("ChatGPT")}>
+                            {properties.moment.isWorking ? (
+                                <span {...style.attrs(styles.pulse)} />
+                            ) : isReplied() ? (
+                                <span {...style.attrs(styles.actions)}>
+                                    <Glyph name="copy" size={14} />
+                                    <Glyph name="like" size={14} />
+                                    <Glyph name="dislike" size={14} />
+                                    <Glyph name="reload" size={14} />
+                                </span>
+                            ) : undefined}
+                        </Layer>
+                        <Layer isShown={isShown("Gemini")}>
+                            {properties.moment.isWorking ? (
+                                <span {...style.attrs(styles.spinning)}>
+                                    <Favicon icon="gemini" tint={gemini.spark} size={18} />
+                                </span>
+                            ) : isReplied() ? (
+                                <span {...style.attrs(styles.actions)}>
+                                    <Glyph name="like" size={14} />
+                                    <Glyph name="dislike" size={14} />
+                                    <Glyph name="share" size={14} />
+                                    <Glyph name="more" size={14} />
+                                </span>
+                            ) : undefined}
+                        </Layer>
+                        <Layer isShown={isSurface("terminal") || isSurface("builder")}>
+                            {properties.moment.isWorking ? (
+                                <span {...style.attrs(styles.spinning)}>
+                                    <SurfaceMark look={surface()} size={16} />
+                                </span>
+                            ) : undefined}
+                        </Layer>
+                        <Layer isShown={isShown("Grok")}>
+                            {properties.moment.isWorking ? (
+                                <span {...style.attrs(styles.spinning)}>
+                                    <Favicon icon="grok" tint={grok.ink} size={18} />
+                                </span>
+                            ) : isReplied() ? (
+                                <span {...style.attrs(styles.actions)}>
+                                    <Glyph name="copy" size={14} />
+                                    <Glyph name="reload" size={14} />
+                                    <Glyph name="like" size={14} />
+                                    <Glyph name="dislike" size={14} />
+                                </span>
+                            ) : undefined}
+                        </Layer>
                     </span>
-                </Layer>
-                <Layer isShown={isShown("ChatGPT")}>
-                    <span {...style.attrs(styles.composer, styles.chatgptComposer)}>
-                        <Typed text={properties.moment.typing} placeholder="Ask anything" />
-                        <span {...style.attrs(styles.composerRow)}>
-                            <Glyph name="plus" size={18} />
-                            <Connectors
-                                isOpen={properties.isOpen}
-                                connectors={properties.connectors}
-                            />
-                            <span {...style.attrs(styles.end)}>
-                                <Glyph name="microphone" size={16} />
-                            </span>
-                            <span {...style.attrs(styles.chatgptSend)}>
-                                {send() === "idle" ? (
-                                    <Glyph name="waveform" size={15} weight={2.25} />
-                                ) : (
-                                    <SendMark send={send()} />
-                                )}
+                </div>
+
+                {/* composer, one per assistant */}
+                <div {...style.attrs(styles.stack, styles.composers)}>
+                    <Layer isShown={isShown("Claude")}>
+                        <span {...style.attrs(styles.composer, styles.claudeComposer)}>
+                            <Typed text={properties.moment.typing} placeholder="Reply to Claude…" />
+                            <span {...style.attrs(styles.composerRow)}>
+                                <span {...style.attrs(styles.claudePlus)}>
+                                    <Glyph name="plus" size={14} />
+                                </span>
+                                <span {...style.attrs(styles.claudePlus)}>
+                                    <Glyph name="sliders" size={14} />
+                                </span>
+                                <Connectors
+                                    isOpen={properties.isOpen}
+                                    connectors={properties.connectors}
+                                />
+                                <span {...style.attrs(styles.hint, styles.end)}>
+                                    Opus 5.5
+                                    <Glyph name="caret" size={10} />
+                                </span>
+                                <ClaudeSend send={send()} />
                             </span>
                         </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isShown("Gemini")}>
-                    <span {...style.attrs(styles.composer, styles.geminiComposer)}>
-                        <Typed text={properties.moment.typing} placeholder="Ask Gemini" />
-                        <span {...style.attrs(styles.composerRow)}>
-                            <Glyph name="plus" size={16} />
-                            <span {...style.attrs(styles.geminiTools)}>
-                                <Glyph name="sliders" size={14} />
-                                Tools
-                            </span>
-                            <Connectors
-                                isOpen={properties.isOpen}
-                                connectors={properties.connectors}
-                            />
-                            <span {...style.attrs(styles.end)}>
-                                {send() === "idle" ? (
-                                    <Glyph name="microphone" size={18} />
-                                ) : (
-                                    <span {...style.attrs(styles.geminiSend)}>
+                    </Layer>
+                    <Layer isShown={isShown("ChatGPT")}>
+                        <span {...style.attrs(styles.composer, styles.chatgptComposer)}>
+                            <Typed text={properties.moment.typing} placeholder="Ask anything" />
+                            <span {...style.attrs(styles.composerRow)}>
+                                <Glyph name="plus" size={18} />
+                                <Connectors
+                                    isOpen={properties.isOpen}
+                                    connectors={properties.connectors}
+                                />
+                                <span {...style.attrs(styles.end)}>
+                                    <Glyph name="microphone" size={16} />
+                                </span>
+                                <span {...style.attrs(styles.chatgptSend)}>
+                                    {send() === "idle" ? (
+                                        <Glyph name="waveform" size={15} weight={2.25} />
+                                    ) : (
                                         <SendMark send={send()} />
-                                    </span>
-                                )}
+                                    )}
+                                </span>
                             </span>
                         </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isSurface("terminal")}>
-                    <span {...style.attrs(styles.composer, styles.terminalComposer)}>
-                        <span {...style.attrs(styles.prompt)}>
-                            <span aria-hidden="true">&gt;</span>
+                    </Layer>
+                    <Layer isShown={isShown("Gemini")}>
+                        <span {...style.attrs(styles.composer, styles.geminiComposer)}>
+                            <Typed text={properties.moment.typing} placeholder="Ask Gemini" />
+                            <span {...style.attrs(styles.composerRow)}>
+                                <Glyph name="plus" size={16} />
+                                <span {...style.attrs(styles.geminiTools)}>
+                                    <Glyph name="sliders" size={14} />
+                                    Tools
+                                </span>
+                                <Connectors
+                                    isOpen={properties.isOpen}
+                                    connectors={properties.connectors}
+                                />
+                                <span {...style.attrs(styles.end)}>
+                                    {send() === "idle" ? (
+                                        <Glyph name="microphone" size={18} />
+                                    ) : (
+                                        <span {...style.attrs(styles.geminiSend)}>
+                                            <SendMark send={send()} />
+                                        </span>
+                                    )}
+                                </span>
+                            </span>
+                        </span>
+                    </Layer>
+                    <Layer isShown={isSurface("terminal")}>
+                        <span {...style.attrs(styles.composer, styles.terminalComposer)}>
+                            <span {...style.attrs(styles.prompt)}>
+                                <span aria-hidden="true">&gt;</span>
+                                <Typed
+                                    text={properties.moment.typing}
+                                    placeholder='Try "build a launch tracker"'
+                                />
+                            </span>
+                            <span {...style.attrs(styles.composerRow, styles.terminalHint)}>
+                                ? for shortcuts
+                            </span>
+                        </span>
+                    </Layer>
+                    <Layer isShown={isSurface("builder")}>
+                        <span {...style.attrs(styles.composer, styles.builderComposer)}>
                             <Typed
                                 text={properties.moment.typing}
-                                placeholder='Try "build a launch tracker"'
+                                placeholder={`Ask ${surface()?.name ?? ""}…`}
                             />
-                        </span>
-                        <span {...style.attrs(styles.composerRow, styles.terminalHint)}>
-                            ? for shortcuts
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isSurface("builder")}>
-                    <span {...style.attrs(styles.composer, styles.builderComposer)}>
-                        <Typed
-                            text={properties.moment.typing}
-                            placeholder={`Ask ${surface()?.name ?? ""}…`}
-                        />
-                        <span {...style.attrs(styles.composerRow)}>
-                            <Glyph name="plus" size={16} />
-                            <span {...style.attrs(styles.end, styles.builderSend)}>
-                                <SendMark send={send()} />
-                            </span>
-                        </span>
-                    </span>
-                </Layer>
-                <Layer isShown={isShown("Grok")}>
-                    <span {...style.attrs(styles.composer, styles.grokComposer)}>
-                        <Typed text={properties.moment.typing} placeholder="Ask Grok anything" />
-                        <span {...style.attrs(styles.composerRow)}>
-                            <Glyph name="plus" size={18} />
-                            <Connectors
-                                isOpen={properties.isOpen}
-                                connectors={properties.connectors}
-                            />
-                            <span {...style.attrs(styles.hint, styles.end)}>
-                                Fast
-                                <Glyph name="caret" size={10} />
-                            </span>
-                            <span {...style.attrs(styles.grokSend)}>
-                                {send() === "idle" ? (
-                                    <Glyph name="waveform" size={15} weight={2.25} />
-                                ) : (
+                            <span {...style.attrs(styles.composerRow)}>
+                                <Glyph name="plus" size={16} />
+                                <span {...style.attrs(styles.end, styles.builderSend)}>
                                     <SendMark send={send()} />
-                                )}
+                                </span>
                             </span>
                         </span>
-                    </span>
-                </Layer>
+                    </Layer>
+                    <Layer isShown={isShown("Grok")}>
+                        <span {...style.attrs(styles.composer, styles.grokComposer)}>
+                            <Typed
+                                text={properties.moment.typing}
+                                placeholder="Ask Grok anything"
+                            />
+                            <span {...style.attrs(styles.composerRow)}>
+                                <Glyph name="plus" size={18} />
+                                <Connectors
+                                    isOpen={properties.isOpen}
+                                    connectors={properties.connectors}
+                                />
+                                <span {...style.attrs(styles.hint, styles.end)}>
+                                    Fast
+                                    <Glyph name="caret" size={10} />
+                                </span>
+                                <span {...style.attrs(styles.grokSend)}>
+                                    {send() === "idle" ? (
+                                        <Glyph name="waveform" size={15} weight={2.25} />
+                                    ) : (
+                                        <SendMark send={send()} />
+                                    )}
+                                </span>
+                            </span>
+                        </span>
+                    </Layer>
+                </div>
             </div>
-        </div>
+        </Cast>
     );
 }
 
