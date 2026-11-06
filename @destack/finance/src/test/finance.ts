@@ -150,7 +150,7 @@ const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} });
 const HOME_TYPES = [vaultPackage, financePackage] as const;
 
 /** The home's stack, as the residency's declares it: finance bound to the platform's Stripe key. */
-const HOME_STACK = {
+const RESIDENCY_STACK = {
     vaults: { platform: PLATFORM_VAULT.declare() },
     secrets: { "stripe-secret-key": { parent: "platform", name: "stripe-secret-key" } },
     installations: {
@@ -293,7 +293,7 @@ export class TestFinance {
     /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
         // install the vault, then serve its types, as the machine's restart does
-        const vaulted = { installations: { vault: HOME_STACK.installations.vault } };
+        const vaulted = { installations: { vault: RESIDENCY_STACK.installations.vault } };
         const installingVault = await home.serve();
         await home.apply(installingVault, HOME_TYPES, vaulted);
         await home.serveInstalled(installingVault.store, home.id);
@@ -301,7 +301,7 @@ export class TestFinance {
 
         // install finance bound to the platform's Stripe key, as the residency's stack does
         const installing = await home.serve();
-        await home.apply(installing, HOME_TYPES, HOME_STACK);
+        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
         await home.serveInstalled(installing.store, home.id);
         await installing[Symbol.asyncDispose]();
 
