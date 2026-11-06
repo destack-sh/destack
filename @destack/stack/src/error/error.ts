@@ -99,6 +99,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
     INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
     RESOURCE_UNPROVISIONED: { code: "SERVICE_UNAVAILABLE" },
+    RESOURCE_UNBOUND: { code: "PRECONDITION_FAILED" },
 });
 
 /** A stable cause of stack failures. */

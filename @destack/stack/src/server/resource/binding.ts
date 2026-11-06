@@ -262,9 +262,22 @@ export class Binder {
             }
         }
 
-        // own a resource for each other resource need, following its declaration
+        // refuse an external kind's need nothing binds, as only the stack or the installing person supplies one
         const isUnselected = (need: ResourceNeed) =>
             target.installation.bindings[need.package.id]?.[need.name] === undefined;
+        const unbound = needs.find(
+            (each) =>
+                this.#resources.get(each.kind)?.kind.management === "external" &&
+                isUnselected(each),
+        );
+        if (unbound !== undefined) {
+            throw StackError.of(
+                "RESOURCE_UNBOUND",
+                `${unbound.package.name} needs ${unbound.kind} ${unbound.name}: bind one at install`,
+            );
+        }
+
+        // own a resource for each other resource need, following its declaration
         for (const need of needs.filter(
             (each) => this.#resources.has(each.kind) && isUnselected(each),
         )) {
