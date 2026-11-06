@@ -1,6 +1,7 @@
 import { Metadata, MetadataKind, type Root } from "@tufjs/models";
+import type { Clock } from "@destack/environment";
 import { Renewal } from "./renewal.ts";
-import { parseDocument } from "../repository/document.ts";
+import { MetadataDocument } from "../document.ts";
 
 /** Maximum signed metadata document size, in bytes. */
 const METADATA_SIZE = 1024 * 1024;
@@ -12,24 +13,24 @@ export interface StoredDocument {
     /** The document's entity tag. */
     readonly etag: string;
     /** Read the document's bytes. */
-    arrayBuffer(): Promise<ArrayBuffer>;
+    readonly arrayBuffer: () => Promise<ArrayBuffer>;
     /** Read the document as text. */
-    text(): Promise<string>;
+    readonly text: () => Promise<string>;
 }
 
-/** The bucket operations a publication needs: bounded reads and conditional writes, as R2 offers them. */
+/** The bucket operations a publication needs: bounded reads and conditional writes, as in R2. */
 export interface PublicationBucket {
     /** Read a stored document, null when absent. */
-    get(key: string): Promise<StoredDocument | null>;
+    readonly get: (key: string) => Promise<StoredDocument | null>;
     /** Write a document when its condition holds, null when it does not. */
-    put(
+    readonly put: (
         key: string,
         value: Uint8Array,
         options: {
             readonly onlyIf: { readonly etagDoesNotMatch?: string; readonly etagMatches?: string };
             readonly httpMetadata: { readonly contentType: string; readonly cacheControl: string };
         },
-    ): Promise<object | null>;
+    ) => Promise<object | null>;
 }
 
 /** Publication operations restricted to one release repository. */
@@ -40,12 +41,16 @@ export class Publication {
     readonly prefix: string;
     /** Embedded initial root authorized by the offline quorum. */
     readonly root: Metadata<Root>;
+    /** The clock renewals check expiry against. */
+    readonly clock: Clock;
 
     /** Select a repository without loading any signing credential. */
-    constructor(bucket: PublicationBucket, prefix: string, root: Metadata<Root>) {
+    constructor(bucket: PublicationBucket, prefix: string, root: Metadata<Root>, clock: Clock) {
+        // keep the bucket, the feed's prefix, the trusted root and the clock
         this.bucket = bucket;
         this.prefix = prefix;
         this.root = root;
+        this.clock = clock;
     }
 
     /** Authenticate and publish freshness while retaining current targets and all artifacts. */
@@ -55,7 +60,7 @@ export class Publication {
         const currentBytes = Buffer.from(await current.arrayBuffer());
         const previous = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            parseDocument(currentBytes.toString()),
+            MetadataDocument.parse(currentBytes.toString()),
         );
         const snapshotObject = await this.read(
             `metadata/${previous.signed.snapshotMeta.version}.snapshot.json`,
@@ -64,7 +69,7 @@ export class Publication {
         previous.signed.snapshotMeta.verify(snapshotBytes);
         const stored = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            parseDocument(snapshotBytes.toString()),
+            MetadataDocument.parse(snapshotBytes.toString()),
         );
         const reference = stored.signed.meta["targets.json"];
         if (!reference || stored.signed.version !== previous.signed.snapshotMeta.version) {
@@ -77,7 +82,7 @@ export class Publication {
         reference.verify(targetBytes);
         const authorization = Metadata.fromJSON(
             MetadataKind.Targets,
-            parseDocument(targetBytes.toString()),
+            MetadataDocument.parse(targetBytes.toString()),
         );
         if (authorization.signed.version !== reference.version) {
             throw new Error("stored targets do not match the current snapshot");
@@ -89,14 +94,15 @@ export class Publication {
         if (currentBytes.equals(timestamp) && snapshotBytes.equals(snapshot)) {
             return;
         }
-        const renewal = new Renewal(snapshot, timestamp, targetBytes, previous, root);
+        const now = new Date(this.clock.now());
+        const renewal = new Renewal(snapshot, timestamp, targetBytes, previous, root, now);
 
         // create the immutable snapshot before selecting it through the timestamp
         await this.createSnapshot(renewal);
         await this.replaceTimestamp(renewal, current.etag);
     }
 
-    /** Create the renewal's immutable snapshot without allowing conflicting content at the same revision. */
+    /** Create the renewal's immutable snapshot, refusing other content at the same revision. */
     private async createSnapshot(renewal: Renewal): Promise<void> {
         // write only when the revision is absent
         const snapshotKey = `${this.prefix}metadata/${renewal.revision}.snapshot.json`;
@@ -117,7 +123,7 @@ export class Publication {
         }
     }
 
-    /** Select the new snapshot only if no release or renewal replaced the timestamp concurrently. */
+    /** Select the new snapshot unless a release or renewal replaced the timestamp meanwhile. */
     private async replaceTimestamp(renewal: Renewal, etag: string): Promise<void> {
         const published = await this.bucket.put(
             `${this.prefix}metadata/timestamp.json`,
@@ -159,7 +165,10 @@ export class Publication {
             if (object.size > METADATA_SIZE) {
                 throw new Error("oversized release root");
             }
-            const next = Metadata.fromJSON(MetadataKind.Root, parseDocument(await object.text()));
+            const next = Metadata.fromJSON(
+                MetadataKind.Root,
+                MetadataDocument.parse(await object.text()),
+            );
             if (next.signed.version !== root.signed.version + 1) {
                 throw new Error("release root version must increase consecutively");
             }

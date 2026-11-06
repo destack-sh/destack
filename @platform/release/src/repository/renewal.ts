@@ -1,10 +1,15 @@
+import type { schema } from "@destack/schema";
 import { Metadata, MetadataKind, type Root, type Timestamp } from "@tufjs/models";
+import type { Environment } from "@destack/environment";
 import { TrustedRoot } from "@destack/update/publish";
 import { TargetCustom } from "@destack/update/release";
-import { parseDocument } from "./document.ts";
+import { MetadataDocument } from "./document.ts";
 
 /** Maximum release metadata document size, in bytes. */
 const METADATA_SIZE = 1024 * 1024;
+
+/** How long reading one metadata document may take, in milliseconds. */
+const READ_TIMEOUT_MILLISECONDS = 15_000;
 
 /** Consecutive authenticated roots and the latest among them. */
 export interface RootHistory {
@@ -13,6 +18,35 @@ export interface RootHistory {
     /** Latest root authenticated by every intervening quorum. */
     readonly root: Metadata<Root>;
 }
+
+/** Consecutive authenticated roots and the latest among them. */
+export const RootHistory = {
+    /** Follow the complete authenticated root history and require an unexpired final root. */
+    async read(url: URL, root: Metadata<Root>, environment: Environment): Promise<RootHistory> {
+        // allow expired historical authorization only while following consecutive signed replacements
+        TrustedRoot.authenticate(root);
+        const history = [root];
+        for (;;) {
+            const name = `${root.signed.version + 1}.root.json`;
+            const bytes = await readOptionalDocument(url, name, environment);
+            if (!bytes) {
+                break;
+            }
+            const next = Metadata.fromJSON(
+                MetadataKind.Root,
+                MetadataDocument.parse(bytes.toString()),
+            );
+            TrustedRoot.authenticate(next, root);
+            history.push(next);
+            root = next;
+        }
+        if (root.signed.isExpired(new Date(environment.clock.now()))) {
+            throw new Error("release root must be renewed by its offline quorum");
+        }
+
+        return { history, root };
+    },
+};
 
 /** Authenticated publication state used to renew expired freshness metadata. */
 export class RepositoryRenewal {
@@ -43,27 +77,35 @@ export class RepositoryRenewal {
     }
 
     /** Read the authenticated published state, absent before the first publication. */
-    static async read(url: URL, root: Metadata<Root>): Promise<RepositoryRenewal | undefined> {
+    static async read(
+        url: URL,
+        root: Metadata<Root>,
+        environment: Environment,
+    ): Promise<RepositoryRenewal | undefined> {
         // follow consecutive quorum-authorized rotations before accepting online signatures
-        const history = await readRootHistory(url, root);
+        const history = await RootHistory.read(url, root, environment);
         root = history.root;
 
         // authenticate the timestamp and its exact snapshot bytes, also after freshness expires
-        const timestampBytes = await readOptionalDocument(url, "timestamp.json");
+        const timestampBytes = await readOptionalDocument(url, "timestamp.json", environment);
         if (timestampBytes === undefined) {
             return undefined;
         }
         const timestamp = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            parseDocument(timestampBytes.toString()),
+            MetadataDocument.parse(timestampBytes.toString()),
         );
         root.verifyDelegate("timestamp", timestamp);
         const snapshotReference = timestamp.signed.snapshotMeta;
-        const snapshotBytes = await readDocument(url, `${snapshotReference.version}.snapshot.json`);
+        const snapshotBytes = await readDocument(
+            url,
+            `${snapshotReference.version}.snapshot.json`,
+            environment,
+        );
         snapshotReference.verify(snapshotBytes);
         const snapshot = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            parseDocument(snapshotBytes.toString()),
+            MetadataDocument.parse(snapshotBytes.toString()),
         );
         root.verifyDelegate("snapshot", snapshot);
         if (snapshot.signed.version !== snapshotReference.version) {
@@ -75,11 +117,11 @@ export class RepositoryRenewal {
         if (!reference || Object.keys(snapshot.signed.meta).length !== 1) {
             throw new Error("release snapshot must reference only targets.json");
         }
-        const targets = await readDocument(url, `${reference.version}.targets.json`);
+        const targets = await readDocument(url, `${reference.version}.targets.json`, environment);
         reference.verify(targets);
         const authorization = Metadata.fromJSON(
             MetadataKind.Targets,
-            parseDocument(targets.toString()),
+            MetadataDocument.parse(targets.toString()),
         );
         root.verifyDelegate("targets", authorization);
         if (authorization.signed.version !== reference.version) {
@@ -88,7 +130,7 @@ export class RepositoryRenewal {
 
         // choose a monotonic safe integer revision for the next publication
         const revision = Math.max(
-            Date.now(),
+            environment.clock.now(),
             timestamp.signed.version + 1,
             snapshot.signed.version + 1,
         );
@@ -101,44 +143,40 @@ export class RepositoryRenewal {
 
     /** Report whether every published target was built from a commit. */
     isBuiltFrom(commit: string): boolean {
-        // read the commit of each target the published targets authorize
+        return this.#customs().every((custom) => custom.commit === commit);
+    }
+
+    /** Read the version every published target reports, refusing targets of several versions. */
+    get version(): string {
+        // read the one version of the published targets
+        const versions = new Set(this.#customs().map((custom) => custom.version));
+        const [version] = versions;
+        if (versions.size !== 1 || version === undefined) {
+            throw new Error(
+                `the published targets report ${versions.size} versions instead of one`,
+            );
+        }
+
+        return version;
+    }
+
+    /** Read the release fields of each target the published targets authorize. */
+    #customs(): schema.Infer<typeof TargetCustom>[] {
         const targets = Metadata.fromJSON(
             MetadataKind.Targets,
-            parseDocument(this.targets.toString()),
+            MetadataDocument.parse(this.targets.toString()),
         );
 
-        return Object.values(targets.signed.targets).every(
-            (target) => TargetCustom.parse(target.custom).commit === commit,
+        return Object.values(targets.signed.targets).map((target) =>
+            TargetCustom.parse(target.custom),
         );
     }
-}
-
-/** Follow the complete authenticated root history and require an unexpired final root. */
-export async function readRootHistory(url: URL, root: Metadata<Root>): Promise<RootHistory> {
-    // allow expired historical authorization only while following consecutive signed replacements
-    TrustedRoot.authenticate(root);
-    const history = [root];
-    for (;;) {
-        const bytes = await readOptionalDocument(url, `${root.signed.version + 1}.root.json`);
-        if (!bytes) {
-            break;
-        }
-        const next = Metadata.fromJSON(MetadataKind.Root, parseDocument(bytes.toString()));
-        TrustedRoot.authenticate(next, root);
-        history.push(next);
-        root = next;
-    }
-    if (root.signed.isExpired()) {
-        throw new Error("release root must be renewed by its offline quorum");
-    }
-
-    return { history, root };
 }
 
 /** Fetch a required metadata document. */
-async function readDocument(url: URL, name: string): Promise<Buffer> {
+async function readDocument(url: URL, name: string, environment: Environment): Promise<Buffer> {
     // refuse a document the origin does not have
-    const document = await readOptionalDocument(url, name);
+    const document = await readOptionalDocument(url, name, environment);
     if (document === undefined) {
         throw new Error(`cannot read release metadata ${name}: 404`);
     }
@@ -147,13 +185,19 @@ async function readDocument(url: URL, name: string): Promise<Buffer> {
 }
 
 /** Read bounded signed bytes from the selected origin, absent when the origin has none. */
-async function readOptionalDocument(url: URL, name: string): Promise<Buffer | undefined> {
+async function readOptionalDocument(
+    url: URL,
+    name: string,
+    environment: Environment,
+): Promise<Buffer | undefined> {
     // read without redirects or intermediary caches and bound the request duration
-    const response = await fetch(new URL(`metadata/${name}`, url), {
-        cache: "no-store",
-        redirect: "error",
-        signal: AbortSignal.timeout(15000),
-    });
+    const response = await environment.network.fetch(
+        new Request(new URL(`metadata/${name}`, url), {
+            cache: "no-store",
+            redirect: "error",
+            signal: environment.clock.timeout(READ_TIMEOUT_MILLISECONDS),
+        }),
+    );
     if (response.status === 404) {
         await response.body?.cancel();
 

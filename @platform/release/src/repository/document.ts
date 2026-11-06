@@ -3,18 +3,21 @@ import type { Metadata } from "@tufjs/models";
 /** A signed metadata document as the TUF models read it. */
 export type MetadataDocument = Parameters<typeof Metadata.fromJSON>[1];
 
+/** A signed metadata document as the TUF models read it. */
+export const MetadataDocument = {
+    /** Parse a signed metadata document, or throw when its text is not a JSON object. */
+    parse(text: string): MetadataDocument {
+        const value: unknown = JSON.parse(text);
+        if (typeof value !== "object" || value === null || Array.isArray(value)) {
+            throw new TypeError("a metadata document is not a JSON object");
+        }
+
+        return fieldsOf(value);
+    },
+};
+
 /** One value inside a signed metadata document. */
 type MetadataValue = MetadataDocument[string];
-
-/** Parse a signed metadata document, or throw when its text is not a JSON object. */
-export function parseDocument(text: string): MetadataDocument {
-    const value: unknown = JSON.parse(text);
-    if (typeof value !== "object" || value === null || Array.isArray(value)) {
-        throw new TypeError("a metadata document is not a JSON object");
-    }
-
-    return fieldsOf(value);
-}
 
 /** Copy a parsed JSON object's fields as metadata values. */
 function fieldsOf(value: object): MetadataDocument {
@@ -41,5 +44,5 @@ function valueOf(value: unknown): MetadataValue {
     }
 
     // reject values that JSON cannot hold
-    throw new TypeError(`a metadata document holds a ${typeof value}`);
+    throw new TypeError(`a metadata document contains an unsupported ${typeof value}`);
 }

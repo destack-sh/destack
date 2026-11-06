@@ -1,53 +1,61 @@
-import { expect, test } from "@destack/test";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
+import { expect, onTestFinished, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { Miniflare } from "miniflare";
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-test("serve isolated release feeds through the actual Worker, root files from nightly until stable has them, and reject public writes", async () => {
+test("serve the release feed and its root files through the actual Worker, and reject other paths and public writes", async () => {
     // compile the deployed entrypoint for the real local Workers runtime
-    const directory = await mkdtemp(join(tmpdir(), "destack-download-"));
-    const result = await Bun.build({
-        entrypoints: [join(import.meta.dirname, "worker.ts")],
-        outdir: directory,
-        target: "browser",
-        external: ["node:*"],
-    });
-    expect(result.success).toBe(true);
+    const { files, process } = testHost();
+    const directory = await files.makeTemporaryDirectory("destack-download-");
+    onTestFinished(() => files.remove(directory, { recursive: true, force: true }));
+    const entry = join(import.meta.dirname, "worker.ts");
+    const words = [
+        "build",
+        entry,
+        "--target=browser",
+        "--external=node:*",
+        `--outdir=${directory}`,
+    ];
+    const build = process.spawn([process.executable, ...words], { stdout: "ignore" });
+    expect(await build.exited).toBe(0);
     const runtime = new Miniflare({
         modules: true,
         modulesRoot: directory,
         scriptPath: join(directory, "worker.js"),
-        compatibilityDate: "2026-07-30",
+        compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
-        r2Buckets: ["STABLE_RELEASES", "NIGHTLY_RELEASES"],
+        r2Buckets: ["RELEASES"],
     });
 
     try {
-        // seed separate buckets with distinct bootstrap content and immutable artifact bytes
-        const stable = await runtime.getR2Bucket("STABLE_RELEASES");
-        const nightly = await runtime.getR2Bucket("NIGHTLY_RELEASES");
+        // seed the feed with bootstrap content and immutable artifact bytes
+        const stable = await runtime.getR2Bucket("RELEASES");
         await stable.put("stable/install", "stable installer", {
             httpMetadata: { contentType: "text/plain" },
         });
-        await nightly.put("nightly/install", "nightly installer");
         const path = `stable/targets/${"a".repeat(64)}.destack.tar.gz`;
         await stable.put(path, "complete artifact");
 
-        // retain the public bootstrap alias while selecting nightly only through its explicit URL
+        // serve the bootstrap files at the root, and refuse any other feed's path
         const bootstrap = await runtime.dispatchFetch("https://download.destack.sh/install");
         expect([
             bootstrap.status,
             await bootstrap.text(),
             bootstrap.headers.get("cache-control"),
         ]).toEqual([200, "stable installer", "no-store"]);
-        const preview = await runtime.dispatchFetch("https://download.destack.sh/nightly/install");
-        expect([preview.status, await preview.text()]).toEqual([200, "nightly installer"]);
+        const other = await runtime.dispatchFetch("https://download.destack.sh/nightly/install");
+        expect([other.status, await other.text()]).toEqual([404, "not found"]);
 
-        // serve the nightly catalog at the root while stable has none
-        await nightly.put("nightly/downloads.json", "nightly catalog");
+        // answer the catalog only once the feed publishes it
+        const absent = await runtime.dispatchFetch("https://download.destack.sh/downloads.json");
+        await stable.put("stable/downloads.json", "catalog");
         const catalog = await runtime.dispatchFetch("https://download.destack.sh/downloads.json");
-        expect([catalog.status, await catalog.text()]).toEqual([200, "nightly catalog"]);
+        expect([absent.status, catalog.status, await catalog.text()]).toEqual([
+            404,
+            200,
+            "catalog",
+        ]);
 
         // stream complete artifacts and expose matching metadata without sending a HEAD body
         const artifact = await runtime.dispatchFetch(
@@ -85,6 +93,5 @@ test("serve isolated release feeds through the actual Worker, root files from ni
         expect(await (await stable.get(path))?.text()).toBe("complete artifact");
     } finally {
         await runtime.dispose();
-        await rm(directory, { recursive: true, force: true });
     }
 });

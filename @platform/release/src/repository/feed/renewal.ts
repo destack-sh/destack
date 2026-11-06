@@ -1,6 +1,6 @@
 import { Metadata, MetadataKind, type MetaFile, type Root, type Timestamp } from "@tufjs/models";
 import { LIFETIME_DAYS } from "@destack/update/publish";
-import { parseDocument } from "../repository/document.ts";
+import { MetadataDocument } from "../document.ts";
 
 /** The milliseconds in one day. */
 const DAY_MS = 86_400_000;
@@ -21,20 +21,20 @@ export class Renewal {
         targets: Buffer,
         previous: Metadata<Timestamp>,
         root: Metadata<Root>,
-        now = new Date(),
+        now: Date,
     ) {
         // authenticate both new roles and the exact existing targets authorization
         const nextSnapshot = Metadata.fromJSON(
             MetadataKind.Snapshot,
-            parseDocument(snapshot.toString()),
+            MetadataDocument.parse(snapshot.toString()),
         );
         const nextTimestamp = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            parseDocument(timestamp.toString()),
+            MetadataDocument.parse(timestamp.toString()),
         );
         const currentTargets = Metadata.fromJSON(
             MetadataKind.Targets,
-            parseDocument(targets.toString()),
+            MetadataDocument.parse(targets.toString()),
         );
         root.verifyDelegate("timestamp", nextTimestamp);
         root.verifyDelegate("snapshot", nextSnapshot);

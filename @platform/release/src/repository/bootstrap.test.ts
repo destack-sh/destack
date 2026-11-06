@@ -1,14 +1,15 @@
 import { expect, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { Metadata, TargetFile, Targets } from "@tufjs/models";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { writeBootstrap } from "./bootstrap.ts";
 import { COMMIT } from "@destack/update/test";
 
 test("publish platform archives and the universal macOS installer in the download catalog", async () => {
     // describe the same macOS release in its two independently authenticated formats
-    const directory = await mkdtemp(join(tmpdir(), "destack-catalog-"));
+    const { files } = testHost();
+    const directory = await files.makeTemporaryDirectory("destack-catalog-");
     const targets = new Metadata(
         new Targets({ version: 1, specVersion: "1.0.31", expires: "2099-01-01T00:00:00Z" }),
     );
@@ -32,10 +33,10 @@ test("publish platform archives and the universal macOS installer in the downloa
     );
     try {
         // preserve both file identities without letting insertion order replace either format
-        await writeBootstrap(directory, targets, new URL("https://download.destack.sh/stable/"));
-        expect(JSON.parse(await readFile(join(directory, "downloads.json"), "utf8"))).toEqual({
+        const feed = new URL("https://download.destack.sh/stable/");
+        await writeBootstrap(directory, targets, feed, files);
+        expect(JSON.parse(await files.readTextFile(join(directory, "downloads.json")))).toEqual({
             version: "2026.9.1",
-            channel: "stable",
             downloads: {
                 "aarch64-apple-darwin": {
                     archive: {
@@ -59,8 +60,10 @@ test("publish platform archives and the universal macOS installer in the downloa
             },
         });
         // write the archive's case into the installer in place of its marker
-        const script = await readFile(join(directory, "install"), "utf8");
-        const shell = await readFile(new URL("../installer/install.sh", import.meta.url), "utf8");
+        const script = await files.readTextFile(join(directory, "install"));
+        const shell = await files.readTextFile(
+            fileURLToPath(new URL("../installer/install.sh", import.meta.url)),
+        );
         const url = `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`;
         expect(script).toEqual(
             shell.replace(
@@ -69,6 +72,6 @@ test("publish platform archives and the universal macOS installer in the downloa
             ),
         );
     } finally {
-        await rm(directory, { recursive: true, force: true });
+        await files.remove(directory, { recursive: true, force: true });
     }
 });

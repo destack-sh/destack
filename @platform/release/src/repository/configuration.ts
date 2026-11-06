@@ -1,55 +1,51 @@
-import { readFile } from "node:fs/promises";
-import { ReleaseChannel } from "@destack/daemon/process";
+import type { Environment } from "@destack/environment";
+import { Stage } from "@destack/update/release";
 import { Metadata, MetadataKind, type Root } from "@tufjs/models";
 import { TrustedRoot } from "@destack/update/publish";
-import { CHANNELS, type Channel } from "@destack/update/release";
-import { parseDocument } from "./document.ts";
+import { RELEASE_ROOT } from "@destack/update/release";
 
 /** The host names of loopback rehearsal servers, which may serve plain HTTP. */
 const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
-/** A selected publication destination and its embedded initial trust. */
+/** The root a rehearsal trusts in place of the feed's own. */
+export interface RepositoryConfigurationOptions {
+    /** The root a rehearsal or test trusts, absent for a release. */
+    readonly root?: Metadata<Root>;
+}
+
+/** The feed's publication destination and its embedded initial trust. */
 export class RepositoryConfiguration {
-    /** The channel whose repository this configuration selects. */
-    readonly channel: Channel;
     /** Public repository URL, including its feed directory. */
     readonly url: URL;
+    /** The root a rehearsal trusts, absent for a release. */
+    readonly #root: Metadata<Root> | undefined;
 
-    /** Select a channel's repository, by default the environment's channel. */
-    constructor(name = process.env["DESTACK_RELEASE_CHANNEL"]) {
-        // require a channel for every signing and publication operation
-        const channel = CHANNELS.find((candidate) => candidate === name);
-        if (channel === undefined) {
-            throw new Error("set DESTACK_RELEASE_CHANNEL to stable or nightly");
-        }
-        this.channel = channel;
-        const origin = process.env["DESTACK_RELEASE_ORIGIN"];
-        this.url =
-            origin === undefined ? ReleaseChannel.of(channel).feed : new URL(`${channel}/`, origin);
+    /** Select the feed, below a rehearsal's origin when the environment sets one. */
+    constructor(environment: Environment<"process">, options: RepositoryConfigurationOptions = {}) {
+        // address the feed, the same path below a rehearsal's origin
+        const feed = Stage.of("production").feed;
+        const origin = environment.process.variables["DESTACK_RELEASE_ORIGIN"];
+        this.url = origin === undefined ? feed : new URL(feed.pathname.slice(1), origin);
 
         // require an unambiguous repository directory
         if (!RepositoryConfiguration.isClean(this.url) || !this.url.pathname.endsWith("/")) {
             throw new Error("release repository requires a clean HTTPS directory URL");
         }
+        this.#root = options.root;
     }
 
-    /** Read the selected public trust root, or an explicit rehearsal root. */
-    async root(): Promise<Metadata<Root>> {
+    /** Read the root every release bundles, or a rehearsal's, with its whole quorum. */
+    root(): Metadata<Root> {
+        // read the rehearsal's root, else the feed's
+        const root = this.#root ?? Metadata.fromJSON(MetadataKind.Root, RELEASE_ROOT);
+
         // verify the complete initial quorum before using any online key
-        const filename = this.channel === "stable" ? "root.json" : "nightly.json";
-        const path =
-            process.env["DESTACK_RELEASE_ROOT"] ??
-            new URL(`../../../../@destack/cli/src/update/${filename}`, import.meta.url);
-        const root = Metadata.fromJSON(
-            MetadataKind.Root,
-            parseDocument(await readFile(path, "utf8")),
-        );
         TrustedRoot.authenticate(root);
 
         return root;
     }
 
-    /** Report whether a URL uses HTTPS, or HTTP on loopback, without credentials, query or fragment. */
+    /** Report whether a URL is HTTPS, or loopback HTTP, without credentials, query or fragment. */
     static isClean(url: URL): boolean {
         const isLoopback = LOOPBACK_HOSTS.has(url.hostname);
         const isSecure = url.protocol === "https:" || (isLoopback && url.protocol === "http:");

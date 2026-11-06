@@ -1,6 +1,6 @@
-import { readdir } from "node:fs/promises";
+import type { Environment } from "@destack/environment";
 import { join } from "node:path";
-import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 import {
     Metadata,
     MetadataKind,
@@ -12,9 +12,9 @@ import { Version } from "@destack/schema";
 import { TargetCustom } from "@destack/update/release";
 import { RepositoryConfiguration } from "./index.ts";
 import { RepositoryRenewal } from "./renewal.ts";
-import { R2ReleaseBucket } from "../cloudflare/bucket.ts";
+import { R2ReleaseBucket } from "./bucket.ts";
 import { SignedRepository } from "@destack/update/publish";
-import { parseDocument } from "./document.ts";
+import { MetadataDocument } from "./document.ts";
 import { PUBLIC_PATH } from "./layout.ts";
 
 /** The signed timestamp whose replacement makes a publication current. */
@@ -31,11 +31,14 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = {
 };
 
 /** Upload immutable files before publishing the timestamp that makes them current. */
-export async function publish(directory: string): Promise<void> {
+export async function publish(
+    directory: string,
+    configuration: RepositoryConfiguration,
+    environment: Environment<"files" | "process">,
+): Promise<void> {
     // select the destination before accessing its publication credential
-    const configuration = new RepositoryConfiguration();
-    const bucket = new R2ReleaseBucket(configuration);
-    const files = await list(directory);
+    const bucket = new R2ReleaseBucket(configuration, environment);
+    const files = await list(directory, environment);
     const unexpected = files.find((path) => !PUBLIC_PATH.test(path));
     if (unexpected !== undefined) {
         throw new Error(`unexpected file in public release repository: ${unexpected}`);
@@ -44,8 +47,8 @@ export async function publish(directory: string): Promise<void> {
         throw new Error("missing signed timestamp");
     }
 
-    // authenticate the signed repository and each archive it carries
-    const verified = await SignedRepository.read(directory, await configuration.root());
+    // authenticate the signed repository and each archive it lists
+    const verified = await SignedRepository.read(directory, configuration.root(), environment);
     const referenced = new Set([
         `metadata/${verified.snapshot.signed.version}.snapshot.json`,
         `metadata/${verified.targets.signed.version}.targets.json`,
@@ -54,7 +57,8 @@ export async function publish(directory: string): Promise<void> {
         const path = targetPath(target);
         referenced.add(path);
         if (files.includes(path)) {
-            await target.verify(createReadStream(join(directory, path)));
+            await using file = await environment.files.open(join(directory, path), { read: true });
+            await target.verify(Readable.from(file.readable()));
         }
     }
 
@@ -82,6 +86,7 @@ async function requirePublishable(
     referenced: ReadonlySet<string>,
 ): Promise<string | undefined> {
     // read the current timestamp and its revision
+    const { environment } = bucket;
     const current = await bucket.get(TIMESTAMP);
     const revision = await readRevision(current);
 
@@ -89,9 +94,9 @@ async function requirePublishable(
     if (revision !== undefined) {
         const stored = Metadata.fromJSON(
             MetadataKind.Timestamp,
-            parseDocument(await current.text()),
+            MetadataDocument.parse(await current.text()),
         );
-        await requireContinuation(configuration, stored, timestamp, targets, files);
+        await requireContinuation(configuration, stored, timestamp, targets, files, environment);
     }
     // require every file of the first publication
     else {
@@ -165,9 +170,14 @@ async function requireContinuation(
     next: Metadata<Timestamp>,
     targets: Metadata<Targets>,
     files: string[],
+    environment: Environment,
 ): Promise<void> {
     // require the public metadata to match authoritative storage
-    const renewal = await RepositoryRenewal.read(configuration.url, await configuration.root());
+    const renewal = await RepositoryRenewal.read(
+        configuration.url,
+        configuration.root(),
+        environment,
+    );
     if (renewal === undefined || !isSameDocument(stored, renewal.timestamp)) {
         throw new Error("public metadata differs from current storage; retry publication");
     }
@@ -184,7 +194,7 @@ async function requireContinuation(
     // keep every published platform at the same or a later version
     const published = Metadata.fromJSON(
         MetadataKind.Targets,
-        parseDocument(renewal.targets.toString()),
+        MetadataDocument.parse(renewal.targets.toString()),
     );
     for (const [path, old] of Object.entries(published.signed.targets)) {
         requireSuccessor(path, old, targets.signed.targets[path]);
@@ -200,7 +210,7 @@ async function requireContinuation(
     }
 }
 
-/** Require a platform's replacement target to keep or raise its version, unchanged at equal versions. */
+/** Require a platform's replacement target to raise its version, or keep it unchanged. */
 function requireSuccessor(
     path: string,
     old: TargetFile,
@@ -261,16 +271,14 @@ function contentType(path: string): string {
 }
 
 /** List files relative to the public repository directory. */
-async function list(directory: string, prefix = ""): Promise<string[]> {
+async function list(directory: string, environment: Environment<"files">): Promise<string[]> {
+    // list every entry below the directory, refusing anything but files and directories
     const files: string[] = [];
-    for (const entry of await readdir(join(directory, prefix), { withFileTypes: true })) {
-        const path = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-        if (entry.isDirectory()) {
-            files.push(...(await list(directory, path)));
-        } else if (entry.isFile()) {
-            files.push(path);
-        } else {
-            throw new Error(`unsupported release file: ${path}`);
+    for (const entry of await environment.files.readDirectory(directory, { recursive: true })) {
+        if (entry.kind === "file") {
+            files.push(entry.name);
+        } else if (entry.kind !== "directory") {
+            throw new Error(`unsupported release file: ${entry.name}`);
         }
     }
 

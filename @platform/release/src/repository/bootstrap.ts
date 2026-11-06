@@ -1,10 +1,10 @@
-import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { FileSystem } from "@destack/environment";
 import type { Metadata, Targets } from "@tufjs/models";
-import { Release } from "@destack/update/release";
 import { TargetCustom } from "@destack/update/release";
-import type { Catalog, CatalogDistribution } from "../catalog/index.ts";
-import { INSTALLER_FORMATS, InstallerFormat } from "../catalog/index.ts";
+import type { Catalog, CatalogDistribution } from "../distribution/catalog.ts";
+import { INSTALLER_FORMATS, InstallerFormat } from "../distribution/catalog.ts";
 
 /** A signed target path of a target or installer name with its archive or installer extension. */
 const TARGET_PATH = new RegExp(`^([a-z0-9_-]+)\\.(tar\\.gz|${INSTALLER_FORMATS.join("|")})$`, "u");
@@ -14,6 +14,7 @@ export async function writeBootstrap(
     directory: string,
     targets: Metadata<Targets>,
     url: URL,
+    files: FileSystem,
 ): Promise<void> {
     // derive downloads and bootstrap URLs from the signed target descriptions
     const downloads: Record<string, CatalogDistribution> = {};
@@ -52,13 +53,17 @@ export async function writeBootstrap(
     if (versions.size !== 1 || version === undefined) {
         throw new Error("catalog requires one release version across all targets");
     }
-    const release = new Release(version, "aarch64-apple-darwin");
-    const catalog: Catalog = { version, channel: release.channel, downloads };
+    const catalog: Catalog = { version, downloads };
 
     // publish the catalog for browser selection and the installers for terminal setup
-    await writeFile(join(directory, "downloads.json"), JSON.stringify(catalog, null, 4) + "\n");
-    const shell = await readFile(new URL("../installer/install.sh", import.meta.url), "utf8");
-    await writeFile(
+    await files.writeTextFile(
+        join(directory, "downloads.json"),
+        JSON.stringify(catalog, null, 4) + "\n",
+    );
+    const shell = await files.readTextFile(
+        fileURLToPath(new URL("../installer/install.sh", import.meta.url)),
+    );
+    await files.writeTextFile(
         join(directory, "install"),
         shell.replace("# __DISTRIBUTIONS__", cases.join("\n")),
     );

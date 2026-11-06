@@ -1,11 +1,14 @@
 import { Metadata, MetadataKind } from "@tufjs/models";
-import stable from "../../../../@destack/cli/src/update/root.json" with { type: "json" };
-import nightly from "../../../../@destack/cli/src/update/nightly.json" with { type: "json" };
-import { Publication, type PublicationBucket, type StoredDocument } from "../server/publication.ts";
-import { PUBLIC_PATH } from "../repository/layout.ts";
+import { RELEASE_ROOT } from "@destack/update/release";
+import { Environment } from "@destack/environment";
+import { Publication, type PublicationBucket, type StoredDocument } from "./publication.ts";
+import { PUBLIC_PATH } from "../layout.ts";
 
-/** The bootstrap files the root serves from stable, or from nightly until stable has them. */
+/** The bootstrap files the root serves from the feed. */
 const ROOT_FILES = new Set(["/install", "/downloads.json"]);
+
+/** The path the feed is published below, its key prefix in the bucket. */
+const FEED_PATH = "stable/";
 
 /** Maximum renewal request size, in bytes. */
 const REQUEST_SIZE = 128 * 1024;
@@ -31,36 +34,34 @@ interface ServedBody extends ServedObject, StoredDocument {
 /** The bucket operations the Worker needs, as R2 offers them. */
 interface R2ReleaseBucket extends PublicationBucket {
     /** Read an object with its contents, null when absent. */
-    get(key: string): Promise<ServedBody | null>;
+    readonly get: (key: string) => Promise<ServedBody | null>;
     /** Read an object's metadata, null when absent. */
-    head(key: string): Promise<ServedObject | null>;
+    readonly head: (key: string) => Promise<ServedObject | null>;
 }
 
-/** Release buckets bound by the deployment administrator. */
+/** The release bucket bound by the deployment administrator. */
 interface PublicationEnvironment {
-    /** Stable releases writable only by approved release jobs and this service. */
-    STABLE_RELEASES: R2ReleaseBucket;
-    /** Nightly releases writable by unattended nightly jobs and this service. */
-    NIGHTLY_RELEASES: R2ReleaseBucket;
+    /** The feed's releases, writable only by release jobs and this service. */
+    RELEASES: R2ReleaseBucket;
 }
 
 /** Serve public downloads and accept only signed freshness renewals. */
 async function fetch(request: Request, environment: PublicationEnvironment): Promise<Response> {
-    // select one fixed repository without accepting arbitrary bucket names or object paths
+    // select the feed's object without accepting arbitrary object paths
     const url = new URL(request.url);
-    const isRoot = ROOT_FILES.has(url.pathname);
-    const pathName = isRoot ? `/stable${url.pathname}` : url.pathname;
-    const match = /^\/(stable|nightly)\/(.+)$/u.exec(pathName);
-    const name = match?.[1];
-    const path = match?.[2];
-    if (name === undefined || path === undefined) {
+    const path = ROOT_FILES.has(url.pathname)
+        ? url.pathname.slice(1)
+        : url.pathname.startsWith(`/${FEED_PATH}`)
+          ? url.pathname.slice(FEED_PATH.length + 1)
+          : undefined;
+    if (path === undefined || path === "") {
         return new Response("not found", { status: 404 });
     }
-    const bucket = name === "stable" ? environment.STABLE_RELEASES : environment.NIGHTLY_RELEASES;
+    const bucket = environment.RELEASES;
 
     // expose a write endpoint limited to the two authenticated freshness documents
     if (path === "renew" && request.method === "POST") {
-        return renew(request, bucket, name);
+        return renew(request, bucket);
     }
 
     // restrict public reads to release metadata, immutable downloads and bootstrap files
@@ -72,9 +73,7 @@ async function fetch(request: Request, environment: PublicationEnvironment): Pro
     }
     const read = (source: R2ReleaseBucket, key: string) =>
         request.method === "HEAD" ? source.head(key) : source.get(key);
-    const object =
-        (await read(bucket, `${name}/${path}`)) ??
-        (isRoot ? await read(environment.NIGHTLY_RELEASES, `nightly/${path}`) : null);
+    const object = await read(bucket, `${FEED_PATH}${path}`);
     if (!object) {
         return new Response("not found", { status: 404 });
     }
@@ -82,11 +81,11 @@ async function fetch(request: Request, environment: PublicationEnvironment): Pro
     return respond(object, path);
 }
 
-/** Renew the selected repository with the signed snapshot and timestamp of the request. */
-async function renew(request: Request, bucket: R2ReleaseBucket, name: string): Promise<Response> {
-    // authenticate against the root embedded for the channel
-    const root = Metadata.fromJSON(MetadataKind.Root, name === "stable" ? stable : nightly);
-    const publication = new Publication(bucket, `${name}/`, root);
+/** Renew the feed with the signed snapshot and timestamp of the request. */
+async function renew(request: Request, bucket: R2ReleaseBucket): Promise<Response> {
+    // authenticate against the root every release bundles
+    const root = Metadata.fromJSON(MetadataKind.Root, RELEASE_ROOT);
+    const publication = new Publication(bucket, FEED_PATH, root, Environment.system.clock);
     try {
         const input = await readRequest(request);
         await publication.renew(Buffer.from(input.snapshot), Buffer.from(input.timestamp));

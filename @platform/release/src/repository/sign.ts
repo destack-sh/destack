@@ -1,79 +1,96 @@
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import { writeFile } from "node:fs/promises";
+import { CHECKOUT } from "../distribution/distribution.ts";
+import type { Environment, HostCapability } from "@destack/environment";
+import { join } from "node:path";
 import { readReleaseKeys } from "../key/key.ts";
-import { readRootHistory } from "./renewal.ts";
+import { RootHistory } from "./renewal.ts";
 import { Release } from "@destack/update/release";
-import { listInstallers, readCommit, version } from "../distribution/index.ts";
+import { Installer, readCommit, releaseVersion } from "../distribution/index.ts";
 import { RepositoryConfiguration } from "./index.ts";
 import { writeBootstrap } from "./bootstrap.ts";
 import { type Distribution, SignedRepository } from "@destack/update/publish";
-import { print } from "../output/index.ts";
+import { print } from "../distribution/output.ts";
+import { Version } from "@destack/schema";
 
-/** Repository directory containing the distribution build outputs. */
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
+/** Sign the selected targets' archives and their installers into `dist/update`. */
+export async function signUpdate(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    // read the version every component of the distribution ships at
+    const version = await releaseVersion(CHECKOUT, environment);
+    const selected = arguments_;
 
-// load the online signing keys without the offline root key
-/** Online keys authorized for the selected repository. */
-const keys = await readReleaseKeys();
-/** Publication destination selected by this invocation. */
-const configuration = new RepositoryConfiguration();
-/** Authenticated root history for the selected feed, ending at the root authorizing this release. */
-const { history, root } = await readRootHistory(configuration.url, await configuration.root());
+    // load the online signing keys without the offline root key
+    const keys = await readReleaseKeys(environment);
+    const configuration = new RepositoryConfiguration(environment);
 
-// prevent the stable signer from authorizing a nightly release or the reverse
-if (
-    new Release(version, Release.target(process.platform, process.arch)).channel !==
-    configuration.channel
-) {
-    throw new Error("release version does not match the selected repository");
-}
-
-// sign the explicitly selected complete archives
-if (process.argv.slice(2).length === 0) {
-    throw new Error("select the targets to publish");
-}
-/** Directory containing this release's compiled artifacts. */
-const directory = join(ROOT, "dist", version);
-/** The commit every distribution was built from. */
-const commit = await readCommit(ROOT);
-/** Complete target matrix selected for publication. */
-const distributions: Distribution[] = process.argv.slice(2).map((target) => {
-    const release = new Release(version, target);
-
-    return {
-        target,
-        version: release.version,
-        commit,
-        archive: join(directory, `destack-${release.directory}.tar.gz`),
-    };
-});
-// sign each installer whose applications are all selected
-for (const { installer, platforms } of listInstallers()) {
-    if (platforms.every(({ target }) => process.argv.slice(2).includes(target))) {
-        distributions.push({
-            target: installer.name,
-            version,
-            commit,
-            archive: join(directory, `destack-${version}-${installer.name}.${installer.format}`),
-            format: installer.format,
-        });
-    }
-}
-/** Signed targets of the written repository, which its download catalog lists. */
-const targets = await SignedRepository.create(
-    join(ROOT, "dist/update"),
-    Date.now(),
-    root,
-    keys,
-    distributions,
-);
-await writeBootstrap(join(ROOT, "dist/update"), targets, configuration.url);
-// retain every rotation needed by clients bootstrapping from the embedded root
-for (const rotation of history) {
-    await writeFile(
-        join(ROOT, "dist/update/metadata", `${rotation.signed.version}.root.json`),
-        SignedRepository.encode(rotation),
+    // read the feed's authenticated root history, ending at the root authorizing this release
+    const { history, root } = await RootHistory.read(
+        configuration.url,
+        configuration.root(),
+        environment,
     );
+
+    // refuse a dev build, which the feed never publishes
+    if (Version.isPrerelease(version)) {
+        throw new Error(`the feed publishes no dev build: ${version}`);
+    }
+
+    // sign the explicitly selected complete archives
+    if (selected.length === 0) {
+        throw new Error("select the targets to publish");
+    }
+    const directory = join(CHECKOUT, "dist", version);
+    const commit = await readCommit(CHECKOUT, environment);
+    const distributions: Distribution[] = selected.map((target) => {
+        const release = new Release(version, target);
+
+        return {
+            target,
+            version: release.version,
+            commit,
+            archive: join(directory, `destack-${release.directory}.tar.gz`),
+        };
+    });
+
+    // sign each installer whose applications are all selected
+    for (const { installer, platforms } of Installer.list()) {
+        if (platforms.every(({ target }) => selected.includes(target))) {
+            distributions.push({
+                target: installer.name,
+                version,
+                commit,
+                archive: join(
+                    directory,
+                    `destack-${version}-${installer.name}.${installer.format}`,
+                ),
+                format: installer.format,
+            });
+        }
+    }
+
+    // write the signed repository and the download catalog of its targets
+    const targets = await SignedRepository.create(
+        join(CHECKOUT, "dist/update"),
+        environment.clock.now(),
+        root,
+        keys,
+        distributions,
+        environment,
+    );
+    await writeBootstrap(
+        join(CHECKOUT, "dist/update"),
+        targets,
+        configuration.url,
+        environment.files,
+    );
+
+    // retain every rotation needed by clients bootstrapping from the embedded root
+    for (const rotation of history) {
+        await environment.files.writeFile(
+            join(CHECKOUT, "dist/update/metadata", `${rotation.signed.version}.root.json`),
+            SignedRepository.encode(rotation),
+        );
+    }
+    print(`Signed Destack ${version} for ${distributions.length} targets.`, environment);
 }
-print(`Signed Destack ${version} for ${distributions.length} targets.`);
