@@ -3,6 +3,7 @@ import { BunProcess } from "./bun.ts";
 import { ProcessError } from "./error.ts";
 import {
     type Input,
+    type ModuleLoader,
     type Output,
     type Process,
     type ProcessChannel,
@@ -69,12 +70,17 @@ export class SimulatedProcess implements Process {
     readonly #listeners = new Map<Signal, Set<() => void>>();
     /** The listeners of failures nothing caught. */
     readonly #failures = new Set<(error: unknown) => Promise<void> | void>();
-    /** The host's process, which starts the children. */
+    /** The host's process, which starts the children and loads the modules. */
     readonly #host = new BunProcess();
     /** The scheduler each child's long operations count on. */
     readonly #scheduler: Scheduler;
     /** The ids of the children the node started that have not exited. */
     readonly #children = new Set<number>();
+
+    /** The host's module loader, as modules load into the one host process. */
+    get loader(): ModuleLoader {
+        return this.#host.loader;
+    }
 
     /** Give a node its process from given values, its children counted on a scheduler. */
     constructor(options: ProcessOptions, scheduler: Scheduler) {

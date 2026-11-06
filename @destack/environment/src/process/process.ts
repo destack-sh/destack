@@ -45,6 +45,14 @@ export interface Runtime {
     readonly isStandalone: boolean;
 }
 
+/** A process's module loader: how it resolves specifiers, and the modules it defines. */
+export interface ModuleLoader {
+    /** Resolve a specifier from a directory to the file the process loads for it. */
+    readonly resolve: (specifier: string, directory: string) => string;
+    /** Define the module the process answers a specifier with, from its exports. */
+    readonly define: (specifier: string, exports: Readonly<Record<string, unknown>>) => void;
+}
+
 /** How a subprocess starts. */
 export interface SpawnOptions {
     /** The working directory, the parent's by default. */
@@ -158,6 +166,8 @@ export interface Process {
     readonly executable: string;
     /** The runtime running the process. */
     readonly runtime: Runtime;
+    /** The module loader, which resolves specifiers and defines modules. */
+    readonly loader: ModuleLoader;
     /** Find a command on the process's search path, absent when none, as `Bun.which` does. */
     readonly which: (command: string) => string | undefined;
     /** Report whether the process's loader finds a shared library, as `dlopen` does. */

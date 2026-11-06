@@ -3,6 +3,7 @@ import { closeSync, openSync, writeSync } from "node:fs";
 import type { BunPlugin, FileSink } from "bun";
 import {
     type Input,
+    type ModuleLoader,
     type Output,
     type Process,
     type ProcessChannel,
@@ -84,6 +85,19 @@ export class BunProcess implements Process {
     get executable(): string {
         return process.execPath;
     }
+
+    /** The module loader, resolving as Bun does and defining modules through its plugins. */
+    readonly loader: ModuleLoader = {
+        resolve: (specifier, directory) => Bun.resolveSync(specifier, directory),
+        define: (specifier, exports) => {
+            Bun.plugin({
+                name: `destack-module ${specifier}`,
+                setup(build) {
+                    build.module(specifier, () => ({ exports, loader: "object" }));
+                },
+            });
+        },
+    };
 
     /** The runtime running the process, which also takes module loader plugins. */
     get runtime(): Runtime & { readonly plugin: (plugin: BunPlugin) => Promise<void> } {
