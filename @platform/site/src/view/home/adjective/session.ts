@@ -91,7 +91,7 @@ export const steps: readonly Step[] = [
         app: "tasks",
         text: 'Closed "Record the demo"',
         count: "1 change",
-        changes: [["tasks", "DST-12: open → done, attached demo.mp4 from Oct 14"]],
+        changes: [["tasks", "DST-14: open → done, attached demo.mp4 from Oct 14"]],
         slip: { text: "demo.mp4 is last week's", fixed: "reopened" },
     },
 ];

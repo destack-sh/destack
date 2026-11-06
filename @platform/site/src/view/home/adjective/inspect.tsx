@@ -9,7 +9,7 @@ import { Favicon, Glyph } from "../figure/glyph";
 import { AuditLog } from "./log";
 import { AirtableSignupsOf } from "../tool/airtable";
 import { GmailOf } from "../tool/gmail";
-import { NotionPage } from "../tool/notion";
+import { NotionPricing } from "../tool/notion";
 import { SlackChannel } from "../tool/slack";
 import { TrelloBoard } from "../tool/trello";
 import type { Mail, Message, Signup, Task } from "../verb/corner";
@@ -45,6 +45,54 @@ const sent: readonly Mail[] = [
         "16:10",
         false,
     ],
+    [
+        "Kai Brandt",
+        "#2f7d8c",
+        "Re: Kettle Podcast",
+        "Tuesday works, I'll bring the demo.",
+        "Oct 21",
+        false,
+    ],
+    [
+        "Lena Okoye",
+        "#4f8a5b",
+        "Destack for Fieldnotes",
+        "A short pitch, and the press kit.",
+        "Oct 20",
+        false,
+    ],
+    [
+        "Ravi Patel",
+        "#6b5ca5",
+        "Destack for Brightpath",
+        "A short pitch, and the press kit.",
+        "Oct 19",
+        false,
+    ],
+    [
+        "Tomás Ruiz",
+        "#3c6e9e",
+        "Destack for The Stack Report",
+        "A short pitch, and the press kit.",
+        "Oct 17",
+        false,
+    ],
+    [
+        "Hana Sato",
+        "#8a5a2b",
+        "Re: Changelog FM",
+        "After the launch works, dates to follow.",
+        "Oct 16",
+        false,
+    ],
+    [
+        "Accounts",
+        "#5f6368",
+        "Fwd: October invoices",
+        "Nine subscriptions this month, attached.",
+        "Oct 15",
+        false,
+    ],
 ];
 
 /** The signups invited Thursday afternoon, each on the waitlist the email went to. */
@@ -68,8 +116,11 @@ const posts: readonly Message[] = [
 
 /** The launch board: the demo cards, and the demo recording closed. */
 const board: readonly Task[] = [
-    ["DST-12", "Record the demo", "done", "F", "#2f7d8c", "Thu"],
-    ["DST-14", "Press kit", "review", "F", "#2f7d8c", "Thu"],
+    ["DST-14", "Record the demo", "done", "F", "#2f7d8c", "Wed"],
+    ["DST-20", "Press kit", "review", "F", "#2f7d8c", "Thu"],
+    ["DST-15", "Launch post", "started", "A", "#6b5ca5", "Fri"],
+    ["DST-13", "Turn on pricing", "started", "F", "#2f7d8c", "Fri"],
+    ["DST-35", "Pricing FAQ", "review", "A", "#6b5ca5", "Thu"],
     ["DST-31", "Demo · Ines (Orbit Labs)", "todo", "F", "#2f7d8c", "Mon 11:00"],
     ["DST-32", "Demo · Jonas (Kettle)", "todo", "F", "#2f7d8c", "Mon 14:00"],
     ["DST-33", "Demo · Priya (Nair Studio)", "todo", "F", "#2f7d8c", "Tue 10:00"],
@@ -112,7 +163,7 @@ const consoles: readonly (readonly [
         "trello.com/b/launch",
         () => <TrelloBoard tasks={board} />,
     ],
-    ["notion", "notion", "Pricing | Notion", "notion.so/symbol/Pricing", () => <PricingDraft />],
+    ["notion", "notion", "Pricing | Notion", "notion.so/symbol/Pricing", () => <NotionPricing />],
 ];
 
 /** The colours of the vendor icons drawn from the glyph set. */
@@ -146,29 +197,6 @@ export function Inspector(properties: {
                 <RentedConsoles console={properties.console} />
             )}
         </Fade>
-    );
-}
-
-/** Draw the pricing page in the site's workspace, edited Thursday and never published. */
-function PricingDraft() {
-    return (
-        <NotionPage
-            crumbs={[
-                ["🌐", "Destack site"],
-                ["💳", "Pricing"],
-            ]}
-            tools="editor"
-            icon="💳"
-            title="Pricing"
-            properties={[
-                ["status", "Status", { kind: "status", text: "Draft", isDraft: true }],
-                ["link", "Path", { kind: "text", text: "/pricing · not published" }],
-                ["clock", "Edited", { kind: "text", text: "Thu 16:40" }],
-                ["person", "Owner", { kind: "person", name: "Florian" }],
-            ]}
-        >
-            <p>Early pricing holds for everyone on the waitlist.</p>
-        </NotionPage>
     );
 }
 

@@ -55,6 +55,59 @@ export function Notion() {
     );
 }
 
+/** The pricing draft's checklist before it publishes: each item and whether it is done. */
+const publishing: readonly (readonly [item: string, isDone: boolean])[] = [
+    ["Check the plans against the calculator", true],
+    ["Write the FAQ", true],
+    ["Link it from the launch post", false],
+    ["Publish /pricing", false],
+];
+
+/** Draw the pricing page in the site's workspace, edited Thursday and never published. */
+export function NotionPricing() {
+    return (
+        <NotionPage
+            crumbs={[
+                ["🌐", "Destack site"],
+                ["💳", "Pricing"],
+            ]}
+            tools="editor"
+            icon="💳"
+            title="Pricing"
+            properties={[
+                ["status", "Status", { kind: "status", text: "Draft", isDraft: true }],
+                ["link", "Path", { kind: "text", text: "/pricing · not published" }],
+                ["clock", "Edited", { kind: "text", text: "Thu 16:40" }],
+                ["person", "Owner", { kind: "person", name: "Florian" }],
+            ]}
+        >
+            <p {...style.attrs(styles.notionCallout)}>
+                <span aria-hidden="true" {...style.attrs(styles.notionEmoji)}>
+                    🎟️
+                </span>
+                Early pricing holds for everyone on the waitlist.
+            </p>
+            <b {...style.attrs(styles.notionHeading)}>Plans</b>
+            <ul {...style.attrs(styles.notionBullets)}>
+                <li>For people: your own space, every app included</li>
+                <li>For organisations: members, roles and audit logs</li>
+                <li>Usage billed by the hour, on both</li>
+            </ul>
+            <b {...style.attrs(styles.notionHeading)}>Before publishing</b>
+            <ul {...style.attrs(styles.notionTodos)}>
+                {publishing.map(([item, isDone]) => (
+                    <li {...style.attrs(styles.notionTodo)}>
+                        <span {...style.attrs(styles.notionBox, isDone && styles.notionBoxDone)}>
+                            {isDone ? <Glyph name="check" size={12} weight={3} /> : undefined}
+                        </span>
+                        <span {...style.attrs(isDone && styles.notionDone)}>{item}</span>
+                    </li>
+                ))}
+            </ul>
+        </NotionPage>
+    );
+}
+
 /** Draw a page: crumbs and tools, then cover, icon, title and properties, then the body. */
 export function NotionPage(properties: {
     crumbs: readonly (readonly [icon: string, name: string])[];
@@ -434,6 +487,15 @@ const styles = style.create({
         fontWeight: 600,
         marginBottom: "8px",
         marginTop: "32px",
+    },
+    notionBullets: {
+        display: "grid",
+        fontSize: "16px",
+        gap: "4px",
+        lineHeight: 1.5,
+        listStyleType: "disc",
+        margin: 0,
+        paddingInlineStart: "24px",
     },
     notionTodos: {
         display: "grid",

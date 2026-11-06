@@ -59,7 +59,7 @@ const fix: Item = {
     running: "Fixing 3 changes",
     title: "Fixed 3 changes",
     request:
-        'pages.publish("/pricing")\nchat.schedule("#launch", "Fri 09:00 Europe/Vienna")\ntasks.reopen("DST-12")',
+        'pages.publish("/pricing")\nchat.schedule("#launch", "Fri 09:00 Europe/Vienna")\ntasks.reopen("DST-14")',
     response: "3 changes · logged under this chat",
     isFailed: false,
     isExpanded: true,

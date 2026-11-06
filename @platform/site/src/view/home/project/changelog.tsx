@@ -19,6 +19,10 @@ export const releases: readonly (readonly [
     ],
     ["0.8", "Oct 14", "Waitlist", ["Invites go out in batches of 400"]],
     ["0.7", "Oct 7", "Desktop app", ["Signed builds for macOS", "Updates in the background"]],
+    ["0.6", "Sep 30", "Tables", ["Formulas across apps", "Import from Airtable and CSV"]],
+    ["0.5", "Sep 22", "Agents", ["Your agent works in every app", "Undo any change it makes"]],
+    ["0.4", "Sep 9", "Calendar", ["Booking pages", "Events from tasks and mail"]],
+    ["0.3", "Aug 28", "Mail", ["Send from your own domain", "Approve before an agent sends"]],
 ];
 
 /** Draw your changelog as a small site you deployed to its own Vercel address. */

@@ -32,6 +32,7 @@ import {
     messages,
     press,
     type PressState,
+    runs,
     signups,
     type TaskState,
     tasks,
@@ -48,8 +49,17 @@ import { Favicon } from "../figure/glyph";
 /** An app narrower than a phone screen, which then drops what only fits wide. */
 const NARROW = "@container (max-width: 479px)";
 
-/** The hours your week shows, from nine to five. */
-const HOURS = [9, 10, 11, 12, 13, 14, 15, 16];
+/** The hour your week opens at. */
+const OPEN = 9;
+
+/** The hour your week closes at. */
+const CLOSE = 17;
+
+/** The hours your week labels, each on its rule after the first. */
+const HOURS = Array.from({ length: CLOSE - OPEN - 1 }, (_, index) => OPEN + 1 + index);
+
+/** The time now on today, Monday, as an hour of the day: 10:36. */
+const NOW = 10.6;
 
 /** The weekdays your week shows, with their dates. */
 const DAYS = ["Mon 20", "Tue 21", "Wed 22", "Thu 23", "Fri 24"];
@@ -211,6 +221,16 @@ function Connection(properties: { source: Source; isRemixed: boolean }) {
                 </span>
                 <span {...style.attrs(appStyles.property)}>Connected by your agent</span>
             </Toolbar>
+            {/* show the table's headline figures */}
+            <div {...style.attrs(styles.figures)}>
+                {properties.source.figures.map(([label, value]) => (
+                    <span {...style.attrs(styles.figure)}>
+                        <span {...style.attrs(appText.meta, styles.quiet)}>{label}</span>
+                        <b {...style.attrs(styles.figureValue)}>{value}</b>
+                    </span>
+                ))}
+            </div>
+
             {/* the weekly chart your agent adds when asked */}
             {properties.isRemixed ? (
                 <div {...style.attrs(styles.chart, styles.changed)}>
@@ -382,7 +402,7 @@ function Launch(properties: { isRemixed: boolean }) {
                                 <StateMark state={state} />
                                 <span
                                     {...style.attrs(
-                                        styles.embedTitle,
+                                        styles.clip,
                                         state === "done" && styles.struck,
                                         isCommented(title) && styles.highlight,
                                     )}
@@ -432,20 +452,20 @@ function Launch(properties: { isRemixed: boolean }) {
                                 <span {...style.attrs(appText.meta, styles.quiet)}>{day}</span>
                                 {week
                                     .filter(
-                                        ([weekday, , , , isBookable]) =>
-                                            weekday === index && !isBookable,
+                                        ([weekday, , , title]) =>
+                                            weekday === index && title.includes(" · "),
                                     )
                                     .map(([, start, , title]) => (
                                         <span
                                             {...style.attrs(
                                                 appText.meta,
                                                 styles.dayEvent,
-                                                title.includes("·")
-                                                    ? styles.fromApps
-                                                    : styles.personal,
+                                                styles.fromApps,
                                             )}
                                         >
-                                            {title}
+                                            <span {...style.attrs(styles.clip)}>
+                                                {title.split(" · ")[0]}
+                                            </span>
                                             <span {...style.attrs(styles.quiet)}>
                                                 {timeOf(start)}
                                             </span>
@@ -530,7 +550,7 @@ function Tasks(properties: { isRemixed: boolean }) {
                                         <StateMark state={state} />
                                         <span
                                             {...style.attrs(
-                                                styles.taskTitle,
+                                                styles.clip,
                                                 state === "done" && styles.struck,
                                             )}
                                         >
@@ -678,7 +698,7 @@ function Press(properties: { isRemixed: boolean }) {
             >
                 <span data-xray="Database" {...style.attrs(appStyles.property)}>
                     <Icon icon={magnifyingGlass} />
-                    Search 5 contacts
+                    Search {press.length} contacts
                 </span>
                 {properties.isRemixed ? (
                     <span {...style.attrs(appStyles.property, styles.on, styles.changed)}>
@@ -851,7 +871,7 @@ function Flows(properties: { change: Change; isRemixed: boolean }) {
                 </TableHeader>
                 <TableBody>
                     {(isAutomated() ? askedWorkflows : workflows).map(
-                        ([name, trigger, runs, last]) => (
+                        ([name, trigger, total, last]) => (
                             <TableRow
                                 xstyle={isAutomated() && name === ASKED_WORKFLOW && styles.changed}
                             >
@@ -864,17 +884,34 @@ function Flows(properties: { change: Change; isRemixed: boolean }) {
                                 <TableCell xstyle={[appText.body, styles.quiet, styles.code]}>
                                     {trigger}
                                 </TableCell>
-                                <TableCell xstyle={[appText.body, styles.quiet]}>{runs}</TableCell>
+                                <TableCell xstyle={[appText.body, styles.quiet]}>{total}</TableCell>
                                 <TableCell xstyle={[appText.body, styles.quiet]}>{last}</TableCell>
                             </TableRow>
                         ),
                     )}
                 </TableBody>
             </Table>
-            <span {...style.attrs(appText.meta, styles.inline, styles.quiet)}>
-                <Icon icon={dotsThree} />
-                Each step recorded once, retried on failure
-            </span>
+
+            {/* list the latest runs, each step recorded once */}
+            <div {...style.attrs(styles.runs)}>
+                <span {...style.attrs(appText.meta, styles.runsHead)}>
+                    <b>Recent runs</b>
+                    <span {...style.attrs(styles.quiet)}>
+                        Each step recorded once, retried on failure
+                    </span>
+                </span>
+                {runs.map(([workflow, subject, steps, duration, when]) => (
+                    <span {...style.attrs(appText.meta, styles.run)}>
+                        <span {...style.attrs(styles.dot, styles.live)} />
+                        <b {...style.attrs(styles.code)}>{workflow}</b>
+                        <span {...style.attrs(styles.clip)}>{subject}</span>
+                        <span {...style.attrs(styles.quiet)}>
+                            {steps} {steps === 1 ? "step" : "steps"} · {duration}
+                        </span>
+                        <span {...style.attrs(styles.quiet, styles.runWhen)}>{when}</span>
+                    </span>
+                ))}
+            </div>
         </Paned>
     );
 }
@@ -903,22 +940,46 @@ function Week(properties: { isRemixed: boolean }) {
                 ) : undefined}
             </Toolbar>
             <div data-xray="Database" {...style.attrs(appText.meta, styles.week)}>
-                {DAYS.map((day, index) => (
+                {/* name each day, today's date marked */}
+                {DAYS.map((day, index) => {
+                    const [name, date] = day.split(" ");
+
+                    return (
+                        <span
+                            style={{ "grid-column": String(index + 2) }}
+                            {...style.attrs(styles.dayName)}
+                        >
+                            {name}
+                            <b {...style.attrs(styles.date, index === 0 && styles.today)}>{date}</b>
+                        </span>
+                    );
+                })}
+
+                {/* run the launch across the whole week */}
+                <span {...style.attrs(styles.allDayName)}>all day</span>
+                <span {...style.attrs(styles.allDay)}>Launch week</span>
+
+                {/* rule the hours, and part the days */}
+                <span
+                    style={{ "grid-row": `${rowOf(OPEN)} / ${rowOf(CLOSE)}` }}
+                    {...style.attrs(styles.grid)}
+                />
+                {DAYS.map((_, index) => (
                     <span
-                        style={{ "grid-column": String(index + 2) }}
-                        {...style.attrs(styles.dayName, index === 0 && styles.today)}
-                    >
-                        {day}
-                    </span>
+                        style={{
+                            "grid-column": String(index + 2),
+                            "grid-row": `1 / ${rowOf(CLOSE)}`,
+                        }}
+                        {...style.attrs(styles.column, index === 0 && styles.columnToday)}
+                    />
                 ))}
                 {HOURS.map((hour) => (
-                    <span
-                        style={{ "grid-row": `${rowOf(hour)} / span 2` }}
-                        {...style.attrs(styles.hour)}
-                    >
+                    <span style={{ "grid-row": String(rowOf(hour)) }} {...style.attrs(styles.hour)}>
                         {hour}:00
                     </span>
                 ))}
+
+                {/* place each event, the free times your booking page offers among them */}
                 {week.map(([day, start, end, title, isBookable]) => (
                     <span
                         style={{
@@ -927,6 +988,7 @@ function Week(properties: { isRemixed: boolean }) {
                         }}
                         {...style.attrs(
                             styles.event,
+                            end - start < 1 && styles.eventShort,
                             isBookable
                                 ? styles.bookable
                                 : title.includes("·")
@@ -934,9 +996,27 @@ function Week(properties: { isRemixed: boolean }) {
                                   : styles.personal,
                         )}
                     >
-                        <EventTitle title={title} />
+                        {isBookable ? (
+                            <span {...style.attrs(styles.eventName)}>
+                                <span {...style.attrs(styles.clip)}>Open slot</span>
+                            </span>
+                        ) : (
+                            <EventTitle title={title} />
+                        )}
+                        <span {...style.attrs(styles.eventTime)}>
+                            {end - start < 1 ? timeOf(start) : `${timeOf(start)} – ${timeOf(end)}`}
+                        </span>
                     </span>
                 ))}
+
+                {/* mark the time now on today */}
+                <span
+                    style={{
+                        "grid-row": String(rowOf(Math.floor(NOW * 2) / 2)),
+                        "margin-top": `${((NOW * 2) % 1) * 1.25}rem`,
+                    }}
+                    {...style.attrs(styles.now)}
+                />
             </div>
         </Paned>
     );
@@ -959,26 +1039,18 @@ function EventTitle(properties: { title: string }) {
     const [name, link] = properties.title.split(" · ");
 
     return (
-        <>
-            <span>{name}</span>
-            {link === undefined ? undefined : <EventLink link={link} />}
-        </>
-    );
-}
-
-/** Draw the task or mail an event comes from. */
-function EventLink(properties: { link: string }) {
-    return (
-        <span {...style.attrs(styles.eventLink)}>
-            <ServiceGlyph icon={properties.link.startsWith("DST-") ? "tasks" : "mail"} />
-            {properties.link}
+        <span {...style.attrs(styles.eventName)}>
+            {link === undefined ? undefined : (
+                <ServiceGlyph icon={link.startsWith("DST-") ? "tasks" : "mail"} />
+            )}
+            <span {...style.attrs(styles.clip)}>{name}</span>
         </span>
     );
 }
 
 /** Return the grid row a time of day starts at in the week. */
 function rowOf(hour: number): number {
-    return 3 + (hour - (HOURS[0] ?? 0)) * 2;
+    return 3 + (hour - OPEN) * 2;
 }
 
 /** Draw the launch mail. */
@@ -1051,7 +1123,7 @@ function Mail(properties: { isRemixed: boolean }) {
                         .filter(([, , , state]) => state === "waiting")
                         .map(([email, source, joined]) => (
                             <span {...style.attrs(appText.body, styles.embedRow, styles.recipient)}>
-                                <span {...style.attrs(styles.embedTitle)}>{email}</span>
+                                <span {...style.attrs(styles.clip)}>{email}</span>
                                 <span {...style.attrs(appText.meta, styles.quiet)}>{source}</span>
                                 <span {...style.attrs(appText.meta, styles.quiet)}>{joined}</span>
                             </span>
@@ -1215,15 +1287,13 @@ function Tracker(properties: { isRemixed: boolean }) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {milestones.map(([title, due, isDone], index) => (
+                    {milestones.map(([title, due, isDone, task]) => (
                         <TableRow>
                             <TableCell xstyle={appText.body}>{title}</TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>{due}</TableCell>
                             <TableCell xstyle={appText.body}>
                                 {properties.isRemixed ? (
-                                    <span {...style.attrs(appStyles.property)}>
-                                        DST-{12 + index}
-                                    </span>
+                                    <span {...style.attrs(appStyles.property)}>{task}</span>
                                 ) : (
                                     <span {...style.attrs(appStyles.property)}>
                                         <span
@@ -1273,12 +1343,19 @@ function Changelog(properties: { isRemixed: boolean }) {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {releases.map(([version, date, title]) => (
+                    {releases.map(([version, date, title, notes]) => (
                         <TableRow>
                             <TableCell xstyle={appText.body}>
                                 <span {...style.attrs(appStyles.property)}>v{version}</span>
                             </TableCell>
-                            <TableCell xstyle={appText.body}>{title}</TableCell>
+                            <TableCell xstyle={appText.body}>
+                                <span {...style.attrs(styles.release)}>
+                                    <b>{title}</b>
+                                    <span {...style.attrs(appText.meta, styles.quiet, styles.clip)}>
+                                        {notes.join(" · ")}
+                                    </span>
+                                </span>
+                            </TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>{date}</TableCell>
                             <TableCell xstyle={[appText.body, styles.quiet]}>
                                 {properties.isRemixed ? "#launch" : "1,840"}
@@ -1376,11 +1453,6 @@ const styles = style.create({
         borderTopWidth: stroke.border,
         paddingBlock: "0.375rem",
         paddingInline: "0.75rem",
-    },
-    embedTitle: {
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
     },
     days: {
         display: "grid",
@@ -1484,11 +1556,6 @@ const styles = style.create({
         gridTemplateColumns: "4.5rem auto minmax(0, 1fr) auto auto auto",
         paddingBlock: space[2],
         paddingInline: space[3],
-    },
-    taskTitle: {
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        whiteSpace: "nowrap",
     },
     agentNote: {
         color: palette.violet,
@@ -1681,6 +1748,68 @@ const styles = style.create({
         color: color.primary,
         fontWeight: weight.semibold,
     },
+    release: {
+        display: "grid",
+        gap: "1px",
+        maxWidth: "18rem",
+    },
+    clip: {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+    },
+    runs: {
+        borderColor: color.border,
+        borderRadius: radius[3],
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "grid",
+        overflow: "hidden",
+    },
+    runsHead: {
+        alignItems: "baseline",
+        backgroundColor: color.muted,
+        display: "flex",
+        gap: space[2],
+        justifyContent: "space-between",
+        paddingBlock: space[2],
+        paddingInline: space[3],
+    },
+    run: {
+        alignItems: "center",
+        borderTopColor: color.border,
+        borderTopStyle: "solid",
+        borderTopWidth: stroke.border,
+        display: "grid",
+        gap: space[2],
+        gridTemplateColumns: "auto 7.5rem minmax(0, 1fr) auto 4.5rem",
+        paddingBlock: "0.375rem",
+        paddingInline: space[3],
+    },
+    runWhen: {
+        textAlign: "end",
+    },
+    figures: {
+        display: "grid",
+        gap: space[2],
+        gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    },
+    figure: {
+        borderColor: color.border,
+        borderRadius: radius[3],
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        display: "grid",
+        gap: "2px",
+        paddingBlock: space[2],
+        paddingInline: space[3],
+    },
+    figureValue: {
+        fontSize: "1.125rem",
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: weight.semibold,
+        letterSpacing: "-0.01em",
+    },
     week: {
         borderColor: color.border,
         borderStyle: "solid",
@@ -1688,50 +1817,159 @@ const styles = style.create({
         borderRadius: radius[3],
         display: "grid",
         gridAutoRows: "1.25rem",
-        gridTemplateColumns: "3rem repeat(5, minmax(0, 1fr))",
+        gridTemplateColumns: "2.75rem repeat(5, minmax(0, 1fr))",
+        gridTemplateRows: "auto auto",
         overflow: "hidden",
-        rowGap: 0,
+        position: "relative",
     },
     dayName: {
-        borderBottomColor: color.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
-        fontWeight: weight.semibold,
-        gridRow: "1 / span 2",
-        paddingBlock: space[1],
+        alignItems: "baseline",
+        color: color.mutedForeground,
+        display: "flex",
+        gap: space[1],
+        gridRow: "1",
+        paddingBlock: space[2],
         paddingInline: space[2],
+        zIndex: 1,
+    },
+    date: {
+        alignItems: "center",
+        borderRadius: "999px",
+        color: color.foreground,
+        display: "inline-flex",
+        fontSize: "0.9375rem",
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: weight.semibold,
+        height: "1.5rem",
+        justifyContent: "center",
+        minWidth: "1.5rem",
     },
     today: {
-        color: color.primary,
+        backgroundColor: color.primary,
+        color: color.primaryForeground,
+    },
+    allDayName: {
+        borderBlockColor: color.border,
+        borderBlockStyle: "solid",
+        borderBlockWidth: stroke.border,
+        color: color.mutedForeground,
+        fontSize: "0.625rem",
+        gridColumn: "1",
+        gridRow: "2",
+        paddingBlock: space[1],
+        paddingInlineStart: space[2],
+        zIndex: 1,
+    },
+    allDay: {
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 16%, ${color.card})`,
+        borderInlineStartColor: palette.signal,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: "3px",
+        borderRadius: radius[2],
+        fontWeight: weight.semibold,
+        gridColumn: "2 / -1",
+        gridRow: "2",
+        marginBlock: space[1],
+        marginInline: space[1],
+        paddingBlock: "1px",
+        paddingInline: space[2],
+        zIndex: 1,
+    },
+    grid: {
+        // rule each hour, and each half hour more faintly, one tile per hour
+        backgroundImage: [
+            `linear-gradient(${color.border} 1px, transparent 1px)`,
+            `linear-gradient(transparent 1.25rem, color-mix(in srgb, ${color.border} 45%, transparent) 1.25rem, color-mix(in srgb, ${color.border} 45%, transparent) calc(1.25rem + 1px), transparent calc(1.25rem + 1px))`,
+        ].join(", "),
+        backgroundSize: "100% 2.5rem",
+        gridColumn: "1 / -1",
+    },
+    column: {
+        borderInlineStartColor: color.border,
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: stroke.border,
+    },
+    columnToday: {
+        backgroundColor: `color-mix(in srgb, ${color.primary} 5%, transparent)`,
     },
     hour: {
         color: color.mutedForeground,
+        fontSize: "0.625rem",
+        fontVariantNumeric: "tabular-nums",
         gridColumn: "1",
-        paddingInlineStart: space[2],
+        paddingInlineEnd: space[2],
+        textAlign: "end",
+        transform: "translateY(-0.45rem)",
     },
     event: {
+        borderInlineStartStyle: "solid",
+        borderInlineStartWidth: "3px",
         borderRadius: radius[2],
-        lineHeight: 1.25,
-        marginInline: space[1],
+        display: "flex",
+        flexDirection: "column",
+        gap: "1px",
+        lineHeight: 1.2,
         marginBlock: "1px",
+        marginInline: "2px",
+        minWidth: 0,
         overflow: "hidden",
-        paddingInline: space[2],
-        paddingBlock: space[1],
+        paddingBlock: "2px",
+        paddingInline: space[1],
+        zIndex: 1,
+    },
+    eventShort: {
+        flexDirection: "row",
+        gap: space[1],
+    },
+    eventName: {
+        alignItems: "center",
+        display: "flex",
+        flexShrink: 0,
+        fontWeight: weight.semibold,
+        gap: "3px",
+        minWidth: 0,
+    },
+    eventTime: {
+        color: color.mutedForeground,
+        flexShrink: 0,
+        fontWeight: weight.regular,
+        fontVariantNumeric: "tabular-nums",
+        whiteSpace: "nowrap",
     },
     personal: {
-        backgroundColor: `color-mix(in srgb, ${palette.teal} 18%, ${color.card})`,
+        backgroundColor: `color-mix(in srgb, ${palette.teal} 16%, ${color.card})`,
+        borderInlineStartColor: palette.teal,
         color: color.foreground,
     },
     fromApps: {
-        backgroundColor: `color-mix(in srgb, ${palette.signal} 22%, ${color.card})`,
+        backgroundColor: `color-mix(in srgb, ${palette.signal} 20%, ${color.card})`,
+        borderInlineStartColor: palette.signal,
         color: color.foreground,
         fontWeight: weight.semibold,
     },
     bookable: {
-        borderColor: palette.green,
-        borderStyle: "dashed",
-        borderWidth: stroke.border,
+        backgroundImage: `repeating-linear-gradient(-45deg, color-mix(in srgb, ${palette.green} 16%, transparent) 0 2px, transparent 2px 6px)`,
+        borderInlineStartColor: palette.green,
         color: palette.green,
+    },
+    now: {
+        alignSelf: "start",
+        backgroundColor: color.primary,
+        gridColumn: "2",
+        height: "2px",
+        marginInlineStart: "-4px",
+        position: "relative",
+        zIndex: 2,
+        "::before": {
+            backgroundColor: color.primary,
+            borderRadius: "999px",
+            content: '""',
+            height: "8px",
+            left: "-3px",
+            position: "absolute",
+            top: "-3px",
+            width: "8px",
+        },
     },
     select: {
         width: "2.5rem",
@@ -1747,13 +1985,5 @@ const styles = style.create({
         alignItems: "center",
         display: "inline-flex",
         gap: space[1],
-    },
-    eventLink: {
-        alignItems: "center",
-        color: color.mutedForeground,
-        display: "flex",
-        fontWeight: weight.regular,
-        gap: space[1],
-        marginTop: "2px",
     },
 });

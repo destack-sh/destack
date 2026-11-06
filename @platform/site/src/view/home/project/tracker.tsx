@@ -3,12 +3,19 @@ import * as style from "@destack/style";
 import { site } from "../figure/site.stylex";
 import { tracker } from "./tracker.stylex";
 
-/** The launch's milestones, in order: what, when, and whether it is done. */
-export const milestones: readonly (readonly [title: string, due: string, isDone: boolean])[] = [
-    ["Pricing page", "Mon 20", true],
-    ["Record the demo", "Wed 22", false],
-    ["Email the waitlist", "Thu 23", false],
-    ["Go live", "Fri 24", false],
+/** The launch's milestones, in order: what, when, whether it is done, and its task. */
+export const milestones: readonly (readonly [
+    title: string,
+    due: string,
+    isDone: boolean,
+    task: string,
+])[] = [
+    ["Pricing page", "Mon 20", true, "DST-12"],
+    ["Record the demo", "Wed 22", false, "DST-14"],
+    ["Draft the launch post", "Thu 23", false, "DST-15"],
+    ["Email the waitlist", "Thu 23", false, "DST-16"],
+    ["Turn on pricing", "Fri 24", false, "DST-13"],
+    ["Go live", "Fri 24", false, "DST-17"],
 ];
 
 /** Draw your launch tracker as it runs on your laptop: a dev server, saved in this browser only. */

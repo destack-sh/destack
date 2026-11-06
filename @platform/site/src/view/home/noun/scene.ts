@@ -4,14 +4,14 @@ import { present } from "@destack/schema";
 import { SHELL } from "../command/chat";
 import { type Item, type Lead, Scene } from "../command/scene";
 import type { Maker } from "./maker";
+import { milestones } from "../project/tracker";
 
 /** The launch tracker's milestones, as its preview shows them. */
-const milestones: readonly Lead[] = [
-    ["Pricing page", "Mon 20", "Done"],
-    ["Record the demo", "Wed 22", "Open"],
-    ["Email the waitlist", "Thu 23", "Open"],
-    ["Go live", "Fri 24", "Open"],
-];
+const leads: readonly Lead[] = milestones.map(([title, due, isDone]) => [
+    title,
+    due,
+    isDone ? "Done" : "Open",
+]);
 
 /** What you ask your agent to build. */
 const ask: Item = {
@@ -42,7 +42,7 @@ export const destackedScene = Scene.of([
         kind: "app",
         title: "Launch tracker",
         badge: "Live",
-        rows: milestones,
+        rows: leads,
         note: "mydomain.com/launch-tracker · your team signs in",
         isLive: true,
     },
@@ -102,7 +102,7 @@ function madeOf(maker: Maker): readonly Item[] {
             kind: "app",
             title: "Launch tracker",
             badge: place.kind === "artifact" ? "Interactive" : "Preview",
-            rows: milestones,
+            rows: leads,
             note: `${address.host}${address.path}`,
             isLive: false,
         },

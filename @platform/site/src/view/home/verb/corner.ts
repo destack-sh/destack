@@ -81,15 +81,26 @@ export type WeekBlock = readonly [
 /** Your week of October 20. */
 export const week: readonly WeekBlock[] = [
     [0, 9, 9.5, "Standup", false],
-    [0, 14, 15, "Pricing review", false],
+    [0, 10, 11, "Design review", false],
+    [0, 12.5, 13.5, "Run", false],
+    [0, 14, 15, "Pricing review · DST-12", false],
+    [0, 15.5, 16.5, "Bookable", true],
+    [1, 9, 9.5, "Standup", false],
     [1, 10, 11, "Bookable", true],
-    [1, 15, 16.5, "Bookable", true],
+    [1, 11.5, 12.5, "Hiring call", false],
+    [1, 14, 15.5, "Record the demo · DST-14", false],
+    [1, 15.5, 16.5, "Bookable", true],
+    [2, 9, 9.5, "Standup", false],
     [2, 11, 12, "Demo · Ines", false],
     [2, 13, 14, "Bookable", true],
+    [2, 15, 16, "Launch post · DST-15", false],
     [3, 9, 10, "Invites · 400", false],
+    [3, 10.5, 11.5, "Rehearse the demo", false],
+    [3, 12.5, 13.5, "Run", false],
     [3, 16, 17, "Bookable", true],
     [4, 9, 10, "Go live · DST-17", false],
     [4, 11, 12, "Bookable", true],
+    [4, 13, 14.5, "Watch the launch", false],
     [4, 16, 17, "Retro · why it took nine apps", false],
 ];
 
@@ -176,6 +187,46 @@ export const mails: readonly Mail[] = [
         "Oct 19",
         false,
     ],
+    [
+        "Owen Clarke",
+        "#5a7a2e",
+        "Re: Destack for Indie Hackers",
+        "Could I get an account for the write-up?",
+        "Oct 19",
+        false,
+    ],
+    [
+        "Stripe",
+        "#635bff",
+        "Your payout is on its way",
+        "It arrives in your account on Oct 21",
+        "Oct 18",
+        false,
+    ],
+    [
+        "Mia Sørensen",
+        "#c4683a",
+        "Re: Quietly feature",
+        "Could we run it the week after the launch?",
+        "Oct 18",
+        false,
+    ],
+    [
+        "Hetzner",
+        "#d50c2d",
+        "Invoice for September",
+        "Your invoice is ready to download",
+        "Oct 17",
+        false,
+    ],
+    [
+        "Vercel",
+        "#171717",
+        "Failed production deployment",
+        "changelog-destack: the build failed on main",
+        "Oct 17",
+        false,
+    ],
 ];
 
 /** A press contact's state, from pitched to scheduled. */
@@ -194,6 +245,10 @@ export const press: readonly (readonly [
     ["Lena Okoye", "Fieldnotes", "pitched", "Oct 20", "#4f8a5b"],
     ["Ravi Patel", "Brightpath Daily", "pitched", "Oct 19", "#6b5ca5"],
     ["Mia Sørensen", "Quietly", "replied", "Oct 18", "#c4683a"],
+    ["Tomás Ruiz", "The Stack Report", "pitched", "Oct 17", "#3c6e9e"],
+    ["Hana Sato", "Changelog FM", "replied", "Oct 16", "#8a5a2b"],
+    ["Owen Clarke", "Indie Hackers", "replied", "Oct 15", "#5a7a2e"],
+    ["Priya Nair", "Nair Studio", "pitched", "Oct 14", "#9c4f8a"],
 ];
 
 /** The launch plan's columns: each name and its notes, a task's id or a plain note. */
@@ -221,4 +276,20 @@ export const workflows: readonly (readonly [
     ["invite-400", "Thu 09:00", "4", "Oct 23"],
     ["press-followup", "on mail.reply from press", "12", "Oct 21"],
     ["friday-digest", "Fri 17:00", "3", "Oct 17"],
+];
+
+/** Your workflows' latest runs: the workflow, its subject, its steps, its duration and when. */
+export const runs: readonly (readonly [
+    workflow: string,
+    subject: string,
+    steps: number,
+    duration: string,
+    when: string,
+])[] = [
+    ["welcome-signup", "maya@northwind.io", 3, "1.2 s", "2 min ago"],
+    ["welcome-signup", "jonas@kettle.dev", 3, "0.9 s", "14 min ago"],
+    ["press-followup", "Kai Brandt replied", 2, "0.6 s", "38 min ago"],
+    ["welcome-signup", "tara@fieldnotes.co", 3, "1.1 s", "1 h ago"],
+    ["welcome-signup", "leo@brightpath.app", 3, "1.0 s", "3 h ago"],
+    ["invite-400", "Batch 1 of 5", 400, "4 min 12 s", "Oct 23"],
 ];
