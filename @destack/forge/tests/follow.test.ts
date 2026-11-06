@@ -2,11 +2,17 @@ import type { Crypto } from "@destack/environment";
 import type { Environment } from "@destack/environment";
 import { PackageId } from "@destack/package";
 import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import { reference, referenceShape, repository, tag } from "@destack/registry/object";
+import {
+    packageObject,
+    reference,
+    referenceShape,
+    repository,
+    tag,
+} from "@destack/registry/object";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, Identifier, present, schema } from "@destack/schema";
-import { RequestId } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import { build, installationRevision, rollout } from "@destack/stack/object";
 import { SpaceStore } from "@destack/stack/server";
 import stackPackage from "@destack/stack/package";
@@ -150,17 +156,41 @@ async function listBuilds(database: DatabaseConnection) {
     ]);
 }
 
+/** List a store's follows of tags and their packages' claims: scope, subject and query. */
+async function tagFollows(
+    store: Awaited<ReturnType<typeof serveCommits>>["store"],
+    database: DatabaseConnection,
+) {
+    const subscriber = present(store.subscriber, "the subscriber");
+    const entries = await subscriber.subscriptions(Snapshot.live(database));
+
+    return entries
+        .flatMap(({ subscription }) =>
+            Object.keys(subscription.parameters["queries"] ?? {}).map((query) => ({
+                scope: subscription.scope,
+                subject: subscription.subject?.id ?? null,
+                query,
+            })),
+        )
+        .filter(({ query }) => query.startsWith("claim:") || query.startsWith("tag:"))
+        .toSorted((left, right) => left.query.localeCompare(right.query));
+}
+
 /** Serve a space whose installations follow repository references. */
 async function serveCommits() {
     // serve installations following references from repositories the universe claims
     const fixture = await TestSpace.open({
-        follows: new Forge({ resolve: async () => new Map() }, async () => FORGE_HOME).follows(),
+        follows: new Forge(
+            { resolve: async () => new Map() },
+            async () => FORGE_HOME,
+            ids.machine,
+        ).follows(),
     });
     const { database } = fixture;
     const { clock, environment } = fixture.machine;
     const universe = fixture.universe.storage.database;
     const claims = ClaimLookup.of(Snapshot.live(universe).read(claimTable));
-    const forge = new Forge(claims, async () => FORGE_HOME);
+    const forge = new Forge(claims, async () => FORGE_HOME, fixture.machine.id);
     const followed = {
         forge,
         follows: forge.follows(),
@@ -411,4 +441,46 @@ test("follow a selected tag to the release its replicated row points at, and to 
         "2026.9.0",
         "2026.10.0",
     ]);
+});
+
+test("follow a tag's package claim as the machine, then the tag at its forge home", async () => {
+    // follow latest of a package whose claim the space lacks
+    const { database, environment, fixture, installer, store } = await serveCommits();
+    const packageId = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000c3");
+    await installer.installation.create({
+        scope: ids.space,
+        requestId: RequestId.create(environment),
+        packageId,
+        selection: { kind: "tag", tag: "latest" },
+        name: "tagged",
+    });
+
+    // read the follows before the claim arrives
+    const index = Claim.index(packageObject, "id");
+    const claimed = Claim.key(packageObject, "id", [packageId]);
+    const before = await tagFollows(store, database);
+
+    // replicate the package's claim into the space, as the machine's follow receives it
+    await database.transaction(async (transaction) => {
+        await transaction.insert(claimTable).values({
+            id: Identifier.create("claim", environment),
+            scope: Scope.universe.id,
+            index,
+            key: claimed.key,
+            packageId: packageObject.policy.definition.packageId,
+            objectId: packageId,
+            owner: ids.account,
+            state: "active",
+        });
+    });
+    const after = await tagFollows(store, database);
+
+    // follow the claim at the universe as the machine, then the tag at the forge home as the space
+    const claim = {
+        scope: Scope.universe.id,
+        subject: fixture.machine.id,
+        query: `claim:${index}:${claimed.key}:0:claim`,
+    };
+    const tagged = { scope: FORGE_HOME, subject: null, query: `tag:latest:${packageId}:0:tag` };
+    expect({ before, after }).toEqual({ before: [claim], after: [claim, tagged] });
 });

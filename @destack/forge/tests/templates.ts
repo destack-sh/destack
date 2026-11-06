@@ -3,7 +3,11 @@ import { Forge } from "@destack/registry/client";
 import { FORGE_TEMPLATE } from "../src/test/index.ts";
 
 /** The forge a template's space follows, claiming no names: it selects no repository or tag. */
-const TEMPLATE_FORGE = new Forge({ resolve: async () => new Map() }, async () => ids.space);
+const TEMPLATE_FORGE = new Forge(
+    { resolve: async () => new Map() },
+    async () => ids.space,
+    ids.machine,
+);
 
 /** The templates forge's tests copy, which the run writes once. */
 export const templates = [
