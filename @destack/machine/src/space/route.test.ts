@@ -1,7 +1,10 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { CLIENT_HEAD_HEADER, ClientHead } from "@destack/object/workload";
-import { ROUTE_HEADER, SPACE_HEADER, SpaceRequest } from "./route.ts";
+import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
+import { PartitionRequest, ROUTE_HEADER, SPACE_HEADER, SpaceRequest } from "./route.ts";
+
+/** A machine partition a request addresses. */
+const MACHINE = "machine-01996ab0-0000-7000-8000-000000000007";
 
 /** A space of the scenarios. */
 const SPACE = "space-01996ab0-0000-7000-8000-000000000002";
@@ -208,4 +211,27 @@ test("drop the route and the URL a client sends to the machine's own host, which
         found?.request.headers.get(ROUTE_HEADER),
         found?.request.headers.get(CLIENT_HEAD_HEADER),
     ]).toEqual([SPACE, null, null]);
+});
+
+test("read a request's partition from its header first, then its scoped path, then its JSON body", async () => {
+    // address the machine by header over a space's scoped path, by path alone, by body alone, and by none
+    const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
+        new Request(`http://127.0.0.1${path}`, {
+            method: "POST",
+            body: JSON.stringify(body),
+            headers: { "content-type": "application/json", ...headers },
+        });
+    const notes = `/spaces/${SPACE}/notes`;
+    const requests = [
+        { request: post(notes, {}, { [PARTITION_HEADER]: MACHINE }), path: notes },
+        { request: post(notes, {}), path: notes },
+        { request: post("/store/describe", { scope: SPACE }), path: "/store/describe" },
+        { request: post("/store/describe", {}), path: "/store/describe" },
+    ];
+    const partitions = await Promise.all(
+        requests.map(({ request, path }) => PartitionRequest.of(request, path)),
+    );
+
+    // take the header over the path, and the body only without either
+    expect(partitions).toEqual([MACHINE, SPACE, SPACE, undefined]);
 });

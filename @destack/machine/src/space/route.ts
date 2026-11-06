@@ -4,7 +4,7 @@ import { type Identifier, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
 import { copyRequest } from "@destack/environment";
 import { CALLER_HEADER } from "@destack/access";
-import { CLIENT_HEAD_HEADER, ClientHead } from "@destack/object/workload";
+import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
 
 /** The header with the space a machine routes a request to. */
 export const SPACE_HEADER = "Destack-Space";
@@ -43,10 +43,12 @@ export interface SpaceRequest {
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
 export const PartitionRequest = {
-    /** Read the partition of a request at a path, absent for a request addressing none. */
+    /** Read the partition of a request at a path: its header's, its path's or its body's, absent for none. */
     async of(request: Request, pathname: string): Promise<string | undefined> {
         return (
-            PartitionRequest.scoped(pathname) ?? (await PartitionRequest.body(request, pathname))
+            request.headers.get(PARTITION_HEADER) ??
+            PartitionRequest.scoped(pathname) ??
+            (await PartitionRequest.body(request, pathname))
         );
     },
 
