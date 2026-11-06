@@ -443,7 +443,6 @@
         "@destack/package": "workspace:*",
         "@destack/style": "workspace:*",
         "@solidjs/web": "2.0.0-rc.8",
-        "rolldown": "1.2.16",
         "solid-js": "2.0.0-rc.8",
       },
       "devDependencies": {
@@ -453,10 +452,12 @@
         "@jridgewell/trace-mapping": "0.3.31",
         "@phosphor-icons/core": "2.1.1",
         "@types/bun": "1.4.2",
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "peerDependencies": {
         "@destack/view": "workspace:*",
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "optionalPeers": [
@@ -765,14 +766,15 @@
         "@jridgewell/trace-mapping": "0.3.31",
         "lightningcss": "1.33.0",
         "magic-string": "1.4.1",
-        "rolldown": "1.2.16",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "peerDependencies": {
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "optionalPeers": [
@@ -1221,17 +1223,18 @@
         "@solidjs/web": "2.0.0-rc.8",
         "dom-accessibility-api": "0.7.1",
         "happy-dom": "20.14.5",
-        "rolldown": "1.2.16",
         "sharp": "0.35.4",
         "solid-js": "2.0.0-rc.8",
       },
       "devDependencies": {
         "@destack/build": "workspace:*",
         "@fontsource/ibm-plex-mono": "5.3.0",
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "peerDependencies": {
         "@destack/build": "workspace:*",
+        "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "optionalPeers": [

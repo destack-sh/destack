@@ -353,6 +353,7 @@
                 "@destack/machine/src/cloudflare/test/scenario.ts",
                 "@destack/machine/src/cloudflare/runtime/test/partition.ts",
                 "@destack/object/src/browser/database.worker.ts",
+                "@destack/package/src/bun/test/linked.ts",
                 "@destack/sandbox/src/main.ts",
                 "@destack/stack/src/bun/runner.ts",
                 "@destack/stack/src/cloudflare/graph.ts",
