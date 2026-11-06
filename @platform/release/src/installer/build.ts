@@ -1,20 +1,24 @@
-import { listInstallers } from "../distribution/index.ts";
-import { buildMacInstaller } from "../apple/installer.ts";
-import { print } from "../output/index.ts";
+import type { Environment, HostCapability } from "@destack/environment";
+import { Installer } from "../distribution/index.ts";
+import { buildMacInstaller } from "./apple.ts";
+import { print } from "../distribution/output.ts";
 
-/** The installers of the released platforms. */
-const installers = listInstallers().map(({ installer }) => installer);
-/** The installer selected by its download name. */
-const installer = installers.find(({ name }) => name === process.argv[2]);
+/** Build the installer the command line selects by its download name. */
+export async function buildInstaller(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    // select the installer of a released platform by its download name
+    const installers = Installer.list().map(({ installer }) => installer);
+    const installer = installers.find(({ name }) => name === arguments_[0]);
+    if (installer === undefined) {
+        throw new Error(`select an installer: ${installers.map(({ name }) => name).join(", ")}`);
+    }
 
-// refuse an unknown installer name
-if (installer === undefined) {
-    throw new Error(`select an installer: ${installers.map(({ name }) => name).join(", ")}`);
-}
-
-// build the installer with its format's builder
-switch (installer.format) {
-    case "dmg":
-        print(await buildMacInstaller(installer));
-        break;
+    // build the installer with its format's builder
+    switch (installer.format) {
+        case "dmg":
+            print(await buildMacInstaller(installer, environment), environment);
+            break;
+    }
 }

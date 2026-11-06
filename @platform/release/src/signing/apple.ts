@@ -1,10 +1,19 @@
-import { readdir, mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Environment } from "@destack/environment";
 import { run } from "../distribution/command.ts";
 import { APPLE_BUNDLE } from "../distribution/platform.ts";
-import type { Signer } from "../signing/signer.ts";
+import type { Signer } from "./signer.ts";
+import { Toolchain } from "@destack/check/toolchain";
+
+/** The first bytes of 64-bit and universal Mach-O files (mach-o/loader.h, mach-o/fat.h). */
+const MACH_O_MAGICS: readonly (readonly number[])[] = [
+    [0xcf, 0xfa, 0xed, 0xfe],
+    [0xca, 0xfe, 0xba, 0xbe],
+];
+
+/** The length of a Mach-O file's magic number, in bytes. */
+const MACH_O_MAGIC_LENGTH = 4;
 
 /** Apple code signing and notarization selected for a release build. */
 export class MacSigning implements Signer {
@@ -14,19 +23,22 @@ export class MacSigning implements Signer {
     readonly profile: string | undefined;
     /** Temporary keychain used by CI, or the user's configured search list. */
     readonly keychain: string | undefined;
+    /** The host the signing tools run on. */
+    readonly environment: Environment<"files" | "process">;
 
     /** Require production credentials when release signing is selected. */
-    constructor(environment = process.env) {
+    constructor(environment: Environment<"files" | "process">) {
         // distinguish explicit local signing from required production credentials
-        const mode = environment["DESTACK_SIGNING"] ?? "development";
+        const { variables } = environment.process;
+        const mode = variables["DESTACK_SIGNING"] ?? "development";
         if (mode !== "development" && mode !== "release") {
             throw new Error("DESTACK_SIGNING must be development or release");
         }
-        this.identity = mode === "release" ? required(environment, "APPLE_SIGNING_IDENTITY") : "-";
-        this.profile =
-            mode === "release" ? required(environment, "APPLE_NOTARY_PROFILE") : undefined;
-        const keychain = environment["APPLE_KEYCHAIN"];
+        this.identity = mode === "release" ? required(variables, "APPLE_SIGNING_IDENTITY") : "-";
+        this.profile = mode === "release" ? required(variables, "APPLE_NOTARY_PROFILE") : undefined;
+        const keychain = variables["APPLE_KEYCHAIN"];
         this.keychain = keychain === "" ? undefined : keychain;
+        this.environment = environment;
         if (mode === "release" && this.identity === "-") {
             throw new Error("release signing requires a Developer ID Application identity");
         }
@@ -34,24 +46,49 @@ export class MacSigning implements Signer {
 
     /** Sign each nested executable before signing its containing application. */
     async sign(application: string): Promise<void> {
-        // sign executable payloads before the outer bundle
-        await this.executables(join(application, APPLE_BUNDLE.helpers), true);
+        // sign the commands, the toolchain's native code and the desktop before the outer bundle
+        const helpers = join(application, APPLE_BUNDLE.helpers);
+        await this.executables(helpers, true);
+        for (const path of await this.#machO(Toolchain.of(join(helpers, "destack")))) {
+            await this.signFile(path, true);
+        }
         await this.executables(join(application, dirname(APPLE_BUNDLE.executable)), false);
         await this.signFile(application, false);
     }
 
+    /** List the Mach-O files below a directory, which code signing signs one by one. */
+    async #machO(directory: string): Promise<string[]> {
+        // read each file's first four bytes: a thin 64-bit or a universal Mach-O header
+        const { files } = this.environment;
+        const entries = await files.readDirectory(directory, { recursive: true });
+        const native: string[] = [];
+        for (const entry of entries.filter((file) => file.kind === "file")) {
+            const path = join(directory, entry.name);
+            await using file = await files.open(path, { read: true });
+            const header = new Uint8Array(MACH_O_MAGIC_LENGTH);
+            await file.read(header);
+            if (
+                MACH_O_MAGICS.some((magic) => magic.every((byte, index) => header[index] === byte))
+            ) {
+                native.push(path);
+            }
+        }
+
+        return native;
+    }
+
     /** Verify the application's signatures and every nested signature. */
     async verify(application: string): Promise<void> {
-        await run("codesign", ["--verify", "--deep", "--strict", application]);
+        await run("codesign", ["--verify", "--deep", "--strict", application], this.environment);
     }
 
     /** Sign all executables in the selected application directory. */
     async executables(directory: string, runtime: boolean): Promise<void> {
-        for (const entry of await readdir(directory, { withFileTypes: true })) {
+        for (const entry of await this.environment.files.readDirectory(directory)) {
             const path = join(directory, entry.name);
-            if (entry.isDirectory()) {
+            if (entry.kind === "directory") {
                 await this.executables(path, runtime);
-            } else if (entry.isFile()) {
+            } else if (entry.kind === "file") {
                 await this.signFile(path, runtime);
             } else {
                 throw new Error(`unsupported signing entry: ${path}`);
@@ -64,15 +101,16 @@ export class MacSigning implements Signer {
         if (this.profile === undefined) {
             return;
         }
-        const directory = await mkdtemp(join(tmpdir(), "destack-notarize-"));
+        const { environment } = this;
+        const directory = await environment.files.makeTemporaryDirectory("destack-notarize-");
         try {
             const archive = join(directory, "application.zip");
-            await run("ditto", ["-c", "-k", "--keepParent", path, archive]);
+            await run("ditto", ["-c", "-k", "--keepParent", path, archive], environment);
             await this.submit(archive);
             await this.staple(path);
-            await run("spctl", ["--assess", "--type", "execute", "--verbose", path]);
+            await run("spctl", ["--assess", "--type", "execute", "--verbose", path], environment);
         } finally {
-            await rm(directory, { recursive: true, force: true });
+            await environment.files.remove(directory, { recursive: true, force: true });
         }
     }
 
@@ -96,7 +134,7 @@ export class MacSigning implements Signer {
         if (runtime) {
             arguments_.push("--entitlements", fileURLToPath(new URL("bun.plist", import.meta.url)));
         }
-        await run("codesign", [...arguments_, path]);
+        await run("codesign", [...arguments_, path], this.environment);
     }
 
     /** Wait for Apple's verdict and fail the build on rejection. */
@@ -117,19 +155,19 @@ export class MacSigning implements Signer {
         if (this.keychain !== undefined) {
             arguments_.push("--keychain", this.keychain);
         }
-        await run("xcrun", arguments_);
+        await run("xcrun", arguments_, this.environment);
     }
 
     /** Attach and validate the notarization ticket for offline first launch. */
     async staple(path: string): Promise<void> {
-        await run("xcrun", ["stapler", "staple", path]);
-        await run("xcrun", ["stapler", "validate", path]);
+        await run("xcrun", ["stapler", "staple", path], this.environment);
+        await run("xcrun", ["stapler", "validate", path], this.environment);
     }
 }
 
 /** Require a signing credential without printing its value. */
-function required(environment: NodeJS.ProcessEnv, name: string): string {
-    const value = environment[name];
+function required(variables: Readonly<Record<string, string>>, name: string): string {
+    const value = variables[name];
     if (value === undefined || value === "") {
         throw new Error(`${name} is required for release signing`);
     }

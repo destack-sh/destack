@@ -1,47 +1,55 @@
-import { mkdir } from "node:fs/promises";
+import { CHECKOUT } from "../distribution/distribution.ts";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Release } from "@destack/update/release";
-import { selectPlatform, version } from "../distribution/index.ts";
-import { createSigner, signDistribution } from "./signer.ts";
+import { Platform, releaseVersion } from "../distribution/index.ts";
+import type { Environment, HostCapability } from "@destack/environment";
+import { Signer } from "./signer.ts";
 import { run } from "../distribution/command.ts";
 
-/** Repository containing the distribution build outputs. */
-const ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
-/** The release whose built distribution this run unpacks or signs. */
-const release = new Release(
-    version,
-    process.argv[3] ?? Release.target(process.platform, process.arch),
-);
-/** Compiled distribution selected for signing. */
-const directory = join(ROOT, "dist", release.version, release.target);
-/** Requested platform operation. */
-const operation = process.argv[2];
-/** The platform of the selected target. */
-const platform = selectPlatform(release.target);
+/** Unpack a built distribution, or sign it on its target operating system. */
+export async function signPlatform(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    // select the release of the requested target, this host's by default
+    const version = await releaseVersion(CHECKOUT, environment);
+    const [operation, selected] = arguments_;
+    const release = new Release(
+        version,
+        selected ?? Release.target(environment.host.os, environment.host.architecture),
+    );
 
-// unpack the archive a build job produced
-if (operation === "unpack") {
-    await mkdir(directory, { recursive: true });
-    await run("tar", [
-        "-xzf",
-        join(ROOT, "dist", release.version, `destack-${release.directory}.tar.gz`),
-        "-C",
-        directory,
-    ]);
-}
-// sign and notarize the exact application used by both the archive and the installers
-else if (operation === "sign" && process.platform === platform.system) {
-    if (process.env["DESTACK_SIGNING"] !== "release") {
-        throw new Error("platform signing requires DESTACK_SIGNING=release");
+    // select the compiled distribution and its platform
+    const directory = join(CHECKOUT, "dist", release.version, release.target);
+    const platform = Platform.of(release.target);
+
+    // unpack the archive a build job produced
+    if (operation === "unpack") {
+        await environment.files.mkdir(directory, { recursive: true });
+        await run(
+            "tar",
+            [
+                "-xzf",
+                join(CHECKOUT, "dist", release.version, `destack-${release.directory}.tar.gz`),
+                "-C",
+                directory,
+            ],
+            environment,
+        );
     }
-    const signer = createSigner(platform);
-    if (signer === undefined) {
-        throw new Error(`${release.target} has no platform signer`);
+    // sign and notarize the exact application used by both the archive and the installers
+    else if (operation === "sign" && environment.host.os === platform.system) {
+        if (environment.process.variables["DESTACK_SIGNING"] !== "release") {
+            throw new Error("platform signing requires DESTACK_SIGNING=release");
+        }
+        const signer = Signer.of(platform, environment);
+        if (signer === undefined) {
+            throw new Error(`${release.target} has no platform signer`);
+        }
+        await Signer.certify(directory, platform, signer, environment);
     }
-    await signDistribution(directory, platform, signer);
-}
-// refuse every other operation
-else {
-    throw new Error("select unpack, or sign on the target operating system");
+    // refuse every other operation
+    else {
+        throw new Error("select unpack, or sign on the target operating system");
+    }
 }
