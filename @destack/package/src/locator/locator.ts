@@ -7,8 +7,9 @@ import type {
 import { Definition, type PackageDefinition } from "../definition/definition.ts";
 import { ModuleMetadata } from "../definition/metadata.ts";
 import { DependencyName } from "../definition/package.ts";
+import { PackageJson, RuntimeRequirements } from "../definition/description.ts";
 import { PackageError } from "../error/error.ts";
-import { schema, type Version } from "@destack/schema";
+import { present, schema, type Version } from "@destack/schema";
 
 /** The name and version fields of a package.json. */
 const Manifest = schema.looseObject({
@@ -158,6 +159,33 @@ export class PackageLocator {
         this.#imported.set(key, imported);
 
         return imported;
+    }
+
+    /** Read what a program shares with the code it loads, by the directory each resolves from. */
+    async shared(directory: string): Promise<ReadonlyMap<string, string>> {
+        // read the program's package and the packages its definition shares
+        const program = present(await this.#owner(directory), `the package of ${directory}`);
+        const { name } = program.metadata.package;
+        const definition = await this.#definition(name, program.directory);
+        const shares = definition?.shares ?? [];
+        const shared = new Map(shares.map((each) => [each, program.directory]));
+
+        // walk its dependencies through the builtins, which depend only on builtins
+        const pending = [program.directory];
+        for (const from of pending) {
+            const text = await this.#files.readTextFile(join(from, "package.json"));
+            const requirements = RuntimeRequirements.parse(JSON.parse(text));
+            for (const dependency of PackageJson.runtimeDependencies(requirements)) {
+                const isBuiltin = (await this.#definition(dependency, from))?.role === "builtin";
+                const root = isBuiltin ? await this.directory(dependency, from) : undefined;
+                if (root !== undefined && !shared.has(dependency)) {
+                    shared.set(dependency, from);
+                    pending.push(root);
+                }
+            }
+        }
+
+        return shared;
     }
 
     /** Read a package's destack.json once, resolved by name from a directory, if any. */

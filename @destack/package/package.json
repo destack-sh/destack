@@ -38,10 +38,10 @@
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
         "lightningcss": "1.33.0",
-        "magic-string": "1.4.1",
-        "rolldown": "1.2.16"
+        "magic-string": "1.4.1"
     },
     "peerDependencies": {
+        "rolldown": "1.2.16",
         "vite": "8.3.0"
     },
     "peerDependenciesMeta": {
@@ -52,6 +52,7 @@
     "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
+        "rolldown": "1.2.16",
         "vite": "8.3.0"
     }
 }

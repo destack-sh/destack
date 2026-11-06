@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 import { Language } from "./language.ts";
 import { Runtime } from "../runtime/index.ts";
 import { TemplateDefinition } from "../template/index.ts";
-import { PackageId, PackageName } from "./package.ts";
+import { DependencyName, PackageId, PackageName } from "./package.ts";
 import {
     DeclarationConstructorMap,
     DeclarationKindDefinition,
@@ -83,6 +83,8 @@ const definition = schema.object({
     runtimes: schema.array(Runtime).min(1).exactOptional(),
     /** The modules a host starts beside the bin, such as Worker scripts. */
     entrypoints: schema.array(PackagePath).min(1).exactOptional(),
+    /** The packages the package's programs share with the code they load, beyond the builtins. */
+    shares: schema.array(DependencyName).min(1).exactOptional(),
     /** What the package's workloads and views always use beyond the bare sandbox. */
     sandbox: Sandbox.exactOptional(),
     /** The declaration constructors the build describes, by name. */
