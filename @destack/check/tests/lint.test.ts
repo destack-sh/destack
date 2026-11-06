@@ -11,7 +11,15 @@ const tester = new RuleTester();
 
 /** The lint settings listing this package as the workspace's one Destack package. */
 const SETTINGS = {
-    destack: { packages: ["@destack/check"], entrypoints: ["@destack/check/src/main.ts"] },
+    destack: {
+        packages: [{ directory: "@destack/check", name: "@destack/check" }],
+        entrypoints: ["@destack/check/src/main.ts"],
+        roles: {
+            "@destack/check": "library",
+            "@destack/machine": "builtin",
+            "@acme/notes": "app",
+        },
+    },
 };
 
 /** The module this package's bin runs. */
@@ -868,6 +876,42 @@ tester.run("no-manifest-import", rules["no-manifest-import"], {
             filename: SOURCE,
             settings: SETTINGS,
             errors: [{ messageId: "manifest" }],
+        },
+    ],
+});
+
+tester.run("package-layout", rules["package-layout"], {
+    valid: [
+        { code: 'import notes from "@acme/notes/client";', filename: SOURCE, settings: SETTINGS },
+        {
+            code: 'import { Machine } from "@destack/machine";',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
+        {
+            code: 'import type { NotesHost } from "@acme/notes/server";',
+            filename: SOURCE,
+            settings: SETTINGS,
+        },
+        { code: 'import server from "@acme/notes/server";', filename: TEST, settings: SETTINGS },
+        { code: 'import { z } from "zod";', filename: SOURCE, settings: SETTINGS },
+    ],
+    invalid: [
+        {
+            code: 'import server from "@acme/notes/server";',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [
+                {
+                    message: "@destack/check imports @acme/notes/server, private to its app",
+                },
+            ],
+        },
+        {
+            code: 'export { TestNotes } from "@destack/machine/test";',
+            filename: SOURCE,
+            settings: SETTINGS,
+            errors: [{ message: "@destack/check imports @destack/machine/test outside its tests" }],
         },
     ],
 });

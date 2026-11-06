@@ -25,6 +25,7 @@ import { styleHover } from "./style-hover.ts";
 import { styleShorthand } from "./style-shorthand.ts";
 import { styleTokens } from "./style-tokens.ts";
 import { styleXstyleLast } from "./style-xstyle-last.ts";
+import { packageLayout } from "./package-layout.ts";
 import { validPackageHandle } from "./valid-package-handle.ts";
 
 /** A trusted Oxc plugin selected by the host's dependency resolver. */
@@ -57,6 +58,7 @@ export const rules = {
     "no-partial-assertions": noPartialAssertions,
     "no-system-environment": noSystemEnvironment,
     "padding-before-return": paddingBeforeReturn,
+    "package-layout": packageLayout,
     "prevent-abbreviations": preventAbbreviations,
     "require-block-comment": requireBlockComment,
     "require-jsdoc": requireJsdoc,

@@ -1,7 +1,7 @@
 import type { FileSystem } from "@destack/environment";
 import { isDeepStrictEqual } from "node:util";
 import { dirname, relative, resolve, sep } from "node:path";
-import { Definition, type PackageDefinition } from "@destack/package";
+import { Definition, type PackageDefinition, type PackageRole } from "@destack/package";
 import { DOM_LIBRARIES, TYPESCRIPT_LIBRARIES, TYPESCRIPT_OPTIONS } from "@destack/package/build";
 import * as lint from "../lint/plugin.ts";
 import type { Plugin } from "../lint/plugin.ts";
@@ -177,7 +177,11 @@ export function lintConfiguration(
             ...overrides,
         ],
         settings: {
-            destack: { packages: [...settings.packages], entrypoints: [...settings.entrypoints] },
+            destack: {
+                packages: [...settings.packages],
+                entrypoints: [...settings.entrypoints],
+                roles: { ...settings.roles },
+            },
         },
         options: { denyWarnings: true, typeAware: true, respectEslintDisableDirectives: false },
     };
@@ -196,14 +200,27 @@ export async function lintSettings(directory: string, files: FileSystem): Promis
     // read the root and every workspace member defining a Destack package
     const members: WorkspaceMember[] = [];
     const declared = new Map<string, readonly string[]>();
+    const roles: Record<string, PackageRole> = {};
     for (const member of [directory, ...(await workspaceMembers(directory, files))]) {
         const definition = await readDefinition(member, files);
         if (definition !== undefined) {
-            members.push({
-                directory: member,
-                manifest: (await readManifest(member, files)) ?? {},
-            });
+            const manifest = (await readManifest(member, files)) ?? {};
+            members.push({ directory: member, manifest });
             declared.set(member, definition.entrypoints ?? []);
+            roles[present(manifest.name, `the name of ${member}`)] = definition.role;
+        }
+    }
+
+    // read the role of each Destack package the members depend on
+    for (const member of members) {
+        const { dependencies = {}, devDependencies = {} } = member.manifest;
+        for (const name of Object.keys({ ...dependencies, ...devDependencies })) {
+            const installed = await installedDirectory(member.directory, name, files);
+            const definition =
+                installed === undefined ? undefined : await readDefinition(installed, files);
+            if (definition !== undefined) {
+                roles[name] = definition.role;
+            }
         }
     }
 
@@ -222,9 +239,11 @@ export async function lintSettings(directory: string, files: FileSystem): Promis
     }
 
     return {
-        packages: members.map(
-            (member) => relative(directory, member.directory).split(sep).join("/") || ".",
-        ),
+        packages: members.map((member) => ({
+            directory: relative(directory, member.directory).split(sep).join("/") || ".",
+            name: present(member.manifest.name, `the name of ${member.directory}`),
+        })),
+        roles,
         entrypoints: [
             ...new Set(entrypoints.map((path) => relative(directory, path).split(sep).join("/"))),
         ],
@@ -520,6 +539,24 @@ export async function settingsRoot(directory: string, files: FileSystem): Promis
     }
 
     return current;
+}
+
+/** Find the directory a package installs a dependency in, as Node resolves it, absent if none. */
+async function installedDirectory(
+    directory: string,
+    name: string,
+    files: FileSystem,
+): Promise<string | undefined> {
+    // look in each enclosing directory's node_modules
+    for (let current = directory; ; current = dirname(current)) {
+        const candidate = resolve(current, "node_modules", name);
+        if (await files.exists(resolve(candidate, "package.json"))) {
+            return candidate;
+        }
+        if (dirname(current) === current) {
+            return undefined;
+        }
+    }
 }
 
 /** Read the package a directory's destack.json defines. */

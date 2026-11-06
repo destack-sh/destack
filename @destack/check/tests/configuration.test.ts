@@ -156,6 +156,7 @@ test("write lint and format settings at the workspace root and compiler settings
                 test: "vitest run",
             },
             exports: { "./preload": "./src/preload.ts" },
+            dependencies: { "@example/notes": "2026.9.0", zod: "4.0.0" },
         }),
     );
     await files.writeTextFile(
@@ -200,8 +201,25 @@ test("write lint and format settings at the workspace root and compiler settings
         join(member, "bunfig.toml"),
         'preload = ["@example/member/preload", "@example/outside/preload"]\n',
     );
+    // install an app and an npm package it depends on, reading the app's role
+    const notes = join(workspace, "node_modules", "@example", "notes");
+    await files.mkdir(notes, { recursive: true });
+    await files.writeTextFile(
+        join(notes, "package.json"),
+        JSON.stringify({ name: "@example/notes" }),
+    );
+    await files.writeTextFile(
+        join(notes, "destack.json"),
+        JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01a0c80b-614d-75ac-841e-b27280bf3db4",
+            role: "app",
+            language: "typescript",
+        }),
+    );
     expect(await lintSettings(workspace, files)).toEqual({
-        packages: ["member"],
+        packages: [{ directory: "member", name: "@example/member" }],
+        roles: { "@example/member": "library", "@example/notes": "app" },
         entrypoints: [
             "member/src/main.ts",
             "member/src/worker.ts",

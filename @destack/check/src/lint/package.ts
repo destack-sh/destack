@@ -1,3 +1,4 @@
+import { PackageRole } from "@destack/package";
 import { schema } from "@destack/schema";
 
 /** A tool's configuration module, such as `vitest.config.ts`, which the tool runs as a program. */
@@ -8,8 +9,10 @@ const ENVIRONMENT_PACKAGE = /[\\/]@destack[\\/]environment[\\/]/u;
 
 /** The Destack settings of a lint configuration, as configure writes them. */
 const lintSettings = schema.object({
-    /** The package directories relative to the settings root, "." for the root. */
-    packages: schema.array(schema.string()),
+    /** The packages, by directory relative to the settings root ("." for the root) and name. */
+    packages: schema.array(schema.object({ directory: schema.string(), name: schema.string() })),
+    /** The role of each Destack package the packages are or depend on, by name. */
+    roles: schema.record(schema.string(), PackageRole),
     /** The modules the packages start: `bin`, entrypoints, Bun scripts and preloads. */
     entrypoints: schema.array(schema.string()),
 });
@@ -32,11 +35,18 @@ export const LintSettings = Object.assign(lintSettings, {
 
 /** Report whether a source file belongs to a Destack package the lint settings list. */
 export function isPackageFile(filename: string, settings: unknown): boolean {
-    const path = filename.replaceAll("\\", "/");
+    return packageOf(filename, settings) !== undefined;
+}
 
-    return LintSettings.read(settings).packages.some(
-        (directory) => directory === "." || path.includes(`/${directory}/`),
+/** Find the package of a source file among those the lint settings list, the innermost one. */
+export function packageOf(filename: string, settings: unknown): string | undefined {
+    const path = filename.replaceAll("\\", "/");
+    const containing = LintSettings.read(settings).packages.filter(
+        ({ directory }) => directory === "." || path.includes(`/${directory}/`),
     );
+
+    return containing.toSorted((left, right) => right.directory.length - left.directory.length)[0]
+        ?.name;
 }
 
 /** Report whether a source file is a program entrypoint or a tool's configuration module. */
