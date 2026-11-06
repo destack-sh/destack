@@ -1,6 +1,8 @@
 import type { Crypto } from "@destack/environment";
 import { expect, refusal, test } from "@destack/test";
-import { CONNECTION_HEADER, ResourceId } from "@destack/resource";
+import { ResourceId } from "@destack/resource";
+import { ConnectionKind } from "@destack/connection/declare";
+import { EGRESS_PROVIDER } from "@destack/resource";
 import { PackageMount } from "@destack/object";
 import { EgressCaller, type InstanceSpec, type WorkloadResource } from "@destack/stack/runtime";
 import { Package, PackageId } from "@destack/package";
@@ -278,86 +280,72 @@ test("hand an instance's telemetry to its space as the machine, stamped with its
     });
 });
 
-/** Bind an https resource lent from a connection, or from the connections its calls name. */
-function lentResource(id: string, connection?: Identifier<"connection">): WorkloadResource {
+/** Bind a connection to an API, addressed at its own identifier. */
+function connectionResource(id: string, resource: string): WorkloadResource {
     return {
         id: ResourceId.parse(id),
         scope: ids.space,
-        kind: "https",
-        spec: { url: "https://api.example.com/v1" },
+        kind: ConnectionKind.name,
+        spec: { resource, scopes: [] },
         reference: id,
         packageId: ids.package,
         name: "api",
-        provider: "connection",
-        ...(connection === undefined ? {} : { connection }),
+        provider: EGRESS_PROVIDER,
     };
 }
 
-test("lend a resource's own connection to every call, or the connection a call selects to its installation, and nothing to a call selecting none", async () => {
-    // route with a lender recording what it lends, and without one
+test("resolve each bound connection to its own API, borrowing it as the installation, and refuse an address nothing binds", async () => {
+    // route with a lender recording what it lends
     const fixture = await TestSpace.open();
-    const lent: [string, string, string | undefined, string | null][] = [];
+    const lent: [string, string | undefined][] = [];
     const lending = openGateway(fixture, {
-        borrow: async (reference, consumer, request) => {
-            lent.push([
-                reference.id,
-                request.url,
-                consumer.id,
-                request.headers.get(CONNECTION_HEADER),
-            ]);
+        borrow: async (reference, consumer) => {
+            lent.push([reference.id, consumer.id]);
+            const material = { kind: "key", key: "key" } as const;
+            const protocol = { kind: "key", header: "x-api-key" } as const;
 
-            return { request };
+            return { protocol, credential: { material }, resource: "https://unused.test" };
         },
     });
 
-    // bind an https resource lent from one connection and another lending the ones calls name
-    const fixed = schema
-        .identifier("connection")
-        .parse("connection-01996ab0-0000-7000-8000-0000000000c2");
-    const named = "connection-01996ab0-0000-7000-8000-0000000000c3";
-    const own = lentResource("https-01996ab0-0000-7000-8000-0000000000c1", fixed);
-    const open = lentResource("https-01996ab0-0000-7000-8000-0000000000c4");
+    // bind two connections to two APIs
+    const first = connectionResource(
+        "connection-01996ab0-0000-7000-8000-0000000000c2",
+        "https://api.example.com/v1",
+    );
+    const second = connectionResource(
+        "connection-01996ab0-0000-7000-8000-0000000000c3",
+        "https://api.other.com",
+    );
     const run = {
         ...(await notesInstance(fixture.machine.environment.crypto)),
-        resources: [own, open],
+        resources: [first, second],
     };
-    const lend = async (gateway: Gateway, target: WorkloadResource, name?: string) => {
-        const destination = await gateway.resolve(EgressCaller.of(run), target.id, "/items");
-        const headers = new Headers(name === undefined ? {} : { [CONNECTION_HEADER]: name });
-        const request = new Request("https://api.example.com/v1/items", { headers });
+    const lend = async (address: string) => {
+        const destination = await lending.resolve(EgressCaller.of(run), address, "/items");
         if (destination.kind !== "external") {
-            throw new TypeError("a lent resource resolves to its external API");
+            throw new TypeError("a bound connection resolves to its external API");
         }
+        const lent = await destination.lend(new Request(`${destination.url}/items`));
 
-        return refusal(
-            destination
-                .lend(request)
-                .then((answer) => answer.request.headers.get(CONNECTION_HEADER)),
-        );
+        return lent.request.url;
     };
+    const unbound = "connection-01996ab0-0000-7000-8000-0000000000c4";
 
     expect({
-        answered: [
-            await lend(lending, own),
-            await lend(lending, open, named),
-            await lend(lending, open),
-            await lend(lending, own, named),
-        ],
+        resolved: [await lend(first.reference), await lend(second.reference)],
+        unbound: await refusal(lending.resolve(EgressCaller.of(run), unbound, "/items")),
         lent,
     }).toEqual({
-        answered: [
-            "done",
-            "done",
-            "done",
-            [
-                "FORBIDDEN",
-                "CONNECTION_MISMATCH",
-                `resource ${own.id} provides connection ${fixed}, not ${named}`,
-            ],
+        resolved: ["https://api.example.com/v1/items", "https://api.other.com/items"],
+        unbound: [
+            "FORBIDDEN",
+            "ADDRESS_UNBOUND",
+            `installation ${run.installationId} does not bind ${unbound}`,
         ],
         lent: [
-            [fixed, "https://api.example.com/v1/items", run.installationId, null],
-            [named, "https://api.example.com/v1/items", run.installationId, null],
+            [first.id, run.installationId],
+            [second.id, run.installationId],
         ],
     });
 });

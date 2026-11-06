@@ -613,11 +613,17 @@ test(
         const { computer } = opened;
         const built = await notesBuild(computer.environment.crypto);
         const t2 = performance.now();
-        await computer.world.distribution.publish(built, computer.world.owner, opened.cloud.machine);
+        await computer.world.distribution.publish(
+            built,
+            computer.world.owner,
+            opened.cloud.machine,
+        );
         const t3 = performance.now();
         await computer.install(opened.login, opened.spaceId, built, "notes");
         const t4 = performance.now();
-        process.stderr.write(`PHASES open=${Math.round(t1 - t0)} build=${Math.round(t2 - t1)} publish=${Math.round(t3 - t2)} install=${Math.round(t4 - t3)}\n`);
+        process.stderr.write(
+            `PHASES open=${Math.round(t1 - t0)} build=${Math.round(t2 - t1)} publish=${Math.round(t3 - t2)} install=${Math.round(t4 - t3)}\n`,
+        );
         const { secret } = await LinkSecret.create(computer.environment);
         const port = new URL(await computer.device.origin()).port;
         const page = `http://notes--${opened.address}.localhost:${port}/home`;

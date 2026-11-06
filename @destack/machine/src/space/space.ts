@@ -3,10 +3,8 @@ import { type Authentication, principal } from "@destack/access";
 import * as accountObject from "@destack/account/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
-import connectionPackage, {
-    CONNECTION_INSTALLATION,
-    ConnectionRequest,
-} from "@destack/connection/client";
+import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/client";
+import type { ConnectionLease } from "@destack/connection/object";
 import {
     BlobStore,
     type DatabaseConnection,
@@ -576,13 +574,11 @@ export class Space {
         }
     }
 
-    /** Borrow a connection's credential at its account's home, signed as the consumer. */
+    /** Borrow a connection's credential and its resource at its account's home, as the consumer. */
     async borrow(
         lent: { readonly scope: string; readonly id: Identifier<"connection"> },
         consumer: Subject,
-        request: Request,
-        now: number,
-    ): Promise<ConnectionRequest> {
+    ): Promise<ConnectionLease> {
         // call the connections' primary in the home of the scope's account as the consumer
         const { environment } = this.machine;
         const home = await accountObject.Account.homeOf(Snapshot.live(this.database), lent.scope);
@@ -595,7 +591,7 @@ export class Space {
             environment,
         );
 
-        return ConnectionRequest.lease(primary, lent, request, now, environment.crypto);
+        return primary.connection.lease({ scope: lent.scope, id: lent.id });
     }
 
     /** Append each payer's uses of a page of readings in its residency's home, as the machine. */

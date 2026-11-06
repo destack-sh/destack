@@ -9,7 +9,6 @@ import {
     Egress,
     HandlerAnswer,
     type HandlerRequest,
-    HttpsSpec,
     installation,
     InstallationBindingSpec,
     InstallationKind,
@@ -57,7 +56,9 @@ import { ROUTE_HEADER } from "../space/route.ts";
 import { type Space, type SpaceRun } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
-import { CONNECTION_HEADER, CONNECTION_PROVIDER } from "@destack/resource";
+import { ConnectionKind, ConnectionSpec } from "@destack/connection/declare";
+import type { ConnectionLease } from "@destack/connection/object";
+import { ConnectionRequest } from "@destack/connection/client";
 import stackPackage from "@destack/stack/package";
 import {
     EgressCaller,
@@ -70,10 +71,12 @@ import { ViewOrigin } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
-import type { ConnectionRequest } from "@destack/connection/client";
 import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
 import type {} from "@destack/package/import-meta";
+
+/** The path below which a person's own tools call through the space's connections. */
+const CONNECTION_PATH = "/.destack/connection";
 
 /** The limit of the calls of spaces past a throttling entitlement, keyed by space. */
 const EXCEEDED_LIMIT = "gateway:exceeded";
@@ -383,6 +386,10 @@ export class Gateway {
 
             return await this.#telemetry(request, verified?.caller.subject);
         }
+        // send a person's own tool's call through one of their connections, its credential applied
+        else if (url.pathname.startsWith(`${CONNECTION_PATH}/`)) {
+            return await this.#connect(url, request, authentication);
+        }
         // serve the buckets over S3
         else if (url.hostname === this.#serving.s3.hostname) {
             return await this.#serving.s3.server.fetch(request);
@@ -395,6 +402,49 @@ export class Gateway {
         else {
             return undefined;
         }
+    }
+
+    /** Send a person's request through a connection of the space, below its resource, as them. */
+    async #connect(
+        url: URL,
+        request: Request,
+        authentication: Authentication | undefined,
+    ): Promise<Response> {
+        // require a person, and the connection the path names
+        if (authentication === undefined) {
+            throw MachineError.of(
+                "CONNECTION_UNAUTHENTICATED",
+                "a call through a connection needs its caller",
+            );
+        }
+        const [named = "", ...rest] = url.pathname.slice(CONNECTION_PATH.length + 1).split("/");
+        const id = schema.identifier("connection").parse(named);
+
+        // borrow its credential and resource at its home as the person, applied below the resource
+        const lease = await this.#space.borrow(
+            { scope: this.#space.id, id },
+            authentication.caller.subject,
+        );
+        const below = new URL(`/${rest.join("/")}${url.search}`, url);
+        const lent = await this.#apply(
+            lease,
+            copyRequest(request, {}, Gateway.#target(lease.resource, below)),
+        );
+
+        return this.#space.machine.send(lent.request, lent);
+    }
+
+    /** Apply a borrowed connection's credential to a call, at the machine's time. */
+    #apply(lease: ConnectionLease, request: Request): Promise<ConnectionRequest> {
+        const { clock, environment } = this.#space.machine;
+
+        return ConnectionRequest.of(
+            lease.protocol,
+            lease.credential,
+            request,
+            clock.now(),
+            environment.crypto,
+        );
     }
 
     /** Answer an instance's request about its space's live sockets. */
@@ -883,12 +933,12 @@ export class Gateway {
             return this.#resolvePeer(peer.name, peer.spaceId, path);
         }
 
-        // lend a connection's credential to a resource lent from it, bound at its own identifier
-        const lent = caller.resources.find(
-            (resource) => resource.provider === CONNECTION_PROVIDER && resource.id === address,
+        // apply a bound connection's credential to calls below its resource, bound at its identifier
+        const connected = caller.resources.find(
+            (resource) => resource.kind === ConnectionKind.name && resource.reference === address,
         );
-        if (lent !== undefined) {
-            return this.#resolveLent(caller, lent);
+        if (connected !== undefined) {
+            return this.#resolveConnection(caller, connected);
         }
 
         // serve a bucket the instance binds over S3 as its space
@@ -939,39 +989,20 @@ export class Gateway {
         };
     }
 
-    /** Resolve an external resource of the instance's space to its API. */
-    #resolveLent(caller: EgressCaller, resource: WorkloadResource): Destination {
-        const { url } = HttpsSpec.parse(resource.spec);
+    /** Resolve a bound connection to its API, applying its credential as the installation's. */
+    #resolveConnection(caller: EgressCaller, resource: WorkloadResource): Destination {
+        const { resource: url } = ConnectionSpec.parse(resource.spec);
         const consumer = principal.installation.reference(caller.scope, caller.installationId);
+        const id = schema.identifier("connection").parse(resource.id);
 
         return {
             kind: "external",
             url,
+            // borrow the bound connection's credential as the installation, applied to the call
             lend: async (request) => {
-                // take the call's connection off the outbound request
-                const named = request.headers.get(CONNECTION_HEADER);
-                const headers = new Headers(request.headers);
-                headers.delete(CONNECTION_HEADER);
-                const call = copyRequest(request, { headers });
-                const fixed = resource.connection;
+                const lease = await this.#space.borrow({ scope: caller.scope, id }, consumer);
 
-                // send a call without a connection to a resource lending none without a credential
-                if (fixed === undefined && named === null) {
-                    return { request: call };
-                }
-                // refuse another connection than the resource's own
-                else if (fixed !== undefined && named !== null && named !== fixed) {
-                    throw MachineError.of(
-                        "CONNECTION_MISMATCH",
-                        `resource ${resource.id} provides connection ${fixed}, not ${named}`,
-                    );
-                }
-
-                // borrow the resource's own connection, or the named one, as the installation
-                const id = schema.identifier("connection").parse(fixed ?? named);
-                const now = this.#space.machine.clock.now();
-
-                return this.#space.borrow({ scope: caller.scope, id }, consumer, call, now);
+                return this.#apply(lease, request);
             },
         };
     }

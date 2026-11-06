@@ -1,4 +1,6 @@
 import { Failure } from "@destack/error";
+import { ConnectionKind } from "@destack/connection/declare";
+import { EGRESS_PROVIDER } from "@destack/resource";
 import { testSimulation } from "@destack/object/test";
 import { MemoryBuild } from "@destack/package/test";
 import { expect, refusal, test } from "@destack/test";
@@ -46,7 +48,7 @@ const NEWEST = {
 /** The package of the space's own packages another origin is called at. */
 const REMOTE_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a5");
 
-/** The connections a workload's lent resources borrow: one lends a header, one a certificate. */
+/** The connections a workload binds: one applies a header, one a client certificate. */
 const TOKEN_CONNECTION = schema
     .identifier("connection")
     .parse("connection-01996ab0-0000-7000-8000-0000000000d1");
@@ -59,11 +61,10 @@ const CERTIFICATE_CONNECTION = schema
 /** The egress the calling instance sends its calls below. */
 const EGRESS = "http://127.0.0.1:7470/.destack/egress";
 
-/** A resource of the calling workload: a binding of an installation or of a lent API. */
+/** A resource of the calling workload, such as a binding of an installation. */
 function resource(
     id: string,
-    fields: Pick<WorkloadResource, "kind" | "provider" | "reference" | "spec"> &
-        Partial<Pick<WorkloadResource, "connection">>,
+    fields: Pick<WorkloadResource, "kind" | "provider" | "reference" | "spec">,
 ): WorkloadResource {
     return {
         id: ResourceId.parse(id),
@@ -90,7 +91,8 @@ const tasks: InstanceSpec = {
         .parse("deployment-01996ab0-0000-7000-8000-0000000000b3"),
     build: await MemoryBuild.write(
         new Map(),
-        { role: "app",
+        {
+            role: "app",
             package: {
                 id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a7"),
                 name: "@example/tasks",
@@ -113,19 +115,17 @@ const tasks: InstanceSpec = {
             reference: "notes",
             spec: { package: ids.package },
         }),
-        resource("https-01996ab0-0000-7000-8000-0000000000e2", {
-            kind: "https",
-            provider: "connection",
-            reference: "https-token",
-            spec: { url: "https://api.example.com/v1" },
-            connection: TOKEN_CONNECTION,
+        resource(TOKEN_CONNECTION, {
+            kind: ConnectionKind.name,
+            provider: EGRESS_PROVIDER,
+            reference: TOKEN_CONNECTION,
+            spec: { resource: "https://api.example.com/v1", scopes: [] },
         }),
-        resource("https-01996ab0-0000-7000-8000-0000000000e3", {
-            kind: "https",
-            provider: "connection",
-            reference: "https-certificate",
-            spec: { url: "https://api.example.com/v1" },
-            connection: CERTIFICATE_CONNECTION,
+        resource(CERTIFICATE_CONNECTION, {
+            kind: ConnectionKind.name,
+            provider: EGRESS_PROVIDER,
+            reference: CERTIFICATE_CONNECTION,
+            spec: { resource: "https://api.example.com/v1", scopes: [] },
         }),
     ],
 };
@@ -565,18 +565,24 @@ test("relay an instance's OTLP export for the spec its secret proves", async () 
     ]);
 });
 
-test("lend a connection's credential to a workload's call to an external API without its secret or identity", async () => {
+test("apply a bound connection's credential to a workload's call to its API without its secret or identity", async () => {
     // borrow a header from one connection and a client certificate from the other
     const sent: [string, string | null, string | null, string | null, string | undefined][] = [];
     const { gateway } = await openNotes([EARLIER, NEWEST], {
-        borrow: async (lent, _consumer, request) => {
+        borrow: async (lent) => {
+            const resource = "https://api.example.com/v1";
             if (lent.id === CERTIFICATE_CONNECTION) {
-                return { request, certificate: { certificate: "CERT", privateKey: "KEY" } };
-            }
-            const headers = new Headers(request.headers);
-            headers.set("authorization", "Bearer lent-token");
+                const material = { kind: "mtls", certificate: "CERT", privateKey: "KEY" } as const;
 
-            return { request: new Request(request, { headers }) };
+                return { protocol: { kind: "mtls" }, credential: { material }, resource };
+            }
+            const protocol = { kind: "key", header: "authorization", scheme: "Bearer" } as const;
+
+            return {
+                protocol,
+                credential: { material: { kind: "key", key: "lent-token" } },
+                resource,
+            };
         },
         send: async (request, options) => {
             sent.push([
@@ -593,10 +599,7 @@ test("lend a connection's credential to a workload's call to an external API wit
 
     // call both lent APIs as the instance with forged identity headers
     const call = async (id: string) => (await gateway.egress(egress(id, "/items?page=2"))).status;
-    const statuses = [
-        await call("https-01996ab0-0000-7000-8000-0000000000e2"),
-        await call("https-01996ab0-0000-7000-8000-0000000000e3"),
-    ];
+    const statuses = [await call(TOKEN_CONNECTION), await call(CERTIFICATE_CONNECTION)];
 
     expect({ statuses, sent }).toEqual({
         statuses: [200, 200],
@@ -604,6 +607,38 @@ test("lend a connection's credential to a workload's call to an external API wit
             ["https://api.example.com/v1/items?page=2", "Bearer lent-token", null, null, undefined],
             ["https://api.example.com/v1/items?page=2", null, null, null, "CERT"],
         ],
+    });
+});
+
+test("send a person's own tool's call through a connection below its API, borrowed as them, and refuse an anonymous one", async () => {
+    // borrow a key lease as whoever calls, and record what leaves the machine
+    const borrowed: (string | undefined)[] = [];
+    const sent: [string, string | null][] = [];
+    const { gateway, space } = await openNotes([EARLIER, NEWEST], {
+        borrow: async (_lent, consumer) => {
+            borrowed.push(consumer.id);
+            const protocol = { kind: "key", header: "authorization", scheme: "Bearer" } as const;
+            const material = { kind: "key", key: "person-key" } as const;
+
+            return { protocol, credential: { material }, resource: "https://api.example.com/v1" };
+        },
+        send: async (request) => {
+            sent.push([request.url, request.headers.get("authorization")]);
+
+            return Response.json({});
+        },
+    });
+
+    // call through the connection as the person, then anonymously
+    const path = `/.destack/connection/${TOKEN_CONNECTION}/items?page=2`;
+    const call = async (authentication?: Authentication) =>
+        (await gateway.serve(new Request(`http://127.0.0.1:7470${path}`), authentication)).status;
+    const statuses = [await call(personAt(space.machine.clock.now())), await call()];
+
+    expect({ statuses, borrowed, sent }).toEqual({
+        statuses: [200, 401],
+        borrowed: ["user-owner"],
+        sent: [["https://api.example.com/v1/items?page=2", "Bearer person-key"]],
     });
 });
 

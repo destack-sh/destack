@@ -8,9 +8,11 @@ import {
     type Runtime,
     type WorkloadResource,
 } from "@destack/stack/runtime";
-import { CONNECTION_PROVIDER, ResourceId } from "@destack/resource";
+import { ResourceId } from "@destack/resource";
+import { ConnectionKind, defineConnection } from "@destack/connection/declare";
+import { EGRESS_PROVIDER } from "@destack/resource";
 import { Digest, Identifier, present, schema } from "@destack/schema";
-import { Egress, defineHttps } from "@destack/object";
+import { Egress } from "@destack/object";
 import { Replica, RequestId } from "@destack/sync";
 import { testKeys } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -18,13 +20,13 @@ import { openGateway } from "./test/gateway.ts";
 import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 
-/** The external API the workload calls. */
-const github = defineHttps("github", { url: "https://api.github.test/v3" });
+/** The external API the workload calls through its connection. */
+const github = defineConnection("github", { resource: "https://api.github.test/v3" });
 
 /** The key the connection has, which only the upstream API sees. */
 const KEY = "ghp_lent0123456789";
 
-test("lend a connection's key to a workload's https call without showing it to the workload", async () => {
+test("apply a bound connection's key to a workload's calls below its resource without showing it to the workload", async () => {
     // create a key connection of a space placed in an account's primary, bound to the notes installation, all in the space's world
     const space = await TestSpace.open();
     const world = space.simulation.environment("test");
@@ -51,8 +53,9 @@ test("lend a connection's key to a workload's https call without showing it to t
             calls: [
                 connection.call("create", {
                     scope: connections.scope.id,
+                    ...github.declare(),
+                    name: github.name,
                     protocol: { kind: "key", header: "authorization", scheme: "token" },
-                    material: { kind: "key", key: KEY },
                 }),
             ],
         })
@@ -60,25 +63,27 @@ test("lend a connection's key to a workload's https call without showing it to t
     await connections.objects.mutate(connections.context().access(), {
         id: RequestId.create(environment),
         calls: [
-            connection.call("bindConsumer", {
-                ...connection.target({ scope: connections.scope.id, id: created.id }),
-                consumer: principal.installation.reference(spaceId, ids.notes),
+            connection.call("rotate", {
+                scope: connections.scope.id,
+                id: created.id,
+                material: { kind: "key", key: KEY },
             }),
         ],
     });
+    const notes = principal.installation.reference(spaceId, ids.notes);
+    await connections.bind(connections.scope.id, notes, [created.id]);
     await connections.control();
 
-    // run an instance of the space binding the https resource lent from the connection
+    // run an instance of the space binding the connection, addressed at its identifier
     const resource: WorkloadResource = {
-        id: ResourceId.parse("https-01996ab0-0000-7000-8000-0000000000c1"),
+        id: ResourceId.parse(created.id),
         scope: spaceId,
-        kind: "https",
+        kind: ConnectionKind.name,
         spec: github.spec,
-        reference: "https-01996ab0-0000-7000-8000-0000000000c1",
+        reference: created.id,
         packageId: ids.package,
         name: github.name,
-        provider: CONNECTION_PROVIDER,
-        connection: schema.identifier("connection").parse(created.id),
+        provider: EGRESS_PROVIDER,
     };
     // identify the instance by the secret its start mints
     const secrets: string[] = [];
@@ -120,8 +125,8 @@ test("lend a connection's key to a workload's https call without showing it to t
     const gateway = openGateway(space, {
         runtimes: [runtime],
         tokens: new RecordingTokenExchange(world),
-        borrow: (lent, consumer, request) =>
-            connections.lease(connection.reference(lent.scope, lent.id), request, consumer),
+        borrow: (lent, consumer) =>
+            connections.as(consumer).connection.lease({ scope: lent.scope, id: lent.id }),
         send: async (request) => {
             upstream.push([
                 request.url,
@@ -149,14 +154,17 @@ test("lend a connection's key to a workload's https call without showing it to t
     });
     secrets.push(start.secret);
     const binding = present(start.bindings[github.name], "the resource's binding");
-    const client = await github.connectors.connection.connect(binding, github, testHost());
+    const connector = present(github.connectors[EGRESS_PROVIDER], "the connection connector");
+    const client = await connector.connect(binding, github, testHost());
     const answered = await client.fetch("/repos/acme/app/issues?state=open");
     const seen = JSON.stringify([start, await answered.json(), [...answered.headers]]);
 
     // call it again as the installation's code in its store, through the same egress
     const stored = await gateway.send(
         { ...EgressCaller.of(spec), runs: { kind: "store" } },
-        new Request(`http://egress.localhost${Egress.path}/${resource.id}/repos/acme/app/issues`),
+        new Request(
+            `http://egress.localhost${Egress.path}/${resource.reference}/repos/acme/app/issues`,
+        ),
     );
 
     expect({

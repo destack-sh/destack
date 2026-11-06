@@ -39,7 +39,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     PROOF_REQUIRED: { code: "UNAUTHORIZED" },
 
     // forbidden
-    CONNECTION_MISMATCH: { code: "FORBIDDEN" },
+    CONNECTION_UNAUTHENTICATED: { code: "UNAUTHORIZED" },
     SIGN_IN_FAILED: { code: "FORBIDDEN" },
     FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
