@@ -105,7 +105,7 @@ I just don't know what I want until I see it.
 ![Reshaping walls, gates and buildings in Tiny Glade.](./tiny-glade.mp4){width=600 poster=./tiny-glade.webp}
 [Building in Tiny Glade](https://store.steampowered.com/app/2198150/Tiny_Glade/) — Pounce Light, release date trailer excerpt.
 
-The continuous and iterative process of _shaping_ is critical not just for "malleable" software but - because programming is just reified problem solving - for all software.
+The continuous process of _shaping_ is critical not just for "malleable" software but - because programming is just reified problem solving - for all software.
 Software development - from databases to web apps to spreadsheets - spans one continuous spectrum of reified problem solving that has been separated into rigid planes only by historical happenstance.
 
 Until now, the cardinal sin of "malleable software" has been that "userland software" like spreadsheets is too limited, while "general software" is annoying to build and maintain.

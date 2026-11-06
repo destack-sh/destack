@@ -57,8 +57,8 @@ const verb: Form = {
     pronunciation: "/diːˈstak/",
     partOfSpeech: "verb",
     sense: {
-        definition: "to build your own stack",
-        highlight: ["your own"],
+        definition: "to own your stack",
+        highlight: ["own"],
         sentence: "Build custom software, integrate every app and agent, and control your whole stack.",
         gloss: "out of a thousand silos, into one space",
     },
