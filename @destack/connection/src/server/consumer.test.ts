@@ -2,7 +2,7 @@ import { principal } from "@destack/access";
 import { RequestId } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { connection } from "../object/index.ts";
-import { TestConnection } from "../test/index.ts";
+import { TestConnection, TEST_CONNECTION } from "../test/index.ts";
 
 /** Serve connections for one test. */
 async function open(): Promise<TestConnection> {
@@ -13,20 +13,30 @@ async function open(): Promise<TestConnection> {
 }
 
 /** Create an authorized key connection as the owner, answering its identifier. */
-async function createKey(fixture: TestConnection, input: Readonly<Record<string, unknown>> = {}) {
+async function createKey(fixture: TestConnection) {
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
+                    ...TEST_CONNECTION.declare(),
+                    name: "key",
                     protocol: { kind: "key", header: "x-api-key" },
-                    material: { kind: "key", key: "sk-test-0123456789" },
-                    ...input,
                 }),
             ],
         })
         .then(([written]) => written);
+    await fixture.objects.mutate(fixture.context().access(), {
+        id: RequestId.create(fixture.environment),
+        calls: [
+            connection.call("rotate", {
+                scope: fixture.scope.id,
+                id: created.id,
+                material: { kind: "key", key: "sk-test-0123456789" },
+            }),
+        ],
+    });
     await fixture.control();
 
     return created.id;
@@ -44,22 +54,13 @@ test("lease a connection to an installation's calls only while it is bound to th
                 .lease(reference, new Request("https://api.test/items"), installation)
                 .then((leased) => leased.request.headers.get("x-api-key")),
         );
-    const change = (name: "bindConsumer" | "releaseConsumer") =>
-        fixture.objects.mutate(fixture.context().access(), {
-            id: RequestId.create(fixture.environment),
-            calls: [
-                connection.call(name, {
-                    ...connection.target({ scope: fixture.scope.id, id }),
-                    consumer: bridge,
-                }),
-            ],
-        });
+    const bind = (ids: readonly string[]) => fixture.bind(fixture.scope.id, bridge, ids);
 
     // refuse before leasing, lease to the bridge alone, and refuse again once reclaimed, hiding the scope from installations not bound
     const before = await lease(bridge);
-    await change("bindConsumer");
+    await bind([id]);
     const leased = [await lease(bridge), await lease(other)];
-    await change("releaseConsumer");
+    await bind([]);
     const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.scope.id} not found`];
 
     expect({ before, leased, reclaimed: await lease(bridge) }).toEqual({

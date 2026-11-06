@@ -3,8 +3,9 @@ import { nth, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Connection, integration, authorizationRequest, connection } from "../object/index.ts";
-import { TestConnection, RESOURCE, testIssuer } from "../test/index.ts";
+import { TestConnection, RESOURCE, TEST_CONNECTION, testIssuer } from "../test/index.ts";
 import { Runner } from "./token.ts";
+import type { Material } from "../credential/credential.ts";
 
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
@@ -17,22 +18,46 @@ async function open(): Promise<TestConnection> {
     return fixture;
 }
 
-/** Create a connection as the owner, answering its reference. */
-async function create(
-    fixture: TestConnection,
-    input: Omit<CallInput<typeof connection, "create">, "scope" | "vault">,
-): Promise<ObjectReference> {
+/** A test connection: how it authenticates, the scopes and resource it needs, and its material. */
+type Created = Pick<CallInput<typeof connection, "create">, "protocol" | "integration" | "id"> & {
+    /** The material a rotation supplies once it is created, none for authorized kinds. */
+    readonly material?: Material;
+    /** The scopes it requests, none by default. */
+    readonly scopes?: readonly string[];
+    /** The API it is for, the test server's by default. */
+    readonly resource?: string;
+};
+
+/** Create a connection as the owner, declared as the tests' connection, rotating in its material. */
+async function create(fixture: TestConnection, input: Created): Promise<ObjectReference> {
+    // name it by its identifier, unique in its scope
+    const { scopes = [], resource = RESOURCE, material, ...rest } = input;
+    const id = rest.id ?? connection.generateId(fixture.environment);
     const created = await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(fixture.environment),
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
-                    ...input,
+                    ...TEST_CONNECTION.declare(),
+                    ...rest,
+                    id,
+                    name: id,
+                    spec: { resource, scopes: [...scopes] },
                 }),
             ],
         })
         .then(([written]) => written);
+
+    // supply its material
+    if (material !== undefined) {
+        await fixture.objects.mutate(fixture.context().access(), {
+            id: RequestId.create(fixture.environment),
+            calls: [
+                connection.call("rotate", { scope: fixture.scope.id, id: created.id, material }),
+            ],
+        });
+    }
 
     return connection.reference(fixture.scope.id, created.id);
 }
@@ -502,7 +527,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
     await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(fixture.environment),
-            calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
+            calls: [connection.call("disconnect", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
     await fixture.control();
@@ -514,7 +539,7 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         leased: await refusal(lease(fixture, reference)),
     }).toEqual({
         revoked: ["refresh-1"],
-        authorized: ["false", "Revoked", false],
+        authorized: ["false", "Disconnected", false],
         storedAt: null,
         leased: [
             "CONFLICT",
@@ -623,7 +648,7 @@ test("install an app through the installation issuing its tokens, lease an insta
     await fixture.objects
         .mutate(fixture.context().access(), {
             id: RequestId.create(fixture.environment),
-            calls: [connection.call("revoke", { scope: fixture.scope.id, id: reference.id })],
+            calls: [connection.call("disconnect", { scope: fixture.scope.id, id: reference.id })],
         })
         .then(([written]) => written);
     await fixture.control();
@@ -802,25 +827,21 @@ async function authorizeCode(
     return reference;
 }
 
-test("refuse a connection lacking the client its kind authorizes through", async () => {
+test("refuse a connection lacking the client its kind authorizes through, registering a code one's at its resource", async () => {
     const fixture = await open();
-    const refused = (input: Parameters<typeof create>[1]) => refusal(create(fixture, input));
+    const created = (input: Parameters<typeof create>[1]) => refusal(create(fixture, input));
 
-    // create an authorization code connection without an integration or a resource, and a client credentials one without an integration
+    // create a client credentials connection without an integration, and an authorization code one whose resource's server registers its client
     expect([
-        await refused({ protocol: { kind: "authorization-code" } }),
-        await refused({ protocol: { kind: "client-credentials" } }),
+        await created({ protocol: { kind: "client-credentials" } }),
+        await created({ protocol: { kind: "authorization-code" } }),
     ]).toEqual([
-        [
-            "BAD_REQUEST",
-            "INTEGRATION_REQUIRED",
-            "an authorization-code connection needs an integration, or a resource whose server registers its client",
-        ],
         [
             "BAD_REQUEST",
             "INTEGRATION_REQUIRED",
             "a client-credentials connection needs its integration",
         ],
+        "done",
     ]);
 });
 

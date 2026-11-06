@@ -7,19 +7,23 @@ import {
     StatusCondition,
 } from "@destack/object";
 import { RetryPolicy } from "@destack/environment";
-import { nth, present } from "@destack/schema";
+import { nth } from "@destack/schema";
 import { ConnectionError } from "../error/error.ts";
 import { authorizationRequest } from "../object/authorization-request.ts";
 import {
     Connection,
-    type ConnectionKind,
+    type ConnectionProtocol,
+    type ConnectionProtocolKind,
     connection,
     type AuthorizedReason,
-    type Lease,
-    REVOKED,
+    type ConnectionLease,
+    DISCONNECTED,
+    READY,
 } from "../object/connection.ts";
+import { EGRESS_PROVIDER } from "@destack/resource";
 import { PERSON_KINDS, REFRESH_MARGIN, SUPPLIED_KINDS, TokenSource, Runner } from "./token.ts";
 import { ConnectionAuthorization } from "./authorization.ts";
+import type { Material } from "../credential/credential.ts";
 
 /** How failed refreshes retry: 5 s doubling to 15 min with full jitter, as message's sends do. */
 const RETRY = RetryPolicy.of({
@@ -41,16 +45,34 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                     requireClient(context.input);
                     await Connection.requireSource(context);
                 },
-                prepare: (context) => storeMaterial(context, tokens),
-                handle: (context, next) =>
-                    next(
-                        context.with({
-                            input: {
-                                ...context.input,
-                                storedAt: context.input.material === undefined ? null : context.now,
-                            },
-                        }),
-                    ),
+                // address it below the egress at its own identifier, as no provider provisions it
+                handle: (context, next) => {
+                    // take the identifier the call gives, else a new one
+                    const given = context.input["id"];
+                    const id =
+                        typeof given === "string"
+                            ? given
+                            : connection.generateId(context.environment);
+                    const reference = { id, provider: EGRESS_PROVIDER, reference: id };
+
+                    return next(context.with({ input: { ...context.input, ...reference } }));
+                },
+            },
+            rotate: {
+                authorize: async (context) => {
+                    // require an open connection whose kind sends the material
+                    requireOpen(context.target);
+                    requireMaterial(context.target.protocol, context.input.material);
+                },
+                prepare: async (context) => {
+                    // store the material before the write, as a creation does
+                    await tokens.write(context, context.target, {
+                        material: context.input.material,
+                    });
+
+                    return {};
+                },
+                handle: (context) => context.updateStatus({ storedAt: context.now, failures: 0 }),
             },
             lease: {
                 prepare: (context) => lease(context.target, tokens, context),
@@ -65,9 +87,9 @@ export function implementConnection(tokens: TokenSource): typeof connection {
                 prepare: (context) => authorization.exchange(context),
                 handle: (context) => authorization.complete(context),
             },
-            revoke: {
+            disconnect: {
                 authorize: async (context) => requireOpen(context.target),
-                handle: (context) => revoke(context),
+                handle: (context) => disconnect(context),
             },
         },
         controllers: [
@@ -95,37 +117,25 @@ export function implementConnection(tokens: TokenSource): typeof connection {
     });
 }
 
-/** Store the material a connection's kind sends in its vault before the connection is created. */
-async function storeMaterial(
-    context: MethodContextOf<typeof connection, "create", unknown>,
-    tokens: TokenSource,
-) {
-    // require material of the connection's kind for exactly the kinds that send it
-    const { protocol, material } = context.input;
+/** Refuse material for a kind that authorizes instead, or material of another kind. */
+function requireMaterial(protocol: ConnectionProtocol, material: Material): void {
     const isSupplied = SUPPLIED_KINDS.has(protocol.kind) || protocol.kind === "jwt";
-    if (
-        isSupplied !== (material !== undefined) ||
-        (material !== undefined && material.kind !== protocol.kind)
-    ) {
+    if (!isSupplied || material.kind !== protocol.kind) {
         throw ConnectionError.of(
             "MATERIAL_MISMATCH",
             isSupplied
-                ? `a ${protocol.kind} connection is created with its ${protocol.kind} material`
-                : `a ${protocol.kind} connection is authorized, never created with material`,
+                ? `a ${protocol.kind} connection sends ${protocol.kind} material, not ${material.kind}`
+                : `a ${protocol.kind} connection is authorized, never supplied material`,
         );
     }
-
-    // store the material
-    if (material !== undefined) {
-        const id = present(context.id, "a prepared creation's identifier");
-        await tokens.write(context, { id }, { material });
-    }
-
-    return {};
 }
 
 /** Lease an authorized connection's protocol and current credential. */
-async function lease(row: Connection, tokens: TokenSource, runner: Runner): Promise<Lease> {
+async function lease(
+    row: Connection,
+    tokens: TokenSource,
+    runner: Runner,
+): Promise<ConnectionLease> {
     // require an authorized connection
     if (row.conditions["Authorized"]?.status !== "true") {
         throw ConnectionError.of(
@@ -135,13 +145,13 @@ async function lease(row: Connection, tokens: TokenSource, runner: Runner): Prom
     }
     const credential = await tokens.current(runner, row, runner.now);
 
-    return { protocol: row.protocol, credential };
+    return { protocol: row.protocol, credential, resource: row.spec.resource };
 }
 
-/** Mark a connection revoked, leaving its credential for its controller to withdraw. */
-async function revoke(
-    context: MethodContextOf<typeof connection, "revoke">,
-): Promise<ResultOf<typeof connection, "revoke">> {
+/** Mark a connection disconnected, leaving its credential for its controller to withdraw. */
+async function disconnect(
+    context: MethodContextOf<typeof connection, "disconnect">,
+): Promise<ResultOf<typeof connection, "disconnect">> {
     const target = context.target;
 
     return context.updateStatus({
@@ -150,7 +160,7 @@ async function revoke(
             ...target.conditions,
             Authorized: StatusCondition.observe(
                 target.conditions["Authorized"],
-                { ...REVOKED, observedGeneration: target.generation },
+                { ...DISCONNECTED, observedGeneration: target.generation },
                 context.now,
             ),
         },
@@ -199,8 +209,13 @@ async function reconcile(
     if (current.deletedAt !== null) {
         await finalize(reconciliation, current, tokens);
     }
-    // act on a live one, and record when it is next due
+    // act on a live one, ready at its identifier for each generation, and record when it is next due
     else {
+        if (!Observation.isCurrent(current, "Ready")) {
+            await reconciliation.mutate([
+                Observation.call(connection, current, { conditions: { Ready: READY }, fields: {} }),
+            ]);
+        }
         const renewAt = await advance(reconciliation, current, tokens, authorization);
         await schedule(reconciliation, current, renewAt);
     }
@@ -220,21 +235,29 @@ async function advance(
     const kind = current.protocol.kind;
 
     // withdraw a revoked connection's credential once, then leave it
-    if (reason === "Revoked") {
+    if (reason === "Disconnected") {
         if (current.storedAt !== null) {
             await withdraw(runner, current, tokens);
-            await tokens.observe(runner, current, REVOKED, { storedAt: null });
+            await tokens.observe(runner, current, DISCONNECTED, { storedAt: null });
         }
 
         return null;
     }
-    // mark supplied material authorized
+    // mark a supplied kind authorized once its material is stored, and pending until a rotation stores it
     else if (SUPPLIED_KINDS.has(kind)) {
-        if (!isAuthorized) {
+        const isStored = current.storedAt !== null;
+        if (isStored && !isAuthorized) {
             await tokens.observe(
                 runner,
                 current,
                 { status: "true", reason: "Supplied", message: "" },
+                {},
+            );
+        } else if (!isStored && reason !== "Pending") {
+            await tokens.observe(
+                runner,
+                current,
+                { status: "false", reason: "Pending", message: "waiting for its material" },
                 {},
             );
         }
@@ -390,7 +413,7 @@ function isAwaitingPerson(reason: AuthorizedReason | undefined): boolean {
 
 /** Refuse an installation connection outside its integration's primary. */
 function requireInstallable(
-    kind: ConnectionKind,
+    kind: ConnectionProtocolKind,
     chain: readonly string[],
     tokens: TokenSource,
 ): void {
@@ -404,26 +427,25 @@ function requireInstallable(
 
 /** Refuse a connection without the client its kind authorizes through. */
 function requireClient(input: MethodContextOf<typeof connection, "create">["input"]): void {
-    // read whether the kind authorizes through a client and whether the connection has one
-    const { protocol, resource } = input;
-    const hasClient =
-        input.integration !== undefined ||
-        (protocol.kind === "authorization-code" && resource !== undefined);
+    // read whether the connection has a client: its integration, or one its resource's server registers
+    const { protocol } = input;
+    const hasClient = input.integration !== undefined || protocol.kind === "authorization-code";
 
     // refuse a missing client
     if (!SUPPLIED_KINDS.has(protocol.kind) && !hasClient) {
         throw ConnectionError.of(
             "INTEGRATION_REQUIRED",
-            protocol.kind === "authorization-code"
-                ? "an authorization-code connection needs an integration, or a resource whose server registers its client"
-                : `a ${protocol.kind} connection needs its integration`,
+            `a ${protocol.kind} connection needs its integration`,
         );
     }
 }
 
-/** Refuse to authorize or revoke a revoked connection. */
+/** Refuse to authorize or disconnect a disconnected connection. */
 function requireOpen(target: Connection): void {
-    if (Connection.authorized(target) === "Revoked") {
-        throw ConnectionError.of("CONNECTION_REVOKED", `connection ${target.id} is revoked`);
+    if (Connection.authorized(target) === "Disconnected") {
+        throw ConnectionError.of(
+            "CONNECTION_DISCONNECTED",
+            `connection ${target.id} is disconnected`,
+        );
     }
 }

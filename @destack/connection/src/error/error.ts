@@ -46,7 +46,7 @@ export const ConnectionError = defineErrorFamily(import.meta.destack.package, {
     CLIENT_SECRET_MISSING: { code: "CONFLICT" },
     CONNECTION_NOT_AUTHORIZED: { code: "CONFLICT" },
     CONNECTION_NOT_INSTALLED: { code: "CONFLICT" },
-    CONNECTION_REVOKED: { code: "CONFLICT" },
+    CONNECTION_DISCONNECTED: { code: "CONFLICT" },
     CREDENTIAL_MISSING: { code: "CONFLICT" },
     ENDPOINT_MISSING: { code: "CONFLICT" },
     INSTALLATION_PAGE_MISSING: { code: "CONFLICT" },

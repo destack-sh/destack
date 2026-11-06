@@ -35,6 +35,7 @@ import {
 import { testEvents, TestBearer, testCallKey, testServerContext } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
+import { defineConnection } from "../declare/connection.ts";
 import { deployment, installationRevision, rollout } from "@destack/stack/object";
 import { secret, vault } from "@destack/vault/object";
 import { implementSecret, implementSecretVersion, implementVault } from "@destack/vault/server";
@@ -81,6 +82,9 @@ const ISSUER_INSTALLATION = schema
 
 /** A protected resource whose metadata lists the test authorization server. */
 export const RESOURCE = "https://mcp.test/mcp";
+
+/** The connection the tests' connections satisfy: the test server's API, with no scopes required. */
+export const TEST_CONNECTION = defineConnection("api", { resource: RESOURCE });
 
 /** How long the test server's access tokens last, in seconds. */
 const TOKEN_SECONDS = 3600;
@@ -427,6 +431,7 @@ export class TestConnection {
             | "primary"
             | "createIssuer"
             | "as"
+            | "bind"
             | "lease"
             | "bindAndLease"
             | "place"
@@ -925,22 +930,26 @@ export class TestConnection {
         return http.fetch(new Request(mount.request, { headers }));
     }
 
+    /** Bind a consumer to exactly some connections of a scope, as the stack's binder does at install. */
+    async bind(scope: string, consumer: Subject, ids: readonly string[]): Promise<void> {
+        const owner = AccessContext.of(
+            Caller.of(principal.user.reference(Scope.universe.id, OWNER)),
+            this.environment.clock.now(),
+        );
+        await this.objects.mutate(owner, {
+            id: RequestId.create(this.environment),
+            calls: [connection.call("bind", { scope, consumer, ids: [...ids] })],
+        });
+    }
+
     /** Bind a connection to an installation of its serving space, then lease it to a request. */
     async bindAndLease(reference: ObjectReference, request: Request) {
-        // bind the consuming installation as the owner, then lease as it
+        // bind the consuming installation, then lease as it
         const consumer = principal.installation.reference(
             TestConnection.#principal(this.scope).id,
             "installation-consumer",
         );
-        await this.objects.mutate(this.context().access(), {
-            id: RequestId.create(this.environment),
-            calls: [
-                connection.call("bindConsumer", {
-                    ...connection.target({ scope: reference.scope, id: reference.id }),
-                    consumer,
-                }),
-            ],
-        });
+        await this.bind(reference.scope, consumer, [reference.id]);
 
         return this.lease(reference, request, consumer);
     }

@@ -19,9 +19,9 @@ import {
     ACCESS_TOKEN_TYPE,
     type Authorized,
     Connection,
-    type ConnectionKind,
+    type ConnectionProtocolKind,
     connection,
-    REVOKED,
+    DISCONNECTED,
 } from "../object/connection.ts";
 import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/object";
@@ -35,7 +35,7 @@ import { AccessContext, Caller } from "@destack/access";
 export const REFRESH_MARGIN = 60_000;
 
 /** The kinds whose credential is material their owner supplied, sent as it is. */
-export const SUPPLIED_KINDS: ReadonlySet<ConnectionKind> = new Set([
+export const SUPPLIED_KINDS: ReadonlySet<ConnectionProtocolKind> = new Set([
     "key",
     "signature",
     "sigv4",
@@ -43,7 +43,7 @@ export const SUPPLIED_KINDS: ReadonlySet<ConnectionKind> = new Set([
 ]);
 
 /** The kinds a person authorizes, whose tokens refresh once granted. */
-export const PERSON_KINDS: ReadonlySet<ConnectionKind> = new Set([
+export const PERSON_KINDS: ReadonlySet<ConnectionProtocolKind> = new Set([
     "authorization-code",
     "installation",
     "device-code",
@@ -359,8 +359,8 @@ export class TokenSource {
         }
 
         // observe it at that revision, never over a revocation, which its controller then withdraws
-        const isRevoked = Connection.authorized(current) === "Revoked";
-        const condition = isRevoked ? REVOKED : authorized;
+        const isDisconnected = Connection.authorized(current) === "Disconnected";
+        const condition = isDisconnected ? DISCONNECTED : authorized;
         await runner.mutate(runner.self, [
             connection.call("observe", {
                 ...connection.target(current),
@@ -471,7 +471,7 @@ export class TokenSource {
             { status: "true", reason: "Authorized", message: "" },
             {
                 expiresAt: token.expiresAt ?? null,
-                scopes: token.scopes ?? row.scopes,
+                granted: token.scopes ?? row.spec.scopes,
                 storedAt: now,
                 failures: 0,
             },
@@ -508,7 +508,7 @@ export class TokenSource {
                 subject_token: source,
                 subject_token_type: ACCESS_TOKEN_TYPE,
                 ...scopeParameter(row),
-                ...(row.resource === null ? {} : { resource: row.resource }),
+                resource: row.spec.resource,
             });
         }
 
@@ -525,7 +525,7 @@ export class TokenSource {
         // request a client credentials token for the resource
         const protocol = row.protocol;
         if (protocol.kind !== "jwt") {
-            const resource = row.resource === null ? {} : { resource: row.resource };
+            const resource = { resource: row.spec.resource };
 
             return server.token({
                 grant_type: "client_credentials",
@@ -601,7 +601,7 @@ function refreshGrant(
 
 /** Write a connection's requested scopes as a scope parameter, absent without any. */
 function scopeParameter(row: Connection): { readonly scope?: string } {
-    return row.scopes.length === 0 ? {} : { scope: row.scopes.join(" ") };
+    return row.spec.scopes.length === 0 ? {} : { scope: row.spec.scopes.join(" ") };
 }
 
 /** Require the installation a connection authorized. */

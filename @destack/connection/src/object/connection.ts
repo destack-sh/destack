@@ -1,10 +1,12 @@
 import { type Select } from "@destack/db";
 import { ConnectionError } from "../error/error.ts";
-import { none, relation, through, union } from "@destack/access";
+import { none, permission, relation, through, union } from "@destack/access";
 import { type MethodContextOf, CONSUMER, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Credential, Material } from "../credential/credential.ts";
+import { ConnectionKind } from "../declare/connection.ts";
+import { account, space } from "@destack/account/object";
 
 /** The token type of an access token exchanged for another (RFC 8693 3). */
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
@@ -73,18 +75,20 @@ export const ConnectionProtocol = schema.discriminatedUnion("kind", [
 /** How a connection authenticates at its external system. */
 export type ConnectionProtocol = schema.Infer<typeof ConnectionProtocol>;
 
-/** A connection leased to a consumer's call: its protocol and current credential. */
-export const Lease = schema.object({
+/** A connection leased to a call: its protocol, current credential and the API they are for. */
+export const ConnectionLease = schema.object({
     /** How requests carry the credential. */
     protocol: ConnectionProtocol,
     /** The current credential. */
     credential: Credential,
+    /** The API the credential is for, below which its calls go. */
+    resource: schema.url({ protocol: /^https$/u }),
 });
-/** A connection leased to a consumer's call. */
-export type Lease = schema.Infer<typeof Lease>;
+/** A connection leased to a call. */
+export type ConnectionLease = schema.Infer<typeof ConnectionLease>;
 
-/** A kind of connection. */
-export type ConnectionKind = ConnectionProtocol["kind"];
+/** A kind of protocol a connection authenticates with. */
+export type ConnectionProtocolKind = ConnectionProtocol["kind"];
 
 /** A started authorization: the page the person approves it on, and the request's state. */
 export const AuthorizationStart = schema.discriminatedUnion("kind", [
@@ -142,13 +146,14 @@ export const AuthorizationGrant = schema.object({
 /** What a completed authorization granted. */
 export type AuthorizationGrant = schema.Infer<typeof AuthorizationGrant>;
 
-/** Credentials for one external account, stored in a vault and leased to outbound calls. */
+/** One external account's credential, the resource of the connection kind, leased to calls. */
 export const connection = defineObject(
     {
         name: "connection",
         plural: "connections",
-        controlled: true,
-        // relate the installations a person binds the connection to as its consumers
+        scope: [space, account],
+        provisioned: { kind: ConnectionKind },
+        // let people bind a connection they manage to one installation at a time, such as per repository
         bindable: { by: "manage" },
         // replicate the connections of accounts and organizations into their scopes
         propagated: {},
@@ -157,10 +162,8 @@ export const connection = defineObject(
             protocol: field.json(ConnectionProtocol),
             /** The integration whose client receives tokens, for OAuth kinds and installations. */
             integration: field.json(ObjectReference).optional(),
-            /** The protected resource of the tokens (RFC 8707), listing its server (RFC 9728). */
-            resource: field.string(schema.url({ protocol: /^https$/u })).optional(),
-            /** The scopes requested, then the ones granted. */
-            scopes: field.json(schema.array(schema.string().min(1))).default([]),
+            /** The scopes the authorization granted, which may differ from the requested ones. */
+            granted: field.json(schema.array(schema.string().min(1))).default([]),
 
             // the controller's authorization
             /** The external account's identifier, such as a user or installation identifier. */
@@ -178,28 +181,45 @@ export const connection = defineObject(
         permissions: {
             read: union(relation(CONSUMER), through("scope", "serve")),
             manage: none(),
-            use: relation(CONSUMER),
+            // let the people managing connections declare them, and an account's home its stacks' ones
+            declare: union(permission("manage"), through("scope", "provision")),
+            // let its consumers use it through the egress, and the people managing it through their tools
+            use: union(relation(CONSUMER), permission("manage")),
             // let the installations of an account's primary control the account's connections
             control: through("scope", "provision"),
         },
         reserved: ["use"],
     },
     (method) => ({
-        /** Create a connection, storing the material its kind sends in the vault. */
-        create: method.create("manage", {
-            fields: ["protocol", "integration", "resource", "scopes"],
+        /** Declare a connection of a spec, its credential then rotated in or authorized. */
+        create: method.create("declare", {
+            fields: [
+                "name",
+                "definitionPackageId",
+                "definitionVersion",
+                "definitionName",
+                "spec",
+                "placement",
+                "retention",
+                "protocol",
+                "integration",
+            ],
+        }),
+        /** Replace a supplied credential's material, storing it in the vault first. */
+        rotate: method.mutation({
+            permission: "manage",
             input: schema.object({
-                /** The material a key, signature, SigV4, JWT or mTLS connection sends. */
-                material: schema.sensitive(Material).exactOptional(),
+                /** The material the connection's kind sends, such as a new API key. */
+                material: schema.sensitive(Material),
             }),
             prepared: schema.object({}),
             isPredicted: false,
         }),
-        /** Lease the connection's protocol and current credential to a consumer's call. */
+        /** Lease the connection's protocol and current credential to a call its egress sends. */
         lease: method.query({
             permission: "use",
-            output: schema.sensitive(Lease),
-            prepared: schema.sensitive(Lease),
+            output: schema.sensitive(ConnectionLease),
+            prepared: schema.sensitive(ConnectionLease),
             isAudited: true,
         }),
         /** Start authorizing the external account, answering the page a person approves it on. */
@@ -226,8 +246,8 @@ export const connection = defineObject(
             }),
             prepared: AuthorizationGrant,
         }),
-        /** Revoke the connection, whose controller then withdraws and destroys its credential. */
-        revoke: method.mutation({ permission: "manage" }),
+        /** Disconnect the external account, whose controller revokes the credential. */
+        disconnect: method.mutation({ permission: "manage" }),
         delete: method.delete("manage"),
     }),
 );
@@ -242,7 +262,7 @@ export const AUTHORIZED_REASONS = [
     "Denied",
     "Expired",
     "Failing",
-    "Revoked",
+    "Disconnected",
 ] as const;
 
 /** Why a connection is or is not authorized. */
@@ -260,8 +280,19 @@ export interface Authorized {
     readonly message: string;
 }
 
-/** The Authorized condition of a revoked connection. */
-export const REVOKED: Authorized = { status: "false", reason: "Revoked", message: "revoked" };
+/** The Ready condition of a connection, which the egress reaches at its identifier. */
+export const READY = {
+    status: "true",
+    reason: "External",
+    message: "called through the egress below its identifier",
+} as const;
+
+/** The Authorized condition of a disconnected connection. */
+export const DISCONNECTED: Authorized = {
+    status: "false",
+    reason: "Disconnected",
+    message: "disconnected",
+};
 
 /** Connections: the checks their creation runs, and the installation an authorized one holds. */
 export const Connection = {

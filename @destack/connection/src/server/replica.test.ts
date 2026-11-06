@@ -7,7 +7,7 @@ import type { ObjectReference } from "@destack/sync";
 import { journal } from "@destack/object";
 import { Credential } from "../credential/credential.ts";
 import { authorizationRequest, connection, integration } from "../object/index.ts";
-import { TestConnection, RESOURCE } from "../test/index.ts";
+import { TestConnection, RESOURCE, TEST_CONNECTION } from "../test/index.ts";
 
 /** The redirect URI the test integration registered. */
 const REDIRECT = "https://app.test/callback";
@@ -66,6 +66,8 @@ async function connect(
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
+                    ...TEST_CONNECTION.declare(),
+                    name: "referencing",
                     protocol: { kind: input.kind ?? "authorization-code" },
                     integration: fixture.registered,
                 }),
@@ -121,6 +123,8 @@ async function bindAtPrimary(
             calls: [
                 connection.call("create", {
                     scope: primary.scope.id,
+                    ...TEST_CONNECTION.declare(),
+                    name: "account",
                     protocol: { kind: "client-credentials" },
                     integration: registered,
                 }),
@@ -130,18 +134,7 @@ async function bindAtPrimary(
     await primary.control();
 
     // bind it to the consumer
-    await primary.objects
-        .mutate(primary.context().access(), {
-            id: RequestId.create(primary.environment),
-            calls: [
-                connection.call("bindConsumer", {
-                    scope: primary.scope.id,
-                    id: created.id,
-                    consumer,
-                }),
-            ],
-        })
-        .then(([written]) => written);
+    await primary.bind(primary.scope.id, consumer, [created.id]);
 
     return connection.reference(primary.scope.id, created.id);
 }
@@ -238,8 +231,10 @@ test("register the client of a space's connection without an integration at the 
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
+                    ...TEST_CONNECTION.declare(),
+                    name: "dynamic",
+                    spec: { resource: RESOURCE, scopes: [] },
                     protocol: { kind: "authorization-code" },
-                    resource: RESOURCE,
                 }),
             ],
         })
@@ -299,6 +294,8 @@ test("lease a connection its primary stores to a space's bound installation thro
                 calls: [
                     connection.call("create", {
                         scope: space.scope.id,
+                        ...TEST_CONNECTION.declare(),
+                        name: "installed",
                         protocol: { kind: "installation" },
                         integration: registered,
                     }),

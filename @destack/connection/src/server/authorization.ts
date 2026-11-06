@@ -108,7 +108,7 @@ export class ConnectionAuthorization {
             const issued = await this.#tokens.issuer(context, target.integration);
             const subject = await issued.installation(parameters);
 
-            return { request: request.id, subject, scopes: target.scopes };
+            return { request: request.id, subject, scopes: target.spec.scopes };
         }
 
         // require the issuer, no error and a code (RFC 9207 2.4, RFC 6749 4.1.2)
@@ -129,13 +129,13 @@ export class ConnectionAuthorization {
             code,
             redirect_uri: present(request.redirectUri, "the request's redirect URI"),
             code_verifier: present(request.verifier, "the request's code verifier"),
-            ...(target.resource === null ? {} : { resource: target.resource }),
+            resource: target.spec.resource,
         });
         await this.#tokens.write(context, target, { token });
 
         return {
             request: request.id,
-            scopes: token.scopes ?? target.scopes,
+            scopes: token.scopes ?? target.spec.scopes,
             ...(token.expiresAt === undefined ? {} : { expiresAt: token.expiresAt }),
         };
     }
@@ -158,7 +158,7 @@ export class ConnectionAuthorization {
                 ? { storedAt: context.now }
                 : { subject: grant.subject }),
             failures: 0,
-            scopes: grant.scopes,
+            granted: grant.scopes,
             expiresAt: grant.expiresAt ?? null,
             conditions: {
                 ...target.conditions,
@@ -266,8 +266,8 @@ export class ConnectionAuthorization {
             state,
             challenge: await Pkce.challenge(verifier, crypto),
             redirectUri,
-            scopes: target.scopes,
-            ...(target.resource === null ? {} : { resource: target.resource }),
+            scopes: target.spec.scopes,
+            resource: target.spec.resource,
         });
         const created =
             registered === undefined
@@ -285,8 +285,8 @@ export class ConnectionAuthorization {
         const target = context.target;
         const client = await this.#tokens.integration(context, target.integration);
         const device = await client.server.authorizeDevice(
-            target.scopes,
-            target.resource ?? undefined,
+            target.spec.scopes,
+            target.spec.resource,
         );
 
         return { kind: "device", ...device };
@@ -300,7 +300,7 @@ export class ConnectionAuthorization {
     ): Promise<Integration> {
         // read the resource whose server registers the client
         const resource = present(
-            target.resource,
+            target.spec.resource,
             "the resource of a connection without an integration",
         );
 
@@ -361,7 +361,7 @@ export class ConnectionAuthorization {
                 { status: "true", reason: "Authorized", message: "" },
                 {
                     expiresAt: answer.expiresAt ?? null,
-                    scopes: answer.scopes ?? row.scopes,
+                    granted: answer.scopes ?? row.spec.scopes,
                     storedAt: runner.now,
                     failures: 0,
                 },
