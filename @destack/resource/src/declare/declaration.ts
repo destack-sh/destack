@@ -54,7 +54,7 @@ export const TagMap = schema.record(schema.string().min(1).max(128), schema.stri
 /** User-defined labels indexed by name. */
 export type TagMap = schema.Infer<typeof TagMap>;
 
-/** How a stack declares a resource: its placement, retention, tags and lending connection. */
+/** How a stack declares a resource: its placement, retention and tags. */
 export interface ResourceDeclareOptions {
     /** The requested placement. */
     readonly placement?: ResourcePlacement;
@@ -62,8 +62,6 @@ export interface ResourceDeclareOptions {
     readonly retention?: ResourceRetention;
     /** User-defined labels. */
     readonly tags?: TagMap;
-    /** The connection whose credential the machine lends to every call of a lent resource. */
-    readonly connection?: Identifier<"connection">;
 }
 
 /** A provisioned resource in a space. */
