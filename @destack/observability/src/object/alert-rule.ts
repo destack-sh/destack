@@ -17,7 +17,7 @@ import {
     isNull,
 } from "@destack/db";
 import { EventFilter, FilterText, Fold, SERIES_FOLDS } from "@destack/event";
-import { activity, announcement, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification/object";
 import {
     defineObject,
     field,

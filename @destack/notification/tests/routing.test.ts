@@ -1,15 +1,9 @@
 import { expect, test } from "@destack/test";
-import type { Destination } from "@destack/message";
+import type { Destination } from "@destack/message/object";
 import { schema } from "@destack/schema";
-import {
-    focus,
-    Recipient,
-    Routing,
-    type RoutingEntry,
-    Settings,
-    summarySchedule,
-    Window,
-} from "../src/index.ts";
+import { focus, summarySchedule } from "../src/setting/index.ts";
+import { Recipient, Routing, type RoutingEntry, Settings } from "../src/message/index.ts";
+import { Window } from "../src/preference/index.ts";
 import type * as accountObject from "@destack/account/object";
 import { NOTES } from "../src/test/notes.ts";
 

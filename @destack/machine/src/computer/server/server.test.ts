@@ -1,5 +1,5 @@
 import { testHost } from "@destack/test/host";
-import { log, LogData } from "@destack/observability";
+import { log, LogData } from "@destack/observability/object";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -16,7 +16,7 @@ import {
     NOTIFY_RECIPIENTS,
     Subscription,
     subscription,
-} from "@destack/notification";
+} from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
 import {
     MethodContext,

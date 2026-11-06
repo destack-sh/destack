@@ -1,7 +1,8 @@
 import { nth, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { message } from "@destack/message";
-import { focus, Notification } from "../src/index.ts";
+import { message } from "@destack/message/object";
+import { focus } from "../src/setting/index.ts";
+import { Notification } from "../src/object/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

@@ -1,7 +1,7 @@
 import { eq } from "@destack/db";
 import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { activity, notification } from "../src/index.ts";
+import { activity, notification } from "../src/object/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

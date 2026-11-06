@@ -12,7 +12,7 @@ import {
     type TestWorld,
     WorldDriver,
 } from "@destack/machine/test";
-import { activity } from "@destack/notification";
+import { activity } from "@destack/notification/object";
 import notificationPackage from "@destack/notification/package";
 import messagePackage from "@destack/message/package";
 import vaultPackage from "@destack/vault/package";

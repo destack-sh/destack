@@ -1,7 +1,7 @@
 import { nth, present } from "@destack/schema";
-import { activity, subscription } from "@destack/notification";
+import { activity, subscription } from "@destack/notification/object";
 import { expect, refusal, test } from "@destack/test";
-import { Body, comment, type Mention } from "./index.ts";
+import { Body, comment, type Mention } from "./object/index.ts";
 import { type Actor, article, TestSocial } from "./test/index.ts";
 
 test("record activities for mentioned principals, announce threads and replies to their subscribers, and answer a mention with a reply", async () => {

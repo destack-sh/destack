@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { Rate, type Sku } from "@destack/finance";
+import { Rate, type Sku } from "@destack/finance/declare";
 import { Fee } from "./book.ts";
 
 /** A SKU with its quantity in one unit of a priced meter, in the units of the SKU's own meter. */

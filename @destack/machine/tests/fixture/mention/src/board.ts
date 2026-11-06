@@ -1,7 +1,7 @@
 import { space } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { argument, plural, t } from "@destack/locale";
-import { activity, announcement, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";

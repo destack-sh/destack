@@ -1,4 +1,4 @@
-import type { Destination } from "@destack/message";
+import type { Destination } from "@destack/message/object";
 import type { MethodContext } from "@destack/object";
 import { Instant, schema, TimeZone } from "@destack/schema";
 import { setting } from "@destack/setting/object";

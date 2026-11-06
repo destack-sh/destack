@@ -6,7 +6,6 @@
     "sideEffects": false,
     "description": "Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.",
     "exports": {
-        ".": "./src/index.ts",
         "./destack.json": "./destack.json",
         "./declare": "./src/declare/index.ts",
         "./inspect": "./src/inspect/index.ts",

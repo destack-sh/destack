@@ -2,7 +2,7 @@ import { DeclarationReference } from "@destack/package/declare";
 import { t } from "@destack/locale";
 import { entitlement } from "@destack/account/object";
 import { asc, eq, Snapshot } from "@destack/db";
-import { announcement } from "@destack/notification";
+import { announcement } from "@destack/notification/object";
 import { nth, type Identifier, schema, Uuid } from "@destack/schema";
 import type { CallInput } from "@destack/object";
 import { ObjectReference, RequestId } from "@destack/sync";

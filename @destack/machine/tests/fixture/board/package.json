@@ -3,7 +3,7 @@
     "version": "2026.10.0",
     "type": "module",
     "exports": {
-        ".": "./src/index.ts",
+        "./object": "./src/index.ts",
         "./package": "./src/package.ts"
     },
     "dependencies": {

@@ -11,7 +11,7 @@ import { type EventStore, EventTime } from "@destack/event";
 import { packageObject, tag } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
 import { publishBuild, resolvedRelease } from "@destack/forge/test";
-import { notification } from "@destack/notification";
+import { notification } from "@destack/notification/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import { TestNotification } from "@destack/notification/test";

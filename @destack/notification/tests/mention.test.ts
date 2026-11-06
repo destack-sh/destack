@@ -1,6 +1,6 @@
 import { nth, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
-import { notification } from "../src/index.ts";
+import { notification } from "../src/object/index.ts";
 import { decrypt } from "@destack/message/test";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";

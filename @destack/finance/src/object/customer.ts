@@ -16,7 +16,7 @@ import { type Select, type Snapshot, Table } from "@destack/db";
 import { type IdentifierOf, type MethodContext, defineObject, field } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { present, schema, type Identifier } from "@destack/schema";
-import { announcement } from "@destack/notification";
+import { announcement } from "@destack/notification/object";
 import type { ReleaseReader } from "../release/reader.ts";
 import { Allotment, type Resolution } from "./allotment.ts";
 import { Source } from "./source.ts";

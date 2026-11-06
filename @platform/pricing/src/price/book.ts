@@ -1,4 +1,4 @@
-import { CREDITS, type DecimalAmount } from "@destack/finance";
+import { CREDITS, type DecimalAmount } from "@destack/finance/declare";
 
 /** The currencies Destack bills in: North America's, Europe's and Australia's. */
 export const CURRENCIES = ["USD", "CAD", "EUR", "CHF", "GBP", "AUD"] as const;

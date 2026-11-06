@@ -1,7 +1,7 @@
 import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
-import { activity, announcement, subscription } from "@destack/notification";
+import { activity, announcement, subscription } from "@destack/notification/object";
 import { defineNotification } from "@destack/notification/declare";
 import { none, through } from "@destack/access";
 import {
@@ -14,7 +14,7 @@ import {
 import { ObservabilityError } from "../error/error.ts";
 import { graph } from "@destack/package";
 import { Digest, Instant, schema, type Uuid } from "@destack/schema";
-import { comment } from "@destack/social";
+import { comment } from "@destack/social/object";
 import { installationRevision } from "@destack/stack/object";
 
 /** The longest issue title: 500 characters, an exception's type and its message's first line. */

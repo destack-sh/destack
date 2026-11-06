@@ -1,6 +1,6 @@
 import { ObjectReference } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { Activity } from "../src/index.ts";
+import { Activity } from "../src/object/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

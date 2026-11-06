@@ -1,7 +1,7 @@
 import { none, through } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
-import type { Message } from "@destack/message";
+import type { Message } from "@destack/message/object";
 import { defineObject, field } from "@destack/object";
 import { Identifier, Instant, schema } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";

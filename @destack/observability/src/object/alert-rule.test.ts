@@ -1,5 +1,5 @@
 import { eq, asc } from "@destack/db";
-import { announcement } from "@destack/notification";
+import { announcement } from "@destack/notification/object";
 import { installation } from "@destack/object";
 import { present } from "@destack/schema";
 import objectPackage from "@destack/object/package";

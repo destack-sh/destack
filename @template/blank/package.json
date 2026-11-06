@@ -4,7 +4,6 @@
     "license": "MIT",
     "type": "module",
     "exports": {
-        ".": "./src/index.ts",
         "./setting": "./src/setting/index.ts",
         "./package": "./src/package.ts"
     },

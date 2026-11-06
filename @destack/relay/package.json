@@ -6,7 +6,6 @@
     "sideEffects": false,
     "description": "Relay HTTP requests for Destack names to the machines serving them.",
     "exports": {
-        ".": "./src/index.ts",
         "./client": "./src/client/index.ts",
         "./error": "./src/error/index.ts",
         "./declare": "./src/declare/index.ts",

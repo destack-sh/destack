@@ -11,7 +11,6 @@
         "./server": "./src/server.ts",
         "./test": "./src/test/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./github": "./src/github/index.ts",
         "./package": "./src/package.ts",
         "./client": "./src/client/index.ts"
     },

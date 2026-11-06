@@ -1,6 +1,8 @@
 import { found } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { notification, Preference, preferences, subscription } from "../src/index.ts";
+import { notification, subscription } from "../src/object/index.ts";
+import { Preference } from "../src/preference/index.ts";
+import { preferences } from "../src/setting/index.ts";
 import { change, document, documentParent } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

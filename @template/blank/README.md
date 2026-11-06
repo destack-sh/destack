@@ -4,10 +4,10 @@ An empty Destack package that new packages start from.
 
 ## Setting
 
-`language` declares the content language a user picks, and `readLanguage` resolves it from setting rows along a scope chain.
+`language` declares the content language a user picks; resolve it along a scope chain, nearest scope first:
 
 ```ts
-import { readLanguage } from "@template/blank";
+import { language } from "@template/blank/setting";
 
-const language = readLanguage(selection, rows, chain);
+const { value } = language.resolve(selection, rows, chain);
 ```

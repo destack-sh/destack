@@ -11,9 +11,6 @@
         "./stack": {
             "runtimes": ["bun", "workerd"]
         },
-        "./github": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./package": {
             "runtimes": ["bun", "workerd"]
         },

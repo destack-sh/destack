@@ -1,7 +1,7 @@
 import { fileURLToPath } from "node:url";
 import type { Network } from "@destack/environment";
 import { BunEnvironment } from "@destack/environment/bun";
-import { Cost } from "@destack/finance";
+import { Cost } from "@destack/finance/declare";
 import { CLOUDFLARE_SKUS } from "../src/vendor/cloudflare.ts";
 
 /** The US cents in a dollar. */

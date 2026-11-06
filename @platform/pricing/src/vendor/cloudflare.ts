@@ -1,4 +1,4 @@
-import { Sku } from "@destack/finance";
+import { Sku } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
 import { PricingModel } from "../price/model.ts";
 

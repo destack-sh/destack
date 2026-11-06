@@ -1,6 +1,7 @@
 import { ObjectReference } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { activity, focus, notification, subscription } from "../src/index.ts";
+import { activity, notification, subscription } from "../src/object/index.ts";
+import { focus } from "../src/setting/index.ts";
 import { document, documentParent, review } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

@@ -3,7 +3,7 @@ import { type PermissionReference, principal } from "@destack/access";
 import * as account from "@destack/account/object";
 import type { TestPerson } from "@destack/account/test";
 import type { Simulation, SimulatedClock } from "@destack/environment/simulation";
-import { notification } from "@destack/notification";
+import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { testHost } from "@destack/test/host";
 import { CallError } from "@destack/object";

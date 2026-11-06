@@ -1,4 +1,4 @@
-import { Subscription } from "@destack/notification";
+import { Subscription } from "@destack/notification/object";
 import { ObjectWatch, Observation } from "@destack/object";
 import { Change, now, Snapshot } from "@destack/db";
 import { EventTime } from "@destack/event";

@@ -1,6 +1,6 @@
 import { DELIVER_CAPABILITY, PUSH_CAPABILITY } from "./message/recipient.ts";
 import { user } from "@destack/account/object";
-import { message, messageAttempt } from "@destack/message";
+import { message, messageAttempt } from "@destack/message/object";
 import { build, catalog, declaration } from "@destack/stack/object";
 import { definePackage } from "@destack/object";
 import { NotificationError } from "./error/error.ts";

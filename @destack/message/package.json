@@ -6,18 +6,14 @@
     "sideEffects": false,
     "description": "Send messages on a channel, email, push, webhook or a desktop.",
     "exports": {
-        ".": "./src/index.ts",
         "./client": "./src/client/index.ts",
-        "./email": "./src/email/index.ts",
         "./object": "./src/object/index.ts",
         "./provider": "./src/provider/index.ts",
-        "./push": "./src/push/index.ts",
         "./server": "./src/server.ts",
         "./package": "./src/package.ts",
         "./error": "./src/error/index.ts",
         "./stack": "./src/stack/index.ts",
-        "./test": "./src/test/index.ts",
-        "./webhook": "./src/webhook/index.ts"
+        "./test": "./src/test/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

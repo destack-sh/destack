@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/object/test";
-import type { Message } from "@destack/message";
-import { type Activity, Inbox, Notification } from "@destack/notification";
+import type { Message } from "@destack/message/object";
+import { type Activity, Inbox, Notification } from "@destack/notification/client";
 import { Identifier, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Banner, BannerCapabilities } from "./banner.ts";

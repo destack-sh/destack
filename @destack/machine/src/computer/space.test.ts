@@ -1,5 +1,5 @@
 import { RESOURCE_KIND } from "@destack/resource";
-import { log, LogData } from "@destack/observability";
+import { log, LogData } from "@destack/observability/object";
 import { BunWorkload } from "@destack/stack/bun";
 import { MemoryBuild } from "@destack/package/test";
 import { eq, Snapshot } from "@destack/db";

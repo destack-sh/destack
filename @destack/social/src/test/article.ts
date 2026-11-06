@@ -1,5 +1,5 @@
 import { space } from "@destack/account/object";
-import { activity, announcement, Subscription, subscription } from "@destack/notification";
+import { activity, announcement, Subscription, subscription } from "@destack/notification/object";
 import { defineObject, field, PackageHandle } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { Package } from "@destack/package";

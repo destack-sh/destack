@@ -7,7 +7,7 @@ import type { ClientOptions } from "@destack/object/client";
 import { Health, Server } from "@destack/object/server";
 import { onTestFinished } from "@destack/test";
 import type { ViewContext } from "@destack/view/declare";
-import { activity, notification } from "../../src/index.ts";
+import { activity, notification } from "../../src/object/index.ts";
 import notificationPackage from "../../src/package.ts";
 import { document } from "../../src/test/notes.ts";
 import { TestNotification } from "../../src/test/notification.ts";

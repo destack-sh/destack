@@ -1,6 +1,6 @@
 import { nth } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { focus } from "../src/index.ts";
+import { focus } from "../src/setting/index.ts";
 import { document } from "../src/test/notes.ts";
 import { TestNotification } from "../src/test/notification.ts";
 

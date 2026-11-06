@@ -1,4 +1,4 @@
-import { type Content, MessageKey, message } from "@destack/message";
+import { type Content, MessageKey, message } from "@destack/message/object";
 import type { MethodContext } from "@destack/object";
 import { Duration, type Identifier } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";

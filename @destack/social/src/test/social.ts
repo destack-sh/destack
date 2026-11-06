@@ -6,7 +6,7 @@ import {
     type SimulatedClock,
     SimulatedScheduler,
 } from "@destack/environment/simulation";
-import { notification } from "@destack/notification";
+import { notification } from "@destack/notification/object";
 import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";

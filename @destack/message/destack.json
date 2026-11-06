@@ -8,9 +8,6 @@
         "./provider": {
             "runtimes": ["bun", "workerd"]
         },
-        "./push": {
-            "runtimes": ["bun", "workerd"]
-        },
         "./server": {
             "runtimes": ["bun", "workerd"]
         },
@@ -19,9 +16,6 @@
         },
         "./test": {
             "runtimes": ["bun"]
-        },
-        "./webhook": {
-            "runtimes": ["bun", "workerd"]
         }
     }
 }

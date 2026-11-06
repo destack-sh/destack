@@ -1,7 +1,7 @@
 import { now, Snapshot } from "@destack/db";
 import { Account } from "@destack/account/object";
 import { Subject } from "@destack/sync";
-import { Destination } from "@destack/message";
+import { Destination } from "@destack/message/object";
 import {
     type MethodContextOf,
     type ObjectReconciliation,

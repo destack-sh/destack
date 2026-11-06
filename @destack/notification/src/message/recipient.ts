@@ -1,7 +1,7 @@
 import * as accountObject from "@destack/account/object";
 import { type LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { principal } from "@destack/access";
-import { Destination } from "@destack/message";
+import { Destination } from "@destack/message/object";
 import type { MethodContext } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import type { Subject } from "@destack/sync";

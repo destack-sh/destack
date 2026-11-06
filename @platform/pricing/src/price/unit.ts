@@ -1,4 +1,4 @@
-import { CREDITS, type Sku } from "@destack/finance";
+import { CREDITS, type Sku } from "@destack/finance/declare";
 import { defineSku } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
 import { PricingModel } from "./model.ts";

@@ -1,6 +1,6 @@
 import { Subject } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { Activity, subscription } from "../src/index.ts";
+import { Activity, subscription } from "../src/object/index.ts";
 import { document, documentParent } from "../src/test/notes.ts";
 import { type Person, TestNotification } from "../src/test/notification.ts";
 
