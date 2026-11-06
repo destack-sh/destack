@@ -391,8 +391,6 @@ export interface WorkloadResource extends ResourceRecord {
     readonly provider: string;
     /** The provider's reference of the provisioned resource. */
     readonly reference: string;
-    /** The connection in the space lending its credential to the resource's calls. */
-    readonly connection?: Identifier<"connection">;
 }
 
 /** An object a package serves, such as a secret, bound to one of a workload's declarations. */

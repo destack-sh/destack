@@ -6,7 +6,6 @@ import {
     Provisioned,
     type ResourceType,
     type Resource,
-    HttpsKind,
     INSTALLATION_PROVIDER,
     InstallationBindingSpec,
     InstallationKind,
@@ -18,7 +17,7 @@ import {
     type PackageImplementation,
 } from "@destack/object/server";
 import {
-    CONNECTION_PROVIDER,
+    EGRESS_PROVIDER,
     type ResourceKind,
     type ResourceRecord,
     type Provider,
@@ -26,7 +25,7 @@ import {
 } from "@destack/resource";
 import { StackError } from "../../error/index.ts";
 import type { Controller } from "@destack/db";
-import { type Binding, dependency, https, type InstallationRollout } from "../../object/index.ts";
+import { type Binding, dependency, type InstallationRollout } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 
 /** A provider of a space's resources. */
@@ -83,13 +82,6 @@ export const installationProvider = {
     },
 } satisfies Provider<typeof InstallationKind, ResourceType<typeof space>>;
 
-/** The provider of HTTPS APIs. */
-export const httpsProvider = {
-    kind: HttpsKind,
-    code: CONNECTION_PROVIDER,
-    object: https,
-} satisfies Provider<typeof HttpsKind, ResourceType<typeof space>>;
-
 /** A provider that snapshots its resources. */
 export type SnapshotProvider = SpaceProvider & {
     readonly snapshot: NonNullable<SpaceProvider["snapshot"]>;
@@ -145,9 +137,20 @@ export class ProviderIndex {
             }),
         );
 
+        // provide each other packaged external kind through the egress, which reaches its resources
+        const external = packaged
+            .filter((type) => !others.some((provider) => provider.object === type))
+            .flatMap((type): SpaceProvider[] => {
+                const { kind } = present(type.provisioned, `the kind of ${type.name}`);
+
+                return kind.management === "external"
+                    ? [{ kind, code: EGRESS_PROVIDER, object: type }]
+                    : [];
+            });
+
         // group the providers by kind and refuse two serving one kind's objects differently
         const byKind = new Map<string, SpaceProvider[]>();
-        for (const provider of [...providers, ...others]) {
+        for (const provider of [...providers, ...others, ...external]) {
             const grouped = byKind.get(provider.kind.name) ?? [];
             const [first] = grouped;
             if (first !== undefined && first.object !== provider.object) {

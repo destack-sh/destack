@@ -572,7 +572,6 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__stack__database",
         "destack__stack__bucket",
         "destack__stack__dependency",
-        "destack__stack__https",
         "destack__stack__mail",
         "destack__stack__git",
         "destack__registry__repository",

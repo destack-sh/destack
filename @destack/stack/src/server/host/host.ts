@@ -34,8 +34,6 @@ import {
     Installation,
     InstallationMount,
     PackageDescription,
-    HttpsBinding,
-    type HttpsClient,
     InstallationBinding,
     installation,
     type ProcedureRouter,
@@ -43,7 +41,14 @@ import {
     PackageMount,
 } from "@destack/object";
 import { InstallationRoot, type InstalledServerContext } from "@destack/object/workload";
-import { type Connector, ResourceDeclaration, ResourceId, ResourceRecord } from "@destack/resource";
+import {
+    type Connector,
+    EGRESS_PROVIDER,
+    type ExternalClient,
+    ResourceDeclaration,
+    ResourceId,
+    ResourceRecord,
+} from "@destack/resource";
 import { BucketDeclaration } from "@destack/bucket";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { ResourceContext } from "@destack/resource/context";
@@ -78,7 +83,6 @@ import {
     deployment,
     Deployment,
     dependency,
-    https,
     InstallationRevision,
     Rollout,
     rollout,
@@ -674,9 +678,21 @@ export class SpaceHost {
         } else if (provider !== undefined && "connect" in provider) {
             return provider.connect(start.store, row, found);
         }
-        // call a bound installation or HTTPS API through the machine's egress, as an instance's binding does
-        else if (InstallationBinding.is(declaration) || declaration instanceof HttpsBinding) {
+        // call a bound installation through the machine's egress, as an instance's binding does
+        else if (InstallationBinding.is(declaration)) {
             return this.#client(declaration, found, start, caller);
+        }
+        // call an external resource, such as a connection's API, through the egress below its identifier
+        else if (declaration.connectors[EGRESS_PROVIDER] !== undefined) {
+            const url = Egress.url(EGRESS_ORIGIN, found.target);
+            const send = async (request: Request) => start.egress(await caller(), request);
+            const client: ExternalClient & AsyncDisposable = {
+                url,
+                fetch: (path, init = {}) => send(new Request(`${url}${path}`, init)),
+                [Symbol.asyncDispose]: () => Promise.resolve(),
+            };
+
+            return client;
         }
         // open a bucket from the space's buckets
         else if (declaration instanceof BucketDeclaration) {
@@ -695,27 +711,15 @@ export class SpaceHost {
         }
     }
 
-    /** Open a bound installation's or HTTPS API's client, calling through the machine's egress. */
+    /** Open a bound installation's client, calling through the machine's egress. */
     async #client(
-        declaration: InstallationBinding | HttpsBinding,
+        declaration: InstallationBinding,
         bound: Pick<Binding, "target" | "targetSpaceId">,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
     ): Promise<unknown> {
         // send each call as the installation's in-store caller
         const send = async (request: Request) => start.egress(await caller(), request);
-
-        // call an HTTPS API below its address
-        if (declaration instanceof HttpsBinding) {
-            const url = Egress.url(EGRESS_ORIGIN, await this.#reference(bound));
-            const client: HttpsClient & AsyncDisposable = {
-                url,
-                fetch: (path, init = {}) => send(new Request(`${url}${path}`, init)),
-                [Symbol.asyncDispose]: () => Promise.resolve(),
-            };
-
-            return client;
-        }
 
         // call a bound installation's procedures below its address
         const mounted = PackageMount.path(declaration.handle.id);
@@ -737,21 +741,19 @@ export class SpaceHost {
         return Object.assign(client, { [Symbol.asyncDispose]: () => Promise.resolve() });
     }
 
-    /** Read the reference a local binding targets: a dependency's address or an API's id. */
+    /** Read the reference a local binding targets: a dependency's address. */
     async #reference(bound: Pick<Binding, "target" | "targetSpaceId">): Promise<string> {
         // take another space's installation by its name there
         if (bound.targetSpaceId !== null) {
             return bound.target;
         }
 
-        // read the reference of the dependency or the API the binding targets
+        // read the reference of the dependency the binding targets
         const view = Snapshot.live(this.database);
         const { target } = bound;
-        const found = dependency.identifies(target)
-            ? await view
-                  .read(dependency.table)
-                  .findFirst({ where: { id: dependency.identifier(target) } })
-            : await view.read(https.table).findFirst({ where: { id: https.identifier(target) } });
+        const found = await view
+            .read(dependency.table)
+            .findFirst({ where: { id: dependency.identifier(target) } });
 
         return ResourceRecord.reference(present(found, `the resource ${target}`));
     }
@@ -817,7 +819,6 @@ export class SpaceHost {
                             name: entry.name,
                             kind: provider.kind.name,
                             provider: found.provider,
-                            ...(found.connection === null ? {} : { connection: found.connection }),
                         },
                     ];
                 });

@@ -100,8 +100,6 @@ interface BoundResource {
     readonly reference: string | null;
     /** The provider of the resource once provisioned. */
     readonly provider: string | null;
-    /** The connection lending its credential to the resource's calls. */
-    readonly connection: Identifier<"connection"> | null;
     /** The desired state's generation. */
     readonly generation: number;
     /** The conditions the controller reports. */
@@ -650,7 +648,6 @@ class Reconcile {
                     spec: row.spec,
                     reference: row.reference,
                     provider: row.provider,
-                    connection: row.connection,
                     generation: row.generation,
                     conditions: row.conditions,
                 });
@@ -746,12 +743,7 @@ class Reconcile {
     /** Read a bound resource as a workload binds it, refusing one not provisioned. */
     #workloadResource(bound: BoundResource): WorkloadResource {
         // require the provider of an applied resource
-        const {
-            generation: _generation,
-            conditions: _conditions,
-            connection: lentFrom,
-            ...entry
-        } = bound;
+        const { generation: _generation, conditions: _conditions, ...entry } = bound;
         if (entry.provider === null || entry.reference === null) {
             throw StackError.of(
                 "RESOURCE_UNPROVISIONED",
@@ -766,7 +758,6 @@ class Reconcile {
             ...entry,
             provider: entry.provider,
             reference: this.#options.providers.resolve(reached),
-            ...(lentFrom === null ? {} : { connection: lentFrom }),
         };
     }
 

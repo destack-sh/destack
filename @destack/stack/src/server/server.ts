@@ -59,12 +59,7 @@ import {
 } from "./installation/installation.ts";
 import { InstallationAssertion } from "./installation/token.ts";
 import { implementInstallationRevision } from "./installation/revision.ts";
-import {
-    httpsProvider,
-    installationProvider,
-    ProviderIndex,
-    type SpaceProvider,
-} from "./resource/resource.ts";
+import { installationProvider, ProviderIndex, type SpaceProvider } from "./resource/resource.ts";
 import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
@@ -541,7 +536,6 @@ function externalObjects(options: SpaceOptions, own: readonly ObjectType[]): rea
 function spaceProviders(options: SpaceOptions) {
     return [
         installationProvider,
-        httpsProvider,
         bucketProvider(options.buckets, implementBucket(options.buckets)),
         ...options.providers,
     ];
