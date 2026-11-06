@@ -2,6 +2,7 @@ import type { Environment } from "@destack/environment";
 import { principal } from "@destack/access";
 import {
     type Client,
+    type Fetch,
     PackageMount,
     type PackageHandle,
     type ProcedureRouter,
@@ -9,12 +10,13 @@ import {
 import type { PackageId } from "@destack/package";
 import { type ClientOptions, type ClientTarget, createClient } from "@destack/object/client";
 import { Identifier, present, schema, type UuidEnvironment } from "@destack/schema";
-import { Scope, type Subject } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { Issuer, TokenBinding, Tokens } from "../native/index.ts";
 import { Account } from "../object/index.ts";
 import type { ResidencyCode } from "../object/index.ts";
 import type { TestMail } from "./account.ts";
 import { ACCESS_TOKEN_TYPE, type SubjectToken } from "../oauth/exchange.ts";
+import accountPackage from "../package.ts";
 
 /** A token exchanged for a package (RFC 8693), and when it expires. */
 interface TestToken {
@@ -141,19 +143,36 @@ export class TestPerson {
 
     /** Address a package as the person, with a token for it exchanged again once it expires. */
     endpoint(handle: PackageHandle, bound: TokenBinding = {}): ClientOptions {
-        const { origin, fetch } = this.#signIn;
-
         return {
-            url: PackageMount.url(origin, handle.id),
-            fetch: async (request: Request) => {
-                // send the person's token for the package
-                const { accessToken } = await this.exchange(handle.id, bound);
-                const headers = new Headers(request.headers);
-                headers.set("authorization", `Bearer ${accessToken}`);
-
-                return fetch(new Request(request, { headers }));
-            },
+            url: PackageMount.url(this.#signIn.origin, handle.id),
+            fetch: this.fetch(handle.id, bound),
         };
+    }
+
+    /** Create a fetch calling a package as the person, under a binding. */
+    fetch(audience: PackageId, bound: TokenBinding = {}): Fetch {
+        return async (request) => {
+            // send the person's token for the package
+            const { accessToken } = await this.exchange(audience, bound);
+            const headers = new Headers(request.headers);
+            headers.set("authorization", `Bearer ${accessToken}`);
+
+            return this.#signIn.fetch(new Request(request, { headers }));
+        };
+    }
+
+    /** Create an organization the person owns in their residency, as the command line does. */
+    async organize(handle: string, name: string): Promise<Identifier<"account">> {
+        const created = await this.client(accountPackage).account.create({
+            scope: this.id,
+            requestId: RequestId.create(this.#signIn.environment),
+            handle,
+            name,
+            kind: "shared",
+            residencyId: this.#signIn.residencyId,
+        });
+
+        return created.id;
     }
 
     /** Read the client's tokens, refreshed once the access token expires (RFC 6749). */
