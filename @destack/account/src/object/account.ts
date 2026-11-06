@@ -49,7 +49,10 @@ export const account = defineObject(
             kind: field.enum(["personal", "shared"]).default("shared"),
         },
         attributes: { kind: "string" },
-        indexes: { handle: { on: ["handle"], across: () => universe } },
+        indexes: {
+            handle: { on: ["handle"], across: () => universe },
+            lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" },
+        },
         recoverable: { within: { days: 30 }, by: "delete" },
         relations: {
             resident: { subjects: [residency.members("server")], grantedBy: "place" },
@@ -164,7 +167,7 @@ export const Account = {
         return payer.id;
     },
 
-    /** Report whether a handle is free, or claimed by an account, a trashed one too. */
+    /** Report whether a handle or a lookalike is free, or claimed, even by a trashed account. */
     async availability(
         claims: RelationalQueryBuilder<typeof claimTable>,
         handle: string,
@@ -174,8 +177,8 @@ export const Account = {
             return "invalid";
         }
 
-        // find an account claiming it
-        const { index, key } = Claim.key(account, "handle", [handle]);
+        // find an account claiming it or a lookalike
+        const { index, key } = Claim.key(account, "lookalike", [handle]);
         const claimed = await Claim.claimed(claims, { index, keys: [key] });
 
         return claimed.has(key) ? "taken" : "available";

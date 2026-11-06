@@ -30,7 +30,7 @@ import {
     ids,
     OPERATOR_EMAIL,
     type TestPerson,
-    HOME_STACK,
+    RESIDENCY_STACK,
     STACKS,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
@@ -43,10 +43,11 @@ const PLATFORM: PlatformDefinition = {
     residencyId: "eu",
     operator: OPERATOR_EMAIL,
     reserved: ["admin", "security"],
+    transfers: {},
     publishers: ["app"],
     handle: "destack",
     domains: [],
-    homes: { eu: HOME_STACK, us: HOME_STACK },
+    homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
     hostnames: { eu: [], us: [] },
     stacks: STACKS,
     machines: [],
@@ -119,13 +120,17 @@ test("answer a person the platform's reserved and taken handles as taken", async
     const person = await fixture.signIn("admin@example.com");
     const owned = await fixture.createAccount(person);
 
-    // suggest a free handle, and refuse the reserved and the taken handles to new and renamed accounts
+    // suggest a free handle, and refuse the reserved and taken handles and their lookalikes
     const taken = ["CONFLICT", "NAME_TAKEN", "handle is taken"];
+    const lookalike = ["CONFLICT", "NAME_TAKEN", "lookalike is taken"];
     expect([
         await person.client(accountPackage).user.suggestHandle({ id: person.id }),
         await availability(person, "destack"),
+        await availability(person, "de-stack"),
         await claim(fixture, person, "destack"),
+        await claim(fixture, person, "de-stack"),
         await claim(fixture, person, "admin"),
+        await claim(fixture, person, "ad-min"),
         await refusal(
             person.client(accountPackage).account.update({
                 scope: person.id,
@@ -135,7 +140,27 @@ test("answer a person the platform's reserved and taken handles as taken", async
                 handle: "security",
             }),
         ),
-    ]).toEqual([{ handle: "admin-2" }, "taken", taken, taken, taken]);
+    ]).toEqual([{ handle: "admin-2" }, "taken", "taken", taken, lookalike, taken, lookalike, taken]);
+});
+
+test("transfer a reserved handle to the account it renames, once, keeping its lookalikes taken", async () => {
+    // give a person an account, then transfer the reserved security handle to it twice
+    await using fixture = await TestAccountStore.open();
+    await new Platform(fixture.store, PLATFORM).apply(fixture.clock.now());
+    const person = await fixture.signIn("owner@example.com");
+    const owned = await fixture.createAccount(person);
+    const transferring = { ...PLATFORM, transfers: { security: owned.id } };
+    await new Platform(fixture.store, transferring).apply(fixture.clock.now());
+    await new Platform(fixture.store, transferring).apply(fixture.clock.now());
+
+    // resolve the handle to the account, free its old handle, and keep the lookalike taken
+    const directory = new Directory(Snapshot.live(fixture.database));
+    expect([
+        await directory.account("security"),
+        await directory.handle(owned.id),
+        await availability(person, owned.handle),
+        await availability(person, "secu-rity"),
+    ]).toEqual([owned.id, "security", "available", "taken"]);
 });
 
 test("revoke the bindings of a universe role its definition no longer declares", async () => {
@@ -213,12 +238,12 @@ test("move each residency home to its own newly declared stack once, giving each
     await using fixture = await TestAccountStore.open();
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const europe = {
-        ...HOME_STACK,
-        selection: { ...HOME_STACK.selection, manifest: Digest.parse("c".repeat(64)) },
+        ...RESIDENCY_STACK,
+        selection: { ...RESIDENCY_STACK.selection, manifest: Digest.parse("c".repeat(64)) },
     };
     const america = {
-        ...HOME_STACK,
-        selection: { ...HOME_STACK.selection, manifest: Digest.parse("d".repeat(64)) },
+        ...RESIDENCY_STACK,
+        selection: { ...RESIDENCY_STACK.selection, manifest: Digest.parse("d".repeat(64)) },
     };
     const declared: PlatformDefinition = {
         ...PLATFORM,

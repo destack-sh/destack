@@ -103,8 +103,8 @@ async function create(
     const { stack: given, ...input } = context.input;
     const created = await next(context.with({ input }));
 
-    // create its home with its stack, a person's home's or an account's home's by default
-    const stack = given ?? (created.kind === "personal" ? stacks.person : stacks.account);
+    // create its home with its stack, the homes' by default
+    const stack = given ?? stacks.home;
     await context.mutate(context.self, [
         space.call("create", {
             ...space.target({ scope: created.id, id: Account.home(created.id) }),

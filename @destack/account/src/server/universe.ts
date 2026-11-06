@@ -32,7 +32,7 @@ import { user } from "../object/user.ts";
 import { StackRelease } from "../object/stack-release.ts";
 import { domain, Hostname, HostnamePattern } from "../object/domain.ts";
 import { hostname } from "../object/hostname.ts";
-import { Claim, type ResultsOf } from "@destack/object";
+import { Claim, Claimant, type ResultsOf } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 
@@ -99,6 +99,8 @@ export const PlatformDefinition = schema.object({
     operator: schema.email(),
     /** The reserved handles, which the organization claims without an account. */
     reserved: schema.array(AccountHandle),
+    /** The handles the organization transfers, each to the account it renames to it. */
+    transfers: schema.record(AccountHandle, schema.identifier("account")),
     /** The handles the organization publishes under, each an account in its residency. */
     publishers: schema.array(AccountHandle),
     /** The handle of the organization's account in the platform's residency. */
@@ -109,10 +111,8 @@ export const PlatformDefinition = schema.object({
     homes: schema.record(ResidencyCode, StackRelease),
     /** The stack each kind of space people create is born with. */
     stacks: schema.object({
-        /** A person's home. */
-        person: StackRelease,
-        /** An organization account's home. */
-        account: StackRelease,
+        /** Every account's home. */
+        home: StackRelease,
         /** Any other space. */
         space: StackRelease,
     }),
@@ -399,34 +399,91 @@ export class Platform {
         );
     }
 
-    /** Claim the reserved handles for the organization, and create its publisher accounts. */
+    /** Claim the reserved handles, transfer the transferred ones, and create the publishers. */
     async reserveNames(): Promise<void> {
-        // claim each reserved handle for the organization, which lives in the universe
+        // claim each reserved handle the organization keeps, which lives in the universe
         const organizationId = await this.#organization();
         const owner = Scope.universe.id;
-        const claims = this.definition.reserved.map((handle) => ({
-            ...Claim.key(account, "handle", [handle]),
-            packageId: account.typeReference.packageId,
-            objectId: organizationId,
-            owner,
-        }));
+        const { reserved, transfers } = this.definition;
+        const kept = reserved.filter((handle) => !Object.hasOwn(transfers, handle));
+        const indexes = Object.keys(account.indexes);
+        const claims = kept.flatMap((handle) =>
+            indexes.map((index) => ({
+                ...Claim.key(account, index, [handle]),
+                packageId: account.typeReference.packageId,
+                objectId: organizationId,
+                owner,
+            })),
+        );
         const claimant = {
-            indexes: [Claim.index(account, "handle")],
+            indexes: indexes.map((index) => Claim.index(account, index)),
             objectId: organizationId,
             owner,
             claims,
             state: "active" as const,
         };
 
-        // replace the organization's names, refusing a handle another object claims
+        // read the accounts the handles transfer to, refusing a missing one
         const { database, environment } = this.store;
-        const [conflict] = await database.transaction((transaction) =>
-            Claim.replace(transaction, claimant, environment),
-        );
-        if (conflict !== undefined) {
-            throw AccountError.of(
-                "HANDLE_RESERVED",
-                `reserved handle ${conflict.key} is claimed outside the operating organization ${organizationId}`,
+        const recipients = await database
+            .select()
+            .from(account.table)
+            .where(inArray(account.table.id, Object.values(transfers)));
+        const targets = Object.entries(transfers).map(([handle, accountId]) => {
+            const recipient = recipients.find((row) => row.id === accountId);
+            if (recipient === undefined) {
+                throw AccountError.of(
+                    "ACCOUNT_NOT_FOUND",
+                    `handle ${handle} transfers to no account ${accountId}`,
+                );
+            }
+
+            return { handle, recipient };
+        });
+        const renaming = targets.filter(({ handle, recipient }) => recipient.handle !== handle);
+
+        // hand the organization's transferred names to their recipients in one transaction
+        await database.transaction(async (transaction) => {
+            // replace the organization's names, refusing a handle another object claims
+            const [conflict] = await Claim.replace(transaction, claimant, environment);
+            if (conflict !== undefined) {
+                throw AccountError.of(
+                    "HANDLE_RESERVED",
+                    `reserved handle ${conflict.key} is claimed outside the operating organization ${organizationId}`,
+                );
+            }
+
+            // give each recipient its new names beside its old ones, which its rename drops
+            const snapshot = Snapshot.live(transaction);
+            for (const { handle, recipient } of renaming) {
+                const object = { objectId: recipient.id, owner: Claim.owning(account, recipient) };
+                const before = await Claimant.of(account, object, recipient, snapshot);
+                const after = await Claimant.of(
+                    account,
+                    object,
+                    { ...recipient, handle },
+                    snapshot,
+                );
+                const keyed = [...after.claims, ...before.claims].map(
+                    (entry) => [`${entry.index} ${entry.key}`, entry] as const,
+                );
+                const claims = [...new Map(keyed).values()];
+                const [taken] = await Claim.replace(transaction, { ...after, claims }, environment);
+                if (taken !== undefined) {
+                    throw AccountError.of(
+                        "HANDLE_RESERVED",
+                        `transferred handle ${handle} is claimed by another object than account ${recipient.id}`,
+                    );
+                }
+            }
+        });
+
+        // rename each recipient to its handle, which drops its old names
+        if (renaming.length > 0) {
+            await this.#mutate(
+                renaming.map(({ handle, recipient }) =>
+                    account.call("update", { ...account.target(recipient), handle }),
+                ),
             );
         }
 

@@ -139,7 +139,7 @@ test("create a person's shared account beside their personal one, and refuse a s
     });
 });
 
-test("give a shared account's home the account stack, and a person's home the person stack", async () => {
+test("give every account's home the home stack, a shared account's and a person's alike", async () => {
     // sign a person up, then create a shared account
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn("person@example.com");
@@ -161,8 +161,8 @@ test("give a shared account's home the account stack, and a person's home the pe
         return present(home, `the home of ${accountId}`).stack;
     };
     expect([await stackOf(shared.id), await stackOf(owner.account)]).toEqual([
-        STACKS.account,
-        STACKS.person,
+        STACKS.home,
+        STACKS.home,
     ]);
 });
 

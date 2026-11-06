@@ -163,7 +163,7 @@ export const ids = {
 export type HomeServer = "fixture" | "machine";
 
 /** The stand-in stack each residency's home runs. */
-export const HOME_STACK: StackRelease = {
+export const RESIDENCY_STACK: StackRelease = {
     packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
     selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("a".repeat(64)) },
     export: "RESIDENCY",
@@ -172,16 +172,10 @@ export const HOME_STACK: StackRelease = {
 
 /** The stand-in stacks spaces are born with by kind. */
 export const STACKS: PlatformDefinition["stacks"] = {
-    person: {
+    home: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b2"),
         selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("b".repeat(64)) },
         export: "HOME",
-        settings: {},
-    },
-    account: {
-        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b4"),
-        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("e".repeat(64)) },
-        export: "ACCOUNT",
         settings: {},
     },
     space: {
@@ -1179,10 +1173,11 @@ export class TestAccountStore implements AsyncDisposable {
             residencyId: "eu",
             operator: OPERATOR_EMAIL,
             reserved: [],
+            transfers: {},
             publishers: [],
             handle: PLATFORM_HANDLE,
             domains: [],
-            homes: { eu: HOME_STACK, us: HOME_STACK },
+            homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
             hostnames: { eu: [], us: [] },
             stacks,
             machines: [

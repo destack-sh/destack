@@ -191,10 +191,10 @@ async function publisher(
         throw AccountError.of("RESIDENCY_NOT_FOUND", `${subject.id} runs in no residency's space`);
     }
 
-    // find the handle's holder, none for a free handle
+    // find the holder of the handle or a lookalike, none for a free handle
     const holder = await Claim.owner(
         context.read(claimTable),
-        Claim.key(account, "handle", [context.input.handle]),
+        Claim.key(account, "lookalike", [context.input.handle]),
     );
     if (holder === undefined) {
         return null;

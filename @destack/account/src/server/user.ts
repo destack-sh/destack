@@ -76,12 +76,14 @@ async function suggestHandle(
     }
     const stem = AccountHandle.stem(target.login ?? nth(target.email.split("@"), 0));
 
-    // read which of the stem and its numbers are claimed, by a trashed account too
+    // read which of the stem and its numbers are claimed or look alike, by a trashed account too
     for (let first = 1; ; first += SUGGESTION_BATCH) {
         const candidates = AccountHandle.candidates(stem, first, SUGGESTION_BATCH);
-        const keys = candidates.map((candidate) => Claim.key(account, "handle", [candidate]).key);
+        const keys = candidates.map(
+            (candidate) => Claim.key(account, "lookalike", [candidate]).key,
+        );
         const claimed = await Claim.claimed(context.read(claimTable), {
-            index: Claim.index(account, "handle"),
+            index: Claim.index(account, "lookalike"),
             keys,
         });
         const free = zip(candidates, keys).find(([, key]) => !claimed.has(key))?.[0];
