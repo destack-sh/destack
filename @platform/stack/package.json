@@ -5,23 +5,23 @@
     "type": "module",
     "description": "Destack operated platform stack",
     "exports": {
-        ".": "./src/platform/index.ts"
+        ".": "./src/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
-        "test": "bun --bun run vitest run --config vitest.config.ts"
+        "typecheck": "tsc --project tsconfig.json"
     },
     "dependencies": {
-        "@app/home": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/connection": "workspace:*",
+        "@destack/db": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
-        "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
+        "@destack/package": "workspace:*",
         "@destack/relay": "workspace:*",
+        "@destack/schema": "workspace:*",
         "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/vault": "workspace:*",
@@ -29,7 +29,6 @@
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
-        "@destack/test": "workspace:*",
         "@types/bun": "1.4.2"
     }
 }
