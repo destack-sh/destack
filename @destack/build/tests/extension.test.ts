@@ -431,3 +431,118 @@ test("refuse what a module an extension generates imports until the package decl
     );
     expect({ ...(await import(join(destination, barrel))) }).toEqual({ exported: "exported" });
 });
+
+/** The owner's extension, emitting an entry per own thing each output declares. */
+const THING_EXTENSION = `/** Emit an empty entry per own thing the compilation declares. */
+export const thingExtension = {
+    compile: (compilation: {
+        package: { id: string };
+        declarations: { kind: string; name: string; symbol: { package: { id: string } } }[];
+        entry(name: string, id: string): void;
+    }) => {
+        const things = compilation.declarations.filter(
+            (declared) => declared.kind === "thing" && declared.symbol.package.id === compilation.package.id,
+        );
+        for (const thing of things) {
+            compilation.entry(\`./thing/\${thing.name}\`, "virtual:@fixture/owner/thing");
+        }
+
+        return [
+            {
+                name: "@fixture/owner",
+                resolveId: (id: string) => (id === "virtual:@fixture/owner/thing" ? "\\\\0" + id : null),
+                load: (id: string) => (id === "\\\\0virtual:@fixture/owner/thing" ? "export {};" : null),
+            },
+        ];
+    },
+};
+`;
+
+test("compile each output with its own exports' declarations alone", async () => {
+    // write the thing kind's owner, whose extension emits an entry per declared thing
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const root = await files.realPath(await files.makeTemporaryDirectory("destack-build-own-"));
+    await writeLockfile(root, ["owner", "app"], files);
+    await writePackage(
+        join(root, "owner"),
+        {
+            name: "@fixture/owner",
+            exports: {
+                ".": "./src/index.ts",
+                "./inspect": "./src/inspect.ts",
+                "./build": "./src/build.ts",
+            },
+        },
+        {
+            id: "package-01a10b00-0000-7000-8000-000000000011",
+            runtimes: ["bun", "workerd"],
+            exports: { "./build": { runtimes: ["bun"] } },
+            build: "./build#thingExtension",
+            declarations: {
+                defineThing: { describes: [{ kind: "thing", function: "./inspect#describe" }] },
+            },
+            stamps: { defineThing: { module: 1 } },
+        },
+        {
+            "index.ts":
+                "export function defineThing(definition: { name: string }, module?: { package: object }) {\n    return { ...definition, package: module!.package };\n}\n",
+            "inspect.ts":
+                "export function describe(value: { name: string }) {\n    return { name: value.name };\n}\n",
+            "build.ts": THING_EXTENSION,
+        },
+        files,
+    );
+
+    // write an app declaring one thing in its shared export and one in its bun export alone
+    const directory = join(root, "app");
+    await writePackage(
+        directory,
+        {
+            name: "@fixture/app",
+            exports: { ".": "./src/index.ts", "./server": "./src/server.ts" },
+            dependencies: { "@fixture/owner": "2026.9.0" },
+        },
+        {
+            id: "package-01a10b00-0000-7000-8000-000000000012",
+            runtimes: ["bun", "workerd"],
+            exports: { "./server": { runtimes: ["bun"] } },
+        },
+        {
+            "index.ts":
+                'import { defineThing } from "@fixture/owner";\n\nexport const greeting = defineThing({ name: "greeting" });\n',
+            "server.ts":
+                'import { defineThing } from "@fixture/owner";\n\nexport const secret = defineThing({ name: "secret" });\n',
+        },
+        files,
+    );
+
+    // link the owner, and keep the workspace in git as builds read it
+    await link(root, "app", "owner", files);
+    await files.writeTextFile(join(root, ".gitignore"), "node_modules/\n");
+    const initialized = await environment.process.spawn(["git", "init", "--quiet", root]).output();
+    expect(initialized.code).toBe(0);
+
+    // build both outputs
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store);
+    const build = await (
+        await Workspace.open(directory, compilers)
+    ).build({
+        outputs: {
+            bun: { kind: "module", runtime: "bun" },
+            workerd: { kind: "module", runtime: "workerd" },
+        },
+    });
+
+    // emit the bun-only thing in the bun output alone
+    const things = (output: string) =>
+        Object.keys(build.manifest.outputs[output]?.exports ?? {})
+            .filter((name) => name.startsWith("./thing/"))
+            .toSorted();
+    expect({ bun: things("bun"), workerd: things("workerd") }).toEqual({
+        bun: ["./thing/greeting", "./thing/secret"],
+        workerd: ["./thing/greeting"],
+    });
+});

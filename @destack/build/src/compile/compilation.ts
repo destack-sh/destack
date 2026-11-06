@@ -670,8 +670,8 @@ export class OutputCompilation implements Compilation {
         // require a declared dependency
         const dependency = DependencyName.of(specifier);
         const { packageJson } = this.project;
+        const by = importer === undefined ? "" : `, imported by ${importer}`;
         if (!PackageJson.runtimeDependencies(packageJson).includes(dependency)) {
-            const by = importer === undefined ? "" : `, imported by ${importer}`;
             throw BuildError.of(
                 "DEPENDENCY_UNRESOLVED",
                 `undeclared runtime dependency: ${dependency}${by}`,
@@ -685,7 +685,7 @@ export class OutputCompilation implements Compilation {
             if (modules !== undefined && modules[this.runtime] === undefined) {
                 throw BuildError.of(
                     "RUNTIME_MODULE_UNSUPPORTED",
-                    `unsupported ${this.runtime} dependency: ${specifier}`,
+                    `unsupported ${this.runtime} dependency: ${specifier}${by}`,
                 );
             }
             compiled.output.dependencies[dependency] = DependencyRelease.parse(selected);

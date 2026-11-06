@@ -682,11 +682,20 @@ function createCompilation(
     output: ModuleOptions,
     context: CompileContext,
 ): OutputCompilation {
+    // take the package's declarations the output's own exports make, beside its dependencies'
+    const project = found(context.projects, name);
+    const exported = new Set(Object.values(project.exports));
+    const own = project.packageJson.package.id;
+    const declarations = context.declarations.filter(
+        (declaration) =>
+            declaration.description.symbol.package.id !== own || exported.has(declaration.file),
+    );
+
     return new OutputCompilation(
         name,
         output,
-        found(context.projects, name),
-        context.declarations,
+        project,
+        declarations,
         context.extensions,
         context.cache,
         context.transformer,

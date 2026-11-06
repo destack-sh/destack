@@ -176,7 +176,7 @@ test("refuse an unsupported dependency in a build as the development server does
     ).toEqual([
         "UNPROCESSABLE_CONTENT",
         "RUNTIME_MODULE_UNSUPPORTED",
-        "unsupported browser dependency: @fixture/server",
+        `unsupported browser dependency: @fixture/server, imported by ${join(await files.realPath(directory), "src", "server.ts")}`,
     ]);
 });
 
