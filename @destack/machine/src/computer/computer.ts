@@ -1,5 +1,5 @@
 import type { TunnelStatus } from "@destack/tunnel";
-import { Program } from "@destack/package/bun";
+import { BunDistribution, Program } from "@destack/package/bun";
 import { PackageMount, refusal, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
@@ -37,9 +37,8 @@ import type { ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
-import { type Digest, Identifier, present, schema } from "@destack/schema";
-import type { Package } from "@destack/package";
-import { PackageManifest } from "@destack/package/manifest";
+import { Identifier, present, schema } from "@destack/schema";
+import { DISTRIBUTION_LAYER, DistributionManifest } from "@destack/package";
 import { serveProcess } from "@destack/object/bun";
 import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
@@ -95,9 +94,6 @@ export const MACHINE_KEYS = "app.destack.machine";
 /** The keychain service of a machine's root keys, by machine. */
 export const ROOT_KEYS = "app.destack.root";
 
-/** The directory in a distribution's toolchain with the builds its machine ships. */
-export const BUNDLED_DIRECTORY = "releases";
-
 /** The runtimes a computer runs builds on: Bun for its instances, browsers for its views. */
 export const COMPUTER_RUNTIMES = ["bun", "browser"] as const;
 
@@ -127,10 +123,10 @@ export interface ComputerOptions {
           };
     /** The local object types the device stores beside its logins, settings and visits, by key. */
     readonly localObjects: Readonly<Record<string, ObjectType>>;
-    /** The builds the computer ships with what they run: its servers and the platform's stacks. */
-    readonly bundled: BuildLayer;
-    /** The package the computer's program runs, whose shipped release links its builtins. */
-    readonly package: Package;
+    /** The releases the computer ships: its servers, builtins and the platform's stacks. */
+    readonly shipped: DistributionManifest;
+    /** The shipped releases' builds with what they run, read in place. */
+    readonly layer: BuildLayer;
     /** Open the keychain of a service's secrets. */
     readonly keychain: (service: string) => Keychain;
     /** The machine to run, the stored one or a new one by default. */
@@ -281,22 +277,18 @@ export class Computer implements AsyncDisposable {
         // open the build cache over the shipped builds read in place, the compilers and the spaces' storage
         const builds = await Computer.#openCache(options, database);
 
-        // read the shipped releases, and the builtins the program's own release links
-        const shipped = await Promise.all(
-            options.bundled.releases.map(async (manifest) => {
-                const reader = present(
-                    options.bundled.build(manifest),
-                    `the shipped release ${manifest}`,
-                );
-
-                return { package: (await reader).manifest.package, manifest };
-            }),
-        );
-        const builtins = await Computer.#builtins(options, shipped, builds.packages);
+        // read the builtins the distribution ships, which the machine links to the servers it loads
+        const linked = DistributionManifest.builtins(options.shipped);
 
         // share the builtins with the servers the machine loads, from its compiled table or its files
         const program = await Program.current(
-            async () => new Map(builtins.map((builtin) => [builtin.name, import.meta.dirname])),
+            async () =>
+                new Map(
+                    [...linked.values()].map((builtin) => [
+                        builtin.package.name,
+                        import.meta.dirname,
+                    ]),
+                ),
             options.environment.process.loader,
         );
         const compilers = await CompilerPool.open(builds.packages);
@@ -346,21 +338,6 @@ export class Computer implements AsyncDisposable {
             options.environment,
         );
 
-        // link the builtins' shipped releases, by package
-        const builtinIds = new Set(builtins.map(({ id }) => id));
-        const linked = new Map(
-            shipped.flatMap((release) =>
-                "id" in release.package && builtinIds.has(release.package.id)
-                    ? [
-                          [
-                              release.package.id,
-                              { package: release.package, manifest: release.manifest },
-                          ] as const,
-                      ]
-                    : [],
-            ),
-        );
-
         // serve the spaces while enrolled
         const machine: Machine = new Machine({
             id: machineId,
@@ -390,11 +367,7 @@ export class Computer implements AsyncDisposable {
             alarm: undefined,
             server: (manifest) => processes.server(manifest),
             linked,
-            shipped: shipped.flatMap((release) =>
-                "id" in release.package
-                    ? [{ package: release.package, manifest: release.manifest }]
-                    : [],
-            ),
+            shipped: DistributionManifest.shipped(options.shipped),
             skus: undefined,
             registry: options.registry,
             endpoint,
@@ -617,43 +590,9 @@ export class Computer implements AsyncDisposable {
         });
     }
 
-    /** Read the builtins the program links: its own release and the Destack releases it was built with, by role. */
-    static async #builtins(
-        options: Pick<ComputerOptions, "package">,
-        shipped: readonly {
-            readonly package: PackageManifest["package"];
-            readonly manifest: Digest;
-        }[],
-        packages: LocalBuildStore,
-    ): Promise<Package[]> {
-        // find the program's own release among the shipped ones
-        const { id, name, version } = options.package;
-        const own = shipped.find(
-            (release) =>
-                "id" in release.package &&
-                release.package.id === id &&
-                release.package.version === version,
-        );
-        if (own === undefined) {
-            throw MachineError.of(
-                "CONFIGURATION_INVALID",
-                `the shipped releases lack the program's own ${name}@${version}`,
-            );
-        }
-
-        // take the builtins among the release and the Destack releases it was built with
-        const reader = await packages.contents(own.manifest);
-        const releases = [own.manifest, ...(await reader.releases()).map((each) => each.manifest)];
-        const readers = await Promise.all(releases.map((manifest) => packages.contents(manifest)));
-
-        return readers
-            .filter((each) => each.manifest.role === "builtin")
-            .map((each) => PackageManifest.package(each.manifest));
-    }
-
     /** Open the build cache: blobs below the machine's directory, shipped builds read in place. */
     static async #openCache(
-        options: Pick<ComputerOptions, "directory" | "environment" | "bundled">,
+        options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
         database: SqliteDatabase,
     ): Promise<{ readonly cache: BuildCache; readonly packages: LocalBuildStore }> {
         // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
@@ -667,7 +606,7 @@ export class Computer implements AsyncDisposable {
             blobs,
             directory,
             environment,
-            layer: options.bundled,
+            layer: options.layer,
         });
 
         return { cache: new BuildCache(packages, COMPUTER_RUNTIMES), packages };
@@ -971,7 +910,8 @@ export class Computer implements AsyncDisposable {
         ComputerOptions,
         "directory" | "issuer" | "port" | "relay"
     > & {
-        readonly bundled: string;
+        /** The directory of the distribution the computer ships: its manifest and its layer. */
+        readonly shipped: string;
     } {
         // take the issuer the environment names, else the channel's
         const environment = host.process.variables;
@@ -1006,15 +946,12 @@ export class Computer implements AsyncDisposable {
                   ? { kind: "residency" }
                   : undefined;
 
-        // ship the builds the environment names, else the distribution's
-        const toolchain = Toolchain.directory(host.process);
-        const bundled =
-            environment["DESTACK_BUNDLED"] ??
-            (toolchain === undefined ? undefined : join(toolchain, BUNDLED_DIRECTORY));
-        if (bundled === undefined) {
+        // ship the distribution the environment names, else the toolchain's
+        const shipped = environment["DESTACK_DISTRIBUTION"] ?? Toolchain.directory(host.process);
+        if (shipped === undefined) {
             throw MachineError.of(
                 "CONFIGURATION_INVALID",
-                "DESTACK_BUNDLED is not set and there is no toolchain bundle directory",
+                "DESTACK_DISTRIBUTION is not set and there is no toolchain directory",
             );
         }
 
@@ -1023,13 +960,13 @@ export class Computer implements AsyncDisposable {
             issuer,
             port,
             ...(relay === undefined ? {} : { relay }),
-            bundled,
+            shipped,
         };
     }
 
     /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
-        bundle: Pick<ComputerOptions, "localObjects" | "registry" | "package">,
+        bundle: Pick<ComputerOptions, "localObjects" | "registry">,
         environment: ComputerOptions["environment"],
         configuration = Computer.configure(environment),
     ): Promise<void> {

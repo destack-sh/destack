@@ -11,7 +11,6 @@ import { Envelope, EnvelopeConfiguration } from "@destack/identity/aws";
 import { SesClient, SesTransport } from "@destack/mail/ses";
 import { mailConnector } from "@destack/mail/transport";
 import { CallKey, PackageMount } from "@destack/object";
-import { PackageRelease } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import type { DurableObjectNamespace, PartitionBindings } from "./runtime/index.ts";
 import { BLOB_TABLES, defineDatabase } from "@destack/db";
@@ -86,10 +85,6 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_SPACE_DOMAIN: string;
     /** The machine's own host, whose paths address its spaces directly. */
     readonly DESTACK_HOST: string;
-    /** The releases the deploy shipped into the build bucket, as JSON. */
-    readonly DESTACK_BUNDLED: string;
-    /** The builtins the machine links to the servers it loads, as JSON its deploy derived. */
-    readonly DESTACK_LINKED: string;
     /** The installation residency homes serve the registry protocol at. */
     readonly DESTACK_REGISTRY: string;
     /** The binding of each cloud machine, by the hosts of it and its relay, as JSON. */
@@ -276,16 +271,6 @@ export class CloudMachine {
             "ses",
             new SesTransport(client, { from: this.bindings.DESTACK_MAIL_FROM }),
         );
-    }
-
-    /** Read the releases the deploy shipped to the machine. */
-    bundled(): PackageRelease[] {
-        return schema.array(PackageRelease).parse(JSON.parse(this.bindings.DESTACK_BUNDLED));
-    }
-
-    /** Read the builtins the machine links, as its deploy derived them from its own release. */
-    linked(): PackageRelease[] {
-        return schema.array(PackageRelease).parse(JSON.parse(this.bindings.DESTACK_LINKED));
     }
 
     /** Derive the key the machine's journals fingerprint sensitive inputs under. */

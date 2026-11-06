@@ -1,3 +1,5 @@
+import { DistributionManifest } from "@destack/package";
+import { WorkerdDistribution } from "@destack/package/workerd";
 import { Once } from "@destack/package/manifest";
 import { ProcessRuntime } from "@destack/stack/runtime";
 import { traceSampling } from "@destack/stack/setting";
@@ -284,6 +286,7 @@ export class PartitionObject {
         });
 
         // serve the space on the one machine, enrolled by the universe's declaration of it, started now
+        const shipped = await WorkerdDistribution.read();
         const startedAt = cloud.environment.clock.now();
         const machine = new Machine({
             id: cloud.id,
@@ -294,7 +297,7 @@ export class PartitionObject {
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
             enrollment: (view) => cloud.enrollment(view ?? Snapshot.live(cloud.replica)),
             spaces: host,
-            cache: await host.cache(bindings.BUILDS, cloud.bundled()),
+            cache: await host.cache(bindings.BUILDS, DistributionManifest.shipped(shipped)),
             isBuilding: false,
             isEnforcingEntitlements: true,
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
@@ -310,8 +313,8 @@ export class PartitionObject {
                     `a cloud machine cannot load the server of build ${manifest} yet`,
                 );
             },
-            linked: new Map(cloud.linked().map((release) => [release.package.id, release])),
-            shipped: cloud.bundled(),
+            linked: DistributionManifest.builtins(shipped),
+            shipped: DistributionManifest.shipped(shipped),
             registry: bindings.DESTACK_REGISTRY,
             skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,

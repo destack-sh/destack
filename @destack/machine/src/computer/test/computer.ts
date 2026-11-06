@@ -23,14 +23,11 @@ import { RequestId, Scope } from "@destack/sync";
 import { inject, onTestFinished } from "@destack/test";
 import { Universe } from "@destack/universe";
 import { TestUniverse, UniverseWorld } from "@destack/universe/test";
-import relayPackage from "@destack/relay/package";
-import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/server";
+import relayPackage, { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/package";
 import { TestRelay } from "@destack/relay/test";
 import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
-import { testHost } from "@destack/test/host";
-import { fileURLToPath } from "node:url";
 import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index.ts";
 import { TestDistribution } from "./distribution.ts";
 
@@ -425,7 +422,6 @@ export class TestComputer implements AsyncDisposable {
         const computer = await Computer.start({
             // run instances in this process on the world's clock and network, deterministic under simulation
             isolation: "process",
-            package: import.meta.destack.package,
             registry: FORGE_INSTALLATION,
             environment,
             directory,
@@ -442,7 +438,8 @@ export class TestComputer implements AsyncDisposable {
                 startedAt: simulation.clock.now(),
             },
             ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
-            bundled: distribution.layer,
+            shipped: distribution.shipped,
+            layer: distribution.layer,
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),
             report: (event, error) => {
@@ -745,26 +742,33 @@ export class TestComputer implements AsyncDisposable {
         await this.world.simulation.wait(this.machine.health.waitUp());
         const space = await this.machine.space(spaceId);
         const deadline = this.clock.timeout(READY_MILLISECONDS);
-        await this.world.simulation.wait(space.health.waitUp(deadline)).catch(async (error: unknown) => {
-            // name each installation not ready with its ready condition, beside the machine's reports
-            const rows = await space.database
-                .select({ name: installation.table.name, conditions: installation.table.conditions })
-                .from(installation.table);
-            const unready = rows
-                .map((row) => ({ name: row.name, ready: row.conditions["Ready"] }))
-                .filter(({ ready }) => ready?.status !== "true")
-                .map(({ name, ready }) => `${name}: ${ready?.reason} ${ready?.message}`);
-            const reports = this.reports.map((report) =>
-                report instanceof Error ? `${report.message} (${String(report.cause)})` : String(report),
-            );
+        await this.world.simulation
+            .wait(space.health.waitUp(deadline))
+            .catch(async (error: unknown) => {
+                // name each installation not ready with its ready condition, beside the machine's reports
+                const rows = await space.database
+                    .select({
+                        name: installation.table.name,
+                        conditions: installation.table.conditions,
+                    })
+                    .from(installation.table);
+                const unready = rows
+                    .map((row) => ({ name: row.name, ready: row.conditions["Ready"] }))
+                    .filter(({ ready }) => ready?.status !== "true")
+                    .map(({ name, ready }) => `${name}: ${ready?.reason} ${ready?.message}`);
+                const reports = this.reports.map((report) =>
+                    report instanceof Error
+                        ? `${report.message} (${String(report.cause)})`
+                        : String(report),
+                );
 
-            // fail with both, the wait's error and the reports as causes
-            const reason = space.health.reason;
-            throw this.#failure(
-                `space ${spaceId} did not get ready: ${reason}; not ready: ${unready.join("; ")}; reports: ${reports.join("; ")}`,
-                [error, ...this.reports],
-            );
-        });
+                // fail with both, the wait's error and the reports as causes
+                const reason = space.health.reason;
+                throw this.#failure(
+                    `space ${spaceId} did not get ready: ${reason}; not ready: ${unready.join("; ")}; reports: ${reports.join("; ")}`,
+                    [error, ...this.reports],
+                );
+            });
     }
 
     /** Wait until a check passes at a database's commits, within the receive limit. */

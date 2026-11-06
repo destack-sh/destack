@@ -8,7 +8,7 @@ import { testStore } from "@destack/build/test";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { InstallationMount, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { type PackageId, PackageName } from "@destack/package";
+import { DistributionManifest, type PackageId, PackageName } from "@destack/package";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Registry } from "@destack/registry/client";
 import registryPackage from "@destack/registry/package";
@@ -60,6 +60,8 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly home: StackRelease;
     /** The builds of the stacks, of the packages they install and of the other given builds. */
     readonly builds: readonly BuildReader[];
+    /** The releases the distribution ships, each with its role. */
+    readonly shipped: DistributionManifest;
     /** The builds with what they run, as a machine ships them in place. */
     readonly layer: BuildLayer;
     /** The run's build store the server builds read from, open until the distribution closes. */
@@ -68,18 +70,20 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     /** The layers this process writes or wrote, by their releases, each written once. */
     static readonly #distributed = new Map<string, Promise<string>>();
 
-    /** Take the stacks, the builds, their layer and the store they read from. */
+    /** Take the stacks, the builds, the shipped releases, their layer and their store. */
     private constructor(
         stacks: PlatformDefinition["stacks"],
         home: StackRelease,
         builds: readonly BuildReader[],
+        shipped: DistributionManifest,
         layer: BuildLayer,
         store: LocalBuildStore,
     ) {
-        // set the stacks, the residency homes', the builds, their layer and their store
+        // set the stacks, the residency homes', the builds, the shipped releases, their layer and their store
         this.stacks = stacks;
         this.home = home;
         this.builds = builds;
+        this.shipped = shipped;
         this.layer = layer;
         this.#store = store;
     }
@@ -128,13 +132,24 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         );
         manifests.push(...recorded);
 
-        // ship the releases with their runtime builds and what those run, written and opened as a distribution's
+        // list the shipped releases with their roles, and write their builds with what they run as a distribution's layer
+        const releases = await Promise.all(
+            [...new Set(manifests)].map(async (manifest) => {
+                const reader = await store.contents(manifest);
+
+                return {
+                    package: PackageManifest.package(reader.manifest),
+                    manifest,
+                    role: reader.manifest.role,
+                };
+            }),
+        );
         const layer = await TestDistribution.#distribute(manifests, store);
 
         // hand the store to the distribution
         opened.move();
 
-        return new TestDistribution(stacks, residencyHome, builds, layer, store);
+        return new TestDistribution(stacks, residencyHome, builds, { releases }, layer, store);
     }
 
     /** Read the digests of the run's builds by name: the platform, the stacks and the fixtures. */
