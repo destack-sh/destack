@@ -35,7 +35,10 @@ export function createFolio(isFollowed: () => boolean): () => Folio | undefined 
             cancel = undefined;
             const middle = window.innerHeight / 2;
             const passed = entries.filter((entry) => entry.getBoundingClientRect().top < middle);
-            const footer = present(document.querySelector("footer"), "the page footer");
+            const footer = present(
+                document.querySelector("[data-component=SiteFooter]"),
+                "the page footer",
+            );
             const isFooterShown = footer.getBoundingClientRect().top < window.innerHeight;
             setFolio({ index: passed.length, total: entries.length, isFooterShown });
         };
