@@ -20,9 +20,12 @@ export function testSimulation(
     const jitter = options.jitter ?? testHost().process.variables[JITTER_VARIABLE] === "1";
     const simulation = new Simulation({ ...options, jitter, seed: SEED, start });
     const dispose = () => simulation[Symbol.asyncDispose]();
-    if (TestRunner.getCurrentTest() === undefined) {
+    const current = TestRunner.getCurrentTest();
+    if (current === undefined) {
         afterAll(dispose);
-    } else {
+    }
+    // leave a concurrent test's world to its own disposal, as Vitest's current test may be a neighbour
+    else if (current.concurrent !== true) {
         onTestFinished(dispose);
     }
 
