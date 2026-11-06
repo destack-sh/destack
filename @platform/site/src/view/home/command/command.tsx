@@ -44,7 +44,8 @@ export const command: Form = {
     sense: {
         definition: "every app, programmable by your agents",
         highlight: ["programmable"],
-        sentence: "Put your agents to work across everything in your space, with one API.",
+        sentence:
+            "Put your agents to work across your whole space, with the same API your apps use.",
         gloss: "as programmable as a humble spreadsheet",
     },
 };

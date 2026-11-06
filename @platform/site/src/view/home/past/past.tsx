@@ -14,7 +14,7 @@ export const destacked: Form = {
     sense: {
         definition: "unified into one standardised stack",
         highlight: ["unified", "standardised"],
-        sentence: "Integrate every app into one account, one database, and one interface.",
+        sentence: "Run every app on one account, one database, and one interface.",
         gloss: "snapped together like LEGO",
     },
 };

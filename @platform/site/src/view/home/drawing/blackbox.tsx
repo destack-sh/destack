@@ -2,24 +2,26 @@ import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 
-import { planet } from "../../layout/mark";
 import {
     CANVAS,
     CHANGE,
     createChange,
     DrawingFrame,
     type Point,
+    RingedPlanet,
     Sketch,
     stageOf,
     styles,
-    TILT,
 } from "./drawing";
 
 /** The box's half width along each face, in CSS pixels. */
 const BOX = 52;
 
-/** The globe's radius once it shows through, in CSS pixels. */
-const RADIUS = 84;
+/** The globe's radius inside the box, in CSS pixels: room for its ring within the box's outline. */
+const RADIUS = 44;
+
+/** The angles of the box's top front edges, in degrees clockwise from the right. */
+const EDGES = { left: -150, right: -30 } as const;
 
 /** The hatching of the box's faces, from the lit top to the dark side: line spacing and angle. */
 const HATCHING = [
@@ -41,6 +43,21 @@ function outlineOf(corners: readonly Point[]): string {
     return `M${corners.map((point) => `${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join("L")}Z`;
 }
 
+/** Return a point on the globe's outline at an angle in degrees, clockwise from the right. */
+function rimOf(radius: number, degrees: number): Point {
+    const angle = (degrees * Math.PI) / 180;
+
+    return { x: radius * Math.cos(angle), y: radius * Math.sin(angle) };
+}
+
+/** Return the outline of a slice of the globe, from its centre between two angles in degrees. */
+function sliceOf(radius: number, from: number, to: number): string {
+    const start = rimOf(radius, from);
+    const end = rimOf(radius, to);
+
+    return `M0 0L${start.x.toFixed(1)} ${start.y.toFixed(1)}A${radius} ${radius} 0 0 1 ${end.x.toFixed(1)} ${end.y.toFixed(1)}Z`;
+}
+
 /** The box's top corners. */
 const top = {
     back: cornerOf(-BOX, -BOX, BOX),
@@ -49,8 +66,9 @@ const top = {
     left: cornerOf(-BOX, BOX, BOX),
 };
 
-/** The box's bottom corners that show: right, front and left. */
+/** The box's bottom corners: the three that show, and the back one behind the box. */
 const bottom = {
+    back: cornerOf(-BOX, -BOX, -BOX),
     right: cornerOf(BOX, -BOX, -BOX),
     front: cornerOf(BOX, BOX, -BOX),
     left: cornerOf(-BOX, BOX, -BOX),
@@ -63,25 +81,32 @@ const faces: readonly { outline: string; spacing: number; angle: number }[] = [
     outlineOf([top.front, top.right, bottom.right, bottom.front]),
 ].map((outline, index) => ({ outline, ...present(HATCHING[index], "the face's hatching") }));
 
-/** Draw a sealed black box, or the box opened to show our planet inside, see-through. */
+/** The box's three edges hidden behind it, all meeting at the back bottom corner. */
+const hidden: readonly (readonly [Point, Point])[] = [
+    [bottom.back, bottom.right],
+    [bottom.back, bottom.left],
+    [bottom.back, top.back],
+];
+
+/** Draw a sealed black box, or the box turned to glass, our planet inside cut open to its core. */
 export function BlackBox(properties: { isOpen: boolean; layers: number }) {
-    // follow the switch: the box's hatching is erased line by line, its glass clears, its edges retract,
-    //  and our planet inside grows out to its full size
+    // follow the switch: the box's hatching is erased line by line, its glass clears to show its
+    //  hidden edges and the planet, and the planet opens down to its core under the top face
     const [host, setHost] = createSignal<HTMLElement>();
     const opened = createChange(() => properties.isOpen, host, CHANGE);
-    const clear = () => stageOf(opened(), 0.35, 0.5);
-    const edges = () => stageOf(opened(), 0.45, 0.8);
-    const grown = () => 0.55 + 0.45 * stageOf(opened(), 0.4, 1);
+    const clear = () => stageOf(opened(), 0.3, 0.5);
+    const cut = () => stageOf(opened(), 0.5, 0.95);
 
-    // measure the ring in the mark's proportions to the globe, and space the layers inside it
-    const ratio = RADIUS / planet.radius;
-    const ring = { across: planet.ringReach.across * ratio, down: planet.ringReach.down * ratio };
-    const depths = () =>
-        Array.from(
-            { length: properties.layers - 1 },
-            (_, index) => RADIUS * (1 - (index + 1) / properties.layers),
-        );
-    const front = `M${-CANVAS.width} 0H${CANVAS.width}V${CANVAS.width}H${-CANVAS.width}Z`;
+    // widen the cut from straight up to the box's top front edges, and space the layers inside it
+    const middle = (EDGES.left + EDGES.right) / 2;
+    const left = () => middle + (EDGES.left - middle) * cut();
+    const right = () => middle + (EDGES.right - middle) * cut();
+    const slice = () => sliceOf(RADIUS, left(), right());
+    const depths = Array.from(
+        { length: properties.layers - 1 },
+        (_, index) => RADIUS * (1 - (index + 1) / properties.layers),
+    );
+    const edges = () => [rimOf(RADIUS, left()), rimOf(RADIUS, right())];
 
     return (
         <DrawingFrame box={CANVAS} reference={setHost}>
@@ -92,85 +117,80 @@ export function BlackBox(properties: { isOpen: boolean; layers: number }) {
                             <path d={face.outline} />
                         </clipPath>
                     ))}
-                    <clipPath id="blackbox-front">
-                        <path d={front} transform={`rotate(${TILT})`} />
+                    <clipPath id="blackbox-cut">
+                        <path d={slice()} />
                     </clipPath>
                 </defs>
 
                 <g {...style.attrs(styles.ink)}>
-                    {/* draw our planet inside the box, see-through to its layers, growing out once the box is open */}
-                    <g transform={`scale(${grown()})`}>
-                        <g transform={`rotate(${TILT})`}>
-                            <ellipse rx={ring.across} ry={ring.down} />
-                            <ellipse rx={ring.across - 8} ry={ring.down - 4} />
-                        </g>
-                        <circle r={RADIUS} {...style.attrs(styles.cover)} />
-                        <circle r={RADIUS} />
-                        {depths().map((depth, index) => (
-                            <circle
-                                r={depth}
-                                {...style.attrs(index % 2 === 0 ? styles.dashed : styles.dotted)}
-                            />
+                    {/* draw the box's hidden edges, dashed as a drawing shows what lies behind */}
+                    <g opacity={clear()} {...style.attrs(styles.dashed)}>
+                        {hidden.map(([from, to]) => (
+                            <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
                         ))}
-                        <circle r={3} {...style.attrs(styles.solid)} />
-                        <g clip-path="url(#blackbox-front)" transform={`rotate(${TILT})`}>
-                            <ellipse
-                                rx={ring.across - 4}
-                                ry={ring.down - 2}
-                                stroke-width={20}
-                                {...style.attrs(styles.gap)}
-                            />
-                            <ellipse rx={ring.across} ry={ring.down} />
-                            <ellipse rx={ring.across - 8} ry={ring.down - 4} />
+                    </g>
+
+                    {/* draw our planet inside the box, cut to its core under the box's top face */}
+                    <RingedPlanet id="blackbox" radius={RADIUS} spacing={4} />
+                    {cut() > 0 ? (
+                        <g>
+                            <path d={slice()} {...style.attrs(styles.cover)} />
+                            <g clip-path="url(#blackbox-cut)">
+                                {depths.map((depth, index) => (
+                                    <circle
+                                        r={depth}
+                                        {...style.attrs(
+                                            index % 2 === 0 ? styles.dashed : styles.dotted,
+                                        )}
+                                    />
+                                ))}
+                            </g>
+                            {edges().map((point) => (
+                                <line x1={0} y1={0} x2={point.x} y2={point.y} />
+                            ))}
+                            <circle r={3} {...style.attrs(styles.solid)} />
                         </g>
-                    </g>
+                    ) : undefined}
 
-                    {/* draw the sealed box over it: each face's hatching erased line by line, then its glass and edges */}
-                    <g transform="translate(0 -4)">
-                        {faces.map((face, index) => {
-                            // stagger the erasing across the face's lines, one face after another
-                            const rows = Array.from(
-                                { length: Math.ceil(400 / face.spacing) },
-                                (_, row) => -200 + row * face.spacing,
-                            );
-                            const erasedOf = (row: number) => {
-                                const start = 0.04 * index + (row / rows.length) * 0.28;
+                    {/* draw the box's faces over it: each sealed, then its hatching erased line by line */}
+                    {faces.map((face, index) => {
+                        // stagger the erasing across the face's lines, one face after another
+                        const rows = Array.from(
+                            { length: Math.ceil(400 / face.spacing) },
+                            (_, row) => -200 + row * face.spacing,
+                        );
+                        const erasedOf = (row: number) => {
+                            const start = 0.04 * index + (row / rows.length) * 0.28;
 
-                                return stageOf(opened(), start, start + 0.1);
-                            };
+                            return stageOf(opened(), start, start + 0.1);
+                        };
 
-                            return (
-                                <g>
-                                    <path
-                                        d={face.outline}
-                                        opacity={1 - clear()}
-                                        {...style.attrs(styles.cover)}
-                                    />
-                                    <g clip-path={`url(#blackbox-face-${index})`}>
-                                        <g transform={`rotate(${face.angle})`}>
-                                            {rows.map((y, row) => (
-                                                <line
-                                                    x1={-200}
-                                                    x2={200}
-                                                    y1={y}
-                                                    y2={y}
-                                                    pathLength={1}
-                                                    stroke-dasharray="1 1"
-                                                    stroke-dashoffset={erasedOf(row)}
-                                                />
-                                            ))}
-                                        </g>
+                        return (
+                            <g>
+                                <path
+                                    d={face.outline}
+                                    opacity={1 - clear()}
+                                    {...style.attrs(styles.cover)}
+                                />
+                                <g clip-path={`url(#blackbox-face-${index})`}>
+                                    <g transform={`rotate(${face.angle})`}>
+                                        {rows.map((y, row) => (
+                                            <line
+                                                x1={-200}
+                                                x2={200}
+                                                y1={y}
+                                                y2={y}
+                                                pathLength={1}
+                                                stroke-dasharray="1 1"
+                                                stroke-dashoffset={erasedOf(row)}
+                                            />
+                                        ))}
                                     </g>
-                                    <path
-                                        d={face.outline}
-                                        pathLength={1}
-                                        stroke-dasharray="1 1"
-                                        stroke-dashoffset={-edges()}
-                                    />
                                 </g>
-                            );
-                        })}
-                    </g>
+                                <path d={face.outline} />
+                            </g>
+                        );
+                    })}
                 </g>
             </Sketch>
         </DrawingFrame>

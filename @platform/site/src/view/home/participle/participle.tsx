@@ -16,7 +16,7 @@ export const participle: Form = {
     sense: {
         definition: "making all your software work as one",
         highlight: ["work as one"],
-        sentence: "Move in one app at a time: just ask your agent.",
+        sentence: "Move in one app at a time, or all at once: just ask your agent.",
         gloss: "tearing down the arbitrary walls between your apps",
     },
 };
