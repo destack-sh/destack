@@ -10,6 +10,7 @@ import * as style from "@destack/style";
 import type { Post, RenderedContent } from "../content/collection";
 import { Breadcrumbs } from "./breadcrumbs";
 import { publicationStyles } from "./publication.stylex";
+import { lattice } from "../layout/lattice.stylex";
 import { blocks } from "./blocks";
 import { Reader } from "./reader";
 import { PageHeader } from "./header";
@@ -53,7 +54,7 @@ export function BlogArticle(properties: BlogArticleProperties) {
 function BlogNavigation(properties: { contents: readonly Heading[] }) {
     return (
         <div>
-            <div {...style.attrs(publicationStyles.context)}>
+            <div {...style.attrs(lattice.ruleBottom, publicationStyles.context)}>
                 <a href="/blog/" {...style.attrs(publicationStyles.contextTitle)}>
                     Blog
                 </a>

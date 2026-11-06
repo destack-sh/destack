@@ -3,11 +3,13 @@ import { media } from "@destack/style/media.stylex";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
-import { Goo } from "../effect/goo";
-import { Syllables } from "../home/entry/entry";
-import { lattice } from "./lattice.stylex";
+import { Sky } from "../effect/sky";
+import { PartOfSpeech, Syllables } from "../home/entry/entry";
+import { lattice, rule } from "./lattice.stylex";
 import { headwordBox, headwordDot, headwordLetters } from "../content/generated/headword";
 import { Mark } from "./mark";
+import { AgentField, TerminalField } from "../install/install";
+import { agentPrompt } from "../content/site";
 import {
     type Destination,
     isExternal,
@@ -22,7 +24,9 @@ import { typeScale, tracking } from "./type.stylex";
 export function Footer() {
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
-            <Goo xstyle={styles.band}>
+            {/* mark the rails where the footer's top edge meets them */}
+            <span aria-hidden="true" {...style.attrs(lattice.crossings, lattice.crossingsTop)} />
+            <Sky xstyle={styles.band}>
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
                     {/* the verb's dictionary entry, as each section heads with one */}
                     <div {...style.attrs(styles.cell, styles.entry)}>
@@ -32,12 +36,12 @@ export function Footer() {
                                 <Syllables syllables={["de", "stack"]} />
                             </b>
                             <span>/diːˈstak/</span>
-                            <i>verb</i>
+                            <PartOfSpeech>verb</PartOfSpeech>
                         </p>
                         <p {...style.attrs(styles.definition)}>to program the universe</p>
                     </div>
 
-                    {/* the site's menu, and the community off the site */}
+                    {/* the site's menu, the community off the site, and the install command */}
                     {columns.map(([title, destinations], index) => (
                         <nav
                             aria-label={title}
@@ -53,6 +57,11 @@ export function Footer() {
                             ))}
                         </nav>
                     ))}
+                    <div {...style.attrs(styles.cell, styles.column, styles.install)}>
+                        <h2 {...style.attrs(styles.heading)}>Ask your agent, or install</h2>
+                        <AgentField prompt={agentPrompt} />
+                        <TerminalField />
+                    </div>
 
                     {/* close on the headword itself, its ink touching every edge */}
                     <svg
@@ -69,7 +78,7 @@ export function Footer() {
                         />
                     </svg>
                 </div>
-            </Goo>
+            </Sky>
         </footer>
     );
 }
@@ -112,8 +121,6 @@ function FooterLink(properties: { destination: Destination | PendingDestination 
 /** The footer styles. */
 const styles = style.create({
     root: {
-        marginInline: "auto",
-        maxWidth: frame.width,
         position: "relative",
         width: "100%",
         zIndex: 1,
@@ -122,14 +129,13 @@ const styles = style.create({
         minHeight: frame.bar,
     },
     colophon: {
-        borderInlineWidth: 0,
         color: color.foreground,
         containerType: "inline-size",
         fontFamily: font.text,
     },
     cell: {
         alignContent: "start",
-        borderColor: `color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        borderColor: rule.color,
         borderStyle: "solid",
         borderWidth: 0,
         borderInlineStartWidth: stroke.border,
@@ -141,7 +147,9 @@ const styles = style.create({
     },
     entry: {
         borderInlineStartWidth: 0,
-        gridColumn: { default: "span 6", [media.maxMd]: "1 / -1" },
+        gridColumn: "1 / -1",
+        paddingBlock: { default: "7rem 6rem", [media.maxMd]: "4rem 3rem" },
+        rowGap: "1.25rem",
     },
     kicker: {
         alignItems: "center",
@@ -160,16 +168,21 @@ const styles = style.create({
         fontSize: typeScale.closing,
         fontWeight: weight.semibold,
         letterSpacing: tracking.display,
-        lineHeight: 1.15,
+        lineHeight: 1.05,
         margin: 0,
     },
     column: {
-        borderTopWidth: { default: 0, [media.maxMd]: stroke.border },
+        borderTopWidth: stroke.border,
         gridColumn: { default: "span 3", [media.maxMd]: "span 2" },
         justifyItems: "start",
+        paddingBlock: { default: "2.5rem 3.5rem", [media.maxMd]: "2rem" },
     },
     firstColumn: {
-        borderInlineStartWidth: { default: stroke.border, [media.maxMd]: 0 },
+        borderInlineStartWidth: 0,
+    },
+    install: {
+        gridColumn: { default: "span 6", [media.maxMd]: "1 / -1" },
+        justifyItems: "stretch",
     },
     heading: {
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
@@ -194,7 +207,7 @@ const styles = style.create({
         cursor: "default",
     },
     poster: {
-        borderTopColor: `color-mix(in srgb, ${color.foreground} 14%, transparent)`,
+        borderTopColor: rule.color,
         borderTopStyle: "solid",
         borderTopWidth: stroke.border,
         display: "block",

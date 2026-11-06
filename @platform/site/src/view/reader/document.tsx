@@ -9,6 +9,7 @@ import * as style from "@destack/style";
 import { type Document, type DocumentContent } from "../content/document";
 import { Breadcrumbs } from "./breadcrumbs";
 import { publicationStyles } from "./publication.stylex";
+import { lattice } from "../layout/lattice.stylex";
 import { blocks } from "./blocks";
 import { Reader } from "./reader";
 import { PageHeader } from "./header";
@@ -103,7 +104,7 @@ function DocumentNavigation(properties: DocumentNavigationProperties) {
 
     return (
         <nav aria-label="Manual contents">
-            <div {...style.attrs(publicationStyles.context)}>
+            <div {...style.attrs(lattice.ruleBottom, publicationStyles.context)}>
                 <a href={navigation().root.route} {...style.attrs(publicationStyles.contextTitle)}>
                     {navigation().root.title}
                 </a>

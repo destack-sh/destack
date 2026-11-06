@@ -14,7 +14,7 @@ const BAR = "56px";
 const SECTION = `clamp(720px, calc(100svh - ${BAR}), 1080px)`;
 
 /** The height of every dictionary entry on desktop, so the sections line up. */
-const ENTRY = "12rem";
+const ENTRY = "13rem";
 
 /** The height of a figure's label row, with its rule. */
 const LABEL = "50px";
@@ -59,6 +59,8 @@ export const frame = style.defineVars({
     section: SECTION,
     /** The height of every dictionary entry on desktop. */
     entry: ENTRY,
+    /** The height of a figure's label row, with its rule. */
+    label: LABEL,
     /** The stack figure's row height. */
     stage: {
         default: STAGE,

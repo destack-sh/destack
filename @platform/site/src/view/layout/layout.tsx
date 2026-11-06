@@ -6,10 +6,10 @@ import { defineMetadata, Metadata } from "@destack/view/document";
 
 import { brand } from "../brand";
 import { origin, tagline } from "../content/site";
-import GooFieldIsland from "../islands/goo";
 import Shortcuts from "../islands/shortcuts";
 import TopBarIsland from "../islands/topbar";
 import { Footer } from "./footer";
+import { paper } from "./lattice.stylex";
 
 /** The metadata every page starts from: the site's name, origin, preview and icons. */
 const metadata = defineMetadata({
@@ -29,15 +29,14 @@ const metadata = defineMetadata({
     manifest: "/manifest.webmanifest",
 });
 
-/** Lay out every page in the site frame, with the one goo field under its goo cells. */
+/** Lay out every page in the site frame, between the sky bands of its top bar and footer. */
 export function Layout(properties: RouteSectionProps) {
     // follow the route the page renders at, which the navigation marks
     const location = useLocation();
 
     return (
         <Metadata {...metadata}>
-            <div {...style.attrs(styles.root)}>
-                <GooFieldIsland />
+            <div {...style.attrs(paper.ground, styles.root)}>
                 <Shortcuts />
                 <TopBarIsland path={location.pathname} />
                 <main {...style.attrs(styles.main)}>

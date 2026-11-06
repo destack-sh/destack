@@ -1,5 +1,5 @@
 import { frame } from "../layout/frame.stylex";
-import { color, font, stroke } from "@destack/theme/tokens.stylex";
+import { color, font } from "@destack/theme/tokens.stylex";
 import { formatReadTime } from "../content/presentation";
 import { text } from "@destack/theme/text";
 import type { JSX } from "@destack/view";
@@ -91,7 +91,7 @@ export function Reader(properties: ReaderProperties) {
 /** Render one toolbar at its responsive DOM position. */
 function ReaderToolbar(properties: ReaderToolbarProperties) {
     return (
-        <header {...style.attrs(text.subheadline, styles.toolbar)}>
+        <header {...style.attrs(text.subheadline, lattice.ruleBottom, styles.toolbar)}>
             <Contents>{properties.navigation()}</Contents>
 
             <div {...style.attrs(styles.location)}>{properties.location()}</div>
@@ -159,9 +159,6 @@ const styles = style.create({
     },
     toolbar: {
         alignItems: "center",
-        borderBottomColor: color.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
         color: color.foreground,
         display: "grid",
         fontFamily: font.text,

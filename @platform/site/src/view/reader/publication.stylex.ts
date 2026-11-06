@@ -61,9 +61,6 @@ export const publicationStyles = style.create({
     },
     context: {
         alignItems: "center",
-        borderBottomColor: color.border,
-        borderBottomStyle: "solid",
-        borderBottomWidth: stroke.border,
         display: "flex",
         gap: "1rem",
         height: frame.bar,

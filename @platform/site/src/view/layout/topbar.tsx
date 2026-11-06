@@ -16,9 +16,10 @@ import { agentPrompt } from "../content/site";
 import { InstallList } from "../install/install";
 import { CommandPalette } from "./palette";
 import { frame } from "./frame.stylex";
-import { Goo } from "../effect/goo";
+import { Sky } from "../effect/sky";
 import { Mark } from "./mark";
 import { lattice } from "./lattice.stylex";
+import { press } from "./press";
 import {
     type Destination,
     discord,
@@ -69,8 +70,8 @@ export function TopBar(properties: { readonly path: string }) {
     return (
         <header {...style.attrs(styles.root)}>
             <Sheet open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
-                <Goo xstyle={styles.band}>
-                    <div {...style.attrs(lattice.frame, lattice.ruleBottom, styles.bar)}>
+                <Sky xstyle={styles.band}>
+                    <div {...style.attrs(lattice.frame, styles.bar)}>
                         {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
                         <div {...style.attrs(styles.content)}>
                             <a href={home.href} {...style.attrs(styles.brand)}>
@@ -81,18 +82,11 @@ export function TopBar(properties: { readonly path: string }) {
                                 aria-label="Primary navigation"
                                 {...style.attrs(styles.navigation)}
                             >
-                                {menu.map((destination, index) => (
-                                    <>
-                                        {index > 0 && (
-                                            <span aria-hidden="true" {...style.attrs(styles.dot)}>
-                                                ·
-                                            </span>
-                                        )}
-                                        <MenuLink
-                                            destination={destination}
-                                            isActive={active() === destination}
-                                        />
-                                    </>
+                                {menu.map((destination) => (
+                                    <MenuLink
+                                        destination={destination}
+                                        isActive={active() === destination}
+                                    />
                                 ))}
                             </nav>
 
@@ -109,7 +103,7 @@ export function TopBar(properties: { readonly path: string }) {
                                     Sign in
                                 </span>
                                 <Popover>
-                                    <PopoverTrigger size="sm" xstyle={styles.get}>
+                                    <PopoverTrigger size="sm" xstyle={[press.key, styles.get]}>
                                         Get Destack
                                     </PopoverTrigger>
                                     <PopoverContent
@@ -131,7 +125,7 @@ export function TopBar(properties: { readonly path: string }) {
                             </div>
                         </div>
                     </div>
-                </Goo>
+                </Sky>
                 <SheetContent
                     side="right"
                     aria-label="Site navigation"
@@ -207,6 +201,9 @@ export function TopBar(properties: { readonly path: string }) {
                     </nav>
                 </SheetContent>
             </Sheet>
+
+            {/* mark the rails where the bar's bottom edge meets them */}
+            <span aria-hidden="true" {...style.attrs(lattice.crossings, lattice.crossingsBottom)} />
         </header>
     );
 }
@@ -257,8 +254,6 @@ function MenuLink(properties: {
 const styles = style.create({
     root: {
         color: color.foreground,
-        marginInline: "auto",
-        maxWidth: frame.width,
         position: "relative",
         width: "100%",
         zIndex: 1,
@@ -298,16 +293,15 @@ const styles = style.create({
     navigation: {
         alignItems: "baseline",
         color: color.foreground,
+        columnGap: "1.75rem",
         display: { default: "flex", [media.maxMd]: "none" },
-        fontSize: typeScale.body,
+        fontFamily: font.code,
+        fontSize: "0.75rem",
+        letterSpacing: tracking.label,
+        textTransform: "uppercase",
         insetInlineStart: "50%",
         position: "absolute",
         transform: "translateX(-50%)",
-    },
-    dot: {
-        color: color.primary,
-        fontWeight: weight.semibold,
-        marginInline: "0.55em",
     },
     link: {
         color: {
@@ -321,7 +315,9 @@ const styles = style.create({
         textUnderlineOffset: "0.2em",
     },
     active: {
-        textDecorationLine: "underline",
+        color: color.primary,
+        "::before": { color: color.primary, content: '"[ "' },
+        "::after": { color: color.primary, content: '" ]"' },
     },
     pending: {
         color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
@@ -338,6 +334,7 @@ const styles = style.create({
         marginInlineStart: "auto",
     },
     get: {
+        boxShadow: { default: `2px 2px 0 ${color.primary}`, ":active": "none" },
         backgroundColor: {
             default: color.foreground,
             ":hover": { default: null, [media.hover]: color.primary },
@@ -412,7 +409,7 @@ const styles = style.create({
             ":hover": { default: null, [media.hover]: color.primary },
         },
         display: "flex",
-        fontSize: typeScale.display,
+        fontSize: typeScale.title,
         gap: "1rem",
         justifyContent: "space-between",
         paddingBlock: "1.25rem",

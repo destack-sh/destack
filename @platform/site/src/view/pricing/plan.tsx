@@ -15,6 +15,7 @@ import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
 import { type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
+import { press } from "../layout/press";
 
 /** The product, where accounts subscribe to a plan. */
 const PRODUCT = "https://destack.app/";
@@ -153,7 +154,6 @@ export function PlansLabel(properties: {
                             ? "Show personal plans"
                             : "Show organisation plans"
                     }
-                    isCharging={false}
                     onToggle={() =>
                         properties.onAudience(
                             properties.audience === "organisation" ? "personal" : "organisation",
@@ -235,6 +235,7 @@ function PlanCard(properties: { plan: Plan; tagline: string; count: number; curr
                 href={isFree ? "/#present-participle" : plan.isContract ? CONTACT : PRODUCT}
                 {...style.attrs(
                     buttonVariants({ variant: isPicked ? "default" : "outline", size: "lg" }),
+                    press.key,
                     styles.action,
                 )}
             >
@@ -459,7 +460,7 @@ const styles = style.create({
         margin: 0,
     },
     amount: {
-        fontSize: typeScale.display,
+        fontSize: typeScale.title,
         fontVariantNumeric: "tabular-nums",
         fontWeight: weight.medium,
         letterSpacing: tracking.display,

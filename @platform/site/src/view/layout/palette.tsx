@@ -415,7 +415,10 @@ function currentSections(): readonly PageSection[] {
     return [...document.querySelectorAll<HTMLElement>("header[id]:has(> h1, > h2)")].map(
         (header) => ({
             id: header.id,
-            partOfSpeech: present(header.querySelector("p i")?.textContent, "entry part of speech"),
+            partOfSpeech: present(
+                header.querySelector<HTMLElement>("[data-part-of-speech]")?.dataset["partOfSpeech"],
+                "entry part of speech",
+            ),
             heading: present(header.querySelector("h1, h2")?.textContent, "entry heading"),
         }),
     );

@@ -1,17 +1,18 @@
 import { frame } from "../layout/frame.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, motion, stroke } from "@destack/theme/tokens.stylex";
+import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
 import { installCommand } from "../content/site";
 import { lattice } from "../layout/lattice.stylex";
+import { press } from "../layout/press";
 import { type Download, type System, systems } from "./catalog";
 import { createDownloads } from "./download";
 import { Glyph } from "../home/figure/glyph";
 import { screen } from "../layout/screen.stylex";
 import { createCopy } from "../layout/copy";
-import { typeScale } from "../layout/type.stylex";
+import { tracking, typeScale } from "../layout/type.stylex";
 import { brand } from "../brand";
 
 /** The detected system and published build the download field shows. */
@@ -32,7 +33,7 @@ function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
     );
 }
 
-/** Download the published build for this machine, or show the field grayed out when none fits. */
+/** Download the published build for this machine, or mark the field as coming when none fits. */
 function DownloadField(properties: { system: System | undefined; download: Download | undefined }) {
     // explain a missing build: none for this system yet, or none for phones and tablets
     const missing = () =>
@@ -47,12 +48,12 @@ function DownloadField(properties: { system: System | undefined; download: Downl
                 <span
                     aria-disabled="true"
                     title={missing()}
-                    {...style.attrs(styles.field, styles.tiled, styles.unavailable)}
+                    {...style.attrs(press.key, styles.field, styles.tiled, styles.unavailable)}
                 >
                     <Product />
-                    <Key>
-                        <Glyph name="download" size={16} />
-                    </Key>
+                    <span {...style.attrs(styles.soon)}>
+                        {properties.system === undefined ? "Desktop" : "Soon"}
+                    </span>
                 </span>
             }
         >
@@ -61,7 +62,7 @@ function DownloadField(properties: { system: System | undefined; download: Downl
                     href={download().url}
                     aria-label={`Download ${download().label}`}
                     title={`Destack for ${download().label}`}
-                    {...style.attrs(styles.field, styles.tiled)}
+                    {...style.attrs(press.key, styles.field, styles.tiled)}
                 >
                     <Product />
                     <Key isPrimary>
@@ -94,7 +95,7 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
             aria-label={`Copy ${properties.name}`}
             title={copied.isCopied() ? "Copied" : properties.text}
             onClick={() => void copied.copy(properties.text)}
-            {...style.attrs(styles.field)}
+            {...style.attrs(press.key, styles.field)}
         >
             {properties.children}
             <Key>
@@ -105,7 +106,7 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
 }
 
 /** Offer the agent prompt as one field that copies itself. */
-function AgentField(properties: { prompt: string }) {
+export function AgentField(properties: { prompt: string }) {
     return (
         <CopyField name="prompt" text={properties.prompt}>
             <span {...style.attrs(styles.text)}>
@@ -117,7 +118,7 @@ function AgentField(properties: { prompt: string }) {
 }
 
 /** Offer the install command as one field that copies itself. */
-function TerminalField() {
+export function TerminalField() {
     return (
         <CopyField name="command" text={installCommand}>
             <code {...style.attrs(styles.text)}>
@@ -159,13 +160,15 @@ export function InstallWays(properties: { prompt: string }) {
         <ul {...style.attrs(lattice.cell, styles.column)}>
             {waysOf(properties.prompt, desktop).map((way, index) => (
                 <li {...style.attrs(styles.way)}>
-                    {/* sit an "or" on the rule between two ways */}
-                    {index === 0 ? undefined : (
-                        <span aria-hidden="true" {...style.attrs(styles.or)}>
-                            or
-                        </span>
-                    )}
-                    <span {...style.attrs(styles.title)}>{way.name()}</span>
+                    {/* lead every way after the first with an "or" */}
+                    <span {...style.attrs(styles.title)}>
+                        {index === 0 ? undefined : (
+                            <span aria-hidden="true" {...style.attrs(styles.or)}>
+                                or
+                            </span>
+                        )}
+                        {way.name()}
+                    </span>
                     {way.field()}
                 </li>
             ))}
@@ -193,6 +196,8 @@ export function InstallList(properties: { prompt: string }) {
 /** The install styles. */
 const styles = style.create({
     column: {
+        backgroundColor: color.primary,
+        backgroundImage: "none",
         display: "grid",
         gridColumn: "1 / -1",
         gridTemplateColumns: {
@@ -204,7 +209,7 @@ const styles = style.create({
         padding: 0,
     },
     way: {
-        borderColor: color.border,
+        borderColor: `color-mix(in srgb, ${color.foreground} 30%, transparent)`,
         borderStyle: "solid",
         borderWidth: 0,
         borderInlineStartWidth: {
@@ -230,28 +235,21 @@ const styles = style.create({
         fontWeight: 600,
     },
     or: {
-        backgroundColor: color.background,
-        color: color.mutedForeground,
+        color: `color-mix(in srgb, ${color.foreground} 70%, transparent)`,
         fontFamily: font.text,
         fontSize: typeScale.small,
         fontStyle: "italic",
-        left: { default: 0, [screen.belowDesktop]: "50%" },
-        lineHeight: 1,
-        paddingBlock: { default: "0.625rem", [screen.belowDesktop]: 0 },
-        paddingInline: { default: 0, [screen.belowDesktop]: "0.75rem" },
-        position: "absolute",
-        top: { default: "calc(100% - 1.5rem - 1.5rem)", [screen.belowDesktop]: 0 },
-        transform: "translate(-50%, -50%)",
-        zIndex: 1,
+        fontWeight: 400,
+        marginInlineEnd: "0.375rem",
     },
     field: {
         alignItems: "center",
         backgroundColor: {
-            default: "transparent",
+            default: color.background,
             ":hover": { default: null, [media.hover]: color.muted },
         },
-        borderColor: color.border,
-        borderRadius: "6px",
+        borderColor: color.foreground,
+        borderRadius: 0,
         borderStyle: "solid",
         borderWidth: stroke.border,
         boxSizing: "border-box",
@@ -266,11 +264,7 @@ const styles = style.create({
         paddingInlineEnd: "0.375rem",
         textAlign: "start",
         textDecorationLine: "none",
-        transitionDuration: motion.durationShort,
-        transitionProperty: "background-color, color, transform",
-        transitionTimingFunction: motion.easingStandard,
         width: "100%",
-        ":active": { transform: "scale(0.99)" },
     },
     list: {
         display: "grid",
@@ -286,9 +280,18 @@ const styles = style.create({
     },
     unavailable: {
         backgroundColor: "transparent",
-        cursor: "not-allowed",
-        opacity: 0.5,
+        boxShadow: "none",
+        borderStyle: "dashed",
+        cursor: "default",
         transform: "none",
+    },
+    soon: {
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        fontWeight: 600,
+        letterSpacing: tracking.label,
+        paddingInline: "0.625rem",
+        textTransform: "uppercase",
     },
     product: {
         alignItems: "center",

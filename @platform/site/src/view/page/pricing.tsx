@@ -104,14 +104,14 @@ export function Pricing() {
                 <ComparisonLabel />
                 <Comparison audience={audience()} currency={currency()} />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
+            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
             {/* the rate card */}
             <section {...style.attrs(lattice.frame, lattice.ruled)}>
                 <Entry form={rate} />
                 <Rates currency={currency()} />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
+            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
             {/* the bill: your tools at seat prices, or your apps at usage prices */}
             <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.figure)}>
@@ -125,7 +125,7 @@ export function Pricing() {
                     onPick={pick}
                 />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.frame, lattice.interval)} />
+            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
         </>
     );
 }
