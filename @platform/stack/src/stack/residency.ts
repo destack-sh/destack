@@ -1,7 +1,9 @@
 import { DOMAINS } from "@destack/account/address";
 import type { ResidencyCode } from "@destack/account/object";
 import { install } from "@destack/stack/declare";
-import { defineCatalog } from "@destack/finance/declare";
+import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import { connectionVault } from "@destack/connection/stack";
+import { defineCatalog, stripe } from "@destack/finance/declare";
 import financePackage, { FINANCE_INSTALLATION } from "@destack/finance/package";
 import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import { credentialVault, repositoryStorage } from "@destack/forge/stack";
@@ -32,49 +34,67 @@ function relayRoute(hostname: string) {
 
 /** Declare a residency home's stack: the registry, billing, and its relay at some routes. */
 function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayRoute>>>) {
-    return defineStack([financePackage, vaultPackage, forgePackage, gitStorage], {
-        sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
-        ...defineCatalog(PLANS),
-        vaults: { platform: platformVault.declare(), credentials: credentialVault.declare() },
-        gitStorages: { repositories: repositoryStorage.declare() },
-        issuers: { github: {} },
-        secrets: {
-            "github-webhook": { parent: "platform", name: "github-webhook" },
-            "github-private-key": { parent: "platform", name: "github-private-key" },
-            "stripe-secret-key": { parent: "platform", name: "stripe-secret-key" },
-        },
-        installations: {
-            vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
-            forge: install(
-                forgePackage,
-                {
-                    repositories: "repositories",
-                    credentials: "credentials",
-                    "github-webhook": "github-webhook",
-                    "github-private-key": "github-private-key",
+    return defineStack(
+        [financePackage, vaultPackage, connectionPackage, forgePackage, gitStorage],
+        {
+            sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
+            ...defineCatalog(PLANS),
+            vaults: {
+                platform: platformVault.declare(),
+                credentials: credentialVault.declare(),
+                connections: connectionVault.declare(),
+            },
+            // the platform's Stripe account, whose key the deploy rotates in
+            connections: {
+                stripe: {
+                    ...stripe.declare(),
+                    protocol: { kind: "key", header: "authorization", scheme: "Bearer" },
                 },
-                { isolation: "process", name: FORGE_INSTALLATION },
-            ),
-            finance: install(
-                financePackage,
-                { "stripe-secret-key": "stripe-secret-key" },
-                { isolation: "process", name: FINANCE_INSTALLATION },
-            ),
-            message: install(messagePackage, {}, { isolation: "process", name: "message" }),
-            notification: install(
-                notificationPackage,
-                {},
-                { isolation: "process", name: "notification" },
-            ),
-            relay: install(relayPackage, {}, { name: "relay" }),
-            observability: install(
-                observabilityPackage,
-                {},
-                { isolation: "process", name: "observability" },
-            ),
+            },
+            gitStorages: { repositories: repositoryStorage.declare() },
+            issuers: { github: {} },
+            secrets: {
+                "github-webhook": { parent: "platform", name: "github-webhook" },
+                "github-private-key": { parent: "platform", name: "github-private-key" },
+            },
+            installations: {
+                vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+                connection: install(
+                    connectionPackage,
+                    { credentials: "connections" },
+                    { isolation: "process", name: CONNECTION_INSTALLATION },
+                ),
+                forge: install(
+                    forgePackage,
+                    {
+                        repositories: "repositories",
+                        credentials: "credentials",
+                        "github-webhook": "github-webhook",
+                        "github-private-key": "github-private-key",
+                    },
+                    { isolation: "process", name: FORGE_INSTALLATION },
+                ),
+                finance: install(
+                    financePackage,
+                    { stripe: "stripe" },
+                    { isolation: "process", name: FINANCE_INSTALLATION },
+                ),
+                message: install(messagePackage, {}, { isolation: "process", name: "message" }),
+                notification: install(
+                    notificationPackage,
+                    {},
+                    { isolation: "process", name: "notification" },
+                ),
+                relay: install(relayPackage, {}, { name: "relay" }),
+                observability: install(
+                    observabilityPackage,
+                    {},
+                    { isolation: "process", name: "observability" },
+                ),
+            },
+            routes,
         },
-        routes,
-    });
+    );
 }
 
 /** Route a relay's own host, and on the platform residency's home every edge name. */
