@@ -5,7 +5,7 @@ import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
 import { type BlobStore, eq, Snapshot, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
-import { account, claimShape, spaceRecordShape } from "@destack/account/object";
+import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
     Claim,
     claimTable,
@@ -236,6 +236,33 @@ export class Forge {
 
         // refer to the package in the forge's home
         return { ...packageObject.reference(home, found.objectId), id: found.objectId };
+    }
+
+    /** Refuse a builtin outside the platform's organization, the one owning the forge's home. */
+    static async requireBuiltin(
+        name: string,
+        reader: ClaimReader,
+        home: Identifier<"space">,
+    ): Promise<void> {
+        // read the organization of the forge's home account and of the package's account
+        const homeAccount = await reader
+            .read(account.table)
+            .findFirst({ where: { id: Account.ofHome(home) } });
+        const platform = present(homeAccount, `the account of the forge's home ${home}`).scope;
+        const { handle } = PackageName.split(name);
+        await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
+        const holder = await Claim.owner(
+            reader.read(claimTable),
+            Claim.key(account, "handle", [handle]),
+        );
+
+        // refuse another organization's or a person's package
+        if (holder?.owner !== platform) {
+            throw ForgeError.of(
+                "BUILTIN_FOREIGN",
+                `${name} is a builtin, which only the platform's organization publishes`,
+            );
+        }
     }
 
     /** Follow a claim's key at the universe on demand. */

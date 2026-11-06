@@ -2,14 +2,19 @@ import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
 import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
-import { Digest, found, Identifier } from "@destack/schema";
+import { Commit, Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { PackageId } from "@destack/package";
+import { Package, PackageId } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
+import { MemoryBuild } from "@destack/package/test";
 import { Registry } from "@destack/registry/client";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
 import { fixtureBuild, prereleaseBuild, uncommittedBuild } from "./fixture/build.ts";
 import { COMMIT } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
+import { Account, account } from "@destack/account/object";
+import { OPERATOR_EMAIL } from "@destack/account/test";
+import { Snapshot } from "@destack/db";
 
 /** Read the code a refused call fails with, or accepted. */
 async function code(attempt: Promise<unknown>): Promise<string> {
@@ -476,4 +481,75 @@ test("find a published package's account by its package id across the universe",
             PackageId.parse(Identifier.create("package", forge.environment)),
         ]),
     ]).toEqual([{ scope: ACCOUNT_ID, id: answer.packageId }, undefined]);
+});
+
+test("publish a builtin under the platform's organization, which owns the forge's home, and refuse one under another account", async () => {
+    // find the account whose home the forge is in, which the operator manages, and a tenant's
+    const forge = await TestForge.open();
+    const { crypto } = forge.environment;
+    const platformId = Account.ofHome(forge.space);
+    const platformAccount = await Snapshot.live(forge.served.database)
+        .read(account.table)
+        .findFirst({ where: { id: platformId } });
+    const platformHandle = present(platformAccount, "the platform account").handle;
+    const operator = forge.home.universe.person(OPERATOR_EMAIL);
+    const tenant = await forge.tenant();
+
+    // publish a builtin's package under each account and push its build as the account's manager
+    const builtin = async (
+        id: string,
+        accountId: Identifier<"account">,
+        handle: string,
+        person: TestPerson,
+    ) => {
+        const build = await MemoryBuild.of(
+            Package.parse({ id, name: `@${handle}/kernel`, version: "2026.9.0" }),
+            [],
+            crypto,
+            { role: "builtin", commit: Commit.parse(COMMIT) },
+        );
+        const packageId = PackageManifest.package(build.manifest).id;
+        await forge.client(person).package.create({
+            spaceId: forge.space,
+            accountId,
+            id: packageId,
+            requestId: RequestId.create(forge.environment),
+            name: "kernel",
+            visibility: "private",
+        });
+        const manifest = await forge.push(build, person);
+
+        // release it as the manager
+        return refusal(
+            forge.client(person).release.create({
+                spaceId: forge.space,
+                requestId: RequestId.create(forge.environment),
+                parentId: packageId,
+                manifest,
+            }),
+        );
+    };
+
+    // release the platform's builtin, and refuse the tenant's
+    expect({
+        platform: await builtin(
+            "package-01996ab0-0000-7000-8000-00000000c201",
+            platformId,
+            platformHandle,
+            operator,
+        ),
+        tenant: await builtin(
+            "package-01996ab0-0000-7000-8000-00000000c202",
+            tenant.accountId,
+            "tenant-1",
+            tenant.owner,
+        ),
+    }).toEqual({
+        platform: "done",
+        tenant: [
+            "FORBIDDEN",
+            "BUILTIN_FOREIGN",
+            "@tenant-1/kernel is a builtin, which only the platform's organization publishes",
+        ],
+    });
 });

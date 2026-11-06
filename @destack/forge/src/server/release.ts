@@ -67,6 +67,15 @@ export const ReleaseMethod = {
             throw ForgeError.of("NPM_NAME_TAKEN", "the npm name belongs to another package");
         }
 
+        // refuse a builtin outside the platform's organization
+        if (contents.manifest.role === "builtin") {
+            await Forge.requireBuiltin(
+                name,
+                context,
+                schema.identifier("space").parse(context.scope),
+            );
+        }
+
         // lease the npm units it depends on, which its readers read with it
         const units = await store.units(manifest, parentId);
         for (const each of units) {

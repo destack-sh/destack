@@ -18,6 +18,7 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     CREDENTIAL_MISSING: { code: "UNAUTHORIZED" },
 
     // forbidden
+    BUILTIN_FOREIGN: { code: "FORBIDDEN" },
     INSTALLATION_NOT_CLAIMED: { code: "FORBIDDEN" },
 
     // not found
