@@ -556,6 +556,8 @@ export interface ObjectIndex {
     readonly across: () => ObjectType | typeof universe;
     /** The namespace shared with other types' same-named indexes, the type's name if absent. */
     readonly namespace?: string;
+    /** The characters keys leave out, so values differing only in them claim one name. */
+    readonly fold?: "hyphens";
 }
 
 /** A method as callers call it: kind, permission, route, and input and output as JSON Schema. */

@@ -2290,7 +2290,7 @@ export class ObjectStore {
         return [
             ...this.blobs.controllers(),
             ...(this.#journal === undefined ? [] : this.#journal.events.controllers()),
-            ...(this.claims?.home === undefined
+            ...(this.claims === undefined
                 ? []
                 : [Reservation.controller(this, this.claims.object, this.claims.home)]),
             ...(isSettled ? [Settlement.controller(this)] : []),

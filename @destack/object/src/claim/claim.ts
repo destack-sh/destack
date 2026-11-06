@@ -28,6 +28,7 @@ import { canonicalize, Identifier, type UuidEnvironment, present, schema } from 
 import { Scope } from "@destack/sync";
 
 import { ObjectKey, ObjectType, type ObjectIndex } from "../object/object.ts";
+import { ObjectTable } from "../object/table.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -90,10 +91,9 @@ export const ClaimLookup = {
 export const Claim = Object.assign(claim, {
     /** Read the index of a type's unique index: its shared namespace, or the type's index. */
     index(type: ObjectType, name: string): string {
-        return (
-            type.indexes[name]?.namespace ??
-            `${type.policy.definition.packageId}/${type.name}/${name}`
-        );
+        const declared = present(type.indexes[name], `the index ${name} of ${type.name}`);
+
+        return ObjectTable.indexName(type.policy.definition.packageId, type.name, name, declared);
     },
 
     /** Read a claim's indexed values from its key, without the scope it is unique within. */
@@ -118,7 +118,7 @@ export const Claim = Object.assign(claim, {
             throw new TypeError(`index ${name} of ${type.name} needs a scope`);
         }
 
-        return { index: Claim.index(type, name), key: canonicalize([within, ...values]) };
+        return { index: Claim.index(type, name), key: keyOf(declared, within, values) };
     },
 
     /** Read the owner scope of a row's names: its owner's when it has one, else its scope. */
@@ -149,7 +149,7 @@ export const Claim = Object.assign(claim, {
             const within = await Claim.enclosingScope(type, declared.across, scope, snapshot);
             claims.push({
                 index: Claim.index(type, name),
-                key: canonicalize([within, ...values]),
+                key: keyOf(declared, within, values),
                 packageId: type.policy.definition.packageId,
                 objectId: id,
                 owner,
@@ -607,3 +607,14 @@ const ClaimKey = {
         });
     },
 };
+
+/** Key values within a scope, folded as their index declares. */
+function keyOf(declared: ObjectIndex, within: string, values: readonly unknown[]): string {
+    // leave out the characters the index folds from string values
+    const folded =
+        declared.fold === "hyphens"
+            ? values.map((value) => (typeof value === "string" ? value.replaceAll("-", "") : value))
+            : values;
+
+    return canonicalize([within, ...folded]);
+}

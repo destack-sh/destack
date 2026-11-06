@@ -8,6 +8,7 @@ import {
     Snapshot,
     type Row,
     type RelationalQueryBuilder,
+    defineDatabase,
     sql,
 } from "@destack/db";
 import { claimReservation, type ClaimPrimary, implementPackage } from "../src/server/index.ts";
@@ -18,6 +19,7 @@ import {
     Claimant,
     claimTable,
     defineObject,
+    definePackage,
     field,
     RESERVATION_MILLISECONDS,
 } from "../src/index.ts";
@@ -26,7 +28,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
-import { none, universe } from "@destack/access";
+import { none, principal, relation, universe } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
@@ -36,6 +38,34 @@ import { claim, serveClaims } from "./fixture/claim.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+
+/** Profiles as first released, before their type declared the handle index. */
+const unindexed = defineObject(
+    {
+        name: "profile",
+        plural: "profiles",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            handle: field.string(schema.string().min(1).max(40)).optional(),
+        },
+        permissions: { read: relation("owner"), manage: relation("owner") },
+    },
+    (method) => ({ create: method.create("manage") }),
+);
+
+/** The package of the profiles as first released. */
+const unindexedPackage = definePackage({ objects: { profile: unindexed } });
+
+/** The database of one space's profiles as first released. */
+const unindexedDatabase = defineDatabase({
+    name: "main",
+    ...tablesOf({
+        packages: [objectPackage, { objects: { profile: unindexed }, tables: [] }],
+        follows: [],
+        tables: [],
+    }),
+});
 
 test("enforce unique handles across spaces in separate databases", async () => {
     // run in a world of its own
@@ -384,15 +414,84 @@ test("refuse a name a postgresql write took after a commit's owners read as a lo
 });
 
 /** Serve a space's profiles from their own database, claiming names through a primary. */
-async function serveProfiles(world: Environment, claims: ClaimPrimary) {
-    // store the space's profiles in a separate database
+test("build a global index a migration declares from the rows stored before it, refusing a name another database's rows hold", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await universeStorage(world);
+    const claims = await serveClaims(storage.database, world);
+    const handle = async (name: string) =>
+        (await Claim.lookup(profile, names(storage.database), "handle", [name]))?.id;
+
+    // store profiles in two spaces before their type declares the handle index
+    const east = await storeUnindexed(world, ["ada", "grace"]);
+    const west = await storeUnindexed(world, ["ada"]);
+
+    // migrate each database to the indexed type, which claims the rows stored before
+    const eastServed = await serveProfiles(world, claims, east);
+    await settleControl(eastServed.store);
+    const westServed = await serveProfiles(world, claims, west);
+    const refused = await settleControl(westServed.store).then(
+        () => undefined,
+        (error: unknown) => (error instanceof AggregateError ? error.errors.map(String) : error),
+    );
+
+    // resolve the east's rows by their handles, and refuse the west's ada as a duplicate
+    const [ada, grace] = await east.select().from(profile.table).orderBy(profile.table.handle);
+    expect({
+        ada: await handle("ada"),
+        grace: await handle("grace"),
+        refused,
+    }).toEqual({
+        ada: present(ada, "east's ada").id,
+        grace: present(grace, "east's grace").id,
+        refused: ["FamilyError: handle is taken"],
+    });
+});
+
+/** Store profiles with handles in a space's database while their type declares no index. */
+async function storeUnindexed(world: Environment, handles: readonly string[]) {
+    // store the space's profiles under the type without the index, claiming nothing
     const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);
-    const storage = await TestDatabase.create(profilesDatabase, {
+    const storage = await TestDatabase.create(unindexedDatabase, {
         environment: world,
         isMigrated: true,
     });
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
+    const served = TestObjectStore.serve(
+        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+            servers: [implementPackage(unindexedPackage, {})],
+            chain: async () => undefined,
+            environment: world,
+            origin: { package: Package.of(unindexedPackage) },
+            principal: spacePrincipal(spaceId),
+            callKey: testCallKey,
+            events: await testEvents(storage.database, world),
+            database: storage.database,
+        }),
+    );
+
+    // create one profile per handle, then stop serving the type
+    const alice = served.as(users.alice).client(unindexedPackage);
+    for (const name of handles) {
+        await alice.profile.create({ spaceId, requestId: RequestId.create(world), handle: name });
+    }
+    await served[Symbol.asyncDispose]();
+
+    return storage.database;
+}
+
+async function serveProfiles(
+    world: Environment,
+    claims: ClaimPrimary,
+    stored?: DatabaseConnection,
+) {
+    // store the space's profiles in a separate database, or migrate the one storing them already
+    const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a006`);
+    const database = stored ?? (await profilesStorage(world, spaceId));
+    if (stored !== undefined) {
+        await stored.migrate(profilesDatabase.tables);
+    }
 
     // authenticate each request as the user its bearer credential identifies
     const served = TestObjectStore.serve(
@@ -403,8 +502,8 @@ async function serveProfiles(world: Environment, claims: ClaimPrimary) {
             origin: { package: Package.of(profilesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
-            events: await testEvents(storage.database, world),
-            database: storage.database,
+            events: await testEvents(database, world),
+            database,
             claims,
         }),
     );
@@ -415,10 +514,22 @@ async function serveProfiles(world: Environment, claims: ClaimPrimary) {
         environment: world,
         spaceId,
         store: served.store,
-        database: storage.database,
+        database,
         alice: connect(users.alice),
         bob: connect(users.bob),
     };
+}
+
+/** Store a space's profiles in a fresh database of their own. */
+async function profilesStorage(world: Environment, spaceId: Identifier<"space">) {
+    const storage = await TestDatabase.create(profilesDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+
+    return storage.database;
 }
 
 test("key an index within the enclosing scope it is unique across", async () => {

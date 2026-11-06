@@ -1,4 +1,4 @@
-import { present, type Identifier } from "@destack/schema";
+import { canonicalize, present, type Identifier } from "@destack/schema";
 import { Policy } from "@destack/access";
 import { Scope } from "@destack/sync";
 import {
@@ -21,6 +21,7 @@ import type { VersionBuilderMap } from "../trait/versioned.ts";
 import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
 import type { suspensionColumns } from "../trait/suspendable.ts";
 import { ObjectConstraint } from "./constraint.ts";
+import { claimReservation } from "../claim/reservation.ts";
 import { type SnakeCase, Casing } from "./name.ts";
 import {
     ObjectScope,
@@ -28,6 +29,7 @@ import {
     type TraitInstance,
     type ObjectAggregate,
     type ObjectDefinition,
+    type ObjectIndex,
     type ObjectStorage,
 } from "./object.ts";
 
@@ -217,12 +219,35 @@ export const ObjectTable = {
                 ...(definition.predefined === undefined
                     ? {}
                     : { predefined: definition.predefined }),
+                // index the objects' names at the claim home across databases
+                globalIndexes: () =>
+                    Object.entries(definition.indexes ?? {}).map(([indexName, declared]) => ({
+                        name: ObjectTable.indexName(packageId, name, indexName, declared),
+                        declaration: canonicalize({
+                            on: declared.on,
+                            across: declared.across().name,
+                            fold: declared.fold ?? null,
+                        }),
+                        id: "id",
+                        scope: "scope",
+                        outbox: claimReservation,
+                    })),
             },
             module,
         );
         derived = defined;
 
         return defined;
+    },
+
+    /** Read the identity of a type's index: its shared namespace, or the type's own index. */
+    indexName(
+        packageId: PackageId,
+        typeName: string,
+        indexName: string,
+        declared: ObjectIndex,
+    ): string {
+        return declared.namespace ?? `${packageId}/${typeName}/${indexName}`;
     },
 
     /** Log a table's changes: tracked history, event appends, a controlled generation. */

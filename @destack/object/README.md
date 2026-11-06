@@ -296,6 +296,8 @@ page.implement({
 });
 ```
 
+## Reads
+
 A handler reads object types as clients query them, and plain tables row by row.
 
 ```ts
@@ -463,12 +465,15 @@ const calls = createClient(objectPackage, endpoint);
 await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "desc" } });
 ```
 
-## Unique names
+## Global indexes
 
-An index declared `across` a scope keeps its names unique across databases, and `Claim.lookup` finds a name's owner.
+An index declared `across` a scope keeps its names unique across databases, and a migration builds it from the rows stored before.
 
 ```ts
-indexes: { handle: { on: ["handle"], unique: true, across: () => universe } },
+indexes: {
+    handle: { on: ["handle"], across: () => universe },
+    lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" }, // de-stack takes destack
+},
 
 const claim = defineObject({ name: "claim", /* … */ }, () => claimMethods);
 const home = RemoteStore.of(accounts.store, Scope.universe.id);

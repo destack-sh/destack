@@ -296,11 +296,11 @@ export const Reservation = {
         return reservation;
     },
 
-    /** Declare the controller replacing the names a crash left reserved past their expiry. */
+    /** Declare the controller replacing the names a crash left reserved, or a migration queued. */
     controller(
         store: ObjectStore,
         claim: ClaimType,
-        home: RemoteStore,
+        home: RemoteStore | undefined,
     ): Controller<typeof claimReservation> {
         // find each indexed type by its indexes
         const types = new Map(
@@ -322,11 +322,19 @@ export const Reservation = {
                 const snapshot = Snapshot.live(database);
                 const claimants = await Promise.all(
                     rows.map(async (reservation) => {
+                        // release the names of an index no type declares anymore
+                        const object = types.get(reservation.index);
+                        if (object === undefined) {
+                            return {
+                                indexes: [reservation.index],
+                                objectId: reservation.objectId,
+                                owner: reservation.owner,
+                                claims: [],
+                                state: "active" as const,
+                            };
+                        }
+
                         // read the reserving object's row by its type
-                        const object = present(
-                            types.get(reservation.index),
-                            `the type of index ${reservation.index}`,
-                        );
                         const [row]: readonly Row[] = await database
                             .select()
                             .from(object.table)
@@ -343,8 +351,26 @@ export const Reservation = {
                     }),
                 );
 
-                // replace their names at the home, then forget the reservations
-                await Reservation.replace(claim, home, claimants, store.objects, environment);
+                // replace their names here where the store keeps the claims
+                if (home === undefined) {
+                    const taken = await database.transaction(async (transaction) => {
+                        const refused: Claim[] = [];
+                        for (const claimant of claimants) {
+                            refused.push(
+                                ...(await Claim.replace(transaction, claimant, environment)),
+                            );
+                        }
+
+                        return refused;
+                    });
+                    Reservation.refuse(store.objects, taken);
+                }
+                // otherwise replace them at the claim home
+                else {
+                    await Reservation.replace(claim, home, claimants, store.objects, environment);
+                }
+
+                // forget the reservations
                 await database.transaction(async (transaction) => {
                     for (const reservation of rows) {
                         await transaction
