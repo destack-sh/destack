@@ -1,4 +1,5 @@
 import type { TunnelStatus } from "@destack/tunnel";
+import { Program } from "@destack/package/bun";
 import { PackageMount, refusal, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { checkout, preview } from "./checkout/index.ts";
@@ -292,6 +293,12 @@ export class Computer implements AsyncDisposable {
             }),
         );
         const builtins = await Computer.#builtins(options, shipped, builds.packages);
+
+        // share the builtins with the servers the machine loads, from its compiled table or its files
+        const program = await Program.current(
+            async () => new Map(builtins.map((builtin) => [builtin.name, import.meta.dirname])),
+            options.environment.process.loader,
+        );
         const compilers = await CompilerPool.open(builds.packages);
         stack.defer(() => compilers[Symbol.asyncDispose]());
         const spaces = stack.use(
@@ -313,7 +320,7 @@ export class Computer implements AsyncDisposable {
         const { runtime, processes } = Computer.#startRuntime(
             options,
             origin,
-            { packages: builds.packages, builtins },
+            { packages: builds.packages, program },
             () => machine,
         );
         stack.defer(() => runtime.close());
@@ -670,7 +677,7 @@ export class Computer implements AsyncDisposable {
     static #startRuntime(
         options: ComputerOptions,
         origin: string,
-        builds: { readonly packages: LocalBuildStore; readonly builtins: readonly Package[] },
+        builds: { readonly packages: LocalBuildStore; readonly program: Program },
         machine: () => Machine,
     ): {
         readonly runtime: Runtime & { readonly close: () => Promise<void> };
@@ -697,16 +704,13 @@ export class Computer implements AsyncDisposable {
     static #startProcesses(
         options: ComputerOptions,
         origin: string,
-        {
-            packages,
-            builtins,
-        }: { readonly packages: LocalBuildStore; readonly builtins: readonly Package[] },
+        { packages, program }: { readonly packages: LocalBuildStore; readonly program: Program },
         egress: (scope: Identifier<"space">) => string,
         identity: (scope: Identifier<"space">) => Promise<Deriver>,
         machine: () => Machine,
     ): BunRuntime {
         return new BunRuntime({
-            builtins,
+            program,
             environment: options.environment,
             report: (error) => options.report("runtime.failed", error),
             isolation: options.isolation,

@@ -1,5 +1,4 @@
-import { linkBuiltins } from "./link.ts";
-import type { Package } from "@destack/package";
+import type { Program } from "@destack/package/bun";
 import { RequestBody, SERVER_EXPORT } from "@destack/object";
 import { Authentication } from "@destack/access";
 import { dirname, join } from "node:path";
@@ -84,8 +83,8 @@ export class BunRuntime implements Runtime {
     readonly #directory: string;
     /** The machine's store of builds, with every build's closure. */
     readonly #packages: LocalBuildStore;
-    /** The names of the builtins, whose modules a loaded server shares with this process. */
-    readonly #builtins: ReadonlySet<string>;
+    /** The modules this process shares with the servers it loads: the builtins. */
+    readonly #program: Program;
     /** The machine's egress of a space's instances, below which they call addresses. */
     readonly #egress: (scope: Identifier<"space">) => string;
     /** Resolve the share of traces an installation samples. */
@@ -119,8 +118,8 @@ export class BunRuntime implements Runtime {
         readonly directory: string;
         /** The machine's store of builds, with every build's closure. */
         readonly packages: LocalBuildStore;
-        /** The builtins, whose modules a loaded server shares with this process. */
-        readonly builtins: readonly Package[];
+        /** The modules this process shares with the servers it loads: the builtins. */
+        readonly program: Program;
         /** The machine's egress of a space's instances, below which they call addresses. */
         readonly egress: (scope: Identifier<"space">) => string;
         /** Resolve the share of traces an installation samples, as its space's settings set it. */
@@ -147,7 +146,7 @@ export class BunRuntime implements Runtime {
         // set the directory, the egress, the output and the spaces' identities
         this.#directory = options.directory;
         this.#packages = options.packages;
-        this.#builtins = new Set(options.builtins.map((builtin) => builtin.name));
+        this.#program = options.program;
         this.#egress = options.egress;
         this.#sampling = options.sampling;
         this.#url = options.url;
@@ -198,13 +197,20 @@ export class BunRuntime implements Runtime {
             `the ${specifier} export of ${build.manifest.package.name}`,
         );
 
+        // import a builtin's export as this process's own instance, never a second copy from its build
+        const { name } = build.manifest.package;
+        const shared = specifier === "." ? name : `${name}${specifier.slice(1)}`;
+        if (this.#program.shares(shared)) {
+            return await this.#program.module(shared);
+        }
+
         // place the build, link the builtin modules its closure may load to this process's own, and import the export
         const { build: placed } = await this.#write(build);
         const imports = await this.#imports(build, manifest);
 
         // load the modules as one real operation, completed in order whether the host loaded them before or not
         return await this.#environment.scheduler.run(async () => {
-            await linkBuiltins(imports, this.#builtins);
+            await this.#program.link(imports);
             const module: unknown = await import(join(placed, exported.path));
 
             return module;

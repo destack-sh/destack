@@ -1,4 +1,5 @@
 import type { InstanceExit } from "@destack/stack/runtime";
+import { Program } from "@destack/package/bun";
 import { testHost } from "@destack/test/host";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceId } from "@destack/resource";
@@ -72,7 +73,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        builtins: [],
+        program: Program.of({}, world.process.loader),
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -91,7 +92,8 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     const files = new Map([["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)]]);
     const build = await MemoryBuild.write(
         files,
-        { role: "app",
+        {
+            role: "app",
             package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
             outputs: {
                 bun: {
@@ -333,7 +335,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        builtins: [],
+        program: Program.of({}, world.process.loader),
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -359,7 +361,8 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     };
     const build = await MemoryBuild.write(
         new Map([["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)]]),
-        { role: "app",
+        {
+            role: "app",
             package: { id: PACKAGE, name: "@example/fetch", version: "2026.10.0" },
             outputs: {
                 bun: {
@@ -452,4 +455,69 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
         { status: 200, text: "allowed" },
         { status: 403, text: null },
     ]);
+});
+
+test("import a shared package's export as the machine's own instance, and another's from its placed build", async () => {
+    // share one package's server, and store a build of it and of another, each exporting a placed marker
+    const world = testSimulation().environment("runtime");
+    const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
+    onTestFinished(() => world.files.remove(directory, { recursive: true }));
+    const packages = await testStore(world);
+    onTestFinished(() => packages[Symbol.asyncDispose]());
+    const own = { marker: "own" };
+    const runtime = new BunRuntime({
+        isolation: "sandbox",
+        program: Program.of({ "@example/shared/server": async () => own }, world.process.loader),
+        environment: world,
+        identity: async () => testKeys(world),
+        directory,
+        packages,
+        egress: () => "http://127.0.0.1:7470/.destack/egress",
+        sampling: async () => 1,
+        url: async () => "http://127.0.0.1:7470/installation",
+        output: () => {},
+        report: (error) => {
+            throw error;
+        },
+    });
+    onTestFinished(() => runtime.close());
+    const stored = async (name: string, index: number) => {
+        const files = new Map([
+            ["bun/server.js", new TextEncoder().encode('export const marker = "placed";\n')],
+        ]);
+        const id = PackageId.parse(`package-01996ab0-0000-7000-8000-0000000001a${index}`);
+        const build = await MemoryBuild.write(
+            files,
+            {
+                role: "app",
+                package: { id, name, version: "2026.9.0" },
+                outputs: {
+                    bun: {
+                        runtime: "bun",
+                        emit: true,
+                        workloads: {},
+                        views: {},
+                        directory: "bun",
+                        exports: { "./server": { path: "bun/server.js", imports: [] } },
+                        dependencies: {},
+                        peers: {},
+                    },
+                },
+            },
+            world.crypto,
+        );
+
+        return await packages.put(build);
+    };
+    const [shared, other] = [await stored("@example/shared", 1), await stored("@example/other", 2)];
+
+    // answer the shared one with the machine's instance, and load the other from its placed build
+    const imported = [
+        await runtime.import(shared, "./server"),
+        await runtime.import(other, "./server"),
+    ];
+    expect([
+        imported[0] === own,
+        schema.looseObject({ marker: schema.string() }).parse(imported[1]).marker,
+    ]).toEqual([true, "placed"]);
 });
