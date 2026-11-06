@@ -14,6 +14,9 @@ import { Digest, found, nth, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
 import type { BuildStore } from "../store/index.ts";
 
+/** The Destack version this toolchain builds with: its own release's. */
+const DESTACK_VERSION = import.meta.destack.package.version;
+
 /** The files read at once, 64: well under macOS's default limit of 256 open files. */
 const CONCURRENT_READS = 64;
 
@@ -317,7 +320,9 @@ export class NpmUnit {
         };
         const { integrity } = this.release;
         const manifest = await writer.finish({
+            destack: DESTACK_VERSION,
             package: { ...this.release.package, integrity },
+            role: "library",
             outputs: { [runtime]: output },
             dependencies,
         });

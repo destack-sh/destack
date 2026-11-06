@@ -87,7 +87,7 @@ async function written(
     for (const [path, text] of Object.entries(sources)) {
         await writer.write(path, new TextEncoder().encode(text));
     }
-    const manifest = await writer.finish({ package: built, outputs });
+    const manifest = await writer.finish({ destack: "2026.11.0", role: "app", package: built, outputs });
 
     return new BuildReader(
         manifest,

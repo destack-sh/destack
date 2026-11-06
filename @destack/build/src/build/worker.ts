@@ -45,6 +45,9 @@ import { Writable } from "node:stream";
 import { PRIMARY_RUNTIMES, type Runtime } from "@destack/package/runtime";
 import type { ModuleDescription } from "@destack/package/code";
 
+/** The Destack version this toolchain builds with: its own release's. */
+const DESTACK_VERSION = import.meta.destack.package.version;
+
 /** The Bun output a build compiles for its pages when it ships none, never distributed. */
 const PRERENDER_OUTPUT = "prerender";
 
@@ -312,7 +315,9 @@ export class CompilerWorker implements AsyncDisposable {
             declarations.map((declaration) => declaration.description),
         );
         await files.finish({
+            destack: DESTACK_VERSION,
             package: source,
+            role: opened.packageJson.definition.role,
             ...(options.commit === undefined ? {} : { commit: options.commit }),
             outputs: Object.fromEntries(
                 [...compiled.outputs].map(([name, { output }]) => [name, output]),

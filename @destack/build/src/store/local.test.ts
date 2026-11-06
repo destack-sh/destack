@@ -51,7 +51,7 @@ async function written(
         "package.json",
         new TextEncoder().encode(JSON.stringify({ name: built.name, exports: {} })),
     );
-    const manifest = await writer.finish({
+    const manifest = await writer.finish({ destack: "2026.11.0", role: "app",
         package: Package.parse({ ...built, version: "2026.9.0" }),
         outputs: {
             bun: {

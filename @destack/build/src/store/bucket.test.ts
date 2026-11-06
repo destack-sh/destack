@@ -13,7 +13,7 @@ test("write a build once, read it back by its manifest's digest, and refuse a bu
     const { crypto, clock } = simulation.environment("test");
     const build = await MemoryBuild.write(
         new Map([["src/index.js", new TextEncoder().encode("export {};\n")]]),
-        {
+        { role: "app",
             package: Package.parse({
                 id: "package-01996ab0-0000-7000-8000-000000000001",
                 name: "@example/app",

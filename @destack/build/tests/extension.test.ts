@@ -60,6 +60,7 @@ async function writePackage(
         join(directory, "destack.json"),
         JSON.stringify({
             $schema: SCHEMA,
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
             ...definition,

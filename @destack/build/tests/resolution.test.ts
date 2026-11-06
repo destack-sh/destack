@@ -27,7 +27,7 @@ async function writePackage(
     );
     await files.writeTextFile(
         join(directory, "destack.json"),
-        JSON.stringify({ $schema: SCHEMA, language: "typescript", ...definition }),
+        JSON.stringify({ $schema: SCHEMA, role: "library", language: "typescript", ...definition }),
     );
     await files.writeTextFile(join(directory, "src", "index.ts"), module);
 }
@@ -210,6 +210,7 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
         join(library, "destack.json"),
         JSON.stringify({
             $schema: SCHEMA,
+            role: "library",
             language: "typescript",
             id: "package-01a10a00-0000-7000-8000-000000000011",
             runtimes: ["bun"],

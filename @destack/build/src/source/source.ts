@@ -251,6 +251,29 @@ export async function readPackageJson(
     });
     const definition = packageJson.definition;
 
+    // read whether the package exports its package handle
+    const exports = packageJson.exports;
+    const isPackaged =
+        exports !== null &&
+        typeof exports === "object" &&
+        !Array.isArray(exports) &&
+        Object.hasOwn(exports, "./package");
+
+    // refuse an app that exports no package
+    if (definition.role === "app" && !isPackaged) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `app ${packageJson.package.name} exports no ./package`,
+        );
+    }
+    // refuse a library that exports one
+    else if (definition.role === "library" && isPackaged) {
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `library ${packageJson.package.name} exports ./package`,
+        );
+    }
+
     // require each runtime override to refer to an export of package.json
     const overridden = Object.keys(definition.exports ?? {});
     const exported = overridden.length === 0 ? {} : mapExports(packageJson);

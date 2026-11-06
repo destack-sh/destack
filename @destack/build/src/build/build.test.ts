@@ -37,11 +37,13 @@ test("read one module per runtime the shipped exports compile for", async () => 
         expect([
             await read(exports, {
                 id,
+                role: "library",
                 language: "typescript",
                 runtimes: ["browser", "bun", "workerd"],
             }),
             await read(exports, {
                 id,
+                role: "library",
                 language: "typescript",
                 runtimes: ["browser"],
                 exports: { "./server": { runtimes: ["workerd"] } },
@@ -50,12 +52,13 @@ test("read one module per runtime the shipped exports compile for", async () => 
                 { ...exports, "./test": "./src/test.ts" },
                 {
                     id,
+                    role: "library",
                     language: "typescript",
                     runtimes: ["browser"],
                     exports: { "./test": { runtimes: ["bun"] } },
                 },
             ),
-            await read(exports, { id, language: "typescript" }),
+            await read(exports, { id, role: "library", language: "typescript" }),
         ]).toEqual([
             {
                 browser: { kind: "module", runtime: "browser" },

@@ -333,6 +333,7 @@ test("compile a package with the build extension it declares", async () => {
             "destack.json": JSON.stringify({
                 $schema: "https://destack.app/schemas/2026.9.0/destack.json",
                 id: "package-01996ab0-0000-7000-8000-00000000000e",
+                role: "library",
                 language: "typescript",
                 runtimes: ["bun"],
                 build: "./build#greetingExtension",
@@ -422,6 +423,7 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01996ab0-0000-7000-8000-00000000000f",
+            role: "library",
             language: "typescript",
             runtimes: ["workerd"],
         }),
@@ -472,6 +474,7 @@ test("check every output's entries with the package's ambient declarations", asy
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000010",
+            role: "library",
             language: "typescript",
             runtimes: ["bun", "browser"],
         }),
@@ -522,6 +525,7 @@ test("compile each command the package installs into its Bun output, keeping its
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000011",
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
         }),
@@ -573,6 +577,7 @@ test("keep the declaration file a package exports for another runtime in a Bun b
         "destack.json": JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000012",
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
             exports: { "./browser": { runtimes: ["browser"] } },
