@@ -4,6 +4,7 @@
     "role": "library",
     "language": "typescript",
     "runtimes": ["bun"],
+    "shares": ["@destack/build", "vite", "rolldown"],
     "check": {
         "expect": [
             {

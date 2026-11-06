@@ -1,5 +1,6 @@
 import { Digest, present, schema } from "@destack/schema";
-import { type FileSystem, FileSystemError } from "@destack/environment";
+import type { Program } from "@destack/package/bun";
+import { FileSystemError } from "@destack/environment";
 import { dirname, join, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { SourceTextModule, SyntheticModule } from "node:vm";
@@ -8,6 +9,7 @@ import { transform } from "rolldown/utils";
 import {
     DeclarationDescription,
     DeclarationSite,
+    DependencyName,
     graph,
     Package,
     PackageJson,
@@ -20,10 +22,9 @@ import type { PackageSource } from "../source/index.ts";
 import { modulePlugin } from "@destack/package/vite";
 import type { ModuleTransformer } from "@destack/package/transform";
 import { BuildError } from "../error/index.ts";
-import type { DependencyTree } from "../dependency/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { isHostModule, type PluginOption, runtimeConditions } from "@destack/package/build";
-import { HOST_RUNTIME, type Runtime, WORKERD_SCHEME } from "@destack/package/runtime";
+import { HOST_RUNTIME, WORKERD_SCHEME } from "@destack/package/runtime";
 import { selectExport } from "../source/source.ts";
 import { loadExtensions, transformPlugins } from "../compile/extension.ts";
 import { assetPlugin } from "../compile/asset.ts";
@@ -446,6 +447,7 @@ async function bundleAndEvaluate(
     project: PackageSource,
     transformer: ModuleTransformer,
 ): Promise<unknown> {
+    const { program } = project;
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
     try {
         // bundle the entry with the modules it imports, recording each declaration
@@ -460,7 +462,7 @@ async function bundleAndEvaluate(
             plugins: [
                 entryPlugin(source),
                 assetPlugin(project.environment.files),
-                treePlugin(project.tree, project.runtime, project.environment.files),
+                treePlugin(project, program),
                 modulePlugin(transformer),
                 ...transformPlugins(
                     (
@@ -493,7 +495,7 @@ async function bundleAndEvaluate(
 
         // evaluate the entry, linking its externals as the host loads them
         const module = new SourceTextModule(chunk.code);
-        await module.link(linkHost);
+        await module.link(async (specifier) => linkHost(specifier, program));
         await module.evaluate();
 
         return module.namespace;
@@ -502,10 +504,13 @@ async function bundleAndEvaluate(
     }
 }
 
-/** Link an external of the entry as the host loads it: a builtin, a build module or a file. */
-async function linkHost(specifier: string): Promise<SyntheticModule> {
-    // expose the host module's exports, which the host caches once per file
-    const exports = schema.record(schema.string(), schema.unknown()).parse(await import(specifier));
+/** Link an external of the entry as the host loads it: shared, builtin, build module or file. */
+async function linkHost(specifier: string, program: Program): Promise<SyntheticModule> {
+    // expose the host module's exports, the compiler's own instance of a shared one
+    const loaded: unknown = program.shares(specifier)
+        ? await program.module(specifier)
+        : await import(specifier);
+    const exports = schema.record(schema.string(), schema.unknown()).parse(loaded);
     const names = Object.keys(exports);
 
     return new SyntheticModule(names, function () {
@@ -617,8 +622,10 @@ function requireDeclaringPackage(value: unknown, owner: Package, name: string): 
     }
 }
 
-/** Mark dependencies external: Destack ones at their builds' modules, npm ones at their files. */
-function treePlugin(tree: DependencyTree, runtime: Runtime, files: FileSystem): Plugin {
+/** Mark dependencies external: Destack ones at builds, shared ones by name, npm ones at files. */
+function treePlugin(project: PackageSource, program: Program): Plugin {
+    const { tree, runtime, environment } = project;
+
     return {
         name: "destack-dependency-builds",
         async resolveId(specifier, importer, options) {
@@ -637,6 +644,12 @@ function treePlugin(tree: DependencyTree, runtime: Runtime, files: FileSystem): 
                 );
             }
 
+            // link a module the compiler shares, except the package's own, whose sources the bundle holds
+            const isOwn = DependencyName.of(specifier) === project.packageJson.package.name;
+            if (program.shares(specifier) && !isOwn) {
+                return { id: specifier, external: true };
+            }
+
             // load an installed or built package's module from its file
             if (specifier.startsWith(".") || specifier.startsWith("\0")) {
                 return null;
@@ -650,7 +663,9 @@ function treePlugin(tree: DependencyTree, runtime: Runtime, files: FileSystem): 
                 resolved.id.split(sep).includes("node_modules") &&
                 INSTALLED_MODULE.test(resolved.id);
 
-            return isModule ? { id: await files.realPath(resolved.id), external: true } : null;
+            return isModule
+                ? { id: await environment.files.realPath(resolved.id), external: true }
+                : null;
         },
     };
 }

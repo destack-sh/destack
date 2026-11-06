@@ -1,4 +1,5 @@
 import { testSimulation } from "../test/world.ts";
+import { Program } from "@destack/package/bun";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
@@ -64,6 +65,11 @@ test("expand a pattern export into the modules its target matches, nested ones i
     }
 
     // open it, keying each matched module by the text the wildcard stands for
-    const source = await PackageSource.open({ directory, runtime: "bun", tree: {} }, environment);
+    const program = Program.of({}, environment.process.loader);
+    const source = await PackageSource.open(
+        { directory, runtime: "bun", tree: {} },
+        environment,
+        program,
+    );
     expect(Object.keys(source.exports).toSorted()).toEqual([".", "./icons/a", "./icons/nested/b"]);
 });

@@ -1,4 +1,5 @@
 import type { FileSystem } from "@destack/environment";
+import { Program } from "@destack/package/bun";
 import { testSimulation } from "../src/test/world.ts";
 import { join } from "node:path";
 import { createServer } from "vite";
@@ -99,6 +100,7 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
     const source = await PackageSource.open(
         { directory: join(root, "application"), runtime: "browser", tree: {} },
         environment,
+        Program.of({}, environment.process.loader),
     );
     const server = await createServer({
         root: source.directory,

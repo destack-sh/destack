@@ -603,14 +603,15 @@ export function resolutionPlugin(
                     runtime && (environmentName(this) === "client" ? "browser" : runtime);
                 const entry = specifier === name ? "." : `.${specifier.slice(name.length)}`;
 
-                // require authored imports to appear in the package manifest
-                requireDeclared(source, importer, name);
-
                 // reject installed Destack releases that differ from the host's selected builds
                 const path = modulePath(resolved.id);
                 const owner = await resolver.package(dirname(path));
                 const declared = await resolver.definition(owner.directory);
                 requireSelected(source, dependencies, owner, declared !== undefined, path);
+
+                // require authored imports in the manifest, a module the compiler shares among the peers
+                const isShared = source.program.shares(specifier) && declared?.role !== "builtin";
+                requireDeclared(source, importer, name, isShared);
 
                 // read the importing package, the package built for a generated module
                 const importerPath = modulePath(importer);
@@ -664,7 +665,12 @@ function requireRuntime(
 }
 
 /** Require an authored import to be the package itself or a declared dependency. */
-function requireDeclared(source: PackageSource, importer: string, name: string): void {
+function requireDeclared(
+    source: PackageSource,
+    importer: string,
+    name: string,
+    isShared: boolean,
+): void {
     // leave imports of dependency modules to the dependencies' manifests
     const local = relativePath(source.directory, importer);
     const isAuthored =
@@ -680,6 +686,17 @@ function requireDeclared(source: PackageSource, importer: string, name: string):
     // refuse a dependency no requirement group names
     if (!PackageJson.runtimeDependencies(packageJson).includes(name)) {
         throw BuildError.of("DEPENDENCY_UNRESOLVED", `undeclared runtime dependency: ${name}`);
+    }
+    // refuse a module the compiler shares outside the peers, unless the package shares it itself
+    else if (
+        isShared &&
+        !PackageJson.peers(packageJson).includes(name) &&
+        !(packageJson.definition.shares ?? []).includes(name)
+    ) {
+        throw BuildError.of(
+            "DEPENDENCY_INVALID",
+            `${packageJson.package.name} imports ${name}, which the compiler shares: declare it as a peer`,
+        );
     }
 }
 

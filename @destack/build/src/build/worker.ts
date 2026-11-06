@@ -1,4 +1,5 @@
 import { ModuleTransformer } from "@destack/package/transform";
+import type { Program } from "@destack/package/bun";
 import { type Environment, FileSystemError, type Output } from "@destack/environment";
 import { DependencyTree } from "../dependency/tree.ts";
 import { dirname, join, resolve } from "node:path";
@@ -84,10 +85,14 @@ export class CompilerWorker implements AsyncDisposable {
     readonly runtimes: RuntimeCompiler;
     /** The Destack packages the build tool's dependencies resolve to. */
     readonly #packages: PackageLocator;
+    /** The modules the compiler shares with the code it loads. */
+    readonly #program: Program;
 
-    /** Compile on an environment's files, process and platform. */
-    constructor(environment: Environment<"files" | "process" | "host">) {
+    /** Compile on an environment's files, process and platform, sharing the linked modules. */
+    constructor(environment: Environment<"files" | "process" | "host">, program: Program) {
+        // keep the environment and the program, then open the runtimes' types and the package locator
         this.environment = environment;
+        this.#program = program;
         this.runtimes = new RuntimeCompiler(environment);
         this.#packages = new PackageLocator(environment.files);
     }
@@ -110,7 +115,10 @@ export class CompilerWorker implements AsyncDisposable {
     }
 
     /** Answer the host's requests on stdin with one retained compiler. */
-    static async run(environment: Environment<"files" | "process" | "host">): Promise<void> {
+    static async run(
+        environment: Environment<"files" | "process" | "host">,
+        program: Program,
+    ): Promise<void> {
         // reserve stdout for framed build results and send package logs to diagnostics
         const { stdin, stdout, stderr } = environment.process;
         const diagnostics = new Writable({
@@ -128,7 +136,7 @@ export class CompilerWorker implements AsyncDisposable {
             },
         );
         const cache = new HostCache(stdout);
-        await using compiler = new CompilerWorker(environment);
+        await using compiler = new CompilerWorker(environment, program);
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
@@ -197,7 +205,7 @@ export class CompilerWorker implements AsyncDisposable {
         transformer: ModuleTransformer;
     }> {
         // inspect source with the selected compiler configuration and the dependencies' builds
-        const project = await PackageSource.open(options, this.environment);
+        const project = await PackageSource.open(options, this.environment, this.#program);
         const typescript = await this.#switch(options.directory);
         const inspection = await typescript.inspect(project);
 
@@ -439,6 +447,7 @@ export class CompilerWorker implements AsyncDisposable {
                 tree: options.tree,
             },
             this.environment,
+            this.#program,
         );
     }
 

@@ -1,4 +1,5 @@
 import { dirname, join, resolve, isAbsolute, sep } from "node:path";
+import type { Program } from "@destack/package/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { type InspectOptions } from "../inspection/inspection.ts";
 import { runtimeConditions } from "@destack/package/build";
@@ -35,6 +36,8 @@ export interface PackageSource {
     tree: DependencyTree;
     /** The files the build reads and the processes its transforms run. */
     environment: Environment<"files" | "process">;
+    /** The compiling program, which shares its toolchain with the code the build loads. */
+    program: Program;
 }
 
 /** A package's inputs opened for inspection and compilation. */
@@ -52,6 +55,7 @@ export const PackageSource = {
             isPrerender?: boolean;
         },
         environment: Environment<"files" | "process">,
+        program: Program,
     ): Promise<PackageSource> {
         // read the package.json and destack.json and select the runtime's exports
         const { files } = environment;
@@ -91,6 +95,7 @@ export const PackageSource = {
             entries,
             tree,
             environment,
+            program,
         };
     },
 };
@@ -103,7 +108,7 @@ async function readPackageSource(
     versions: Readonly<Record<string, Version>>,
     files: FileSystem,
     isPrerender: boolean,
-): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | "environment">> {
+): Promise<Omit<PackageSource, "configuration" | "entries" | "tree" | "environment" | "program">> {
     // read the package.json and destack.json
     directory = await files.realPath(directory);
     const packageJson = await readPackageJson(directory, files, versions);
