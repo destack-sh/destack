@@ -152,7 +152,7 @@ export class Setting<
 
     /** Read the settings a build declares, in declaration order. */
     static async list(reader: BuildReader): Promise<Setting[]> {
-        const declared = SETTING_KIND.select(await reader.declarations());
+        const declared = await SETTING_KIND.read(reader);
 
         return declared.map((entry) => Setting.of(entry.description));
     }
