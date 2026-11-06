@@ -316,7 +316,7 @@ export class Forge {
         });
     }
 
-    /** Authorize an upload below a package to its publishers, as OCI authorizes a repository. */
+    /** Authorize an upload below a package: any enrolled machine's, else its publishers'. */
     async #authorizeUpload(
         request: Request,
         scope: string | undefined,
@@ -332,8 +332,9 @@ export class Forge {
             throw ForgeError.of("UPLOAD_OUTSIDE_PACKAGE", "uploads must target a package");
         }
 
-        // require publish on the package, as a release's creation does
-        if (!(await this.#isPublisher(packageId.data, context, objects))) {
+        // stage an enrolled machine's upload, else require publish on the package
+        const isMachine = principal.machine.is(context.access().subject);
+        if (!isMachine && !(await this.#isPublisher(packageId.data, context, objects))) {
             throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
         }
         await Forge.#requirePushedPackage(request, packageId.data);

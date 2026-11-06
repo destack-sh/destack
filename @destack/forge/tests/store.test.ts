@@ -1,7 +1,7 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { BuildStore } from "@destack/build/store";
+import { BuildStore, PackageClient } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { PackageManifest } from "@destack/package/manifest";
 import { Commit, Digest } from "@destack/schema";
@@ -124,6 +124,41 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
             },
         ],
         isStored: false,
+    });
+});
+
+test("stage a machine's push without releasing it", async () => {
+    // publish the package, and build its next version
+    const forge = await TestForge.open();
+    await forge.publish((await fixtureBuild("answer")).reader);
+    const build = await fixtureBuild("answer", "2026.9.1");
+    const digest = await Digest.of(
+        PackageManifest.serialize(build.manifest),
+        forge.environment.crypto,
+    );
+
+    // push it as the forge's machine
+    const { url } = forge.endpoint();
+    const { fetch } = forge.served.as(forge.home.machine.id).endpoint(forgePackage);
+    const builds = (packageId: string) =>
+        new PackageClient(
+            `${url}${forgePackage.adapters.builds.path}/${packageId}/`,
+            fetch,
+            forge.environment,
+        );
+    const packageId = PackageManifest.package(build.manifest).id;
+    const staged = await refusal(builds(packageId).push(build.reader));
+
+    // store the staged build, and release nothing
+    const released = await forge.client(forge.owner).release.list({ spaceId: forge.space });
+    expect({
+        staged,
+        isStored: await (await forge.store()).contains(digest),
+        versions: released.items.map((release) => release.version),
+    }).toEqual({
+        staged: "done",
+        isStored: true,
+        versions: ["2026.9.0"],
     });
 });
 
