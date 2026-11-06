@@ -23,6 +23,9 @@ import { found, Text, type Version } from "@destack/schema";
 import { Catalog } from "@destack/locale";
 import { readCatalogs } from "../build/catalog.ts";
 
+/** A test module's path: a test file, or a module of a test directory or test kit. */
+const TEST_MODULE = /(?:\.test\.tsx?$|[\\/]tests?[\\/])/u;
+
 /** A dynamic import, the one import whose source a module can compute. */
 const DYNAMIC_IMPORT = /\bimport\s*\(/u;
 
@@ -608,6 +611,26 @@ export function resolutionPlugin(
                 const owner = await resolver.package(dirname(path));
                 const declared = await resolver.definition(owner.directory);
                 requireSelected(source, dependencies, owner, declared !== undefined, path);
+
+                // read the importing package, the package built for a generated module
+                const importerPath = modulePath(importer);
+                const importing = isAbsolute(importerPath)
+                    ? await resolver.package(dirname(importerPath))
+                    : { name: source.packageJson.package.name, directory: source.directory };
+                const importingDeclared = await resolver.definition(importing.directory);
+
+                // refuse an import the layout forbids between two Destack packages
+                if (declared !== undefined && importingDeclared !== undefined) {
+                    PackageDefinition.requireImport(
+                        {
+                            name: importing.name,
+                            role: importingDeclared.role,
+                            isTest: TEST_MODULE.test(importerPath),
+                        },
+                        { name: owner.name, role: declared.role },
+                        entry,
+                    );
+                }
 
                 // enforce compatibility for the exact imported Destack export
                 const required = declared && PackageDefinition.runtimes(declared, entry);

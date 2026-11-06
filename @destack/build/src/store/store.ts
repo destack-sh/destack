@@ -62,6 +62,9 @@ const CACHE_ROOT_PREFIX = "cache:";
 /** Where a closure starts: at what a build runs, or at every export a dependent may import. */
 export type ClosureEntries = "run" | "export";
 
+/** What a closure does with builtins: follow them, or skip them as the runtime links them. */
+export type ClosureBuiltins = "follow" | "link";
+
 /** Read a build's manifest at a package's registry, absent where none is stored. */
 export type ManifestRead = (
     manifest: Digest,
@@ -815,6 +818,7 @@ export class BuildStore<
         runtime: Runtime,
         read: ManifestRead = (digest) => this.get(digest),
         entries: ClosureEntries = "run",
+        builtins: ClosureBuiltins = "follow",
     ): Promise<ReadonlySet<Digest>> {
         // start at what each output runs, its workloads and the exports its views mount, or at every export
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
@@ -876,6 +880,17 @@ export class BuildStore<
                         output.dependencies[DependencyName.of(specifier)],
                         `the dependency of ${specifier} in ${next.manifest}`,
                     );
+                    // skip builtins, which the runtime links
+                    const isLinked =
+                        builtins === "link" &&
+                        dependency.kind !== "npm" &&
+                        (await once(dependency.manifest, dependency.package.id))?.role ===
+                            "builtin";
+                    if (isLinked) {
+                        continue;
+                    }
+
+                    // collect npm units, follow Destack exports
                     closure.add(dependency.manifest);
                     if (dependency.kind === "npm") {
                         units.set(dependency.manifest, {

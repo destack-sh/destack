@@ -466,6 +466,7 @@ export class LocalBuildStore
                 return found;
             },
             "export",
+            "link",
         );
 
         // place each closure build's output once

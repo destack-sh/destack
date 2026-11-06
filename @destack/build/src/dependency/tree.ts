@@ -664,6 +664,8 @@ export class DependencyTree {
 
     /** Link every package of the tree into a node_modules directory, as an output resolves them. */
     async link(directory: string, files: FileSystem): Promise<void> {
+        // create the directory, empty for a tree of builtins alone, then link each package
+        await files.mkdir(directory, { recursive: true });
         for (const [name, target] of Object.entries(this.directories)) {
             const link = join(directory, name);
             await files.mkdir(dirname(link), { recursive: true });

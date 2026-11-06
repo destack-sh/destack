@@ -2,7 +2,7 @@ import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { type DependencyRelease, Package } from "@destack/package";
+import { type DependencyRelease, Package, type PackageRole } from "@destack/package";
 import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -29,7 +29,7 @@ const MARKER = new TextEncoder().encode("stored");
 async function written(
     text: string,
     crypto: Crypto,
-    built: { readonly id: string; readonly name: string } = ANSWER,
+    built: { readonly id: string; readonly name: string; readonly role?: PackageRole } = ANSWER,
     dependencies: Readonly<Record<string, DependencyRelease>> = {},
     extra: Readonly<Record<string, string>> = {},
 ): Promise<BuildReader> {
@@ -51,8 +51,11 @@ async function written(
         "package.json",
         new TextEncoder().encode(JSON.stringify({ name: built.name, exports: {} })),
     );
-    const manifest = await writer.finish({ destack: "2026.11.0", role: "app",
-        package: Package.parse({ ...built, version: "2026.9.0" }),
+    const { role = "app", ...named } = built;
+    const manifest = await writer.finish({
+        destack: "2026.11.0",
+        role,
+        package: Package.parse({ ...named, version: "2026.9.0" }),
         outputs: {
             bun: {
                 runtime: "bun",
@@ -297,6 +300,46 @@ test("link a running tree's build to the dependencies its closure places alone, 
         linked: ["answer", "library"],
         roots: [`${built.manifest}.bun`, `${library.manifest}.bun`].toSorted(),
     });
+});
+
+test("leave the builtins out of a run tree, as the runtime links them", async () => {
+    // store an app importing a library and a builtin
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { crypto } = environment;
+    await using store = await LocalBuildStore.temporary(environment);
+    const stored = async (name: string, id: string, role: PackageRole) => {
+        const reader = await written(`export const ${name} = 1;`, crypto, {
+            id,
+            name: `@example/${name}`,
+            role,
+        });
+
+        return {
+            kind: "destack" as const,
+            package: PackageManifest.package(reader.manifest),
+            manifest: await store.put(reader),
+        };
+    };
+    const library = await stored(
+        "library",
+        "package-00000000-0000-7000-8000-00000000a002",
+        "library",
+    );
+    const builtin = await stored(
+        "object",
+        "package-00000000-0000-7000-8000-00000000a004",
+        "builtin",
+    );
+    const app = await written("export const app = 1;", crypto, ANSWER, {
+        "@example/library": library,
+        "@example/object": builtin,
+    });
+    const digest = await store.put(app);
+
+    // place the library alone among the app's dependencies
+    const tree = await store.runTree(app, digest, "bun");
+    expect(Object.keys(tree.directories)).toEqual(["@example/library"]);
 });
 
 test("share the store between opens, each reading what the other writes", async () => {

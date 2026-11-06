@@ -1,27 +1,18 @@
 import { testSimulation } from "../test/world.ts";
 import type { FileSystem } from "@destack/environment";
-import type { PackageRole } from "@destack/package";
 import { join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
 import { PackageSource, readPackageJson } from "./source.ts";
 
 /** Write a package whose destack.json overrides the runtimes of some exports. */
-async function writePackage(
-    overrides: readonly string[],
-    files: FileSystem,
-    role: PackageRole = "library",
-    exports: Readonly<Record<string, string>> = {
-        ".": "./src/index.ts",
-        "./server": "./src/server.ts",
-    },
-): Promise<string> {
+async function writePackage(overrides: readonly string[], files: FileSystem): Promise<string> {
     const directory = await files.makeTemporaryDirectory("source-");
     await files.writeTextFile(
         join(directory, "package.json"),
         JSON.stringify({
             name: "@example/source",
             version: "2026.9.0",
-            exports,
+            exports: { ".": "./src/index.ts", "./server": "./src/server.ts" },
         }),
     );
     await files.writeTextFile(
@@ -29,7 +20,7 @@ async function writePackage(
         JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01996ab0-0000-7000-8000-000000000a01",
-            role,
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
             exports: Object.fromEntries(overrides.map((name) => [name, { runtimes: ["workerd"] }])),
@@ -75,29 +66,4 @@ test("expand a pattern export into the modules its target matches, nested ones i
     // open it, keying each matched module by the text the wildcard stands for
     const source = await PackageSource.open({ directory, runtime: "bun", tree: {} }, environment);
     expect(Object.keys(source.exports).toSorted()).toEqual([".", "./icons/a", "./icons/nested/b"]);
-});
-
-test("refuse an app that exports no package and a library that exports one, reading an app that does", async () => {
-    // write an app without its package, a library with one, and an app with one
-    await using simulation = testSimulation();
-    const { files } = simulation.environment("test");
-    const packaged = { "./package": "./src/package.ts", "./server": "./src/server.ts" };
-    const unpackaged = await writePackage([], files, "app");
-    const library = await writePackage([], files, "library", packaged);
-    const app = await writePackage([], files, "app", packaged);
-
-    // refuse the two whose exports contradict their role
-    expect({
-        unpackaged: await refusal(readPackageJson(unpackaged, files)),
-        library: await refusal(readPackageJson(library, files)),
-        app: (await readPackageJson(app, files)).definition.role,
-    }).toEqual({
-        unpackaged: [
-            "BAD_REQUEST",
-            "DEFINITION_INVALID",
-            "app @example/source exports no ./package",
-        ],
-        library: ["BAD_REQUEST", "DEFINITION_INVALID", "library @example/source exports ./package"],
-        app: "app",
-    });
 });

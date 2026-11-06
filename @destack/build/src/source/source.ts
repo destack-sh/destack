@@ -109,6 +109,10 @@ async function readPackageSource(
     const packageJson = await readPackageJson(directory, files, versions);
     const definition = packageJson.definition;
 
+    // refuse the exports its role forbids
+    const authored = packageJson.exports === undefined ? [] : Object.keys(mapExports(packageJson));
+    PackageDefinition.requireExports(definition, packageJson.package.name, authored);
+
     // select package exports using the runtime's standard conditions
     const conditions = new Set(["import", "default", ...runtimeConditions(runtime)]);
     const typeConditions = new Set(["types", ...conditions]);
@@ -250,29 +254,6 @@ export async function readPackageJson(
         devDependencies: field(metadata, "devDependencies"),
     });
     const definition = packageJson.definition;
-
-    // read whether the package exports its package handle
-    const exports = packageJson.exports;
-    const isPackaged =
-        exports !== null &&
-        typeof exports === "object" &&
-        !Array.isArray(exports) &&
-        Object.hasOwn(exports, "./package");
-
-    // refuse an app that exports no package
-    if (definition.role === "app" && !isPackaged) {
-        throw PackageError.of(
-            "DEFINITION_INVALID",
-            `app ${packageJson.package.name} exports no ./package`,
-        );
-    }
-    // refuse a library that exports one
-    else if (definition.role === "library" && isPackaged) {
-        throw PackageError.of(
-            "DEFINITION_INVALID",
-            `library ${packageJson.package.name} exports ./package`,
-        );
-    }
 
     // require each runtime override to refer to an export of package.json
     const overridden = Object.keys(definition.exports ?? {});
