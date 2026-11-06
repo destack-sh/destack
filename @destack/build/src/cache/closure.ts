@@ -7,6 +7,16 @@ import { BuildError } from "../error/index.ts";
 /** An entry's hashbang line, which Bun runs past but its scanner refuses. */
 const HASHBANG = /^#!.*/u;
 
+/** The extensions Bun loads as data, whose modules import nothing, as its loaders define them. */
+const DATA_EXTENSIONS: ReadonlySet<string> = new Set([
+    ".json",
+    ".jsonc",
+    ".toml",
+    ".yaml",
+    ".yml",
+    ".txt",
+]);
+
 /** The loader Bun's transpiler reads a module with, by file extension. */
 const LOADERS: Readonly<Record<string, "ts" | "tsx" | "js" | "jsx">> = {
     ".ts": "ts",
@@ -92,6 +102,11 @@ export class ModuleClosure {
 
     /** Resolve the imports Bun loads of a module to files, leaving runtime modules out. */
     static #imports(text: string, file: string): string[] {
+        // read a data module as importing nothing
+        if (DATA_EXTENSIONS.has(extname(file))) {
+            return [];
+        }
+
         // scan the module past its hashbang as Bun's transpiler loads it
         const loader = LOADERS[extname(file)];
         if (loader === undefined) {
