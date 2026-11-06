@@ -5,7 +5,8 @@ import { Snapshot } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
 import relayPackage from "../src/package.ts";
-import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS, Relay, Tunnel } from "../src/server/index.ts";
+import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../src/package.ts";
+import { Relay, Tunnel } from "../src/server/index.ts";
 import { type Renewal, TUNNEL_PROTOCOL, TunnelError, TunnelProtocol } from "@destack/tunnel";
 import { TestTunnelMachine } from "../src/test/index.ts";
 
