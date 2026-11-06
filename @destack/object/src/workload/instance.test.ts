@@ -61,7 +61,7 @@ const serverIn = async (world: Environment): Promise<InstalledServerContext> => 
         .parse("installation-01996ab0-0000-7000-8000-000000000002"),
     name: "notes",
     scope: "space-01996ab0-0000-7000-8000-000000000001",
-    build: await MemoryBuild.write(new Map(), { package: first }, world.crypto),
+    build: await MemoryBuild.write(new Map(), { role: "app", package: first }, world.crypto),
     environment: world,
     settings: {},
     capabilities: [],

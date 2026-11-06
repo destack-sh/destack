@@ -194,7 +194,7 @@ test("start the workload with its installation's settings, serve a forwarded cal
             publisher: () => publisher,
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }, environment.crypto),
+        await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, environment.crypto),
         (options) => startTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
@@ -319,7 +319,7 @@ test("forward a webhook delivery below the webhook path to the workload, refusin
             }),
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }, node.crypto),
+        await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, node.crypto),
         (options) => startSilentTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
@@ -413,7 +413,7 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
             socketHost: host,
         },
         start,
-        await MemoryBuild.write(new Map(), { package: NOTES }, world.environment("runner").crypto),
+        await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, world.environment("runner").crypto),
         (options) => startSilentTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
@@ -492,7 +492,7 @@ test("hand a routed request to the workload's package at the route path, under t
                 }),
             },
             start,
-            await MemoryBuild.write(new Map(), { package: NOTES }, node.crypto),
+            await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, node.crypto),
             (options) => startSilentTelemetry(options, world.environment("runner")),
             (error) => {
                 throw error;

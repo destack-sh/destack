@@ -1,6 +1,7 @@
 {
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0d462-1b26-7401-be27-6258e0a32141",
+    "role": "builtin",
     "language": "typescript",
     "runtimes": ["browser", "bun", "workerd"],
     "entrypoints": ["src/browser/database.worker.ts"],

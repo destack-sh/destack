@@ -40,6 +40,7 @@ async function writePackage(
     const definition = {
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
         id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
+        role: "library",
         language: "typescript",
         runtimes,
     };
@@ -162,6 +163,7 @@ test("write lint and format settings at the workspace root and compiler settings
         JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: "package-01a0c80b-614d-75ac-841e-b27280bf3db3",
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
             entrypoints: ["src/worker.ts"],

@@ -192,7 +192,7 @@ export class TestRelay implements AsyncDisposable {
         // start the root, or a machine's partition on its first call, as the machine starts them
         const build = await MemoryBuild.write(
             new Map(),
-            { package: Package.of(relayPackage) },
+            { role: "app", package: Package.of(relayPackage) },
             environment.crypto,
         );
         const settings = {

@@ -65,6 +65,7 @@ export const TestNotes = {
         return MemoryBuild.write(
             files,
             {
+                role: "app",
                 package: NOTES,
                 sourceMaps: [
                     { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },

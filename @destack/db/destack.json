@@ -1,6 +1,7 @@
 {
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+    "role": "builtin",
     "language": "typescript",
     "entrypoints": [
         "src/cloudflare/durable.ts",

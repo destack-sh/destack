@@ -30,7 +30,7 @@ const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-80
 function writeBuild(crypto: Crypto): Promise<BuildReader> {
     return MemoryBuild.write(
         new Map([["index.js", new TextEncoder().encode("export {};\n")]]),
-        {
+        { role: "app",
             package: { id: ids.package, name: "@example/library", version: "2026.9.0" },
         },
         crypto,

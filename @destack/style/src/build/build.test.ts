@@ -264,7 +264,7 @@ test("add the rules each dependency's build keeps to the stylesheet, ordered wit
         environment.crypto,
     );
     await writer.write("output/library/stylex.json", new TextEncoder().encode(rules));
-    await writer.finish({ package: DEPENDENCY });
+    await writer.finish({ destack: "2026.11.0", role: "app", package: DEPENDENCY });
 
     // build teal with the dependency's plum
     const sheets = await stylesheets(environment, "/fixture/solo", {
