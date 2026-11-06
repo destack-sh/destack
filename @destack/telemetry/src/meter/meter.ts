@@ -48,8 +48,8 @@ export class Meter {
     }
 
     /** Read the meters a build declares. */
-    static async list(build: Pick<BuildReader, "declarations">): Promise<Meter[]> {
-        const declared = METER_KIND.select(await build.declarations());
+    static async list(build: BuildReader): Promise<Meter[]> {
+        const declared = await METER_KIND.read(build);
 
         return declared.map(
             ({ description: { package: declaring, ...definition } }) =>
