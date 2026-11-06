@@ -24,6 +24,7 @@
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
+        "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",

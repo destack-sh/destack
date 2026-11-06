@@ -1,4 +1,5 @@
 export * from "./catalog.ts";
+export * from "./connection.ts";
 export * from "./feature.ts";
 export * from "./sku.ts";
 export * from "./setting.ts";

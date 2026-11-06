@@ -62,7 +62,7 @@ async function open() {
     // bill through the fixture, reading its keys as the vault would hand them
     const stripe = new TestStripe(TEST_START);
     const finance = await Finance.open({
-        provider: (home) => new StripeProvider({ key: stripe.key, home, fetch: stripe.fetch }),
+        provider: (home) => new StripeProvider({ api: stripe.api, home }),
     });
     const provider = present(finance.fixture.provider, "the Stripe provider");
     onTestFinished(() => finance.close());

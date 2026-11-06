@@ -30,8 +30,13 @@ import { Digest, Identifier, present, schema } from "@destack/schema";
 import type { StackDocument } from "@destack/stack/declare";
 import { install } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/stack/test";
-import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
+import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
+import { connectionVault } from "@destack/connection/stack";
+import { CONNECTION } from "@destack/connection/test";
+import { stripe } from "../declare/connection.ts";
+import { RESOURCE_KIND } from "@destack/resource";
+import { describeResource } from "@destack/resource/inspect";
 import { TestVault, VAULT } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -110,7 +115,7 @@ export interface FinanceFixtureOptions {
     readonly start?: number;
 }
 
-/** Finance's build, declaring its package, notifications and secrets, as its home installs it. */
+/** Finance's build, declaring its package, notifications, secrets and resources, as its home installs it. */
 const FINANCE: TestPackage = {
     handle: financePackage,
     build: await MemoryBuild.of(
@@ -128,6 +133,11 @@ const FINANCE: TestPackage = {
                 description: usageLimit.describe(),
             },
             ...TestVault.declarations([], Object.values(financePackage.secrets)),
+            {
+                ...RESOURCE_KIND.identity,
+                name: stripe.name,
+                description: { ...describeResource(stripe), ...stripe.state() },
+            },
         ],
         testHost().crypto,
     ),
@@ -139,29 +149,33 @@ const FINANCE: TestPackage = {
 /** The packages the residency's home installs beside its base ones, as its stack does. */
 const PACKAGES: readonly TestPackage[] = [
     VAULT,
+    CONNECTION,
     ...(await TestNotification.packages(testHost().crypto)),
     FINANCE,
 ];
 
-/** The platform account's vault in the residency's home, keeping the Stripe secret key. */
-const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} });
-
 /** The packages whose types the home's stack declares. */
-const HOME_TYPES = [vaultPackage, financePackage] as const;
+const HOME_TYPES = [vaultPackage, connectionPackage, financePackage] as const;
 
-/** The home's stack, as the residency's declares it: finance bound to the platform's Stripe key. */
+/** The home's stack, as the residency's declares it: finance bound to the platform's Stripe connection. */
 const RESIDENCY_STACK = {
-    vaults: { platform: PLATFORM_VAULT.declare() },
-    secrets: { "stripe-secret-key": { parent: "platform", name: "stripe-secret-key" } },
+    vaults: { connections: connectionVault.declare() },
+    connections: {
+        stripe: {
+            ...stripe.declare(),
+            protocol: { kind: "key", header: "authorization", scheme: "Bearer" } as const,
+        },
+    },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        connection: install(
+            connectionPackage,
+            { credentials: "connections" },
+            { isolation: "process", name: CONNECTION_INSTALLATION },
+        ),
         message: install(messagePackage, {}, { name: "message" }),
         notification: install(notificationPackage, {}, { name: "notification" }),
-        finance: install(
-            financePackage,
-            { "stripe-secret-key": "stripe-secret-key" },
-            { name: FINANCE_INSTALLATION },
-        ),
+        finance: install(financePackage, { stripe: "stripe" }, { name: FINANCE_INSTALLATION }),
     },
 };
 
@@ -292,18 +306,20 @@ export class TestFinance {
 
     /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
-        // install the vault, then serve its types, as the machine's restart does
-        const vaulted = { installations: { vault: RESIDENCY_STACK.installations.vault } };
-        const installingVault = await home.serve();
-        await home.apply(installingVault, HOME_TYPES, vaulted);
-        await home.serveInstalled(installingVault.store, home.id);
-        await installingVault[Symbol.asyncDispose]();
-
-        // install finance bound to the platform's Stripe key, as the residency's stack does
-        const installing = await home.serve();
-        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
-        await home.serveInstalled(installing.store, home.id);
-        await installing[Symbol.asyncDispose]();
+        // install the vault, then the connections over their vault, then finance bound to the Stripe connection,
+        //  serving each stage's types before the next, as the machine's restarts do
+        const { vault, connection } = RESIDENCY_STACK.installations;
+        const stages = [
+            { installations: { vault } },
+            { vaults: RESIDENCY_STACK.vaults, installations: { vault, connection } },
+            RESIDENCY_STACK,
+        ];
+        for (const stage of stages) {
+            const installing = await home.serve();
+            await home.apply(installing, HOME_TYPES, stage);
+            await home.serveInstalled(installing.store, home.id);
+            await installing[Symbol.asyncDispose]();
+        }
 
         // sign the people in, alice creating Acme paying with its billing account, and carol her shop
         const { universe } = home;

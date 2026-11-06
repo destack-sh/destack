@@ -1,4 +1,4 @@
-import type { Fetch } from "@destack/object";
+import type { ExternalClient } from "@destack/resource";
 import { schema } from "@destack/schema";
 import type {
     CheckoutPages,
@@ -8,7 +8,6 @@ import type {
     ProviderEvent,
 } from "../provider.ts";
 import { type Customer, type Price, Product } from "../../object/index.ts";
-import type { Secret } from "@destack/vault";
 import { StripeClient, type StripeParameter } from "./client.ts";
 import {
     Stripe,
@@ -52,14 +51,12 @@ export const STRIPE_EVENTS: readonly string[] = [
     "account.updated",
 ];
 
-/** The key and home a Stripe provider runs with. */
+/** The API and home a Stripe provider runs with. */
 export interface StripeProviderOptions {
-    /** The platform account's secret API key, read through the vault. */
-    readonly key: Secret;
+    /** The bound Stripe API, whose credential the egress lends from the platform's connection. */
+    readonly api: ExternalClient;
     /** The home whose finance bills through the provider, stored on its customers and sellers. */
     readonly home: string;
-    /** The fetch calling Stripe. */
-    readonly fetch: Fetch;
 }
 
 /** Finance's payment provider on Stripe. */
@@ -71,9 +68,9 @@ export class StripeProvider implements PaymentProvider {
     /** The options. */
     readonly #options: StripeProviderOptions;
 
-    /** Bill through Stripe with keys read through the vault. */
+    /** Bill through Stripe through its bound API. */
     constructor(options: StripeProviderOptions) {
-        this.#client = new StripeClient(options.key, options.fetch);
+        this.#client = new StripeClient(options.api);
         this.#options = options;
     }
 

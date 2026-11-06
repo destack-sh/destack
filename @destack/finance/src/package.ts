@@ -13,7 +13,7 @@ import {
     subscription,
     subscriptionItem,
 } from "./object/index.ts";
-import { stripeSecretKey } from "./provider/stripe/secret.ts";
+import { stripe } from "./declare/connection.ts";
 
 /** The name the platform stack installs finance under in each residency home. */
 export const FINANCE_INSTALLATION = "finance";
@@ -33,7 +33,7 @@ export default definePackage({
         invoice,
     },
     adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
-    secrets: { "stripe-secret-key": stripeSecretKey },
+    resources: { stripe },
     errors: FinanceError,
     // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
     permissions: {

@@ -4,7 +4,7 @@ import { implementPackage } from "@destack/object/server";
 import { provider, tag } from "./declare/setting.ts";
 import financePackage from "./package.ts";
 import { StripeProvider } from "./provider/stripe/provider.ts";
-import { stripeSecretKey } from "./provider/stripe/secret.ts";
+import { stripe } from "./declare/connection.ts";
 import { Metering } from "./server/metering.ts";
 import { implementFinance } from "./server/server.ts";
 
@@ -17,11 +17,7 @@ export default implementPackage(financePackage, (context) => {
     const charging =
         provider.read(context.settings) === "none"
             ? undefined
-            : new StripeProvider({
-                  key: context.resources.get(stripeSecretKey),
-                  home,
-                  fetch: (request) => context.fetch(request),
-              });
+            : new StripeProvider({ api: context.resources.get(stripe), home });
 
     // read the packages' published builds from the forge in the home
     const forge = context.at(forgePackage.name);

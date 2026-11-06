@@ -10,7 +10,7 @@ const URL = "https://finance--home--destack.destack.space/.destack/webhook/strip
 test("upsert one enabled endpoint at a URL delivering exactly finance's events, however often upserted", async () => {
     // upsert the endpoint twice
     const stripe = new TestStripe(Date.UTC(2026, 9, 12));
-    const client = new StripeClient(stripe.key, stripe.fetch);
+    const client = new StripeClient(stripe.api);
     const created = await StripeEndpoint.upsert(client, URL);
     const again = await StripeEndpoint.upsert(client, URL);
 

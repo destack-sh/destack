@@ -1,10 +1,6 @@
-import { Secret } from "@destack/vault";
+import type { ExternalClient } from "@destack/resource";
 import { FinanceError } from "../../error/error.ts";
-import type { Fetch } from "@destack/object";
 import type {} from "@destack/package/import-meta";
-
-/** The Stripe API's origin. */
-export const STRIPE_API = "https://api.stripe.com";
 
 /** The API version every request sends, where periods live on subscription items. */
 export const STRIPE_VERSION = "2025-09-30.clover";
@@ -19,17 +15,14 @@ export type StripeParameter =
     | readonly StripeParameter[]
     | { readonly [key: string]: StripeParameter };
 
-/** A Stripe API client authenticating with a secret key read through the vault at each request. */
+/** A Stripe API client calling through the bound API, whose credential the egress lends. */
 export class StripeClient {
-    /** The API key. */
-    readonly #key: Secret;
-    /** The fetch calling the API. */
-    readonly #fetch: Fetch;
+    /** The bound Stripe API. */
+    readonly #api: ExternalClient;
 
-    /** Call Stripe with a vault secret's key through a fetch. */
-    constructor(key: Secret, fetch: Fetch) {
-        this.#key = key;
-        this.#fetch = fetch;
+    /** Call Stripe through its bound API. */
+    constructor(api: ExternalClient) {
+        this.#api = api;
     }
 
     /** Send a form request once per idempotency key, and read Stripe's JSON object answer. */
@@ -39,12 +32,8 @@ export class StripeClient {
         parameters: Readonly<Record<string, StripeParameter>> = {},
         idempotencyKey?: string,
     ): Promise<Record<string, unknown>> {
-        // authenticate with the current key and send the version
-        const key = await Secret.text(this.#key);
-        const headers = new Headers({
-            authorization: `Bearer ${key}`,
-            "stripe-version": STRIPE_VERSION,
-        });
+        // send the version, the egress adding the connection's key
+        const headers = new Headers({ "stripe-version": STRIPE_VERSION });
         if (idempotencyKey !== undefined) {
             headers.set("idempotency-key", idempotencyKey);
         }
@@ -52,13 +41,15 @@ export class StripeClient {
         // send the parameters in the query of a read, else as the form body
         const form = StripeClient.encode(parameters);
         const isRead = method === "GET";
-        const url = `${STRIPE_API}${path}${isRead && form !== "" ? `?${form}` : ""}`;
+        const target = `${path}${isRead && form !== "" ? `?${form}` : ""}`;
         if (!isRead) {
             headers.set("content-type", "application/x-www-form-urlencoded");
         }
-        const response = await this.#fetch(
-            new Request(url, { method, headers, ...(isRead ? {} : { body: form }) }),
-        );
+        const response = await this.#api.fetch(target, {
+            method,
+            headers,
+            ...(isRead ? {} : { body: form }),
+        });
 
         // refuse a missing object as missing, and any other error answer with Stripe's message
         const body: unknown = await response.json();

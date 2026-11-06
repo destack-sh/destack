@@ -1,4 +1,5 @@
-import { Secret } from "@destack/vault";
+import type { ExternalClient } from "@destack/resource";
+import { STRIPE_API } from "../declare/connection.ts";
 
 /** The API key the fixture accepts. */
 const API_KEY = "sk_test_destack";
@@ -29,8 +30,16 @@ interface Route {
 
 /** An in-process Stripe serving the API subset finance uses, after stripe-mock. */
 export class TestStripe {
-    /** The API key, as the vault would hand it. */
-    readonly key: Secret = Secret.of(API_KEY);
+    /** The bound API, adding the key to each call as the egress lends the platform's connection. */
+    readonly api: ExternalClient = {
+        url: STRIPE_API,
+        fetch: (path, init = {}) => {
+            const headers = new Headers(init.headers);
+            headers.set("authorization", `Bearer ${API_KEY}`);
+
+            return this.fetch(new Request(`${STRIPE_API}${path}`, { ...init, headers }));
+        },
+    };
     /** The stored objects, by identifier. */
     readonly objects = new Map<string, StripeObject>();
     /** The answers stored per idempotency key. */
