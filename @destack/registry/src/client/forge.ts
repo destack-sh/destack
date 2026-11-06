@@ -1,14 +1,17 @@
-import { account, Space, space } from "@destack/account/object";
+import { principal } from "@destack/access";
+import { account, claimShape, Space, space } from "@destack/account/object";
 import { and, type DatabaseConnection, eq, type Snapshot } from "@destack/db";
 import {
     Claim,
-    type ClaimLookup,
+    ClaimLookup,
+    claimTable,
     type Follow,
     installation,
     type Installation,
 } from "@destack/object";
 import { type Identifier, present, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
+import { Scope } from "@destack/sync";
 import {
     packageObject,
     reference,
@@ -33,11 +36,18 @@ export class Forge {
     readonly #claims: ClaimLookup;
     /** Read the residency home of an account, where its forge lives. */
     readonly #home: (account: Identifier<"account">) => Promise<string>;
+    /** The machine serving the spaces, which follows the packages' claims for them. */
+    readonly #machine: Identifier<"machine">;
 
     /** Read the forge through the universe's name owners and each account's residency home. */
-    constructor(claims: ClaimLookup, home: (account: Identifier<"account">) => Promise<string>) {
+    constructor(
+        claims: ClaimLookup,
+        home: (account: Identifier<"account">) => Promise<string>,
+        machine: Identifier<"machine">,
+    ) {
         this.#claims = claims;
         this.#home = home;
+        this.#machine = machine;
     }
 
     /** Read the account of a repository, absent for a repository without an account. */
@@ -106,6 +116,25 @@ export class Forge {
                     };
                 },
             }),
+            claimShape.per(installation, {
+                where: { deletedAt: { isNull: true } },
+                key: async (row, view) => {
+                    // follow nothing for an installation selecting no tag, or outside a space served here
+                    const spaceId = await this.#served(row, view);
+                    if (row.selection.kind !== "tag" || spaceId === undefined) {
+                        return undefined;
+                    }
+
+                    // follow its package's claim as the machine, which reads the universe's claims
+                    const { key } = Claim.key(packageObject, "id", [row.packageId]);
+                    const index = Claim.index(packageObject, "id");
+
+                    return {
+                        key: { scope: Scope.universe.id, index, key },
+                        subject: principal.machine.reference(Scope.universe.id, this.#machine),
+                    };
+                },
+            }),
             tagShape.per(installation, {
                 where: { deletedAt: { isNull: true } },
                 key: async (row, view) => {
@@ -116,9 +145,10 @@ export class Forge {
                         return undefined;
                     }
 
-                    // follow it from the forge in the home of the publishing account's residency
+                    // follow it at the publisher's residency home, once its claim replicates here
+                    const claims = ClaimLookup.of(view.read(claimTable));
                     const ids = [row.packageId];
-                    const publisher = await Claim.lookup(packageObject, this.#claims, "id", ids);
+                    const publisher = await Claim.lookup(packageObject, claims, "id", ids);
                     if (publisher === undefined) {
                         return undefined;
                     }

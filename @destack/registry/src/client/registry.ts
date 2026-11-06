@@ -135,7 +135,7 @@ export class Registry {
         manifest: Digest,
         signal?: AbortSignal,
     ): Promise<Digest> {
-        // upload below the package, which its forge authorizes to the package's publishers
+        // upload below the package, which its forge stages for a publisher to release
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;
         const forge = await this.#find({ package: packageId });
