@@ -4,13 +4,17 @@ import { expect, refusal, test } from "@destack/test";
 import { Simulation } from "@destack/environment/simulation";
 import { schema } from "@destack/schema";
 import { Frame, FrameFlag, FrameType, PING_MESSAGE, TUNNEL_PROTOCOL } from "../session/index.ts";
-import { TunnelClient, type TunnelStatus } from "./client.ts";
+import { PackageId } from "@destack/package";
+import { TUNNEL_METADATA_PATH, TunnelClient, type TunnelStatus } from "./client.ts";
 
 /** The close code of a normal closure, from RFC 6455 section 7.4.1. */
 const NORMAL_CLOSURE = 1000;
 
 /** The tunnel URL of a relay where nothing listens. */
 const NOWHERE = "http://relay.test/tunnel";
+
+/** The relay's package, the audience of the tokens its tunnel accepts. */
+const RELAY = PackageId.parse("package-01996ab0-0000-7000-8000-000000000002");
 
 /** The machine dialing the tunnels. */
 const MACHINE = schema.identifier("machine").parse("machine-01996ab0-0000-7000-8000-000000000001");
@@ -25,6 +29,13 @@ interface SilentConnection {
     closed?: number;
 }
 
+/** Answer a request for the tunnel's metadata, naming the relay's package as its resource. */
+function metadata(request: Request): Response | undefined {
+    return new URL(request.url).pathname === TUNNEL_METADATA_PATH
+        ? Response.json({ resource: PackageId.resource(RELAY) })
+        : undefined;
+}
+
 /** Serve a relay that accepts upgrades and answers nothing after, recording each connection. */
 function silentRelay(simulation: Simulation) {
     // accept each upgrade with the tunnel protocol, recording what the client sends
@@ -33,6 +44,11 @@ function silentRelay(simulation: Simulation) {
         hostname: "relay.test",
         port: 80,
         fetch: (request) => {
+            // answer the metadata, and record each upgrade
+            const answered = metadata(request);
+            if (answered !== undefined) {
+                return answered;
+            }
             const connection: SilentConnection = {
                 protocols: request.headers.get("sec-websocket-protocol"),
                 messages: [],
@@ -63,7 +79,12 @@ function answeringRelay(simulation: Simulation, dropped = 0) {
     const listener = simulation.network.server("relay").http<undefined>({
         hostname: "relay.test",
         port: 80,
-        fetch: () => {
+        fetch: (request) => {
+            // answer the metadata, and count each upgrade
+            const answered = metadata(request);
+            if (answered !== undefined) {
+                return answered;
+            }
             connections += 1;
 
             return {
@@ -132,15 +153,18 @@ test("refuse callers waiting for a tunnel once the client closes", async () => {
     ]);
 });
 
-test("dial again after the issuer grants no token, warning of each failed dial", async () => {
-    // dial with a token the issuer refuses
+test("dial again after the issuer grants no token for the relay's resource, warning of each failed dial", async () => {
+    // dial with a token the issuer refuses, asked for the resource the relay names
     await using simulation = testSimulation();
     const statuses: TunnelStatus[] = [];
+    const audiences: PackageId[] = [];
     using telemetry = new TestTelemetry(simulation.telemetry);
+    const relay = silentRelay(simulation);
     const client = TunnelClient.open({
-        url: NOWHERE,
+        url: relay.url,
         machineId: MACHINE,
-        token: async () => {
+        token: async (audience) => {
+            audiences.push(audience);
             throw new TypeError("the issuer is unreachable");
         },
         fetch: async () => new Response(null, { status: 204 }),
@@ -154,10 +178,14 @@ test("dial again after the issuer grants no token, warning of each failed dial",
     await simulation.waitUntil(() => telemetry.records().length === 4);
     await client.close();
     const failed = [
-        warning(`dialing ${NOWHERE} failed: TypeError: the issuer is unreachable`),
-        warning(`tunnel to ${NOWHERE} did not open`),
+        warning(`dialing ${relay.url} failed: TypeError: the issuer is unreachable`),
+        warning(`tunnel to ${relay.url} did not open`),
     ];
-    expect([telemetry.records(), statuses]).toEqual([[...failed, ...failed], []]);
+    expect([telemetry.records(), statuses, audiences]).toEqual([
+        [...failed, ...failed],
+        [],
+        [RELAY, RELAY],
+    ]);
 });
 
 test("drop a tunnel whose relay stops answering, dialing again and closing without its close answered", async () => {

@@ -9,11 +9,15 @@ import {
     TunnelProtocol,
 } from "../session/index.ts";
 import type { ClientSocket, Environment } from "@destack/environment";
-import type { Identifier } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
+import { PackageId } from "@destack/package";
 import { TunnelError } from "../error/index.ts";
 
 /** The path below a relay's origin machines open and renew their tunnels at. */
 export const TUNNEL_PATH = "/tunnel";
+
+/** The relay's metadata of its tunnel, at the well-known path RFC 9728 3.1 inserts before it. */
+export const TUNNEL_METADATA_PATH = `/.well-known/oauth-protected-resource${TUNNEL_PATH}`;
 
 /** How often a machine probes its tunnel: 15 s, under Cloudflare's 100 s idle WebSocket timeout. */
 const HEARTBEAT_MILLISECONDS = 15_000;
@@ -36,14 +40,22 @@ export const TUNNEL_STATUSES = ["open", "dialing"] as const;
 /** Whether a machine's tunnel is open or dialing. */
 export type TunnelStatus = (typeof TUNNEL_STATUSES)[number];
 
+/** A relay's metadata of its tunnel (RFC 9728 2): the resource the machine's tokens are for. */
+export const TunnelMetadata = schema.object({
+    /** The relay's package as an OAuth resource, the `aud` of the tokens it accepts. */
+    resource: schema.string().min(1),
+});
+/** A relay's metadata of its tunnel. */
+export type TunnelMetadata = schema.Infer<typeof TunnelMetadata>;
+
 /** How a machine runs its tunnel. */
 export interface TunnelClientOptions {
     /** The relay's tunnel URL. */
     readonly url: string;
     /** The machine dialing, whose identifier seeds the backoff's jitter. */
     readonly machineId: Identifier<"machine">;
-    /** Read the machine's current access token for the relay. */
-    readonly token: () => Promise<string>;
+    /** Read the machine's current access token for the package the relay names as its resource. */
+    readonly token: (audience: PackageId) => Promise<string>;
     /** Answer a request the relay forwards. */
     readonly fetch: (request: Request) => Promise<Response>;
     /** Learn the machine's name and its tunnel's lapse at each renewal. */
@@ -155,10 +167,12 @@ export class TunnelClient {
 
     /** Dial the relay once and resolve whether the tunnel opened after it ends. */
     async #dial(): Promise<boolean> {
-        // connect with the machine's token
+        // connect with the machine's token for the resource the relay names
         let socket: ClientSocket;
+        let audience: PackageId;
         try {
-            socket = await this.#connect();
+            audience = await this.#audience();
+            socket = await this.#connect(audience);
         } catch (error) {
             // warn of a dial the backoff retries
             this.#instruments.captureMessage(
@@ -174,6 +188,7 @@ export class TunnelClient {
         // follow the socket and the client's close until the dial ends
         const dial: Dial = {
             socket,
+            audience,
             following: new AbortController(),
             ended: Promise.withResolvers<boolean>(),
             session: undefined,
@@ -185,14 +200,29 @@ export class TunnelClient {
         return dial.ended.promise;
     }
 
+    /** Read the package the relay names as its tunnel's resource in its metadata (RFC 9728). */
+    async #audience(): Promise<PackageId> {
+        // fetch the metadata beside the tunnel
+        const url = new URL(TUNNEL_METADATA_PATH, this.#options.url);
+        const response = await this.#options.environment.network.fetch(new Request(url.href));
+        if (!response.ok) {
+            throw TunnelError.of("METADATA_INVALID", `${url.href} answered ${response.status}`);
+        }
+
+        // read the package of its resource
+        const metadata = TunnelMetadata.parse(await response.json());
+
+        return PackageId.ofResource(metadata.resource);
+    }
+
     /** Open a socket to the relay that offers the machine's token as a subprotocol. */
-    async #connect(): Promise<ClientSocket> {
+    async #connect(audience: PackageId): Promise<ClientSocket> {
         // address the relay's tunnel over WebSocket
         const url = new URL(this.#options.url);
         url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
         // offer the machine's token
-        const token = await this.#options.token();
+        const token = await this.#options.token(audience);
 
         return this.#options.environment.network.websocket(url.href, TunnelProtocol.offer(token));
     }
@@ -328,7 +358,7 @@ export class TunnelClient {
 
         // renew again near the renewed token's lapse, or after a heartbeat once it fails
         try {
-            const renewed = await this.#renew(session);
+            const renewed = await this.#renew(session, dial.audience);
             const lifetime = renewed.lapsesAt - this.#options.environment.clock.now();
             void this.#schedule(dial, session, lifetime * RENEWAL_SHARE);
         } catch (error) {
@@ -348,9 +378,9 @@ export class TunnelClient {
     }
 
     /** Renew the tunnel's token through a stream to the relay, learning the machine's name. */
-    async #renew(session: Session): Promise<Renewal> {
+    async #renew(session: Session, audience: PackageId): Promise<Renewal> {
         // renew with the current token
-        const token = await this.#options.token();
+        const token = await this.#options.token(audience);
         const response = await session.fetch(
             new Request(this.#options.url, {
                 method: "PUT",
@@ -403,6 +433,8 @@ export class TunnelClient {
 interface Dial {
     /** The socket to the relay. */
     readonly socket: ClientSocket;
+    /** The package the relay names as its resource, the audience of the machine's tokens. */
+    readonly audience: PackageId;
     /** Stops following the client's close once the dial ends. */
     readonly following: AbortController;
     /** Resolves whether the tunnel opened once the dial ends. */
