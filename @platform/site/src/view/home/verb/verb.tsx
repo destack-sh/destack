@@ -14,6 +14,7 @@ import { Picker } from "../figure/picker";
 import { destackedScene, stackedConnectors, stackedScene } from "./scene";
 import { Dial, teams } from "../figure/dial";
 import { Bill } from "../figure/bill";
+import { PlanetDrawing } from "../drawing/planet";
 import { accentOf, type Item, marksOf } from "../figure/item";
 import {
     everyRow,
@@ -52,14 +53,15 @@ const firstRemixAt = 1800;
 const TASKS_ROW = rowOf("tasks");
 
 /** The verb, which titles the page. */
-const verb: Form = {
+export const verb: Form = {
     syllables: ["de", "stack"],
     pronunciation: "/diːˈstak/",
     partOfSpeech: "verb",
     sense: {
         definition: "to own your stack",
         highlight: ["own"],
-        sentence: "Build custom software, integrate every app and agent, and control your whole stack.",
+        sentence:
+            "Build custom software, integrate every app and agent, and control your whole stack.",
         gloss: "out of a thousand silos, into one space",
     },
 };
@@ -264,8 +266,9 @@ export function Verb(properties: {
                 stacked="twelve apps, twelve silos"
                 destacked="twelve apps, one space"
             >
-                <StackSwitch isOpen={properties.isOpen} place="label" />
+                <StackSwitch isOpen={properties.isOpen} place="label" isHinted />
             </FigureLabel>
+            <PlanetDrawing isOpen={properties.isOpen} isMoving={!isReduced() && isShown()} />
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <Label>
                     {isOpenAt(0) ? "Your work, in your space" : "Your work, on their servers"}

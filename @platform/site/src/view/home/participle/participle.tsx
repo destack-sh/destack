@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
+import { Constellation } from "../drawing/constellation";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, type Form } from "../entry/entry";
 import { InstallWays } from "../../install/install";
@@ -8,7 +9,7 @@ import type { Tool } from "../tool/tool";
 import { Tally } from "./tally";
 
 /** The present participle, the act of destacking, which closes the page. */
-const participle: Form = {
+export const participle: Form = {
     syllables: ["de", "stack", "ing"],
     pronunciation: "/diːˈstakɪŋ/",
     partOfSpeech: "present participle",
@@ -30,6 +31,7 @@ export function Participle(properties: {
     return (
         <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}>
             <Entry form={participle} />
+            <Constellation isOpen={properties.isOpen} />
             <Tally
                 number={6}
                 stacked="your apps, fragmented"

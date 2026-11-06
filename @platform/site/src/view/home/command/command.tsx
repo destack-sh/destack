@@ -5,6 +5,7 @@ import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
+import { Satellites } from "../drawing/satellites";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label, LabelRow } from "../entry/label";
@@ -36,7 +37,7 @@ const lineup: Lineup = (category) =>
         : lineupAt(0)(category);
 
 /** The command every app answers to, as an imperative. */
-const command: Form = {
+export const command: Form = {
     syllables: ["de", "stack!"],
     pronunciation: "/diːˈstak/",
     partOfSpeech: "imperative",
@@ -110,6 +111,7 @@ export function Command(properties: { isOpen: boolean }) {
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
+            <Satellites isOpen={properties.isOpen} count={stackedConnectors.length} />
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.app)}>
                 <Label>
                     {properties.isOpen ? "Every app on one API" : "Every app behind its own API"}

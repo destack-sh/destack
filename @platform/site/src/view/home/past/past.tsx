@@ -1,12 +1,13 @@
 import * as style from "@destack/style";
 
 import { lattice } from "../../layout/lattice.stylex";
+import { Syzygy } from "../drawing/syzygy";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { StackFigure } from "./stack";
 import { StackSwitch } from "../entry/switch";
 
 /** The past participle, the state of having destacked. */
-const destacked: Form = {
+export const destacked: Form = {
     syllables: ["de", "stacked"],
     pronunciation: "/diːˈstakt/",
     partOfSpeech: "past participle",
@@ -35,6 +36,7 @@ export function PastParticiple(properties: {
                 >
                     <StackSwitch isOpen={properties.isOpen} place="label" />
                 </FigureLabel>
+                <Syzygy isOpen={properties.isOpen} />
             </section>
             <StackFigure onChange={properties.onChange} />
         </>

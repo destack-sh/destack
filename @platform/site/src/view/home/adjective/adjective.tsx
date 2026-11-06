@@ -4,6 +4,8 @@ import { createReducedMotion } from "@destack/view/motion";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { lattice } from "../../layout/lattice.stylex";
+import { BlackBox } from "../drawing/blackbox";
+import { layerCount } from "../past/stack";
 import { screen } from "../../layout/screen.stylex";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label, LabelRow } from "../entry/label";
@@ -14,7 +16,7 @@ import { type Console, Inspector } from "./inspect";
 import { destackedChatAt, destackedScene, laneAt, stackedConnectors, stackedScene } from "./scene";
 
 /** The adjective every app answers to. */
-const destackable: Form = {
+export const destackable: Form = {
     syllables: ["de", "stack", "a", "ble"],
     pronunciation: "/diːˈstakəbl/",
     partOfSpeech: "adjective",
@@ -88,6 +90,7 @@ export function Adjective(properties: { isOpen: boolean }) {
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
+            <BlackBox isOpen={properties.isOpen} layers={layerCount} />
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.app)}>
                 <Label>
                     {properties.isOpen ? "Your apps, in one log" : "Your apps, in five logs"}

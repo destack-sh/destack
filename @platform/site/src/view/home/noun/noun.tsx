@@ -7,6 +7,7 @@ import { createVisibilityObserver } from "@destack/view/primitives/intersection-
 import { createTimer } from "@destack/view/primitives/timer";
 
 import { lattice } from "../../layout/lattice.stylex";
+import { Gearset } from "../drawing/gearset";
 import { Entry, FigureLabel, type Form } from "../entry/entry";
 import { Label, LabelRow, LabelTabs } from "../entry/label";
 import { audienceOf, audiences, Dial } from "../figure/dial";
@@ -38,7 +39,7 @@ import { createReducedMotion } from "@destack/view/motion";
 const turnTime = 2500;
 
 /** The noun. */
-const noun: Form = {
+export const noun: Form = {
     syllables: ["De", "stack"],
     pronunciation: "/ˈdiːstak/",
     partOfSpeech: "noun",
@@ -148,6 +149,7 @@ export function Noun(properties: { isOpen: boolean }) {
             >
                 <StackSwitch isOpen={properties.isOpen} place="label" />
             </FigureLabel>
+            <Gearset isOpen={properties.isOpen} />
             <div {...style.attrs(lattice.cell, lattice.figureCell, styles.stage)}>
                 <LabelRow
                     end={
