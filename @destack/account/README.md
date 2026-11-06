@@ -89,7 +89,7 @@ await Residency.apply(store, declaration.residencies, now);
 for (const step of new Platform(store, declaration.platform, stacks.residency).steps()) {
     await step.apply(now); // machines, organization, roles, names, residency spaces, invitation
 }
-await UniverseRole.operating(snapshot); // the organization holding the operator role
+await UniverseRole.platform(snapshot); // the platform's organization, holding the operator role
 ```
 
 ## Sign-in on a computer

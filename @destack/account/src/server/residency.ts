@@ -201,7 +201,7 @@ async function publisher(
     }
 
     // sell a name or account of the platform's organization through the residency space's account
-    const platform = await UniverseRole.operating(context);
+    const platform = await UniverseRole.platform(context);
     const isPlatform = holder.objectId === platform || holder.owner === platform;
     if (isPlatform) {
         return Account.ofHome(Residency.requireSpace(served));

@@ -1460,7 +1460,7 @@ export class TestAccountStore implements AsyncDisposable {
         // sign the operator in and find the platform organization
         const operator = await this.signIn(OPERATOR_EMAIL);
         const organizationId = present(
-            await UniverseRole.operating(Snapshot.live(this.database)),
+            await UniverseRole.platform(Snapshot.live(this.database)),
             "the platform organization",
         );
 

@@ -140,7 +140,16 @@ test("answer a person the platform's reserved and taken handles as taken", async
                 handle: "security",
             }),
         ),
-    ]).toEqual([{ handle: "admin-2" }, "taken", "taken", taken, lookalike, taken, lookalike, taken]);
+    ]).toEqual([
+        { handle: "admin-2" },
+        "taken",
+        "taken",
+        taken,
+        lookalike,
+        taken,
+        lookalike,
+        taken,
+    ]);
 });
 
 test("transfer a reserved handle to the account it renames, once, keeping its lookalikes taken", async () => {
@@ -229,8 +238,8 @@ test("make the platform organization's owners operators when an apply created it
     const second = await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     expect({
         second,
-        operating: await UniverseRole.operating(Snapshot.live(fixture.database)),
-    }).toEqual({ second: first, operating: first });
+        platform: await UniverseRole.platform(Snapshot.live(fixture.database)),
+    }).toEqual({ second: first, platform: first });
 });
 
 test("move each residency home to its own newly declared stack once, giving each residency's platform account its hostnames below the organization's declared domains once", async () => {

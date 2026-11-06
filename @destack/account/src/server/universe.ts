@@ -151,8 +151,8 @@ export interface PlatformStep {
 
 /** The universe's operator role. */
 export const UniverseRole = {
-    /** Find the organization whose owners have the operator role, absent before the first start. */
-    async operating(
+    /** Find the platform's organization, the operator role's holder, absent before setup. */
+    async platform(
         reader: Pick<Snapshot, "read">,
     ): Promise<Identifier<"organization"> | undefined> {
         // read the operator role's bindings, absent before the first start
@@ -467,8 +467,12 @@ export class Platform {
                 const keyed = [...after.claims, ...before.claims].map(
                     (entry) => [`${entry.index} ${entry.key}`, entry] as const,
                 );
-                const claims = [...new Map(keyed).values()];
-                const [taken] = await Claim.replace(transaction, { ...after, claims }, environment);
+                const merged = [...new Map(keyed).values()];
+                const [taken] = await Claim.replace(
+                    transaction,
+                    { ...after, claims: merged },
+                    environment,
+                );
                 if (taken !== undefined) {
                     throw AccountError.of(
                         "HANDLE_RESERVED",
@@ -650,7 +654,7 @@ export class Platform {
     /** Read the operating organization, refusing a universe without one. */
     async #organization(): Promise<Identifier<"organization">> {
         return present(
-            await UniverseRole.operating(Snapshot.live(this.store.database)),
+            await UniverseRole.platform(Snapshot.live(this.store.database)),
             "the operating organization",
         );
     }

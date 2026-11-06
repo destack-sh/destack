@@ -426,7 +426,7 @@ export class TestUniverse implements AsyncDisposable {
     async #join(operator: TestPerson): Promise<void> {
         // find the invitation the platform stores for the operator
         const organizationId = present(
-            await UniverseRole.operating(Snapshot.live(this.storage.database)),
+            await UniverseRole.platform(Snapshot.live(this.storage.database)),
             "the platform organization",
         );
         const user = schema.identifier("user").parse(operator.subject.id);
