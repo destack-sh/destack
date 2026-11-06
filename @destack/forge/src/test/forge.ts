@@ -3,9 +3,11 @@ import { VAULT } from "@destack/vault/test";
 import { Account, account, type ResidencyCode } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { integration, Issuer } from "@destack/connection/object";
+import { defineConnection } from "@destack/connection/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
-import connectionServer, { connectionShape } from "@destack/connection/server";
+import { connectionShape } from "@destack/connection/server";
+import { CONNECTION } from "@destack/connection/test";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { PackageClient, BuildStore } from "@destack/build/store";
@@ -45,6 +47,8 @@ import { gitStorage } from "@destack/stack/object";
 import { GITHUB_API } from "../github/index.ts";
 import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
 
+/** The connection a person's GitHub installation is: GitHub's API, which the forge's app calls. */
+const GITHUB_CONNECTION = defineConnection("github", { resource: "https://api.github.com" });
 /** The node GitHub's stand-in answers on in the world's network. */
 const GITHUB_NODE = "github";
 
@@ -101,15 +105,6 @@ export const FORGE: TestPackage = {
         ],
     }),
     server: forgeServer,
-    connectors: [],
-    providers: [],
-};
-
-/** Connections as the machine ships them, beside the vault keeping their credentials. */
-export const CONNECTION: TestPackage = {
-    handle: connectionPackage,
-    build: await testBuild(connectionPackage, testHost().crypto),
-    server: connectionServer,
     connectors: [],
     providers: [],
 };
@@ -629,6 +624,8 @@ export class TestForge {
         const created = await owner.connection.create({
             scope,
             requestId: RequestId.create(this.environment),
+            ...GITHUB_CONNECTION.declare(),
+            name: "github",
             protocol: { kind: "installation" },
             integration: integration.reference(scope, app.id),
         });
