@@ -11,7 +11,7 @@ import {
     TestMail,
     OPERATOR_EMAIL,
     PersonSignIn,
-    HOME_STACK,
+    RESIDENCY_STACK,
     STACKS,
     TestPerson,
 } from "@destack/account/test";
@@ -312,12 +312,13 @@ export class TestUniverse implements AsyncDisposable {
                 name: "Destack",
                 residencyId: TEST_RESIDENCY,
                 operator: OPERATOR_EMAIL,
+                transfers: {},
                 reserved: [],
                 publishers: options.publishers ?? [],
                 handle: "destack",
                 domains: [],
                 homes: Object.fromEntries(
-                    residencies.map(({ code }) => [code, options.home ?? HOME_STACK]),
+                    residencies.map(({ code }) => [code, options.home ?? RESIDENCY_STACK]),
                 ),
                 hostnames: Object.fromEntries(residencies.map(({ code }) => [code, []])),
                 stacks: options.stacks ?? STACKS,
