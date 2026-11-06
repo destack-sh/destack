@@ -56,6 +56,9 @@ import { transformPlugins } from "./extension.ts";
 /** A stylesheet import, by its extension, with or without a query. */
 const STYLESHEET = /\.css(?:\?.*)?$/u;
 
+/** An import with a query, which a build plugin transforms and no runtime loads from a release. */
+const QUERY = /\?/u;
+
 /** The empty module standing in for a stylesheet a server output imports. */
 const EMPTY_STYLESHEET = "\0destack-empty-stylesheet";
 
@@ -636,8 +639,13 @@ export class OutputCompilation implements Compilation {
             return false;
         }
 
-        // compile the package's own modules into the output, and a dependency's stylesheets and assets, which no runtime loads by import
-        if (this.#isBundled(specifier) || STYLESHEET.test(specifier) || ASSET.test(specifier)) {
+        // compile the package's own modules into the output, and a dependency's stylesheets, assets and queried files, which no runtime loads by import
+        if (
+            this.#isBundled(specifier) ||
+            STYLESHEET.test(specifier) ||
+            ASSET.test(specifier) ||
+            QUERY.test(specifier)
+        ) {
             return false;
         }
 

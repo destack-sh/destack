@@ -393,6 +393,87 @@ test("compile a package with the build extension it declares", async () => {
     }
 });
 
+test("bundle a dependency's file imported with a query through the extension that loads it", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files } = environment;
+    const directory = await files.realPath(
+        await files.makeTemporaryDirectory("destack-build-query-"),
+    );
+    try {
+        // write a package whose module imports a dependency's text file through its extension's query
+        const contents: Record<string, string> = {
+            "bun.lock": JSON.stringify({ lockfileVersion: 1, workspaces: {}, packages: {} }),
+            "destack.json": JSON.stringify({
+                $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+                id: "package-01996ab0-0000-7000-8000-00000000000f",
+                role: "library",
+                language: "typescript",
+                runtimes: ["bun"],
+                build: "./build#shoutExtension",
+            }),
+            "package.json": JSON.stringify({
+                name: "@example/shout",
+                version: "2026.9.0",
+                type: "module",
+                dependencies: { "@example/words": "1.0.0" },
+                exports: { ".": "./src/shout.ts", "./build": "./src/build.ts" },
+            }),
+            "node_modules/@example/words/package.json": JSON.stringify({
+                name: "@example/words",
+                version: "1.0.0",
+            }),
+            "node_modules/@example/words/hello.txt": "hello",
+            "src/shout.ts": [
+                "// @ts-expect-error: the extension loads the query",
+                'import hello from "@example/words/hello.txt?shout";',
+                "",
+                "/** The dependency's word, shouted. */",
+                "export const shout: string = hello;",
+                "",
+            ].join("\n"),
+            "src/build.ts": [
+                'import { readFileSync } from "node:fs";',
+                "",
+                "/** Load each `?shout` import as its file's text in capitals. */",
+                "export const shoutExtension = {",
+                "    transform: () => [",
+                "        {",
+                '            name: "shout",',
+                '            enforce: "pre",',
+                "            load: (id: string) =>",
+                '                id.endsWith("?shout")',
+                "                    ? `export default ${JSON.stringify(",
+                '                          readFileSync(id.slice(0, -"?shout".length), "utf8").toUpperCase(),',
+                "                      )};`",
+                "                    : null,",
+                "        },",
+                "    ],",
+                "};",
+                "",
+            ].join("\n"),
+        };
+        for (const [path, text] of Object.entries(contents)) {
+            await files.mkdir(join(directory, path, ".."), { recursive: true });
+            await files.writeTextFile(join(directory, path), text);
+        }
+
+        // build the package and read the word its extension loaded
+        await using store = await LocalBuildStore.temporary(environment);
+        await using builder = await Compiler.start(directory, { store });
+        const outputs = { library: { kind: "module", runtime: "bun" } } as const;
+        const built = await builder.build({ directory, dependencies: {}, outputs });
+        await built.writeDirectory(join(directory, "build"), files);
+        const module = await importBuilt(
+            join(directory, "build"),
+            rootExport(built.manifest, "library"),
+        );
+        expect({ ...module }).toEqual({ shout: "HELLO" });
+    } finally {
+        await files.remove(directory, { recursive: true });
+    }
+});
+
 test("refuse a workerd output importing an npm unit that workerd cannot load", async () => {
     // install a native addon, which workerd cannot load
     await using simulation = testSimulation();
