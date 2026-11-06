@@ -48,7 +48,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
             ["bun/index.js", new TextEncoder().encode("export const tiny = 1;\n")],
             ["bun/index.d.ts", new TextEncoder().encode("export declare const tiny: number;\n")],
         ]),
-        {
+        { role: "app",
             package: TINY,
             outputs: fixtureOutputs({
                 bun: { runtime: "bun", emit: true, workloads: {}, views: {} },
@@ -151,7 +151,7 @@ test("pull a space's own build whose dependencies share a build, reading each bu
     await using space = await TestBuildStore.create(environment);
     const unit = await MemoryBuild.write(
         new Map([["package.json", new TextEncoder().encode(JSON.stringify(TINY))]]),
-        {
+        { role: "app",
             package: TINY,
             outputs: fixtureOutputs({
                 bun: { runtime: "bun", emit: true, workloads: {}, views: {} },

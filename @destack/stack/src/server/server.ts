@@ -4,7 +4,7 @@ import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } 
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import type { PackageId, PackageRelease } from "@destack/package";
-import { type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, present, schema, type VersionRange } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, Provisioned } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
@@ -130,6 +130,8 @@ export interface SpaceOptions {
     readonly buildRunner: Identifier<"machine"> | null;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
+    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    readonly destack: VersionRange;
     /** Whether requests for the account's own hostnames reach the machine, so its routes serve. */
     readonly isServingHostnames: boolean;
     /** Open the publisher of a partition a follow reads at its home, such as a residency's home. */
@@ -503,6 +505,7 @@ function installationOptions(
         registry: options.registry,
         binder,
         runtimes: options.runtimes.filter((runtime) => runtime.name !== PROCESS_RUNTIME),
+        destack: options.destack,
         accounts: options.accounts,
         forge: options.forge,
         kernel: KERNEL_TYPES,

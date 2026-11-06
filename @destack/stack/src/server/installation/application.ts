@@ -49,6 +49,7 @@ import {
     present,
     schema,
     Version,
+    type VersionRange,
 } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { StackError } from "../../error/index.ts";
@@ -89,6 +90,8 @@ export interface ApplicationOptions {
     readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */
     readonly runtimes: readonly Runtime[];
+    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    readonly destack: VersionRange;
     /** Whether the machine checks capabilities' features against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
     /** The space's database, with the replicas of its account's entitlements. */
@@ -146,7 +149,9 @@ const PROCESS_WORKLOAD = "server";
 
 /** The ready reasons of an application refusing to deploy a build, apart from those it waits on. */
 export const REFUSAL_REASONS = [
-    "NoRuntime",
+    "ReleaseUnsupported",
+    "ReleaseTooNew",
+    "ReleaseTooOld",
     "UnservedHook",
     "UnservedAdapter",
     "UndeclaredCapability",
@@ -609,12 +614,27 @@ export class ApplicationInstallation {
         stranded: readonly string[],
         description: PackageDescription | undefined,
     ): Refusal | undefined {
+        // refuse a release built with a newer Destack than the machine runs
+        const built = build.manifest.destack;
+        const { oldest, newest } = this.#options.destack;
+        const name = build.manifest.package.name;
+        if (Version.compare(built, newest) > 0) {
+            const message = `${name} is built with Destack ${built}, newer than this machine's ${newest}`;
+
+            return { reason: "ReleaseTooNew", message };
+        }
+        // refuse one built with an older Destack than the machine supports
+        else if (Version.compare(Version.release(built), oldest) < 0) {
+            const message = `${name} is built with Destack ${built}, older than this machine supports (${oldest})`;
+
+            return { reason: "ReleaseTooOld", message };
+        }
         // refuse a build with an unrunnable workload
-        if (stranded.length > 0) {
+        else if (stranded.length > 0) {
             const runtimes = this.#options.runtimes.map((runtime) => runtime.name).join(", ");
             const message = `workloads ${stranded.join(", ")} have no output on ${runtimes}`;
 
-            return { reason: "NoRuntime", message };
+            return { reason: "ReleaseUnsupported", message };
         }
 
         // refuse a package routing hooks that nothing serves: its build's hook workload, or the store

@@ -29,7 +29,7 @@ import {
     isNotNull,
     Snapshot,
 } from "@destack/db";
-import { Digest, nth, Identifier, present, schema } from "@destack/schema";
+import { Digest, nth, Identifier, present, schema, type VersionRange } from "@destack/schema";
 import { BunSqliteDatabaseHost } from "@destack/db/bun";
 import {
     BROWSER_SANDBOX,
@@ -333,6 +333,7 @@ async function serveControllers(
         readonly runtime?: TestRuntime;
         readonly accounts?: SpaceOptions["accounts"];
         readonly isEnforcingEntitlements?: boolean;
+        readonly destack?: VersionRange;
     } = {},
 ) {
     // provision the machine's databases as files in a temporary directory
@@ -357,6 +358,7 @@ async function serveControllers(
                 ),
             ],
             ...(options.accounts === undefined ? {} : { accounts: options.accounts }),
+            ...(options.destack === undefined ? {} : { destack: options.destack }),
             ...(options.isEnforcingEntitlements === true
                 ? { isEnforcingEntitlements: true, publisherAt: () => TestEntitlement.publisher }
                 : {}),
@@ -933,6 +935,44 @@ test("redeploy an application once a binding its deployment captured targets ano
     });
 });
 
+test("deploy nothing of a release built with a newer or an older Destack than the machine runs, and report which", async () => {
+    // deploy notes on a machine running only a later Destack, then on one running only an earlier one
+    const refusal = async (destack: VersionRange) => {
+        const fixture = await TestSpace.open();
+        const notes = await installNotes(
+            fixture,
+            ids.notes,
+            await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
+        );
+        const { deployments } = await serveControllers(fixture, { destack });
+        await deployments.reconcile(notes.installationId);
+        const installed = await readInstalled(fixture.database, notes.installationId);
+        const deployed = await fixture.database.select().from(object.deployment.table);
+
+        const ready = installed.installation.conditions["Ready"];
+
+        return [deployed.length, ready?.reason, ready?.message];
+    };
+
+    // refuse each, the release too old for the later machine and too new for the earlier one
+    const built = import.meta.destack.package.version;
+    expect({
+        later: await refusal({ oldest: "2099.1.0", newest: "2099.1.0" }),
+        earlier: await refusal({ oldest: "2001.1.0", newest: "2001.1.0" }),
+    }).toEqual({
+        later: [
+            0,
+            "ReleaseTooOld",
+            `@test/package is built with Destack ${built}, older than this machine supports (2099.1.0)`,
+        ],
+        earlier: [
+            0,
+            "ReleaseTooNew",
+            `@test/package is built with Destack ${built}, newer than this machine's 2001.1.0`,
+        ],
+    });
+});
+
 test("deploy nothing of a build whose workloads have no output on a runtime the machine runs, and report why", async () => {
     // install notes with its workload only in a bun output
     const fixture = await TestSpace.open();
@@ -957,7 +997,7 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
         deployments: [],
         ready: {
             status: "false",
-            reason: "NoRuntime",
+            reason: "ReleaseUnsupported",
             message: "workloads main have no output on workerd",
             observedGeneration: installed.installation.generation,
             lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,

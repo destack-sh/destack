@@ -124,6 +124,9 @@ import type { StackRelease } from "@destack/account/object";
 import { PackageClient, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 
+/** The Destack version the fixture machine runs: this checkout's. */
+const DESTACK_VERSION = import.meta.destack.package.version;
+
 /** The main database of a space a test machine serves without other modules. */
 export const spaceDatabase = defineDatabase({
     name: "main",
@@ -1162,6 +1165,8 @@ export class TestSpace implements AsyncDisposable {
             events: overrides.events ?? (await this.#events()),
             sockets: overrides.sockets ?? (await this.sockets()),
             isEnforcingEntitlements: false,
+            // run releases built with this checkout's Destack version alone
+            destack: { oldest: DESTACK_VERSION, newest: DESTACK_VERSION },
             isServingHostnames: true,
             forge: null,
             follows: [],

@@ -113,7 +113,7 @@ test("forget only the instance still recorded, leaving one a later start replace
 test("bind a workload's own provisioned resources by name, refusing another package's", async () => {
     // describe an instance binding a database and an installation its package calls, in a world of its own
     const world = testSimulation().environment("test");
-    const build = await MemoryBuild.write(new Map(), { package: notes }, world.crypto);
+    const build = await MemoryBuild.write(new Map(), { role: "app", package: notes }, world.crypto);
     const scope = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f4");
     const database = {
         id: ResourceId.parse("resource-01996ab0-0000-7000-8000-0000000000e5"),
