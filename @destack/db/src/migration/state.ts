@@ -40,6 +40,23 @@ export const TableState = schema.object({
     dependents: schema.array(DependentDescription).exactOptional(),
     /** The SQL names of the text columns the full-text index reads. */
     fullText: schema.array(schema.string().min(1)).exactOptional(),
+    /** The global indexes over the rows, with the SQL names of each row's identifier and scope. */
+    globalIndexes: schema
+        .array(
+            schema.object({
+                /** The index's identity. */
+                name: schema.string().min(1),
+                /** The index's declaration as canonical JSON. */
+                declaration: schema.string().min(1),
+                /** The SQL name of the column with each row's identifier. */
+                id: schema.string().min(1),
+                /** The SQL name of the column with each row's scope. */
+                scope: schema.string().min(1),
+                /** The SQL name of the outbox queueing rows for the home. */
+                outbox: schema.string().min(1),
+            }),
+        )
+        .exactOptional(),
     /** The predefined rows as SQL literals by column name, upserted in every database. */
     predefined: schema.array(schema.record(schema.string(), schema.string())).exactOptional(),
     /** The previous SQL names of the table and its columns. */
@@ -223,6 +240,9 @@ export function declareState(
             ...(moved === undefined ? {} : { moved }),
             ...(conversions === undefined ? {} : { conversions }),
             ...(predefined.length === 0 ? {} : { predefined }),
+            ...(isReplica || isReplicated || definition.globalIndexes.length === 0
+                ? {}
+                : { globalIndexes: [...definition.globalIndexes] }),
         };
     });
 }

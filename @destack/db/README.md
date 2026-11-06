@@ -83,6 +83,17 @@ await Transaction.run(database, (transaction) =>
 ); // INVALID_RECORD: cannot write predefined row ["role","role-owner"] of role
 ```
 
+## Global indexes
+
+A table's `globalIndexes` keep its rows unique in another database, and a migration queues every stored row in the index's outbox when an index is added, changed or removed.
+
+```ts
+export const member = defineTable("member", columns, {
+    globalIndexes: () => [{ name: "member/handle", declaration: '{"on":["handle"]}', id: "id", scope: "scope", outbox }],
+});
+await database.migrate([member, outbox]); // safe update table/member/globalIndexes: queue the rows for member/handle
+```
+
 ## Full-text search
 
 A table's `fullText` columns keep a search index, and `SEARCH` matches rows that contain each word as a prefix.

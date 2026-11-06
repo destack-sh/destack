@@ -8,7 +8,8 @@ import { aggregateTriggers, recomputeAggregate } from "../aggregate/trigger.ts";
 import { dependentTriggers } from "../dependent/trigger.ts";
 import { createStamp, createState, deleteState, coversState, type TableState } from "./state.ts";
 import * as statement from "./statement.ts";
-import { quote } from "../dialect/quote.ts";
+import { literal, quote } from "../dialect/quote.ts";
+import { relation } from "../table/namespace.ts";
 import { bridgeTriggers } from "./bridge.ts";
 import type { Triggers } from "./trigger.ts";
 import type { Merge } from "./merge.ts";
@@ -108,6 +109,7 @@ export function planTables(input: PlanInput): TablePlan {
     steps.push(...dependentSteps(declared, applied));
     steps.push(...(dialect === "postgresql" ? foreignKeySteps(created) : []));
     steps.push(...declared.flatMap((state) => predefinedSteps(state, applied)));
+    steps.push(...declared.flatMap((state) => globalIndexSteps(state, applied, input.namespace)));
 
     // drop applied tables no longer declared, except a newer release's tables
     const dropped = droppedTables(declared, remaining);
@@ -828,6 +830,53 @@ function predefinedSteps(state: TableState, applied: readonly TableState[]): Tab
             "safe",
             `keep ${state.predefined?.length ?? 0} predefined rows`,
             [...upsertPredefined(state, upserted), ...deletes],
+        ),
+    ];
+}
+
+/** Queue an existing table's rows for the global indexes it adds or removes, which builds or drops them. */
+function globalIndexSteps(
+    state: TableState,
+    applied: readonly TableState[],
+    namespace: string | undefined,
+): TableStep[] {
+    // compare the declared indexes with those of the applied table, none for a new table
+    const name = state.table.name;
+    const previous = applied.find(
+        (entry) => entry.table.name === name || entry.table.name === state.moved?.table,
+    );
+    if (previous === undefined) {
+        return [];
+    }
+    const declared = state.globalIndexes ?? [];
+    const earlier = previous.globalIndexes ?? [];
+    const changed = [
+        ...declared.filter(
+            (index) =>
+                !earlier.some(
+                    (each) => each.name === index.name && each.declaration === index.declaration,
+                ),
+        ),
+        ...earlier.filter((index) => !declared.some((each) => each.name === index.name)),
+    ];
+    if (changed.length === 0) {
+        return [];
+    }
+
+    // queue every row under each changed index, keyed by the index so the queues stay apart
+    const columns = ["request_id", "object_id", "owner", "index", "expires_at"].map(quote);
+    const queues = changed.map(
+        (index) =>
+            `INSERT INTO ${quote(relation(index.outbox, namespace))} (${columns.join(", ")}) SELECT ${literal(`index:${index.name}`)}, ${quote(index.id)}, ${quote(index.scope)}, ${literal(index.name)}, 0 FROM ${quote(name)} WHERE true ON CONFLICT DO NOTHING`,
+    );
+
+    return [
+        step(
+            "update",
+            Address.join("table", name, "globalIndexes"),
+            "safe",
+            `queue the rows for ${changed.map((index) => index.name).join(", ")}`,
+            queues,
         ),
     ];
 }

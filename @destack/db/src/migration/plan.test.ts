@@ -169,6 +169,53 @@ const unit = defineTable(
     },
 );
 
+/** The outbox queueing rows for their global indexes' home. */
+const outbox = defineTable("outbox", {
+    requestId: text("request_id").primaryKey(),
+    objectId: text("object_id").primaryKey(),
+    owner: text("owner").notNull(),
+    index: text("index").notNull(),
+    expiresAt: integer("expires_at").notNull(),
+});
+
+/** Declare the columns of members with handles. */
+function memberColumns() {
+    return {
+        id: text("id").primaryKey(),
+        scope: text("scope").notNull(),
+        handle: text("handle").notNull(),
+    };
+}
+
+/** Members with handles, as first released without a global index. */
+const memberOne = defineTable("member", memberColumns());
+
+/** Members whose handles a global index keeps unique. */
+const memberTwo = defineTable("member", memberColumns(), {
+    globalIndexes: () => [
+        {
+            name: "member/handle",
+            declaration: '{"on":["handle"]}',
+            id: "id",
+            scope: "scope",
+            outbox,
+        },
+    ],
+});
+
+/** Members whose global index folds the handles' hyphens. */
+const memberThree = defineTable("member", memberColumns(), {
+    globalIndexes: () => [
+        {
+            name: "member/handle",
+            declaration: '{"fold":"hyphens","on":["handle"]}',
+            id: "id",
+            scope: "scope",
+            outbox,
+        },
+    ],
+});
+
 /** Open an empty test database. */
 async function open(tables: readonly Table[]) {
     const storage = await TestDatabase.create(tables, {
@@ -658,6 +705,57 @@ test("roll back without contracting what a newer release added, and refuse table
                 detail: `rollback to ${CURRENT_VERSION} cannot read the table ${NEXT_RELEASE.package.version} renamed to ${table(directoryTable)}`,
             },
         ],
+    });
+});
+
+test("build, rebuild and drop a table's global indexes by queueing its existing rows, and plan nothing once built", async () => {
+    // store two members before their table declares a global index
+    const database = await open([memberOne, outbox]);
+    await database.migrate([memberOne, outbox]);
+    await database.transaction((transaction) =>
+        transaction
+            .insert(memberOne)
+            .values([
+                { id: "member-1", scope: "team-1", handle: "ada" },
+                { id: "member-2", scope: "team-2", handle: "grace" },
+            ])
+            .execute(),
+    );
+
+    // queue both rows once the index is declared, and again once its declaration changes or it goes
+    const queued = async (members: Table) => {
+        const plan = await database.migrate([members, outbox]);
+        const rows = await database.select().from(outbox).orderBy(outbox.objectId);
+        await database.transaction((transaction) => transaction.delete(outbox).execute());
+
+        return { steps: review(plan), rows };
+    };
+    const built = await queued(memberTwo);
+    const unchanged = await queued(memberTwo);
+    const rebuilt = await queued(memberThree);
+    const dropped = await queued(memberOne);
+    const step = `safe update table/${table(memberOne)}/globalIndexes: queue the rows for member/handle`;
+    const rows = [
+        {
+            requestId: "index:member/handle",
+            objectId: "member-1",
+            owner: "team-1",
+            index: "member/handle",
+            expiresAt: 0,
+        },
+        {
+            requestId: "index:member/handle",
+            objectId: "member-2",
+            owner: "team-2",
+            index: "member/handle",
+            expiresAt: 0,
+        },
+    ];
+    expect({ built, unchanged, rebuilt, dropped }).toEqual({
+        built: { steps: [step], rows },
+        unchanged: { steps: [], rows: [] },
+        rebuilt: { steps: [step], rows },
+        dropped: { steps: [step], rows },
     });
 });
 

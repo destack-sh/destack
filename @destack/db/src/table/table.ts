@@ -135,6 +135,7 @@ export class Table<
                 aggregates: [],
                 dependents: [],
                 predefined: [],
+                globalIndexes: () => state.globalIndexes ?? [],
                 fullText:
                     state.fullText === undefined
                         ? undefined
@@ -290,6 +291,8 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
+    /** Evaluate the declared global indexes once every table exists. */
+    readonly #globalIndexes: () => readonly GlobalIndex[];
     /** The source table of a query alias. */
     readonly source: Table | undefined;
     /** The table this defines. */
@@ -339,6 +342,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         this.dependents = declaration.dependents;
         this.predefined = declaration.predefined;
         this.fullText = declaration.fullText;
+        this.#globalIndexes = declaration.globalIndexes;
         this.source = options.source;
         this.#table = table;
         this.#declared = declaration.constraints;
@@ -491,6 +495,11 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
         return column;
     }
 
+    /** The global indexes over the rows, read once every table exists. */
+    get globalIndexes(): readonly GlobalIndex[] {
+        return this.#globalIndexes();
+    }
+
     /** Collect a dialect's constraints once: declared ones, SQLite key checks and references. */
     constraints(dialect: Dialect): readonly TableConstraint[] {
         // collect them on first use, as a declared table never changes
@@ -637,6 +646,22 @@ interface TableDeclaration {
     readonly predefined: readonly Row[];
     /** The table's full-text index, absent for a table nothing searches. */
     readonly fullText: FullTextIndex | undefined;
+    /** Evaluate the global indexes over the rows. */
+    readonly globalIndexes: () => readonly GlobalIndex[];
+}
+
+/** A unique index over a table's rows whose entries live at another database, its home. */
+export interface GlobalIndex {
+    /** The index's identity. */
+    readonly name: string;
+    /** The index's declaration as canonical JSON, whose change rebuilds the index. */
+    readonly declaration: string;
+    /** The SQL name of the column with each row's identifier. */
+    readonly id: string;
+    /** The SQL name of the column with each row's scope. */
+    readonly scope: string;
+    /** The SQL name of the outbox queueing rows for the home, by request, object, owner and index. */
+    readonly outbox: string;
 }
 
 /** A count, sum or extreme of one table's rows, stored on the rows they reference. */
@@ -720,6 +745,19 @@ export interface TableOptions<Columns> {
     readonly predefined?: readonly PredefinedRow<Columns>[];
     /** The text properties a full-text index covers, in a logged table. */
     readonly fullText?: readonly (keyof Columns & string)[];
+    /** The global indexes over the rows, with the properties of each row's identifier and scope. */
+    readonly globalIndexes?: () => readonly {
+        /** The index's identity. */
+        readonly name: string;
+        /** The index's declaration as canonical JSON, whose change rebuilds the index. */
+        readonly declaration: string;
+        /** The property with each row's identifier. */
+        readonly id: keyof Columns & string;
+        /** The property with each row's scope. */
+        readonly scope: keyof Columns & string;
+        /** The outbox queueing rows for the home. */
+        readonly outbox: Table;
+    }[];
 }
 
 /** A predefined row: the value of every column but generated ones, by property. */
@@ -844,6 +882,13 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
             dependents: options.dependents ?? [],
             predefined: options.predefined ?? [],
             fullText: fullTextOf(name, sqlName, columns, options),
+            globalIndexes: () =>
+                (options.globalIndexes?.() ?? []).map((index) => ({
+                    ...index,
+                    id: present(columns[index.id], index.id).definition.name,
+                    scope: present(columns[index.scope], index.scope).definition.name,
+                    outbox: index.outbox[TABLE].sqlName,
+                })),
         },
         options.tree === undefined ? {} : { tree: options.tree },
     );
@@ -877,6 +922,7 @@ export function alias<Definition extends Table, Name extends string>(
             dependents: source[TABLE].dependents,
             predefined: source[TABLE].predefined,
             fullText: source[TABLE].fullText,
+            globalIndexes: () => source[TABLE].globalIndexes,
         },
         { source },
     );
