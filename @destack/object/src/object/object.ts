@@ -2885,9 +2885,12 @@ type TraitOptions<Traits> = {
     readonly [Key in keyof Traits as [Traits[Key]] extends [undefined] ? never : Key]: Traits[Key];
 };
 
-/** The traits a definition's objects take: its traits, and those its kind adds. */
+/** The traits a definition's objects take: its own, and its kind's but a binding it gates. */
 type DefinedTraits<Definition> = DefinitionTraits<Definition> &
-    ProvisionedTraitsOf<Option<Definition, "provisioned">>;
+    Omit<
+        ProvisionedTraitsOf<Option<Definition, "provisioned">>,
+        Extract<keyof DefinitionTraits<Definition>, "bindable">
+    >;
 
 /** The fields a definition's objects have: its fields, and those of its sharing, kind, traits. */
 type DefinedFields<Definition extends ObjectDefinition> = FieldsByColumn<
@@ -2956,6 +2959,12 @@ type DeclaredMethods<Methods> = {
     readonly [Name in keyof Methods as Methods[Name] extends false ? never : Name]: Methods[Name];
 };
 
+/** The methods a definition's kind adds, but those the definition declares itself. */
+type KindMethodsOf<Definition extends ObjectDefinition, Methods> = Omit<
+    ProvisionedMethodsOf<Option<Definition, "provisioned">>,
+    keyof Methods
+>;
+
 /** The object type a definition declares with its methods. */
 export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectType<{
     readonly name: Definition["name"];
@@ -2966,14 +2975,14 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
     readonly methods: DeclaredMethods<Methods> &
         ReadableMethodMap<Methods, DefinedTable<Definition>> &
         WritableMethodMap<
-            Methods & ProvisionedMethodsOf<Option<Definition, "provisioned">>,
+            Methods & KindMethodsOf<Definition, Methods>,
             DefinedPermissions<Definition>,
             DefinedTable<Definition>,
             WrittenField<DefinedFields<Definition>>,
             Option<Definition, "versioned"> extends undefined ? true : false,
             Option<Definition, "recoverable"> extends undefined ? true : false
         > &
-        ProvisionedMethodsOf<Option<Definition, "provisioned">> &
+        KindMethodsOf<Definition, Methods> &
         SeriesMethodMap<StorageKind<Option<Definition, "storage", "durable">>> &
         ManagerMethodMap<Definition, Methods> &
         TraitMethods<

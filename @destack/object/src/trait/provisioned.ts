@@ -172,6 +172,11 @@ export const Provisioned = {
             return definition;
         }
 
+        // refuse a controller of the definition's own, as the kind's providers reconcile with approvals
+        if (definition.controlled !== undefined) {
+            throw new TypeError(`resources ${definition.name} take their kind's controlled trait`);
+        }
+
         // require the scope types the resources live in
         const scope = definition.scope;
         if (scope === undefined || scope === Scope.universe.id) {
@@ -190,7 +195,8 @@ export const Provisioned = {
         return {
             ...definition,
             controlled: { approval: true },
-            bindable: true,
+            // bind consumers by the binder, or also one at a time where the definition gates it
+            bindable: definition.bindable ?? true,
             shareable: {},
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
             constraints: {
