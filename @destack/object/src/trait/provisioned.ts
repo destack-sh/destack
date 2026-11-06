@@ -22,11 +22,6 @@ import type { Erasure } from "./trait.ts";
 
 import { adopt, specify } from "../method/provisioned.ts";
 
-/** The constraints of resources Destack creates: no connection lends them. */
-const INTERNAL_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
-    connection: { kind: "check", condition: { connection: { isNull: true } } },
-};
-
 /** The constraints every resource takes. */
 const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
     scopeName: { kind: "unique", on: ["scope", "name"] },
@@ -80,8 +75,6 @@ function resourceFields(kind: ResourceKind) {
         drainingStates: field.blobs().default([]),
         /** The desired states the provider applied, none before the first apply. */
         appliedStates: field.blobs().default([]),
-        /** The space connection whose credential the host lends to every call, if any. */
-        connection: field.string(schema.identifier("connection")).optional(),
         /** The requested placement, absent for automatic selection. */
         placement: field.json(ResourcePlacement).optional(),
         /** The provider supplying the resource, absent before provisioning. */
@@ -202,7 +195,6 @@ export const Provisioned = {
             fields: { ...resourceFields(provisioned.kind), ...definition.fields },
             constraints: {
                 ...RESOURCE_CONSTRAINTS,
-                ...(provisioned.kind.management === "external" ? {} : INTERNAL_CONSTRAINTS),
                 ...definition.constraints,
             },
             permissions: {
@@ -269,7 +261,6 @@ function resourceMethods() {
                 "ownerType",
                 "ownerScope",
                 "ownerId",
-                "connection",
                 "provider",
                 "reference",
                 "tags",

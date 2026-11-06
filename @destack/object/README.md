@@ -612,14 +612,12 @@ await instance.reload(); // serve the next start once started, drain the previou
 
 ## Bindings
 
-`defineInstallationBinding` declares a dependency on an installation of another package, and `defineHttps` on an external HTTPS API, both called through the host's egress.
+`defineInstallationBinding` declares a dependency on an installation of another package, called through the host's egress; an external API is a connection, which `@destack/connection` declares.
 
 ```ts
 export const pages = defineInstallationBinding("pages", pagesPackage);
-export const github = defineHttps("github", { url: "https://api.github.com" });
 
 const result = await safe(pages.get(context.resources).page.update(input)); // oRPC's safe
-const response = await github.get(context.resources).fetch("/repos/acme/app/issues");
 ```
 
 ## Clients

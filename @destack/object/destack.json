@@ -48,15 +48,6 @@
                 }
             ]
         },
-        "defineHttps": {
-            "describes": [
-                {
-                    "kind": "resource",
-                    "package": "@destack/resource",
-                    "function": "./inspect#describeHttps"
-                }
-            ]
-        },
         "definePackage": {
             "describes": [
                 {
@@ -103,9 +94,6 @@
             "module": 1
         },
         "defineAdapter": {
-            "module": 2
-        },
-        "defineHttps": {
             "module": 2
         },
         "definePackage": {
