@@ -659,7 +659,7 @@ export class Device<
         stack: AsyncDisposableStack,
     ): Promise<ObjectClient<Objects>> {
         // require one package's objects in their scope's partition
-        const { id } = await this.loopback.computer();
+        const { machineId } = await this.loopback.computer();
         const [first] = Object.values(objects);
         if (first === undefined) {
             throw MachineError.of("OBJECTS_MISSING", "no objects to follow");
@@ -678,8 +678,8 @@ export class Device<
                 environment: this.environment,
                 database,
                 objects,
-                scope: isLocal ? this.id : id,
-                caller: principal.machine.reference(Scope.universe.id, id),
+                scope: isLocal ? this.id : machineId,
+                caller: principal.machine.reference(Scope.universe.id, machineId),
                 endpoint: this.loopback.options(first.package.id),
                 reconnect: (machine) => {
                     throw MachineError.of(

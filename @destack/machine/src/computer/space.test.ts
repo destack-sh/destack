@@ -49,14 +49,14 @@ import {
 /** The step-up a move of a space asks for: a second factor within the last 15 minutes. */
 const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
 
-/** The handle of the shared account the board's space lives in. */
-const BOARD_HANDLE = "acme";
+/** The handle of the organization of the board's space and of the echo packages. */
+const ACME_HANDLE = "acme";
 
 /** The package both spaces install: one workload answering each call with its caller. */
 const echo = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a4",
     name: "@acme/echo",
-    version: "2026.10.0",
+    version: "2026.10.0-dev.1",
 });
 
 /** The echo package's handle. */
@@ -89,7 +89,7 @@ const echoWorkload = defineWorkload(
 const visitor = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a5",
     name: "@acme/visitor",
-    version: "2026.10.0",
+    version: "2026.10.0-dev.1",
 });
 
 /** The visitor's binding of an echo installation, which a space binds across spaces. */
@@ -308,11 +308,10 @@ async function keepBucket(
     return id;
 }
 
-/** Install an echo release in a computer's space, bound to a peer, waiting for its instances. */
+/** Install a published echo release in a computer's space, bound to a peer, until it runs. */
 async function install(served: Echoing, release: BuildReader, name: string, peer?: Peer) {
-    // publish the release and install it as the owner
+    // install the release as the owner
     const { computer, space } = served;
-    await computer.registry.release(release);
     const released = PackageManifest.package(release.manifest);
     const service = await objectsOf(served);
     const created = await service.installation.create({
@@ -381,24 +380,19 @@ async function serving(
         });
 }
 
-/** Serve a board's space of a shared account on a computer. */
-async function openBoard(world: TestWorld, options: TestComputerOptions = {}): Promise<Served> {
+/** Serve a board's space of a shared account on a computer in the home's world. */
+async function openBoard(home: TestComputer, options: TestComputerOptions = {}): Promise<Served> {
     // create the shared account as the owner, and serve the board's space on a computer enrolled in it
-    const accounts = world.owner.client(accountPackage);
-    const account = await accounts.account.create({
-        scope: world.owner.id,
-        requestId: RequestId.create(world.universe.environment),
-        handle: BOARD_HANDLE,
-        name: "Acme",
-        kind: "shared",
-        residencyId: "eu",
-    });
-    const served = await openComputer(world, account.id, "board", options);
+    const { world } = home;
+    const account = await world.owner.organize(ACME_HANDLE, "Acme");
+    const served = await openComputer(world, account, "board", options);
 
-    // install the board from the run's fixtures
+    // publish the board from the home's machine, and install it
     const { computer, login, space } = served;
     const database = (await computer.machine.space(space)).database;
-    await computer.install(login.id, space, await WorldDriver.fixture("board"), "board");
+    const build = await WorldDriver.fixture("board");
+    await world.distribution.publish(build, home.machine, home.machine);
+    await computer.install(login.id, space, build, "board");
     await storing(served, boardPackage.id);
 
     // wait until the board's sandboxed instance serves
@@ -490,18 +484,27 @@ async function steppedUp(served: Served) {
 
 /** Serve a source space and a caller space on two of the owner's computers through a relay. */
 async function openComputers() {
+    // serve the owner's home on the residency's cloud computer, which runs the forge
+    const { home } = await TestComputer.home();
+    const { world } = home;
+
     // serve both spaces
-    const world = await TestComputer.world();
     const relay = await TestComputer.relay(world);
     const source = await openEcho(world, "source", relay);
     const caller = await openEcho(world, "caller", relay);
 
-    // run the echo package in the source and the visitor in the caller
+    // publish the echo package and the visitor as the owner of their acme organization
     const { crypto } = world.simulation.environment("builds");
     const echoRelease = await echoBuild(crypto);
+    const visitorRelease = await visitorBuild(echoRelease, crypto);
+    await world.owner.organize(ACME_HANDLE, "Acme");
+    for (const release of [echoRelease, visitorRelease]) {
+        await world.distribution.publish(release, world.owner, home.machine);
+    }
+
+    // run the echo package in the source and the visitor in the caller
     const called = await install(source, echoRelease, "echo");
-    await caller.computer.registry.release(echoRelease);
-    const calling = await install(caller, await visitorBuild(echoRelease, crypto), "visitor", {
+    const calling = await install(caller, visitorRelease, "visitor", {
         target: called.name,
         targetSpaceId: source.space,
     });
@@ -676,8 +679,8 @@ test(
     { timeout: SCENARIO_MILLISECONDS },
     async () => {
         // run the board sandboxed
-        const world = await TestComputer.world();
-        const source = await openBoard(world);
+        const { home } = await TestComputer.home();
+        const source = await openBoard(home);
         const { computer, space } = source;
         const sourced = (await computer.machine.space(space)).database;
         const [boards] = await Snapshot.live(sourced)

@@ -8,11 +8,13 @@ import { testHost } from "@destack/test/host";
 import {
     BUILDS_VARIABLE,
     PLATFORM_PACKAGES,
+    RUNTIME_PACKAGE,
     STACK_FIXTURE,
     START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
-import { SCENARIO_FIXTURES, WORLD_FIXTURES, WorldDriver } from "./world.ts";
+import { SCENARIO_FIXTURES, TestFixture, WORLD_FIXTURES } from "./fixture.ts";
+import { WorldDriver } from "./world.ts";
 
 /** The module of machine's test templates, which the run writes once. */
 const TEMPLATES = new URL("./templates.ts", import.meta.url);
@@ -25,8 +27,10 @@ export default async function setup(project: TestProject): Promise<() => Promise
     {
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store);
-        const { crypto } = store.environment;
+        const { crypto, files } = store.environment;
+        const versions = await TestFixture.versions(files);
         const builds = [
+            [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(compilers)] as const,
             ...PLATFORM_PACKAGES.map(
                 (name) => [name, built, () => TestDistribution.platform(name, compilers)] as const,
             ),
@@ -35,7 +39,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
                     [
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
-                        () => WorldDriver.build(name, compilers),
+                        () => WorldDriver.build(name, compilers, versions),
                     ] as const,
             ),
         ];

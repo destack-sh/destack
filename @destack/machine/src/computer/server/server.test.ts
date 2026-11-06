@@ -56,6 +56,7 @@ const STACK_CHECKOUT: Readonly<Record<string, string>> = {
     "stack/destack.json": JSON.stringify({
         $schema: "https://destack.app/schemas/2026.9.0/destack.json",
         id: STACK_CHECKOUT_PACKAGE,
+        role: "library",
         language: "typescript",
         runtimes: ["bun", "workerd"],
     }),

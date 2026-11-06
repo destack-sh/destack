@@ -1,14 +1,20 @@
 import { plugin } from "bun";
 import { present } from "@destack/schema";
-import type { Kernel } from "../computer/kernel.ts";
 
-/** The link of each kernel specifier, process-wide as Bun's module registry is. */
+/** The link of each builtin specifier, process-wide as Bun's module registry is. */
 const LINKS = new Map<string, Promise<void>>();
 
-/** Link the specifiers of the packages a kernel provides to this process's own instances. */
-export async function linkKernel(specifiers: readonly string[], kernel: Kernel): Promise<void> {
-    // link each provided specifier not linked yet, then wait for every link the caller needs, in flight ones included
-    const needed = [...new Set(specifiers)].filter((specifier) => kernel.provides(specifier));
+/** Link the specifiers of the builtins to this process's own modules. */
+export async function linkBuiltins(
+    specifiers: readonly string[],
+    builtins: ReadonlySet<string>,
+): Promise<void> {
+    // link each builtin specifier not linked yet, then wait for every link the caller needs, in flight ones included
+    const needed = [...new Set(specifiers)].filter((specifier) => {
+        const name = specifier.split("/").slice(0, 2).join("/");
+
+        return builtins.has(name);
+    });
     for (const specifier of needed.filter((each) => !LINKS.has(each))) {
         LINKS.set(specifier, link(specifier));
     }
@@ -23,13 +29,13 @@ async function link(specifier: string): Promise<void> {
     const path = Bun.resolveSync(specifier, import.meta.dirname);
     const exports: unknown = await import(path);
     if (typeof exports !== "object" || exports === null) {
-        throw new TypeError(`the kernel module ${specifier} at ${path} exports nothing`);
+        throw new TypeError(`the builtin module ${specifier} at ${path} exports nothing`);
     }
     const namespace = { ...exports };
 
     // register it as a virtual module answering that instance
     plugin({
-        name: `destack-kernel ${specifier}`,
+        name: `destack-builtin ${specifier}`,
         setup(build) {
             build.module(specifier, () => ({ exports: namespace, loader: "object" }));
         },

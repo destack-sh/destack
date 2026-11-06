@@ -1,4 +1,3 @@
-import { Kernel } from "../computer/kernel.ts";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { MachineIdentity } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
@@ -89,8 +88,8 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_HOST: string;
     /** The releases the deploy shipped into the build bucket, as JSON. */
     readonly DESTACK_BUNDLED: string;
-    /** The packages the machine's script provides, as its kernel file's JSON. */
-    readonly DESTACK_KERNEL: string;
+    /** The builtins the machine links to the servers it loads, as JSON its deploy derived. */
+    readonly DESTACK_LINKED: string;
     /** The installation residency homes serve the registry protocol at. */
     readonly DESTACK_REGISTRY: string;
     /** The binding of each cloud machine, by the hosts of it and its relay, as JSON. */
@@ -284,9 +283,9 @@ export class CloudMachine {
         return schema.array(PackageRelease).parse(JSON.parse(this.bindings.DESTACK_BUNDLED));
     }
 
-    /** Read the packages the machine's script provides, as its deploy derived them. */
-    kernel(): Kernel {
-        return Kernel.parse(this.bindings.DESTACK_KERNEL);
+    /** Read the builtins the machine links, as its deploy derived them from its own release. */
+    linked(): PackageRelease[] {
+        return schema.array(PackageRelease).parse(JSON.parse(this.bindings.DESTACK_LINKED));
     }
 
     /** Derive the key the machine's journals fingerprint sensitive inputs under. */

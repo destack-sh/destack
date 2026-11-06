@@ -649,6 +649,7 @@ export class Space {
             buildRunner: machine.isBuilding ? machine.id : null,
             handoff: (source, spaceId) => machine.handoff(source, spaceId),
             isEnforcingEntitlements: machine.isEnforcingEntitlements,
+            destack: machine.destack,
             isServingHostnames: machine.isServingHostnames,
             runtimes: machine.runtimes,
             registry: machine.releases,

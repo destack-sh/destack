@@ -51,7 +51,7 @@ test(
 
         // serve the board's space on another computer behind the relay, shared with another person
         const relay = await TestComputer.relay(world);
-        const source = await openBoard(world, { relay: relay.url });
+        const source = await openBoard(home, { relay: relay.url });
         const stranger = await grantStranger(world, source);
 
         // let that person mention the owner on a card the owner may read
@@ -87,21 +87,14 @@ test(
 );
 
 /** Serve a board's space of a shared account on a computer, with its vault, messages and inbox. */
-async function openBoard(world: TestWorld, options: TestComputerOptions = {}): Promise<Served> {
+async function openBoard(home: TestComputer, options: TestComputerOptions = {}): Promise<Served> {
     // create the shared account as the owner, and serve the board's space on a computer enrolled in it
-    const accounts = world.owner.client(accountPackage);
-    const account = await accounts.account.create({
-        scope: world.owner.id,
-        requestId: RequestId.create(world.universe.environment),
-        handle: BOARD_HANDLE,
-        name: "Acme",
-        kind: "shared",
-        residencyId: "eu",
-    });
+    const { world } = home;
+    const account = await world.owner.organize(BOARD_HANDLE, "Acme");
     const computer = await TestComputer.open({ ...options, world });
     const login = await computer.signIn(OWNER_EMAIL);
-    await computer.enroll(login, account.id);
-    const space = await computer.space(login, account.id, "board");
+    await computer.enroll(login, account);
+    const space = await computer.space(login, account, "board");
 
     // install the board and the platform packages it needs that the space's stack lacks
     const database = (await computer.machine.space(space)).database;
@@ -114,8 +107,11 @@ async function openBoard(world: TestWorld, options: TestComputerOptions = {}): P
         const installed = await Snapshot.live(database)
             .read(installation.table)
             .findFirst({ where: { scope: space, packageId } });
+        // publish a missing one from the home's machine, and install it
         if (installed === undefined) {
-            await computer.install(login.id, space, await WorldDriver.fixture(fixture), name);
+            const build = await WorldDriver.fixture(fixture);
+            await world.distribution.publish(build, home.machine, home.machine);
+            await computer.install(login.id, space, build, name);
         }
     }
     const served = { computer, login, space };

@@ -194,6 +194,7 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
         JSON.stringify({
             $schema: "https://destack.app/schemas/2026.9.0/destack.json",
             id: SITE,
+            role: "library",
             language: "typescript",
             runtimes: ["bun"],
         }),

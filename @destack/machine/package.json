@@ -52,7 +52,8 @@
         "@destack/telemetry": "workspace:*",
         "@destack/tunnel": "workspace:*",
         "@destack/update": "workspace:*",
-        "@destack/view": "workspace:*"
+        "@destack/view": "workspace:*",
+        "@destack/workflow": "workspace:*"
     },
     "devDependencies": {
         "@destack/machine-mention-fixture": "workspace:*",

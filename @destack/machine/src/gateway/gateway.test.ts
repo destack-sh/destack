@@ -90,7 +90,7 @@ const tasks: InstanceSpec = {
         .parse("deployment-01996ab0-0000-7000-8000-0000000000b3"),
     build: await MemoryBuild.write(
         new Map(),
-        {
+        { role: "app",
             package: {
                 id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000a7"),
                 name: "@example/tasks",

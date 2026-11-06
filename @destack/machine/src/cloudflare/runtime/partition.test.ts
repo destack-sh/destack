@@ -80,7 +80,7 @@ test("leave a partition's WebSocket open in workerd while the host answers pings
         sampling: 0,
         root: "00".repeat(32),
     };
-    const build = await MemoryBuild.write(new Map(), { package: ECHO_PACKAGE }, crypto);
+    const build = await MemoryBuild.write(new Map(), { role: "app", package: ECHO_PACKAGE }, crypto);
     const started: DurableObjectInstanceStart = {
         workload: { start: workload, manifest: build.manifest },
         space: SPACE,

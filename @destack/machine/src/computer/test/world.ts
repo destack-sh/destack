@@ -1,4 +1,3 @@
-import { fileURLToPath } from "node:url";
 import { principal } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import type { CompilerPool } from "@destack/build";
@@ -24,6 +23,7 @@ import {
     type JsonValue,
     present,
     schema,
+    type Version,
 } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
 import { replica, Scope } from "@destack/sync";
@@ -35,15 +35,10 @@ import {
 } from "../../benchmark/index.ts";
 import { FILES_NODE, OWNER_EMAIL, TestComputer } from "./computer.ts";
 import { TestDistribution } from "./distribution.ts";
+import { TestFixture } from "./fixture.ts";
 
 /** The most simulated milliseconds a call waits for every device to see its result. */
 const VISIBLE_MILLISECONDS = 30_000;
-
-/** The fixture packages worlds install, which the run's setup builds before any world. */
-export const WORLD_FIXTURES = ["apps", "board"] as const;
-
-/** The fixture packages only scenarios install, which no template ships. */
-export const SCENARIO_FIXTURES = ["mention"] as const;
 
 /** The run's provided values the worlds read. */
 declare module "vitest" {
@@ -276,21 +271,26 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         return await store.contents(Digest.parse(built));
     }
 
-    /** Build a fixture package's server outputs. */
-    static build(fixture: string, compilers: CompilerPool): Promise<BuildReader> {
-        return TestDistribution.compile(compilers, WorldDriver.#fixture(fixture));
+    /** Build a fixture package's outputs, the published fixtures at their dev versions. */
+    static build(
+        fixture: string,
+        compilers: CompilerPool,
+        versions: Readonly<Record<string, Version>>,
+    ): Promise<BuildReader> {
+        return TestDistribution.compile(compilers, new TestFixture(fixture).directory, versions);
     }
 
     /** Install a fixture build in the owner's home as the owner, recording its object types. */
     async #install(fixture: string, build: BuildReader): Promise<void> {
-        // install the build as the owner
+        // publish the build from the home's machine, and install it as the owner
         const { world } = this.home;
+        await world.distribution.publish(build, this.home.machine, this.home.machine);
         await this.home.install(this.login, world.owner.home, build, fixture);
 
         // record its object types by name
         const packageId = PackageManifest.package(build.manifest).id;
         const module: unknown = await world.simulation.scheduler.run(
-            () => import(`${WorldDriver.#fixture(fixture)}src/package.ts`),
+            () => import(`${new TestFixture(fixture).directory}src/package.ts`),
         );
         const handle = FixturePackage.parse(module).default;
         for (const type of Object.values(handle.objects)) {
@@ -298,11 +298,6 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
                 this.#objects.set(type.name, { type, packageId });
             }
         }
-    }
-
-    /** Find a fixture package's directory below the machine's tests. */
-    static #fixture(fixture: string): string {
-        return fileURLToPath(new URL(`../../../tests/fixture/${fixture}/`, import.meta.url));
     }
 
     /** Sign members in following the installed objects, or open a member's further devices. */

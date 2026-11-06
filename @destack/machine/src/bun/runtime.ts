@@ -1,5 +1,5 @@
-import { linkKernel } from "./link.ts";
-import type { Kernel } from "../computer/kernel.ts";
+import { linkBuiltins } from "./link.ts";
+import type { Package } from "@destack/package";
 import { RequestBody, SERVER_EXPORT } from "@destack/object";
 import { Authentication } from "@destack/access";
 import { dirname, join } from "node:path";
@@ -84,8 +84,8 @@ export class BunRuntime implements Runtime {
     readonly #directory: string;
     /** The machine's store of builds, with every build's closure. */
     readonly #packages: LocalBuildStore;
-    /** The packages the machine provides, whose modules a loaded server shares with it. */
-    readonly #kernel: Kernel;
+    /** The names of the builtins, whose modules a loaded server shares with this process. */
+    readonly #builtins: ReadonlySet<string>;
     /** The machine's egress of a space's instances, below which they call addresses. */
     readonly #egress: (scope: Identifier<"space">) => string;
     /** Resolve the share of traces an installation samples. */
@@ -119,8 +119,8 @@ export class BunRuntime implements Runtime {
         readonly directory: string;
         /** The machine's store of builds, with every build's closure. */
         readonly packages: LocalBuildStore;
-        /** The packages the machine provides, whose modules a loaded server shares with it. */
-        readonly kernel: Kernel;
+        /** The builtins, whose modules a loaded server shares with this process. */
+        readonly builtins: readonly Package[];
         /** The machine's egress of a space's instances, below which they call addresses. */
         readonly egress: (scope: Identifier<"space">) => string;
         /** Resolve the share of traces an installation samples, as its space's settings set it. */
@@ -147,7 +147,7 @@ export class BunRuntime implements Runtime {
         // set the directory, the egress, the output and the spaces' identities
         this.#directory = options.directory;
         this.#packages = options.packages;
-        this.#kernel = options.kernel;
+        this.#builtins = new Set(options.builtins.map((builtin) => builtin.name));
         this.#egress = options.egress;
         this.#sampling = options.sampling;
         this.#url = options.url;
@@ -185,7 +185,7 @@ export class BunRuntime implements Runtime {
         return exported;
     }
 
-    /** Import an export of a build's Bun output, its kernel imports this process's own. */
+    /** Import an export of a build's Bun output, its imports of builtins this process's own. */
     async import(manifest: Digest, specifier: string): Promise<unknown> {
         // find the export in the build's Bun output
         const build = await this.#packages.contents(manifest);
@@ -198,13 +198,13 @@ export class BunRuntime implements Runtime {
             `the ${specifier} export of ${build.manifest.package.name}`,
         );
 
-        // place the build, link the kernel modules its closure may load to this process's own, and import the export
+        // place the build, link the builtin modules its closure may load to this process's own, and import the export
         const { build: placed } = await this.#write(build);
         const imports = await this.#imports(build, manifest);
 
         // load the modules as one real operation, completed in order whether the host loaded them before or not
         return await this.#environment.scheduler.run(async () => {
-            await linkKernel(imports, this.#kernel);
+            await linkBuiltins(imports, this.#builtins);
             const module: unknown = await import(join(placed, exported.path));
 
             return module;

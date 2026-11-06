@@ -10,7 +10,6 @@ import { schema } from "@destack/schema";
 import { PackageMount } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "./runtime.ts";
-import { Kernel } from "../computer/kernel.ts";
 import { WEBHOOK_PATH } from "@destack/object/workload";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { testKeys, testSimulation } from "@destack/object/test";
@@ -73,7 +72,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        kernel: new Kernel(new Map()),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -92,7 +91,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     const files = new Map([["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)]]);
     const build = await MemoryBuild.write(
         files,
-        {
+        { role: "app",
             package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
             outputs: {
                 bun: {
@@ -334,7 +333,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     onTestFinished(() => packages[Symbol.asyncDispose]());
     const runtime = new BunRuntime({
         isolation: "sandbox",
-        kernel: new Kernel(new Map()),
+        builtins: [],
         environment: world,
         identity: async () => testKeys(world),
         directory,
@@ -360,7 +359,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     };
     const build = await MemoryBuild.write(
         new Map([["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)]]),
-        {
+        { role: "app",
             package: { id: PACKAGE, name: "@example/fetch", version: "2026.10.0" },
             outputs: {
                 bun: {

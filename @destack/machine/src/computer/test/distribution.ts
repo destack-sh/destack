@@ -5,13 +5,19 @@ import type { PlatformDefinition, ReleaseRegistry } from "@destack/account/serve
 import { CompilerPool, type LocalBuildStore, outputsOf, Workspace } from "@destack/build";
 import { BuildLayer, BuildStore } from "@destack/build/store";
 import { testStore } from "@destack/build/test";
-import type { PackageId } from "@destack/package";
+import { FORGE_INSTALLATION } from "@destack/forge/package";
+import { InstallationMount, PackageMount } from "@destack/object";
+import { createClient } from "@destack/object/client";
+import { type PackageId, PackageName } from "@destack/package";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
-import { Digest, present, schema } from "@destack/schema";
-import { TestRegistry } from "@destack/stack/test";
+import { Registry } from "@destack/registry/client";
+import registryPackage from "@destack/registry/package";
+import { Digest, present, schema, type Version } from "@destack/schema";
+import { RequestId } from "@destack/sync";
 import { inject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
+import type { Machine } from "../../machine/index.ts";
 import { MachineError } from "../../error/index.ts";
 
 /** The variable the run's setup writes templates with: its builds' digests by name. */
@@ -28,11 +34,23 @@ export const PLATFORM_PACKAGES = [
     "@destack/forge",
 ] as const;
 
+/** The package the test computers run, whose release a distribution ships as their own. */
+export const RUNTIME_PACKAGE = "@destack/machine";
+
 /** The fixture package declaring the stacks spaces are born with, as the platform's does. */
 export const STACK_FIXTURE = "stack";
 
 /** The fixture start page the stack fixture installs in every person's home. */
 export const START_FIXTURE = "start";
+
+/** How long a machine's directory may take to list a new organization: 30 s, a few syncs. */
+const DIRECTORY_MILLISECONDS = 30_000;
+
+/** How long a residency home may take to serve its forge: 30 s, as a fresh home deploys it. */
+const FORGE_MILLISECONDS = 30_000;
+
+/** The publisher of a scope's packages: a person, or the platform organization's cloud machine. */
+export type TestPublisher = Pick<Machine, "fetch">;
 
 /** What a test computer ships: the platform's stacks, what they install, and other builds. */
 export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
@@ -44,29 +62,25 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly builds: readonly BuildReader[];
     /** The builds with what they run, as a machine ships them in place. */
     readonly layer: BuildLayer;
-    /** The registry serving the shipped releases from the run's build store. */
-    readonly registry: TestRegistry;
     /** The run's build store the server builds read from, open until the distribution closes. */
     readonly #store: LocalBuildStore;
 
     /** The layers this process writes or wrote, by their releases, each written once. */
     static readonly #distributed = new Map<string, Promise<string>>();
 
-    /** Take the stacks, the builds, their registry and the store they read from. */
+    /** Take the stacks, the builds, their layer and the store they read from. */
     private constructor(
         stacks: PlatformDefinition["stacks"],
         home: StackRelease,
         builds: readonly BuildReader[],
         layer: BuildLayer,
-        registry: TestRegistry,
         store: LocalBuildStore,
     ) {
-        // set the stacks, the residency homes', the builds, their layer, the registry and its store
+        // set the stacks, the residency homes', the builds, their layer and their store
         this.stacks = stacks;
         this.home = home;
         this.builds = builds;
         this.layer = layer;
-        this.registry = registry;
         this.#store = store;
     }
 
@@ -88,23 +102,22 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const stack = await read(STACK_FIXTURE);
         const start = await read(START_FIXTURE);
         const stacks = {
-            person: await TestDistribution.pinned(stack, "PERSON_STACK", crypto),
-            account: await TestDistribution.pinned(stack, "ACCOUNT_STACK", crypto),
+            home: await TestDistribution.pinned(stack, "HOME_STACK", crypto),
             space: await TestDistribution.pinned(stack, "SPACE_STACK", crypto),
         };
         const residencyHome = await TestDistribution.pinned(stack, "RESIDENCY_STACK", crypto);
 
-        // ship the stacks, the packages they install, and the builds the test adds
-        const builds = [...platform, stack, start, ...given];
+        // ship the computers' own release, the stacks, the packages they install, and the builds the test adds
+        const runtime = await read(RUNTIME_PACKAGE);
+        const builds = [runtime, ...platform, stack, start, ...given];
 
-        // serve the shipped releases from the run's store of their closures' builds
-        const registry = new TestRegistry(store);
+        // store the shipped builds in the run's store
         const manifests = [];
         for (const build of builds) {
-            manifests.push(await registry.release(build));
+            manifests.push(await store.put(build));
         }
 
-        // publish the Destack releases they and the run's other builds were built against, and ship them, as a distribution ships every platform release
+        // ship the Destack releases they and the run's other builds were built against, as a distribution ships every platform release
         const others = await Promise.all(
             Object.values(built).map((digest) => store.contents(digest)),
         );
@@ -113,9 +126,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
                 .flat()
                 .map((each) => each.manifest),
         );
-        for (const manifest of recorded) {
-            manifests.push(await registry.release(await store.contents(manifest)));
-        }
+        manifests.push(...recorded);
 
         // ship the releases with their runtime builds and what those run, written and opened as a distribution's
         const layer = await TestDistribution.#distribute(manifests, store);
@@ -123,7 +134,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         // hand the store to the distribution
         opened.move();
 
-        return new TestDistribution(stacks, residencyHome, builds, layer, registry, store);
+        return new TestDistribution(stacks, residencyHome, builds, layer, store);
     }
 
     /** Read the digests of the run's builds by name: the platform, the stacks and the fixtures. */
@@ -140,20 +151,53 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return schema.record(schema.string(), Digest).parse(inject("scenarios") ?? {});
     }
 
-    /** Publish a build with the Destack releases its closure was built against. */
-    async publish(build: BuildReader): Promise<Digest> {
-        // push each release the closure records from the run's store, each once
-        const pushed = new Set<Digest>();
-        const pending = [...(await build.releases())];
-        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
-            if (!pushed.has(next.manifest)) {
-                pushed.add(next.manifest);
-                await this.registry.push(this.#store, next.manifest);
-                pending.push(...(await (await this.#store.contents(next.manifest)).releases()));
-            }
-        }
+    /** Publish a build into its scope's forge as its publisher, as `destack publish` does. */
+    async publish(build: BuildReader, publisher: TestPublisher, machine: Machine): Promise<Digest> {
+        // store the build in the run's store, which the push reads it from
+        const { directory, environment } = machine;
+        const manifest = await this.#store.put(build);
 
-        return await this.registry.release(build);
+        // wait until the machine's replica of the directory has the account of the package's scope
+        const { id, name } = PackageManifest.package(build.manifest);
+        const parsed = PackageName.split(name);
+        const isListed = async () => (await directory.account(parsed.handle)) !== undefined;
+        const listing = environment.clock.timeout(DIRECTORY_MILLISECONDS);
+        await machine.database.log.waitUntil(isListed, listing);
+
+        // find the account and the home of its residency
+        const accountId = present(await directory.account(parsed.handle), `@${parsed.handle}`);
+        const located = await (await machine.accounts()).residency.locate({ account: accountId });
+        const home = schema.identifier("space").parse(located);
+
+        // wait until the home serves its forge
+        const space = await machine.space(home);
+        await space.waitServed(FORGE_INSTALLATION, environment.clock.timeout(FORGE_MILLISECONDS));
+
+        // call the forge below its installation in the home as the publisher, bound to the home
+        const fetch = publisher.fetch(registryPackage.id, { partition: home });
+        const endpoint = await directory.locate(home, environment.clock.now());
+        const origin = InstallationMount.url(endpoint.url, home, FORGE_INSTALLATION);
+        const url = `${origin}${PackageMount.path(registryPackage.id)}`;
+        const forge = createClient(registryPackage, { url, fetch }, environment);
+        const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
+
+        // create the package once, push its build and release it
+        await forge.package.create({
+            spaceId: home,
+            requestId: RequestId.create(environment),
+            id,
+            accountId,
+            name: parsed.local,
+        });
+        await registry.push(this.#store, manifest);
+        await forge.release.create({
+            spaceId: home,
+            requestId: RequestId.create(environment),
+            parentId: id,
+            manifest,
+        });
+
+        return manifest;
     }
 
     /** Write a layer of releases once per process as a distribution does, and open it. */
@@ -204,12 +248,23 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return TestDistribution.compile(compilers, directory);
     }
 
-    /** Build every output a package declares into the run's store, and read the stored build. */
-    static async compile(compilers: CompilerPool, directory: string): Promise<BuildReader> {
+    /** Build the package the test computers run, as the distribution ships it. */
+    static runtime(compilers: CompilerPool): Promise<BuildReader> {
+        const directory = fileURLToPath(new URL("../../../", import.meta.url));
+
+        return TestDistribution.compile(compilers, directory);
+    }
+
+    /** Build every output a package declares into the run's store at some versions, and read it. */
+    static async compile(
+        compilers: CompilerPool,
+        directory: string,
+        versions: Readonly<Record<string, Version>> = {},
+    ): Promise<BuildReader> {
         // build every output the package's exports declare, as its release and its dependents' builds do
         const workspace = await Workspace.open(directory, compilers);
 
-        return await workspace.build({ outputs: outputsOf(workspace.root.packageJson) });
+        return await workspace.build({ outputs: outputsOf(workspace.root.packageJson), versions });
     }
 
     /** Pin a stack's export to a build, as a stack release by its version and manifest. */

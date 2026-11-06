@@ -237,7 +237,6 @@ export class PartitionObject {
         );
         const report = (error: unknown) => instruments.captureException(error, { isEscaped: true });
         const rates = RateCard.parse(JSON.parse(bindings.DESTACK_RATES));
-        const kernel = cloud.kernel();
         const host = await DurableObjectSpaceStorage.open({
             space,
             environment: cloud.environment,
@@ -311,12 +310,7 @@ export class PartitionObject {
                     `a cloud machine cannot load the server of build ${manifest} yet`,
                 );
             },
-            linked: new Map(
-                cloud
-                    .bundled()
-                    .filter((release) => kernel.packages.has(release.package.name))
-                    .map((release) => [release.package.id, release]),
-            ),
+            linked: new Map(cloud.linked().map((release) => [release.package.id, release])),
             shipped: cloud.bundled(),
             registry: bindings.DESTACK_REGISTRY,
             skus: rates.skus,

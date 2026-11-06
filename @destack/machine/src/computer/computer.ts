@@ -1,4 +1,3 @@
-import { Kernel } from "./kernel.ts";
 import type { TunnelStatus } from "@destack/tunnel";
 import { PackageMount, refusal, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
@@ -37,7 +36,9 @@ import type { ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
-import { Identifier, present, schema } from "@destack/schema";
+import { type Digest, Identifier, present, schema } from "@destack/schema";
+import type { Package } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
 import { serveProcess } from "@destack/object/bun";
 import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
@@ -127,8 +128,8 @@ export interface ComputerOptions {
     readonly localObjects: Readonly<Record<string, ObjectType>>;
     /** The builds the computer ships with what they run: its servers and the platform's stacks. */
     readonly bundled: BuildLayer;
-    /** The packages the computer provides to the servers it loads, as its launcher wrote them. */
-    readonly kernel: Kernel;
+    /** The package the computer's program runs, whose shipped release links its builtins. */
+    readonly package: Package;
     /** Open the keychain of a service's secrets. */
     readonly keychain: (service: string) => Keychain;
     /** The machine to run, the stored one or a new one by default. */
@@ -278,6 +279,19 @@ export class Computer implements AsyncDisposable {
 
         // open the build cache over the shipped builds read in place, the compilers and the spaces' storage
         const builds = await Computer.#openCache(options, database);
+
+        // read the shipped releases, and the builtins the program's own release links
+        const shipped = await Promise.all(
+            options.bundled.releases.map(async (manifest) => {
+                const reader = present(
+                    options.bundled.build(manifest),
+                    `the shipped release ${manifest}`,
+                );
+
+                return { package: (await reader).manifest.package, manifest };
+            }),
+        );
+        const builtins = await Computer.#builtins(options, shipped, builds.packages);
         const compilers = await CompilerPool.open(builds.packages);
         stack.defer(() => compilers[Symbol.asyncDispose]());
         const spaces = stack.use(
@@ -299,7 +313,7 @@ export class Computer implements AsyncDisposable {
         const { runtime, processes } = Computer.#startRuntime(
             options,
             origin,
-            builds.packages,
+            { packages: builds.packages, builtins },
             () => machine,
         );
         stack.defer(() => runtime.close());
@@ -325,20 +339,11 @@ export class Computer implements AsyncDisposable {
             options.environment,
         );
 
-        // read the releases of the packages the machine links, their builds in place
-        const shipped = await Promise.all(
-            options.bundled.releases.map(async (manifest) => {
-                const reader = present(
-                    options.bundled.build(manifest),
-                    `the shipped release ${manifest}`,
-                );
-
-                return { package: (await reader).manifest.package, manifest };
-            }),
-        );
+        // link the builtins' shipped releases, by package
+        const builtinIds = new Set(builtins.map(({ id }) => id));
         const linked = new Map(
             shipped.flatMap((release) =>
-                "id" in release.package && options.kernel.packages.has(release.package.name)
+                "id" in release.package && builtinIds.has(release.package.id)
                     ? [
                           [
                               release.package.id,
@@ -605,6 +610,40 @@ export class Computer implements AsyncDisposable {
         });
     }
 
+    /** Read the builtins the program links: its own release and the Destack releases it was built with, by role. */
+    static async #builtins(
+        options: Pick<ComputerOptions, "package">,
+        shipped: readonly {
+            readonly package: PackageManifest["package"];
+            readonly manifest: Digest;
+        }[],
+        packages: LocalBuildStore,
+    ): Promise<Package[]> {
+        // find the program's own release among the shipped ones
+        const { id, name, version } = options.package;
+        const own = shipped.find(
+            (release) =>
+                "id" in release.package &&
+                release.package.id === id &&
+                release.package.version === version,
+        );
+        if (own === undefined) {
+            throw MachineError.of(
+                "CONFIGURATION_INVALID",
+                `the shipped releases lack the program's own ${name}@${version}`,
+            );
+        }
+
+        // take the builtins among the release and the Destack releases it was built with
+        const reader = await packages.contents(own.manifest);
+        const releases = [own.manifest, ...(await reader.releases()).map((each) => each.manifest)];
+        const readers = await Promise.all(releases.map((manifest) => packages.contents(manifest)));
+
+        return readers
+            .filter((each) => each.manifest.role === "builtin")
+            .map((each) => PackageManifest.package(each.manifest));
+    }
+
     /** Open the build cache: blobs below the machine's directory, shipped builds read in place. */
     static async #openCache(
         options: Pick<ComputerOptions, "directory" | "environment" | "bundled">,
@@ -631,7 +670,7 @@ export class Computer implements AsyncDisposable {
     static #startRuntime(
         options: ComputerOptions,
         origin: string,
-        packages: LocalBuildStore,
+        builds: { readonly packages: LocalBuildStore; readonly builtins: readonly Package[] },
         machine: () => Machine,
     ): {
         readonly runtime: Runtime & { readonly close: () => Promise<void> };
@@ -645,7 +684,7 @@ export class Computer implements AsyncDisposable {
         const processes = Computer.#startProcesses(
             options,
             origin,
-            packages,
+            builds,
             egress,
             identity,
             machine,
@@ -658,13 +697,16 @@ export class Computer implements AsyncDisposable {
     static #startProcesses(
         options: ComputerOptions,
         origin: string,
-        packages: LocalBuildStore,
+        {
+            packages,
+            builtins,
+        }: { readonly packages: LocalBuildStore; readonly builtins: readonly Package[] },
         egress: (scope: Identifier<"space">) => string,
         identity: (scope: Identifier<"space">) => Promise<Deriver>,
         machine: () => Machine,
     ): BunRuntime {
         return new BunRuntime({
-            kernel: options.kernel,
+            builtins,
             environment: options.environment,
             report: (error) => options.report("runtime.failed", error),
             isolation: options.isolation,
@@ -983,7 +1025,7 @@ export class Computer implements AsyncDisposable {
 
     /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
-        bundle: Pick<ComputerOptions, "localObjects" | "registry">,
+        bundle: Pick<ComputerOptions, "localObjects" | "registry" | "package">,
         environment: ComputerOptions["environment"],
         configuration = Computer.configure(environment),
     ): Promise<void> {
@@ -1013,7 +1055,6 @@ export class Computer implements AsyncDisposable {
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
             bundled: await BuildLayer.open(configuration.bundled, environment),
-            kernel: await Kernel.open(configuration.bundled, environment),
             keychain: (service) => new BunKeychain(service, files),
             process: {
                 version: MACHINE_PACKAGE.version,

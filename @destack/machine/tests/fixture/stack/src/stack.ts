@@ -15,8 +15,8 @@ import vaultPackage from "@destack/vault/package";
 /** The vault of a residency's home, whose secrets the forge binds. */
 export const platformVault = defineVault({ name: "platform", spec: {} });
 
-/** What every account's home runs, as the platform's: its connections and their vault. */
-const ACCOUNT_HOME = {
+/** The stack of every account's home, as the platform's: a start page, inbox, connections and observability. */
+export const HOME_STACK = defineStack([vaultPackage], {
     vaults: { credentials: connectionVault.declare() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
@@ -25,17 +25,6 @@ const ACCOUNT_HOME = {
             { credentials: "credentials" },
             { isolation: "process", name: CONNECTION_INSTALLATION },
         ),
-    },
-} as const;
-
-/** The stack of every other account's home, as the platform's: its connections. */
-export const ACCOUNT_STACK = defineStack([vaultPackage], ACCOUNT_HOME);
-
-/** The stack of every person's home: an account's, with a start page, inbox and observability. */
-export const PERSON_STACK = defineStack([vaultPackage], {
-    ...ACCOUNT_HOME,
-    installations: {
-        ...ACCOUNT_HOME.installations,
         start: install(startPackage, {}, { name: "start" }),
         message: install(
             messagePackage,

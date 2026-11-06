@@ -45,21 +45,21 @@ const MEMBER_EMAIL = "member@example.test";
 const GREETING = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
     name: "@example/greeting",
-    version: "2026.9.0",
+    version: "2026.9.0-dev.1",
 });
 
 /** The widget library the greeting package pins as a release, with catalogs of its own. */
 const WIDGETS = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
     name: "@example/widgets",
-    version: "2026.9.0",
+    version: "2026.9.0-dev.1",
 });
 
 /** The notes package whose views the launches open. */
 const notes = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
     name: "@example/notes",
-    version: "2026.9.0",
+    version: "2026.9.0-dev.1",
 });
 
 /** The notes package's definition: it reads the person's settings, its camera scans notes. */
@@ -77,7 +77,7 @@ const notesPackage = definePackage(
 const tasks = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c4",
     name: "@acme/tasks",
-    version: "2026.10.0",
+    version: "2026.10.0-dev.1",
 });
 
 /** A task its owner completes. */
@@ -215,7 +215,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
 const articles = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
     name: "@acme/articles",
-    version: "2026.10.0",
+    version: "2026.10.0-dev.1",
 });
 
 /** An article its owner shares, publicly through a link. */
@@ -315,6 +315,8 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
 interface Served {
     /** The computer serving the space. */
     readonly computer: TestComputer;
+    /** The residency's cloud computer, which serves the forge of its home. */
+    readonly cloud: TestComputer;
     /** The owner's login on the computer's device. */
     readonly login: Identifier<"login">;
     /** The space. */
@@ -323,12 +325,16 @@ interface Served {
     readonly address: string;
 }
 
-/** Serve the owner's home on its cloud computer. */
+/** Serve the owner's home on its cloud computer, the owner organizing the test packages' scopes. */
 async function openHome(): Promise<Served> {
+    // serve the home, and create the organizations publishing the test's packages
     const { home, login } = await TestComputer.home();
     const { owner } = home.world;
+    await owner.organize("acme", "Acme");
+    await owner.organize("example", "Example");
+    const address = `home--${owner.handle}`;
 
-    return { computer: home, login, spaceId: owner.home, address: `home--${owner.handle}` };
+    return { computer: home, cloud: home, login, spaceId: owner.home, address };
 }
 
 /** Serve a work space of the owner's account on their own computer in the home's world. */
@@ -341,7 +347,9 @@ async function openWork(home: Served): Promise<Served> {
     await computer.enroll(signedIn, owner.account);
     const spaceId = await computer.space(signedIn, owner.account, "work");
 
-    return { computer, login: signedIn.id, spaceId, address: `work--${owner.handle}` };
+    const address = `work--${owner.handle}`;
+
+    return { computer, cloud: home.cloud, login: signedIn.id, spaceId, address };
 }
 
 /** Serve the owner's work space shared with a second person by invitation. */
@@ -376,8 +384,12 @@ async function openShared(
     return { ...opened, member: member.id };
 }
 
-/** Install a build in a served space from the computer's registry, waiting until applied. */
-function install(served: Served, build: BuildReader, name: string) {
+/** Publish a build as the owner of its scope and install it in a served space, until applied. */
+async function install(served: Served, build: BuildReader, name: string) {
+    // publish the build into its organization's forge as the owner, then install it
+    const { world } = served.computer;
+    await world.distribution.publish(build, world.owner, served.cloud.machine);
+
     return served.computer.install(served.login, served.spaceId, build, name);
 }
 
@@ -595,9 +607,17 @@ test(
     "store a link's secret in its origin's cookie for an anonymous visitor, dropping it from the address on the same origin, and refuse a malformed one",
     async () => {
         // install notes in the owner's home, and draw a link's secret
+        const t0 = performance.now();
         const opened = await openHome();
+        const t1 = performance.now();
         const { computer } = opened;
-        await install(opened, await notesBuild(computer.environment.crypto), "notes");
+        const built = await notesBuild(computer.environment.crypto);
+        const t2 = performance.now();
+        await computer.world.distribution.publish(built, computer.world.owner, opened.cloud.machine);
+        const t3 = performance.now();
+        await computer.install(opened.login, opened.spaceId, built, "notes");
+        const t4 = performance.now();
+        process.stderr.write(`PHASES open=${Math.round(t1 - t0)} build=${Math.round(t2 - t1)} publish=${Math.round(t3 - t2)} install=${Math.round(t4 - t3)}\n`);
         const { secret } = await LinkSecret.create(computer.environment);
         const port = new URL(await computer.device.origin()).port;
         const page = `http://notes--${opened.address}.localhost:${port}/home`;
@@ -1448,7 +1468,8 @@ test(
             crypto,
         );
         const opened = await openHome();
-        await opened.computer.registry.release(widgets);
+        const { world } = opened.computer;
+        await world.distribution.publish(widgets, world.owner, opened.cloud.machine);
         await install(opened, greeting, "greeting");
 
         // open the greeting view and read its own and the library's German catalogs at its origin
@@ -1510,7 +1531,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
     const site = Package.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
         name: "@example/site",
-        version: "2026.9.0",
+        version: "2026.9.0-dev.1",
     });
 
     return TestViewBuild.of(

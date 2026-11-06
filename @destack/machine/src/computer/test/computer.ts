@@ -12,14 +12,13 @@ import { TestDatabase, TestTemplate } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
-import { type ObjectType, type PackageHandle, PackageMount } from "@destack/object";
+import { installation, type ObjectType, type PackageHandle, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { Identifier, schema } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { TestRegistry } from "@destack/stack/test";
 import { RequestId, Scope } from "@destack/sync";
 import { inject, onTestFinished } from "@destack/test";
 import { Universe } from "@destack/universe";
@@ -30,17 +29,11 @@ import { TestRelay } from "@destack/relay/test";
 import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
-import { Kernel } from "../kernel.ts";
 import { testHost } from "@destack/test/host";
 import { fileURLToPath } from "node:url";
 import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index.ts";
 import { TestDistribution } from "./distribution.ts";
 
-/** The packages the computer provides: its module's closure, walked once as the kit loads. */
-const COMPUTER_KERNEL = await Kernel.read(
-    fileURLToPath(new URL("../index.ts", import.meta.url)),
-    testHost(),
-);
 /** How long a scenario of machines in a universe takes at most. */
 export const SCENARIO_MILLISECONDS = 30_000;
 
@@ -159,8 +152,6 @@ export class TestComputer implements AsyncDisposable {
     readonly endpoint: string;
     /** The computer's keychains, by service. */
     readonly keychains: Map<string, MemoryKeychain>;
-    /** The registry the machine pulls releases from, with every shipped build pushed. */
-    readonly registry: TestRegistry;
     /** The failures the computer reported to no caller. */
     readonly reports: unknown[];
     /** The first failure the computer reported to no caller, once it does. */
@@ -181,7 +172,6 @@ export class TestComputer implements AsyncDisposable {
         readonly directory: string;
         readonly endpoint: string;
         readonly keychains: Map<string, MemoryKeychain>;
-        readonly registry: TestRegistry;
         readonly reports: unknown[];
         readonly reported: Promise<unknown>;
         readonly stack: AsyncDisposableStack;
@@ -193,7 +183,6 @@ export class TestComputer implements AsyncDisposable {
         this.directory = fields.directory;
         this.endpoint = fields.endpoint;
         this.keychains = fields.keychains;
-        this.registry = fields.registry;
         this.reports = fields.reports;
         this.reported = fields.reported;
         this.#stack = fields.stack;
@@ -421,9 +410,6 @@ export class TestComputer implements AsyncDisposable {
             stack.defer(() => published.stop(true));
         }
 
-        // pull releases from the distribution's registry
-        const { registry } = distribution;
-
         // start the computer, recording the failures it reports but the tunnel's dials, which it retries
         const reports: unknown[] = [];
         const reported = Promise.withResolvers<unknown>();
@@ -439,7 +425,7 @@ export class TestComputer implements AsyncDisposable {
         const computer = await Computer.start({
             // run instances in this process on the world's clock and network, deterministic under simulation
             isolation: "process",
-            kernel: COMPUTER_KERNEL,
+            package: import.meta.destack.package,
             registry: FORGE_INSTALLATION,
             environment,
             directory,
@@ -457,7 +443,6 @@ export class TestComputer implements AsyncDisposable {
             },
             ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
             bundled: distribution.layer,
-            releases: registry,
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),
             report: (event, error) => {
@@ -494,7 +479,6 @@ export class TestComputer implements AsyncDisposable {
             directory,
             endpoint: declared ?? `http://127.0.0.1:${port}`,
             keychains,
-            registry,
             reports,
             reported: reported.promise,
             stack: stack.move(),
@@ -699,18 +683,15 @@ export class TestComputer implements AsyncDisposable {
         return created.id;
     }
 
-    /** Install a build's release in a space as a signed-in person, waiting until applied. */
+    /** Install a build's shipped or published release in a space as a person, until applied. */
     async install(
         login: Identifier<"login">,
         spaceId: Identifier<"space">,
         build: BuildReader,
         name: string,
     ): Promise<Installation> {
-        // publish the build as its package's release, with the releases it was built against
-        await this.world.distribution.publish(build);
+        // install the build's release as the person
         const released = PackageManifest.package(build.manifest);
-
-        // install the release as the person
         const { device } = this;
         const service = createClient(
             objectPackage,
@@ -764,10 +745,24 @@ export class TestComputer implements AsyncDisposable {
         await this.world.simulation.wait(this.machine.health.waitUp());
         const space = await this.machine.space(spaceId);
         const deadline = this.clock.timeout(READY_MILLISECONDS);
-        await this.world.simulation.wait(space.health.waitUp(deadline)).catch((error: unknown) => {
+        await this.world.simulation.wait(space.health.waitUp(deadline)).catch(async (error: unknown) => {
+            // name each installation not ready with its ready condition, beside the machine's reports
+            const rows = await space.database
+                .select({ name: installation.table.name, conditions: installation.table.conditions })
+                .from(installation.table);
+            const unready = rows
+                .map((row) => ({ name: row.name, ready: row.conditions["Ready"] }))
+                .filter(({ ready }) => ready?.status !== "true")
+                .map(({ name, ready }) => `${name}: ${ready?.reason} ${ready?.message}`);
+            const reports = this.reports.map((report) =>
+                report instanceof Error ? `${report.message} (${String(report.cause)})` : String(report),
+            );
+
+            // fail with both, the wait's error and the reports as causes
+            const reason = space.health.reason;
             throw this.#failure(
-                `space ${spaceId} did not get ready: ${space.health.reason}`,
-                error,
+                `space ${spaceId} did not get ready: ${reason}; not ready: ${unready.join("; ")}; reports: ${reports.join("; ")}`,
+                [error, ...this.reports],
             );
         });
     }

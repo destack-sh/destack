@@ -52,7 +52,14 @@ import type { Alarm } from "@destack/db";
 import { copyRequest, waitAborted } from "@destack/environment";
 import { RequestId, type Publisher, Scope } from "@destack/sync";
 import type { HibernationHost } from "@destack/object/workload";
-import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
+import {
+    canonicalize,
+    type Digest,
+    type Identifier,
+    present,
+    schema,
+    type VersionRange,
+} from "@destack/schema";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import { PROCESS_RUNTIME } from "@destack/stack/object";
@@ -71,6 +78,9 @@ const OWN_MACHINE = "http://machine.invalid";
 
 /** How long this machine's own calls as itself to its spaces last: a minute, one call's latency. */
 const MACHINE_CALL_MILLISECONDS = 60_000;
+
+/** The oldest Destack version whose releases a machine runs: the version its oldest kept behavior serves. */
+const OLDEST_DESTACK = "2026.11.0";
 
 /** What a machine serves its spaces with: its public and its private fields. */
 export type MachineOptions = Pick<
@@ -602,6 +612,11 @@ export class Machine {
         }
 
         return started;
+    }
+
+    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    get destack(): VersionRange {
+        return { oldest: OLDEST_DESTACK, newest: this.#version };
     }
 
     /** Locate a space where its machine answers: this machine's origin for its own spaces. */

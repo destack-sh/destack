@@ -1,15 +1,15 @@
 import { BunEnvironment } from "@destack/environment/bun";
 import { BENCHMARK_MODULES, defineConfiguration, scenarioPlugin } from "@destack/test/config";
 import { fileURLToPath } from "node:url";
-
+import { TestFixture } from "./src/computer/test/fixture.ts";
 
 export default defineConfiguration(
     {
         root: fileURLToPath(new URL(".", import.meta.url)),
-        plugins: [
-            scenarioPlugin([{ module: "@destack/machine/test", name: "WorldDriver" }]),
-        ],
+        plugins: [scenarioPlugin([{ module: "@destack/machine/test", name: "WorldDriver" }])],
         ssr: { resolve: { conditions: ["bun"], externalConditions: ["bun"] } },
+        // load the published fixtures at the dev versions the run's setup builds them at
+        versions: await TestFixture.versions(BunEnvironment.system.files),
         // run every test against each database the package stores in
         targets: { database: ["sqlite"] },
         test: {
