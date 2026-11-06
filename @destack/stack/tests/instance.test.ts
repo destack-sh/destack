@@ -966,6 +966,47 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
     });
 });
 
+test("observe Ready at a new generation of an unchanged revision", async () => {
+    // deploy notes, then bump its generation
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const notes = await installNotes(fixture);
+    const { deployments } = await serveControllers(fixture);
+    await deployments.reconcile(notes.installationId);
+    const first = await readInstalled(database, notes.installationId);
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(installation.table)
+                .set({ generation: first.installation.generation + 1 })
+                .where(eq(installation.table.id, notes.installationId)),
+    );
+
+    // deploy it again
+    await deployments.reconcile(notes.installationId);
+    const next = await readInstalled(database, notes.installationId);
+    expect({
+        revisions: [first.appliedRevisionId, next.appliedRevisionId],
+        ready: [readyOf(first), readyOf(next)],
+    }).toEqual({
+        revisions: [first.appliedRevisionId, first.appliedRevisionId],
+        ready: [
+            {
+                status: "true",
+                reason: "Deployed",
+                message: "1 workloads deployed",
+                observedGeneration: first.installation.generation,
+            },
+            {
+                status: "true",
+                reason: "Deployed",
+                message: "1 workloads deployed",
+                observedGeneration: first.installation.generation + 1,
+            },
+        ],
+    });
+});
+
 test("deploy nothing of a build declaring its own database, and report why", async () => {
     // install notes declaring a database in addition to the space's main database
     const fixture = await TestSpace.open();
@@ -2108,3 +2149,13 @@ test("wait for a provider of a kind no provider here serves yet, naming the kind
         "waiting for a provider of vault resources",
     ]);
 });
+
+/** Read an installation's Ready condition, apart from when it last changed. */
+function readyOf(installed: Awaited<ReturnType<typeof readInstalled>>) {
+    const { lastTransitionAt: _changed, ...condition } = present(
+        installed.installation.conditions["Ready"],
+        "a Ready",
+    );
+
+    return condition;
+}

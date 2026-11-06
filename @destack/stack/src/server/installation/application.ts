@@ -459,6 +459,7 @@ export class ApplicationInstallation {
             replaced.length === 0
         ) {
             await Rollout.upsertAccess(call, target, description);
+            await this.#observeApplied(call, workloads.length);
 
             return;
         }
@@ -574,23 +575,31 @@ export class ApplicationInstallation {
         await this.#releaseUnbound(call, revision);
 
         // observe the revision applied
-        await call.observe(installation, target.installation, {
-            conditions: {
-                Bound: BOUND,
-                Ready: {
-                    status: "true",
-                    reason: "Deployed",
-                    message: `${workloads.length} workloads deployed`,
-                },
-            },
-            fields: { plan: null, approvedPlan: null },
-        });
+        await this.#observeApplied(call, workloads.length);
         await call.mutate(call.self, [
             rollout.call("update", {
                 ...rollout.target({ scope: target.scope, id: target.installationId }),
                 ...Rollout.applied(target, revision.id),
             }),
         ]);
+    }
+
+    /** Observe the applied revision deployed at the installation's generation. */
+    async #observeApplied(
+        call: MethodContextOf<typeof rollout, "deploy">,
+        workloads: number,
+    ): Promise<void> {
+        await call.observe(installation, this.#target.installation, {
+            conditions: {
+                Bound: BOUND,
+                Ready: {
+                    status: "true",
+                    reason: "Deployed",
+                    message: `${workloads} workloads deployed`,
+                },
+            },
+            fields: { plan: null, approvedPlan: null },
+        });
     }
 
     /** Describe why a build cannot deploy. */
