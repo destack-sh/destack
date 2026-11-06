@@ -67,7 +67,7 @@ const unrelated = account.reference(Scope.universe.id, "account-2");
 const home = space.reference("account-3", "home");
 
 /** Open a database storing assets of a space in another account's home, scopes replicated. */
-async function openWithOwner() {
+async function openWithOwner(mappings: readonly TableMapping[] = [...homeMappings, assetMapping]) {
     // migrate the access tables beside the scopes and the assets
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
@@ -89,7 +89,7 @@ async function openWithOwner() {
     await database.insert(assetTable).values({ id: "asset-1", scope: home.id, holder: holder.id });
 
     // read the assets carol may read, by SQL and by grant trees
-    const authorizer = new Authorizer([...policies, asset], [...homeMappings, assetMapping]);
+    const authorizer = new Authorizer([...policies, asset], mappings);
     const readable = async () => {
         const snapshot = Snapshot.live(database);
         const context = AccessContext.of(Caller.of(carol), TEST_START);
@@ -166,6 +166,16 @@ test("cover a row with the roles bound on its owner and on the scopes enclosing 
         unrelatedRole: none,
         byOwner: covered,
     });
+});
+
+test("cover a row with the roles on its scope owner through the scope chain, where no owner's row is stored", async () => {
+    // read the assets with every type declared but no space table, the holder's type
+    const stored = [...homeMappings, assetMapping].filter((mapping) => mapping.policy !== space);
+    const { readable, reader } = await openWithOwner(stored);
+
+    // read the asset through a role on its holder, which the scope chain reaches
+    await reader(holder);
+    expect(await readable()).toEqual({ selected: ["asset-1"], checked: ["asset-1"] });
 });
 
 test("cover a row with a role bound on the account enclosing its owner", async () => {

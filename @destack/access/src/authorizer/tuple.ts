@@ -723,7 +723,12 @@ export class TupleReader {
         }
 
         // decide the permission on the related object under the arrow's conditions
-        const target = this.#authorizer.requireMapping(subject);
+        const target = this.#authorizer.mapping(subject);
+        if (target === undefined) {
+            return [];
+        }
+
+        // collect its trees, none for a type not stored here
         const trees: TupleTree[] = [];
         const rows = await this.#rows(target, entry.subjectScope, [entry.subjectId]);
         for (const related of await this.#reached(scope, target, rows)) {
@@ -769,8 +774,11 @@ export class TupleReader {
             return TupleTree.some([]);
         }
 
-        // read the parent or the ancestors the field refers to
-        const target = this.#authorizer.requireMapping(subject);
+        // read the parent or the ancestors the field refers to, none unless stored here
+        const target = this.#authorizer.mapping(subject);
+        if (target === undefined) {
+            return TupleTree.some([]);
+        }
         const isUnset = row[field.column] === null || row[field.column] === undefined;
         const direct = isUnset ? [] : [TableMapping.text(row, field.column)];
         const ids = expression.transitive
@@ -900,7 +908,6 @@ export class TupleReader {
     ): Promise<RoleBinding[]> {
         // find the owner the relation's field refers to, none for an unset field
         const subject = this.#authorizer.onlySubject(mapping.policy, relation);
-        const target = this.#authorizer.requireMapping(subject);
         const field = TableMapping.field(mapping, relation);
         const value = row[field.column];
         if (value === null || value === undefined) {
@@ -909,11 +916,15 @@ export class TupleReader {
         const referred = schema.string().parse(value);
 
         // read the bindings of a scope owner and its enclosing scopes by its chain only
-        if (target.policy.definition.scope === true) {
+        if (this.#authorizer.policy(subject).definition.scope === true) {
             return await this.#scopeBindings(referred);
         }
 
-        // read any other owner's coverage, and the bindings of its scope's chain
+        // read any other owner's coverage, none unless stored here, and the bindings of its scope's chain
+        const target = this.#authorizer.mapping(subject);
+        if (target === undefined) {
+            return [];
+        }
         const owners = await this.#rows(
             target,
             field.scope ?? TableMapping.scope(mapping, row),
@@ -960,17 +971,17 @@ export class TupleReader {
                 ...above.flat().filter((relationship) => Relationship.isBinding(relationship)),
             ];
         }
-        // read the bindings covering the owner parent
+        // read the bindings covering the owner parent, none unless stored here
         else if (parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, parent);
-            const target = this.#authorizer.requireMapping(subject);
+            const target = this.#authorizer.mapping(subject);
             const parentId = row[TableMapping.field(mapping, parent).column];
-            const parents =
-                parentId === null || parentId === undefined
-                    ? []
-                    : await this.#rows(target, TableMapping.scope(mapping, row), [
-                          schema.string().parse(parentId),
-                      ]);
+            if (target === undefined || parentId === null || parentId === undefined) {
+                return direct;
+            }
+            const parents = await this.#rows(target, TableMapping.scope(mapping, row), [
+                schema.string().parse(parentId),
+            ]);
             const covered = await Promise.all(
                 parents.map((owner) => this.#covering(target, owner)),
             );

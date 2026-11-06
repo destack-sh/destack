@@ -454,3 +454,47 @@ test("decide a scope arrow on the nearest scope only, of any declared type, thro
     expect(await decideAll(box, "peek", residents)).toEqual(peeking);
     expect(await decideAll(key, "peek", residents)).toEqual(peeking);
 });
+
+test("grant nothing through a declared type this database stores none of, in memory and in SQL alike", async () => {
+    // keep a ticket related to a vault, in a database that stores tickets but no vaults
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const { storage, fixture } = await openRealm(environment);
+    const { database } = storage;
+    await database.transaction(async (transaction) => {
+        await transaction.insert(realmTable).values({ id: "crown", scope: "universe" });
+        await transaction
+            .insert(districtTable)
+            .values({ id: "near", scope: "crown", home: "crown" });
+        await transaction.insert(ticketTable).values({ id: "upward", scope: "near" });
+    });
+    const upward = ticket.reference("near", "upward");
+    await fixture.replicateOwner(crown, user("realm-owner"));
+    await fixture.replicateRelationship(upward, "vault", vault.reference("crown", "royal"), 0);
+
+    // decide the ticket's use, which goes through the vault, with every policy declared but no vault table
+    const stored = mappings.filter((mapping) => mapping.policy !== vault);
+    const authorizer = new Authorizer(policies, stored);
+    const snapshot = Snapshot.live(database);
+    const decide = async (id: string) => {
+        const permission = { ...upward, name: "use" };
+        const context = AccessContext.of(Caller.of(user(id)), simulation.clock.now());
+        const access = await authorizer.resolve(snapshot, upward.scope, context);
+        const memory = await authorizer.check(snapshot, permission, upward, access);
+        const [row] = await database.execute(
+            sql`SELECT EXISTS (SELECT 1 FROM ${ticketTable} WHERE ${authorizer.where(permission, access, ticketTable)} AND ${ticketTable.id} = ${upward.id}) AS permitted`,
+            schema.record(
+                schema.string(),
+                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
+            ),
+        );
+
+        return [memory.isAllowed, Number(row?.["permitted"]) === 1];
+    };
+
+    // refuse the keeper and the realm's owner, whose access would go through the vault
+    expect({ keeper: await decide("keeper"), owner: await decide("realm-owner") }).toEqual({
+        keeper: [false, false],
+        owner: [false, false],
+    });
+});

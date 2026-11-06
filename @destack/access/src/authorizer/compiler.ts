@@ -452,17 +452,19 @@ export class Compiler {
                 WHERE ${ancestor.scope} = ${scope} AND ${ancestor.descendant} = ${id} AND ${ancestor.ancestor} = ${binding.objectId}
             ))`);
         }
-        // climb to the owner parent and match it and its ancestors
+        // climb to the owner parent and match it and its ancestors, where this database stores it
         else if (mapping.parent !== undefined) {
             const subject = this.#authorizer.onlySubject(mapping.policy, mapping.parent);
-            const target = this.#authorizer.requireMapping(subject);
-            const parent = alias(target.table, `access_owner_${compilation.aliases.next++}`);
-            covering.push(sql`EXISTS (
-                SELECT 1 FROM ${from(parent)}
-                WHERE ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, TableMapping.field(mapping, mapping.parent).column)}
-                    AND ${TableMapping.scopeColumn(parent, target)} = ${scope}
-                    AND ${this.#covers(binding, target, parent, compilation)}
-            )`);
+            const target = this.#authorizer.mapping(subject);
+            if (target !== undefined) {
+                const parent = alias(target.table, `access_owner_${compilation.aliases.next++}`);
+                covering.push(sql`EXISTS (
+                    SELECT 1 FROM ${from(parent)}
+                    WHERE ${TableMapping.column(parent, target.id)} = ${TableMapping.column(source, TableMapping.field(mapping, mapping.parent).column)}
+                        AND ${TableMapping.scopeColumn(parent, target)} = ${scope}
+                        AND ${this.#covers(binding, target, parent, compilation)}
+                )`);
+            }
         }
 
         // match the owner, the owner's coverage and the scopes enclosing it
@@ -485,16 +487,19 @@ export class Compiler {
     ): SQL {
         // find the owner the relation's field refers to
         const subject = this.#authorizer.onlySubject(mapping.policy, relation);
-        const target = this.#authorizer.requireMapping(subject);
         const field = TableMapping.field(mapping, relation);
         const referred = TableMapping.column(source, field.column);
 
         // match a scope owner's chain from the owner up
-        if (target.policy.definition.scope === true) {
+        if (this.#authorizer.policy(subject).definition.scope === true) {
             return Compiler.#chainCovers(binding, Compiler.#within(compilation, referred));
         }
 
-        // match any other owner's coverage with the chain of the owner's scope
+        // match any other owner's coverage with the chain of the owner's scope, none unless stored here
+        const target = this.#authorizer.mapping(subject);
+        if (target === undefined) {
+            return sql`false`;
+        }
         const owner = alias(target.table, `access_owner_${compilation.aliases.next++}`);
         const within = Compiler.#within(compilation, TableMapping.scopeColumn(owner, target));
 
@@ -981,8 +986,12 @@ export class Compiler {
         const related = this.#targets(expression, mapping, compilation);
         const field = mapping.relations[expression.relation];
 
+        // grant nothing through types this database stores none of
+        if (related.length === 0) {
+            return sql`false`;
+        }
         // follow relationships to plain objects, each in its own scope
-        if (!field) {
+        else if (!field) {
             return Compiler.#followRelationships(expression, mapping, source, related, compilation);
         }
         // correlate the parent of the type in the row's columns, for a field with several types
@@ -1005,17 +1014,15 @@ export class Compiler {
         compilation: Compilation,
     ): RelationTarget[] {
         const relation = this.#authorizer.relation(mapping.policy, expression.relation);
-        const declared = mapping.policy.definition.relations[expression.relation]?.subjects ?? [];
 
         return relation.subjects.flatMap((subject) => {
-            // leave a contributed type stored elsewhere, whose rows relate nothing here
-            const stored = this.#authorizer.mapping(subject);
-            if (stored === undefined && !declared.includes(subject)) {
+            // leave a type this database does not store, whose rows relate nothing here
+            const target = this.#authorizer.mapping(subject);
+            if (target === undefined) {
                 return [];
             }
 
             // alias the related type's table, and match the rows the caller has the permission on
-            const target = this.#authorizer.requireMapping(subject);
             const parent = alias(target.table, `access_parent_${compilation.aliases.next++}`);
             const permission = target.policy.permission(expression.permission);
             const predicate = this.#permitted(permission, target, parent, compilation);
