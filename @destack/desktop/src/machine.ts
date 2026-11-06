@@ -9,6 +9,7 @@ await Computer.run(
     {
         localObjects: DESKTOP_OBJECTS,
         registry: FORGE_INSTALLATION,
+        package: import.meta.destack.package,
     },
     BunEnvironment.system,
 );

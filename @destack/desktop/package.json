@@ -22,13 +22,14 @@
         "@destack/account": "workspace:*",
         "@destack/connection": "workspace:*",
         "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
-        "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
@@ -43,7 +44,6 @@
         "@destack/view": "workspace:*"
     },
     "devDependencies": {
-        "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@tauri-apps/cli": "2.12.0",
