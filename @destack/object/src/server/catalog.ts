@@ -320,9 +320,7 @@ export class Catalog {
             tables,
             provisioned: Catalog.#control(
                 objects,
-                providers.length === 0 || machine === undefined
-                    ? undefined
-                    : { providers, machine },
+                machine === undefined ? undefined : { providers, machine },
             ),
             providers,
             known: ObjectType.known(declared, policies),
@@ -365,7 +363,7 @@ export class Catalog {
         );
     }
 
-    /** Control each served kind's resources that a provider here provides. */
+    /** Control each served internal kind's resources that a provider here provides. */
     static #control(
         objects: readonly ObjectType[],
         provisioned: ResourceControllerOptions | undefined,
@@ -374,8 +372,10 @@ export class Catalog {
             ? []
             : objects
                   .filter((object) => Provisioned.is(object))
-                  .filter((object) =>
-                      provisioned.providers.some((provider) => provider.object.same(object)),
+                  .filter(
+                      (object) =>
+                          object.provisioned?.kind.management !== "external" &&
+                          provisioned.providers.some((provider) => provider.object.same(object)),
                   )
                   .map((object) =>
                       object.implement({

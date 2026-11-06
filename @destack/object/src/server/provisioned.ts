@@ -175,25 +175,6 @@ export class ResourceController {
         } else if (approval === null) {
             return "waiting";
         }
-        // observe an external resource at its identifier below the machine's egress
-        else if (kind.management === "external") {
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                { reference: row.id },
-                {
-                    Ready: {
-                        status: "true",
-                        reason: "External",
-                        message:
-                            row.connection === null
-                                ? "called with the connection each call names"
-                                : `called with connection ${row.connection}`,
-                    },
-                },
-            );
-        }
         // provision a resource whose specification changed and apply its desired states
         else if (!Observation.isCurrent(row, "Ready") || row.reference === null) {
             const provisioned = await ResourceController.#provision(

@@ -20,7 +20,13 @@ import { unreachablePlan } from "@destack/resource/error";
 import { Digest, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 
-import { CONSUMER, defineObject, Provisioned, type Resource } from "../src/index.ts";
+import {
+    CONSUMER,
+    defineObject,
+    type ObjectType,
+    Provisioned,
+    type Resource,
+} from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -53,6 +59,21 @@ const box = defineObject({
     fields: {},
 });
 
+/** Sockets outside Destack, which the egress reaches at their identifiers. */
+const SocketKind = defineResourceKind("socket", {
+    spec: schema.object({}),
+    management: "external",
+});
+
+/** A space's socket: a resource of the external socket kind. */
+const socket = defineObject({
+    name: "socket",
+    plural: "sockets",
+    scope: space,
+    provisioned: { kind: SocketKind },
+    fields: {},
+});
+
 /** A space's link: a resource of the link kind. */
 const link = defineObject({
     name: "link",
@@ -75,7 +96,7 @@ const boxDatabase = defineDatabase({
     tables: [
         ...new Set(
             tablesOf({
-                packages: [objectPackage, { objects: { space, box, link }, tables: [] }],
+                packages: [objectPackage, { objects: { space, box, link, socket }, tables: [] }],
                 follows: [],
                 tables: [],
             }).tables,
@@ -166,8 +187,12 @@ function digests(
     return Promise.all(states.map((state) => Digest.json(state, crypto)));
 }
 
-/** Serve the boxes and links of an open space with their providers. */
-async function serve(world: Environment, boxes: Boxes) {
+/** Serve the boxes and links of an open space with their providers, beside other served types. */
+async function serve(
+    world: Environment,
+    boxes: Boxes,
+    served: readonly ObjectType[] = [box, link],
+) {
     // open the database with the space
     const storage = await TestDatabase.create(boxDatabase, {
         environment: world,
@@ -207,7 +232,7 @@ async function serve(world: Environment, boxes: Boxes) {
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([box, link], { providers: [boxes.provider(), links] }),
+        servers: serversOf(served, { providers: [boxes.provider(), links] }),
         machine: machineId,
         database,
         claims: await serveClaims(universe.database, world),
@@ -657,4 +682,33 @@ test("read a resource's owning application installation from its owner columns, 
         undefined,
         undefined,
     ]);
+});
+
+test("leave an external kind's resources to their own type's controller, and refuse one for an internal kind's", async () => {
+    // serve sockets controlled by their own type, and boxes given a controller of their own
+    const world = testSimulation().environment("provisioned");
+    const own = { pending: {}, reconcile: async () => {} };
+    const sockets = socket.implement({ controllers: [own] });
+    const controlled = box.implement({ controllers: [own] });
+    const { store } = await serve(world, new Boxes(), [box, link, sockets]);
+    const names = store.control().controllers.map((each) => each.name);
+
+    // run the sockets' own controller alone, and refuse a box store
+    expect(names.filter((name) => name === "socket")).toEqual(["socket"]);
+    await expect(serve(world, new Boxes(), [controlled, link])).rejects.toThrow(
+        new TypeError("resources box cannot have a controller: their kind provides it"),
+    );
+});
+
+test("refuse a resource type declaring its own controlled trait, which its kind provides", () => {
+    expect(() =>
+        defineObject({
+            name: "socket",
+            plural: "sockets",
+            scope: space,
+            provisioned: { kind: SocketKind },
+            controlled: true,
+            fields: {},
+        }),
+    ).toThrow(new TypeError("resources socket take their kind's controlled trait"));
 });
