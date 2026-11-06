@@ -1,11 +1,13 @@
-import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Key, Signature } from "@tufjs/models";
+import type { Environment } from "@destack/environment";
+import { canonicalize } from "@tufjs/canonical-json";
+import { Key, type Metadata, type Root, Signature } from "@tufjs/models";
 import { schema } from "@destack/schema";
-import { Bitwarden } from "../bitwarden/bitwarden.ts";
+import { Bitwarden } from "./bitwarden.ts";
 import { invokePiv } from "./piv.ts";
+
+/** How long the hardware may take to sign, in milliseconds: a PIN entry and a touch. */
+const SIGN_TIMEOUT_MILLISECONDS = 120_000;
 
 /** An RSA root key held in a YubiKey PIV signature slot. */
 export class HardwareKey {
@@ -15,45 +17,55 @@ export class HardwareKey {
     readonly serial: string;
     /** Absolute path to the Yubico PKCS#11 module. */
     readonly module: string;
+    /** The host the signing tools run on. */
+    readonly environment: Environment<"files" | "process" | "host">;
 
     /** Select an enrolled hardware key without accepting its PIN in application code. */
-    constructor(key: Key, serial: string, module: string) {
+    constructor(
+        key: Key,
+        serial: string,
+        module: string,
+        environment: Environment<"files" | "process" | "host">,
+    ) {
         if (key.keyType !== "rsa" || key.scheme !== "rsassa-pss-sha256" || !/^\d+$/u.test(serial)) {
             throw new Error("hardware signing requires an RSA-PSS key and YubiKey serial number");
         }
         this.public = key;
         this.serial = serial;
         this.module = module;
+        this.environment = environment;
     }
 
-    /** Sign canonical metadata through OpenSC, requesting PIN and touch in the terminal. */
-    sign(bytes: Buffer): Signature {
+    /** Sign root metadata through OpenSC, requesting PIN and touch in the terminal. */
+    async sign(metadata: Metadata<Root>): Promise<void> {
         // keep PIN entry in the hardware tool and private keys on the token
-        if (!process.stdin.isTTY) {
+        const { process } = this.environment;
+        if (!process.stdin.isTerminal) {
             throw new Error("hardware signing requires an interactive terminal");
         }
 
         // use the terminal's unlocked vault without printing or copying the signing PIN
-        const session = process.env["BW_SESSION"];
-        if (session !== undefined && session !== "") {
-            return this.signWithVault(bytes);
-        }
-        // retain interactive PIN entry for custodians who do not use Bitwarden
-        else {
-            return this.signWithPrompt(bytes);
-        }
+        const bytes = Buffer.from(canonicalize(metadata.signed.toJSON()));
+        const session = process.variables["BW_SESSION"];
+        const signature =
+            session !== undefined && session !== ""
+                ? await this.signWithVault(bytes)
+                : await this.signWithPrompt(bytes);
+
+        // add the signature under the key's id
+        metadata.signatures[signature.keyID] = signature;
     }
 
     /** Sign with the PIN of the key's Bitwarden credentials. */
-    private signWithVault(bytes: Buffer): Signature {
+    private async signWithVault(bytes: Buffer): Promise<Signature> {
         // read the PIN from the unlocked vault
-        const credential = Bitwarden.get(this.serial);
+        const credential = await new Bitwarden(this.environment).get(this.serial);
         if (!credential) {
             throw new Error("missing Bitwarden credentials for the selected YubiKey");
         }
 
         // pass it to the PIV tool through its private pipe
-        const result = invokePiv(
+        const result = await invokePiv(
             {
                 command: "sign",
                 serial: this.serial,
@@ -61,24 +73,26 @@ export class HardwareKey {
                 message: bytes.toString("base64"),
             },
             schema.object({ signature: schema.string() }),
+            this.environment,
         );
 
         return new Signature({ keyID: this.public.keyID, sig: result.signature });
     }
 
     /** Sign through pkcs11-tool, which prompts for the PIN in the terminal. */
-    private signWithPrompt(bytes: Buffer): Signature {
+    private async signWithPrompt(bytes: Buffer): Promise<Signature> {
         // write the message into a private temporary directory
-        const directory = mkdtempSync(join(tmpdir(), "destack-root-sign-"));
+        const { files, process, clock } = this.environment;
+        const directory = await files.makeTemporaryDirectory("destack-root-sign-");
         try {
             const input = join(directory, "root");
             const output = join(directory, "signature");
-            writeFileSync(input, bytes, { mode: 0o600, flag: "wx" });
+            await files.writeFile(input, bytes, { mode: 0o600, createNew: true });
 
             // sign with RSA-PSS in the PIV signature slot
-            const result = spawnSync(
-                "pkcs11-tool",
+            const child = process.spawn(
                 [
+                    "pkcs11-tool",
                     "--module",
                     this.module,
                     "--token-label",
@@ -98,21 +112,24 @@ export class HardwareKey {
                     "--output-file",
                     output,
                 ],
-                { stdio: "inherit", timeout: 120_000 },
+                {
+                    stdin: "inherit",
+                    stdout: "inherit",
+                    stderr: "inherit",
+                    signal: clock.timeout(SIGN_TIMEOUT_MILLISECONDS),
+                },
             );
-            if (result.error) {
-                throw result.error;
-            }
-            if (result.status !== 0) {
-                throw new Error(`hardware signing failed with status ${result.status}`);
+            const status = await child.exited;
+            if (status !== 0) {
+                throw new Error(`hardware signing failed with status ${status}`);
             }
 
             return new Signature({
                 keyID: this.public.keyID,
-                sig: readFileSync(output).toString("hex"),
+                sig: (await files.readFile(output)).toHex(),
             });
         } finally {
-            rmSync(directory, { recursive: true, force: true });
+            await files.remove(directory, { recursive: true, force: true });
         }
     }
 }

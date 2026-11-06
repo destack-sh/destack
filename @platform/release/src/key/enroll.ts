@@ -1,9 +1,9 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
-import { Bitwarden, type HardwareCredential } from "../bitwarden/bitwarden.ts";
-import { invokePiv } from "../yubico/piv.ts";
+import type { Environment, HostCapability } from "@destack/environment";
+import { Bitwarden, type HardwareCredential } from "./bitwarden.ts";
+import { invokePiv } from "./piv.ts";
 import { schema } from "@destack/schema";
-import { print } from "../output/index.ts";
+import { print } from "../distribution/output.ts";
 
 /** Public configuration read before any credential or key changes. */
 const EnrollmentStatus = schema.object({
@@ -46,9 +46,12 @@ const EnrollmentResult = schema.object({
 type EnrollmentResult = schema.Infer<typeof EnrollmentResult>;
 
 /** Enroll one YubiKey after saving and verifying its credentials in Bitwarden. */
-async function enroll(): Promise<void> {
+export async function enrollKey(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
     // require the user's terminal session and exact hardware selection
-    const [serial, directory, ...extra] = process.argv.slice(2);
+    const [serial, directory, ...extra] = arguments_;
     if (
         serial === undefined ||
         !/^\d+$/u.test(serial) ||
@@ -56,29 +59,35 @@ async function enroll(): Promise<void> {
         !isAbsolute(directory) ||
         extra.length > 0
     ) {
-        throw new Error("usage: enroll.ts <serial> <absolute-public-directory>");
+        throw new Error("usage: key enroll <serial> <absolute-public-directory>");
     }
-    if (!process.stdin.isTTY) {
+    if (!environment.process.stdin.isTerminal) {
         throw new Error("enrollment requires an interactive terminal");
     }
-    Bitwarden.sync();
-    const status = invokePiv({ command: "inspect", serial }, EnrollmentStatus);
+    const bitwarden = new Bitwarden(environment);
+    await bitwarden.sync();
+    const status = await invokePiv({ command: "inspect", serial }, EnrollmentStatus, environment);
     const isInitial =
         status.empty && status.defaultPin && status.defaultPuk && status.defaultManagement;
 
     // reserve public recovery records and credentials before the first hardware mutation
-    await mkdir(directory, { recursive: true, mode: 0o700 });
-    const record = await readRecord(serial, directory, isInitial);
-    const credential = await saveCredential(serial, directory, record);
+    await environment.files.mkdir(directory, { recursive: true, mode: 0o700 });
+    const record = await readRecord(serial, directory, isInitial, environment);
+    const credential = await saveCredential(serial, directory, record, bitwarden);
 
     // ask only for touch and pass credentials through a private pipe
     print(
         `credentials verified in Bitwarden for YubiKey ${serial}; touch the key whenever it flashes`,
+        environment,
     );
-    const result = invokePiv({ command: "enroll", serial, credential }, EnrollmentResult);
-    await writePublicRecords(directory, result);
-    await writeDevice(serial, directory, credential.id);
-    print(`enrollment complete; public records: ${directory}`);
+    const result = await invokePiv(
+        { command: "enroll", serial, credential },
+        EnrollmentResult,
+        environment,
+    );
+    await writePublicRecords(directory, result, environment);
+    await writeDevice(serial, directory, credential.id, environment);
+    print(`enrollment complete; public records: ${directory}`, environment);
 }
 
 /** Read the record of an interrupted enrollment and refuse directories of another state. */
@@ -86,13 +95,15 @@ async function readRecord(
     serial: string,
     directory: string,
     isInitial: boolean,
+    environment: Environment<"files">,
 ): Promise<EnrollmentRecord | undefined> {
     // read a saved record or require an empty directory
+    const { files } = environment;
     const path = join(directory, "enrollment.json");
-    const record = (await Bun.file(path).exists())
-        ? EnrollmentRecord.parse(JSON.parse(await readFile(path, "utf8")))
+    const record = (await files.exists(path))
+        ? EnrollmentRecord.parse(JSON.parse(await files.readTextFile(path)))
         : undefined;
-    if (!record && (await readdir(directory)).length !== 0) {
+    if (!record && (await files.readDirectory(directory)).length !== 0) {
         throw new Error("use an empty public enrollment directory");
     }
 
@@ -100,7 +111,7 @@ async function readRecord(
     if (record && record.serial !== serial) {
         throw new Error("enrollment directory belongs to a different YubiKey");
     }
-    if (await Bun.file(join(directory, "device.json")).exists()) {
+    if (await files.exists(join(directory, "device.json"))) {
         throw new Error("this enrollment is complete; run the hardware rehearsal");
     }
     if (!isInitial && !record) {
@@ -115,14 +126,15 @@ async function saveCredential(
     serial: string,
     directory: string,
     record: EnrollmentRecord | undefined,
+    bitwarden: Bitwarden,
 ): Promise<HardwareCredential> {
     // reuse a saved record after interruption and never replace known credentials
-    let credential = Bitwarden.get(serial);
+    let credential = await bitwarden.get(serial);
     if (!credential && record) {
         throw new Error("restore the recorded Bitwarden item before continuing enrollment");
     }
     if (!credential) {
-        credential = Bitwarden.create(serial);
+        credential = await bitwarden.create(serial);
     }
     if (record && record.item !== credential.id) {
         throw new Error("vault item differs from the recorded enrollment");
@@ -130,10 +142,10 @@ async function saveCredential(
 
     // record the item before the hardware changes
     if (!record) {
-        await writeFile(
+        await bitwarden.environment.files.writeTextFile(
             join(directory, "enrollment.json"),
             JSON.stringify({ serial, item: credential.id }, null, 4) + "\n",
-            { flag: "wx" },
+            { createNew: true },
         );
     }
 
@@ -141,7 +153,11 @@ async function saveCredential(
 }
 
 /** Write the public key and certificates the enrollment exported. */
-async function writePublicRecords(directory: string, result: EnrollmentResult): Promise<void> {
+async function writePublicRecords(
+    directory: string,
+    result: EnrollmentResult,
+    environment: Environment<"files">,
+): Promise<void> {
     // write each PEM record
     const records = new Map([
         ["root.pem", result.public],
@@ -150,14 +166,19 @@ async function writePublicRecords(directory: string, result: EnrollmentResult): 
         ["issuer.pem", result.issuer],
     ]);
     for (const [name, value] of records) {
-        await writeFile(join(directory, name), value, { flag: "w", mode: 0o644 });
+        await environment.files.writeTextFile(join(directory, name), value, { mode: 0o644 });
     }
 }
 
 /** Mark the enrollment complete by writing its device record. */
-async function writeDevice(serial: string, directory: string, item: string): Promise<void> {
+async function writeDevice(
+    serial: string,
+    directory: string,
+    item: string,
+    environment: Environment<"files">,
+): Promise<void> {
     // mark completion after saving all public records
-    await writeFile(
+    await environment.files.writeTextFile(
         join(directory, "device.json"),
         JSON.stringify(
             {
@@ -171,8 +192,6 @@ async function writeDevice(serial: string, directory: string, item: string): Pro
             null,
             4,
         ) + "\n",
-        { flag: "wx", mode: 0o644 },
+        { createNew: true, mode: 0o644 },
     );
 }
-
-await enroll();
