@@ -2,13 +2,9 @@ import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { Jwk } from "@destack/identity";
-import { defineHttps } from "@destack/object";
 import { TEST_START, testKeys, testSimulation } from "@destack/object/test";
 import { BearerSignature } from "./bearer.ts";
 import type { WebhookMessage } from "./webhook.ts";
-
-/** The sender's API, whose key set the scheme reads. */
-const sender = defineHttps("sender", { url: "https://sender.test" });
 
 /** The issuer signing the pushes. */
 const ISSUER = "https://issuer.test";
@@ -20,7 +16,7 @@ const SIGNING = { name: "ECDSA", namedCurve: "P-256" };
 const signature = new BearerSignature({
     issuer: ISSUER,
     audience: "destack:push",
-    keys: { resource: sender, path: "/keys" },
+    keys: "https://sender.test/keys",
     delivery: (payload) => ({
         id: schema.object({ id: schema.string() }).loose().parse(payload).id,
         event: "push",
@@ -32,24 +28,26 @@ function message(id: string): WebhookMessage {
     return { id, event: "push", body: JSON.stringify({ id }), sentAt: TEST_START };
 }
 
-test("verify a bearer token against the key set read through the installation's resource, once per freshness window, and refuse a token for another audience", async () => {
-    // publish the sender's key set through a resource counting its reads
-    const world = testSimulation().environment("bridge");
+test("verify a bearer token against the sender's published key set, once per freshness window, and refuse a token for another audience", async () => {
+    // publish the sender's key set on the world's network, counting its reads
+    const simulation = testSimulation();
+    const world = simulation.environment("bridge");
     const pair = await world.crypto.generateKey(SIGNING, true, ["sign", "verify"]);
     const jwk = { ...(await Jwk.export(pair.publicKey, world.crypto)), kid: "key-1", alg: "ES256" };
     let reads = 0;
-    const resources = new ResourceContext().bind(sender, {
-        url: "https://sender.test",
-        fetch: async (path) => {
+    simulation.environment("sender").server.http({
+        hostname: "sender.test",
+        port: 443,
+        fetch: (request) => {
             reads += 1;
 
-            return path === "/keys"
+            return new URL(request.url).pathname === "/keys"
                 ? Response.json({ keys: [jwk] })
                 : new Response(null, { status: 404 });
         },
     });
     const context = {
-        resources,
+        resources: new ResourceContext(),
         keys: await testKeys(world),
         environment: world,
     };

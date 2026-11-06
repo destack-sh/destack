@@ -13,7 +13,6 @@ import {
 } from "@destack/identity";
 import { Bearer, KEY_CACHE_MILLISECONDS, KEY_TIMEOUT_MILLISECONDS } from "@destack/access/token";
 import { ObjectError, RequestBody } from "@destack/object";
-import type { HttpsBinding } from "@destack/object";
 import {
     WebhookDelivery,
     type WebhookMessage,
@@ -38,8 +37,8 @@ export interface BearerOptions {
     readonly issuer: string | readonly [string, ...string[]];
     /** The audience the token must have, the receiving endpoint (RFC 7519 4.1.3). */
     readonly audience: string;
-    /** The sender's key set (RFC 7517 5): an https resource and the path below it. */
-    readonly keys: { readonly resource: HttpsBinding; readonly path: string };
+    /** The URL of the sender's published key set (RFC 7517 5), such as its JWKS endpoint. */
+    readonly keys: string;
     /** Read the delivery's identifier and event from the body and the verified claims. */
     readonly delivery: (
         payload: JsonValue,
@@ -86,18 +85,16 @@ export class BearerSignature implements WebhookSignature {
         return new Headers({ authorization: `Bearer ${token}` });
     }
 
-    /** Build an installation's verifier, reading the sender's keys through its https resource. */
+    /** Build an installation's verifier, reading the sender's published keys over its network. */
     verifier(
         context: Pick<InstalledServerContext, "resources" | "keys" | "environment">,
     ): WebhookVerifier {
-        // fetch the remote key set below the bound address, cached for the verifier's deliveries
+        // fetch the published key set, cached for the verifier's deliveries
         const { environment } = context;
-        const https = this.options.keys.resource.get(context.resources);
-        const { path } = this.options.keys;
         const keys = Jwks.remote(
-            new URL(`${https.url}${path}`),
+            new URL(this.options.keys),
             {
-                fetch: (request) => https.fetch(path, request),
+                fetch: (request) => environment.network.fetch(request),
                 maxAge: KEY_CACHE_MILLISECONDS,
                 cooldown: KEY_TIMEOUT_MILLISECONDS,
                 timeout: KEY_TIMEOUT_MILLISECONDS,
