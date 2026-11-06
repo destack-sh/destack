@@ -49,7 +49,7 @@ jobs:
               run: bun install --frozen-lockfile
             - name: Select release version and work
               id: release
-              run: bun run src/github/prepare.ts
+              run: bun run src/main.ts release prepare
 
     check:
         name: Check workspace
@@ -91,13 +91,13 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Build distribution
-              run: bun run src/distribution/build.ts ${{ matrix.target }}
+              run: bun run src/main.ts distribution build ${{ matrix.target }}
             - name: Verify distribution
-              run: bun run src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run src/main.ts distribution verify ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run src/distribution/pack.ts ${{ matrix.target }}
+              run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Verify archive staging and activation with disposable signing keys
-              run: bun run src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "$GITHUB_WORKSPACE/dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
+              run: bun run src/main.ts distribution rehearse "$DESTACK_RELEASE_VERSION" "$GITHUB_WORKSPACE/dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
               shell: bash
             - name: Upload unsigned distribution
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -139,7 +139,7 @@ jobs:
                   name: unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Unpack distribution
-              run: bun run src/signing/sign.ts unpack ${{ matrix.target }}
+              run: bun run src/main.ts signing sign unpack ${{ matrix.target }}
             - name: Prepare Apple signing credentials
               if: matrix.signer == 'apple'
               uses: ./.github/actions/setup-apple
@@ -151,11 +151,11 @@ jobs:
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Sign and notarize distribution
-              run: bun run src/signing/sign.ts sign ${{ matrix.target }}
+              run: bun run src/main.ts signing sign sign ${{ matrix.target }}
             - name: Verify distribution
-              run: bun run src/distribution/verify.ts ${{ matrix.target }}
+              run: bun run src/main.ts distribution verify ${{ matrix.target }}
             - name: Pack distribution
-              run: bun run src/distribution/pack.ts ${{ matrix.target }}
+              run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Upload signed distribution
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
@@ -165,7 +165,7 @@ jobs:
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && matrix.signer == 'apple'
-              run: bun run src/apple/credential.ts remove
+              run: bun run src/main.ts signing credential remove
 
     build-installers:
         name: Build installer (${{ matrix.name }})
@@ -212,7 +212,7 @@ jobs:
                   key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
                   issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
             - name: Build installer
-              run: bun run src/installer/build.ts ${{ matrix.name }}
+              run: bun run src/main.ts installer build ${{ matrix.name }}
             - name: Upload installer
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
@@ -222,7 +222,7 @@ jobs:
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
-              run: bun run src/apple/credential.ts remove
+              run: bun run src/main.ts signing credential remove
 
     publish:
         name: Publish release
@@ -273,23 +273,23 @@ jobs:
               with:
                   subject-path: dist/${{ needs.prepare.outputs.version }}/destack-*
             - name: Prepare update signing keys
-              run: bun run src/github/credential.ts release
+              run: bun run src/main.ts github credential release
               env:
                   DESTACK_TARGETS_KEY: ${{ secrets.DESTACK_TARGETS_KEY }}
                   DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Sign targets, snapshot and timestamp
-              run: bun run src/repository/sign.ts ${{ needs.prepare.outputs.names }}
+              run: bun run src/main.ts update sign ${{ needs.prepare.outputs.names }}
             - name: Upload release
-              run: bun run src/repository/upload.ts
+              run: bun run src/main.ts update publish
               env:
                   CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
                   CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
             - name: Verify published metadata and archives
-              run: bun run src/repository/verify.ts
+              run: bun run src/main.ts update verify
             - name: Remove update signing keys
               if: always()
-              run: bun run src/github/credential.ts remove
+              run: bun run src/main.ts github credential remove
 
     record:
         name: Record release
@@ -314,7 +314,7 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Tag the release and publish its notes
-              run: bun run src/github/record.ts
+              run: bun run src/main.ts release record
 
     deploy:
         name: Deploy production
@@ -335,9 +335,7 @@ jobs:
             CLOUDFLARE_COMPANY_API_TOKEN: ${{ secrets.CLOUDFLARE_COMPANY_API_TOKEN }}
             PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
             PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
-            DESTACK_ROOT_KEY: ${{ secrets.DESTACK_ROOT_KEY }}
             DESTACK_OPERATOR: ${{ vars.DESTACK_OPERATOR }}
-            STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         defaults:
             run:
                 working-directory: "@platform/release"
@@ -351,50 +349,11 @@ jobs:
             - name: Assume deploy role
               uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
               with:
-                  role-to-assume: arn:aws:iam::903685415634:role/destack-deploy
+                  role-to-assume: arn:aws:iam::903685415634:role/destack-platform-deploy
                   role-session-name: deploy-${{ github.run_id }}
                   aws-region: ${{ env.AWS_REGION }}
             - name: Deploy production
-              run: bun run src/main.ts deploy production
-
-    drift:
-        name: Check production drift
-        needs: [prepare]
-        if: github.event_name == 'schedule'
-        runs-on: ubuntu-24.04
-        timeout-minutes: 30
-        environment: drift
-        permissions:
-            contents: read
-            id-token: write
-        env:
-            AWS_REGION: eu-central-1
-            TF_IN_AUTOMATION: "true"
-            CLOUDFLARE_COMPANY_API_TOKEN: ${{ secrets.CLOUDFLARE_COMPANY_API_TOKEN }}
-            PLANETSCALE_SERVICE_TOKEN_ID: ${{ secrets.PLANETSCALE_SERVICE_TOKEN_ID }}
-            PLANETSCALE_SERVICE_TOKEN: ${{ secrets.PLANETSCALE_SERVICE_TOKEN }}
-        defaults:
-            run:
-                working-directory: "@platform/release"
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-              with:
-                  persist-credentials: false
-            - name: Set up platform tools
-              uses: ./.github/actions/setup-platform
-            - name: Assume plan role
-              uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
-              with:
-                  role-to-assume: arn:aws:iam::903685415634:role/destack-plan
-                  role-session-name: drift-${{ github.run_id }}
-                  aws-region: ${{ env.AWS_REGION }}
-            - name: Refuse production universe drift
-              run: bun run src/main.ts drift production universe
-            - name: Refuse production eu drift
-              run: bun run src/main.ts drift production eu
-            - name: Refuse production us drift
-              run: bun run src/main.ts drift production us
+              run: bun run src/main.ts platform deploy production
 
     renew:
         name: Renew release metadata
@@ -419,19 +378,19 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Prepare freshness signing keys
-              run: bun run src/github/credential.ts renew
+              run: bun run src/main.ts github credential renew
               env:
                   DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Sign snapshot and timestamp
-              run: bun run src/repository/renew.ts freshness
+              run: bun run src/main.ts update renew freshness
             - name: Submit signed freshness
-              run: bun run src/repository/submit.ts dist/refresh
+              run: bun run src/main.ts update submit dist/refresh
             - name: Verify published metadata
-              run: bun run src/repository/verify.ts dist/refresh
+              run: bun run src/main.ts update verify dist/refresh
             - name: Remove freshness signing keys
               if: always()
-              run: bun run src/github/credential.ts remove
+              run: bun run src/main.ts github credential remove
 
     check-expiry:
         name: Check release metadata expiry
@@ -452,7 +411,7 @@ jobs:
               working-directory: ${{ github.workspace }}
               run: bun install --frozen-lockfile
             - name: Check every role outlives its renewal window
-              run: bun run src/repository/expiry.ts
+              run: bun run src/main.ts update expiry
 
     verify:
         name: Verify installation and updates (${{ matrix.target }})
@@ -481,4 +440,4 @@ jobs:
               if: runner.os == 'Linux'
               run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
             - name: Install the published distribution and verify restart and updates
-              run: bun run src/distribution/install.ts
+              run: bun run src/main.ts distribution install-check
