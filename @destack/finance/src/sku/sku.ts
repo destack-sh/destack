@@ -76,8 +76,8 @@ export class Sku {
     }
 
     /** Read the SKUs a build declares. */
-    static async list(build: Pick<BuildReader, "declarations">): Promise<Sku[]> {
-        const declared = SKU_KIND.select(await build.declarations());
+    static async list(build: BuildReader): Promise<Sku[]> {
+        const declared = await SKU_KIND.read(build);
 
         return declared.map(
             ({ description: { package: declaring, ...definition } }) =>

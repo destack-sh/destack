@@ -117,8 +117,8 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
     }
 
     /** Read the features a build declares, each value schema rebuilt from its JSON Schema. */
-    static async list(build: Pick<BuildReader, "declarations">): Promise<Feature[]> {
-        const declared = FEATURE_KIND.select(await build.declarations());
+    static async list(build: BuildReader): Promise<Feature[]> {
+        const declared = await FEATURE_KIND.read(build);
 
         return declared.map(({ description: { package: declaring, ...definition } }) =>
             definition.kind === "static"

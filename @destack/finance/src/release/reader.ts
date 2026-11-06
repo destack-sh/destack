@@ -24,7 +24,7 @@ export class ReleaseReader {
     }
 
     /** Read the features, meters and SKUs a build declares. */
-    static async read(build: Pick<BuildReader, "declarations">) {
+    static async read(build: BuildReader) {
         const [features, meters, skus] = await Promise.all([
             Feature.list(build),
             Meter.list(build),
