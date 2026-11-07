@@ -154,7 +154,7 @@ async function relay(
 async function machines(
     context: MethodContextOf<typeof residency, "machines">,
 ): Promise<ResultOf<typeof residency, "machines">> {
-    // read the residency's enabled shared machines and the endpoints they published
+    // read the residency's enabled shared machines and their endpoints
     const serving = await context.read(machine).findMany({
         where: {
             scope: Scope.universe.id,

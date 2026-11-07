@@ -258,9 +258,9 @@ export class Platform {
             (entry) => !existing.some((row) => row.id === entry.id),
         );
 
-        // store the missing ones in the universe, publishing their declared origins
+        // store the missing ones in the universe at their declared origins
         await this.#mutate(
-            missing.flatMap((entry) => [
+            missing.map((entry) =>
                 machine.call("declare", {
                     ...machine.target({ scope: Scope.universe.id, id: entry.id }),
                     name: entry.name,
@@ -269,14 +269,9 @@ export class Platform {
                     providerCode: entry.providerCode,
                     location: entry.location,
                     publicKey: entry.key,
+                    origin: entry.origin,
                 }),
-                endpoint.call("create", {
-                    ...endpoint.in(Scope.universe.id),
-                    parentId: entry.id,
-                    url: entry.origin,
-                    relay: null,
-                }),
-            ]),
+            ),
         );
     }
 

@@ -11,33 +11,33 @@ export const endpoint = defineObject(
         name: "endpoint",
         plural: "endpoints",
         scope: [account, "universe"],
-        nested: { in: machine, delete: "cascade", receive: "publish" },
+        nested: { in: machine, delete: "cascade", receive: "record" },
         fields: {
             /** The URL the machine's packages answer at. */
             url: field.string(schema.url()),
             /** The relay serving its tunnel, null for a machine answering at its URL directly. */
             relay: field.json(EndpointRelay).optional(),
         },
-        // let the universe's signed-in role grant reading endpoints
+        // let the universe's signed-in role grant reading endpoints, and the machine's declaration and relay record them
         permissions: {
             read: none(),
             list: none(),
-            publish: through("parent", "publish"),
+            record: through("parent", "record"),
             withdraw: through("parent", "revoke"),
         },
-        reserved: ["publish"],
+        reserved: ["record"],
         constraints: { machine: { kind: "unique", on: ["parentId"] } },
     },
     (method) => ({
-        /** Publish a machine's first endpoint, as its machine's publish does. */
-        create: method.create("publish", {
+        /** Record a machine's first endpoint, as its declaration or its relay does. */
+        create: method.create("record", {
             fields: ["url", "relay"],
             visibility: "package",
             isPredicted: false,
         }),
 
-        /** Replace a published endpoint, as its machine's publish does. */
-        update: method.update("publish", { fields: ["url", "relay"], visibility: "package" }),
+        /** Replace a machine's endpoint, as its relay does on each renewal. */
+        update: method.update("record", { fields: ["url", "relay"], visibility: "package" }),
 
         /** Withdraw an endpoint with its revoked machine. */
         delete: method.delete("withdraw", { visibility: "package" }),

@@ -209,26 +209,11 @@ test("read an account's residency home, the residencies' homes and the enabled s
     const { id: accountId } = await fixture.createAccount(owner);
     const { id: americanId } = await fixture.createAccount(owner, "us");
     const { platform } = fixture;
-    const [eu, us, unpublished] = [
-        fixture.as(await fixture.declareCloudMachine(platform, "eu")),
-        fixture.as(await fixture.declareCloudMachine(platform, "us")),
-        fixture.as(await fixture.declareCloudMachine(platform, "eu")),
-    ];
+    const reader = fixture.as(
+        await fixture.declareCloudMachine(platform, "eu", "https://eu.destack.test/"),
+    );
+    await fixture.declareCloudMachine(platform, "us", "https://us.destack.test/");
     const homes = [await fixture.residencySpace("eu"), await fixture.residencySpace("us")];
-    const euMachine = schema.identifier("machine").parse(eu.subject.id);
-    const usMachine = schema.identifier("machine").parse(us.subject.id);
-
-    // publish each machine's endpoint as the machine itself
-    await eu.client(accountPackage).machine.publish({
-        ...machine.target({ scope: platform, id: euMachine }),
-        url: "https://eu.destack.test/",
-        requestId: RequestId.create(fixture.store.environment),
-    });
-    await us.client(accountPackage).machine.publish({
-        ...machine.target({ scope: platform, id: usMachine }),
-        url: "https://us.destack.test/",
-        requestId: RequestId.create(fixture.store.environment),
-    });
 
     // drain the eu residency's shared cloud machine as the machine itself
     await fixture
@@ -240,7 +225,7 @@ test("read an account's residency home, the residencies' homes and the enabled s
         });
 
     // read each account's residency space, each residency's space, and the machines answering at a URL
-    const residencies = unpublished.client(accountPackage).residency;
+    const residencies = reader.client(accountPackage).residency;
     const accountSpace = (asked: Identifier<"account">) => residencies.locate({ account: asked });
     const residencySpace = async (id: ResidencyCode) => (await residencies.get({ id })).space;
 

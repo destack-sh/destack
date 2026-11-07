@@ -107,7 +107,7 @@ export default definePackage({
                 residency.permission("place"),
                 organization.permission("administer"),
                 machine.permission("rotate"),
-                machine.permission("publish"),
+                machine.permission("record"),
                 space.permission("upgrade"),
                 space.permission("receive"),
             ],

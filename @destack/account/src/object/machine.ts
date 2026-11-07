@@ -170,8 +170,9 @@ export const machine = defineObject(
             rotate: relation("self"),
             rename: relation("self"),
             operate: union(relation("tenant"), relation("self")),
-            publish: relation("self"),
-            // let the account's residency's relay publish the tunnel it accepted
+            // let the package record a machine's endpoint through its package-only methods, as its declaration and its relay do
+            record: relation("self"),
+            // let the account's residency's relay record the tunnel it accepted
             relay: through("account", "relaying"),
 
             // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
@@ -192,7 +193,7 @@ export const machine = defineObject(
             share: through("account", "manage"),
             declare: none(),
         },
-        reserved: ["rotate", "publish", "serve", "relay", "replicate"],
+        reserved: ["rotate", "serve", "relay", "replicate"],
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
             scopeName: {
@@ -241,18 +242,13 @@ export const machine = defineObject(
             visibility: "package",
             fields: ["name", "size"],
             variants: { kind: { cloud: CLOUD_COLUMNS } },
-            input: KeyProof.pick({ publicKey: true }),
-        }),
-        revoke: method.mutation({ permission: "revoke" }),
-        /** Publish where a cloud machine answers, replacing what it published before. */
-        publish: method.mutation({
-            permission: "publish",
-            input: schema.object({
-                /** The URL the machine's packages answer at. */
-                url: schema.url(),
+            input: KeyProof.pick({ publicKey: true }).extend({
+                /** The URL the cloud machine answers at, its endpoint. */
+                origin: schema.url(),
             }),
         }),
-        /** Publish the tunnel a relay accepted from a personal machine, at its derived name. */
+        revoke: method.mutation({ permission: "revoke" }),
+        /** Record the tunnel a relay accepted from a personal machine, at its derived name. */
         relay: method.mutation({ permission: "relay", input: EndpointRelay }),
         enable: method.mutation({ permission: "operate" }),
         drain: method.mutation({ permission: "operate" }),

@@ -601,15 +601,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
         await relay(fixture, local, target, lapsesAt),
     ];
 
-    // refuse the laptop publishing a URL of its own, and the other installation relating itself as the relay
-    const own = await refusal(
-        local.client(accountPackage).machine.publish({
-            scope: accountId,
-            id: schema.identifier("machine").parse(local.subject.id),
-            url: "https://local.test/",
-            requestId: RequestId.create(fixture.environment),
-        }),
-    );
+    // refuse the other installation relating itself as the relay
     const now = fixture.clock.now();
     const related = await refusal(
         fixture.store.mutate(AccessContext.of(Caller.of(other), now), {
@@ -630,7 +622,6 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
     const resolver = new Directory(Snapshot.live(fixture.database));
     expect([
         published,
-        own,
         related,
         await url(fixture, peer, accountId, local.subject.id),
         await url(fixture, outsider, accountId, local.subject.id),
@@ -642,11 +633,6 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
             ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
-        ],
-        [
-            "FORBIDDEN",
-            "MACHINE_PERSONAL",
-            `machine ${local.subject.id} is personal: it answers only through a relay`,
         ],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: operate"],
         address,
@@ -945,6 +931,7 @@ test("refuse declaring an account's dedicated cloud machine its plan does not un
                 providerCode: "test",
                 location: "test-1",
                 publicKey,
+                origin: "https://dedicated.machine.test/",
             }),
         ],
     });

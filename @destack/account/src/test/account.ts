@@ -1023,10 +1023,11 @@ export class TestAccountStore implements AsyncDisposable {
         return identity;
     }
 
-    /** Declare an account's dedicated cloud machine under its plan, answering its identity. */
+    /** Declare an account's dedicated cloud machine at an origin under its plan. */
     async declareCloudMachine(
         accountId: Identifier<"account">,
         residencyId: ResidencyCode,
+        origin?: string,
     ): Promise<MachineIdentity> {
         // entitle the account to dedicated tenancy, which the platform requires to declare its machine
         await this.entitle(accountId, "tenancy", {
@@ -1041,17 +1042,19 @@ export class TestAccountStore implements AsyncDisposable {
             this.environment,
         );
         const { publicKey } = await identity.generate();
+        const name = `cloud-${identity.machineId.slice(-12)}`;
         await this.store.mutate(this.store.as(machine), {
             id: RequestId.create(this.store.environment),
             calls: [
                 machine.call("declare", {
                     ...machine.target({ scope: accountId, id: identity.machineId }),
-                    name: `cloud-${identity.machineId.slice(-12)}`,
+                    name,
                     kind: "cloud",
                     residencyId,
                     providerCode: PROVIDER,
                     location: LOCATION,
                     publicKey,
+                    origin: origin ?? `https://${name}.machine.test/`,
                 }),
             ],
         });

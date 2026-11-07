@@ -67,7 +67,6 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
     ACTIVE_ACCOUNT_MISSING: { code: "FORBIDDEN" },
     PARTITION_UNOWNED: { code: "FORBIDDEN" },
     LIVE_GRANT_MISSING: { code: "FORBIDDEN" },
-    MACHINE_PERSONAL: { code: "FORBIDDEN" },
     SESSION_REQUIRED: { code: "FORBIDDEN" },
     UNIVERSE_PERMISSIONS_MISMATCH: { code: "FORBIDDEN" },
     USER_REQUIRED: { code: "FORBIDDEN" },

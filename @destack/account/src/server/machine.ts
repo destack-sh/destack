@@ -23,7 +23,6 @@ export function implementMachine(): typeof machine {
             enroll,
             declare,
             revoke,
-            publish,
             relay,
             enable: (call) => transition(call, "enabled"),
             drain: (call) => transition(call, "draining"),
@@ -82,33 +81,15 @@ async function declare(
         }
     }
 
-    // create the machine with its key
+    // create the machine with its key and its endpoint at its origin
     const row = await next();
     await provision(context, row, context.input.publicKey);
+    await Endpoint.upsert(context, row.id, { url: context.input.origin, relay: null });
 
     return row;
 }
 
-/** Publish where a standing machine answers, replacing what it published before. */
-async function publish(
-    context: MethodContextOf<typeof machine, "publish">,
-): Promise<ResultOf<typeof machine, "publish">> {
-    // require a standing cloud machine, as a personal one answers only through a relay
-    Revocation.requireUnrevoked(context.target, "machine");
-    if (context.target.kind === "personal") {
-        throw AccountError.of(
-            "MACHINE_PERSONAL",
-            `machine ${context.target.id} is personal: it answers only through a relay`,
-        );
-    }
-
-    // replace the published endpoint, or publish the first one
-    await Endpoint.upsert(context, context.target.id, { url: context.input.url, relay: null });
-
-    return context.target;
-}
-
-/** Publish the tunnel a relay accepted from a standing personal machine, at its derived name. */
+/** Record the tunnel a relay accepted from a standing personal machine, at its derived name. */
 async function relay(
     context: MethodContextOf<typeof machine, "relay">,
 ): Promise<ResultOf<typeof machine, "relay">> {
@@ -133,7 +114,7 @@ async function relay(
         DOMAINS.machine,
     );
 
-    // replace the published endpoint, or publish the first one
+    // replace the machine's endpoint, or record its first one
     await Endpoint.upsert(context, context.target.id, {
         url: `https://${name}`,
         relay: context.input,
