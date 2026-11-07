@@ -21,7 +21,7 @@ import { RESOURCE_KIND, ResourceDeclaration } from "@destack/resource";
 import { Commit, type JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
-import { View } from "@destack/view/declare";
+import { VIEW_KIND } from "@destack/view/declare";
 
 /** The public origin a written static view declares for its pages. */
 const SITE_ORIGIN = "https://example.test";
@@ -96,7 +96,7 @@ export const TestViewBuild = {
                 ),
             ),
             ...Object.entries(views).map(([name, view]) => ({
-                ...View.kind,
+                ...VIEW_KIND.identity,
                 name,
                 description: {
                     name,

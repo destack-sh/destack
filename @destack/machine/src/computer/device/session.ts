@@ -17,7 +17,12 @@ import {
     SpaceMount,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
-import { type ClientOptions, createClient, ObjectClient } from "@destack/object/client";
+import {
+    type ClientOptions,
+    createClient,
+    ObjectClient,
+    ObjectStoreDescription,
+} from "@destack/object/client";
 import { connectBunSqlite } from "@destack/db/bun";
 import { Package, PackageId } from "@destack/package";
 import {
@@ -27,10 +32,9 @@ import {
 } from "@destack/package/manifest";
 import { type Identifier, nth, schema, Text } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
-import { Declaration } from "@destack/stack/client";
-import { InstallationView, type InstallationRollout } from "@destack/stack/object";
+import { InstallationView } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
-import { type Address, TARGET_PARAMETER, View, ViewAddress } from "@destack/view/declare";
+import { type Address, TARGET_PARAMETER, VIEW_KIND, ViewAddress } from "@destack/view/declare";
 import { MachineError } from "../../error/index.ts";
 import type { Device } from "./device.ts";
 import { Visit } from "./object/index.ts";
@@ -131,32 +135,22 @@ export class Session {
     async view(category: ViewCategory, path = "/"): Promise<ViewAddress> {
         // read the views the home's installations declare, as the person
         const home = await this.home();
-        const place = await this.device.locate(home);
-        const { stack, objects } = this.#clients(place);
-        const views = await Declaration.read(stack, objects, place.placement.space, [View.kind]);
+        const { store } = this.#clients(await this.device.locate(home));
+        const views = await Session.#views(store);
 
         // take the view of the category, the first by installation and name
         const [found] = views
-            .filter(({ declaration }) =>
-                ViewDescription.declaration
-                    .parse(declaration.description)
-                    .categories.includes(category),
-            )
+            .filter(({ description }) => description.categories.includes(category))
             .toSorted(
                 (left, right) =>
-                    Text.compare(left.rollout.installation.name, right.rollout.installation.name) ||
-                    Text.compare(left.declaration.name, right.declaration.name),
+                    Text.compare(left.installation, right.installation) ||
+                    Text.compare(left.view, right.view),
             );
         if (found === undefined) {
             throw MachineError.of("VIEW_NOT_FOUND", `${home} has no ${category} view`);
         }
 
-        return {
-            space: home,
-            installation: found.rollout.installation.name,
-            view: found.declaration.name,
-            path,
-        };
+        return { space: home, installation: found.installation, view: found.view, path };
     }
 
     /** Open a scope's objects as the person, following their moves, until the stack closes. */
@@ -446,6 +440,7 @@ export class Session {
         });
 
         return {
+            store: ObjectClient.store(endpoint(stackPackage.id), this.device.environment),
             stack: createClient(stackPackage, endpoint(stackPackage.id), this.device.environment),
             objects: createClient(
                 objectPackage,
@@ -460,37 +455,29 @@ export class Session {
         // call the stack of the space at the address as the person
         const place = await this.device.locate(address.space);
         const spaceId = place.placement.space;
-        const { stack, objects } = this.#clients(place);
+        const { store, stack, objects } = this.#clients(place);
 
-        // choose the view presenting an object among the views the space's installations apply
+        // choose the view presenting an object among the views the space serves
         let view: ViewAddress;
-        let found: Installation | undefined;
         if ("object" in address) {
-            const views = await Declaration.read(stack, objects, spaceId, [View.kind]);
+            const views = await Session.#views(store);
             const presented = Session.#present(views, address.object, address.view);
             const query = new URLSearchParams({
                 [TARGET_PARAMETER]: JSON.stringify(address.object),
             });
-            const installation = presented.rollout.installation.name;
-            view = {
-                space: address.space,
-                installation,
-                view: presented.view,
-                path: `/?${query.toString()}`,
-            };
-            found = presented.rollout.installation;
+            view = { space: address.space, ...presented, path: `/?${query.toString()}` };
         }
-        // find the addressed installation by its name
+        // take the addressed view
         else {
             view = address;
-            const { items } = await objects.installation.list({
-                scope: spaceId,
-                where: { name: view.installation },
-            });
-            [found] = items;
         }
 
-        // open its view
+        // find the installation by its name, and open its view
+        const { items } = await objects.installation.list({
+            scope: spaceId,
+            where: { name: view.installation },
+        });
+        const [found] = items;
         if (found === undefined) {
             throw MachineError.of(
                 "INSTALLATION_NOT_FOUND",
@@ -549,36 +536,28 @@ export class Session {
 
     /** Choose the view presenting an object most strongly among builds, or the view asked for. */
     static #present(
-        views: readonly Declaration[],
+        views: readonly SpaceView[],
         object: ObjectReference,
         asked: string | undefined,
-    ): {
-        readonly rollout: InstallationRollout;
-        readonly view: string;
-    } {
+    ): { readonly installation: string; readonly view: string } {
         // rank each view of the name asked for presenting the object's type
         const presenters = views
-            .filter(({ declaration }) => asked === undefined || declaration.name === asked)
-            .flatMap(({ rollout, declaration }) =>
-                ViewDescription.declaration
-                    .parse(declaration.description)
-                    .presents.filter(
+            .filter(({ view }) => asked === undefined || view === asked)
+            .flatMap(({ installation, view, description }) =>
+                description.presents
+                    .filter(
                         (presented) =>
                             presented.packageId === object.packageId &&
                             presented.type === object.type,
                     )
-                    .map((presented) => ({
-                        rollout,
-                        view: declaration.name,
-                        priority: presented.priority,
-                    })),
+                    .map((presented) => ({ installation, view, priority: presented.priority })),
             );
 
         // choose the strongest, refusing none
         const [chosen] = presenters.toSorted(
             (left, right) =>
                 ViewPresentationPriority.compare(left.priority, right.priority) ||
-                Text.compare(left.rollout.installation.name, right.rollout.installation.name) ||
+                Text.compare(left.installation, right.installation) ||
                 Text.compare(left.view, right.view),
         );
         if (chosen === undefined) {
@@ -589,7 +568,24 @@ export class Session {
             );
         }
 
-        return { rollout: chosen.rollout, view: chosen.view };
+        return { installation: chosen.installation, view: chosen.view };
+    }
+
+    /** Read the views a space's named installations serve, as its store describes them. */
+    static async #views(store: ReturnType<typeof ObjectClient.store>): Promise<SpaceView[]> {
+        const description = await ObjectStoreDescription.read(store);
+
+        return description.installations.flatMap((installation) => {
+            const { name } = installation;
+
+            return name === undefined
+                ? []
+                : description.declarations(installation, VIEW_KIND).map((declared) => ({
+                      installation: name,
+                      view: declared.name,
+                      description: declared.description,
+                  }));
+        });
     }
 
     /** Read a target's space: its identifier, else its address. */
@@ -613,4 +609,14 @@ export class Session {
         // name it one label below the space domain, wherever the space runs
         return `https://${InstallationOrigin.format(origin, DOMAINS.space)}`;
     }
+}
+
+/** A view a space's named installation serves, as its store describes it. */
+interface SpaceView {
+    /** The installation's name. */
+    readonly installation: string;
+    /** The view's name. */
+    readonly view: string;
+    /** The view as its declaration describes it. */
+    readonly description: schema.Infer<typeof ViewDescription.declaration>;
 }
