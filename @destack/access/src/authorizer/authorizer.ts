@@ -3,6 +3,7 @@ import {
     sql,
     type Transaction,
     type SQL,
+    type JsonCondition,
     type Table,
     Condition,
     Placeholder,
@@ -417,12 +418,13 @@ export class Authorizer {
             }));
     }
 
-    /** List the mapped types this database replicates: propagated and replicated scope types. */
+    /** List the mapped types whose tables this database replicates: propagated and scope types. */
     #replicatedTypes(replicated: ReadonlySet<Table>): ObjectTypeReference[] {
         return [...this.#mappings.values()]
             .filter(
                 (mapping) =>
                     !accessTables.includes(mapping.table) &&
+                    this.hasTable(mapping) &&
                     (mapping.propagated !== undefined ||
                         (replicated.has(mapping.table) &&
                             mapping.policy.definition.scope === true &&
@@ -1313,13 +1315,14 @@ export class Authorizer {
         const read = this.policy({ packageId: ACCESS_PACKAGE_ID, type: "relationship" }).permission(
             "read",
         );
+        const where = ObjectReference.columns("object", object);
         const rows = await snapshot.ordered(accessRelationship, {
             visible: {
-                current: this.where(read, access, accessRelationship),
+                current: this.where(read, access, accessRelationship, where),
                 image: async (row) =>
                     (await this.checkRows(snapshot, read, access, [row])).permitted.has(0),
             },
-            where: ObjectReference.columns("object", object),
+            where,
             orderBy: { id: "asc" },
             ...(page.after === undefined
                 ? {}
@@ -1447,9 +1450,14 @@ export class Authorizer {
         return Access.resolve(snapshot, scope, context, this, links, assumed);
     }
 
-    /** Restrict a table's rows to the caller's permitted ones, before any sort, count or page. */
-    where(permission: PermissionReference, access: Access, source?: Table): SQL {
-        return this.#compiler.where(permission, access, source);
+    /** Restrict a table's rows meeting a condition to the permitted ones, before any page. */
+    where(
+        permission: PermissionReference,
+        access: Access,
+        source?: Table,
+        condition?: JsonCondition,
+    ): SQL {
+        return this.#compiler.where(permission, access, source, condition);
     }
 
     /** Match one object in its scope if the caller has a permission directly or by a role above. */

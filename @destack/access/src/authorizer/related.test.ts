@@ -1,8 +1,9 @@
 import { expect, onTestFinished, test } from "@destack/test";
-import type { Subject } from "@destack/sync";
-import { Snapshot } from "@destack/db";
+import { ObjectReference, type Subject } from "@destack/sync";
+import { type JsonCondition, render, Snapshot } from "@destack/db";
 import { Identifier, schema } from "@destack/schema";
 import {
+    ACCESS_PACKAGE_ID,
     accessRelationship,
     accessRole,
     principal,
@@ -125,5 +126,53 @@ test("relate a caller to a scope through a direct, wildcard or subject-set share
         role: true,
         expired: false,
         stranger: false,
+    });
+});
+
+test("decide the relationships of one object through its own type's readers alone", async () => {
+    const fixture = await openFixture();
+    onTestFinished(() => fixture.close());
+    const { database, authorizer } = fixture;
+    const note = node.reference("personal", "a");
+
+    // read the tables the relationship read permission compiles to, unconstrained and for one note's relationships
+    const access = await authorizer.resolve(
+        Snapshot.live(database),
+        "personal",
+        AccessContext.of(Caller.of(user("carol")), NOW),
+    );
+    const read = authorizer
+        .policy({ packageId: ACCESS_PACKAGE_ID, type: "relationship" })
+        .permission("read");
+    const tables = (condition?: JsonCondition) =>
+        render(
+            authorizer.where(read, access, accessRelationship, condition),
+            database.dialect,
+        ).tables.toSorted();
+
+    // read every stored type's table unconstrained, and only the note's once the condition pins its type
+    expect({
+        every: tables(),
+        note: tables(ObjectReference.columns("object", note)),
+    }).toEqual({
+        every: [
+            "destack__access__example_group",
+            "destack__access__example_item",
+            "destack__access__example_item_tree_ancestor",
+            "destack__access__example_policy",
+            "destack__access__example_region",
+            "destack__access__example_team",
+            "destack__access__grant",
+            "destack__access__invitation",
+            "destack__access__relationship",
+            "destack__access__role",
+            "destack__sync__scope",
+        ],
+        note: [
+            "destack__access__example_item",
+            "destack__access__example_item_tree_ancestor",
+            "destack__access__relationship",
+            "destack__sync__scope",
+        ],
     });
 });

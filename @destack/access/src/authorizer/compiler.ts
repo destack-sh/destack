@@ -14,6 +14,8 @@ import {
     type Table,
     Predicate,
     type Binding,
+    Condition,
+    type JsonCondition,
 } from "@destack/db";
 import { nth } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -32,7 +34,7 @@ import { type Access, OWNING } from "./access.ts";
 import type { Authority, SubjectColumns } from "./authority.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";
-import { ANY_SCOPE, TableMapping } from "./mapping.ts";
+import { ANY_SCOPE, type ReferenceColumns, TableMapping } from "./mapping.ts";
 
 /** The scope chain of the rows a predicate decides: known objects, or read from a scope column. */
 type Chain =
@@ -55,6 +57,8 @@ interface Compilation {
     readonly aliases: { next: number };
     /** The common table of each related permission the statement decides, by name. */
     readonly permitted: Map<string, CommonTable>;
+    /** The table the statement reads, with the condition its rows meet beside the permission. */
+    readonly queried: { readonly table: Table; readonly where: JsonCondition };
 }
 
 /** The name of the list element a binding's role is read from. */
@@ -88,8 +92,13 @@ export class Compiler {
         this.#authorizer = authorizer;
     }
 
-    /** Restrict a table's rows, the mapped one by default, to the caller's permitted ones. */
-    where(permission: PermissionReference, access: Access, source?: Table): SQL {
+    /** Restrict a table's rows meeting a condition, the mapped one by default, to the permitted. */
+    where(
+        permission: PermissionReference,
+        access: Access,
+        source?: Table,
+        condition: JsonCondition = {},
+    ): SQL {
         // deny a request its gate refuses
         const mapping = this.#authorizer.requireMapping(permission);
         const table = source ?? mapping.table;
@@ -99,12 +108,13 @@ export class Compiler {
 
         // decide the rows of the scope with its chain
         const scope = TableMapping.scopeColumn(table, mapping);
-        const inside = sql`(${scope} = ${access.scope} AND ${this.#match(permission, mapping, table, access, access.scope, access.scopes)})`;
+        const queried = { table, where: condition };
+        const inside = sql`(${scope} = ${access.scope} AND ${this.#match(permission, mapping, queried, access, access.scope, access.scopes)})`;
 
         // decide the rows of each ancestor, whose replica the scope holds, with that ancestor's chain
         const ancestors = access.scopes.map(
             (object, index) =>
-                sql`(${scope} = ${object.scope} AND ${this.#match(permission, mapping, table, access, object.scope, access.scopes.slice(index + 1))})`,
+                sql`(${scope} = ${object.scope} AND ${this.#match(permission, mapping, queried, access, object.scope, access.scopes.slice(index + 1))})`,
         );
 
         return sql`(${sql.join([inside, ...ancestors], sql` OR `)})`;
@@ -114,13 +124,14 @@ export class Compiler {
     #match(
         permission: PermissionReference,
         mapping: TableMapping,
-        table: Table,
+        queried: Compilation["queried"],
         access: Access,
         scope: string,
         chain: readonly ObjectReference[],
     ): SQL {
         // evaluate the authority, and constrain a grant to the objects it allows
-        const compilation = Compiler.#compilation(access, scope, chain);
+        const { table } = queried;
+        const compilation = Compiler.#compilation(access, scope, chain, queried);
         const predicates = [this.#permission(permission, mapping, table, compilation)];
         if (access.permissions !== undefined) {
             predicates.push(
@@ -196,8 +207,11 @@ export class Compiler {
         }
         const mapping = this.#authorizer.requireMapping(target);
         const chain = isScope ? access.scopes.slice(1) : access.scopes;
-        const compilation = Compiler.#compilation(access, target.scope, chain);
         const row = alias(mapping.table, "access_target");
+        const compilation = Compiler.#compilation(access, target.scope, chain, {
+            table: row,
+            where: {},
+        });
         const isTarget = (
             source: Table,
         ) => sql`${TableMapping.column(source, mapping.id)} = ${target.id}
@@ -317,6 +331,7 @@ export class Compiler {
         access: Access,
         scope: string,
         chain: readonly ObjectReference[],
+        queried: Compilation["queried"],
     ): Compilation {
         return {
             access,
@@ -324,6 +339,7 @@ export class Compiler {
             authority: access.authority,
             aliases: { next: 0 },
             permitted: new Map(),
+            queried,
         };
     }
 
@@ -847,9 +863,18 @@ export class Compiler {
         // compile each type's visibility against a separate alias of the referenced row
         const columns = TableMapping.reference(mapping, expression.reference);
         const related = TableMapping.column(source, expression.relation);
+        const pinned = Compiler.#pinned(columns, source, compilation);
         const branches = this.#authorizer.mappings().flatMap((target) => {
-            // skip the row's own type, and the types this database has no table of
-            if (target.policy === mapping.policy || !this.#authorizer.hasTable(target)) {
+            // skip the row's own type, the types this database has no table of, and those the query leaves out
+            const definition = target.policy.definition;
+            const isQueried =
+                pinned === undefined ||
+                (pinned.packageId === definition.packageId && pinned.type === definition.name);
+            if (
+                target.policy === mapping.policy ||
+                !this.#authorizer.hasTable(target) ||
+                !isQueried
+            ) {
                 return [];
             }
 
@@ -893,6 +918,30 @@ export class Compiler {
         });
 
         return branches.length === 0 ? sql`false` : sql`(${sql.join(branches, sql` OR `)})`;
+    }
+
+    /** Read the type a queried row's reference must have, as its condition states it, else none. */
+    static #pinned(
+        columns: ReferenceColumns,
+        source: Table,
+        compilation: Compilation,
+    ): { readonly packageId: string; readonly type: string } | undefined {
+        // read only the queried row's condition, never an alias's below it
+        const { table, where } = compilation.queried;
+        if (source !== table) {
+            return undefined;
+        }
+
+        // take the package and type one required conjunct states as values
+        for (const conjunct of Condition.conjuncts(where)) {
+            const packageId = conjunct[columns.packageId];
+            const type = conjunct[columns.type];
+            if (typeof packageId === "string" && typeof type === "string") {
+                return { packageId, type };
+            }
+        }
+
+        return undefined;
     }
 
     /** Match the subject in a field, or current relationships, for one relation. */
