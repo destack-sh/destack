@@ -35,7 +35,7 @@ await reconciliation.mutate([rollout.call("target", { ...rollout.target(managed)
 ```ts
 import notes, { note } from "@acme/notes/package";
 import { defineStack, install } from "@destack/stack";
-import { files } from "@template/stack";
+import { files } from "@destack/template-stack";
 
 export const personal = defineStack({
     resources: { files: { declaration: files, retention: { within: { days: 30 } }, tags: {} } },

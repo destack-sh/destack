@@ -737,6 +737,27 @@ test("install the installable packages a stack's installations depend on, leavin
     ]);
 });
 
+test("keep a stack's installation following a tag, pinning the releases its dependencies resolved", async () => {
+    // publish notes depending on an installable vault, and declare notes following its latest tag
+    const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) }).environment("test");
+    const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
+    const notes = await fixtureRelease("@acme/notes", "2026.10.0", true, [vault], world);
+    const builds = new Map([vault, notes].map((each) => [each.manifest, each.build]));
+    const read = async (_packageId: PackageId, manifest: string) =>
+        present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
+    const latest = { kind: "tag", tag: "latest" } as const;
+    const stack = await installingStack([notes], world, latest);
+
+    // follow the tag for notes, and pin vault, which notes depends on, to its release
+    const { installations } = StackDefinition.collections(
+        await declaredStack(stack, "space", {}, read),
+    );
+    expect([installations["notes"]?.selection, installations["vault"]?.selection]).toEqual([
+        latest,
+        { kind: "release", version: "2026.10.0", manifest: vault.manifest },
+    ]);
+});
+
 /** A fixture release of a package, with its build. */
 interface FixtureRelease {
     /** The registry format. */
@@ -802,6 +823,7 @@ async function fixtureRelease(
 function installingStack(
     installed: readonly FixtureRelease[],
     environment: Environment,
+    selection?: { readonly kind: "tag"; readonly tag: string },
 ): Promise<BuildReader> {
     // declare the stack's package and an installation of each release
     const owner = Package.parse({
@@ -812,7 +834,11 @@ function installingStack(
     const installations = Object.fromEntries(
         installed.map((each) => [
             each.package.name.slice(each.package.name.lastIndexOf("/") + 1),
-            install({ ...each.package, resources: {}, secrets: {} }, {}),
+            install(
+                { ...each.package, resources: {}, secrets: {} },
+                {},
+                selection === undefined ? {} : { selection },
+            ),
         ]),
     );
 

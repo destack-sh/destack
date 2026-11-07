@@ -79,36 +79,41 @@ export async function declaredStack(
         );
     }
 
-    // set each installation to the manifest of the release its package resolved to
-    const pinned = Object.fromEntries(
-        Object.entries(document.installations).map(([key, installed]) => {
-            const manifest = resolved.get(installed.packageId)?.manifest;
-            if (manifest === undefined) {
-                throw StackError.of(
-                    "DEFINITION_INVALID",
-                    `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
-                );
-            }
+    // read each installation with the manifest of the release its package resolved to
+    const declaredInstallations = Object.entries(document.installations).map(([key, installed]) => {
+        const manifest = resolved.get(installed.packageId)?.manifest;
+        if (manifest === undefined) {
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
+            );
+        }
 
-            return [key, { ...installed, selection: { ...installed.selection, manifest } }];
-        }),
+        return { key, installed, manifest };
+    });
+
+    // pin each release selection to its manifest, leaving a tag selection to follow its tag
+    const pinned = Object.fromEntries(
+        declaredInstallations.map(({ key, installed, manifest }) => [
+            key,
+            installed.selection.kind === "release"
+                ? { ...installed, selection: { ...installed.selection, manifest } }
+                : installed,
+        ]),
     );
 
     // read the installable packages each declared installation's build depends on, except those only its optional capabilities need
     const declaredManifests = new Map(
-        Object.values(pinned).map((installed) => [
-            installed.packageId,
-            installed.selection.manifest,
-        ]),
+        declaredInstallations.map(({ installed, manifest }) => [installed.packageId, manifest]),
     );
     const born = new Set([
         import.meta.destack.package.id,
         ...SPACE_KERNEL.map((kernel) => kernel.id),
     ]);
     const closures = await Promise.all(
-        Object.values(pinned).map(async (installed) => {
+        declaredInstallations.map(async ({ installed, manifest }) => {
             // read the installation's package and the packages only its optional capabilities need
-            const build = await read(installed.packageId, installed.selection.manifest);
+            const build = await read(installed.packageId, manifest);
             const description = await PackageDescription.of(build);
             const optional = new Set(Installation.optionalPackages(description));
 
@@ -135,10 +140,9 @@ export async function declaredStack(
     );
 
     // run in the store each dependency of an installation in the store, whose build runs its code there already
-    const installations = Object.values(pinned);
     const stored = new Set(
         closures.flatMap((releases, index) =>
-            installations[index]?.isolation === "process"
+            declaredInstallations[index]?.installed.isolation === "process"
                 ? releases.map((release) => release.package.id)
                 : [],
         ),
