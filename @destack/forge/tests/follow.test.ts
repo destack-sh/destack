@@ -21,7 +21,7 @@ import { ids, reconcile, TestSpace } from "@destack/stack/test";
 import { TestEntitlement } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
 import { Forge } from "@destack/registry/client";
-import { Claim, ClaimLookup, claimTable, Shape } from "@destack/object";
+import { Claim, ClaimLookup, claimTable, installation, Shape } from "@destack/object";
 
 /** The residency's home space, where its forge stores the repositories' references. */
 const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -30,7 +30,8 @@ const FORGE_HOME = schema.identifier("space").parse("space-01996ab0-0000-7000-80
 function writeBuild(crypto: Crypto): Promise<BuildReader> {
     return MemoryBuild.write(
         new Map([["index.js", new TextEncoder().encode("export {};\n")]]),
-        { role: "app",
+        {
+            role: "app",
             package: { id: ids.package, name: "@example/library", version: "2026.9.0" },
         },
         crypto,
@@ -127,10 +128,10 @@ async function moveTag(
 /** Read the release version of an installation's targeted build, absent for another build. */
 async function targetedVersion(database: DatabaseConnection, id: Identifier<"installation">) {
     const snapshot = Snapshot.live(database);
-    const [rolled] = await snapshot.read(rollout.table).findMany({ where: { installationId: id } });
+    const installed = await snapshot.read(installation.table).findFirst({ where: { id } });
     const revision = await snapshot
         .read(installationRevision.table)
-        .findFirst({ where: { id: present(rolled?.revisionId, "the targeted revision") } });
+        .findFirst({ where: { id: present(installed?.revisionId, "the targeted revision") } });
     const built = await snapshot
         .read(build.table)
         .findFirst({ where: { id: present(revision, "the revision").buildId } });
@@ -283,12 +284,12 @@ test("build the commit a followed reference resolves to once for the installatio
     await follow(installed.id);
     const [followed] = await database
         .select({ buildId: installationRevision.table.buildId })
-        .from(rollout.table)
+        .from(installation.table)
         .innerJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.revisionId),
+            eq(installationRevision.table.id, installation.table.revisionId),
         )
-        .where(eq(rollout.table.installationId, installed.id));
+        .where(eq(installation.table.id, installed.id));
     const [only] = await commitBuilds(database);
 
     expect({
