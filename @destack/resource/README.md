@@ -8,7 +8,7 @@ const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state:
 const plan = await provider.reconcile.plan(record, desired); // terraform plan
 // terraform apply of a saved plan
 await provider.reconcile.apply(record, desired, await Plan.digest(plan, environment.crypto));
-Plan.classify(plan); // "safe", "fallible", "backward-incompatible" or "destructive"
+Plan.classify(plan); // "safe", "fallible", "backward-incompatible", "destructive" or "privileged"
 // env.DATABASE in a Worker
 await database.get(new ResourceContext().bind(database, connection)).select().from(note);
 ```

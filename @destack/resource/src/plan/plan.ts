@@ -4,8 +4,14 @@ import { type Package, type DeclarationDescription } from "@destack/package";
 import { type PlanProblem, ResourceError, unreachablePlan } from "../error/error.ts";
 import { Address } from "./address.ts";
 
-/** The risks of steps, from least to most consequential. */
-export const RISKS = ["safe", "fallible", "backward-incompatible", "destructive"] as const;
+/** The risks of steps, from least to most consequential, granting access above any data change. */
+export const RISKS = [
+    "safe",
+    "fallible",
+    "backward-incompatible",
+    "destructive",
+    "privileged",
+] as const;
 
 /** How consequential a step is, from least to most. */
 export const Risk = schema.enum(RISKS);
@@ -21,6 +27,7 @@ export const Action = schema.enum([
     "rename",
     "convert",
     "restore",
+    "grant",
 ]);
 /** What a step does to its target. */
 export type Action = schema.Infer<typeof Action>;
