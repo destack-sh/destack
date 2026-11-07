@@ -217,10 +217,11 @@ export class Registry {
         const reader = await BuildReader.open(location, fetch, this.#environment.crypto);
 
         // require a build of the package
-        if (PackageManifest.package(reader.manifest).id !== packageId) {
+        const built = PackageManifest.package(reader.manifest);
+        if (built.id !== packageId) {
             throw RegistryError.of(
                 "FOREIGN_MANIFEST",
-                `build ${manifest} is not a build of ${packageId}`,
+                `build ${manifest} is a build of ${built.name}, not of the requested package`,
             );
         }
 
