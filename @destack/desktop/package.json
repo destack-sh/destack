@@ -26,6 +26,7 @@
         "@destack/error": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/home": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/message": "workspace:*",

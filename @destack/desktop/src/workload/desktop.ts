@@ -11,7 +11,7 @@ import { computer, Device } from "@destack/machine/device";
 import { type ObjectClient, RelationalQuery } from "@destack/object/client";
 import { schema } from "@destack/schema";
 import { FOCUS_PARAMETER } from "@destack/view/declare";
-import { start } from "../setting/setting.ts";
+import { start } from "@destack/home/setting";
 import { DESKTOP_OBJECTS, window } from "../object/index.ts";
 import { Autostart, Menu, type MenuEntry } from "../server/index.ts";
 import { type Event, Shell } from "../shell/index.ts";
