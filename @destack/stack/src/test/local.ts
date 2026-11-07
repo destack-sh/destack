@@ -137,7 +137,7 @@ export class LocalRuntime implements Runtime {
             .find((entry) => entry.spec.installationId === installationId);
         if (running === undefined) {
             throw CallError.http("SERVICE_UNAVAILABLE", {
-                message: `installation ${installationId} runs no instance here`,
+                message: "this installation runs no instance here",
             });
         }
 

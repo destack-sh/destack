@@ -199,7 +199,7 @@ export class Binder {
             if (target.spaceId === plan.stack.scope || declared.version !== undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `a binding must select an installation of another space by name without a version, not ${target.name} in ${target.spaceId}`,
+                    `the binding of ${target.name} must select an installation of another space by name, without a version`,
                 );
             }
 

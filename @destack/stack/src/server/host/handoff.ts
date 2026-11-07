@@ -415,7 +415,7 @@ export const SourceHandoff = {
         if (!acting.has(record.targetId)) {
             throw StackError.of(
                 "TRANSFER_TO_CALLER_MISSING",
-                `${spaceId} is not transferring to a machine the caller acts for`,
+                "this space is not transferring to a machine the caller acts for",
             );
         }
 
@@ -437,7 +437,7 @@ export const SourceHandoff = {
         if (found === undefined) {
             throw StackError.of(
                 "RESOURCE_NOT_FOUND",
-                `${input.spaceId} has no resource ${input.resourceId}`,
+                `this space has no resource ${input.resourceId}`,
             );
         }
 
@@ -485,7 +485,7 @@ export const SourceHandoff = {
             if (row === undefined) {
                 throw StackError.of(
                     "SNAPSHOT_NOT_REQUESTED",
-                    `${input.spaceId} has no snapshot of ${input.resourceId} requested for the recipient`,
+                    `this space has no snapshot of ${input.resourceId} requested for the recipient`,
                 );
             }
 
@@ -501,7 +501,7 @@ export const SourceHandoff = {
     async requireFenced(database: DatabaseConnection, spaceId: Identifier<"space">): Promise<void> {
         const chain = await Scope.chain(Snapshot.live(database), spaceId);
         if (Scope.fenced(chain) === undefined) {
-            throw StackError.of("FENCE_REQUIRED", `${spaceId} is not fenced yet`);
+            throw StackError.of("FENCE_REQUIRED", "this space is not fenced yet");
         }
     },
 };

@@ -937,7 +937,7 @@ test("redeploy an application once a binding its deployment captured targets ano
 
 test("deploy nothing of a release built with a newer or an older Destack than the machine runs, and report which", async () => {
     // deploy notes on a machine running only a later Destack, then on one running only an earlier one
-    const refusal = async (destack: VersionRange) => {
+    const deploy = async (destack: VersionRange) => {
         const fixture = await TestSpace.open();
         const notes = await installNotes(
             fixture,
@@ -957,8 +957,8 @@ test("deploy nothing of a release built with a newer or an older Destack than th
     // refuse each, the release too old for the later machine and too new for the earlier one
     const built = import.meta.destack.package.version;
     expect({
-        later: await refusal({ oldest: "2099.1.0", newest: "2099.1.0" }),
-        earlier: await refusal({ oldest: "2001.1.0", newest: "2001.1.0" }),
+        later: await deploy({ oldest: "2099.1.0", newest: "2099.1.0" }),
+        earlier: await deploy({ oldest: "2001.1.0", newest: "2001.1.0" }),
     }).toEqual({
         later: [
             0,

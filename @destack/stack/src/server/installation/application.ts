@@ -90,7 +90,7 @@ export interface ApplicationOptions {
     readonly registry: Registry;
     /** The server runtimes the machine runs, in preference order. */
     readonly runtimes: readonly Runtime[];
-    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    /** The Destack versions whose releases the machine runs: its own and the oldest it supports. */
     readonly destack: VersionRange;
     /** Whether the machine checks capabilities' features against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
@@ -1166,7 +1166,7 @@ export class ApplicationInstallation {
         if (missing.length > 0) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `the build of ${packageId} is missing declarations ${missing.join(", ")} that its machine binds`,
+                `the build of ${build.manifest.package.name} is missing declarations ${missing.join(", ")} that its machine binds`,
             );
         }
 

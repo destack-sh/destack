@@ -336,11 +336,11 @@ async function submit(
     // resolve the submitted build and require a build of the installation's package
     const resolved = await resolveBuild(context, target, submitted, prepared.release);
     const reader = await options.builds.contents(resolved.manifest);
-    const built = PackageManifest.package(reader.manifest).id;
-    if (built !== target.installation.packageId) {
+    const built = PackageManifest.package(reader.manifest);
+    if (built.id !== target.installation.packageId) {
         throw StackError.of(
             "PACKAGE_MISMATCH",
-            `${target.installation.name} installs ${target.installation.packageId}, but the submitted build is ${built}`,
+            `the submitted build is of ${built.name}, which ${target.installation.name} does not install`,
         );
     }
 
@@ -422,7 +422,7 @@ async function pull(
     if (reference.kind === "release" && reference.version !== version) {
         throw StackError.of(
             "VERSION_MISMATCH",
-            `expected ${target.installation.packageId} ${reference.version}, got version ${version}`,
+            `expected ${reader.manifest.package.name} ${reference.version}, got version ${version}`,
         );
     }
 

@@ -86,7 +86,7 @@ test("serve a moving space's target only the blobs the space's rows reference an
         [
             "NOT_FOUND",
             "TRANSFER_TO_CALLER_MISSING",
-            `${ids.space} is not transferring to a machine the caller acts for`,
+            "this space is not transferring to a machine the caller acts for",
         ],
     ]);
 });

@@ -142,7 +142,7 @@ export class SpaceReplica {
         if (!isComplete) {
             throw StackError.of(
                 "CAPTURE_STOPPED",
-                `the capture of ${this.spaceId} stopped before its end`,
+                "the capture of this space stopped before its end",
             );
         }
 
@@ -151,7 +151,7 @@ export class SpaceReplica {
         if (digest !== fenced.digest) {
             throw StackError.of(
                 "REPLICA_DIFFERS",
-                `the replica of ${this.spaceId} differs from its fenced source`,
+                "this space's replica differs from its fenced source",
             );
         }
     }

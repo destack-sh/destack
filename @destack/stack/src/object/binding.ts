@@ -1,7 +1,7 @@
 import { type Snapshot } from "@destack/db";
 import { installation } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { Deployment, deployment } from "./deployment.ts";
 import { type InstallationRevision, installationRevision, rollout } from "./rollout.ts";
 import type {} from "@destack/package/import-meta";
@@ -84,9 +84,10 @@ export const Binding = Object.assign(
             // refuse a version a live deployment's revision runs with
             const running = await liveRevision(reader, parsed.data, target.id, target.version);
             if (running !== undefined) {
+                const name = await installationName(reader, running);
                 throw StackError.of(
                     "VERSION_BOUND",
-                    `${target.type} version ${target.version} is bound by ${running.installationId}`,
+                    `${target.type} version ${target.version} is bound by ${name}`,
                 );
             }
         },
@@ -105,16 +106,26 @@ export const Binding = Object.assign(
             // refuse a target bound by a revision a rollout targets or a live deployment runs
             const bound = await liveRevision(reader, parsed.data, target.id, undefined);
             if (bound !== undefined) {
-                throw StackError.of(
-                    "BOUND",
-                    `${target.id} is in use: bound by ${bound.installationId}`,
-                );
+                const name = await installationName(reader, bound);
+                throw StackError.of("BOUND", `${target.id} is in use: bound by ${name}`);
             }
         },
     },
 );
 /** One declaration of a revision bound to a target at a version. */
 export type Binding = schema.Infer<typeof Binding>;
+
+/** Read the name of the installation a revision belongs to. */
+async function installationName(
+    reader: Pick<Snapshot, "read">,
+    revision: Pick<InstallationRevision, "installationId">,
+): Promise<string> {
+    const installed = await reader
+        .read(installation.table)
+        .findFirst({ where: { id: revision.installationId } });
+
+    return present(installed?.name, `the name of installation ${revision.installationId}`);
+}
 
 /** Read a current revision of a space binding a target, at a version when given. */
 async function liveRevision(

@@ -428,14 +428,14 @@ export interface WorkloadInstallation {
 /** Bind the running package's resources, secrets and other spaces' installations by their names. */
 function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadStart["bindings"] {
     // bind each resource of the running package under its declared name
-    const packageId = PackageManifest.package(spec.build.manifest).id;
+    const running = PackageManifest.package(spec.build.manifest);
     const bound: WorkloadStart["bindings"] = {};
     for (const resource of spec.resources) {
         // refuse a resource of another package
-        if (resource.packageId !== packageId) {
+        if (resource.packageId !== running.id) {
             throw StackError.of(
                 "FOREIGN_RESOURCE",
-                `resource ${resource.id} does not bind a resource of ${packageId}`,
+                `resource ${resource.id} does not bind a resource of ${running.name}`,
             );
         }
 

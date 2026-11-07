@@ -107,7 +107,7 @@ export class StackInstallation {
         if (revision.installationId !== stack.installationId || !revision.definition) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `not a revision of stack ${stack.installationId}`,
+                "the revision is not an evaluated revision of this stack",
             );
         }
 
@@ -252,10 +252,7 @@ async function appliedDefinition(
         .where(eq(installationRevision.table.id, stack.appliedRevisionId));
     const definition = revision?.definition;
     if (definition === undefined || definition === null) {
-        throw StackError.of(
-            "DEFINITION_INVALID",
-            `stack ${stack.installationId} has no applied evaluated revision`,
-        );
+        throw StackError.of("DEFINITION_INVALID", "this stack has no applied evaluated revision");
     }
 
     return definition;

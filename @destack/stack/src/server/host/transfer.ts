@@ -437,7 +437,7 @@ export class SpaceTransfer {
             .from(transfer.table)
             .where(and(eq(transfer.table.scope, spaceId), isNull(transfer.table.completedAt)));
         if (record === undefined) {
-            throw StackError.of("ACTIVE_TRANSFER_MISSING", `${spaceId} has no active transfer`);
+            throw StackError.of("ACTIVE_TRANSFER_MISSING", "this space has no active transfer");
         }
 
         return record;

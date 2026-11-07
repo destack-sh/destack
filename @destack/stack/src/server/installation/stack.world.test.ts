@@ -514,7 +514,7 @@ test("bind a declaration to an installation of another space by name, unpinned, 
         rows: [{ name: "tasks", target: board, targetSpaceId: acme }],
         pinned: [
             "Blocked",
-            `a binding must select an installation of another space by name without a version, not ${board} in ${acme}`,
+            `the binding of ${board} must select an installation of another space by name, without a version`,
         ],
         database: [["unrecognized_keys", 'Unrecognized key: "spaceId"']],
     });

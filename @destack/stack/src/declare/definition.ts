@@ -1,7 +1,7 @@
 import { defineDeclarationKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { graph, type PackageId, type PackageRelease } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
 import {
     Installation,
@@ -86,7 +86,7 @@ export async function declaredStack(
             if (manifest === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `installation ${key} of ${name} installs ${installed.packageId}, which has no release in the stack's build`,
+                    `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
                 );
             }
 
@@ -119,7 +119,7 @@ export async function declaredStack(
                 if (pinnedManifest !== undefined && pinnedManifest !== release.manifest) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `stack ${name} declares ${release.package.id} at another release than ${installed.packageId} depends on`,
+                        `stack ${name} declares ${release.package.name} at another release than ${PackageManifest.package(build.manifest).name} depends on`,
                     );
                 }
             }

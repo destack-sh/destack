@@ -453,7 +453,7 @@ test("refuse a build of another package, and deploy a release that is not later 
         [
             "BAD_REQUEST",
             "PACKAGE_MISMATCH",
-            `notes installs ${ids.package}, but the submitted build is ${fork}`,
+            "the submitted build is of @test/package, which notes does not install",
         ],
         ["Deployed", null],
         ["Deployed", null],
@@ -640,12 +640,12 @@ test("serve the installation of a call at its mount by its identifier or its nam
         [
             "NOT_FOUND",
             "INSTALLATION_NOT_HERE",
-            `this machine does not serve installation tasks in ${ids.space}`,
+            "this machine does not serve installation tasks in this space",
         ],
         [
             "NOT_FOUND",
             "INSTALLATION_NOT_HERE",
-            "this machine does not serve installation notes in nowhere",
+            "this machine does not serve installation notes in this space",
         ],
     ]);
 
@@ -660,7 +660,7 @@ test("serve the installation of a call at its mount by its identifier or its nam
     expect(await served(ids.space, "notes")).toEqual([
         "SERVICE_UNAVAILABLE",
         "INSTALLATION_NOT_SERVED",
-        `installation notes in ${ids.space} is not served yet`,
+        "installation notes in this space is not served yet",
     ]);
 });
 

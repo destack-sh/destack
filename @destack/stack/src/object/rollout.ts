@@ -599,7 +599,7 @@ export const Rollout = {
         if (rows.length > 1) {
             throw StackError.of(
                 "INSTALLATION_AMBIGUOUS",
-                `several installations in ${spaceId} follow builds of ${packageId}: pick one`,
+                "several installations in this space follow builds of this package: pick one",
             );
         }
         // answer none for a package the space neither installs nor links
@@ -630,7 +630,7 @@ export const Rollout = {
         // refuse an installation following nothing yet
         throw StackError.of(
             "INSTALLATION_NOT_FOUND",
-            `no installation in ${spaceId} follows a build of ${packageId}`,
+            "no installation in this space follows a build of this package",
         );
     },
 
@@ -1122,14 +1122,14 @@ export const Rollout = {
         else if (id !== undefined && served === undefined) {
             throw StackError.of(
                 "INSTALLATION_NOT_SERVED",
-                `installation ${installed.installation} in ${installed.spaceId} is not served yet`,
+                `installation ${installed.installation} in this space is not served yet`,
             );
         }
         // refuse an installation this machine does not have
         else {
             throw StackError.of(
                 "INSTALLATION_NOT_HERE",
-                `this machine does not serve installation ${installed.installation} in ${installed.spaceId}`,
+                `this machine does not serve installation ${installed.installation} in this space`,
             );
         }
     },
