@@ -65,7 +65,7 @@ export class NotificationServer {
         if (declared === undefined) {
             throw NotificationError.of(
                 "NOTIFICATION_UNKNOWN",
-                `${packageId} declares no notification ${name}`,
+                `this package declares no notification ${name}`,
             );
         }
 
