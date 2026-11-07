@@ -3,6 +3,7 @@ import { dirname, join, relative } from "node:path";
 import { testHost } from "@destack/test/host";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import postgres from "postgres";
+import type { Subprocess } from "@destack/environment";
 import type { TestProject } from "@destack/test";
 import type { Dialect } from "../dialect/dialect.ts";
 import { TestDatabase } from "./database.ts";
@@ -28,6 +29,15 @@ const LOCKFILE = "bun.lock";
 /** The hexadecimal characters of a key in its schemas' names: 64 bits. */
 const ID_LENGTH = 16;
 
+/** The default longest write of one template: 60 s, about 8x the longest measured, 7.1 s. */
+const TEMPLATE_MILLISECONDS = 60_000;
+
+/** Milliseconds per second. */
+const MILLISECONDS_PER_SECOND = 1000;
+
+/** The start of the line the writer reports each written template's time on. */
+const TEMPLATE_LINE = "template ";
+
 /** The files the key reads at once: well below the default limit of 256 open files on macOS. */
 const READ_BATCH = 64;
 
@@ -47,7 +57,7 @@ export const TestRun = {
     /** Provide a module's templates, written with some variables, to a project's tests. */
     setup(module: URL, variables: Readonly<Record<string, string>> = {}) {
         return async (project: TestProject): Promise<() => Promise<void>> => {
-            const run = await TestRun.write(module, TestDatabase.target(project), variables);
+            const run = await TestRun.write(module, TestDatabase.target(project), { variables });
             project.provide("templates", run.images);
 
             return run.release;
@@ -58,12 +68,13 @@ export const TestRun = {
     async write(
         module: URL,
         dialect: Dialect,
-        variables: Readonly<Record<string, string>> = {},
+        options: TemplateWriteOptions = {},
     ): Promise<{
         readonly images: ImageIndex;
         readonly release: () => Promise<void>;
     }> {
-        const cache = await TemplateCache.open(fileURLToPath(module), dialect, variables);
+        const { variables = {}, deadline = TEMPLATE_MILLISECONDS } = options;
+        const cache = await TemplateCache.open(fileURLToPath(module), dialect, variables, deadline);
 
         return await cache.use();
     },
@@ -93,6 +104,14 @@ export const TestRun = {
     },
 };
 
+/** How a run writes a module's templates. */
+export interface TemplateWriteOptions {
+    /** The variables the templates are written with beside the process's own, none by default. */
+    readonly variables?: Readonly<Record<string, string>>;
+    /** The longest one template's write may take in milliseconds, 60 s by default. */
+    readonly deadline?: number;
+}
+
 /** The written images of one template module for one database, keyed by their inputs. */
 class TemplateCache {
     /** The template module's path. */
@@ -105,6 +124,8 @@ class TemplateCache {
     readonly key: Digest;
     /** The variables the images are written with, beside the process's own. */
     readonly variables: Readonly<Record<string, string>>;
+    /** The longest one template's write may take, in milliseconds. */
+    readonly deadline: number;
 
     /** Describe a module's cache in its entries' directory, keyed by its inputs. */
     private constructor(
@@ -113,12 +134,14 @@ class TemplateCache {
         entries: string,
         key: Digest,
         variables: Readonly<Record<string, string>>,
+        deadline: number,
     ) {
-        // keep the module, its database, its key, its variables and its entries' directory
+        // keep the module, its database, its key, its variables, its deadline and its entries' directory
         this.module = module;
         this.dialect = dialect;
         this.key = key;
         this.variables = variables;
+        this.deadline = deadline;
         this.entries = entries;
     }
 
@@ -127,6 +150,7 @@ class TemplateCache {
         module: string,
         dialect: Dialect,
         variables: Readonly<Record<string, string>>,
+        deadline: number,
     ): Promise<TemplateCache> {
         // find the checkout's root, the module's package and the packages it depends on
         const root = await TemplateCache.#root(module);
@@ -153,7 +177,7 @@ class TemplateCache {
         const cache = join(await HOST.files.cacheDirectory(), CACHE);
         const entries = join(cache, checkout, name, dialect);
 
-        return new TemplateCache(module, dialect, entries, key, variables);
+        return new TemplateCache(module, dialect, entries, key, variables, deadline);
     }
 
     /** The directory of the images for the current key. */
@@ -225,15 +249,60 @@ class TemplateCache {
             stdout: "inherit",
             stderr: "pipe",
         });
-        const [code, stderr] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+        const [code, report] = await Promise.all([child.exited, this.#watch(child)]);
 
-        // remove a failed write's images
+        // remove a failed write's images, stalled writes being killed
         if (code !== 0) {
             await this.#remove(this.directory, this.id);
-            throw new Error(`writing the run's templates failed with ${code}: ${stderr}`);
+            const seconds = this.deadline / MILLISECONDS_PER_SECOND;
+            throw new Error(
+                report.isStalled
+                    ? `writing a template took over ${seconds} s and was stopped: ${report.text}`
+                    : `writing the run's templates failed with ${code}: ${report.text}`,
+            );
         }
 
         return await TestRun.read(join(this.directory, INDEX));
+    }
+
+    /** Read a writer's report, showing each template's time and stopping one past its deadline. */
+    async #watch(
+        child: Pick<Subprocess, "stderr" | "kill">,
+    ): Promise<{ readonly text: string; readonly isStalled: boolean }> {
+        // stop the writer once one template runs past the deadline, rearmed as each finishes
+        let isStalled = false;
+        let deadline = new AbortController();
+        const arm = () => {
+            deadline.abort();
+            deadline = new AbortController();
+            HOST.clock.sleep(this.deadline, deadline.signal).then(
+                () => {
+                    isStalled = true;
+                    child.kill("SIGKILL");
+                },
+                () => {},
+            );
+        };
+        arm();
+
+        // collect the report, showing and rearming at each finished template's whole line
+        let text = "";
+        let read = 0;
+        const decoder = new TextDecoder();
+        for await (const chunk of child.stderr) {
+            text += decoder.decode(chunk, { stream: true });
+            for (let end = text.indexOf("\n", read); end !== -1; end = text.indexOf("\n", read)) {
+                const line = text.slice(read, end);
+                read = end + 1;
+                if (line.startsWith(TEMPLATE_LINE)) {
+                    HOST.process.stderr.writeSync(`${line}\n`);
+                    arm();
+                }
+            }
+        }
+        deadline.abort();
+
+        return { text, isStalled };
     }
 
     /** Remove the module's entries of other keys that no run uses or writes. */

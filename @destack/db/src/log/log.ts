@@ -266,17 +266,13 @@ export class Log {
         );
     }
 
-    /** Digest the layout of tables' changes: logged columns with their kinds and values. */
-    static async layout(tables: readonly Table[], crypto: DigestCrypto): Promise<string> {
-        // describe each table's logged columns
-        const described = tables.map((table) => [
-            table[TABLE].sqlName,
-            Object.values(table[TABLE].logged).map(({ definition }) => [
-                definition.name,
-                definition.kind,
-                definition.nullable,
-                toJsonSchema(definition.json),
-            ]),
+    /** Digest the layout of a table's changes: its logged columns with their kinds and values. */
+    static async layout(table: Table, crypto: DigestCrypto): Promise<string> {
+        const described = Object.values(table[TABLE].logged).map(({ definition }) => [
+            definition.name,
+            definition.kind,
+            definition.nullable,
+            toJsonSchema(definition.json),
         ]);
 
         return (await Digest.json(described, crypto)).slice(0, LAYOUT_LENGTH);
