@@ -284,6 +284,7 @@
         "@destack/error": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/home": "workspace:*",
         "@destack/locale": "workspace:*",
         "@destack/machine": "workspace:*",
         "@destack/message": "workspace:*",
@@ -446,6 +447,31 @@
         "@types/bun": "1.4.2",
       },
     },
+    "@destack/home": {
+      "name": "@destack/home",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/account": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/icon": "workspace:*",
+        "@destack/locale": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/stack": "workspace:*",
+        "@destack/style": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/theme": "workspace:*",
+        "@destack/ui": "workspace:*",
+        "@destack/view": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/build": "workspace:*",
+      },
+    },
     "@destack/icon": {
       "name": "@destack/icon",
       "version": "2026.11.0",
@@ -542,16 +568,17 @@
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/home": "workspace:*",
         "@destack/machine-mention-fixture": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/social": "workspace:*",
+        "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
         "@destack/universe": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@template/stack": "workspace:*",
         "@types/bun": "1.4.2",
         "@types/node": "26.6.1",
         "fake-indexeddb": "6.2.5",
@@ -976,9 +1003,9 @@
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
+        "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
-        "@template/stack": "workspace:*",
         "@types/bun": "1.4.2",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",
@@ -1056,6 +1083,38 @@
       "devDependencies": {
         "@destack/test": "workspace:*",
         "@types/node": "26.6.1",
+      },
+    },
+    "@destack/template-blank": {
+      "name": "@destack/template-blank",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/object": "2026.11.0",
+        "@destack/package": "2026.11.0",
+        "@destack/schema": "2026.11.0",
+        "@destack/setting": "2026.11.0",
+        "@destack/template-stack": "2026.11.0",
+      },
+      "devDependencies": {
+        "@destack/check": "2026.11.0",
+      },
+    },
+    "@destack/template-stack": {
+      "name": "@destack/template-stack",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/access": "2026.11.0",
+        "@destack/account": "2026.11.0",
+        "@destack/bucket": "2026.11.0",
+        "@destack/db": "2026.11.0",
+        "@destack/observability": "2026.11.0",
+        "@destack/setting": "2026.11.0",
+        "@destack/stack": "2026.11.0",
+        "@destack/vault": "2026.11.0",
+        "@destack/view": "2026.11.0",
+      },
+      "devDependencies": {
+        "@destack/check": "2026.11.0",
       },
     },
     "@destack/test": {
@@ -1415,6 +1474,7 @@
         "@destack/db": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/home": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
@@ -1429,38 +1489,6 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@types/bun": "1.4.2",
-      },
-    },
-    "@template/blank": {
-      "name": "@template/blank",
-      "version": "2026.11.0",
-      "dependencies": {
-        "@destack/object": "2026.11.0",
-        "@destack/package": "2026.11.0",
-        "@destack/schema": "2026.11.0",
-        "@destack/setting": "2026.11.0",
-        "@template/stack": "2026.11.0",
-      },
-      "devDependencies": {
-        "@destack/check": "2026.11.0",
-      },
-    },
-    "@template/stack": {
-      "name": "@template/stack",
-      "version": "2026.11.0",
-      "dependencies": {
-        "@destack/access": "2026.11.0",
-        "@destack/account": "2026.11.0",
-        "@destack/bucket": "2026.11.0",
-        "@destack/db": "2026.11.0",
-        "@destack/observability": "2026.11.0",
-        "@destack/setting": "2026.11.0",
-        "@destack/stack": "2026.11.0",
-        "@destack/vault": "2026.11.0",
-        "@destack/view": "2026.11.0",
-      },
-      "devDependencies": {
-        "@destack/check": "2026.11.0",
       },
     },
   },
@@ -1650,6 +1678,8 @@
 
     "@destack/git": ["@destack/git@workspace:@destack/git"],
 
+    "@destack/home": ["@destack/home@workspace:@destack/home"],
+
     "@destack/icon": ["@destack/icon@workspace:@destack/icon"],
 
     "@destack/identity": ["@destack/identity@workspace:@destack/identity"],
@@ -1703,6 +1733,10 @@
     "@destack/sync": ["@destack/sync@workspace:@destack/sync"],
 
     "@destack/telemetry": ["@destack/telemetry@workspace:@destack/telemetry"],
+
+    "@destack/template-blank": ["@destack/template-blank@workspace:@destack/template-blank"],
+
+    "@destack/template-stack": ["@destack/template-stack@workspace:@destack/template-stack"],
 
     "@destack/test": ["@destack/test@workspace:@destack/test"],
 
@@ -2185,10 +2219,6 @@
     "@tauri-apps/cli-win32-ia32-msvc": ["@tauri-apps/cli-win32-ia32-msvc@2.12.0", "", { "os": "win32", "cpu": "ia32" }, "sha512-SsBjvq4f7YaBGqcWoE3cycoItPf0SrQeqFqWWgfxoeZWAIz01E31LDSeZ2p/etJiIY0R9oi045chkFfb0O7WGw=="],
 
     "@tauri-apps/cli-win32-x64-msvc": ["@tauri-apps/cli-win32-x64-msvc@2.12.0", "", { "os": "win32", "cpu": "x64" }, "sha512-9zzDKYUH4TKKBgRdDdVQX8fiRO5gJ8hD1nGsHU9DOHG5Jpm3arjbu9Xg1frR20EusG3Sl8X0dppoO/4EoUXUGg=="],
-
-    "@template/blank": ["@template/blank@workspace:@template/blank"],
-
-    "@template/stack": ["@template/stack@workspace:@template/stack"],
 
     "@tufjs/canonical-json": ["@tufjs/canonical-json@2.0.0", "", {}, "sha512-yVtV8zsdo8qFHe+/3kw81dSLyF7D576A5cCFCi4X7B39tWT7SekaEFUnvnWJHz+9qO7qJTah1JbrDjWKqFtdWA=="],
 

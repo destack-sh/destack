@@ -6,7 +6,6 @@
     "workspaces": [
         "@destack/*",
         "@platform/*",
-        "@template/*",
         "@destack/build/tests/fixture/*/source",
         "@destack/machine/tests/fixture/*",
         "@destack/cli/tests/fixture/*",

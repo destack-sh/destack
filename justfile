@@ -28,21 +28,18 @@ generate:
 # typecheck
 typecheck:
     just @destack/typecheck
-    just @template/typecheck
     just @platform/typecheck
 
 # lint the workflows, every scope and the repository's documents
 lint:
     actionlint
     just @destack/lint
-    just @template/lint
     just @platform/lint
     bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md @platform/site/content
 
 # check formatting
 format-check:
     just @destack/format-check
-    just @template/format-check
     just @platform/format-check
 
 # typecheck, lint and check formatting
@@ -56,7 +53,6 @@ test: (postgres "up")
 # format
 format:
     just @destack/format
-    just @template/format
     just @platform/format
 
 alias fmt := format
@@ -71,7 +67,7 @@ affected base="":
     fi
     # list every package when a change reaches every package
     if [ "$directories" = "*" ]; then
-        directories="$(printf '%s\n' @destack/* @platform/* @template/*)"
+        directories="$(printf '%s\n' @destack/* @platform/*)"
     fi
     # keep packages with sources, leaving out test fixtures
     for directory in $directories; do

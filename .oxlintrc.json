@@ -142,13 +142,6 @@
             "rules": { "destack/prevent-abbreviations": "off" }
         },
         {
-            "files": [
-                "@destack/machine/src/computer/kernel.ts",
-                "@destack/machine/src/bun/link.ts"
-            ],
-            "rules": { "destack/no-ambient-effect": "off" }
-        },
-        {
             "files": ["@destack/object/src/object/object.ts"],
             "rules": { "destack/no-overload-cast": "off" }
         },
@@ -255,6 +248,7 @@
                 { "directory": "@destack/finance", "name": "@destack/finance" },
                 { "directory": "@destack/forge", "name": "@destack/forge" },
                 { "directory": "@destack/git", "name": "@destack/git" },
+                { "directory": "@destack/home", "name": "@destack/home" },
                 { "directory": "@destack/icon", "name": "@destack/icon" },
                 { "directory": "@destack/identity", "name": "@destack/identity" },
                 { "directory": "@destack/locale", "name": "@destack/locale" },
@@ -277,6 +271,8 @@
                 { "directory": "@destack/style", "name": "@destack/style" },
                 { "directory": "@destack/sync", "name": "@destack/sync" },
                 { "directory": "@destack/telemetry", "name": "@destack/telemetry" },
+                { "directory": "@destack/template-blank", "name": "@destack/template-blank" },
+                { "directory": "@destack/template-stack", "name": "@destack/template-stack" },
                 { "directory": "@destack/test", "name": "@destack/test" },
                 { "directory": "@destack/theme", "name": "@destack/theme" },
                 { "directory": "@destack/tunnel", "name": "@destack/tunnel" },
@@ -290,8 +286,6 @@
                 { "directory": "@platform/release", "name": "@platform/release" },
                 { "directory": "@platform/site", "name": "@platform/site" },
                 { "directory": "@platform/stack", "name": "@platform/stack" },
-                { "directory": "@template/blank", "name": "@template/blank" },
-                { "directory": "@template/stack", "name": "@template/stack" },
                 {
                     "directory": "@destack/build/tests/fixture/library/source",
                     "name": "@destack/build-library-fixture"
@@ -368,7 +362,6 @@
                 "@platform/release/src/main.ts",
                 "@platform/release/src/key/tests/bitwarden.ts",
                 "@platform/release/src/deployment/cloudflare/universe.ts",
-                "@platform/release/src/repository/feed/worker.ts",
                 "@platform/release/src/distribution/tests/sandbox.ts",
                 "@platform/site/build/main.ts",
                 "@platform/site/scripts/test-highlighting.ts",
@@ -393,6 +386,7 @@
                 "@destack/finance": "app",
                 "@destack/forge": "app",
                 "@destack/git": "library",
+                "@destack/home": "app",
                 "@destack/icon": "library",
                 "@destack/identity": "builtin",
                 "@destack/locale": "builtin",
@@ -415,6 +409,8 @@
                 "@destack/style": "library",
                 "@destack/sync": "builtin",
                 "@destack/telemetry": "builtin",
+                "@destack/template-blank": "app",
+                "@destack/template-stack": "library",
                 "@destack/test": "library",
                 "@destack/theme": "library",
                 "@destack/tunnel": "library",
@@ -428,8 +424,6 @@
                 "@platform/release": "library",
                 "@platform/site": "library",
                 "@platform/stack": "library",
-                "@template/blank": "app",
-                "@template/stack": "library",
                 "@destack/build-library-fixture": "library",
                 "@destack/build-unit-application-fixture": "library",
                 "@destack/build-unit-library-fixture": "library",
