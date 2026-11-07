@@ -22,7 +22,8 @@ export const space = defineObject({
     partition: true,
     fields: {},
     relations: { reader: { subjects: [principal.user, anyone.all()] } },
-    permissions: { read: relation("reader"), share: none() },
+    // let its owner manage it, as an account's space does, whose managers approve its plans
+    permissions: { read: relation("reader"), manage: none(), share: none() },
     shareable: { by: "share" },
 });
 

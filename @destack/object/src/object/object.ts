@@ -342,6 +342,16 @@ export const ObjectPermissions = {
     },
 };
 
+/** An open relation of another type that a type's objects, or a set of their members, join. */
+export interface ObjectContribution {
+    /** The type with the open relation. */
+    readonly object: () => ObjectType;
+    /** The open relation. */
+    readonly relation: string;
+    /** The relation or permission whose members join, for a subject set. */
+    readonly members?: string;
+}
+
 /** The traits an object opts into. */
 export interface ObjectTraits<Permissions extends string = string> {
     /** The parent object type, or "self" for a tree. */
@@ -407,6 +417,8 @@ export interface ObjectDefinition<
     readonly attributes?: Readonly<Record<string, "string" | "number" | "boolean">>;
     /** Further relations stored in relationships. */
     readonly relations?: Readonly<Record<string, ObjectRelationInput>>;
+    /** The open relations of other types the objects, or sets of their members, join. */
+    readonly contributes?: readonly ObjectContribution[];
     /** Permission names roles grant, or named expressions derived from relations. */
     readonly permissions?: ObjectPermissions<Permissions>;
     /** Permissions only their expressions grant, never roles. */

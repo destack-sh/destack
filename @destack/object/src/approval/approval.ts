@@ -1,4 +1,12 @@
-import { Caller, intersection, principal, relation, through } from "@destack/access";
+import {
+    accepts,
+    AccessError,
+    Caller,
+    intersection,
+    principal,
+    relation,
+    through,
+} from "@destack/access";
 import type { Select } from "@destack/db";
 import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
@@ -16,7 +24,7 @@ export const APPROVAL_STATES = ["requested", "approved", "rejected"] as const;
 /** The state of an approval, and the decision of several. */
 export type ApprovalState = (typeof APPROVAL_STATES)[number];
 
-/** A principal's decision on an object awaiting approval, such as a change request. */
+/** A decision asked of a principal or a subject set on an object, such as a change request. */
 export const approval = defineObject(
     {
         name: "approval",
@@ -24,8 +32,8 @@ export const approval = defineObject(
         scope: [principal.space],
         nested: { in: "any", receive: "approve" },
         fields: {
-            /** The principal asked to decide. */
-            approver: field.subject(),
+            /** The principal or subject set asked to decide, as GitHub asks a person or a team. */
+            approver: field.subject().open(),
             /** Whether the approver has yet to decide, approved, or rejected. */
             state: field.state({
                 initial: "requested",
@@ -51,7 +59,7 @@ export const approval = defineObject(
             comment: field.string(schema.string().max(COMMENT_LENGTH)).optional(),
         },
         permissions: {
-            // the parent's readers read approvals, its approvers request them, and each decides its own
+            // the parent's readers read approvals, its approvers request them, and the asked or a member of the asked set decides
             read: through("parent", "read"),
             request: through("parent", "approve"),
             decide: intersection(relation("approver"), through("parent", "approve")),
@@ -65,20 +73,39 @@ export const approval = defineObject(
     },
     (method) => ({
         create: method.create("request", {
-            fields: ["approverPackageId", "approverType", "approverScope", "approverId"],
+            fields: [
+                "approverPackageId",
+                "approverType",
+                "approverScope",
+                "approverId",
+                "approverRelation",
+            ],
         }),
         list: method.list("read"),
         comment: method.update("decide", { fields: ["comment"] }),
     }),
 ).implement({
     methods: {
+        create: async (context, next) => {
+            // refuse asking a subject the approver relation does not accept, contributed sets among them
+            const asked = Approval.asked(context.input);
+            const { authorizer } = context;
+            if (!accepts(authorizer.relation(context.object.policy, "approver"), asked)) {
+                throw AccessError.of(
+                    "SUBJECT_REFUSED",
+                    `approvals cannot ask ${asked.type}${asked.relation === undefined ? "" : `#${asked.relation}`}`,
+                );
+            }
+
+            return await next();
+        },
         approve: async (context, next) => {
-            Approval.requireDecider(context, context.target);
+            Approval.requireDecider(context);
 
             return await next();
         },
         reject: async (context, next) => {
-            Approval.requireDecider(context, context.target);
+            Approval.requireDecider(context);
 
             return await next();
         },
@@ -90,16 +117,31 @@ export type Approval = Select<typeof approval.table>;
 
 /** Decide who decides approvals. */
 export const Approval = {
-    /** Refuse a decision by anyone but the approver itself, acting directly. */
-    requireDecider(context: Pick<MethodContext, "caller">, row: Approval): void {
-        const { caller } = context;
-        const approver = ObjectReference.at("approver", row);
-        if (Caller.isDelegated(caller) || !Subject.same(caller.subject, approver)) {
+    /** Refuse a decision made through a delegate, as only the asked may decide. */
+    requireDecider(context: Pick<MethodContext, "caller">): void {
+        if (Caller.isDelegated(context.caller)) {
             throw ObjectError.of(
                 "DECIDER_REFUSED",
                 "an approval is decided by its approver, acting directly",
             );
         }
+    },
+
+    /** Read who an approval or its input asks: a principal, or a subject set by its relation. */
+    asked(
+        row: Parameters<typeof ObjectReference.at<"approver">>[1] & {
+            readonly approverRelation?: string | null;
+        },
+    ): Subject {
+        const asked = ObjectReference.at("approver", row);
+        const set = row.approverRelation;
+
+        return set === undefined || set === null ? asked : { ...asked, relation: set };
+    },
+
+    /** Read who decided an approval last: its approver, or the member of its set who did. */
+    decider(row: Approval): Subject {
+        return ObjectReference.at("updatedBy", row);
     },
 };
 

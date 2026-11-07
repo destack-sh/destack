@@ -18,7 +18,7 @@ import { field } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
 import { ObjectWatch, type ObjectReconciliation } from "../object/controller.ts";
 import { defineObject } from "../object/object.ts";
-import { type Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
+import { Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
 
 /** Whose grant an approved change's call runs under: its requester's, or its approver's. */
 export const CHANGE_AUTHORITIES = ["requester", "approver"] as const;
@@ -94,8 +94,8 @@ export const changeRequest = defineObject(
         create: method.create("open", {
             fields: ["call", "count", "as"],
             input: schema.object({
-                /** The principals asked to approve, the caller's grant delegator when absent. */
-                approvers: schema.array(ObjectReference.strict()).min(1).exactOptional(),
+                /** The principals or subject sets asked, the grant delegator when absent. */
+                approvers: schema.array(Subject).min(1).exactOptional(),
             }),
         }),
         list: method.list("read"),
@@ -139,13 +139,18 @@ export const changeRequest = defineObject(
             const parent = { packageId: changeRequest.package.id, type: changeRequest.name };
             await context.mutate(
                 context.self,
-                approvers.map((approver) =>
-                    approval.call("create", {
+                approvers.map((approver) => {
+                    const asked = Subject.parse(approver);
+
+                    return approval.call("create", {
                         ...approval.in(context.scope),
                         parent: { ...parent, id: row.id },
-                        ...ObjectReference.columns("approver", Subject.parse(approver)),
-                    }),
-                ),
+                        ...ObjectReference.columns("approver", asked),
+                        ...(asked.relation === undefined
+                            ? {}
+                            : { approverRelation: asked.relation }),
+                    });
+                }),
             );
 
             return row;
@@ -195,10 +200,10 @@ export class ChangeRequest {
     }
 
     /** Ask a delegated caller's delegator, refusing a direct caller naming no approvers. */
-    static approvers(caller: Caller): readonly ObjectReference[] {
+    static approvers(caller: Caller): readonly Subject[] {
         // ask the person whose grant the delegated caller acts within
         if (Caller.isDelegated(caller)) {
-            return [ObjectReference.parse(caller.subject)];
+            return [caller.subject];
         }
         // refuse a direct request naming no approvers, which would approve itself
         else {
@@ -256,7 +261,7 @@ export class ChangeRequest {
             const subject = ObjectReference.at("requester", this.row);
             const chain = { subject, actors: this.row.actors };
             const acting = await Grant.chain(ChangeRequest.#reader(context), chain, context.now);
-            const approvers = approved.map((row) => ObjectReference.at("approver", row));
+            const approvers = approved.map((row) => Approval.decider(row));
             caller = AccessContext.of(acting, context.now, { approvers });
         }
         // run an elevation's call as its one approver, acting directly, refusing approvals added since
@@ -268,10 +273,7 @@ export class ChangeRequest {
                     "a change run as its approver asks exactly one approver",
                 );
             }
-            caller = AccessContext.of(
-                Caller.of(ObjectReference.at("approver", decided)),
-                context.now,
-            );
+            caller = AccessContext.of(Caller.of(Approval.decider(decided)), context.now);
         }
 
         // make the call and answer its output
@@ -280,11 +282,11 @@ export class ChangeRequest {
         return schema.json().parse(output ?? null);
     }
 
-    /** Decide on the approvals of the approvers other than the acting principal. */
+    /** Decide on the approvals decided by others than the acting principal. */
     #decide(approvals: readonly Approval[]): ApprovalState {
         const acting = this.row.actors.at(-1) ?? ObjectReference.at("requester", this.row);
         const decisions = approvals.filter(
-            (row) => !Subject.same(acting, ObjectReference.at("approver", row)),
+            (row) => row.state === "requested" || !Subject.same(acting, Approval.decider(row)),
         );
 
         return new ApprovalQuorum(this.row.count).decide(decisions);

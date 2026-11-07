@@ -351,7 +351,7 @@ export const ObjectPolicy = {
                 principal.installation,
             ];
 
-            return { subjects, grantedBy: null };
+            return { subjects, grantedBy: null, ...(field.isOpen ? { open: true } : {}) };
         }
         // relate an object field to its types, or openly to any type
         else if (field.type === "object") {
@@ -433,7 +433,14 @@ export const ObjectPolicy = {
                 ? { partition: true }
                 : {}),
             ...(represented?.definition.isGlobal === true ? { isGlobal: true } : {}),
-            contributes: policies.flatMap((policy) => policy.contributes ?? []),
+            contributes: [
+                ...policies.flatMap((policy) => policy.contributes ?? []),
+                ...(definition.contributes ?? []).map((entry) => ({
+                    policy: entry.object().policy,
+                    relation: entry.relation,
+                    ...(entry.members === undefined ? {} : { members: entry.members }),
+                })),
+            ],
             sets: policies.flatMap((policy) => policy.sets ?? []),
         });
     },
@@ -454,6 +461,9 @@ export const ObjectPolicy = {
                         packageId: columns.packageId,
                         type: columns.type,
                         scope: columns.scope,
+                        ...(field.isOpen
+                            ? { relation: Field.relationColumnOf(field.relationAt(property)) }
+                            : {}),
                     },
                 };
             }

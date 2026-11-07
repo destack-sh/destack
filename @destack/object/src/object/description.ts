@@ -47,6 +47,7 @@ import * as webhookExports from "../webhook/standard.ts";
 const LAZY_PATHS: readonly (readonly string[])[] = [
     ["indexes", "*", "across"],
     ["constraints", "*", "references", "object"],
+    ["contributes", "[]", "object"],
 ];
 
 /** The builders taking lazy function references, such as `field.reference(() => note)`. */

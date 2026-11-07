@@ -50,7 +50,11 @@ export interface TraitPolicy {
     /** The permissions the trait derives. */
     readonly permissions?: Readonly<Record<string, AccessExpression>>;
     /** The open relations of other policies the objects join. */
-    readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
+    readonly contributes?: readonly {
+        readonly policy: Policy;
+        readonly relation: string;
+        readonly members?: string;
+    }[];
     /** The types of the subject sets the trait's permissions grant to their members. */
     readonly sets?: readonly Policy[];
 }

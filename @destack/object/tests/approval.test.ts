@@ -1,8 +1,9 @@
 import { AccessContext, Caller, principal } from "@destack/access";
+import { eq } from "@destack/db";
 import { present } from "@destack/schema";
 import { ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
 import { expect, refusal, test } from "@destack/test";
-import { approval, type Approval, changeRequest } from "../src/index.ts";
+import { approval, Approval, changeRequest } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import {
     agentOf,
@@ -94,6 +95,50 @@ test("rename a note as its requester once bob approves the change", async () => 
         ["applied", null],
         "Final",
     ]);
+});
+
+test("ask a note's reviewers as one set, decided by a member and recorded with who decided, refusing others", async () => {
+    // let bob review alice's note, then open her change asking the note's reviewers as a set
+    const fixture = await openApprovals();
+    const id = await fixture.write();
+    const scope = fixture.served.scope;
+    await fixture.served
+        .as(alice)
+        .client(objectPackage)
+        .relationship.create({
+            scope,
+            requestId: RequestId.create(fixture.environment),
+            object: note.reference(scope, id),
+            relation: "reviewer",
+            subject: bob,
+        });
+    const rename = note.call("update", { scope, id, title: "Final" });
+    const approvers = { ...note.reference(scope, id), relation: "reviewer" };
+    const change = await openChange(fixture, alice, { id, call: rename, approvers: [approvers] });
+    const asking = await asked(fixture, change, approvers);
+
+    // refuse carol, outside the set, then approve as bob, its member
+    const refused = await refusal(fixture.decide(carol, asking, "approve"));
+    await fixture.decide(bob, asking, "approve");
+    const [decided] = await fixture.served.database
+        .select()
+        .from(approval.table)
+        .where(eq(approval.table.id, asking.id));
+
+    // apply it as alice, the set asked and bob recorded as who decided
+    expect({
+        refused,
+        settled: await settled(fixture, change),
+        title: await title(fixture),
+        asked: Approval.asked(present(decided, "the approval")),
+        decider: Approval.decider(present(decided, "the approval")),
+    }).toEqual({
+        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: decide"],
+        settled: ["applied", null],
+        title: "Final",
+        asked: approvers,
+        decider: bob,
+    });
 });
 
 test("record the refusal an approved change's call answers", async () => {
@@ -353,11 +398,8 @@ test("refuse a requester asking to approve their own change, asking nobody, aski
     ).toEqual([
         ["BAD_REQUEST", "SELF_APPROVAL", "a requester cannot approve their own change"],
         ["BAD_REQUEST", "APPROVERS_MISSING", "a direct change request names no approvers"],
-        [
-            "BAD_REQUEST",
-            "INPUT_INVALID",
-            'invalid input: approvers.0: unrecognized key: "relation"',
-        ],
+        // refuse a set no type contributes to approvals
+        ["BAD_REQUEST", "SUBJECT_REFUSED", "approvals cannot ask space#owner"],
         ["BAD_REQUEST", "QUORUM_UNREACHABLE", "2 approvals need at least 2 approvers, not 1"],
         [
             "BAD_REQUEST",

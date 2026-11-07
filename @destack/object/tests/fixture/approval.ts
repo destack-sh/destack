@@ -4,6 +4,7 @@ import {
     principal,
     Relationship,
     relation,
+    union,
     universe,
 } from "@destack/access";
 import { Snapshot } from "@destack/db";
@@ -70,16 +71,20 @@ export const note = defineObject(
         plural: "notes",
         scope: [principal.space],
         fields: { owner: field.subject().caller(), title: field.string() },
+        // the people an owner asks to review a note, whom a change may ask as one set
+        relations: { reviewer: { subjects: [principal.user], grantedBy: "share" } },
         permissions: {
-            read: relation("owner"),
+            read: union(relation("owner"), relation("reviewer")),
             write: relation("owner"),
-            approve: relation("owner"),
+            approve: union(relation("owner"), relation("reviewer")),
             publish: relation("owner"),
             share: relation("owner"),
         },
         // let the owner bind the space's roles on a note
         shareable: { by: "share" },
         attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
+        // let a change ask a note's approvers as one set, as GitHub asks a team
+        contributes: [{ object: () => approval, relation: "approver", members: "reviewer" }],
     },
     (method) => ({
         publish: method.mutation({

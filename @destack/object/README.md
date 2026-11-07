@@ -250,6 +250,15 @@ await client.changeRequest.create({ scope, requestId, parent, call: merge, appro
 await client.approval.approve({ ...approval.target(asked), requestId }); // applies the call once enough others approve
 ```
 
+A change request may ask a subject set as one approver, as GitHub asks a team: any member decides, and the approval records who did; the sets come from the types that contribute them.
+
+```ts
+// account's space offers its managers to approvals: contributes: [{ object: () => approval, relation: "approver", members: "manage" }]
+await client.changeRequest.create({ scope, requestId, parent, call, as: "approver", approvers: [{ ...space, relation: "manage" }] });
+Approval.asked(row); // the space's managers, as one set
+Approval.decider(row); // the manager who approved
+```
+
 ## Controllers
 
 A type's `controller` works through its pending rows, and says when to look again.

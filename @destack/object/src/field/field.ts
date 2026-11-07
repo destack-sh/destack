@@ -165,6 +165,7 @@ export const FIELD_MODIFIERS = [
     "default",
     "sensitive",
     "personal",
+    "open",
     "caller",
     "guard",
     "guardWrite",
@@ -211,6 +212,8 @@ export interface FieldConfiguration {
     readonly reference: ReferenceKind;
     /** The relation a reference declares, absent for other fields. */
     readonly relation: string;
+    /** Whether a subject field is open to contributed subjects and sets. */
+    readonly open: boolean;
 }
 
 /** A field's flags as the values it stores, each typed by its signature's flag. */
@@ -255,6 +258,7 @@ type FieldConfigurationOf<
     readonly caller: Declared extends { readonly caller: infer Flag } ? Flag : false;
     readonly reference: Declared extends { readonly reference: infer Kind } ? Kind : "none";
     readonly relation: never;
+    readonly open: Declared extends { readonly open: infer Flag } ? Flag : false;
 };
 
 /** A field of a declared signature, each absent flag at its default. */
@@ -283,6 +287,7 @@ type FlagConfiguration<Configuration extends FieldConfiguration, Flags extends F
     readonly sensitive: Flags["isSensitive"];
     readonly caller: Flags["isCallerFilled"];
     readonly reference: Flags["reference"];
+    readonly open: Configuration["open"];
 };
 
 /** How a field refers to another object: not, by identifier, or by object reference. */
@@ -314,7 +319,27 @@ export type FieldsByColumn<Fields> = {
             }
         >
     >;
+} & {
+    readonly [Key in OpenFieldOf<Fields> as `${Key}Relation`]: Fields[Key] extends Field<
+        infer Configuration
+    >
+        ? Field<
+              Override<
+                  Configuration,
+                  { readonly value: string; readonly reference: "none"; readonly required: false }
+              >
+          >
+        : never;
 };
+
+/** The subject fields open to contributed subject sets, by key. */
+type OpenFieldOf<Fields> = {
+    [Key in keyof Fields & string]: Fields[Key] extends Field<infer Configuration>
+        ? Configuration["open"] extends true
+            ? Key
+            : never
+        : never;
+}[keyof Fields & string];
 
 /** Each object reference field's columns beside its identifier, as key, suffix and signature. */
 type ReferenceColumnOf<Fields> = {
@@ -348,6 +373,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly initial?: { readonly value: Configuration["value"] };
     /** Whether the value is personal data. */
     readonly isPersonal?: boolean;
+    /** Whether a subject field accepts the subjects and sets other types contribute. */
+    readonly isOpen?: boolean;
     /** How a sensitive value is sealed at rest, randomly unless a lookup finds it by value. */
     readonly sealing?: Sealing;
     /** The permissions reading or writing the value requires. */
@@ -378,6 +405,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly initial: { readonly value: Configuration["value"] } | undefined;
     /** Whether the value is personal data, exported and erased with its subject. */
     readonly isPersonal: boolean;
+    /** Whether a subject field accepts contributed subjects and sets. */
+    readonly isOpen: boolean;
     /** How a sensitive value is sealed at rest, randomly unless a lookup finds it by value. */
     readonly sealing: Sealing;
     /** The permissions reading or writing the value requires. */
@@ -396,6 +425,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.relation = definition.relation;
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
+        this.isOpen = definition.isOpen ?? false;
         this.sealing = definition.sealing ?? "random";
         this.access = definition.access;
         this.#build = definition.build;
@@ -507,6 +537,19 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return new Field<Configuration>({ ...this.#options, ...this.#flags, isPersonal: true });
     }
 
+    /** Accept the subjects and subject sets other types contribute. */
+    open(): Field<Override<Configuration, { readonly open: true }>> {
+        if (this.type !== "subject") {
+            throw new TypeError("only subject fields are open to contributed subjects");
+        }
+
+        return new Field<Override<Configuration, { readonly open: true }>>({
+            ...this.#options,
+            ...this.#flags,
+            isOpen: true,
+        });
+    }
+
     /** Write the value only at creation, leaving it out of updates. */
     immutable(): Field<Override<Configuration, { readonly written: "create" }>> {
         return this.#with({ ...this.#flags, written: "create" });
@@ -593,6 +636,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.isPersonal && !plain.isPersonal
                 ? [{ builder: "personal", arguments: [] }]
                 : []),
+            ...(this.isOpen && !plain.isOpen ? [{ builder: "open", arguments: [] }] : []),
             ...(this.isCallerFilled && !plain.isCallerFilled
                 ? [{ builder: "caller", arguments: [] }]
                 : []),
@@ -643,10 +687,23 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                 [columns.type]: this.#column(types),
                 [columns.scope]: this.#column(schema.string().min(1)),
                 [columns.id]: this.relate(property),
+                ...(this.isOpen
+                    ? {
+                          [Field.relationColumnOf(property)]: this.#column(
+                              schema.string().min(1),
+                              false,
+                          ),
+                      }
+                    : {}),
             };
         }
 
         return { [property]: this };
+    }
+
+    /** Name the column holding the relation of a subject set a field names. */
+    static relationColumnOf(property: string): string {
+        return `${property}Relation`;
     }
 
     /** List the columns of an object reference under a property. */
@@ -729,13 +786,14 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     }
 
     /** Derive a column of an object reference beside its identifier, with its flags. */
-    #column(validator: schema.Schema<string>): Field {
+    #column(validator: schema.Schema<string>, isRequired: boolean = this.required): Field {
         return new Field({
             source: { builder: "string", arguments: [validator] },
             build: (name) => Field.validated(name, validator),
             isPersonal: this.isPersonal,
             ...(this.access === undefined ? {} : { access: this.access }),
             ...this.#flags,
+            required: isRequired,
             reference: "none",
         });
     }
@@ -748,6 +806,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.relation === undefined ? {} : { relation: this.relation }),
             ...(this.initial === undefined ? {} : { initial: this.initial }),
             isPersonal: this.isPersonal,
+            isOpen: this.isOpen,
             sealing: this.sealing,
             ...(this.access === undefined ? {} : { access: this.access }),
         };
