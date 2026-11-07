@@ -17,12 +17,11 @@ import {
     installationRevision,
     Rollout,
     rollout,
-    type StackReason,
+    type StackReadiness,
     type InstallationRollout,
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
-import { Failure } from "@destack/error";
 import { RolloutTarget, type RevisionOptions } from "./target.ts";
 
 /** The space's stack installation: it applies its document and targets what it manages. */
@@ -50,16 +49,23 @@ export class StackInstallation {
         }
 
         // apply the stack's document, then target the revisions of the installations it manages while it lives
-        const stack = await this.#apply(reconciliation);
-        if (stack !== undefined && stack.installation.deletedAt === null) {
-            await this.#targetRevisions(reconciliation, stack);
+        const applied = await this.#apply(reconciliation);
+        if (applied !== undefined && applied.stack.installation.deletedAt === null) {
+            await this.#targetRevisions(reconciliation, applied.stack);
+        }
+
+        // fail with a blocked apply once its managed installations follow their releases
+        if (applied?.blocked !== undefined) {
+            throw applied.blocked;
         }
 
         return undefined;
     }
 
-    /** Apply the revision the stack targets, observing it applied or waiting. */
-    async #apply(reconciliation: ObjectReconciliation): Promise<InstallationRollout | undefined> {
+    /** Apply the stack's revision, observing it applied or waiting, or report it blocked. */
+    async #apply(
+        reconciliation: ObjectReconciliation,
+    ): Promise<{ readonly stack: InstallationRollout; readonly blocked?: Error } | undefined> {
         // read the stack of a served space and the revision it follows
         const spaceId = space.identifier(this.#target.scope);
         const { database, store } = reconciliation;
@@ -96,11 +102,11 @@ export class StackInstallation {
                 ]);
             }
 
-            return stack;
+            return { stack };
         }
         // leave a stack without a revision, or with its revision applied
         else if (revision === null || stack.appliedRevisionId === revision.id) {
-            return stack;
+            return { stack };
         }
 
         // require an evaluated revision of this stack
@@ -140,7 +146,7 @@ export class StackInstallation {
             if (outcome.waiting !== undefined) {
                 await reconciliation.observe(installation, stack.installation, outcome.waiting);
 
-                return stack;
+                return { stack };
             }
             deferred = outcome.deferred;
         } catch (error) {
@@ -149,17 +155,11 @@ export class StackInstallation {
                 StackError.is(error, "DEFINITION_INVALID") ||
                 ObjectError.is(error, "DECLARATION_INVALID") ||
                 ObjectError.is(error, "CALL_INVALID");
-            const { message } = Failure.of(error);
-            await reconciliation.observe(
-                installation,
-                stack.installation,
-                ready(isBlocked ? "Blocked" : "ApplyFailed", message, {}),
-            );
             if (!isBlocked) {
                 throw error;
             }
 
-            return stack;
+            return { stack, blocked: error };
         }
 
         // observe it applied and forget its plan, or observe it waiting with the approved plan the rest resumes
@@ -183,7 +183,7 @@ export class StackInstallation {
             );
         }
 
-        return stack;
+        return { stack };
     }
 
     /** Target each managed installation's selected build in one transaction, past detached ones. */
@@ -222,7 +222,7 @@ async function readServedStack(spaceId: Identifier<"space">, database: DatabaseC
         .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
         .leftJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.revisionId),
+            eq(installationRevision.table.id, installation.table.revisionId),
         )
         .where(
             and(
@@ -374,7 +374,7 @@ function declaredTypes(types: readonly ObjectType[]): readonly ObjectType[] {
 }
 
 /** Describe a stack's ready observation: its reason, message and observed fields. */
-function ready(reason: StackReason, message: string, fields: Readonly<Record<string, unknown>>) {
+function ready(reason: StackReadiness, message: string, fields: Readonly<Record<string, unknown>>) {
     const status = reason === "Applied" ? "true" : "false";
 
     return { conditions: { Ready: { status, reason, message } }, fields } as const;

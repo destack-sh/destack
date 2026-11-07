@@ -40,15 +40,15 @@ test("retain a stack's declared relationship under its identifier until it chang
 
     // expect the same row while unchanged and a new one for the other user
     const [id, subject] = nth(replaced, 0);
-    const message = "a grant must have exactly one relation or role";
+    const message = "@destack/object CALL_INVALID: a grant must have exactly one relation or role";
     expect([kept, replaced.length, subject, id === nth(nth(first, 0), 0), refused]).toEqual([
         first,
         1,
         dave,
         false,
         [
-            ["Blocked", message],
-            ["Blocked", message],
+            ["failed", message],
+            ["failed", message],
         ],
     ]);
 });

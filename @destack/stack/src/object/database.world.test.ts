@@ -6,7 +6,7 @@ import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
 import { STACKS } from "@destack/account/test";
-import { Database, database, installationRevision, rollout } from "./index.ts";
+import { Database, database, installationRevision } from "./index.ts";
 import { installation } from "@destack/object";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { describeObject } from "@destack/object/inspect";
@@ -67,9 +67,9 @@ test("serve an installation once its targets are bound and the space's main data
     await connection.transaction(
         async (transaction) =>
             await transaction
-                .update(rollout.table)
+                .update(installation.table)
                 .set({ revisionId: revision })
-                .where(eq(rollout.table.installationId, ids.notes)),
+                .where(eq(installation.table.id, ids.notes)),
     );
     const notes = await MemoryBuild.of(
         Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),

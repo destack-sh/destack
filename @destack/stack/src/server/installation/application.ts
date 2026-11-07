@@ -59,7 +59,8 @@ import {
     type VersionRange,
 } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
-import { StackError } from "../../error/index.ts";
+import type { FamilyError } from "@destack/error";
+import { StackError, type StackReason } from "../../error/index.ts";
 import type { Runtime } from "../../runtime/runtime.ts";
 import {
     Build,
@@ -157,27 +158,8 @@ interface BuildWorkload {
 const PROCESS_WORKLOAD = "server";
 
 /** The ready reasons of an application refusing to deploy a build, apart from those it waits on. */
-export const REFUSAL_REASONS = [
-    "ReleaseUnsupported",
-    "ReleaseTooNew",
-    "ReleaseTooOld",
-    "UnservedHook",
-    "UnservedAdapter",
-    "UndeclaredCapability",
-    "UnentitledCapability",
-    "UninstalledDependency",
-    "DeclaredDatabase",
-    "MissingBinding",
-    "ReleaseNotPublished",
-] as const;
-
-/** Why an application refuses to deploy a build, as its ready condition reports it. */
-interface Refusal {
-    /** The ready condition's reason. */
-    readonly reason: (typeof REFUSAL_REASONS)[number];
-    /** What the person fixes. */
-    readonly message: string;
-}
+/** Why an application refuses to deploy a build, the lasting failure its Synced records. */
+type Refusal = FamilyError<StackReason>;
 
 /** A space's application installation: followed by its controller, deployed by its deploy call. */
 export class ApplicationInstallation {
@@ -363,9 +345,11 @@ export class ApplicationInstallation {
             const { kind } = target.installation.selection;
             const isEnabled = !isDeleted && target.installation.status === "enabled";
             if (isEnabled && revision === undefined && (kind === "release" || kind === "tag")) {
-                await this.#refuse(call, {
-                    reason: "ReleaseNotPublished",
-                    message: `${target.installation.name} has no published release for its selection`,
+                const message = `${target.installation.name} has no published release for its selection`;
+                await call.observe(installation, target.installation, {
+                    conditions: {
+                        Ready: { status: "false", reason: "ReleaseNotPublished", message },
+                    },
                 });
             }
 
@@ -455,9 +439,7 @@ export class ApplicationInstallation {
             (await this.#describeUninstalled(call, revision, description)) ??
             (await this.#describeDatabases(build));
         if (refusal !== undefined) {
-            await this.#refuse(call, refusal);
-
-            return;
+            throw refusal;
         }
 
         // stop for a broken upgrade chain or an approval of the upgrade from the applied release
@@ -482,9 +464,7 @@ export class ApplicationInstallation {
         const needs = await this.#readNeeds(build, workloads);
         const unbound = this.#describeUnboundInstallations(revision, needs);
         if (unbound !== undefined) {
-            await this.#refuse(call, unbound);
-
-            return;
+            throw unbound;
         }
 
         // attach, drain the replaced deployments and activate the fresh ones
@@ -630,20 +610,20 @@ export class ApplicationInstallation {
         if (Version.compare(built, newest) > 0) {
             const message = `${name} is built with Destack ${built}, newer than this machine's ${newest}`;
 
-            return { reason: "ReleaseTooNew", message };
+            return StackError.of("RELEASE_TOO_NEW", message);
         }
         // refuse one built with an older Destack than the machine supports
         else if (Version.compare(Version.release(built), oldest) < 0) {
             const message = `${name} is built with Destack ${built}, older than this machine supports (${oldest})`;
 
-            return { reason: "ReleaseTooOld", message };
+            return StackError.of("RELEASE_TOO_OLD", message);
         }
         // refuse a build with an unrunnable workload
         else if (stranded.length > 0) {
             const runtimes = this.#options.runtimes.map((runtime) => runtime.name).join(", ");
             const message = `workloads ${stranded.join(", ")} have no output on ${runtimes}`;
 
-            return { reason: "ReleaseUnsupported", message };
+            return StackError.of("RELEASE_UNSUPPORTED", message);
         }
 
         // refuse a package routing hooks that nothing serves: its build's hook workload, or the store
@@ -661,7 +641,7 @@ export class ApplicationInstallation {
         if (isHooked && !isServed) {
             const message = `${build.manifest.package.name} routes hooks, but nothing serves them: declare @destack/stack`;
 
-            return { reason: "UnservedHook", message };
+            return StackError.of("HOOK_UNSERVED", message);
         }
 
         // refuse a package declaring adapters that nothing answers: a workload of its build, or the store
@@ -674,7 +654,7 @@ export class ApplicationInstallation {
         if (isAdapted && !isAnswered) {
             const message = `${build.manifest.package.name} declares adapters, but no workload of its build answers them`;
 
-            return { reason: "UnservedAdapter", message };
+            return StackError.of("ADAPTER_UNSERVED", message);
         }
 
         // refuse allowing a capability or granting a directory the build does not declare
@@ -682,7 +662,7 @@ export class ApplicationInstallation {
 
         return undeclared === undefined
             ? undefined
-            : { reason: "UndeclaredCapability", message: undeclared };
+            : StackError.of("CAPABILITY_UNDECLARED", undeclared);
     }
 
     /** Describe an enabled capability needing a feature the space's account lacks. */
@@ -713,10 +693,10 @@ export class ApplicationInstallation {
             const database = this.#options.database;
             const condition = await Entitlement.check(database, accountId, { feature });
             if (condition.status !== "true") {
-                return {
-                    reason: "UnentitledCapability",
-                    message: `capability ${name} needs ${feature.name}: ${condition.message}`,
-                };
+                return StackError.of(
+                    "CAPABILITY_UNENTITLED",
+                    `capability ${name} needs ${feature.name}: ${condition.message}`,
+                );
             }
         }
 
@@ -744,13 +724,12 @@ export class ApplicationInstallation {
         }
         const { name } = missing.package;
 
-        return {
-            reason: "UninstalledDependency",
-            message:
-                missing.capability === undefined
-                    ? `${target.installation.name} needs ${name} installed`
-                    : `capability ${missing.capability} needs ${name} installed`,
-        };
+        return StackError.of(
+            "DEPENDENCY_UNINSTALLED",
+            missing.capability === undefined
+                ? `${target.installation.name} needs ${name} installed`
+                : `capability ${missing.capability} needs ${name} installed`,
+        );
     }
 
     /** Describe what the space does not serve yet: the revision, or a package it needs. */
@@ -787,18 +766,7 @@ export class ApplicationInstallation {
         const names = databases.map((declaration) => declaration.name).join(", ");
         const message = `${this.#target.installation.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
 
-        return { reason: "DeclaredDatabase", message };
-    }
-
-    /** Observe the application refusing to deploy, with the reason and message why. */
-    async #refuse(
-        call: MethodContextOf<typeof rollout, "deploy">,
-        refusal: Refusal,
-    ): Promise<void> {
-        const ready = { status: "false" as const, ...refusal };
-        await call.observe(installation, this.#target.installation, {
-            conditions: { Ready: ready },
-        });
+        return StackError.of("DATABASE_DECLARED", message);
     }
 
     /** Stop the deploy for an unapproved upgrade or access growth, and report the stop. */
@@ -882,10 +850,7 @@ export class ApplicationInstallation {
         }
         const names = unbound.map((need) => `${need.package.id} ${need.name}`).join(", ");
 
-        return {
-            reason: "MissingBinding",
-            message: `bind installations ${names} to their addresses`,
-        };
+        return StackError.of("BINDING_MISSING", `bind installations ${names} to their addresses`);
     }
 
     /** Activate a fresh workload's deployment of a revision. */

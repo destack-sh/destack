@@ -28,7 +28,8 @@ import { defineBucket } from "@destack/bucket";
 import { defineStack } from "../../declare/index.ts";
 import stackPackage from "../../package.ts";
 import * as object from "../../object/index.ts";
-import { installation } from "@destack/object";
+import { installation, Observation } from "@destack/object";
+import { Failure } from "@destack/error";
 import {
     Binding,
     rollout,
@@ -86,9 +87,13 @@ async function submit(
         ],
     });
 
-    // apply it, then reconcile the installations it changed
+    // apply it, its lasting failure recorded as Synced for the caller to read, then reconcile the installations it changed
     await reconcile(store, "rollout", {
         installationId: (await readStack(store.database)).installationId,
+    }).catch((error: unknown) => {
+        if (!Failure.isDeclared(error)) {
+            throw error;
+        }
     });
     await settleRollouts(store);
 
@@ -484,10 +489,7 @@ test("bind a declaration to an installation of another space by name, unpinned, 
             },
         });
 
-        return [
-            submitted.installation.conditions["Ready"]?.reason,
-            submitted.installation.conditions["Ready"]?.message,
-        ];
+        return progressOf(submitted);
     };
     const bound = await applied({ type: "installation", name: board, spaceId: acme });
     const revisions = await fixture.database.select().from(object.installationRevision.table);
@@ -510,11 +512,11 @@ test("bind a declaration to an installation of another space by name, unpinned, 
             spaceId: acme,
         }).error?.issues.map((issue) => [issue.code, issue.message]),
     }).toEqual({
-        bound: ["Applied", "every declaration applied"],
+        bound: ["current", "every declaration applied"],
         rows: [{ name: "tasks", target: board, targetSpaceId: acme }],
         pinned: [
-            "Blocked",
-            `the binding of ${board} must select an installation of another space by name, without a version`,
+            "failed",
+            `@destack/stack DEFINITION_INVALID: the binding of ${board} must select an installation of another space by name, without a version`,
         ],
         database: [["unrecognized_keys", 'Unrecognized key: "spaceId"']],
     });
@@ -572,10 +574,7 @@ test("block a stack relating a role or installation of another space by identifi
             },
         });
 
-        return [
-            submitted.installation.conditions["Ready"]?.reason,
-            submitted.installation.conditions["Ready"]?.message,
-        ];
+        return progressOf(submitted);
     };
     const installationId = "installation-01996ab0-0000-7000-8000-00000000000c";
     const user = "user-01996ab0-0000-7000-8000-00000000000d";
@@ -583,8 +582,8 @@ test("block a stack relating a role or installation of another space by identifi
         await blocked({ subject: { id: user }, role: { id: foreign } }),
         await blocked({ subject: { id: installationId }, role: "reader" }),
     ]).toEqual([
-        ["Blocked", `unknown role: ${foreign}`],
-        ["Blocked", `unknown installation: ${installationId}`],
+        ["failed", `@destack/object DECLARATION_INVALID: unknown role: ${foreign}`],
+        ["failed", `@destack/object DECLARATION_INVALID: unknown installation: ${installationId}`],
     ]);
 });
 
@@ -876,16 +875,31 @@ test("refuse a declaration in the enclosing account from a space that is not the
 
     // block the stack at its plan, before writing anything
     expect(submitted).toEqual([
-        "Blocked",
-        "role reviewer is declared in the enclosing scope, which only its home's stack declares into",
+        "failed",
+        "@destack/object DECLARATION_INVALID: role reviewer is declared in the enclosing scope, which only its home's stack declares into",
     ]);
 });
 
-/** Project every rollout of a store until its writes settle, as the space's control loop does. */
+/** Read how far a stack is, with what it reports. */
+function progressOf(submitted: InstallationRollout) {
+    return [
+        Observation.progress(submitted.installation),
+        Observation.message(submitted.installation),
+    ];
+}
+
+/** Project every rollout of a store until it settles, keeping the lasting failures it records. */
 async function settleRollouts(store: ObjectStore): Promise<void> {
     const { cursors } = store.control();
     await settle(store.database, {
         controllers: [],
         cursors: cursors.filter((cursor) => cursor.name === "project:rollout"),
+    }).catch((error: unknown) => {
+        // fail on any report besides a declared failure the stack records as Synced
+        const reported = error instanceof AggregateError ? error.errors : [error];
+        const isRecorded = reported.every((each) => Failure.isDeclared(each));
+        if (!isRecorded) {
+            throw error;
+        }
     });
 }

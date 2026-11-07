@@ -14,6 +14,7 @@ import {
     ObjectDescription,
     InstallationBindingSpec,
     installation,
+    Observation,
 } from "@destack/object";
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
@@ -57,6 +58,7 @@ import { Approval, SpaceStore, type SpaceOptions } from "../src/server/index.ts"
 import { Rollout } from "../src/object/index.ts";
 import {
     readInstalled,
+    refusedCondition,
     fixtureBuild,
     fixtureOutputs,
     ids,
@@ -317,9 +319,9 @@ async function submitRevision(
     await database.transaction(
         async (transaction) =>
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({ revisionId: revision.id })
-                .where(eq(object.rollout.table.installationId, installationId)),
+                .where(eq(installation.table.id, installationId)),
     );
 
     return revision;
@@ -398,12 +400,14 @@ async function serveControllers(
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
             restart: (id: string) => reconcile(store, "instance:restart", { id }),
             settle: () => {
-                // run the store's and the stack package's control, serving the installed revisions as the space's machine does
+                // run the store's and the stack package's control, each controller once, serving the installed revisions as the space's machine does
                 const own = store.control();
                 const stack = nth(served.packages, 0).control;
+                const names = new Set(own.controllers.map((each) => each.name));
+                const added = (stack?.controllers ?? []).filter((each) => !names.has(each.name));
 
                 return settle(database, {
-                    controllers: [...own.controllers, ...(stack?.controllers ?? [])],
+                    controllers: [...own.controllers, ...added],
                     cursors: [
                         ...own.cursors,
                         ...(stack?.cursors ?? []),
@@ -424,7 +428,6 @@ async function serveControllers(
     };
 }
 
-/** Read an installation's ready condition as its reason and message. */
 /** Select a target for a notes declaration of an installation, as its stack does. */
 async function selectBinding(
     database: DatabaseConnection,
@@ -466,15 +469,18 @@ async function revisionOf(database: DatabaseConnection, id: Identifier<"installa
     return present(revision, `revision ${id}`);
 }
 
-/** Read an installation's ready condition. */
+/** Read how far an installation is, with its failure or what its ready condition says. */
 async function readiness(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
-        .select({ conditions: installation.table.conditions })
+        .select({
+            generation: installation.table.generation,
+            conditions: installation.table.conditions,
+        })
         .from(installation.table)
         .where(eq(installation.table.id, id));
-    const condition = present(row, "the installation").conditions["Ready"];
+    const installed = present(row, "the installation");
 
-    return [condition?.reason, condition?.message];
+    return [Observation.progress(installed), Observation.message(installed)];
 }
 
 /** Approve the plan an installation waits on as it stands. */
@@ -945,30 +951,31 @@ test("deploy nothing of a release built with a newer or an older Destack than th
             await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
         );
         const { deployments } = await serveControllers(fixture, { destack });
-        await deployments.reconcile(notes.installationId);
+        const refused = await refusal(deployments.reconcile(notes.installationId));
         const installed = await readInstalled(fixture.database, notes.installationId);
         const deployed = await fixture.database.select().from(object.deployment.table);
+        const synced = installed.installation.conditions["Synced"];
 
-        const ready = installed.installation.conditions["Ready"];
-
-        return [deployed.length, ready?.reason, ready?.message];
+        return [deployed.length, refused, synced?.message];
     };
 
     // refuse each, the release too old for the later machine and too new for the earlier one
     const built = import.meta.destack.package.version;
+    const older = `@test/package is built with Destack ${built}, older than this machine supports (2099.1.0)`;
+    const newer = `@test/package is built with Destack ${built}, newer than this machine's 2001.1.0`;
     expect({
         later: await deploy({ oldest: "2099.1.0", newest: "2099.1.0" }),
         earlier: await deploy({ oldest: "2001.1.0", newest: "2001.1.0" }),
     }).toEqual({
         later: [
             0,
-            "ReleaseTooOld",
-            `@test/package is built with Destack ${built}, older than this machine supports (2099.1.0)`,
+            ["PRECONDITION_FAILED", "RELEASE_TOO_OLD", older],
+            `@destack/stack RELEASE_TOO_OLD: ${older}`,
         ],
         earlier: [
             0,
-            "ReleaseTooNew",
-            `@test/package is built with Destack ${built}, newer than this machine's 2001.1.0`,
+            ["PRECONDITION_FAILED", "RELEASE_TOO_NEW", newer],
+            `@destack/stack RELEASE_TOO_NEW: ${newer}`,
         ],
     });
 });
@@ -986,22 +993,19 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
         runtimes: ["workerd"],
     });
 
-    // deploy it on a workerd machine
-    await deployments.reconcile(notes.installationId);
+    // refuse deploying it on a workerd machine
+    const message = "workloads main have no output on workerd";
+    const refused = await refusal(deployments.reconcile(notes.installationId));
     const installed = await readInstalled(database, notes.installationId);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.installation.conditions["Ready"],
+        refused,
+        synced: installed.installation.conditions["Synced"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
-        ready: {
-            status: "false",
-            reason: "ReleaseUnsupported",
-            message: "workloads main have no output on workerd",
-            observedGeneration: installed.installation.generation,
-            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
-        },
+        refused: ["PRECONDITION_FAILED", "RELEASE_UNSUPPORTED", message],
+        synced: refusedCondition(installed, "RELEASE_UNSUPPORTED", message),
         applied: null,
     });
 });
@@ -1063,22 +1067,19 @@ test("deploy nothing of a build declaring its own database, and report why", asy
     );
     const { deployments } = await serveControllers(fixture);
 
-    // deploy it
-    await deployments.reconcile(notes.installationId);
+    // refuse deploying it
+    const message = `${ids.package} declares the databases archive: the space's main database keeps every installation's tables`;
+    const refused = await refusal(deployments.reconcile(notes.installationId));
     const installed = await readInstalled(database, notes.installationId);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.installation.conditions["Ready"],
+        refused,
+        synced: installed.installation.conditions["Synced"],
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
-        ready: {
-            status: "false",
-            reason: "DeclaredDatabase",
-            message: `${ids.package} declares the databases archive: the space's main database keeps every installation's tables`,
-            observedGeneration: installed.installation.generation,
-            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
-        },
+        refused: ["PRECONDITION_FAILED", "DATABASE_DECLARED", message],
+        synced: refusedCondition(installed, "DATABASE_DECLARED", message),
         applied: null,
     });
 });
@@ -1111,21 +1112,18 @@ test("deploy nothing of a build routing hooks without serving them, and report w
     );
     const { deployments } = await serveControllers(fixture);
 
-    // deploy it
-    await deployments.reconcile(notes.installationId);
+    // refuse deploying it
+    const message = `${notesPackage.name} routes hooks, but nothing serves them: declare @destack/stack`;
+    const refused = await refusal(deployments.reconcile(notes.installationId));
     const installed = await readInstalled(database, notes.installationId);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.installation.conditions["Ready"],
+        refused,
+        synced: installed.installation.conditions["Synced"],
     }).toEqual({
         deployments: [],
-        ready: {
-            status: "false",
-            reason: "UnservedHook",
-            message: `${notesPackage.name} routes hooks, but nothing serves them: declare @destack/stack`,
-            observedGeneration: installed.installation.generation,
-            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
-        },
+        refused: ["PRECONDITION_FAILED", "HOOK_UNSERVED", message],
+        synced: refusedCondition(installed, "HOOK_UNSERVED", message),
     });
 });
 
@@ -1152,21 +1150,18 @@ test("deploy nothing of a build declaring adapters without a workload answering 
     );
     const { deployments } = await serveControllers(fixture);
 
-    // deploy it
-    await deployments.reconcile(notes.installationId);
+    // refuse deploying it
+    const message = `${notesPackage.name} declares adapters, but no workload of its build answers them`;
+    const refused = await refusal(deployments.reconcile(notes.installationId));
     const installed = await readInstalled(database, notes.installationId);
     expect({
         deployments: await database.select().from(object.deployment.table),
-        ready: installed.installation.conditions["Ready"],
+        refused,
+        synced: installed.installation.conditions["Synced"],
     }).toEqual({
         deployments: [],
-        ready: {
-            status: "false",
-            reason: "UnservedAdapter",
-            message: `${notesPackage.name} declares adapters, but no workload of its build answers them`,
-            observedGeneration: installed.installation.generation,
-            lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
-        },
+        refused: ["PRECONDITION_FAILED", "ADAPTER_UNSERVED", message],
+        synced: refusedCondition(installed, "ADAPTER_UNSERVED", message),
     });
 });
 
@@ -1223,6 +1218,14 @@ test("deploy nothing of a build whose space settings without a default are unset
                 observedGeneration: installed.installation.generation,
                 lastTransitionAt: installed.installation.conditions["Ready"]?.lastTransitionAt,
             },
+            // record the pass synced, as waiting on settings is no failure
+            Synced: {
+                status: "true",
+                reason: "ReconcileSuccess",
+                message: "",
+                observedGeneration: installed.installation.generation,
+                lastTransitionAt: installed.installation.conditions["Synced"]?.lastTransitionAt,
+            },
         },
     });
 });
@@ -1270,7 +1273,8 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
                     .set({ capabilities: [...capabilities], directories: [...directories] })
                     .where(eq(installation.table.id, notes.installationId)),
         );
-        await deployments.reconcile(notes.installationId);
+
+        return deployments.reconcile(notes.installationId);
     };
     const deployed = async () =>
         (
@@ -1281,11 +1285,11 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
         ).map((entry) => [entry.status, entry.description.sandbox, entry.directories]);
 
     // refuse allowing an undeclared capability, a directory without fs, and writing a directory fs reads
-    await grant(["microphone"]);
+    await refusal(grant(["microphone"]));
     const undeclared = await readiness(database, notes.installationId);
-    await grant([], [notesDirectory]);
+    await refusal(grant([], [notesDirectory]));
     const unreadable = await readiness(database, notes.installationId);
-    await grant(["index"], [{ ...notesDirectory, access: "write" }]);
+    await refusal(grant(["index"], [{ ...notesDirectory, access: "write" }]));
     const overreaching = await readiness(database, notes.installationId);
     const refusedDeployments = await deployed();
 
@@ -1312,16 +1316,16 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
         allowed,
     }).toEqual({
         undeclared: [
-            "UndeclaredCapability",
-            "notes 2026.9.0 declares no capabilities microphone to allow",
+            "failed",
+            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 declares no capabilities microphone to allow",
         ],
         unreadable: [
-            "UndeclaredCapability",
-            "notes 2026.9.0 enables no fs ability to grant directories /Users/person/Notes",
+            "failed",
+            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 enables no fs ability to grant directories /Users/person/Notes",
         ],
         overreaching: [
-            "UndeclaredCapability",
-            "notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
+            "failed",
+            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
         ],
         refusedDeployments: [],
         started: [[base, []]],
@@ -1377,16 +1381,8 @@ test("refuse to deploy an installation binding without an address, then run the 
     const { runtime, deployments, instances, resources } = await serveControllers(fixture);
 
     // refuse to deploy while no stack binds the tasks installation to an address
-    await deployments.reconcile(notes.installationId);
-    const condition = async () =>
-        nth(
-            await database
-                .select({ conditions: installation.table.conditions })
-                .from(installation.table)
-                .where(eq(installation.table.id, notes.installationId)),
-            0,
-        ).conditions["Ready"];
-    const refused = await condition();
+    await refusal(deployments.reconcile(notes.installationId));
+    const refused = await readiness(database, notes.installationId);
 
     // declare the tasks dependency at the address of the notes installation itself and bind it
     const now = fixture.machine.clock.now();
@@ -1429,14 +1425,13 @@ test("refuse to deploy an installation binding without an address, then run the 
 
     // report the missing address and run with the declared address and its connecting provider
     expect({
-        refused: [refused?.status, refused?.reason, refused?.message],
+        refused,
         declared: [observed.conditions["Ready"]?.status, observed.conditions["Ready"]?.reason],
         dependency: [dependency?.name, dependency?.reference, dependency?.provider],
     }).toEqual({
         refused: [
-            "false",
-            "MissingBinding",
-            `bind installations ${ids.package} tasks to their addresses`,
+            "failed",
+            `@destack/stack BINDING_MISSING: bind installations ${ids.package} tasks to their addresses`,
         ],
         declared: ["true", "Applied"],
         dependency: ["tasks", "notes", "http"],
@@ -2050,7 +2045,7 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
         { kind: "boolean" },
         fixture.machine.environment,
     );
-    await deployments.reconcile(notes.installationId);
+    await refusal(deployments.reconcile(notes.installationId));
     const refused = {
         ready: await readiness(database, notes.installationId),
         deployed: await deployed(),
@@ -2068,8 +2063,8 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
     expect({ refused, entitled: await deployed() }).toEqual({
         refused: {
             ready: [
-                "UnentitledCapability",
-                "capability sync needs sync: no plan of the account grants feature sync",
+                "failed",
+                "@destack/stack CAPABILITY_UNENTITLED: capability sync needs sync: no plan of the account grants feature sync",
             ],
             deployed: [],
         },
@@ -2103,13 +2098,16 @@ test("deploy an application depending on a package the universe installs, which 
     await deployments.reconcile(notes.installationId);
     const deployed = await readiness(database, notes.installationId);
     await depend(VAULT);
-    await deployments.reconcile(notes.installationId);
+    await refusal(deployments.reconcile(notes.installationId));
     const refused = await readiness(database, notes.installationId);
 
     // satisfy the dependency installed at the universe, and refuse the one installed nowhere
     expect({ deployed, refused }).toEqual({
-        deployed: ["Deployed", "1 workloads deployed"],
-        refused: ["UninstalledDependency", "notes needs @acme/vault installed"],
+        deployed: ["current", "1 workloads deployed"],
+        refused: [
+            "failed",
+            "@destack/stack DEPENDENCY_UNINSTALLED: notes needs @acme/vault installed",
+        ],
     });
 });
 
@@ -2131,7 +2129,7 @@ test("refuse deploying an application until its space installs its dependency, a
     const { deployments, instances, uninstall } = await serveControllers(fixture, {});
 
     // deploy without the vault, then once installing it wakes notes through the controllers' watches
-    await deployments.reconcile(notes.installationId);
+    await refusal(deployments.reconcile(notes.installationId));
     const refused = await readiness(database, notes.installationId);
     const now = fixture.machine.clock.now();
     const installed = await insertRollout(
@@ -2160,8 +2158,11 @@ test("refuse deploying an application until its space installs its dependency, a
 
     // refuse with the missing package's name, deploy once installed, and leave the vault installed
     expect({ refused, deployed, uninstalled }).toEqual({
-        refused: ["UninstalledDependency", "notes needs @acme/vault installed"],
-        deployed: ["Deployed", "1 workloads deployed"],
+        refused: [
+            "failed",
+            "@destack/stack DEPENDENCY_UNINSTALLED: notes needs @acme/vault installed",
+        ],
+        deployed: ["current", "1 workloads deployed"],
         uninstalled: [
             "PRECONDITION_FAILED",
             "NEEDED_BY_DEPENDENT",
@@ -2215,13 +2216,16 @@ test("deploy an application without a package only its optional capability needs
                 .set({ allowed: ["vault-sync"] })
                 .where(eq(installation.table.id, notes.installationId)),
     );
-    await deployments.reconcile(notes.installationId);
+    await refusal(deployments.reconcile(notes.installationId));
     const allowed = await readiness(database, notes.installationId);
 
     // deploy without the vault until the capability needs it
     expect({ without, allowed }).toEqual({
-        without: ["Deployed", "1 workloads deployed"],
-        allowed: ["UninstalledDependency", "capability vault-sync needs @acme/vault installed"],
+        without: ["current", "1 workloads deployed"],
+        allowed: [
+            "failed",
+            "@destack/stack DEPENDENCY_UNINSTALLED: capability vault-sync needs @acme/vault installed",
+        ],
     });
 });
 
@@ -2243,7 +2247,7 @@ test("wait for a provider of a kind no provider here serves yet, naming the kind
     // wait rather than fail, naming the kind
     await deployments.reconcile(notes.installationId);
     expect(await readiness(fixture.database, notes.installationId)).toEqual([
-        "WaitingForResources",
+        "waiting",
         "waiting for a provider of vault resources",
     ]);
 });

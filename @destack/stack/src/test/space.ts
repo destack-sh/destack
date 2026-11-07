@@ -3,7 +3,7 @@ import { KERNEL_TYPES } from "../stack/kernel.ts";
 import { copyRequest, Crypto } from "@destack/environment";
 import { InstallationDefinition, STACK_KIND, StackDefinition } from "../declare/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
-import { type Connector, Plan } from "@destack/resource";
+import type { Connector } from "@destack/resource";
 import { dirname, join } from "node:path";
 import { LocalBlobStorage, LocalBucketHost } from "@destack/bucket/bun";
 import {
@@ -52,6 +52,7 @@ import { identityKey } from "@destack/account/identity";
 import { OPERATOR_EMAIL, STACKS } from "@destack/account/test";
 import accountPackage from "@destack/account/package";
 import {
+    AWAITING_APPROVAL,
     Egress,
     type Follow,
     HookSandbox,
@@ -62,6 +63,10 @@ import {
     Provisioned,
     Installation,
     installation,
+    Observation,
+    ObjectController,
+    type Progress,
+    SYNCED,
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { BunSqliteDatabaseHost, connectBunSqlite } from "@destack/db/bun";
@@ -82,7 +87,6 @@ import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
 import { Database, Rollout } from "../object/index.ts";
 import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
-import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
 import { SPACE_BASE_PACKAGES } from "../server/server.ts";
@@ -1206,7 +1210,6 @@ export class TestSpace implements AsyncDisposable {
         return new Projection(store.database, {
             name: "host",
             tables: [object.rollout.table, object.database.table],
-            observed: [object.rollout.table],
             keys: async () => [spaceId],
             all: async () => [spaceId],
             project: async () => this.serveInstalled(store, spaceId),
@@ -1871,37 +1874,44 @@ export class TestSpace implements AsyncDisposable {
         collections: StackDocument<Types>,
     ): Promise<void> {
         // fail with the store's reported failures, else unless the controllers applied this submission
-        const { ready, generation, failures } = await this.#submit(served, types, collections);
+        const { applied, failures } = await this.#submit(served, types, collections);
+        const progress = Observation.progress(applied);
         if (failures.length > 0) {
             throw new AggregateError(failures, "the space's controllers failed");
-        } else if (ready?.observedGeneration !== generation) {
+        } else if (progress !== "current") {
+            const message = Observation.message(applied);
             throw new Error(
-                `the space's stack is at generation ${generation}, its controllers observed ${ready?.observedGeneration}`,
+                `the space's stack at generation ${applied.generation} is ${progress}: ${message}`,
             );
-        } else if (ready?.reason !== "Applied") {
-            throw new Error(`the space's stack is ${ready?.reason}: ${ready?.message}`);
         }
     }
 
-    /** Submit the space's stack with some collections replaced, answering its ready condition. */
+    /** Submit the space's stack with some collections replaced, answering its progress and why. */
     async submit<const Types extends StackTypes>(
         served: TestObjectStore,
         types: Types,
         collections: StackDocument<Types>,
-    ): Promise<readonly [string | undefined, string | undefined]> {
-        // require each failure the store reports to be the failed apply the stack retries
-        const { ready, failures } = await this.#submit(served, types, collections);
-        const retried = failures.every(
+    ): Promise<readonly [Progress, string]> {
+        // read how far the stack is, and its failure or what it waits on
+        const { applied, failures } = await this.#submit(served, types, collections);
+        const progress = Observation.progress(applied);
+        const message = Observation.message(applied);
+
+        // require each failure the store reports to be the lasting failure the stack records
+        const recorded = failures.every(
             (failure) =>
-                ready?.reason === "ApplyFailed" &&
+                progress === "failed" &&
                 failure instanceof Error &&
-                Failure.of(failure.cause).message === ready.message,
+                ObjectController.failedCondition(Failure.of(failure.cause)).message === message,
         );
-        if (!retried) {
-            throw new AggregateError(failures, "the space's controllers failed");
+        if (!recorded) {
+            throw new AggregateError(
+                failures,
+                `the space's controllers failed while its stack is ${progress}: ${message}`,
+            );
         }
 
-        return [ready?.reason, ready?.message];
+        return [progress, message];
     }
 
     /** Submit the space's stack as its owner, approving a waiting plan, with the failures. */
@@ -1933,13 +1943,13 @@ export class TestSpace implements AsyncDisposable {
         await this.simulation.idle();
         let failures = this.#reported.splice(0);
         const submitted = await installed.installation.get({ scope: this.id, id: stack.id });
-        if (submitted.conditions["Ready"]?.reason === "AwaitingApproval") {
-            const waiting = await owner.rollout.plan({ spaceId: this.id, id: stack.id });
+        if (submitted.conditions["Ready"]?.reason === AWAITING_APPROVAL) {
+            const { digest } = await owner.rollout.plan({ spaceId: this.id, id: stack.id });
             await owner.rollout.approve({
                 spaceId: this.id,
                 id: stack.id,
                 requestId: RequestId.create(this.machine.environment),
-                plan: await Plan.digest(waiting, this.machine.environment.crypto),
+                plan: digest,
             });
             await this.simulation.idle();
             failures = [...failures, ...this.#reported.splice(0)];
@@ -1948,7 +1958,7 @@ export class TestSpace implements AsyncDisposable {
         // read how the controllers left it
         const applied = await installed.installation.get({ scope: this.id, id: stack.id });
 
-        return { ready: applied.conditions["Ready"], generation: applied.generation, failures };
+        return { applied, failures };
     }
 
     /** Install a build through the space's stack as its owner, served once applied. */
@@ -2016,10 +2026,9 @@ export class TestSpace implements AsyncDisposable {
             .select({ conditions: installation.table.conditions })
             .from(installation.table)
             .where(eq(installation.table.id, id));
-        const ready = present(deployed, `the installation ${name}`).conditions["Ready"];
-        const isRefused = REFUSAL_REASONS.some((reason) => reason === ready?.reason);
-        if (ready?.status === "false" && isRefused) {
-            throw new Error(`the installation ${name} is ${ready.reason}: ${ready.message}`);
+        const synced = present(deployed, `the installation ${name}`).conditions[SYNCED];
+        if (synced?.status === "false") {
+            throw new Error(`the installation ${name} failed: ${synced.message}`);
         }
 
         return id;

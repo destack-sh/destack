@@ -25,7 +25,14 @@ import { PROCESS_RUNTIME } from "../../object/index.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import * as object from "../../object/index.ts";
 import { installationRevision, Rollout, rollout } from "../../object/index.ts";
-import { fixtureBuild, ids, insertRelease, insertRollout, TestSpace } from "../../test/index.ts";
+import {
+    fixtureBuild,
+    ids,
+    insertRelease,
+    insertRollout,
+    readInstalled,
+    TestSpace,
+} from "../../test/index.ts";
 import stackPackage from "../../package.ts";
 
 /** How long a failed pass gets to retry: 30 s, inside the minute before its failures report. */
@@ -134,9 +141,9 @@ test("find and list only the enabled installations not being deleted, as a machi
         const { status, deletedAt } = state;
         await database.transaction(async (transaction) => {
             await transaction
-                .update(rollout.table)
+                .update(installation.table)
                 .set({ revisionId })
-                .where(eq(rollout.table.installationId, id));
+                .where(eq(installation.table.id, id));
             const changed = {
                 ...(status === undefined ? {} : { status }),
                 ...(deletedAt === undefined ? {} : { deletedAt }),
@@ -214,13 +221,16 @@ test("roll an installation back to the revision applied before, a reused one too
     };
     const apply = async (revisionId: Identifier<"installation-revision">) => {
         const fields = Rollout.applied(await read(), revisionId);
-        await fixture.database.transaction(
-            async (transaction) =>
-                await transaction
-                    .update(rollout.table)
-                    .set({ revisionId, ...fields })
-                    .where(eq(rollout.table.installationId, installed.id)),
-        );
+        await fixture.database.transaction(async (transaction) => {
+            await transaction
+                .update(installation.table)
+                .set({ revisionId })
+                .where(eq(installation.table.id, installed.id));
+            await transaction
+                .update(rollout.table)
+                .set(fields)
+                .where(eq(rollout.table.installationId, installed.id));
+        });
     };
     const rollBack = () =>
         owner.rollout.rollBack({
@@ -237,7 +247,7 @@ test("roll an installation back to the revision applied before, a reused one too
     await apply(second);
     await apply(third);
     const back = await rollBack();
-    const { revisionId } = await read();
+    const { revisionId } = await readInstalled(fixture.database, installed.id);
     const [reselected] = await fixture.database
         .select({ selection: installation.table.selection })
         .from(installation.table)

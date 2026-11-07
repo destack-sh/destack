@@ -75,13 +75,16 @@ test("give birth to placed spaces from their replicated rows with main in their 
     );
 
     // forget the home's submission as a crash before it would, and give birth to it again
-    await home.database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(rollout.table)
-                .set({ revisionId: null, spaceStack: null })
-                .where(eq(rollout.table.scope, home.id)),
-    );
+    await home.database.transaction(async (transaction) => {
+        await transaction
+            .update(installation.table)
+            .set({ revisionId: null })
+            .where(eq(installation.table.scope, home.id));
+        await transaction
+            .update(rollout.table)
+            .set({ spaceStack: null })
+            .where(eq(rollout.table.scope, home.id));
+    });
     const born = await home.serve();
     await born[Symbol.asyncDispose]();
 
@@ -91,7 +94,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
         .from(database.table)
         .where(eq(database.table.name, MAIN_DATABASE));
     const stacks = await home.database
-        .select({ scope: rollout.table.scope, revisionId: rollout.table.revisionId })
+        .select({ scope: rollout.table.scope, revisionId: installation.table.revisionId })
         .from(rollout.table)
         .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
         .where(isNotNull(installation.table.export));
@@ -157,9 +160,10 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         const [row] = await fixture.database
             .select({ installed: rollout.table, revision: installationRevision.table })
             .from(rollout.table)
+            .innerJoin(installation.table, eq(installation.table.id, rollout.table.installationId))
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, rollout.table.revisionId),
+                eq(installationRevision.table.id, installation.table.revisionId),
             )
             .where(eq(rollout.table.scope, fixture.id));
 

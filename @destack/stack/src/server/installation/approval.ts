@@ -1,6 +1,7 @@
 import { space } from "@destack/account/object";
 import type { Snapshot } from "@destack/db";
 import {
+    AWAITING_APPROVAL,
     installation,
     MethodContext,
     type ObservationReport,
@@ -79,7 +80,7 @@ export class Approval {
 
             // take its own waiting plan
             const installed = entry.installation;
-            const isAwaiting = installed.conditions["Ready"]?.reason === "AwaitingApproval";
+            const isAwaiting = installed.conditions["Ready"]?.reason === AWAITING_APPROVAL;
             if (installed.plan !== null && isAwaiting) {
                 const { plan } = installed;
                 waiting.push({
@@ -93,7 +94,7 @@ export class Approval {
             // take the waiting plans of its managed, owned or bound resources
             for (const { object, row } of await readResources(view, resources, entry)) {
                 const plan = row.plan;
-                const isWaiting = row.conditions["Ready"]?.reason === "AwaitingApproval";
+                const isWaiting = row.conditions["Ready"]?.reason === AWAITING_APPROVAL;
                 if (isWaiting && plan !== null && !seen.has(row.id)) {
                     seen.add(row.id);
                     const address = Address.join(object.name, row.name);
@@ -196,7 +197,7 @@ export class Approval {
         const message = `approve plan ${digest} with ${plan.steps.length} steps`;
 
         return {
-            conditions: { Ready: { status: "false", reason: "AwaitingApproval", message } },
+            conditions: { Ready: { status: "false", reason: AWAITING_APPROVAL, message } },
             fields: { plan },
         };
     }
@@ -224,7 +225,7 @@ export class Approval {
 async function readResources(
     view: Pick<Snapshot, "read">,
     resources: readonly ResourceType<typeof space>[],
-    target: Omit<Rollout, "id">,
+    target: InstallationRollout,
 ): Promise<{ readonly object: ResourceType<typeof space>; readonly row: Resource }[]> {
     // read the targeted revision and the targets here it binds
     const revision =

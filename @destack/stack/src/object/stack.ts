@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { InstallationSelection } from "@destack/object";
+import { AWAITING_APPROVAL, InstallationSelection } from "@destack/object";
 import { BuildReference, StackDefinition } from "../declare/index.ts";
 
 /** A stack's evaluation: its export, arguments, settings, and the definition they give. */
@@ -28,13 +28,7 @@ export const Submission = schema.object({
 /** A build submitted to the installation following it. */
 export type Submission = schema.Infer<typeof Submission>;
 
-/** Why a stack applied its revision, waits, or failed to apply it. */
-export const StackReason = schema.enum([
-    "Applied",
-    "WaitingForResources",
-    "AwaitingApproval",
-    "Blocked",
-    "ApplyFailed",
-]);
-/** Why a stack applied its revision, waits, or failed to apply it. */
-export type StackReason = schema.Infer<typeof StackReason>;
+/** Why a stack applied its revision or waits, its failures recorded as Synced. */
+export const StackReadiness = schema.enum(["Applied", "WaitingForResources", AWAITING_APPROVAL]);
+/** Why a stack applied its revision or waits, its failures recorded as Synced. */
+export type StackReadiness = schema.Infer<typeof StackReadiness>;

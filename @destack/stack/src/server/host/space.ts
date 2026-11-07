@@ -151,7 +151,7 @@ async function remove(
         )
         .leftJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.revisionId),
+            eq(installationRevision.table.id, installation.table.revisionId),
         )
         .where(eq(rollout.table.scope, row.id));
     const live = rollouts.filter(

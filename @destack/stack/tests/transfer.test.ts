@@ -272,9 +272,9 @@ test(
                 updatedAt: now,
             });
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({ revisionId })
-                .where(eq(object.rollout.table.installationId, ids.notes));
+                .where(eq(installation.table.id, ids.notes));
             await transaction
                 .update(installation.table)
                 .set({

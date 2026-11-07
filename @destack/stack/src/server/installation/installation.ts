@@ -1,4 +1,5 @@
 import { Setting } from "@destack/setting";
+import { Plan } from "@destack/resource";
 import { setting, SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
@@ -14,6 +15,7 @@ import {
     PackageDescription,
     type ResourceType,
     type ResultOf,
+    SYNCED,
 } from "@destack/object";
 import { entitlement, Space, space } from "@destack/account/object";
 import {
@@ -115,6 +117,21 @@ export function implementInstallations(options: InstallationOptions) {
                 return next(call);
             },
             token: (call) => InstallationAssertion.token(call, options.issuer),
+            target: async (call) => {
+                // refuse a revision of another installation, then target it
+                const { revisionId } = call.input;
+                const revision = await call
+                    .read(installationRevision)
+                    .findFirst({ where: { id: revisionId, installationId: call.target.id } });
+                if (revision === undefined) {
+                    throw StackError.of(
+                        "REVISION_NOT_FOUND",
+                        `installation ${call.target.id} has no revision ${revisionId}`,
+                    );
+                }
+
+                return call.update({ revisionId });
+            },
             allow: (call) =>
                 call.update({
                     allowed: [...new Set([...call.target.allowed, call.input.capability])],
@@ -131,21 +148,21 @@ export function implementInstallations(options: InstallationOptions) {
 function rolloutProjection(options: InstallationOptions): ObjectProjection<typeof rollout> {
     return {
         watches: [
-            // project a new rollout, a moved target or served revision, and a followed space stack, past its own applied and consumed records
-            ObjectWatch.of(
-                rollout.table,
-                (row, _database, change) =>
-                    change.operation !== "update" ||
-                    change.before.revisionId !== change.after.revisionId ||
-                    change.before.servedRevisionId !== change.after.servedRevisionId ||
-                    change.before.spaceStack !== change.after.spaceStack
-                        ? [rolloutKey(row)]
-                        : [],
-                { isObserving: true },
+            // project a new rollout, a moved served revision, and a followed space stack, past its own applied and consumed records
+            ObjectWatch.of(rollout.table, (row, _database, change) =>
+                change.operation !== "update" ||
+                change.before.servedRevisionId !== change.after.servedRevisionId ||
+                change.before.spaceStack !== change.after.spaceStack
+                    ? [rolloutKey(row)]
+                    : [],
             ),
             ...rolloutWatches(options.resources, options.binder.objects()),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
         ],
+        reports: {
+            object: installation,
+            identifiers: (rows) => rows.map((row) => row.installationId),
+        },
         project: async (_id, reconciliation) => {
             // read the rollout with its installation, none once uninstalled
             const rows = await Rollout.read(
@@ -242,8 +259,9 @@ export function implementRollouts(options: InstallationOptions) {
             plan: async (call) => {
                 // join the plans the installation and its managed, owned or bound resources wait on
                 const target = await Rollout.of(call);
+                const plan = (await Approval.of(call, options.resources, target)).plan();
 
-                return (await Approval.of(call, options.resources, target)).plan();
+                return { plan, digest: await Plan.digest(plan, call.environment.crypto) };
             },
             submit: {
                 // refuse a foreign repository, then pull the selected release and describe its revision
@@ -300,7 +318,12 @@ export function implementRollouts(options: InstallationOptions) {
                     call.input,
                 );
                 if (target.revisionId !== revision.id) {
-                    await call.update({ revisionId: revision.id });
+                    await call.mutate(call.self, [
+                        installation.call("target", {
+                            ...installation.target(target.installation),
+                            revisionId: revision.id,
+                        }),
+                    ]);
                 }
 
                 return { revisionId: revision.id };
@@ -394,9 +417,14 @@ async function submit(
     if (target.revisionId === revision.id) {
         return context.target;
     }
-    const submittedBy = ObjectReference.columns("submittedBy", context.caller.subject);
+    await context.mutate(context.self, [
+        installation.call("target", {
+            ...installation.target(target.installation),
+            revisionId: revision.id,
+        }),
+    ]);
 
-    return context.update({ revisionId: revision.id, ...submittedBy });
+    return context.update(ObjectReference.columns("submittedBy", context.caller.subject));
 }
 
 /** Pull the release a submission selects by tag or version, none for a space's build. */
@@ -610,39 +638,35 @@ function rolloutWatches(
                   ],
         ),
         // wake the space's other rollouts still waiting once one serves another revision, as what they wait for may be served now
-        ObjectWatch.of(
-            rollout.table,
-            async (row, database, change) => {
-                // leave a change that serves no other revision
-                const before = Change.before(change);
-                if (before !== null && before.servedRevisionId === row.servedRevisionId) {
-                    return [];
-                }
+        ObjectWatch.of(rollout.table, async (row, database, change) => {
+            // leave a change that serves no other revision
+            const before = Change.before(change);
+            if (before !== null && before.servedRevisionId === row.servedRevisionId) {
+                return [];
+            }
 
-                // find the space's other rollouts, with whether each is ready
-                const rollouts = await database
-                    .select({
-                        id: rollout.table.installationId,
-                        conditions: installation.table.conditions,
-                    })
-                    .from(rollout.table)
-                    .innerJoin(
-                        installation.table,
-                        eq(installation.table.id, rollout.table.installationId),
-                    )
-                    .where(
-                        and(
-                            eq(rollout.table.scope, row.scope),
-                            ne(rollout.table.installationId, row.installationId),
-                        ),
-                    );
+            // find the space's other rollouts, with whether each is ready
+            const rollouts = await database
+                .select({
+                    id: rollout.table.installationId,
+                    conditions: installation.table.conditions,
+                })
+                .from(rollout.table)
+                .innerJoin(
+                    installation.table,
+                    eq(installation.table.id, rollout.table.installationId),
+                )
+                .where(
+                    and(
+                        eq(rollout.table.scope, row.scope),
+                        ne(rollout.table.installationId, row.installationId),
+                    ),
+                );
 
-                return rollouts
-                    .filter((entry) => entry.conditions["Ready"]?.status !== "true")
-                    .map((entry) => ({ installationId: entry.id }));
-            },
-            { isObserving: true },
-        ),
+            return rollouts
+                .filter((entry) => entry.conditions["Ready"]?.status !== "true")
+                .map((entry) => ({ installationId: entry.id }));
+        }),
         // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
         ObjectWatch.of(space.table, async (row, database) => {
             const rollouts = await database
@@ -667,7 +691,7 @@ function rolloutWatches(
                 return bound.map((installationId) => ({ installationId }));
             }),
         ),
-        // wake the applications of the account's spaces refused for an unentitled capability
+        // wake the failed applications of the account's spaces, as an unentitled capability may be entitled now
         ObjectWatch.of(entitlement.table, async (row, database) => {
             const spaces = await Space.within(database, row.scope);
             const refused = await database
@@ -681,7 +705,7 @@ function rolloutWatches(
                 );
 
             return refused
-                .filter((each) => each.conditions["Ready"]?.reason === "UnentitledCapability")
+                .filter((each) => each.conditions[SYNCED]?.status === "false")
                 .map((each) => ({ installationId: each.id }));
         }),
         // wake the space's applications waiting for a dependency once its package is installed or served
@@ -708,16 +732,15 @@ function rolloutWatches(
                     )
                     .innerJoin(
                         installationRevision.table,
-                        eq(installationRevision.table.id, rollout.table.revisionId),
+                        eq(installationRevision.table.id, installation.table.revisionId),
                     )
                     .where(eq(rollout.table.scope, scope.data));
 
                 return refused
                     .filter(
                         (each) =>
-                            ["UninstalledDependency", "WaitingForSpace"].includes(
-                                each.conditions["Ready"]?.reason ?? "",
-                            ) &&
+                            (each.conditions[SYNCED]?.status === "false" ||
+                                each.conditions["Ready"]?.reason === "WaitingForSpace") &&
                             each.dependencies.some(
                                 (dependency) => dependency.package.id === row.packageId,
                             ),

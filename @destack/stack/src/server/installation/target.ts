@@ -184,8 +184,8 @@ export const RolloutTarget = {
         const [found] = rows;
         const [only] = installed.length === 1 ? installed : [];
         const linked = options.linked.get(packageId);
-        const selection =
-            installed.find((row) => row.id === found?.installationId)?.selection ?? only?.selection;
+        const followed = installed.find((row) => row.id === found?.installationId);
+        const selection = followed?.selection ?? only?.selection;
         if (rows.length > 1) {
             throw StackError.of(
                 "INSTALLATION_AMBIGUOUS",
@@ -197,8 +197,8 @@ export const RolloutTarget = {
             return undefined;
         }
         // read the revision's build
-        else if (found?.revisionId !== undefined && found.revisionId !== null) {
-            return InstallationRevision.reader(snapshot, found.revisionId, options.builds);
+        else if (followed?.revisionId !== undefined && followed.revisionId !== null) {
+            return InstallationRevision.reader(snapshot, followed.revisionId, options.builds);
         }
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {

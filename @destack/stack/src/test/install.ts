@@ -15,7 +15,7 @@ import {
     rollout,
 } from "../object/index.ts";
 import stackPackage from "../package.ts";
-import { installation, type InstallationSelection } from "@destack/object";
+import { installation, type InstallationSelection, SYNCED } from "@destack/object";
 import { space } from "@destack/account/object";
 import { ids, spaceDatabase } from "./space.ts";
 import { onTestFinished } from "@destack/test";
@@ -124,6 +124,19 @@ export async function readInstalled(
     );
 
     return present(row, `the installation ${id}`);
+}
+
+/** The Synced condition a stack refusal records on an installation at its generation. */
+export function refusedCondition(installed: InstallationRollout, reason: string, message: string) {
+    const { generation, conditions } = installed.installation;
+
+    return {
+        status: "false",
+        reason: "ReconcileError",
+        message: `@destack/stack ${reason}: ${message}`,
+        observedGeneration: generation,
+        lastTransitionAt: conditions[SYNCED]?.lastTransitionAt,
+    };
 }
 
 /** Read the space's one stack installation with its rollout, the one its birth gives it. */
@@ -248,13 +261,16 @@ async function installNotes(
                 digest: Digest.parse("e".repeat(64)),
             }),
     );
-    await database.transaction(
-        async (transaction) =>
-            await transaction
-                .update(rollout.table)
-                .set({ revisionId, appliedRevisionId: revisionId })
-                .where(eq(rollout.table.installationId, ids.notes)),
-    );
+    await database.transaction(async (transaction) => {
+        await transaction
+            .update(installation.table)
+            .set({ revisionId })
+            .where(eq(installation.table.id, ids.notes));
+        await transaction
+            .update(rollout.table)
+            .set({ appliedRevisionId: revisionId })
+            .where(eq(rollout.table.installationId, ids.notes));
+    });
 
     return revisionId;
 }

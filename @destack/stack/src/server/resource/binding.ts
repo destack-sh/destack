@@ -735,16 +735,31 @@ export class Binder {
             name: "specification",
             tables: [
                 rollout.table,
+                installation.table,
                 deployment.table,
                 space.table,
                 placement.table,
                 ...this.#resourceObjects().map((object) => object.table),
             ],
-            observed: [rollout.table],
             keys: async (change) => this.#specificationKeys(change, store),
             all: async () => this.#servedResources(store),
             project: async (key) => this.#specify(key, store, main, linked),
         });
+    }
+
+    /** List a space's main database and the resources a revision binds, none for no revision. */
+    async #revisionKeys(
+        connection: DatabaseConnection,
+        scope: Identifier<"space">,
+        revisionId: Identifier<"installation-revision"> | null,
+    ): Promise<readonly string[]> {
+        const main = await connection
+            .select({ id: database.table.id })
+            .from(database.table)
+            .where(and(eq(database.table.scope, scope), eq(database.table.name, MAIN_DATABASE)));
+        const bound = revisionId === null ? [] : await this.#bound(connection, [revisionId]);
+
+        return [...main.map((entry) => entry.id), ...bound];
     }
 
     /** List the objects of the bindable resource kinds. */
@@ -756,21 +771,18 @@ export class Binder {
     async #specificationKeys(change: Change, store: ObjectStore): Promise<readonly string[]> {
         const connection = store.database;
 
-        // select the space's main database and the resources a rollout's revisions bind
+        // select the space's main database and the resources an applied revision binds
         if (Change.of(change, rollout.table)) {
-            const changed = Change.image(change);
-            const main = await connection
-                .select({ id: database.table.id })
-                .from(database.table)
-                .where(
-                    and(
-                        eq(database.table.scope, changed.scope),
-                        eq(database.table.name, MAIN_DATABASE),
-                    ),
-                );
-            const ids = [changed.revisionId, changed.appliedRevisionId].filter((id) => id !== null);
+            const { scope, appliedRevisionId } = Change.image(change);
 
-            return [...main.map((entry) => entry.id), ...(await this.#bound(connection, ids))];
+            return this.#revisionKeys(connection, scope, appliedRevisionId);
+        }
+        // select the space's main database and the resources a targeted revision binds, none outside spaces
+        else if (Change.of(change, installation.table)) {
+            const { scope, revisionId } = Change.image(change);
+            const spaced = schema.identifier("space").safeParse(scope);
+
+            return spaced.success ? this.#revisionKeys(connection, spaced.data, revisionId) : [];
         }
         // select the resources a changed deployment's revision binds
         else if (Change.of(change, deployment.table)) {
@@ -1051,7 +1063,7 @@ async function consumersOf(
     const rollouts = await connection
         .select({
             installationId: rollout.table.installationId,
-            revisionId: rollout.table.revisionId,
+            revisionId: installation.table.revisionId,
             packageId: installation.table.packageId,
             deletedAt: installation.table.deletedAt,
         })

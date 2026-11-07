@@ -76,12 +76,18 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         owners: [await owner(hostname.name), await owner(own.name)],
     }).toEqual({
         refused: {
-            installation: ["Blocked", `unknown installation: ${fixture.installations.get(second)}`],
-            path: ["ApplyFailed", "path is taken"],
+            installation: [
+                "failed",
+                `@destack/object DECLARATION_INVALID: unknown installation: ${fixture.installations.get(second)}`,
+            ],
+            path: ["failed", "@destack/object NAME_TAKEN: path is taken"],
         },
         foreign: {
-            hostname: ["ApplyFailed", `hostname ${hostname.name} not found`],
-            unknown: ["ApplyFailed", `hostname ${unknown} not found`],
+            hostname: [
+                "failed",
+                `@destack/stack HOSTNAME_NOT_FOUND: hostname ${hostname.name} not found`,
+            ],
+            unknown: ["failed", `@destack/stack HOSTNAME_NOT_FOUND: hostname ${unknown} not found`],
         },
         routes: [
             [
@@ -110,8 +116,8 @@ test("refuse a route on a machine the account's hostname requests do not reach",
 
     // apply a route there, which no request would reach
     expect(await fixture.submit(first, { home })).toEqual([
-        "ApplyFailed",
-        `requests for ${hostname.name} do not reach this space's machine`,
+        "failed",
+        `@destack/stack HOSTNAME_NOT_SERVED: requests for ${hostname.name} do not reach this space's machine`,
     ]);
 });
 

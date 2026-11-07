@@ -25,9 +25,7 @@ import {
     installation,
     type MethodContext,
     type ObjectOf,
-    Observation,
     PackageDescription,
-    SYNCED,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
@@ -41,15 +39,6 @@ import { space, Space } from "@destack/account/object";
 import { StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
 import { Binding } from "./binding.ts";
-
-/** The ready reasons of an installation waiting on others: resources, settings, space, approval. */
-const WAITING_REASONS: ReadonlySet<string> = new Set([
-    "WaitingForResources",
-    "WaitingForSettings",
-    "WaitingForSpace",
-    "AwaitingApproval",
-    "ReleaseNotPublished",
-]);
 
 /** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
 const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
@@ -103,12 +92,9 @@ export const rollout = defineObject(
         plural: "rollouts",
         scope: space,
         key: "installationId",
-        controlled: true,
         fields: {
             /** The installation rolling out, its rollout removed with it. */
             installation: field.reference(() => installation, { delete: "cascade" }).immutable(),
-            /** The revision to apply, absent before the first submission. */
-            revision: field.reference(() => installationRevision).optional(),
             /** The principal submitting the targeted revision, absent before the first one. */
             submittedBy: field.subject().optional(),
             /** The digest of the space's stack the installation last followed, absent for none. */
@@ -140,12 +126,6 @@ export const rollout = defineObject(
                 onDelete: "no action",
             },
             scopeId: { kind: "unique", on: ["scope", "id"] },
-            revisionInstallation: {
-                kind: "foreignKey",
-                on: ["installationId", "revisionId"],
-                references: { object: () => installationRevision, on: ["installationId", "id"] },
-                onDelete: "no action",
-            },
             appliedRevisionInstallation: {
                 kind: "foreignKey",
                 on: ["installationId", "appliedRevisionId"],
@@ -175,8 +155,16 @@ export const rollout = defineObject(
             fields: ["appliedRevisionId", "previousRevisionId", "servedRevisionId", "consumption"],
         }),
 
-        /** Read the plan waiting for approval. */
-        plan: method.query({ permission: "read", output: Plan }),
+        /** Read the plan waiting for approval with the digest approving it names. */
+        plan: method.query({
+            permission: "read",
+            output: schema.object({
+                /** The steps waiting, across the installation, those it manages and resources. */
+                plan: Plan,
+                /** The plan's digest, which approving it names. */
+                digest: Digest,
+            }),
+        }),
 
         /** Target a submitted build's revision. */
         submit: method.mutation({
@@ -287,14 +275,17 @@ export const rollout = defineObject(
                 );
             }
 
-            // target it and select its release on the installation
-            await call.update({ revisionId: previous.id });
+            // select its release on the installation and target it
+            const target = installation.target({
+                scope: call.target.scope,
+                id: call.target.installationId,
+            });
             await call.mutate(call.self, [
                 installation.call("update", {
-                    ...installation.in(call.target.scope),
-                    id: call.target.installationId,
+                    ...target,
                     selection: { kind: "release", version: built.source.version },
                 }),
+                installation.call("target", { ...target, revisionId: previous.id }),
             ]);
 
             return { revisionId: previous.id };
@@ -369,14 +360,11 @@ export type Rollout = Select<typeof rollout.table>;
 
 /** An installation's rollout joined with the installation, never a base one, so with its name. */
 export type InstallationRollout = Omit<Rollout, "id"> & {
+    /** The revision its installation targets, absent before the first. */
+    readonly revisionId: Identifier<"installation-revision"> | null;
     /** The installation the rollout rolls out, with its name in its space. */
     readonly installation: Installation & { readonly name: string };
 };
-
-/** How far an installation's rollout is, as kstatus reads a resource: served, waiting or failed. */
-export const RolloutProgress = schema.enum(["served", "waiting", "failed"]);
-/** How far an installation's rollout is, as kstatus reads a resource: served, waiting or failed. */
-export type RolloutProgress = schema.Infer<typeof RolloutProgress>;
 
 /** The verbs of rollouts and their installations: reads, access, relations and releases. */
 export const Rollout = {
@@ -410,7 +398,7 @@ export const Rollout = {
             );
         }
 
-        return { ...row, installation: { ...installed, name } };
+        return { ...row, revisionId: installed.revisionId, installation: { ...installed, name } };
     },
 
     /** Read rollouts' installations and join them, refusing a rollout without its installation. */
@@ -617,42 +605,6 @@ export const Rollout = {
         };
     },
 
-    /** Read how far an installation's rollout is: serving its revision, waiting to, or failed. */
-    progress(
-        target: Pick<
-            InstallationRollout,
-            "revisionId" | "servedRevisionId" | "conditions" | "generation"
-        > & {
-            readonly installation: Pick<Installation, "conditions" | "generation">;
-        },
-    ): RolloutProgress {
-        // read the installation's readiness and whether the rollout synced
-        const { installation: installed } = target;
-        const ready = installed.conditions["Ready"];
-        const synced = target.conditions[SYNCED];
-
-        // serve the targeted revision
-        if (target.revisionId !== null && target.servedRevisionId === target.revisionId) {
-            return "served";
-        }
-        // wait until the installation's controller saw its latest change
-        else if (ready === undefined || !Observation.isCurrent(installed, "Ready")) {
-            return "waiting";
-        }
-        // fail once the rollout failed at its generation in a way no retry resolves
-        else if (synced?.status === "false" && Observation.isCurrent(target, SYNCED)) {
-            return "failed";
-        }
-        // wait while deploying or waiting on others
-        else if (ready.status === "true" || WAITING_REASONS.has(ready.reason)) {
-            return "waiting";
-        }
-        // fail on any other reason, which someone must act on
-        else {
-            return "failed";
-        }
-    },
-
     /** Read an installation a machine serves now. */
     async findServed(
         database: DatabaseConnection,
@@ -766,7 +718,7 @@ export const Rollout = {
             .innerJoin(installation.table, joinedInstallation())
             .innerJoin(
                 installationRevision.table,
-                eq(installationRevision.table.id, rollout.table.revisionId),
+                eq(installationRevision.table.id, installation.table.revisionId),
             )
             .where(and(rollout.inScope(spaceId), launchable()))
             .orderBy(installation.table.createdAt, installation.table.id);
@@ -806,7 +758,7 @@ export const InstallationRevision = {
     /** Read the revision an installation follows, absent before its first. */
     async followed(
         database: DatabaseConnection,
-        target: Pick<Rollout, "revisionId">,
+        target: Pick<InstallationRollout, "revisionId">,
     ): Promise<InstallationRevision | undefined> {
         if (target.revisionId === null) {
             return undefined;

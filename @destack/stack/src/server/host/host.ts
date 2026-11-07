@@ -1157,7 +1157,6 @@ export class SpaceHost {
                 rollout.table,
                 Scope.table,
             ],
-            observed: [rollout.table],
             keys: async (change) => this.#placementKeys(change),
             all: async () => this.#placed(),
             project: async (key) => this.#place(key, store, main),

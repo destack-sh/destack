@@ -1,3 +1,4 @@
+import { installation } from "@destack/object";
 import type { Environment } from "@destack/environment";
 import { Plan } from "@destack/resource";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -243,9 +244,9 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
                 updatedAt: now,
             });
             await transaction
-                .update(object.rollout.table)
+                .update(installation.table)
                 .set({ revisionId })
-                .where(eq(object.rollout.table.installationId, named.installation));
+                .where(eq(installation.table.id, named.installation));
         });
 
         return digest;
@@ -365,16 +366,16 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
                 .where(eq(object.database.table.id, named.removed))
         )[0];
 
-    // record and throw the failure and provision on the next attempt
+    // throw the failure, which no declared reason marks lasting, and provision on the next attempt
     const failed = await reconcileResources(store, ids.space).then(
         () => "reconciled",
         (error: unknown) => (error instanceof Error ? error.message : error),
     );
-    const failure = (await read())?.conditions["Ready"]?.reason;
+    const failure = (await read())?.conditions;
     await reconcileResources(store, ids.space);
     expect([failed, failure, (await read())?.conditions["Ready"]?.reason]).toEqual([
         "the disk is full",
-        "ProvisioningFailed",
+        {},
         "Applied",
     ]);
 

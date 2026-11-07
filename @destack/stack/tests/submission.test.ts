@@ -1,5 +1,5 @@
 import { type BuildReference } from "@destack/stack/declare";
-import { type InstallationSelection } from "@destack/object";
+import { installation, type InstallationSelection } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { Plan } from "@destack/resource";
 import { expect, refusal, test } from "@destack/test";
@@ -85,7 +85,8 @@ test("apply a submitted stack build and open its installations' views", async ()
         applied.installation.conditions["Ready"]?.reason,
     ]).toEqual([false, "Applied"]);
     expect(await owner.rollout.plan({ spaceId: ids.space, id: stack.installationId })).toEqual({
-        steps: [],
+        plan: { steps: [] },
+        digest: await Plan.digest({ steps: [] }, fixture.environment.crypto),
     });
 
     // apply the notes installation, then open a view its applied revision declares and refuse one it does not
@@ -161,7 +162,7 @@ test("apply an earlier build submitted again after a later one, approving each p
         const read = () => readInstalled(fixture.database, stack.installationId);
         const isWaiting = (await read()).installation.plan !== null;
         if (isWaiting) {
-            const waiting = await owner.rollout.plan({
+            const { digest } = await owner.rollout.plan({
                 spaceId: ids.space,
                 id: stack.installationId,
             });
@@ -169,7 +170,7 @@ test("apply an earlier build submitted again after a later one, approving each p
                 spaceId: ids.space,
                 id: stack.installationId,
                 requestId: RequestId.create(fixture.machine.environment),
-                plan: await Plan.digest(waiting, fixture.environment.crypto),
+                plan: digest,
             });
             await reconcile(store, "rollout", {
                 installationId: (await readStack(store.database)).installationId,
@@ -350,26 +351,32 @@ test("wait for an approval of an application's upgrade planned from the release 
         "Deployed",
         "AwaitingApproval",
     ]);
-    const waiting = await owner.rollout.plan({ spaceId: ids.space, id: notes.id });
-    expect(waiting).toEqual({
-        steps: [
-            {
-                action: "create",
-                target: "installation/notes/release/2026.11.0/procedure/count",
-                risk: "safe",
-                detail: "add procedure",
-            },
-            {
-                action: "delete",
-                target: "installation/notes/release/2026.11.0/relation/editor",
-                risk: "backward-incompatible",
-                detail: "remove relation: earlier releases still serve it",
-            },
-        ],
+    const { plan: waiting, digest } = await owner.rollout.plan({
+        spaceId: ids.space,
+        id: notes.id,
     });
+    expect([waiting, digest]).toEqual([
+        {
+            steps: [
+                {
+                    action: "create",
+                    target: "installation/notes/release/2026.11.0/procedure/count",
+                    risk: "safe",
+                    detail: "add procedure",
+                },
+                {
+                    action: "delete",
+                    target: "installation/notes/release/2026.11.0/relation/editor",
+                    risk: "backward-incompatible",
+                    detail: "remove relation: earlier releases still serve it",
+                },
+            ],
+        },
+        // name the digest of exactly these steps
+        await Plan.digest(waiting, fixture.environment.crypto),
+    ]);
 
     // refuse another digest and deploy the approved release
-    const digest = await Plan.digest(waiting, fixture.environment.crypto);
     const approve = (plan: string) =>
         owner.rollout.approve({
             spaceId: ids.space,
@@ -571,9 +578,9 @@ test("open the build each package's installation in a space follows, and none fo
         await database.transaction(
             async (transaction) =>
                 await transaction
-                    .update(rollout.table)
+                    .update(installation.table)
                     .set({ revisionId })
-                    .where(eq(rollout.table.installationId, id)),
+                    .where(eq(installation.table.id, id)),
         );
     };
     const { crypto } = fixture.machine.environment;
