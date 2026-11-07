@@ -8,7 +8,7 @@ import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { PackageId } from "@destack/package";
+import { PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
@@ -33,6 +33,8 @@ export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 export interface Registry {
     /** Find the digest of a package release's manifest, by its version or a distribution tag. */
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
+    /** The releases the distribution ships, which a scope runs of a package it installs none of. */
+    readonly distribution: readonly PackageRelease[];
     /** Push a stored build with its npm units to its forge, answering its digest. */
     readonly push: (
         store: Pick<BuildStore, "contents" | "units">,

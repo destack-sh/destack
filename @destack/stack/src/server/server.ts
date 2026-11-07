@@ -3,7 +3,8 @@ import { KERNEL_TYPES } from "../stack/kernel.ts";
 import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
-import type { PackageId, PackageRelease } from "@destack/package";
+import { type PackageId, PackageRelease } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import { type Identifier, present, schema, type VersionRange } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, Provisioned } from "@destack/object";
@@ -125,7 +126,7 @@ export interface SpaceOptions {
     readonly buildRunner: Identifier<"machine"> | null;
     /** Whether the machine checks its spaces' use against their accounts' entitlements. */
     readonly isEnforcingEntitlements: boolean;
-    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    /** The Destack versions the machine runs releases of: its own and the oldest it supports. */
     readonly destack: VersionRange;
     /** Whether requests for the account's own hostnames reach the machine, so its routes serve. */
     readonly isServingHostnames: boolean;
@@ -287,30 +288,9 @@ export class SpaceStore {
                 ),
             origin: { package: stackPackage, machineId: options.machine },
             uplink: options.publisher,
-            // open the release the space runs of a package, or the published version a value names
-            release: async (view, scope, packageId, version) => {
-                // read the installed release, and whether the value names another version
-                const spaceId = schema.identifier("space").parse(scope);
-                const installed = await Rollout.reader(
-                    view,
-                    spaceId,
-                    packageId,
-                    undefined,
-                    options,
-                );
-                const isOther =
-                    installed !== undefined &&
-                    version !== undefined &&
-                    installed.manifest.package.version !== version;
-
-                return isOther
-                    ? options.builds.pull(
-                          options.registry,
-                          packageId,
-                          await options.registry.find(packageId, version),
-                      )
-                    : installed;
-            },
+            // open the release the space runs, or the version a value names
+            release: (view, scope, packageId, version) =>
+                this.release(view, schema.identifier("space").parse(scope), packageId, version),
             // root the chain above the space by its placement, as primary or move target
             chain: async (view) => {
                 // read where the space is placed, and whether it moves here
@@ -353,6 +333,40 @@ export class SpaceStore {
                     ),
             };
         });
+    }
+
+    /** Open a package's release the space runs, or a named version, absent for none. */
+    async release(
+        view: Snapshot,
+        spaceId: Identifier<"space">,
+        packageId: PackageId,
+        version?: string,
+    ): Promise<BuildReader | undefined> {
+        // read the installed release and the distribution's
+        const options = this.#options;
+        const { registry, builds } = options;
+        const installed = await Rollout.reader(view, spaceId, packageId, undefined, options);
+        const distributed = PackageRelease.newest(registry.distribution, packageId);
+        const isInstalled =
+            installed !== undefined &&
+            (version === undefined || installed.manifest.package.version === version);
+
+        // open the installed release, unless a value names another version
+        if (isInstalled) {
+            return installed;
+        }
+        // pull a named version
+        else if (version !== undefined) {
+            return builds.pull(registry, packageId, await registry.find(packageId, version));
+        }
+        // pull the distribution's release of a package the space does not install
+        else if (distributed !== undefined) {
+            return builds.pull(registry, packageId, distributed.manifest);
+        }
+        // run nothing of a package outside the distribution
+        else {
+            return undefined;
+        }
     }
 
     /** Serve a changed set of installed servers and sandboxes, the unchanged ones kept. */

@@ -4,7 +4,7 @@ import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "../declare/index.ts";
 import { StackError } from "../error/index.ts";
 import { type Digest, type JsonObject, schema } from "@destack/schema";
-import { Package, PackageId } from "@destack/package";
+import { Package, PackageId, type PackageRelease } from "@destack/package";
 import { type BuildReader, OutputContent, type OutputExport } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { Registry } from "../server/index.ts";
@@ -141,6 +141,9 @@ export class TestRegistry implements Registry, ReleaseRegistry {
             });
         }
     }
+
+    /** The releases its distribution ships: none, as the fixture registry ships none. */
+    readonly distribution: readonly PackageRelease[] = [];
 
     /** Open a release's build, as the universe opens the stacks it applies. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
