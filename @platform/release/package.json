@@ -4,8 +4,7 @@
     "type": "module",
     "exports": {
         "./catalog": "./src/distribution/catalog.ts",
-        "./deployment/universe": "./src/deployment/cloudflare/universe.ts",
-        "./repository/feed": "./src/repository/feed/worker.ts"
+        "./deployment/universe": "./src/deployment/cloudflare/universe.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

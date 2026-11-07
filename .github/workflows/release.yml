@@ -319,7 +319,8 @@ jobs:
     deploy:
         name: Deploy production
         needs: [prepare, publish]
-        if: needs.prepare.outputs.publish == 'true'
+        # deploy once the operator bootstrapped the platform and set DESTACK_PLATFORM to deployed
+        if: needs.prepare.outputs.publish == 'true' && vars.DESTACK_PLATFORM == 'deployed'
         runs-on: ubuntu-24.04
         timeout-minutes: 60
         environment: production
@@ -384,8 +385,11 @@ jobs:
                   DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
             - name: Sign snapshot and timestamp
               run: bun run src/main.ts update renew freshness
-            - name: Submit signed freshness
-              run: bun run src/main.ts update submit dist/refresh
+            - name: Publish signed freshness
+              run: bun run src/main.ts update publish dist/refresh
+              env:
+                  CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
+                  CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
             - name: Verify published metadata
               run: bun run src/main.ts update verify dist/refresh
             - name: Remove freshness signing keys

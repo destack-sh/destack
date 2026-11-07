@@ -1,7 +1,7 @@
 import { S3Client } from "bun";
-import { createHash } from "node:crypto";
 import type { Environment } from "@destack/environment";
 import { RepositoryConfiguration } from "./configuration.ts";
+import { ROOT_FILES } from "./layout.ts";
 
 /** The Cloudflare account keeping the release buckets. */
 const ACCOUNT = "27c0d00fb3a27a4ccbf46a3cceab9301";
@@ -62,9 +62,14 @@ export class R2ReleaseBucket {
         this.environment = environment;
     }
 
+    /** Read a public path's key: bootstrap files at the bucket's root, others below the feed. */
+    key(path: string): string {
+        return ROOT_FILES.has(path) ? path : `${this.prefix}${path}`;
+    }
+
     /** Read directly from storage without using the public download cache. */
     async get(path: string): Promise<Response> {
-        const url = this.client.presign(`${this.prefix}${path}`, { method: "GET", expiresIn: 60 });
+        const url = this.client.presign(this.key(path), { method: "GET", expiresIn: 60 });
         const { clock, network } = this.environment;
 
         return await network.fetch(
@@ -78,7 +83,7 @@ export class R2ReleaseBucket {
     /** Read the authoritative object revision before a conditional replacement. */
     async revision(path: string): Promise<string | undefined> {
         // read directly from storage, bypassing public caches
-        const url = this.client.presign(`${this.prefix}${path}`, { method: "HEAD", expiresIn: 60 });
+        const url = this.client.presign(this.key(path), { method: "HEAD", expiresIn: 60 });
         const { clock, network } = this.environment;
         const response = await network.fetch(
             new Request(url, {
@@ -117,7 +122,7 @@ export class R2ReleaseBucket {
         headers.set(revision === undefined ? "if-none-match" : "if-match", revision ?? "*");
 
         // stream the file into the presigned upload
-        const url = this.client.presign(`${this.prefix}${path}`, { method: "PUT", expiresIn: 900 });
+        const url = this.client.presign(this.key(path), { method: "PUT", expiresIn: 900 });
         const response = await network.fetch(
             new Request(url, {
                 method: "PUT",
@@ -136,11 +141,12 @@ export class R2ReleaseBucket {
                 throw new Error(`cannot read release object: ${path} (${existing.status})`);
             }
             await using local = await files.open(file, { read: true });
+            const { crypto } = this.environment;
             const [previous, next] = await Promise.all([
-                digest(existing.body),
-                digest(local.readable()),
+                crypto.digest("SHA-256", existing.body),
+                crypto.digest("SHA-256", local.readable()),
             ]);
-            if (previous !== next) {
+            if (new Uint8Array(previous).toHex() !== new Uint8Array(next).toHex()) {
                 throw new Error(`refusing to overwrite immutable release file: ${path}`);
             }
         }
@@ -149,15 +155,4 @@ export class R2ReleaseBucket {
             throw new Error(`release upload failed: ${path} (${response.status})`);
         }
     }
-}
-
-/** Hash a stream with bounded memory independent of artifact size. */
-async function digest(stream: ReadableStream<Uint8Array>): Promise<string> {
-    // consume each chunk once without retaining previous chunks
-    const hash = createHash("sha256");
-    for await (const bytes of stream) {
-        hash.update(bytes);
-    }
-
-    return hash.digest("hex");
 }

@@ -100,7 +100,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     const declared: { readonly default: unknown } = await import("destack:universe");
     const universe = await Universe.start({
         ...PlatformUniverse.options(environment, {
-            releases: DistributionManifest.shipped(await WorkerdDistribution.read()),
+            releases: DistributionManifest.releases(await WorkerdDistribution.read()),
             open: (manifest) =>
                 new BuildBucket(new R2Bucket(bindings.BUILDS), environment.crypto).read(manifest),
         }),

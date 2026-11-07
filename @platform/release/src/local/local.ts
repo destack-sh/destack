@@ -163,7 +163,7 @@ export class LocalUniverse implements AsyncDisposable {
                 report: (error) =>
                     options.print("universe", inspect(error, { getters: true, depth: 6 })),
                 shipped: {
-                    releases: DistributionManifest.shipped(await build.distribution()),
+                    releases: DistributionManifest.releases(await build.distribution()),
                     open: (manifest) => build.store.contents(manifest),
                 },
             }),

@@ -21,7 +21,6 @@ import { rehearseKey } from "./key/rehearse.ts";
 import { checkExpiry } from "./repository/expiry.ts";
 import { renewUpdate } from "./repository/renew.ts";
 import { signUpdate } from "./repository/sign.ts";
-import { submitUpdate } from "./repository/submit.ts";
 import { publishUpdate } from "./repository/upload.ts";
 import { verifyUpdate } from "./repository/verify.ts";
 import { signPlatform } from "./signing/sign.ts";
@@ -63,7 +62,6 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "update renew": renewUpdate,
     "update verify": verifyUpdate,
     "update expiry": checkExpiry,
-    "update submit": submitUpdate,
 
     "key ceremony": runCeremony,
     "key enroll": enrollKey,

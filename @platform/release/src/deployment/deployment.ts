@@ -388,10 +388,7 @@ export class Deployment {
 
     /** Apply the shared root, the universe's and the residencies', then release the Workers. */
     async deploy(print: (name: string, line: string) => void): Promise<void> {
-        // deploy the release feed's Worker before the shared root routes every download to it
         const { environment } = this;
-        const feed = new WorkerScript(this, { kind: "feed" });
-        await feed.deploy(feed.feed(), {}, {});
 
         // apply every root in dependency order
         for (const root of Root.all(this.stage.name, environment)) {

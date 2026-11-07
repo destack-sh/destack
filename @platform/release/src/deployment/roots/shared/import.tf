@@ -86,12 +86,6 @@ moved {
   to   = cloudflare_r2_bucket.release
 }
 
-# widen the feed's route to every download path
-moved {
-  from = cloudflare_workers_route.release["stable"]
-  to   = cloudflare_workers_route.release
-}
-
 import {
   to = cloudflare_dns_record.site
   id = "c294d5aa316a6f11a90b4f9ccbdfcad2/5c6afa58c3dbd04f2e4a6e1678b9577d"

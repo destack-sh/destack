@@ -27,7 +27,7 @@ release       prepare | record                           src/release
 distribution  build | pack | icon | develop | open | verify | install-check | rehearse   src/distribution
 installer     build                                      src/installer
 signing       sign | credential                          src/signing
-update        sign | publish | renew | verify | expiry | submit   src/repository, its feed Worker in feed/
+update        sign | publish | renew | verify | expiry   src/repository
 key           ceremony | enroll | generate | rehearse | attest | backup   src/key
 platform      validate | format | format-check | init | diff | deploy | rehearse | e2e   src/deployment
 custody       seal                                       src/deployment
@@ -143,7 +143,9 @@ The universe and residency roots are applied first by the operator, which create
 
 ## Publication
 
-`release.yml` releases main once a day when it moved and its checks pass, or now on `release`, as the month's next `vYYYY.M.N`; it tags the release, records it as a GitHub Release listing the commits since the previous tag, and deploys production.
+`release.yml` releases main once a day when it moved and its checks pass, or now on `release`, as the month's next `vYYYY.M.N`; it tags the release, records it as a GitHub Release listing the commits since the previous tag, and deploys production once the repository variable `DESTACK_PLATFORM` is `deployed`.
+Downloads are the release bucket's objects served at `download.destack.sh` by an R2 custom domain, each with the content type and cache policy its upload stored; the bootstrap files `install` and `downloads.json` lie at the bucket's root, the feed below `stable/`.
+The daily renewal publishes the newly signed timestamp and snapshot with `update publish dist/refresh`, replacing the timestamp at the revision it read, as a release does.
 
 ```yaml
 jobs:

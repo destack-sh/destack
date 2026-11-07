@@ -43,6 +43,7 @@ export const PlatformUniverse = {
                             ? forges.open(packageId, release)
                             : shipped.open(found.manifest);
                     },
+                    distribution: shipped.releases,
                 };
             },
             policies: [

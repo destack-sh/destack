@@ -17,7 +17,6 @@
         "src/main.ts",
         "src/key/tests/bitwarden.ts",
         "src/deployment/cloudflare/universe.ts",
-        "src/repository/feed/worker.ts",
         "src/distribution/tests/sandbox.ts"
     ],
     "exports": {

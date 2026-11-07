@@ -10,7 +10,7 @@ import { publish } from "./publish.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
 import { COMMIT } from "@destack/update/test";
 
-test("publish exact bytes and reject stale replacements through conditional S3 requests", async () => {
+test("publish exact bytes, the bootstrap files at the bucket's root, and reject stale replacements through conditional S3 requests", async () => {
     // keep the repository's files in a directory of the test's own
     const host = testHost();
     const directory = await host.files.makeTemporaryDirectory("destack-upload-");
@@ -161,6 +161,10 @@ test("publish exact bytes and reject stale replacements through conditional S3 r
     await publish(repository, configuration, environment);
     expect(objects).toEqual(published);
     expect(await (await bucket.get("downloads.json")).text()).toBe(catalog);
+
+    // keep the bootstrap file at the bucket's root, which the download domain serves at its own, and the feed below its path
+    const rooted = [...published.keys()].filter((key) => !key.startsWith("/rehearsal/stable/"));
+    expect(rooted).toEqual(["/rehearsal/downloads.json"]);
     expect(Buffer.from(await (await bucket.get("metadata/timestamp.json")).arrayBuffer())).toEqual(
         Buffer.from(await files.readFile(join(repository, "metadata/timestamp.json"))),
     );

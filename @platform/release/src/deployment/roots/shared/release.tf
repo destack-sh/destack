@@ -18,18 +18,12 @@ resource "cloudflare_r2_bucket" "release" {
   }
 }
 
-resource "cloudflare_dns_record" "download" {
-  zone_id = cloudflare_zone.domains["destack.sh"].id
-  name    = "download.destack.sh"
-  type    = "AAAA"
-  content = "100::"
-  proxied = true
-  ttl     = 1
-}
-
-# serve every download through the publication worker
-resource "cloudflare_workers_route" "release" {
-  zone_id = cloudflare_zone.domains["destack.sh"].id
-  pattern = "download.destack.sh/*"
-  script  = "destack-release-publication"
+# serve every download from the bucket at its domain, each object with the type and cache policy its upload stored
+resource "cloudflare_r2_custom_domain" "download" {
+  account_id  = local.account_id
+  bucket_name = cloudflare_r2_bucket.release.name
+  domain      = "download.destack.sh"
+  zone_id     = cloudflare_zone.domains["destack.sh"].id
+  enabled     = true
+  min_tls     = "1.2"
 }

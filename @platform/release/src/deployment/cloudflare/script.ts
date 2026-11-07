@@ -48,7 +48,6 @@ const R2_REGION = "auto";
 
 /** The module each kind of script runs, as its engine package ships it. */
 const SCRIPT_ENTRIES = {
-    feed: "@platform/release/repository/feed",
     universe: "@platform/release/deployment/universe",
     machine: "@destack/machine/cloudflare/worker",
     tail: "@destack/machine/cloudflare/tail",
@@ -61,12 +60,6 @@ const MACHINE_CLASSES = {
     graph: "GraphIndexObject",
 } as const;
 
-/** The release feed's Worker, which the shared root routes every download to. */
-const FEED_SCRIPT = "destack-release-publication";
-
-/** The bucket the release feed serves its releases from. */
-const FEED_BUCKET = "destack-releases-stable";
-
 /** A Worker's wrangler configuration, as `wrangler.json` takes it. */
 export type WranglerConfiguration = Readonly<Record<string, unknown>>;
 
@@ -76,12 +69,8 @@ export type SuppliedModules = Readonly<Record<string, unknown>>;
 /** The module the universe's bundle reads its declaration from, supplied by its deploy. */
 export const UNIVERSE_MODULE = "destack:universe";
 
-/** What a Worker script deploys: the feed, the universe, or a residency's machine or its tail. */
+/** What a Worker script deploys: the universe, or a residency's machine or its tail. */
 export type ScriptTarget =
-    | {
-          /** The release feed's Worker. */
-          readonly kind: "feed";
-      }
     | {
           /** The universe's Worker. */
           readonly kind: "universe";
@@ -110,11 +99,6 @@ export class WorkerScript {
     get name(): string {
         const target = this.target;
 
-        // name the release feed apart from every stage, which all publish to one feed
-        if (target.kind === "feed") {
-            return FEED_SCRIPT;
-        }
-
         return target.kind === "universe"
             ? `destack-${this.deployment.stage.name}-universe`
             : `destack-${this.deployment.stage.name}-${target.kind}-${target.residency.code}`;
@@ -136,9 +120,9 @@ export class WorkerScript {
         kms: AccessKey | undefined,
         shared: SharedOutputs,
     ): Readonly<Record<string, string>> {
-        // keep no secrets in a tail or the feed
+        // keep no secrets in a tail
         const target = this.target;
-        if (target.kind === "tail" || target.kind === "feed") {
+        if (target.kind === "tail") {
             return {};
         }
 
@@ -180,10 +164,10 @@ export class WorkerScript {
         };
     }
 
-    /** The origin the script answers at, refused for a tail and the feed. */
+    /** The origin the script answers at, refused for a tail. */
     get origin(): string {
         const target = this.target;
-        if (target.kind === "tail" || target.kind === "feed") {
+        if (target.kind === "tail") {
             throw new Error(`${this.name} answers at no origin`);
         }
 
@@ -329,14 +313,6 @@ export class WorkerScript {
             S3Client.of({ location, credentials }, environment),
             environment.crypto,
         );
-    }
-
-    /** Write the release feed's configuration over its bucket. */
-    feed(): WranglerConfiguration {
-        return {
-            ...this.#shared(),
-            r2_buckets: [{ binding: "RELEASES", bucket_name: FEED_BUCKET }],
-        };
     }
 
     /** Write a cloud machine's Tail Worker configuration over the machine's objects. */
