@@ -677,7 +677,7 @@ export class Authorizer {
         if (!policy) {
             throw AccessError.of(
                 "DECLARATION_INVALID",
-                `unknown object type: ${reference.packageId}/${reference.type}`,
+                `unknown object type ${reference.type} of ${reference.packageId}`,
             );
         }
 
