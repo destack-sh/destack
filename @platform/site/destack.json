@@ -1,6 +1,7 @@
 {
     "$schema": "https://destack.app/schemas/2026.9.0/destack.json",
     "id": "package-01a0c80b-614d-75a7-9f81-60925638feaa",
+    "role": "library",
     "language": "typescript",
     "runtimes": [
         "browser",

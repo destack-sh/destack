@@ -131,8 +131,8 @@ In product terms, think of Destack as an integrated system of software productio
 The standardised Destack lets users actually _own_ their software and _rent_ the hardwares, 
 This gets us integration and customisation for "free" while also reducing app switching to just a single click, and does not require everyone to "own their stack" _literally_, which would be too annoying, and give up all the nice benefits of modern cloud-based software.
 
-In technical terms, think of Destack as a unified GitHub + npm + SQLite + Durable Objects with all the boring integration like auth, schemas, migrations, sync, triggers, workflows, telemetry, infra.
-It's all standardised to enable a higher level of abstraction.
+<!--In technical terms, think of Destack as a unified GitHub + npm + SQLite + Durable Objects with all the boring integration like auth, schemas, migrations, sync, triggers, workflows, telemetry, infra.
+It's all standardised to enable a higher level of abstraction.-->
 
 <!--> three kinds of personal software (replacement, custom, ephemeral)
 > the p90 of apps (p80 shared, and then +p10 some custom stuff)-->
