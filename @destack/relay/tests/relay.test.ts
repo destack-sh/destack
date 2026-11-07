@@ -10,12 +10,6 @@ import { Relay, Tunnel } from "../src/server/index.ts";
 import { type Renewal, TUNNEL_PROTOCOL, TunnelError, TunnelProtocol } from "@destack/tunnel";
 import { TestTunnelMachine } from "../src/test/index.ts";
 
-/** The origin of the Europe residency's cloud machine. */
-const EU_CLOUD = "https://eu.machine.test/";
-
-/** The origin of the United States residency's cloud machine. */
-const US_CLOUD = "https://us.machine.test/";
-
 /** Describe the refusal of a name that resolves to nothing. */
 function unresolved(name: string) {
     return ["NOT_FOUND", "NAME_UNRESOLVED", `${name} does not resolve`];
@@ -167,7 +161,7 @@ test("refuse names that lead nowhere, and a named machine that has no tunnel and
 test("refuse a forwarded request without its host, and one for a name another relay has no tunnel to", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
-    await computer.cloud("eu", "cloud", EU_CLOUD);
+    computer.cloud("eu", "cloud");
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
@@ -395,7 +389,7 @@ test("route a branch to its space's machine under the branch's name", async () =
 test("forward a name a cloud machine serves to the machine's endpoint, preserving the host asked for", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
-    await computer.cloud("eu", "cloud", EU_CLOUD);
+    computer.cloud("eu", "cloud");
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
@@ -407,7 +401,7 @@ test("route the name of a space whose account lives in another residency through
     // place a space of a us account on the us cloud machine, and route its name from the eu relay
     await using computer = await TestTunnelMachine.open("us");
     const relay = await computer.relay();
-    await computer.cloud("us", "us", US_CLOUD);
+    computer.cloud("us", "us");
     await computer.place("site");
     await computer.waitCaughtUp(relay);
 
@@ -690,22 +684,4 @@ test("close a machine's tunnel as moved at a relay its endpoint no longer leads 
     await elsewhere.reconcile(computer.machine.id);
 
     expect(told).toEqual([["close", { reason: "moved" }]]);
-});
-
-test("follow a cloud machine's new endpoint", async () => {
-    await using computer = await TestTunnelMachine.open();
-    const relay = await computer.relay();
-    await computer.cloud("eu", "first", EU_CLOUD);
-    await computer.place("site");
-    await computer.waitCaughtUp(relay);
-    const name = "notes--site--acme.destack.space";
-    const before = await computer.request(relay, name, "/");
-
-    // publish the cloud machine's new endpoint
-    await computer.cloud("eu", "second", "https://second.machine.test/");
-    await computer.waitCaughtUp(relay);
-    expect([before, await computer.request(relay, name, "/")]).toEqual([
-        `first host=${name};proto=http`,
-        `second host=${name};proto=http`,
-    ]);
 });

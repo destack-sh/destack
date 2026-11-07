@@ -9,7 +9,7 @@ import { Snapshot } from "@destack/db";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { createClient } from "@destack/object/client";
 import { Identifier, present } from "@destack/schema";
-import { RequestId, Scope, type Subject } from "@destack/sync";
+import { RequestId, type Subject } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { type TestMachine, TestUniverse } from "@destack/universe/test";
@@ -299,24 +299,16 @@ export class TestTunnelMachine implements AsyncDisposable {
         return client;
     }
 
-    /** Serve the spaces of a residency's cloud machine at an origin, answering with a label. */
-    async cloud(residency: ResidencyCode, label: string, origin: string): Promise<void> {
+    /** Serve a residency's cloud machine at its declared origin, answering with a label. */
+    cloud(residency: ResidencyCode, label: string): void {
         // listen at the origin, answering the label and the Forwarded header
-        const host = await this.host(residency);
+        const origin = new URL(this.universe.machineOrigin(residency));
         const listener = this.simulation.network.server(`cloud-${label}`).http({
-            hostname: new URL(origin).hostname,
-            port: Number(new URL(origin).port || "443"),
+            hostname: origin.hostname,
+            port: Number(origin.port || "443"),
             fetch: (request) => new Response(`${label} ${request.headers.get("forwarded")}`),
         });
         this.#started.defer(() => listener.stop(true));
-
-        // publish the origin as the cloud machine
-        await this.accounts(host).machine.publish({
-            scope: Scope.universe.id,
-            id: host.id,
-            requestId: RequestId.create(this.environment),
-            url: origin,
-        });
     }
 
     /** Create a space of the account on the residency's cloud machine, as its owner. */
