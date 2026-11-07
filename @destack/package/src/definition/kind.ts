@@ -44,7 +44,9 @@ export class DeclarationKind<Description extends schema.Schema = schema.Schema> 
     }
 
     /** Select this kind's declarations, their descriptions parsed by its schema. */
-    select(declarations: readonly Declaration[]): Declaration<schema.Output<Description>>[] {
+    select<Selected extends Pick<Declaration, "kind" | "kindPackageId" | "description">>(
+        declarations: readonly Selected[],
+    ): (Omit<Selected, "description"> & { readonly description: schema.Output<Description> })[] {
         return declarations
             .filter((declaration) => this.has(declaration))
             .map((declaration) => ({

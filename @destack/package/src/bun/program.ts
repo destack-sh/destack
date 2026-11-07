@@ -38,7 +38,7 @@ export class Program {
         return new Program((specifier) => table[specifier], loader, Object.keys(table));
     }
 
-    /** Read a program run from files, sharing every module of some packages from their directories. */
+    /** Read a program run from files, sharing some packages' modules from their directories. */
     static resolving(packages: ReadonlyMap<string, string>, loader: ModuleLoader): Program {
         // load a specifier of a shared package from the file its dependent resolves it to
         const load = (specifier: string): ModuleLoad | undefined => {
