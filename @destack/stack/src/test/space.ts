@@ -14,6 +14,7 @@ import {
     databaseProvider,
     defineDatabase,
     eq,
+    hashName,
     Projection,
     Snapshot,
     type Table,
@@ -526,9 +527,11 @@ export class TestSpace implements AsyncDisposable {
         const { start = WORLD_START } = options;
         const spaces = world.spaces ?? [FIXTURE_SPACE];
 
-        // name the template by its start, the fixture's world and the tables, written in a world of its own
+        // name the template by its start, the fixture's world and a hash of its tables, written in a world of its own
+        const tables = hashName(names.join(" "));
+
         return new TestTemplate({
-            name: `stack.world ${new Date(start).toISOString()} ${world.name} ${names.join(" ")}`,
+            name: `stack.world ${new Date(start).toISOString()} ${world.name} ${tables}`,
             databases: {
                 universe: Universe.database,
                 machine: TestMachine.database,

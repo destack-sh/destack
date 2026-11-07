@@ -88,6 +88,15 @@ import { Binding } from "./binding.ts";
 /** The name under which an installation manages its permissions binding and space grant. */
 const GRANT_NAME = "permissions";
 
+/** The ready reasons of an installation waiting on others: resources, settings, space, approval. */
+const WAITING_REASONS: ReadonlySet<string> = new Set([
+    "WaitingForResources",
+    "WaitingForSettings",
+    "WaitingForSpace",
+    "AwaitingApproval",
+    "ReleaseNotPublished",
+]);
+
 /** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
 const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
 
@@ -424,6 +433,11 @@ export type InstallationRollout = Omit<Rollout, "id"> & {
     /** The installation the rollout rolls out, with its name in its space. */
     readonly installation: Installation & { readonly name: string };
 };
+
+/** How far an installation's rollout is, as kstatus reads a resource: served, waiting or failed. */
+export const RolloutProgress = schema.enum(["served", "waiting", "failed"]);
+/** How far an installation's rollout is, as kstatus reads a resource: served, waiting or failed. */
+export type RolloutProgress = schema.Infer<typeof RolloutProgress>;
 
 /** What targeting and describing revisions read: builds, the registry, blobs and the forge. */
 export interface RevisionOptions {
@@ -1016,6 +1030,30 @@ export const Rollout = {
             appliedRevisionId: revisionId,
             previousRevisionId: isSame ? target.previousRevisionId : target.appliedRevisionId,
         };
+    },
+
+    /** Read how far an installation's rollout is: serving its revision, waiting to, or failed. */
+    progress(
+        target: Pick<InstallationRollout, "revisionId" | "servedRevisionId" | "installation">,
+    ): RolloutProgress {
+        const ready = target.installation.conditions["Ready"];
+
+        // serve the targeted revision
+        if (target.revisionId !== null && target.servedRevisionId === target.revisionId) {
+            return "served";
+        }
+        // wait while unready, deploying, or waiting on others
+        else if (
+            ready === undefined ||
+            ready.status === "true" ||
+            WAITING_REASONS.has(ready.reason)
+        ) {
+            return "waiting";
+        }
+        // fail on any other reason, which someone must act on
+        else {
+            return "failed";
+        }
     },
 
     /** Read an installation a machine serves now. */
