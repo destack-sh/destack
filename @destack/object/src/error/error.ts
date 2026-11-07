@@ -89,6 +89,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     APPROVAL_REQUIRED: { code: "FORBIDDEN", data: ApprovalRefusal },
     CALLER_KIND_REFUSED: { code: "FORBIDDEN" },
     CHECK_REFUSED: { code: "FORBIDDEN" },
+    LOOKUP_REFUSED: { code: "FORBIDDEN" },
     CREATOR_KIND_REFUSED: { code: "FORBIDDEN" },
     DECIDER_REFUSED: { code: "FORBIDDEN" },
     EXPLAIN_REFUSED: { code: "FORBIDDEN" },

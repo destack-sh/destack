@@ -89,6 +89,35 @@ test("check the caller's access under its grant, and another subject's for grant
     });
 });
 
+test("look up an object's subjects with a permission one page at a time, for whoever sees its relationships", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const { store, object } = await serveSpace(world);
+    const lookup = (caller: Subject, cursor?: string) =>
+        store.query(
+            subjectContext(caller, SPACE_ID, { environment: world }).access(),
+            relationship.call("lookup", {
+                scope: SPACE_ID,
+                object,
+                permission: "read",
+                type: principal.user.typeReference,
+                limit: 1,
+                ...(cursor === undefined ? {} : { cursor }),
+            }),
+        );
+
+    // list the readers as alice, a page at a time, and refuse carol, who cannot see them
+    const first = await lookup(alice);
+    const second = await lookup(alice, first.cursor ?? undefined);
+    expect({
+        pages: [first.items, second.items, second.cursor],
+        carol: await refusal(lookup(carol)),
+    }).toEqual({
+        pages: [[alice], [bob], null],
+        carol: ["FORBIDDEN", "LOOKUP_REFUSED", "looking up who has read on space needs read"],
+    });
+});
+
 test("list an object's relationships to whoever may read them, and revoke one only as a grantor of its relation", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");

@@ -10,7 +10,13 @@ import { role } from "./role.ts";
 import { defineObject } from "../object/object.ts";
 import { defineShape } from "../replica/shape.ts";
 import { Execution } from "../method/execution.ts";
-import { CheckInput, CheckResult, ObjectPolicy } from "../object/access.ts";
+import {
+    CheckInput,
+    CheckResult,
+    LookupInput,
+    LookupResult,
+    ObjectPolicy,
+} from "../object/access.ts";
 
 /** A relationship to create: its object, and its subject through one relation or role. */
 const RelationshipInput = schema.object({ object: ObjectReference, ...GrantFields });
@@ -51,6 +57,31 @@ export const relationship = defineObject(
             }),
             handler: (context, execution) =>
                 ObjectPolicy.check(context, Execution.store(execution, context)),
+        }),
+        lookup: defineMethod<{
+            kind: "custom";
+            permission: "read";
+            input: typeof LookupInput;
+            output: typeof LookupResult;
+            mutates: false;
+            target: "scope";
+            table: typeof accessRelationship;
+        }>({
+            kind: "custom",
+            permission: "read",
+            input: LookupInput,
+            output: LookupResult,
+            mutates: false,
+            target: "scope",
+            result: "value",
+            isPredicted: false,
+            procedure: (_name, schemas) => ({
+                route: { method: "POST", path: "/lookup" },
+                input: schemas.scope.extend(LookupInput.shape),
+                output: LookupResult,
+            }),
+            handler: (context, execution) =>
+                ObjectPolicy.lookup(context, Execution.store(execution, context)),
         }),
         get: defineMethod<{
             kind: "custom";

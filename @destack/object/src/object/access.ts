@@ -16,11 +16,12 @@ import { Field } from "../field/field.ts";
 import { Roles } from "../trait/shareable.ts";
 import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/trait.ts";
 import { Casing } from "./name.ts";
-import { AccessName, ObjectReference, Scope, Subject } from "@destack/sync";
+import { AccessName, ObjectReference, ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import { type DatabaseConnection, TABLE, type Table } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { type MethodContext } from "../method/context.ts";
 import { type Method } from "../method/method.ts";
+import { Page } from "../method/page.ts";
 import {
     ObjectPermissions,
     ObjectScope,
@@ -190,21 +191,8 @@ export const ObjectPolicy = {
         // require an object the call's scope decides, and a permission its type declares
         const { subject, permission, object } = CheckInput.parse(context.input);
         const { authorizer, snapshot } = authorization;
-        const policy = authorizer.policy(object);
-        const scope = authorizer.governingScope(object);
-        if (scope !== context.scope) {
-            throw ObjectError.of(
-                "SCOPE_MISMATCH",
-                `${object.type} ${object.id} is checked in ${scope}, not ${context.scope}`,
-            );
-        } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
-            throw ObjectError.of(
-                "PERMISSION_UNKNOWN",
-                `${object.type} has no permission ${permission}`,
-            );
-        }
-        const asked = { packageId: object.packageId, type: object.type, name: permission };
-        const asking = await authorization.in(scope);
+        const { policy, asked } = ObjectPolicy.asked(context, object, permission, authorization);
+        const asking = await authorization.in(context.scope);
 
         // decide the caller's access under its delegates and grant
         const caller = context.caller.subject;
@@ -228,6 +216,70 @@ export const ObjectPolicy = {
         }
 
         return { isAllowed: await context.permits(subject, asked, object) };
+    },
+
+    /** List a page of the subjects of a type with a permission on an object (LookupSubjects). */
+    async lookup(
+        context: MethodContext,
+        { authorization }: StoreExecution,
+    ): Promise<schema.Infer<typeof LookupResult>> {
+        // require an object the call's scope decides, and a permission its type declares
+        const { object, permission, type, ...paging } = LookupInput.parse(context.input);
+        const { authorizer, snapshot } = authorization;
+        const { policy, asked } = ObjectPolicy.asked(context, object, permission, authorization);
+        const asking = await authorization.in(context.scope);
+
+        // require the caller to see the object's relationships, whom a lookup reveals
+        const { visibility } = policy;
+        const seeing =
+            visibility === undefined
+                ? undefined
+                : await authorizer.check(snapshot, { ...asked, name: visibility }, object, asking);
+        if (seeing?.isAllowed !== true) {
+            throw ObjectError.of(
+                "LOOKUP_REFUSED",
+                `looking up who has ${permission} on ${object.type} needs ${visibility ?? "a visibility permission"}`,
+            );
+        }
+
+        // list the page, one more subject telling whether another page follows
+        const collection = [object.type, object.id, permission, type.packageId, type.type];
+        const page = new Page(paging, collection, schema.string());
+        const subjects = await authorizer.subjects(snapshot, asked, object, type, context.now, {
+            ...(page.after === undefined ? {} : { after: page.after }),
+            limit: page.limit + 1,
+        });
+
+        return page.result(subjects, (subject) => Subject.key(subject));
+    },
+
+    /** Require an object the call's scope decides and a permission its type declares. */
+    asked(
+        context: Pick<MethodContext, "scope">,
+        object: ObjectReference,
+        permission: string,
+        authorization: StoreExecution["authorization"],
+    ) {
+        // refuse an object another scope decides, and a permission its type lacks
+        const { authorizer } = authorization;
+        const policy = authorizer.policy(object);
+        const scope = authorizer.governingScope(object);
+        if (scope !== context.scope) {
+            throw ObjectError.of(
+                "SCOPE_MISMATCH",
+                `${object.type} ${object.id} is decided in ${scope}, not ${context.scope}`,
+            );
+        } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
+            throw ObjectError.of(
+                "PERMISSION_UNKNOWN",
+                `${object.type} has no permission ${permission}`,
+            );
+        }
+
+        return {
+            policy,
+            asked: { packageId: object.packageId, type: object.type, name: permission },
+        };
     },
 
     /** Refuse a relationship or invitation outside the call's scope, the scope it lives in. */
@@ -532,6 +584,28 @@ export const CheckInput = schema.object({
     permission: AccessName,
     /** The object, with access decided in the call's scope. */
     object: ObjectReference,
+});
+
+/** A lookup: the subjects of a type with a permission on an object, one page at a time. */
+export const LookupInput = schema.object({
+    /** The object, with access decided in the call's scope. */
+    object: ObjectReference,
+    /** The permission of the object's type. */
+    permission: AccessName,
+    /** The type of the subjects to list, such as users. */
+    type: ObjectTypeReference,
+    /** The cursor of the page before, absent for the first. */
+    cursor: schema.string().exactOptional(),
+    /** The most subjects the page lists. */
+    limit: schema.int().positive().exactOptional(),
+});
+
+/** One page of a lookup's subjects, in subject order. */
+export const LookupResult = schema.object({
+    /** The subjects on the page. */
+    items: schema.array(Subject),
+    /** The cursor of the next page, null on the last. */
+    cursor: schema.string().nullable(),
 });
 
 /** The answer of a check. */

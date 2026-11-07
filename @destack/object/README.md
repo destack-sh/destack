@@ -239,6 +239,16 @@ await client.installation.update({ scope: spaceId, id: created.id, capabilities:
 await client.installation.attach({ scope: spaceId, id: created.id, requestId });
 ```
 
+## Relationships
+
+Relationships relate subjects to objects, a subject set among them, and `relationship.check` and `relationship.lookup` answer Zanzibar's Check and LookupSubjects to whoever sees the object's relationships.
+
+```ts
+await client.relationship.check({ scope, subject: ada, permission: "read", object: page }); // { isAllowed: true }
+await client.relationship.lookup({ scope, object: group, permission: "member", type: user, limit: 50 });
+// { items: [ada, ben, …], cursor } — nested sets expanded, paged in subject order
+```
+
 ## Branches and approvals
 
 A `branch` is a line of calls over a space's main line, and a `changeRequest` makes a call once approved, as roles gate permissions on approvals.
