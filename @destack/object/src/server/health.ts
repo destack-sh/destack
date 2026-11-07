@@ -4,6 +4,9 @@ import type { schema } from "@destack/schema";
 import { Observable } from "../client/observable.ts";
 import { ObjectError } from "../error/index.ts";
 
+/** The milliseconds a starting server asks its callers to wait before they retry. */
+export const STARTING_RETRY_MILLISECONDS = 1000;
+
 /** A health status with the reason it holds. */
 interface HealthState {
     /** The status. */
@@ -90,7 +93,9 @@ export class Health {
     #refusal(status: Exclude<HealthStatus, "up">, reason: string): Error {
         const message = `${this.name} is ${status}: ${reason}`;
         if (status === "starting") {
-            return ObjectError.of("SERVER_STARTING", message);
+            return ObjectError.of("SERVER_STARTING", message, {
+                data: { retryAfter: STARTING_RETRY_MILLISECONDS },
+            });
         } else if (status === "down") {
             return ObjectError.of("SERVER_DOWN", message);
         } else if (status === "draining") {

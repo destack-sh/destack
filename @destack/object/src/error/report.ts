@@ -3,6 +3,7 @@ import { recordSpanException, TelemetryScope, trace } from "@destack/telemetry";
 
 import { ValidationError } from "@orpc/contract";
 import { CallError } from "./call.ts";
+import { RetryAfter } from "./detail.ts";
 import { present } from "@destack/schema";
 import { FamilyError } from "@destack/error";
 import { refuseInput } from "./error.ts";
@@ -52,9 +53,17 @@ export function reportError(
     });
 }
 
-/** Answer a failure with its status and the body clients read errors from. */
+/** Answer a failure with its status, the body clients read errors from, and when to retry. */
 export function refusal(error: unknown, telemetry: Environment["telemetry"]): Response {
+    // answer the reported error with its status
     const reported = reportError(error, telemetry);
+    const response = Response.json(reported.toJSON(), { status: reported.status });
 
-    return Response.json(reported.toJSON(), { status: reported.status });
+    // set the refusal's Retry-After in whole seconds
+    const wait = RetryAfter.safeParse(reported.data);
+    if (wait.success) {
+        response.headers.set("retry-after", String(Math.ceil(wait.data.retryAfter / 1000)));
+    }
+
+    return response;
 }

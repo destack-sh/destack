@@ -186,7 +186,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     REPLICA_SYNCING: { code: "SERVICE_UNAVAILABLE" },
     SERVER_DRAINING: { code: "SERVICE_UNAVAILABLE" },
     SERVER_DOWN: { code: "SERVICE_UNAVAILABLE" },
-    SERVER_STARTING: { code: "SERVICE_UNAVAILABLE" },
+    SERVER_STARTING: { code: "SERVICE_UNAVAILABLE", data: RetryAfter },
     SERVER_STOPPED: { code: "SERVICE_UNAVAILABLE" },
     SETTLEMENT_EXPIRED: { code: "SERVICE_UNAVAILABLE" },
     WAKE_UP_UNSTORED: { code: "SERVICE_UNAVAILABLE" },

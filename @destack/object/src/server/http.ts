@@ -1,6 +1,6 @@
 import type { DigestCrypto } from "@destack/schema";
 import type { PackageId } from "@destack/package";
-import type { Health } from "./health.ts";
+import { type Health, STARTING_RETRY_MILLISECONDS } from "./health.ts";
 import { ObjectError } from "../error/error.ts";
 import { RequestHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { isProcedure } from "@orpc/server";
@@ -17,9 +17,6 @@ import { type Alarm, type Control, ControlLoop } from "@destack/db";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
-
-/** The seconds a starting server delays a request, and a client then waits before retrying. */
-const STARTING_RETRY_SECONDS = 1;
 
 /** A hosted HTTP server. */
 export class Server implements AsyncDisposable {
@@ -198,7 +195,7 @@ export class Server implements AsyncDisposable {
     /** Wait until the server serves, or for the retry window of a starting server. */
     async #waitUp(): Promise<void> {
         // wait for serving up to the window on the server's clock, the refusal answering any other end
-        const window = this.#options.environment.clock.timeout(STARTING_RETRY_SECONDS * 1000);
+        const window = this.#options.environment.clock.timeout(STARTING_RETRY_MILLISECONDS);
         await this.health.waitUp(window).catch(() => undefined);
     }
 
@@ -215,15 +212,10 @@ export class Server implements AsyncDisposable {
             await this.#waitUp();
         }
 
-        // refuse a request while not serving, asking a starting server's caller to retry soon
+        // refuse a request while not serving
         const refused = this.health.refusal();
         if (refused !== undefined) {
-            const response = refusal(refused, this.#options.environment.telemetry);
-            if (this.health.status === "starting") {
-                response.headers.set("retry-after", String(STARTING_RETRY_SECONDS));
-            }
-
-            return this.#headers(response);
+            return this.#headers(refusal(refused, this.#options.environment.telemetry));
         }
 
         // pass cancellation across the response
