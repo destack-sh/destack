@@ -227,6 +227,11 @@ export class Registry {
         return reader;
     }
 
+    /** The releases the machine's distribution ships, run by scopes that install none of them. */
+    get distribution(): readonly PackageRelease[] {
+        return this.#releases;
+    }
+
     /** Open the build of a package's published release, by its version or a distribution tag. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
         return this.read(packageId, await this.find(packageId, release));
