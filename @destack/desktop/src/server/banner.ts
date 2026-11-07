@@ -156,7 +156,7 @@ export class Banner {
         if (declaring === undefined) {
             throw DesktopError.of(
                 "INSTALLATION_NOT_FOUND",
-                `${address} has no installation of ${shown.packageId}`,
+                `${address} no longer has the app that sent this notification`,
             );
         }
 
