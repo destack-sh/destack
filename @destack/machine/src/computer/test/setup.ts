@@ -7,6 +7,7 @@ import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
     BUILDS_VARIABLE,
+    DESKTOP_PACKAGE,
     PLATFORM_PACKAGES,
     RUNTIME_PACKAGE,
     STACK_FIXTURE,
@@ -31,6 +32,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
         const versions = await TestFixture.versions(files);
         const builds = [
             [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(compilers)] as const,
+            [DESKTOP_PACKAGE, built, () => TestDistribution.desktop(compilers)] as const,
             ...PLATFORM_PACKAGES.map(
                 (name) => [name, built, () => TestDistribution.platform(name, compilers)] as const,
             ),

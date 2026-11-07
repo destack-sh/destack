@@ -297,7 +297,7 @@ export class PartitionObject {
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
             enrollment: (view) => cloud.enrollment(view ?? Snapshot.live(cloud.replica)),
             spaces: host,
-            cache: await host.cache(bindings.BUILDS, DistributionManifest.shipped(shipped)),
+            cache: await host.cache(bindings.BUILDS, DistributionManifest.releases(shipped)),
             isBuilding: false,
             isEnforcingEntitlements: true,
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
@@ -314,7 +314,7 @@ export class PartitionObject {
                 );
             },
             linked: DistributionManifest.builtins(shipped),
-            shipped: DistributionManifest.shipped(shipped),
+            shipped: DistributionManifest.releases(shipped),
             registry: bindings.DESTACK_REGISTRY,
             skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,

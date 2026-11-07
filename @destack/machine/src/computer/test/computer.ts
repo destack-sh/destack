@@ -438,7 +438,7 @@ export class TestComputer implements AsyncDisposable {
                 startedAt: simulation.clock.now(),
             },
             ...(options.runtime === undefined ? {} : { runtime: options.runtime }),
-            shipped: distribution.shipped,
+            shipped: distribution.manifest,
             layer: distribution.layer,
             ...(options.distribution === undefined ? {} : { distribution: options.distribution }),
             ...(enrollment === undefined ? {} : { enrollment }),

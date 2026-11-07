@@ -367,7 +367,7 @@ export class Computer implements AsyncDisposable {
             alarm: undefined,
             server: (manifest) => processes.server(manifest),
             linked,
-            shipped: DistributionManifest.shipped(options.shipped),
+            shipped: DistributionManifest.releases(options.shipped),
             skus: undefined,
             registry: options.registry,
             endpoint,

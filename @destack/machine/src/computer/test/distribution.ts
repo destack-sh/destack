@@ -8,7 +8,12 @@ import { testStore } from "@destack/build/test";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { InstallationMount, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { DistributionManifest, type PackageId, PackageName } from "@destack/package";
+import {
+    DistributionManifest,
+    type PackageId,
+    PackageName,
+    PackageRelease,
+} from "@destack/package";
 import { BuildReader, PackageManifest } from "@destack/package/manifest";
 import { Registry } from "@destack/registry/client";
 import registryPackage from "@destack/registry/package";
@@ -37,6 +42,9 @@ export const PLATFORM_PACKAGES = [
 /** The package the test computers run, whose release a distribution ships as their own. */
 export const RUNTIME_PACKAGE = "@destack/machine";
 
+/** The program people's computers run, which a distribution ships beside the runtime. */
+export const DESKTOP_PACKAGE = "@destack/desktop";
+
 /** The fixture package declaring the stacks spaces are born with, as the platform's does. */
 export const STACK_FIXTURE = "stack";
 
@@ -60,8 +68,8 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
     readonly home: StackRelease;
     /** The builds of the stacks, of the packages they install and of the other given builds. */
     readonly builds: readonly BuildReader[];
-    /** The releases the distribution ships, each with its role. */
-    readonly shipped: DistributionManifest;
+    /** The manifest of the releases the distribution ships, each with its role. */
+    readonly manifest: DistributionManifest;
     /** The builds with what they run, as a machine ships them in place. */
     readonly layer: BuildLayer;
     /** The run's build store the server builds read from, open until the distribution closes. */
@@ -75,7 +83,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         stacks: PlatformDefinition["stacks"],
         home: StackRelease,
         builds: readonly BuildReader[],
-        shipped: DistributionManifest,
+        manifest: DistributionManifest,
         layer: BuildLayer,
         store: LocalBuildStore,
     ) {
@@ -83,7 +91,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         this.stacks = stacks;
         this.home = home;
         this.builds = builds;
-        this.shipped = shipped;
+        this.manifest = manifest;
         this.layer = layer;
         this.#store = store;
     }
@@ -100,7 +108,9 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const built = TestDistribution.built();
         const read = async (name: string) =>
             store.contents(present(built[name], `the run's build of ${name}`));
-        const platform = await Promise.all(PLATFORM_PACKAGES.map((name) => read(name)));
+        const platform = await Promise.all(
+            [...PLATFORM_PACKAGES, DESKTOP_PACKAGE].map((name) => read(name)),
+        );
 
         // pin the stacks spaces are born with, and the residencies' homes', from the stack fixture
         const stack = await read(STACK_FIXTURE);
@@ -236,6 +246,11 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         return await store.writeLinkedLayer(releases, COMPUTER_RUNTIMES);
     }
 
+    /** The releases the distribution ships, which a scope runs of a package it installs none of. */
+    get distribution(): readonly PackageRelease[] {
+        return DistributionManifest.releases(this.manifest);
+    }
+
     /** Open a shipped release of a package by its version, refusing one the distribution lacks. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
         const found = this.builds.find(({ manifest }) => {
@@ -259,6 +274,13 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         compilers: CompilerPool,
     ): Promise<BuildReader> {
         const directory = fileURLToPath(new URL(`../../../node_modules/${name}/`, import.meta.url));
+
+        return TestDistribution.compile(compilers, directory);
+    }
+
+    /** Build the desktop from its workspace directory, as production's distribution ships it. */
+    static desktop(compilers: CompilerPool): Promise<BuildReader> {
+        const directory = fileURLToPath(new URL("../../../../desktop/", import.meta.url));
 
         return TestDistribution.compile(compilers, directory);
     }
