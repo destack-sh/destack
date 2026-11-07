@@ -123,6 +123,14 @@ export const Observation = Object.assign(
             }
         },
 
+        /** Read what a record reports with its progress: its failure, else what Ready says. */
+        message(record: Omit<ObservedRecord, "scope" | "id">): string {
+            const { Ready: ready, [SYNCED]: synced } = record.conditions;
+            const condition = Observation.progress(record) === "failed" ? synced : ready;
+
+            return condition?.message ?? "";
+        },
+
         /** Report whether a record already has an observation. */
         isRecorded(
             record: ObservedRecord & Readonly<Record<string, unknown>>,
