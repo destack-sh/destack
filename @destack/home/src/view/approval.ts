@@ -5,7 +5,6 @@ import objectPackage from "@destack/object/package";
 import type { Plan } from "@destack/resource";
 import { type Identifier, present } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
-import { RequestId } from "@destack/sync";
 import { HOME_PATH } from "@destack/view/declare";
 
 /** A plan an installation of a space waits on, as a person reviews it. */
@@ -20,6 +19,8 @@ export interface WaitingPlan {
     readonly plan: Plan;
     /** The plan's digest, which approving it names. */
     readonly digest: string;
+    /** The approval the plan's change request asks of the space's managers. */
+    readonly approval: Identifier<"approval">;
 }
 
 /** Read the plans a space's installations wait on, each with the digest approving it names. */
@@ -50,29 +51,20 @@ export async function readWaitingPlans(
     const awaiting = items.filter(
         (entry) => entry.name !== null && Observation.progress(entry) === "approval",
     );
+    const read = await Promise.all(
+        awaiting.map(async (entry) => {
+            // read the plan with the approval its change request asks, none before it opens
+            const waiting = await stack.rollout.plan({ spaceId: space, id: entry.id });
+            const { approval } = waiting;
+            const name = present(entry.name, `the name of installation ${entry.id}`);
 
-    return Promise.all(
-        awaiting.map(async (entry) => ({
-            space,
-            installation: entry.id,
-            name: present(entry.name, `the name of installation ${entry.id}`),
-            ...(await stack.rollout.plan({ spaceId: space, id: entry.id })),
-        })),
+            return approval === null
+                ? []
+                : [{ space, installation: entry.id, name, ...waiting, approval }];
+        }),
     );
-}
 
-/** Approve a waiting plan by the digest the person reviewed. */
-export async function approveWaitingPlan(
-    waiting: WaitingPlan,
-    origin: (path: string) => ClientOptions,
-    environment: Environment,
-): Promise<Plan> {
-    return stackClient(waiting.space, origin, environment).rollout.approve({
-        spaceId: waiting.space,
-        id: waiting.installation,
-        requestId: RequestId.create(environment),
-        plan: waiting.digest,
-    });
+    return read.flat();
 }
 
 /** Open the stack package's client in a space. */

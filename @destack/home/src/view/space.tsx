@@ -33,8 +33,13 @@ import {
 } from "@destack/view/declare";
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
+import { PackageMount } from "@destack/object";
+import { createClient } from "@destack/object/client";
+import objectPackage from "@destack/object/package";
+import { RequestId } from "@destack/sync";
+import { HOME_PATH } from "@destack/view/declare";
 import { SpaceCatalog } from "../palette/catalog.ts";
-import { approveWaitingPlan, readWaitingPlans, type WaitingPlan } from "./approval.ts";
+import { readWaitingPlans, type WaitingPlan } from "./approval.ts";
 
 /** List the account's spaces by name, each with the views its apps mount. */
 export function Spaces() {
@@ -115,8 +120,14 @@ function SpaceItem(properties: {
             globalThis.reportError(error);
             setApprovalFailure(Failure.of(error).message);
         });
-    const approve = (waiting: WaitingPlan) => {
-        approveWaitingPlan(waiting, origin, environment).then(
+    const decide = (waiting: WaitingPlan, decision: "approve" | "reject") => {
+        const objects = createClient<typeof objectPackage.router>(
+            objectPackage,
+            origin(`${HOME_PATH}/${waiting.space}${PackageMount.path(objectPackage.id)}`),
+            environment,
+        );
+        const request = { scope: waiting.space, id: waiting.approval };
+        objects.approval[decision]({ ...request, requestId: RequestId.create(environment) }).then(
             () => {
                 setApprovalFailure(undefined);
                 void readApproval(properties.id);
@@ -197,8 +208,11 @@ function SpaceItem(properties: {
                                 </For>
                             </ItemContent>
                             <ItemActions>
-                                <Button onClick={() => approve(waiting)}>
+                                <Button onClick={() => decide(waiting, "approve")}>
                                     {locale.render(t`Approve`)}
+                                </Button>
+                                <Button variant="outline" onClick={() => decide(waiting, "reject")}>
+                                    {locale.render(t`Reject`)}
                                 </Button>
                             </ItemActions>
                         </Item>

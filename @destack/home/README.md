@@ -19,12 +19,12 @@ export const home = defineView({
 
 ## Approvals
 
-Each space shows the plans its installations wait on, and the person approves one by the digest they reviewed, an access grant among them.
+Each space shows the plans its installations wait on, each asked of the space's managers by a change request, and a manager approves or rejects it.
 
 ```ts
 const waiting = await readWaitingPlans(spaceId, origin, environment); // installations whose progress is "approval"
-waiting[0]; // { name: "notes", plan: { steps: [{ action: "grant", risk: "privileged", detail: "request read on space" }] }, digest }
-await approveWaitingPlan(waiting[0], origin, environment); // rollout.approve at the space's stack
+waiting[0]; // { name: "notes", plan: { steps: [{ action: "grant", risk: "privileged", detail: "request read on space" }] }, digest, approval }
+await objects.approval.approve({ scope: spaceId, id: waiting[0].approval, requestId }); // or reject
 ```
 
 ## Settings
