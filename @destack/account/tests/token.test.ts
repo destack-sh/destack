@@ -166,6 +166,8 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             ...acting(
                 PackageId.resource(VAULT),
                 [
+                    // manage the account, whose managers a change asks through its spaces
+                    { ...onAccount, relation: "manage" },
                     { ...onAccount, relation: "member" },
                     { ...onAccount, relation: "owner" },
                 ],

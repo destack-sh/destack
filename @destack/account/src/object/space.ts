@@ -8,7 +8,7 @@ import {
     type Snapshot,
 } from "@destack/db";
 import { placement } from "./placement.ts";
-import { defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
+import { approval, defineObject, field, type KeyFields, ObjectWatch } from "@destack/object";
 import { RISKS } from "@destack/resource";
 import { type Identifier, present, schema } from "@destack/schema";
 import { replica, Scope } from "@destack/sync";
@@ -64,6 +64,8 @@ export const space = defineObject(
             tenancy: field.enum(TENANCIES).optional(),
         },
         indexes: { name: { on: ["name"], across: () => account } },
+        // let a change ask the space's managers as one set, as its plans do
+        contributes: [{ object: () => approval, relation: "approver", members: "manage" }],
         relations: {
             // the outsiders who find the space without reading it
             guest: { subjects: [principal.user, anyone.all()], grantedBy: "manage" },

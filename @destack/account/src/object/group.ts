@@ -1,6 +1,6 @@
 import { principal, through } from "@destack/access";
 import { type Select } from "@destack/db";
-import { defineObject, field } from "@destack/object";
+import { approval, defineObject, field } from "@destack/object";
 import { account } from "./account.ts";
 import { organization } from "./organization.ts";
 import { user } from "./user.ts";
@@ -21,6 +21,8 @@ export const group = defineObject(
         },
         represents: principal.group,
         fields: { name: field.string(DisplayName) },
+        // let a change ask a group's members as one set, as GitHub asks a team
+        contributes: [{ object: () => approval, relation: "approver", members: "member" }],
         relations: {
             member: {
                 subjects: [
