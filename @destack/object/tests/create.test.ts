@@ -616,7 +616,7 @@ test("create an object under a natural key the creator chooses, read it by that 
     ]).toEqual([
         [created.id, "core", "Core"],
         true,
-        ["CONFLICT", "DUPLICATE", "another channel has the same slug"],
+        ["CONFLICT", "DUPLICATE", "another channel has the same scope and slug"],
         created.id,
         ["BAD_REQUEST", "REFERENCE_MISSING", "no channel has the key missing"],
     ]);

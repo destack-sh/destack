@@ -31,6 +31,8 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     READ_UNSUPPORTED: { code: "BAD_REQUEST" },
     REFERENCE_MISSING: { code: "BAD_REQUEST" },
     CALL_INVALID: { code: "BAD_REQUEST" },
+    DECLARATION_CYCLIC: { code: "BAD_REQUEST" },
+    DECLARATION_INVALID: { code: "BAD_REQUEST" },
     CONVERSION_INVALID: { code: "BAD_REQUEST" },
     CURSOR_INVALID: { code: "BAD_REQUEST" },
     INPUT_INVALID: { code: "BAD_REQUEST", data: Issues },
@@ -166,8 +168,6 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     RATE_LIMITED: { code: "TOO_MANY_REQUESTS", data: RetryAfter },
 
     // internal server error
-    DECLARATION_CYCLIC: { code: "INTERNAL_SERVER_ERROR" },
-    DECLARATION_INVALID: { code: "INTERNAL_SERVER_ERROR" },
     OUTPUT_INVALID: { code: "INTERNAL_SERVER_ERROR", data: Issues },
     OUTCOME_MISSING: { code: "INTERNAL_SERVER_ERROR" },
     DECLARATION_UNSUPPORTED: { code: "INTERNAL_SERVER_ERROR" },

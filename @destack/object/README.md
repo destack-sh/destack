@@ -164,7 +164,7 @@ const origin = ObjectReference.at("origin", row);
 
 ## Keys
 
-Every object has its own identifier, and `key` is a unique column that callers can also address it by.
+Every object has its own identifier, and `key` is a column unique within its scope that callers can also address it by.
 
 ```ts
 const channel = defineObject({ name: "channel", key: "slug", fields: { slug: field.string(Slug).immutable() } });
@@ -269,6 +269,17 @@ export const reminder = base.reminder.implement({
     },
 });
 export const reminderConditions = new Conditions(["Sent"]);
+```
+
+A pass records `Synced` at the generation it reconciled, on the controlled objects it reports on: its own, or those a projection's `reports` reads; a declared failure no retry resolves records `Synced=False`, and `Observation.progress` reads the outcome as kstatus does.
+
+```ts
+const projection = {
+    watches,
+    reports: { object: installation, identifiers: (rows) => rows.map((row) => row.installationId) },
+    project, // Synced=False with ReconcileError on a lasting failure, Synced=True once projected
+};
+Observation.progress(installed); // "waiting" until a pass ends, then "failed", "approval" or "current"
 ```
 
 ## Calls

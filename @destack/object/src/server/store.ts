@@ -2794,11 +2794,11 @@ export class ObjectStore {
         authorization.requireScopeOf(object);
         const snapshot = await this.#view(database, authorization, scope, at, branch);
         const view = snapshot ?? transaction.view();
-        const resolved = await object.resolve(fields, view);
+        const resolved = await object.resolve(fields, scope, view);
         const targetId =
             id === undefined
                 ? undefined
-                : await ObjectStore.#identifier(object, schema.string().parse(id), view);
+                : await ObjectStore.#identifier(object, schema.string().parse(id), scope, view);
         const execution: StoreExecution = {
             kind: "store",
             store: this,
@@ -2912,10 +2912,11 @@ export class ObjectStore {
             : error;
     }
 
-    /** Read the identifier of the object a call names by its identifier or its key. */
+    /** Read the identifier of the object a call names by its identifier or its key in a scope. */
     static async #identifier(
         object: ObjectType,
         value: string,
+        scope: string,
         view: Pick<Snapshot, "read">,
     ): Promise<string> {
         // take an identifier as it is
@@ -2924,8 +2925,8 @@ export class ObjectStore {
             return value;
         }
 
-        // read the identifier of the object holding the key, refusing a key nobody holds
-        const row = await view.read(object.table).findFirst({ where: { [column]: value } });
+        // read the identifier of the object holding the key in the scope, refusing a key nobody holds
+        const row = await view.read(object.table).findFirst({ where: { scope, [column]: value } });
         if (row === undefined) {
             throw CallError.http("NOT_FOUND", { message: `${object.name} ${value} not found` });
         }

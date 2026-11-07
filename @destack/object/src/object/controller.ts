@@ -88,8 +88,18 @@ export interface ObjectProjection<Object extends ObjectType = ObjectType> {
     readonly name?: string;
     /** The input tables, the type's own among them, and the keys their changed rows touch. */
     readonly watches: readonly ObjectWatch[];
+    /** The controlled objects each pass reports Synced on, the projected objects by default. */
+    readonly reports?: ObjectReport<Object>;
     /** Project the object of one key again from its inputs as they are now, absent or not. */
     project(key: string, reconciliation: ObjectReconciliation<Object>): Promise<void>;
+}
+
+/** The controlled objects a projection reports Synced on, as Crossplane's managed resource. */
+export interface ObjectReport<Object extends ObjectType = ObjectType> {
+    /** The controlled type reported on. */
+    readonly object: ObjectType;
+    /** Read the identifiers of the objects reported on for a key's projected objects. */
+    identifiers(rows: readonly RowImage<Object["table"]>[]): readonly string[];
 }
 
 /** Another table whose changed rows select a controller's keys. */
@@ -434,11 +444,11 @@ export const ObjectController = {
             const outcome = await declared.reconcile(context);
 
             // record each converged controlled object synced at the generation it has now
-            const reread = await ObjectController.reread(
-                store,
-                object,
-                isObserved && outcome !== "waiting" ? rows : [],
-            );
+            const ids =
+                isObserved && outcome !== "waiting"
+                    ? rows.map((row) => ObjectController.readIdentifier(row))
+                    : [];
+            const reread = await ObjectController.reread(store, object, ids);
             await observeAll(reread, { conditions: { [SYNCED]: SYNCED_CONDITION } });
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume selects it again
@@ -457,7 +467,7 @@ export const ObjectController = {
         }
     },
 
-    /** Project one key, recording Synced on its objects once projected or failed for good. */
+    /** Project one key, recording Synced on the objects it reports on once projected or failed. */
     async projectKey(
         store: ObjectStore,
         object: ObjectType,
@@ -465,18 +475,26 @@ export const ObjectController = {
         key: string,
         context: ObjectReconciliation,
     ): Promise<void> {
-        // record a condition on each projected object of a controlled type that lacks it
+        // record a condition on each reported object of a controlled type that lacks it
+        const reported = declared.reports ?? {
+            object,
+            identifiers: (rows) => rows.map((row) => ObjectController.readIdentifier(row)),
+        };
         const record = async (condition: ObservationReport["conditions"][string]) => {
             // read the objects again as the pass left them, none of an uncontrolled type
-            const rows = object.isControlled
-                ? await ObjectController.reread(store, object, context.rows)
+            const rows = reported.object.isControlled
+                ? await ObjectController.reread(
+                      store,
+                      reported.object,
+                      reported.identifiers(context.rows),
+                  )
                 : [];
 
             // observe each one lacking the condition, in one mutation
             const observation = { conditions: { [SYNCED]: condition } };
             const calls = rows
                 .filter((row) => !Observation.isRecorded(row, observation))
-                .map((row) => Observation.call(object, row, observation));
+                .map((row) => Observation.call(reported.object, row, observation));
             if (calls.length > 0) {
                 await context.mutate(calls);
             }
@@ -510,19 +528,18 @@ export const ObjectController = {
         };
     },
 
-    /** Read controlled objects again after a reconcile, leaving out the removed ones. */
+    /** Read controlled objects again by identifier after a pass, leaving out the removed ones. */
     async reread(
         store: ObjectStore,
         object: ObjectType,
-        rows: readonly Row[],
+        ids: readonly string[],
     ): Promise<(ObservedRecord & Readonly<Record<string, unknown>>)[]> {
-        // skip the read for no rows
-        if (rows.length === 0) {
+        // skip the read for no objects
+        if (ids.length === 0) {
             return [];
         }
 
-        // read the rows by identifier
-        const ids = rows.map((row) => ObjectController.readIdentifier(row));
+        // read the objects by identifier
         const fresh = await Snapshot.live(store.database)
             .read(object.table)
             .findMany({ where: { id: { in: ids } } });

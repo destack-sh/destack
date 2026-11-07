@@ -350,7 +350,7 @@ export interface ObjectTraits<Permissions extends string = string> {
     readonly recoverable?: RecoverableDefinition<Permissions>;
     /** The rules after which their store removes the objects. */
     readonly expiring?: readonly ExpiryRule[];
-    /** The unique column callers and sources also address the objects by. */
+    /** The column callers and sources also address the objects by, unique within a scope. */
     readonly key?: string;
     /** The objects the scopes inside each object's scope replicate, matching any condition. */
     readonly propagated?: { readonly where?: Condition };
@@ -889,7 +889,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
     }
 
-    /** The unique column the objects are also addressed by, absent for none. */
+    /** The column the objects are also addressed by within a scope, absent for none. */
     get keyed(): string | undefined {
         return this.definition.key;
     }
@@ -1429,7 +1429,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     }
 
     /** Replace the keys an input's references give with their targets' identifiers. */
-    async resolve(input: JsonObject, view: Pick<Snapshot, "read">): Promise<JsonObject> {
+    async resolve(
+        input: JsonObject,
+        scope: string,
+        view: Pick<Snapshot, "read">,
+    ): Promise<JsonObject> {
         // list the references and the parent an input may name by key
         const resolved: Record<string, string> = {};
         const parent = this.parent?.object;
@@ -1453,8 +1457,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 continue;
             }
 
-            // read the identifier of the target holding the key, refusing a key nobody holds
-            const where = { [target.identify(value)]: value };
+            // read the identifier of the target holding the key in its scope, the universe for universal types
+            const at = target.route.field === undefined ? Scope.universe.id : scope;
+            const where = { scope: at, [target.identify(value)]: value };
             const row = await view.read(target.table).findFirst({ where });
             if (row === undefined) {
                 throw ObjectError.of("REFERENCE_MISSING", `no ${target.name} has the key ${value}`);

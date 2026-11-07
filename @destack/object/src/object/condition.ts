@@ -5,6 +5,12 @@ import type { ObjectType } from "./object.ts";
 /** The condition of a controlled object's last reconcile succeeding, as Crossplane's Synced. */
 export const SYNCED = "Synced";
 
+/** The ready reason of a controlled object whose plan waits for approval. */
+export const AWAITING_APPROVAL = "AwaitingApproval";
+
+/** How far a controlled object is with its latest change, as kstatus reads its conditions. */
+export type Progress = "current" | "waiting" | "approval" | "failed";
+
 /** A controller's observation of a record. */
 export const StatusCondition = Object.assign(
     schema.object({
@@ -85,6 +91,36 @@ export const Observation = Object.assign(
         /** Report whether a record's named condition was observed at its current generation. */
         isCurrent(record: Omit<ObservedRecord, "scope" | "id">, name: string): boolean {
             return record.conditions[name]?.observedGeneration === record.generation;
+        },
+
+        /** Read how far a record is with its latest change, from its Synced and Ready. */
+        progress(record: Omit<ObservedRecord, "scope" | "id">): Progress {
+            const ready = record.conditions["Ready"];
+            const synced = record.conditions[SYNCED];
+
+            // wait until a pass for the latest change ended
+            if (synced === undefined || !Observation.isCurrent(record, SYNCED)) {
+                return "waiting";
+            }
+            // fail on a lasting failure of that pass
+            else if (synced.status === "false") {
+                return "failed";
+            }
+            // wait on a person approving its plan
+            else if (
+                ready?.reason === AWAITING_APPROVAL &&
+                Observation.isCurrent(record, "Ready")
+            ) {
+                return "approval";
+            }
+            // end once ready at the latest change
+            else if (ready?.status === "true" && Observation.isCurrent(record, "Ready")) {
+                return "current";
+            }
+            // wait on what its ready condition names
+            else {
+                return "waiting";
+            }
         },
 
         /** Report whether a record already has an observation. */

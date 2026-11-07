@@ -198,7 +198,7 @@ test("apply declared objects in dependency order, wait, leave released and retir
     ]);
     expect(
         await refusal(apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } })),
-    ).toEqual(["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", "unknown note: missing"]);
+    ).toEqual(["BAD_REQUEST", "DECLARATION_INVALID", "unknown note: missing"]);
 
     // defer a waiting declaration, writing the others of its type and retiring nothing
     expect(
@@ -411,7 +411,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
                 }),
         ),
     ).toEqual([
-        "INTERNAL_SERVER_ERROR",
+        "BAD_REQUEST",
         "DECLARATION_CYCLIC",
         "declarations of labels depend on themselves",
     ]);
@@ -536,22 +536,22 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
         again: 0,
         refusals: [
             [
-                "INTERNAL_SERVER_ERROR",
+                "BAD_REQUEST",
                 "DECLARATION_INVALID",
                 "card welcome already declares another record",
             ],
             [
-                "INTERNAL_SERVER_ERROR",
+                "BAD_REQUEST",
                 "DECLARATION_INVALID",
                 `card ${first.id} is managed by another declaration`,
             ],
             [
-                "INTERNAL_SERVER_ERROR",
+                "BAD_REQUEST",
                 "DECLARATION_INVALID",
                 `card other adopts ${second.id} but does not declare other`,
             ],
             [
-                "INTERNAL_SERVER_ERROR",
+                "BAD_REQUEST",
                 "DECLARATION_INVALID",
                 "card welcome is both declared and released",
             ],

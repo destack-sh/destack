@@ -16,7 +16,12 @@ import {
     type ObjectController,
     type ObjectReconciliation,
 } from "../object/controller.ts";
-import { type Condition, Observation, type ObservationReport } from "../object/condition.ts";
+import {
+    AWAITING_APPROVAL,
+    type Condition,
+    Observation,
+    type ObservationReport,
+} from "../object/condition.ts";
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type Resource } from "../trait/provisioned.ts";
@@ -183,15 +188,7 @@ export class ResourceController {
                 reconciliation,
                 options,
             );
-            if (provisioned) {
-                await ResourceController.#apply(
-                    object,
-                    provisioned,
-                    approval,
-                    reconciliation,
-                    options,
-                );
-            }
+            await ResourceController.#apply(object, provisioned, approval, reconciliation, options);
         }
         // apply the desired states of a provisioned resource
         else {
@@ -205,63 +202,35 @@ export class ResourceController {
         row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ResourceControllerOptions,
-    ): Promise<Resource | undefined> {
+    ): Promise<Resource> {
         // select the requested provider or the first one providing the kind
         const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
-            const message = `no provider for ${object.name} ${row.name}`;
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                { Ready: ResourceController.#unready("NoProvider", message) },
+            throw ResourceError.of(
+                "PROVIDER_MISSING",
+                `no provider for ${object.name} ${row.name}`,
             );
-
-            return undefined;
         }
         // refuse a provider provisioning nothing
         else if (provider.provision === undefined) {
-            const message = `provider ${provider.code} of ${object.name} provisions nothing`;
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                {
-                    Ready: ResourceController.#unready("NoProvisioning", message),
-                },
+            throw ResourceError.of(
+                "PROVISIONING_UNSUPPORTED",
+                `provider ${provider.code} of ${object.name} provisions nothing`,
             );
-
-            return undefined;
         }
 
-        // record the provider reference for this generation or the failure before retrying it
-        try {
-            const provisioned = await provider.provision.provision(provider.kind.record(row));
-            const fields = {
-                provider: provider.code,
-                reference: provisioned.reference,
-                location: provisioned.location ?? null,
-                machineId: options.machine,
-            };
+        // record the provider reference for this generation, a failure recorded as Synced
+        const provisioned = await provider.provision.provision(provider.kind.record(row));
+        const fields = {
+            provider: provider.code,
+            reference: provisioned.reference,
+            location: provisioned.location ?? null,
+            machineId: options.machine,
+        };
 
-            return await ResourceController.#observe(object, row, reconciliation, fields, {
-                Ready: ResourceController.#unready("Provisioned", provisioned.reference),
-            });
-        } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                {
-                    Ready: ResourceController.#unready("ProvisioningFailed", message),
-                },
-            );
-            throw error;
-        }
+        return await ResourceController.#observe(object, row, reconciliation, fields, {
+            Ready: ResourceController.#unready("Provisioned", provisioned.reference),
+        });
     }
 
     /** Plan a resource toward its desired states, applying what its approvals allow. */
@@ -275,16 +244,10 @@ export class ResourceController {
         // require the resource's provider
         const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
-            const message = `no provider for ${object.name} ${row.name}`;
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                {},
-                { Ready: ResourceController.#unready("NoProvider", message) },
+            throw ResourceError.of(
+                "PROVIDER_MISSING",
+                `no provider for ${object.name} ${row.name}`,
             );
-
-            return;
         }
 
         // skip resources whose desired states applied already
@@ -299,17 +262,13 @@ export class ResourceController {
         }
 
         // plan the desired states or a recreation stopping the draining consumers first
-        const planned = await ResourceController.#planRecreation(
+        const { plan, isDraining } = await ResourceController.#planRecreation(
             object,
             row,
             provider,
             reconciliation,
             options,
         );
-        if (planned === undefined) {
-            return;
-        }
-        const { plan, isDraining } = planned;
         const planDigest = await Plan.digest(plan, reconciliation.store.environment.crypto);
         const waiting = { steps: plan.steps.map((step) => ResourceController.#planStep(step)) };
 
@@ -322,7 +281,7 @@ export class ResourceController {
                 reconciliation,
                 { plan: waiting },
                 {
-                    Ready: ResourceController.#unready("AwaitingApproval", message),
+                    Ready: ResourceController.#unready(AWAITING_APPROVAL, message),
                 },
             );
         }
@@ -362,7 +321,7 @@ export class ResourceController {
         provider: ResourceControllerOptions["providers"][number],
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
-    ): Promise<{ readonly plan: Plan; readonly isDraining: boolean } | undefined> {
+    ): Promise<{ readonly plan: Plan; readonly isDraining: boolean }> {
         // plan the desired states
         const planDigests = async (digests: readonly Digest[]) =>
             provider.reconcile !== undefined
@@ -389,23 +348,9 @@ export class ResourceController {
                       })
                     : undefined;
 
-            // block on what the declarations must fix and retry another failure
+            // fail with what the declarations must fix, recorded as Synced, and retry another failure
             if (recreated === undefined) {
-                const isBlocked = ResourceError.is(error, "PLAN_UNREACHABLE");
-                const message = error instanceof Error ? error.message : String(error);
-                const reason = isBlocked ? "Blocked" : "PlanFailed";
-                await ResourceController.#observe(
-                    object,
-                    row,
-                    reconciliation,
-                    {},
-                    { Ready: ResourceController.#unready(reason, message) },
-                );
-                if (!isBlocked) {
-                    throw error;
-                }
-
-                return undefined;
+                throw error;
             }
 
             // stop the draining consumers before the recreation
@@ -455,20 +400,11 @@ export class ResourceController {
                 },
             );
         } catch (error) {
-            // record the failure, leaving the plan
-            const message = error instanceof Error ? error.message : String(error);
+            // keep the plan for the next pass, the failure recorded as Synced
             const waiting = {
                 steps: plan.steps.map((step) => ResourceController.#planStep(step)),
             };
-            await ResourceController.#observe(
-                object,
-                row,
-                reconciliation,
-                { plan: waiting },
-                {
-                    Ready: ResourceController.#unready("ApplyFailed", message),
-                },
-            );
+            await ResourceController.#observe(object, row, reconciliation, { plan: waiting }, {});
             throw error;
         }
     }
@@ -515,24 +451,10 @@ export class ResourceController {
             return "waiting";
         }
 
-        // destroy provisioned content and record a failure before retrying it
+        // destroy provisioned content, a failure recorded as Synced
         const provider = ResourceController.select(options.providers, row);
         if (row.reference !== null && provider?.provision !== undefined) {
-            try {
-                await provider.provision.destroy(provider.kind.record(row));
-            } catch (error) {
-                const message = error instanceof Error ? error.message : String(error);
-                await ResourceController.#observe(
-                    object,
-                    row,
-                    reconciliation,
-                    {},
-                    {
-                        Ready: ResourceController.#unready("DestroyFailed", message),
-                    },
-                );
-                throw error;
-            }
+            await provider.provision.destroy(provider.kind.record(row));
         }
 
         // finish the record's deletion

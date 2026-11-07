@@ -131,11 +131,64 @@ const latch = defineObject(
     ],
 });
 
+/** Switches a lever's projection reports on, which no controller of their own reconciles. */
+const toggle = defineObject(
+    {
+        name: "toggle",
+        plural: "toggles",
+        scope: space,
+        controlled: true,
+        fields: { owner: field.reference(principal.user).caller() },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({ create: method.create("write", { fields: [] }) }),
+);
+
+/** Levers whose projection fails as their outcome says, reporting Synced on their toggle. */
+const lever = defineObject(
+    {
+        name: "lever",
+        plural: "levers",
+        scope: space,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            toggle: field.reference(() => toggle),
+            outcome: field.string(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({
+        create: method.create("write", { fields: ["toggleId", "outcome"] }),
+        update: method.update("write", { fields: ["outcome"] }),
+    }),
+).implement({
+    projections: [
+        {
+            watches: [],
+            reports: { object: toggle, identifiers: (rows) => rows.map((row) => row.toggleId) },
+            // refuse a lever whose outcome says so
+            project: async (_id, { rows }) => {
+                if (rows.some((row) => row.outcome === "refused")) {
+                    throw Failure.error({
+                        code: "FORBIDDEN",
+                        reason: "PERMISSION_DENIED",
+                        domain: "@destack/access",
+                        message: "permission denied: bind",
+                    });
+                }
+            },
+        },
+    ],
+});
+
 /** The database with the reminders, their access and the journal. */
 const reminderDatabase = defineDatabase({
     name: "main",
     ...tablesOf({
-        packages: [objectPackage, { objects: { reminder, gate, latch }, tables: [] }],
+        packages: [
+            objectPackage,
+            { objects: { reminder, gate, latch, toggle, lever }, tables: [] },
+        ],
         follows: [],
         tables: [],
     }),
@@ -507,6 +560,93 @@ test("record a lasting projection failure on a controlled object as its synced c
                 Synced: {
                     status: "true",
                     observedGeneration: 2,
+                    reason: "ReconcileSuccess",
+                    message: "",
+                    lastTransitionAt: at,
+                },
+            },
+        ],
+    });
+});
+
+test("record a projection's lasting failure and its sync on the controlled object it reports on", async () => {
+    // run in a world of its own, its levers projected by a running loop
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(reminderDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([toggle, lever]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: lever.package },
+    });
+    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // create a toggle and a refused lever on it, then open the lever
+    const access = userContext(users.frank, spaceId, { environment: world }).access();
+    const [created] = await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [toggle.call("create", { spaceId })],
+    });
+    const toggleId = present(created, "the toggle").id;
+    const [pulled] = await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [lever.call("create", { spaceId, toggleId, outcome: "refused" })],
+    });
+    await loop.idle();
+    const state = async () => {
+        const [row] = await database.select().from(toggle.table);
+
+        return [row?.syncedGeneration, row?.conditions];
+    };
+    const refused = await state();
+    await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [
+            lever.call("update", {
+                ...lever.target(present(pulled, "the lever")),
+                outcome: "open",
+            }),
+        ],
+    });
+    await loop.idle();
+
+    // record the refusal on the toggle at its generation, then sync it there
+    const at = world.clock.now();
+    expect({ refused, opened: await state() }).toEqual({
+        refused: [
+            0,
+            {
+                Synced: {
+                    status: "false",
+                    observedGeneration: 1,
+                    reason: "ReconcileError",
+                    message: "@destack/access PERMISSION_DENIED: permission denied: bind",
+                    lastTransitionAt: at,
+                },
+            },
+        ],
+        opened: [
+            1,
+            {
+                Synced: {
+                    status: "true",
+                    observedGeneration: 1,
                     reason: "ReconcileSuccess",
                     message: "",
                     lastTransitionAt: at,

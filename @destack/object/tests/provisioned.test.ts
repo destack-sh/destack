@@ -558,7 +558,7 @@ test("retain a deleted box for its window, retain it while an installation consu
     });
 });
 
-test("record a failed provisioning, and provision on the next attempt", async () => {
+test("retry a failed provisioning without recording it, and provision on the next attempt", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -576,21 +576,21 @@ test("record a failed provisioning, and provision on the next attempt", async ()
             }),
     );
 
-    // record and throw the failure and provision on the next attempt
+    // throw the failure, which no declared reason marks lasting, and provision on the next attempt
     boxes.failures = 1;
     const failed = await reconcile("box", ids.first).then(
         () => "reconciled",
         (error: unknown) => (error instanceof Error ? error.message : error),
     );
-    const failure = present(await read(ids.first), "the failed box").conditions["Ready"];
+    const failure = present(await read(ids.first), "the failed box").conditions;
     await reconcile("box", ids.first);
     const provisioned = present(await read(ids.first), "the provisioned box").conditions["Ready"];
     expect({
-        failed: [failed, failure?.reason, failure?.message],
+        failed: [failed, failure],
         provisioned: provisioned?.reason,
         sizes: [...boxes.sizes.keys()],
     }).toEqual({
-        failed: ["the disk is full", "ProvisioningFailed", "the disk is full"],
+        failed: ["the disk is full", {}],
         provisioned: "Applied",
         sizes: [ids.first],
     });
@@ -617,9 +617,9 @@ test("refuse provisioning through a provider that provisions nothing, and finish
     const readLink = async () =>
         (await database.select().from(link.table).where(eq(link.table.id, ids.link)))[0];
 
-    // observe that the provider provisions nothing
-    await reconcile("link", ids.link);
-    const refused = present(await readLink(), "the link").conditions["Ready"];
+    // record that the provider provisions nothing as a lasting failure
+    const thrown = await refusal(reconcile("link", ids.link));
+    const refused = present(await readLink(), "the link").conditions["Synced"];
 
     // finish its deletion without destroying anything
     await database.transaction(
@@ -630,9 +630,14 @@ test("refuse provisioning through a provider that provisions nothing, and finish
                 .where(eq(link.table.id, ids.link)),
     );
     await reconcile("link", ids.link);
-    expect([refused?.reason, refused?.message, await readLink()]).toEqual([
-        "NoProvisioning",
-        "provider memory of link provisions nothing",
+    expect([thrown, refused?.reason, refused?.message, await readLink()]).toEqual([
+        [
+            "NOT_IMPLEMENTED",
+            "PROVISIONING_UNSUPPORTED",
+            "provider memory of link provisions nothing",
+        ],
+        "ReconcileError",
+        "@destack/resource PROVISIONING_UNSUPPORTED: provider memory of link provisions nothing",
         undefined,
     ]);
 });

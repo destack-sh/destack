@@ -1944,9 +1944,14 @@ export class ObjectClient<
         }
     }
 
-    /** Match the row a call names by its identifier or its key. */
-    static #identified(object: ObjectType, value: string): SQL {
-        return eq(object.table[TABLE].column(object.identify(value)), value);
+    /** Match the row a call names by its identifier or its key in a scope. */
+    static #identified(object: ObjectType, scope: string, value: string): SQL {
+        const columns = object.table[TABLE];
+
+        return and(
+            eq(columns.column("scope"), scope),
+            eq(columns.column(object.identify(value)), value),
+        );
     }
 
     /** Widen a durable query to every scope of its type the replica last read. */
@@ -2333,7 +2338,7 @@ export class ObjectClient<
                 ? await database
                       .select()
                       .from(table)
-                      .where(ObjectClient.#identified(object, requested))
+                      .where(ObjectClient.#identified(object, scope, requested))
                 : [];
         if (Method.loads(method) && target === undefined) {
             throw CallError.http("NOT_FOUND", {
@@ -2352,7 +2357,7 @@ export class ObjectClient<
             method,
             scope,
             chain: object.storage === "local" ? [scope] : await this.replica.chain(database),
-            input: await object.resolve(fields, Snapshot.live(database)),
+            input: await object.resolve(fields, scope, Snapshot.live(database)),
             id: targetId,
             target: undefined,
             prepared: undefined,

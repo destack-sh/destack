@@ -1,10 +1,12 @@
 export {
+    AWAITING_APPROVAL,
     Condition,
     ConditionMap,
     ConditionSet,
     Observation,
     type ObservationReport,
     type ObservedRecord,
+    type Progress,
     StatusCondition,
     SYNCED,
 } from "./condition.ts";
@@ -41,6 +43,7 @@ export {
     type KeyFields,
     ObjectController,
     type ObjectProjection,
+    type ObjectReport,
     type ObjectReconciliation,
     ObjectWatch,
 } from "./controller.ts";

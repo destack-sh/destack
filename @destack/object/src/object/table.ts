@@ -191,13 +191,13 @@ export const ObjectTable = {
                     ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
-                    // address each object by its key once
+                    // address each object by its key once within its scope
                     ...(definition.key === undefined
                         ? []
                         : [
                               ObjectConstraint.build(
                                   "unique_key",
-                                  { kind: "unique", on: [definition.key] },
+                                  { kind: "unique", on: ["scope", definition.key] },
                                   table(),
                               ),
                           ]),

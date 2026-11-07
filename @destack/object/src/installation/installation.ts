@@ -38,6 +38,7 @@ export const installation = defineObject(
         plural: "installations",
         scope: [principal.space, principal.machine, principal.device, "universe"],
         represents: principal.installation,
+        key: "name",
         // let its controller roll it out, apply its plans once approved, and finalize an uninstall
         controlled: { approval: true },
         // propagate each installation into the scopes inside its scope, read there by permission
@@ -47,6 +48,8 @@ export const installation = defineObject(
             packageId: field.string(PackageId),
             /** What it follows: a release, a repository reference or a checkout. */
             selection: field.json(InstallationSelection),
+            /** The revision its selection resolves to, absent before the first. */
+            revisionId: field.string(schema.identifier("installation-revision")).optional(),
             /** The targets it selects for its package's declarations. */
             bindings: field.json(InstallationBindings).default({}),
             /** The stack its package exports for its space, absent for an application. */
@@ -94,7 +97,6 @@ export const installation = defineObject(
                 on: ["scope", "managerInstallationId"],
                 references: { object: "self", on: ["scope", "id"] },
             },
-            scopeName: { kind: "unique", on: ["scope", "name"] },
             scopePackage: { kind: "unique", on: ["scope", "packageId"] },
             scopeId: { kind: "unique", on: ["scope", "id"] },
             scopeIdPackage: { kind: "unique", on: ["scope", "id", "packageId"] },
@@ -153,6 +155,15 @@ export const installation = defineObject(
             ],
         }),
         delete: method.delete("delete"),
+
+        /** Target a revision its selection resolves to, which its controller rolls out. */
+        target: method.mutation({
+            permission: "control",
+            input: schema.object({
+                /** The revision to roll out. */
+                revisionId: schema.identifier("installation-revision"),
+            }),
+        }),
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({

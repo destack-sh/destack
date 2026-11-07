@@ -252,9 +252,9 @@ test("declare records as their create inputs in reference order, the name fillin
         await refused({ badges: { lost: { holder: { id: redTag?.id, scope: "enclosing" } } } }),
         await refused({ badges: { lost: { holder: { id: user, scope: "self" } } } }),
     ]).toEqual([
-        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", "unknown tag: blue"],
-        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `unknown tag: ${missing}`],
-        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `unknown tag: ${redTag?.id}`],
-        ["INTERNAL_SERVER_ERROR", "DECLARATION_INVALID", `user ${user} is global and has no scope`],
+        ["BAD_REQUEST", "DECLARATION_INVALID", "unknown tag: blue"],
+        ["BAD_REQUEST", "DECLARATION_INVALID", `unknown tag: ${missing}`],
+        ["BAD_REQUEST", "DECLARATION_INVALID", `unknown tag: ${redTag?.id}`],
+        ["BAD_REQUEST", "DECLARATION_INVALID", `user ${user} is global and has no scope`],
     ]);
 });
