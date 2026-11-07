@@ -6,7 +6,8 @@ import { CompilerPool, type LocalBuildStore, outputsOf, Workspace } from "@desta
 import { BuildLayer, BuildStore } from "@destack/build/store";
 import { testStore } from "@destack/build/test";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
-import { InstallationMount, PackageMount } from "@destack/object";
+import { installation, InstallationMount, Observation, PackageMount } from "@destack/object";
+import { Snapshot, TABLE } from "@destack/db";
 import { createClient } from "@destack/object/client";
 import {
     DistributionManifest,
@@ -195,9 +196,21 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         const located = await (await machine.accounts()).residency.locate({ account: accountId });
         const home = schema.identifier("space").parse(located);
 
-        // wait until the home serves its forge
-        const space = await machine.space(home);
-        await space.waitServed(FORGE_INSTALLATION, environment.clock.timeout(FORGE_MILLISECONDS));
+        // wait until the home's forge installation is current
+        const { database } = await machine.space(home);
+        const installations = installation.table[TABLE].sqlName;
+        const isServed = await database.log.waitUntil(async (tables) => {
+            const forge = tables.has(installations)
+                ? await Snapshot.live(database)
+                      .read(installation.table)
+                      .findFirst({ where: { scope: home, name: FORGE_INSTALLATION } })
+                : undefined;
+
+            return forge !== undefined && Observation.progress(forge) === "current";
+        }, environment.clock.timeout(FORGE_MILLISECONDS));
+        if (!isServed) {
+            throw new Error(`the forge of ${home} is not current after ${FORGE_MILLISECONDS} ms`);
+        }
 
         // call the forge below its installation in the home as the publisher, bound to the home
         const fetch = publisher.fetch(registryPackage.id, { partition: home });
