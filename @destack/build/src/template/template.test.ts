@@ -13,7 +13,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
     const { files } = environment;
     const directory = await files.makeTemporaryDirectory("template-");
     const template = await Template.read(
-        fileURLToPath(new URL(`../../../../@template/${name}/`, import.meta.url)),
+        fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
         files,
     );
     const parameters: TemplateInput = {
@@ -22,7 +22,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
         dependencies:
             name === "blank"
                 ? {
-                      "@template/stack": {
+                      "@destack/template-stack": {
                           id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000006"),
                           name: "@example/stack",
                           version: "2026.9.0",
