@@ -1026,7 +1026,7 @@ export class TestSpace implements AsyncDisposable {
         });
         const builds = new SpaceBuildStore(
             new BuildStore({ blobs, environment: machine.environment }),
-            new BuildCache(files.builds, ["bun", "browser"]),
+            new BuildCache(files.builds, ["bun", "browser"], new Map()),
         );
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);

@@ -8,7 +8,7 @@ import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { PackageId, type PackageRelease } from "@destack/package";
+import { DependencyRelease, PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
@@ -67,15 +67,27 @@ export class BuildCache {
     readonly store: BuildStore;
     /** The runtimes the machine serves: its instances' server runtime and its views' browser. */
     readonly runtimes: readonly Runtime[];
+    /** The builtins the machine links, by package, whose builds it loads in place of any other. */
+    readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The published builds opened in place, by manifest, each opened once. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
     /** The published builds pulled with their runtime closures, by manifest, each pulled once. */
     readonly #pulled = new Map<Digest, Promise<BuildReader>>();
 
-    /** Cache builds in a store for the runtimes the machine serves. */
-    constructor(store: BuildStore, runtimes: readonly Runtime[]) {
+    /** Cache builds in a store for the runtimes the machine serves and the builtins it links. */
+    constructor(
+        store: BuildStore,
+        runtimes: readonly Runtime[],
+        linked: ReadonlyMap<PackageId, PackageRelease>,
+    ) {
         this.store = store;
         this.runtimes = runtimes;
+        this.linked = linked;
+    }
+
+    /** Resolve a release to the build the machine loads: a builtin's linked build, else its own. */
+    resolve(packageId: PackageId, manifest: Digest): Digest {
+        return this.linked.get(packageId)?.manifest ?? manifest;
     }
 
     /** Read a build in place, the cached one else the published one, without copying its files. */
@@ -85,6 +97,7 @@ export class BuildCache {
         manifest: Digest,
     ): Promise<BuildReader> {
         // take the cached build, else the published one opened once where the registry locates it
+        manifest = this.resolve(packageId, manifest);
         if (await this.store.contains(manifest)) {
             return await this.store.contents(manifest);
         }
@@ -111,6 +124,7 @@ export class BuildCache {
         manifest: Digest,
     ): Promise<BuildReader> {
         // pull a build once, as its files and closure stay cached while it is served, forgetting a failed pull
+        manifest = this.resolve(packageId, manifest);
         const known = this.#pulled.get(manifest);
         if (known !== undefined) {
             return known;
@@ -163,7 +177,10 @@ export class BuildCache {
             const closure = await this.store.closure(manifest, packageId, output.runtime, read);
             const pulled = new Set<Digest>([manifest]);
             const pulling = { runtime: output.runtime, closure, read, locate, pulled };
-            for (const dependency of Object.values(output.dependencies)) {
+            const pinned = Object.values(output.dependencies).filter((dependency) =>
+                DependencyRelease.hasManifest(dependency),
+            );
+            for (const dependency of pinned) {
                 if (closure.has(dependency.manifest)) {
                     const at = dependency.kind === "destack" ? dependency.package.id : packageId;
                     await this.#pull({ manifest: dependency.manifest, packageId: at }, pulling);
@@ -204,7 +221,10 @@ export class BuildCache {
         }
 
         // pull the builds it pins first, an npm unit found at its dependent's registry
-        for (const dependency of Object.values(output.dependencies)) {
+        const pinned = Object.values(output.dependencies).filter((dependency) =>
+            DependencyRelease.hasManifest(dependency),
+        );
+        for (const dependency of pinned) {
             if (closure.has(dependency.manifest)) {
                 const at =
                     dependency.kind === "destack" ? dependency.package.id : release.packageId;
@@ -331,13 +351,15 @@ export class SpaceBuildStore {
         };
     }
 
-    /** Map a browser output's imports to its dependencies' files below a base path. */
+    /** Map a browser output's imports to files below a base path, builtins at their linked ones. */
     browser(manifest: Digest, base: string): Promise<BrowserClosure> {
         // map each build once, as builds never change
         const key = `${manifest} ${base}`;
         let found = this.#browsers.get(key);
         if (found === undefined) {
-            found = this.cache.store.browser(manifest, base, (digest) => this.get(digest));
+            found = this.cache.store.browser(manifest, base, this.cache.linked, (digest) =>
+                this.get(digest),
+            );
             this.#browsers.set(key, found);
             found.catch(() => this.#browsers.delete(key));
         }
@@ -401,7 +423,10 @@ export class SpaceBuildStore {
         // bring the builds the space's own build pins first, its npm units under its package, then adopt it
         const own = await this.space.contents(manifest);
         for (const output of Object.values(own.manifest.outputs)) {
-            for (const dependency of Object.values(output.dependencies)) {
+            const pinned = Object.values(output.dependencies).filter((dependency) =>
+                DependencyRelease.hasManifest(dependency),
+            );
+            for (const dependency of pinned) {
                 const owner = dependency.kind === "destack" ? dependency.package.id : packageId;
                 await this.#pull(registry, PackageId.parse(owner), dependency.manifest, visited);
             }

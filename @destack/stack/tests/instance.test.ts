@@ -1885,6 +1885,64 @@ test("grant an applied application exactly the space permissions its package req
     });
 });
 
+test("hold a revision asking its space for more access until approved, whatever the space's threshold, then grant it", async () => {
+    // run notes asking nothing of its space
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const { crypto } = fixture.environment;
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main], crypto));
+    const { deployments, approve } = await serveControllers(fixture);
+    await deployments.reconcile(notes.installationId);
+
+    // submit a revision asking to read the space, and deploy it
+    const request = requesting({ space: { space: [space.permission("read")] } });
+    await submitRevision(
+        fixture,
+        notes.installationId,
+        "f",
+        await notesBuild([main, request], crypto),
+    );
+    await deployments.reconcile(notes.installationId);
+    const held = await readInstalled(database, notes.installationId);
+    const roles = async () =>
+        (
+            await database
+                .select({ permission: accessRolePermission.name })
+                .from(accessRole)
+                .innerJoin(accessRolePermission, eq(accessRolePermission.roleId, accessRole.id))
+                .where(eq(accessRole.name, `installation/${notes.installationId}`))
+        ).map((row) => row.permission);
+    const before = await roles();
+
+    // approve the grant, then deploy it
+    await approve(notes.installationId);
+    await deployments.reconcile(notes.installationId);
+    const applied = await readInstalled(database, notes.installationId);
+
+    // wait on the grant as a privileged step above the space's default threshold, and grant it once approved
+    expect({
+        held: [held.installation.conditions["Ready"]?.reason, held.installation.plan],
+        before,
+        applied: [applied.appliedRevisionId === applied.revisionId, await roles()],
+    }).toEqual({
+        held: [
+            "AwaitingApproval",
+            {
+                steps: [
+                    {
+                        action: "grant",
+                        target: `installation/notes/access/space/${space.permission("read").packageId}/space/read`,
+                        risk: "privileged",
+                        detail: "request read on space",
+                    },
+                ],
+            },
+        ],
+        before: [],
+        applied: [true, ["read"]],
+    });
+});
+
 test("let an application ask for its optional capability in approval mode, and run with it once allowed, lending its universe-scoped permissions in every scope", async () => {
     // install notes declaring an optional push capability needing to unsubscribe people's browsers
     const fixture = await TestSpace.open();

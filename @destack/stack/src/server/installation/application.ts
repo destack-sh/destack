@@ -3,7 +3,14 @@ import type { ObjectType } from "@destack/object";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { DeclarationReference } from "@destack/package/declare";
-import { AccessContext, Caller, Manager, principal } from "@destack/access";
+import {
+    AccessContext,
+    Caller,
+    Manager,
+    PermissionReference,
+    PermissionScope,
+    principal,
+} from "@destack/access";
 import {
     and,
     type BlobStore,
@@ -794,7 +801,7 @@ export class ApplicationInstallation {
         });
     }
 
-    /** Stop the deploy for an unapproved upgrade, observing why, and report the stop. */
+    /** Stop the deploy for an unapproved upgrade or access growth, and report the stop. */
     async #holdForUpgrade(
         call: MethodContextOf<typeof rollout, "deploy">,
         revision: InstallationRevision,
@@ -806,18 +813,20 @@ export class ApplicationInstallation {
             return false;
         }
 
-        // read the applied build and the upgrade from it
+        // read the applied build, the upgrade from it and the access the build asks beyond it
         const applied = await call
             .read(installationRevision)
             .findFirst({ where: { id: target.appliedRevisionId } });
-        const upgrade = await this.#planUpgrade(
+        const previous = await this.#open(
             call,
             present(applied, `revision ${target.appliedRevisionId}`),
-            build,
         );
+        const upgrade = await this.#planUpgrade(previous, build);
+        const access = await this.#planAccess(previous, build);
+        const plan = { steps: [...upgrade.steps, ...access.steps] };
 
         // observe the upgrade waiting for approval
-        const waiting = await Approval.waiting(call, target, upgrade.plan, call.environment.crypto);
+        const waiting = await Approval.waiting(call, target, plan, call.environment.crypto);
         if (waiting !== undefined) {
             await call.observe(installation, target.installation, waiting);
         }
@@ -912,17 +921,12 @@ export class ApplicationInstallation {
     }
 
     /** Plan the upgrade steps from an applied build to the next by its kinds' comparisons. */
-    async #planUpgrade(
-        call: MethodContextOf<typeof rollout, "deploy">,
-        applied: Pick<InstallationRevision, "id">,
-        next: BuildReader,
-    ): Promise<{ readonly kind: "planned"; readonly plan: Plan }> {
+    async #planUpgrade(previous: BuildReader, next: BuildReader): Promise<Plan> {
         // skip rollbacks
-        const previous = await this.#open(call, applied);
         const from = previous.manifest.package.version;
         const release = next.manifest.package.version;
         if (Version.compare(release, from) <= 0) {
-            return { kind: "planned", plan: { steps: [] } };
+            return { steps: [] };
         }
 
         // compare each kept declaration its kind compares, then plan the rest from the applied release
@@ -948,7 +952,43 @@ export class ApplicationInstallation {
             target: Address.join(prefix, step.target),
         }));
 
-        return { kind: "planned", plan: { steps } };
+        return { steps };
+    }
+
+    /** Plan a grant for each permission a next build asks of its space beyond the applied build. */
+    async #planAccess(previous: BuildReader, next: BuildReader): Promise<Plan> {
+        // read what each build asks of the space with the installation's enabled capabilities
+        const installed = this.#target.installation;
+        const asked = async (build: BuildReader) =>
+            Rollout.permissions(installed, await PackageDescription.of(build), "space");
+        const before = await asked(previous);
+        const after = await asked(next);
+
+        // grant each permission the applied build did not ask for, scope by scope
+        const steps = PermissionScope.options.flatMap((scope) => {
+            const held = new Set(
+                (before[scope] ?? []).map((each) => PermissionReference.key(each)),
+            );
+
+            return (after[scope] ?? [])
+                .filter((each) => !held.has(PermissionReference.key(each)))
+                .map((each) => ({
+                    action: "grant" as const,
+                    target: Address.join(
+                        "installation",
+                        installed.name,
+                        "access",
+                        scope,
+                        each.packageId,
+                        each.type,
+                        each.name,
+                    ),
+                    risk: "privileged" as const,
+                    detail: `request ${each.name} on ${each.type}${scope === "space" ? "" : ` in its ${scope}`}`,
+                }));
+        });
+
+        return { steps };
     }
 
     /** Compare the declarations a next build keeps by their kinds' compare, by address. */
