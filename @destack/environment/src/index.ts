@@ -7,6 +7,7 @@ export * from "./server/index.ts";
 export * from "./file/index.ts";
 export * from "./process/index.ts";
 export * from "./host/index.ts";
+export * from "./opener/index.ts";
 export * from "./compression/index.ts";
 export * from "./pipe/index.ts";
 export * from "./telemetry/index.ts";

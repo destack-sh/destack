@@ -4,6 +4,7 @@ import { Crypto } from "../crypto/crypto.ts";
 import type { FileSystem } from "../file/file.ts";
 import { Network } from "../network/network.ts";
 import type { Host } from "../host/host.ts";
+import type { Opener } from "../opener/opener.ts";
 import type { Process } from "../process/process.ts";
 import { Random } from "../random/random.ts";
 import { Scheduler } from "../scheduler/scheduler.ts";
@@ -21,12 +22,14 @@ export interface Capability {
     readonly server: Server;
     /** The machine. */
     readonly host: Host;
+    /** The person's default applications, which open URLs. */
+    readonly opener: Opener;
     /** The starting of worker threads. */
     readonly workers: WorkerHost;
 }
 
 /** The capabilities a host process has beside the base. */
-export type HostCapability = "files" | "process" | "server" | "host" | "workers";
+export type HostCapability = "files" | "process" | "server" | "host" | "opener" | "workers";
 
 /** The effects code runs on: the base every target has, and the capabilities it requests. */
 export type Environment<Name extends keyof Capability = never> = {

@@ -38,7 +38,7 @@ at.toLocaleString(environment.locale, { timeZone: environment.timeZone });
 
 ## Capabilities
 
-`files`, `process`, `server`, `host` and `workers` exist on some targets, and code asks for each by name.
+`files`, `process`, `server`, `host`, `opener` and `workers` exist on some targets, and code asks for each by name.
 
 ```ts
 // Deno's file system API, failing with NOT_FOUND, ALREADY_EXISTS, PERMISSION_DENIED or FILE_SYSTEM_FAILED
@@ -53,6 +53,9 @@ environment.process.variables["HOME"];
 environment.server.http({ hostname: "127.0.0.1", port: 0, fetch });
 await environment.server.socket({ hostname: "127.0.0.1", accept });
 environment.host.os; // "darwin" | "linux" | "win32"
+// Tauri's openUrl: a URL in the person's browser; a simulation records it per node instead
+await environment.opener.openUrl("https://destack.app/login");
+simulation.opener.opened("terminal"); // ["https://destack.app/login"]
 environment.workers.start(new URL("./worker.ts", import.meta.url), { name: "database" });
 ```
 

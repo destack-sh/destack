@@ -6,6 +6,7 @@ import { Crypto } from "../crypto/crypto.ts";
 import type { Environment, HostCapability } from "../environment/environment.ts";
 import type { Host } from "../host/host.ts";
 import { BunProcess } from "../process/bun.ts";
+import { SimulatedOpener } from "../opener/opener.ts";
 import { SimulatedWorkerHost } from "../worker/simulated.ts";
 import { SimulatedCompression } from "../compression/simulated.ts";
 import { MemoryFileSystem } from "../file/memory.ts";
@@ -287,6 +288,8 @@ export class Simulation {
     readonly network: SimulatedNetwork;
     /** The worker threads, each a node running the body defined for its module. */
     readonly workers: SimulatedWorkerHost;
+    /** The nodes' openers, recording the URLs each opened. */
+    readonly opener: SimulatedOpener;
     /** The directory of the nodes' files, on the host and removed on dispose, or in memory. */
     readonly root: string;
     /** The files every node shares in a memory world, absent when they live on the host. */
@@ -353,6 +356,7 @@ export class Simulation {
         this.network = new SimulatedNetwork(this.clock, this.scheduler, this.random, (event) =>
             this.record(event),
         );
+        this.opener = new SimulatedOpener();
         this.workers = new SimulatedWorkerHost({
             scheduler: this.scheduler,
             start: (node, body) => void this.node(node).start(body),
@@ -486,6 +490,7 @@ export class Simulation {
             server: this.network.server(name),
             files: this.#filesOf(name),
             host: this.#host,
+            opener: this.opener.of(name),
         };
         const spawn = () => new SimulatedProcess(this.#process, scheduler);
         const node = new SimulatedNode(name, this, effects, spawn, () => this.#release(name));
