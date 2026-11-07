@@ -523,9 +523,11 @@ export class TestNotification implements AsyncDisposable {
 
     /** Read a person's inbox: their home's notifications with their activity replicas. */
     async inbox(person: Person): Promise<Inbox> {
-        const { database } = (await this.home(person)).served;
-        const rows = await ViewSubscriber.queries({ notification, activity }, (table) =>
-            Snapshot.live(database).read(table),
+        const { database, store } = (await this.home(person)).served;
+        const rows = await ViewSubscriber.queries(
+            { notification, activity },
+            store.relations,
+            (table) => Snapshot.live(database).read(table),
         ).notification.findMany({ with: { activity: true } });
 
         return new Inbox(rows, this.clock.now());
