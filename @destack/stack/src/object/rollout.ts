@@ -25,6 +25,7 @@ import {
     Installation,
     installation,
     type MethodContext,
+    Observation,
     type ObjectOf,
     PackageDescription,
 } from "@destack/object";
@@ -40,6 +41,9 @@ import { space, Space } from "@destack/account/object";
 import { StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
 import { Binding } from "./binding.ts";
+
+/** The name of the installation applying a space's stack from its creation. */
+export const STACK_INSTALLATION = "stack";
 
 /** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
 const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
@@ -672,8 +676,11 @@ export const Rollout = {
                 data: moved,
             });
         }
-        // let a caller wait for an installation not served yet, such as one still deploying
-        else if (id !== undefined && served === undefined) {
+        // let a caller wait for an installation not served yet, such as one still deploying or one the space's stack may still create
+        else if (
+            (id !== undefined && served === undefined) ||
+            (await isStackPending(database, installed.spaceId))
+        ) {
             throw StackError.of(
                 "INSTALLATION_NOT_SERVED",
                 `installation ${installed.installation} in this space is not served yet`,
@@ -808,6 +815,15 @@ export const InstallationRevision = {
         return Identifier.hash("installation-revision", REVISION_NAMESPACE, name, crypto);
     },
 };
+
+/** Determine whether a space's stack is still in its pass, which creates its installations. */
+async function isStackPending(database: DatabaseConnection, spaceId: string): Promise<boolean> {
+    const stack = await Snapshot.live(database)
+        .read(installation.table)
+        .findFirst({ where: { scope: spaceId, name: STACK_INSTALLATION } });
+
+    return stack !== undefined && Observation.progress(stack) !== "current";
+}
 
 /** Match the installations a machine launches: enabled, and their rollouts not being deleted. */
 function launchable(): SQL {

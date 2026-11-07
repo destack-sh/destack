@@ -6,7 +6,7 @@ import { expect, refusal, test } from "@destack/test";
 import { schema, present, Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
-import { eq, Snapshot } from "@destack/db";
+import { and, eq, Snapshot } from "@destack/db";
 import { SpaceStore } from "../src/server/index.ts";
 import { build, installationRevision, Rollout, rollout } from "../src/object/index.ts";
 import { Package, PackageId } from "@destack/package";
@@ -25,7 +25,7 @@ import {
     TestSpace,
 } from "../src/test/index.ts";
 import { BuildStore } from "@destack/build/store";
-import stackPackage from "../src/package.ts";
+import stackPackage, { STACK_INSTALLATION } from "../src/package.ts";
 import { RolloutTarget } from "../src/server/installation/target.ts";
 
 /** The checkout the stack follows. */
@@ -609,7 +609,7 @@ test("open the build each package's installation in a space follows, and none fo
     ]).toEqual(["2026.9.0", "2026.10.0", undefined]);
 });
 
-test("serve the installation of a call at its mount by its identifier or its name, refusing a name no installation has and a suspended installation", async () => {
+test("serve the installation of a call at its mount by its identifier or its name, refusing a name no installation has, a suspended one, and one while the stack applies", async () => {
     // install notes in the space
     const fixture = await TestSpace.open();
     const { database } = fixture;
@@ -670,6 +670,25 @@ test("serve the installation of a call at its mount by its identifier or its nam
         "SERVICE_UNAVAILABLE",
         "INSTALLATION_NOT_SERVED",
         "installation notes in this space is not served yet",
+    ]);
+
+    // reset the space's stack to before its first pass, and answer a name it may still create to wait until it applies
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(installation.table)
+                .set({ conditions: {} })
+                .where(
+                    and(
+                        eq(installation.table.scope, ids.space),
+                        eq(installation.table.name, STACK_INSTALLATION),
+                    ),
+                ),
+    );
+    expect(await served(ids.space, "tasks")).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "INSTALLATION_NOT_SERVED",
+        "installation tasks in this space is not served yet",
     ]);
 });
 
