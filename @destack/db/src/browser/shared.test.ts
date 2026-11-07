@@ -5,6 +5,9 @@ import { channelHub } from "../channel/channel.ts";
 import { connectShared, Party, serveDatabase, SharedClient } from "./shared.ts";
 import { testSimulation } from "@destack/test/world";
 
+/** The channel the tabs and the database owner share, as one BroadcastChannel. */
+const TAB_CHANNEL = "database";
+
 /** Notes a party writes. */
 const note = defineTable("shared_note", {
     /** The note's identifier. */
@@ -21,13 +24,13 @@ test("run a party's statements and transactions on the owner's connection, notif
     const join = channelHub<unknown>();
     const owner = await connectBunSqlite(":memory:", [note], {
         environment: world,
-        openChannel: (name) => SharedClient.channel(join(), name),
+        openChannel: (name) => SharedClient.channel(join(TAB_CHANNEL), name),
     });
     onTestFinished(() => owner.close());
     await owner.migrate([note]);
-    const stop = serveDatabase(owner.$client, join(), world);
+    const stop = serveDatabase(owner.$client, join(TAB_CHANNEL), world);
     onTestFinished(stop);
-    const party = connectShared(join(), "tab-2", [note], world);
+    const party = connectShared(join(TAB_CHANNEL), "tab-2", [note], world);
     onTestFinished(() => party.close());
 
     // write and read through the owner
@@ -75,10 +78,10 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     const first = await connectBunSqlite(":memory:", [note], { environment: world });
     onTestFinished(() => first.close());
     await first.migrate([note]);
-    const party = new Party(join(), "tab-2");
+    const party = new Party(join(TAB_CHANNEL), "tab-2");
     onTestFinished(() => party.close());
     const begun = party.begin("deferred");
-    const stopFirst = serveDatabase(first.$client, join(), world);
+    const stopFirst = serveDatabase(first.$client, join(TAB_CHANNEL), world);
     const transaction = await begun;
     expect(transaction.id).toBe(0);
 
@@ -92,7 +95,7 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     });
     const second = await connectBunSqlite(":memory:", [note], { environment: world });
     onTestFinished(() => second.close());
-    onTestFinished(serveDatabase(second.$client, join(), world));
+    onTestFinished(serveDatabase(second.$client, join(TAB_CHANNEL), world));
     expect(await refusal(unanswered)).toEqual([
         "SERVICE_UNAVAILABLE",
         "OWNER_CHANGED",

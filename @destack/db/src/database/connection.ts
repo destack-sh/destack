@@ -44,7 +44,7 @@ import { type Announcer, CommitWatch } from "../log/watch.ts";
 import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
-import { Tracker } from "../tracker/tracker.ts";
+import { Tracker, TRACKER_CHANNEL } from "../tracker/tracker.ts";
 import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { elementValue, jsonElements } from "../query/statement.ts";
@@ -53,9 +53,6 @@ import { Relations } from "../query/relation.ts";
 import { ModelQueryBuilder, type Queries } from "../query/find.ts";
 import type { Model } from "../query/model.ts";
 import type { Row } from "../table/row.ts";
-
-/** The channel a database's connections track their live instances and owners on. */
-const TRACKER_CHANNEL = "tracker";
 
 /** How long a database's log keeps windowed changes: a week. */
 const LOG_WINDOW_MILLISECONDS = 7 * 24 * 60 * 60_000;
@@ -586,6 +583,9 @@ export class DatabaseConnection<
 /** Where a connection's database runs: in the process, or across a network. */
 export type Locality = "embedded" | "networked";
 
+/** Whether a connection writes its database, or only reads one others write unseen. */
+export type ConnectionRole = "writer" | "reader";
+
 /** The effects a connection runs on: its clock, randomness, crypto and telemetry. */
 export type DatabaseEnvironment = Pick<
     Environment,
@@ -596,7 +596,9 @@ export type DatabaseEnvironment = Pick<
 export interface ConnectionOptions {
     /** Where the connection runs. */
     readonly locality: Locality;
-    /** Open a named channel shared with the database's other writers, absent for a sole writer. */
+    /** Whether the connection writes its database, or only reads it, caching none of its reads. */
+    readonly role: ConnectionRole;
+    /** Open a named channel shared with the database's other writers, absent for one alone. */
     readonly openChannel: ((name: string) => Channel<unknown>) | undefined;
     /** Who announces the commits of logged tables. */
     readonly announcer: Announcer;
@@ -704,6 +706,7 @@ export class ConnectionState {
         this.commits = new CommitWatch(
             openChannel === undefined ? undefined : typedChannel(openChannel(LOG_TOPIC), Commit),
             this.unlogged,
+            options.role,
         );
         this.declare(tables);
     }

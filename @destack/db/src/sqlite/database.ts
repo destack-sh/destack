@@ -4,6 +4,7 @@ import {
     ConnectionState,
     DatabaseConnection,
     requireDistinct,
+    type ConnectionRole,
     type Locality,
 } from "../database/connection.ts";
 import type { Channel } from "../channel/channel.ts";
@@ -28,6 +29,7 @@ export class SqliteDatabase<
         client: Client,
         tables: declaration.Database<Models> | readonly Table[],
         locality: Locality,
+        role: ConnectionRole,
         options: SqliteConnectOptions & { readonly namespace?: string; readonly name: string },
     ) {
         // declare the tables with their tree tables
@@ -38,6 +40,7 @@ export class SqliteDatabase<
                 new SqliteSession(client, options.environment.scheduler),
                 new ConnectionState({
                     locality,
+                    role,
                     openChannel: options.openChannel,
                     environment: options.environment,
                     announcer: "connection",

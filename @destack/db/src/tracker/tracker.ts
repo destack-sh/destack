@@ -2,6 +2,9 @@ import { type JsonValue, present, schema, Uuid } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import { type Channel, typedChannel } from "../channel/index.ts";
 
+/** The channel a database's connections track their live instances and owners on. */
+export const TRACKER_CHANNEL = "tracker";
+
 /** The heartbeat interval in milliseconds: three missed beats bound a crash to 45 s. */
 const HEARTBEAT_MILLISECONDS = 15_000;
 

@@ -42,6 +42,7 @@ export async function connectBunSqlite<
             new BunClient(database, options.environment),
             tables,
             "embedded",
+            "writer",
             { ...options, name },
         );
     } catch (error) {

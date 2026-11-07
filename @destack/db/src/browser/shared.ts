@@ -308,7 +308,7 @@ export function connectShared<
 ): SqliteDatabase<SharedClient, Models> {
     const client = new SharedClient(channel, party);
 
-    return new SqliteDatabase(client, tables, "embedded", {
+    return new SqliteDatabase(client, tables, "embedded", "writer", {
         openChannel: (name: string) => SharedClient.channel(channel, name),
         environment,
         name: "shared",

@@ -11,7 +11,7 @@ test("announce a commit's tables the database leaves unannounced, nothing when i
         delivery: () => DELIVERED,
         close: async () => {},
     };
-    const watch = new CommitWatch(channel, new Set(["cache_note"]));
+    const watch = new CommitWatch(channel, new Set(["cache_note"]), "writer");
     watch.declare(["log_note", "cache_note"], ["log_note"]);
 
     // commit a logged table with an unlogged one, then only the logged one, then both by a script

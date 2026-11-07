@@ -8,6 +8,9 @@ import { eq } from "../sql/index.ts";
 import { present } from "@destack/schema";
 import { setting } from "./test/setting.ts";
 import { connectBunSqlite } from "./connection.ts";
+import { BunClient } from "./client.ts";
+import { SqliteDatabase } from "../sqlite/database.ts";
+import { Database } from "bun:sqlite";
 import { testHost } from "@destack/test/host";
 
 /** The preload that gives a child process's modules their package. */
@@ -59,6 +62,29 @@ test("wake a file's readers on a commit another process announces on the file's 
     expect(await waiting).toBe(true);
 });
 
+test("read anew on a reader connection what another connection commits, as it caches none of its reads", async () => {
+    // open a file as its writer, and as a reader that sees none of the writer's commits
+    const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-reader-");
+    onTestFinished(() => HOST.files.remove(directory, { recursive: true }));
+    const path = join(directory, "database.db");
+    const writer = await connectBunSqlite(path, changeTables, { environment: HOST });
+    onTestFinished(() => writer.close());
+    await writer.log.create("inbox");
+    await writer.migrate(changeTables);
+    const client = new BunClient(new Database(path), HOST);
+    const reader = new SqliteDatabase(client, changeTables, "embedded", "reader", {
+        environment: HOST,
+        name: "reader",
+    });
+    onTestFinished(() => reader.close());
+    const notes = async () => (await reader.select().from(note)).map((row) => row.id);
+
+    // read the notes before and after the writer commits one
+    const before = await notes();
+    await writer.transaction((transaction) => transaction.insert(note).values(first).execute());
+    expect({ before, after: await notes() }).toEqual({ before: [], after: [first.id] });
+});
+
 test("read anew what an unannounced commit wrote, once a position read finds it in the log", async () => {
     // open a file twice: a reader on a channel, and a writer that announces nothing
     const directory = await HOST.files.makeTemporaryDirectory("destack-sqlite-undelivered-");
@@ -67,7 +93,7 @@ test("read anew what an unannounced commit wrote, once a position read finds it 
     const hub = channelHub<unknown>();
     const reader = await connectBunSqlite(path, changeTables, {
         environment: HOST,
-        openChannel: () => hub(),
+        openChannel: hub,
     });
     onTestFinished(() => reader.close());
     await reader.log.create("inbox");
@@ -106,7 +132,7 @@ test("rerun a transaction once over an unannounced commit to a row it read, then
     const hub = channelHub<unknown>();
     const reader = await connectBunSqlite(path, changeTables, {
         environment: HOST,
-        openChannel: () => hub(),
+        openChannel: hub,
     });
     onTestFinished(() => reader.close());
     await reader.log.create("inbox");

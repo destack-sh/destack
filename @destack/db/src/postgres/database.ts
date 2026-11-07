@@ -82,6 +82,7 @@ export class PostgresDatabase<
                 new PostgresSession({ pool }, schema, environment),
                 new ConnectionState({
                     locality: "networked",
+                    role: "writer",
                     openChannel:
                         writers === "sole"
                             ? undefined

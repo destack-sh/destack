@@ -834,7 +834,7 @@ function predefinedSteps(state: TableState, applied: readonly TableState[]): Tab
     ];
 }
 
-/** Queue an existing table's rows for the global indexes it adds or removes, which builds or drops them. */
+/** Queue a table's rows for the global indexes it adds or removes, to build or drop them. */
 function globalIndexSteps(
     state: TableState,
     applied: readonly TableState[],

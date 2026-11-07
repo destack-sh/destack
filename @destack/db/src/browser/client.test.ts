@@ -7,6 +7,9 @@ import { changeTables, note } from "../log/test/fixture.ts";
 import { channelHub } from "../channel/channel.ts";
 import { testSimulation } from "@destack/test/world";
 
+/** The channel the tabs and the database owner share, as one BroadcastChannel. */
+const TAB_CHANNEL = "database";
+
 test("declare, log and query tables on SQLite WebAssembly through a channel, as a browser tab does", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
@@ -15,12 +18,12 @@ test("declare, log and query tables on SQLite WebAssembly through a channel, as 
     const sqlite = await init();
     const client = new WasmClient(new sqlite.oo1.DB(":memory:"), world);
     const join = channelHub<Message>();
-    const stop = serveDatabase(client, join(), world);
+    const stop = serveDatabase(client, join(TAB_CHANNEL), world);
     onTestFinished(async () => {
         stop();
         await client.close();
     });
-    const database = connectShared(join(), "tab-1", changeTables, world);
+    const database = connectShared(join(TAB_CHANNEL), "tab-1", changeTables, world);
     onTestFinished(() => database.close());
 
     // migrate the tables and log a write

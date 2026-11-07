@@ -660,7 +660,7 @@ export interface GlobalIndex {
     readonly id: string;
     /** The SQL name of the column with each row's scope. */
     readonly scope: string;
-    /** The SQL name of the outbox queueing rows for the home, by request, object, owner and index. */
+    /** The SQL name of the outbox queueing rows for the home, by request, object, owner, index. */
     readonly outbox: string;
 }
 

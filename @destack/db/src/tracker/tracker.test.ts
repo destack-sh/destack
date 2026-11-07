@@ -1,6 +1,6 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import { type Channel, channelHub } from "../channel/index.ts";
-import { Tracker, type TrackerEvent, type TrackerMessage } from "./tracker.ts";
+import { Tracker, TRACKER_CHANNEL, type TrackerEvent, type TrackerMessage } from "./tracker.ts";
 import { Simulation } from "@destack/environment/simulation";
 
 /** The heartbeat interval of the test trackers, in milliseconds of their clocks. */
@@ -9,8 +9,8 @@ const HEARTBEAT = 5;
 test("replicate which instance tracks an owner, released everywhere at its last release or once its instance stops", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
-    const west = open(join(), simulation);
+    const east = open(join(TRACKER_CHANNEL), simulation);
+    const west = open(join(TRACKER_CHANNEL), simulation);
     const changes: [string, boolean][] = [];
     west.watchTracked((owner, isTracked) => changes.push([owner, isTracked]));
 
@@ -40,18 +40,18 @@ test("replicate which instance tracks an owner, released everywhere at its last 
 test("hand a late instance the tracked owners, and count a silent instance stopped after three missed heartbeats", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
+    const east = open(join(TRACKER_CHANNEL), simulation);
     east.track("alice");
 
     // answer a late instance with the owners tracked before it joined
-    const west = open(join(), simulation);
+    const west = open(join(TRACKER_CHANNEL), simulation);
     const stopped: string[] = [];
     west.watchStopped((instance) => stopped.push(instance));
     await tracked(west, "alice", true);
 
     // count a crashed instance stopped once the clock passes three missed heartbeats
     let isCrashed = false;
-    const channel = join();
+    const channel = join(TRACKER_CHANNEL);
     const silenced: Channel<TrackerMessage> = {
         notify: (message) => {
             if (!isCrashed) {
@@ -77,8 +77,8 @@ test("hand a late instance the tracked owners, and count a silent instance stopp
 test("count an unknown instance live only until this one could receive from it, and report each instance that stops", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
-    const west = open(join(), simulation);
+    const east = open(join(TRACKER_CHANNEL), simulation);
+    const west = open(join(TRACKER_CHANNEL), simulation);
     const stopped: string[] = [];
     west.watchStopped((instance) => stopped.push(instance));
 
@@ -104,8 +104,8 @@ test("count an unknown instance live only until this one could receive from it, 
 test("deliver a broadcast on every instance with its sender, and track alone without a channel", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
-    const west = open(join(), simulation);
+    const east = open(join(TRACKER_CHANNEL), simulation);
+    const west = open(join(TRACKER_CHANNEL), simulation);
     const alone = open(undefined, simulation);
 
     // receive a broadcast on the sending and the other instance
@@ -137,8 +137,8 @@ test("deliver a broadcast on every instance with its sender, and track alone wit
 test("skip the messages a channel echoes back to their sender, as PostgreSQL's does", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
-    const echo = join();
+    const east = open(join(TRACKER_CHANNEL), simulation);
+    const echo = join(TRACKER_CHANNEL);
 
     // echo the instance's own release and stop back to it
     east.track("alice");
@@ -156,8 +156,8 @@ test("skip the messages a channel echoes back to their sender, as PostgreSQL's d
 test("announce a mark at once and a refresh with the next heartbeat, hand a late instance the marks, and forget unmarked and stopped ones", async () => {
     await using simulation = new Simulation({ seed: 1, start: 0 });
     const join = channelHub<TrackerMessage>();
-    const east = open(join(), simulation);
-    const west = open(join(), simulation);
+    const east = open(join(TRACKER_CHANNEL), simulation);
+    const west = open(join(TRACKER_CHANNEL), simulation);
 
     // see a mark at once, and a refresh only once the next heartbeat carries it
     east.mark("replica", 1);
@@ -168,7 +168,7 @@ test("announce a mark at once and a refresh with the next heartbeat, hand a late
     await marked(west, "replica", [2]);
 
     // hand a late instance the marks set before it joined
-    const late = open(join(), simulation);
+    const late = open(join(TRACKER_CHANNEL), simulation);
     await marked(late, "replica", [2]);
 
     // forget an unmarked owner, and the marks of an instance that stops

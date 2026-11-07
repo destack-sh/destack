@@ -76,11 +76,14 @@ export function typedChannel<Message>(
     };
 }
 
-/** Connect parties to an in-process hub, delivering each message after the current task. */
-export function channelHub<Payload>(): () => Channel<Payload> {
-    const listeners = new Set<(message: Payload) => void>();
+/** Connect parties to in-process hubs, one per channel name, delivering after the current task. */
+export function channelHub<Payload>(): (name: string) => Channel<Payload> {
+    const hubs = new Map<string, Set<(message: Payload) => void>>();
 
-    return () => {
+    return (name) => {
+        // join the parties on the channel of this name
+        const listeners = hubs.get(name) ?? new Set<(message: Payload) => void>();
+        hubs.set(name, listeners);
         const local = new Set<(message: Payload) => void>();
 
         return {

@@ -49,6 +49,7 @@ export class DurableObjectReader implements SqliteConnectionClient {
             new DurableObjectReader(object),
             tables,
             "networked",
+            "reader",
             namespace === undefined
                 ? { environment, name: "storage" }
                 : { environment, namespace, name: namespace },

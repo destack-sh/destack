@@ -1,14 +1,17 @@
 import { type Channel, type Commit, DELIVERED, type Delivery } from "../channel/channel.ts";
 import type { LogPosition } from "./position.ts";
 import { LOG_TABLES } from "./schema.ts";
+import type { ConnectionRole } from "../database/connection.ts";
 
 /** Who announces a connection's commits: the connection after commit, or the database inside it. */
 export type Announcer = "connection" | "database";
 
 /** The commits one physical connection's readers wait for. */
 export class CommitWatch {
-    /** The channel other writers announce their commits on, absent for a sole writer. */
+    /** The channel other writers announce commits on, absent for a sole writer or a reader. */
     readonly #channel: Channel<Commit> | undefined;
+    /** Whether the connection writes the database, or only reads it, seeing no writer's commits. */
+    readonly #role: ConnectionRole;
     /** The SQL names of the tables whose commits the database announces inside the commit. */
     readonly #announced: Set<string>;
     /** The SQL names of every declared table, which a commit of unknown tables lists. */
@@ -47,9 +50,14 @@ export class CommitWatch {
     readonly #own = new Set<string>();
 
     /** Watch the commits announced on a channel, or only this connection's without one. */
-    constructor(channel: Channel<Commit> | undefined, unlogged: ReadonlySet<string>) {
-        // store the channel and the unlogged tables, versioning the log's tables from the start
+    constructor(
+        channel: Channel<Commit> | undefined,
+        unlogged: ReadonlySet<string>,
+        role: ConnectionRole,
+    ) {
+        // store the channel, the role and the unlogged tables, versioning the log's tables from the start
         this.#channel = channel;
+        this.#role = role;
         this.#announced = new Set();
         this.#tables = new Set();
         this.#unlogged = unlogged;
@@ -86,9 +94,12 @@ export class CommitWatch {
         return this.#stop !== undefined;
     }
 
-    /** Whether the watch receives every commit: a sole writer's, or a channel's while delivered. */
+    /** Whether the watch receives every commit: a sole writer's, a channel's, never a reader's. */
     get isComplete(): boolean {
-        return this.#channel === undefined || (this.#isListening && this.#failure === undefined);
+        return (
+            this.#role === "writer" &&
+            (this.#channel === undefined || (this.#isListening && this.#failure === undefined))
+        );
     }
 
     /** Watch declared tables from now on, some of whose commits the database announces itself. */

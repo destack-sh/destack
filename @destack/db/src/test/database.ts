@@ -14,7 +14,6 @@ import { ColumnCipher } from "../database/cipher.ts";
 import { LOG_EPOCH, LOG_HORIZON } from "../log/schema.ts";
 import { createLog } from "../log/trigger.ts";
 import { sql } from "../sql/index.ts";
-import type { Channel } from "../channel/channel.ts";
 import { channelHub } from "../channel/channel.ts";
 import { STATE, type TableState } from "../migration/state.ts";
 import { upsertPredefined } from "../migration/plan.ts";
@@ -456,13 +455,7 @@ export class TestDatabase<
         epoch: "renew" | "keep",
     ): Promise<TestDatabase<Models>> {
         // share each named channel through one hub
-        const hubs = new Map<string, () => Channel<unknown>>();
-        const openChannel = (name: string) => {
-            const party = hubs.get(name) ?? channelHub<unknown>();
-            hubs.set(name, party);
-
-            return party();
-        };
+        const openChannel = channelHub<unknown>();
         const open: TestConnector = async (connected) => {
             // commit without syncing the file, which a test database has no use for
             const opened = await sqlite.connectBunSqlite(file, connected, {
