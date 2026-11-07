@@ -621,7 +621,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
     expect(await target.select().from(head)).toHaveLength(INSERT_BATCH);
 });
 
-test("snapshot again once the replicated tables change shape", async () => {
+test("keep the position of unchanged tables, and snapshot a replica gaining tables its subscription never sent", async () => {
     await using simulation = new Simulation({ seed: 1, start: START });
     const source = await open({ simulation });
     const local = await openReplica({ simulation });
@@ -646,10 +646,113 @@ test("snapshot again once the replicated tables change shape", async () => {
     await simulation.wait(following);
     const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
 
-    // record a position per publication
-    expect([await projects.position(local), await work.position(local)]).toEqual([
-        await source.log.position(),
+    // keep the position for both, resuming projects from it and snapshotting projects with tasks
+    const position = await source.log.position();
+    const origin = (await local.log.position()).log;
+    expect({
+        positions: [await projects.position(local), await work.position(local)],
+        resumed: [await projects.resume(local), await work.resume(local)],
+    }).toEqual({
+        positions: [position, position],
+        resumed: [{ after: position, origin }, { origin }],
+    });
+});
+
+test("reshape a replica that left a table, passing over the source's deletes of its rows", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const source = await open({ simulation });
+    const local = await openReplica({ simulation });
+    const feed = new Feed(source, [project, task, replicaPosition]);
+    const work = new Replica({ name: "work", scope: "inbox", tables: [project, task] });
+    const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
+    await source.transaction(async (transaction) => {
+        await transaction.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" });
+        await transaction.insert(task).values(taskOf("p1", "open", 1));
+    });
+
+    // follow a replica's queries from its position until its first complete page, reshaped from earlier queries when given
+    const follow = async (replica: Replica, previous?: Record<string, Query>) => {
+        const controller = new AbortController();
+        const synced = Promise.withResolvers<void>();
+        const following = replica.follow(
+            local,
+            (from, signal) =>
+                feed.subscribe(
+                    replica.queries,
+                    from.after,
+                    signal,
+                    previous === undefined ? {} : { previous },
+                ),
+            controller.signal,
+            { synced: () => synced.resolve() },
+        );
+        await simulation.wait(synced.promise);
+        controller.abort();
+        await simulation.wait(following);
+    };
+
+    // replicate projects with tasks, then projects alone, whose source deletes the tasks they leave
+    await follow(work);
+    await follow(projects, work.queries);
+
+    // keep the projects, without the left tasks, at the source's position
+    expect({
+        projects: await local.select({ id: project.id }).from(project),
+        tasks: await local.select({ id: task.id }).from(task),
+        position: await projects.position(local),
+    }).toEqual({
+        projects: [{ id: "p1" }],
+        tasks: [],
+        position: await source.log.position(),
+    });
+});
+
+test("snapshot a replica again once a kept table's logged columns change", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const source = await open({ simulation });
+    const local = await openReplica({ simulation });
+    const feed = new Feed(source, [project, replicaPosition]);
+    const projects = new Replica({ name: "work", scope: "inbox", tables: [project] });
+    await source.transaction(
+        async (transaction) =>
+            await transaction.insert(project).values({ id: "p1", scope: "inbox", name: "Plan" }),
+    );
+
+    // replicate projects until synced
+    const controller = new AbortController();
+    const synced = Promise.withResolvers<void>();
+    const following = projects.follow(
+        local,
+        (from, signal) => feed.subscribe(projects.queries, from.after, signal),
+        controller.signal,
+        { synced: () => synced.resolve() },
+    );
+    await simulation.wait(synced.promise);
+    controller.abort();
+    await simulation.wait(following);
+
+    // read the replica again over projects with a further logged column
+    const colored = defineTable(
+        "project",
+        {
+            /** The project identity. */
+            id: text("id").primaryKey(),
+            /** The folder the project lives in. */
+            scope: text("scope").notNull(),
+            /** The name. */
+            name: text("name").notNull(),
+            /** The color. */
+            color: text("color"),
+        },
+        { log: {} },
+    );
+    const reshaped = new Replica({ name: "work", scope: "inbox", tables: [colored] });
+
+    // drop the position, snapshotting on resume
+    const origin = (await local.log.position()).log;
+    expect([await reshaped.position(local), await reshaped.resume(local)]).toEqual([
         undefined,
+        { origin },
     ]);
 });
 

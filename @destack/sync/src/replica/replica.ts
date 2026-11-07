@@ -91,8 +91,8 @@ export const replica = defineTable(
         scopes: json("scopes", schema.array(schema.string())),
         /** The subjects its source decides the rows for, absent until the source sends them. */
         subjects: json("subjects", schema.array(Subject)),
-        /** The layout digest of the replicated tables' logged columns. */
-        layout: text("layout"),
+        /** The layout digest of each replicated table's logged columns, by SQL name. */
+        layouts: json("layouts", schema.record(schema.string(), schema.string())),
         /** The replicated tables' SQL names, recorded when the replica registers. */
         tables: json("tables", schema.array(schema.string())).notNull(),
         /** The scopes each replicated table's rows live in, by SQL name. */
@@ -118,6 +118,9 @@ const ReplicaMark = schema.object({
 });
 /** A replica's watermark: the home position applied, and when its page arrived. */
 type ReplicaMark = schema.Infer<typeof ReplicaMark>;
+
+/** The layout digest of each replicated table, by SQL name. */
+type Layouts = Readonly<Record<string, string>>;
 
 /** The home position a replica reflects, and the tables it holds. */
 export interface Reflection {
@@ -315,8 +318,8 @@ export class Replica {
     readonly reads: readonly string[];
     /** The replicated tables, by SQL name. */
     readonly #replicated: ReadonlyMap<string, Table>;
-    /** The layout digest of the replicated tables' logged columns, absent before its first read. */
-    #layoutDigest: Promise<string> | undefined;
+    /** The layout digest of each replicated table, by SQL name, absent before its first read. */
+    #layoutDigests: Promise<Layouts> | undefined;
 
     /** Define a replica of a scope's rows in some tables. */
     constructor(definition: {
@@ -1148,7 +1151,7 @@ export class Replica {
 
     /** Read the replica's source position, absent before a snapshot or after a layout change. */
     async position(database: DatabaseConnection): Promise<LogPosition | undefined> {
-        return this.#recordedPosition(await this.#record(database), await this.#layout(database));
+        return this.#recordedPosition(await this.#record(database), await this.#layouts(database));
     }
 
     /** List the scopes each replicated table's rows live in, by SQL name. */
@@ -1166,11 +1169,16 @@ export class Replica {
         return [...new Set([record.scope, ...Object.values(record.living).flat()])];
     }
 
-    /** Digest the replicated tables' layout on first read, with a database's WebCrypto. */
-    #layout(database: DatabaseConnection): Promise<string> {
-        this.#layoutDigest ??= Log.layout(this.tables, database.state.environment.crypto);
+    /** Digest each replicated table's layout on first read, with a database's WebCrypto. */
+    #layouts(database: DatabaseConnection): Promise<Layouts> {
+        const { crypto } = database.state.environment;
+        this.#layoutDigests ??= Promise.all(
+            this.tables.map(
+                async (table) => [table[TABLE].sqlName, await Log.layout(table, crypto)] as const,
+            ),
+        ).then((digests) => Object.fromEntries(digests));
 
-        return this.#layoutDigest;
+        return this.#layoutDigests;
     }
 
     /** Read the replica's record, absent before it registered. */
@@ -1181,7 +1189,7 @@ export class Replica {
     /** Report whether a record registers what a page follows: subscription, layout and scopes. */
     #isRegistered(
         record: ReplicaRecord | undefined,
-        layout: string,
+        layouts: Layouts,
         page: Page,
         options: ApplyOptions,
     ): boolean {
@@ -1207,7 +1215,7 @@ export class Replica {
 
         return (
             isSubscribed &&
-            record.layout === layout &&
+            canonicalize(record.layouts) === canonicalize(layouts) &&
             canonicalize(record.tables) === canonicalize([...this.#replicated.keys()]) &&
             canonicalize(record.living) === canonicalize(this.#living())
         );
@@ -1218,7 +1226,7 @@ export class Replica {
         record: ReplicaRecord | undefined,
         page: Page,
         position: ReplicaPosition,
-        layout: string,
+        layouts: Layouts,
         options: ApplyOptions,
     ): ReplicaRecord {
         const { subscription, audience } = options;
@@ -1228,7 +1236,7 @@ export class Replica {
             scope: this.scope,
             scopes: page.scopes ?? record?.scopes ?? null,
             subjects: page.subjects ?? record?.subjects ?? null,
-            layout,
+            layouts,
             tables: [...this.#replicated.keys()],
             living: this.#living(),
             ...position,
@@ -1240,18 +1248,28 @@ export class Replica {
         };
     }
 
-    /** Read a record's source position, absent before a first snapshot or after a layout change. */
+    /** Read a record's source position, absent before a snapshot or after a kept table's change. */
     #recordedPosition(
-        record: Pick<ReplicaRecord, "log" | "epoch" | "sequence" | "layout"> | undefined,
-        layout: string,
+        record: Pick<ReplicaRecord, "log" | "epoch" | "sequence" | "layouts"> | undefined,
+        layouts: Layouts,
     ): LogPosition | undefined {
         return record === undefined ||
             record.log === null ||
             record.epoch === null ||
             record.sequence === null ||
-            record.layout !== layout
+            !Replica.#isLaidOut(record.layouts, layouts)
             ? undefined
             : { log: record.log, epoch: record.epoch, sequence: record.sequence };
+    }
+
+    /** Decide whether every table a record and the replica both have keeps its layout. */
+    static #isLaidOut(recorded: Layouts | null, layouts: Layouts): boolean {
+        return (
+            recorded !== null &&
+            Object.entries(recorded).every(
+                ([table, digest]) => layouts[table] === undefined || layouts[table] === digest,
+            )
+        );
     }
 
     /** Describe the replica's position, layout, queries and staged pages. */
@@ -1275,7 +1293,7 @@ export class Replica {
             name: this.name,
             scope: this.scope,
             ...(row === undefined ? {} : Replica.#positions(row)),
-            isLaidOut: row?.layout === (await this.#layout(database)),
+            isLaidOut: Replica.#isLaidOut(row?.layouts ?? null, await this.#layouts(database)),
             ...(subscription === undefined ? {} : { subscription }),
             staged: staged.pages,
             results: results.groups,
@@ -1287,32 +1305,45 @@ export class Replica {
         return (await this.#record(database))?.subscription;
     }
 
-    /** Resume a subscription from the replica. */
+    /** Resume a subscription from the replica: from its position, as a reshape, or by snapshot. */
     async resume(
         database: DatabaseConnection,
         subscription?: SubscriptionRecord,
     ): Promise<Resumption> {
-        // resume a replica without a subscription from its position
-        const after = await this.position(database);
-        const recorded = await this.subscribed(database);
+        // read the recorded position, the subscription it reflects and whether the replica gained tables since
+        const record = await this.#record(database);
+        const after = this.#recordedPosition(record, await this.#layouts(database));
+        const reflected = record?.subscription;
+        const isGrown = this.tables.some(
+            (table) => !(record?.tables.includes(table[TABLE].sqlName) ?? false),
+        );
         const origin = (await database.log.position()).log;
-        if (after === undefined || subscription === undefined) {
-            return after === undefined ? { origin } : { after, origin };
-        }
+        const subscribed =
+            subscription === undefined ? undefined : Replica.#subscribed(subscription);
 
-        // resume the same subscription, reshape one of other parameters, and snapshot another
-        const { parameters, ...identity } = Replica.#subscribed(subscription);
-        if (recorded === undefined) {
+        // compare the subscription with the reflected one apart from its parameters
+        const isOther =
+            subscribed !== undefined &&
+            (reflected === undefined ||
+                canonicalize({ ...reflected, parameters: null }) !==
+                    canonicalize({ ...subscribed, parameters: null }));
+
+        // snapshot without a position, or for another subscription than the reflected one
+        if (after === undefined || isOther) {
             return { origin };
         }
-        const { parameters: reflected, ...recordedIdentity } = recorded;
-        if (canonicalize(recordedIdentity) !== canonicalize(identity)) {
-            return { origin };
+        // reshape from the reflected parameters, whose source sends what the subscribed ones add
+        else if (
+            subscribed !== undefined &&
+            reflected !== undefined &&
+            canonicalize(reflected.parameters) !== canonicalize(subscribed.parameters)
+        ) {
+            return { after, previous: reflected.parameters, origin };
         }
-
-        return canonicalize(reflected) === canonicalize(parameters)
-            ? { after, origin }
-            : { after, previous: reflected, origin };
+        // resume from the position, unless the replica gained tables its parameters never sent
+        else {
+            return isGrown ? { origin } : { after, origin };
+        }
     }
 
     /** Read the replica's scope chain, nearest first: only its scope until its source sends it. */
@@ -1454,11 +1485,11 @@ export class Replica {
         const key = { name: this.name, scope: this.scope };
         const registration = await transaction.read(replica).findFirst({ where: key });
         const position = await transaction.read(replicaPosition).findFirst({ where: key });
-        const layout = await this.#layout(transaction.database);
+        const layouts = await this.#layouts(transaction.database);
         if (
             registration === undefined ||
             position === undefined ||
-            this.#recordedPosition({ ...position, layout: registration.layout }, layout) ===
+            this.#recordedPosition({ ...position, layouts: registration.layouts }, layouts) ===
                 undefined
         ) {
             throw SyncError.of("STALE", `replica of ${this.scope} has no position yet`);
@@ -1801,8 +1832,8 @@ export class Replica {
                     );
 
                     // require the recorded epoch outside a snapshot
-                    const layout = await this.#layout(transaction);
-                    const recorded = this.#recordedPosition(record, layout);
+                    const layouts = await this.#layouts(transaction);
+                    const recorded = this.#recordedPosition(record, layouts);
                     const isContinued =
                         recorded?.log === page.position.log &&
                         recorded.epoch === page.position.epoch;
@@ -1815,7 +1846,7 @@ export class Replica {
 
                     // write a run's rows as a replica after reverting predictions
                     const retired = this.#retired(transaction, record);
-                    const isRegistered = this.#isRegistered(record, layout, page, options);
+                    const isRegistered = this.#isRegistered(record, layouts, page, options);
                     const isWritten =
                         rebased !== undefined ||
                         run.isSnapshot ||
@@ -1849,7 +1880,7 @@ export class Replica {
 
                     return {
                         position,
-                        record: this.#recorded(record, page, position, layout, options),
+                        record: this.#recorded(record, page, position, layouts, options),
                     };
                 },
                 { constraints: "deferred" },
@@ -1869,12 +1900,14 @@ export class Replica {
         if (run.isSnapshot) {
             await transaction.delete(replicaResult).where(this.#match(replicaResult));
         }
-        await this.#excludeAll(transaction, this.#retired(transaction, record));
+        const retired = this.#retired(transaction, record);
+        await this.#excludeAll(transaction, retired);
 
-        // write the staged and completing pages and prune what a snapshot left out
+        // write the staged and completing pages, past the changes of retired tables, and prune what a snapshot left out
         const delivered = run.isSnapshot ? this.#deliveries() : undefined;
-        const staging = await this.#writeStaged(transaction, run.staged, delivered, options);
-        const written = (await this.#write(transaction, page, delivered, options)) ?? staging;
+        const left = new Set(retired.map((table) => table[TABLE].sqlName));
+        const staging = await this.#writeStaged(transaction, run.staged, delivered, left, options);
+        const written = (await this.#write(transaction, page, delivered, left, options)) ?? staging;
         const relayed = page.origin ?? written;
         if (delivered !== undefined) {
             await this.#pruneUndelivered(transaction, delivered);
@@ -1900,13 +1933,13 @@ export class Replica {
         const registration = {
             ...(page.scopes === undefined ? {} : { scopes: page.scopes }),
             ...(page.subjects === undefined ? {} : { subjects: page.subjects }),
-            layout: await this.#layout(transaction),
+            layouts: await this.#layouts(transaction),
             tables: [...this.#replicated.keys()],
             living: this.#living(),
         };
 
         // register what the run follows unless the record has it
-        if (this.#isRegistered(record, registration.layout, page, options)) {
+        if (this.#isRegistered(record, registration.layouts, page, options)) {
             return;
         }
         await transaction
@@ -2047,6 +2080,7 @@ export class Replica {
         transaction: DatabaseConnection,
         staged: number,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
+        left: ReadonlySet<string>,
         options: ApplyOptions,
     ): Promise<LogPosition | undefined> {
         let relayed: LogPosition | undefined;
@@ -2066,7 +2100,8 @@ export class Replica {
 
             // write each page
             for (const row of batch) {
-                relayed = (await this.#write(transaction, row.page, delivered, options)) ?? relayed;
+                relayed =
+                    (await this.#write(transaction, row.page, delivered, left, options)) ?? relayed;
             }
         }
 
@@ -2088,10 +2123,11 @@ export class Replica {
         transaction: DatabaseConnection,
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
+        left: ReadonlySet<string>,
         { open }: ApplyOptions,
     ): Promise<LogPosition | undefined> {
         // batch each table's writes
-        const { batches, origin } = await this.#collect(page, delivered, open);
+        const { batches, origin } = await this.#collect(page, delivered, left, open);
 
         // delete the removed rows children first and write the retained rows parents first
         const ordered = this.tables.flatMap((table): [Table, Batch][] => {
@@ -2113,10 +2149,11 @@ export class Replica {
         return origin;
     }
 
-    /** Collect a page's changes into table batches. */
+    /** Collect a page's changes into table batches, past those of the tables the run left. */
     async #collect(
         page: Page,
         delivered: ReadonlyMap<string, Set<string>> | undefined,
+        left: ReadonlySet<string>,
         open: ApplyOptions["open"],
     ): Promise<{
         readonly batches: Map<Table, Batch>;
@@ -2131,11 +2168,13 @@ export class Replica {
             // take a relaying source's replica position as the home position
             if (change.table === replicaPosition[TABLE].sqlName) {
                 origin = this.#relayed(change);
+            }
+            // pass over a change of a table the run left, whose rows it took out
+            else if (left.has(change.table)) {
                 continue;
             }
-
             // refuse a table outside the replica
-            if (table === undefined) {
+            else if (table === undefined) {
                 throw SyncError.of(
                     "STREAM_INVALID",
                     `page has a table outside replica ${this.name}: ${change.table}`,
