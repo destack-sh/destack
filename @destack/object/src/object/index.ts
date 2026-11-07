@@ -6,6 +6,7 @@ export {
     type ObservationReport,
     type ObservedRecord,
     StatusCondition,
+    SYNCED,
 } from "./condition.ts";
 export {
     defineObject,

@@ -295,17 +295,13 @@ export const ObjectController = {
                     .where(eq(keyColumn, key));
                 const originated = await ObjectController.originated(store, object, rows);
                 if (rows.length === 0 || originated.length > 0) {
-                    await declared
-                        .project(
-                            key,
-                            ObjectController.context(store, object, originated, reconciliation),
-                        )
-                        .catch((error: unknown) => {
-                            // hold a pass a suspension refused midway, until the resume projects it again
-                            if (Failure.of(error).reason !== "SCOPE_SUSPENDED") {
-                                throw error;
-                            }
-                        });
+                    const context = ObjectController.context(
+                        store,
+                        object,
+                        originated,
+                        reconciliation,
+                    );
+                    await ObjectController.projectKey(store, object, declared, key, context);
                 }
             },
         });
@@ -456,6 +452,50 @@ export const ObjectController = {
                 const condition = ObjectController.failedCondition(failure);
                 const observed = rows.map((row) => ({ ...row, ...ObservedFields.parse(row) }));
                 await observeAll(observed, { conditions: { [SYNCED]: condition } });
+            }
+            throw error;
+        }
+    },
+
+    /** Project one key, recording Synced on its objects once projected or failed for good. */
+    async projectKey(
+        store: ObjectStore,
+        object: ObjectType,
+        declared: ObjectProjection,
+        key: string,
+        context: ObjectReconciliation,
+    ): Promise<void> {
+        // record a condition on each projected object of a controlled type that lacks it
+        const record = async (condition: ObservationReport["conditions"][string]) => {
+            // read the objects again as the pass left them, none of an uncontrolled type
+            const rows = object.isControlled
+                ? await ObjectController.reread(store, object, context.rows)
+                : [];
+
+            // observe each one lacking the condition, in one mutation
+            const observation = { conditions: { [SYNCED]: condition } };
+            const calls = rows
+                .filter((row) => !Observation.isRecorded(row, observation))
+                .map((row) => Observation.call(object, row, observation));
+            if (calls.length > 0) {
+                await context.mutate(calls);
+            }
+        };
+
+        // project, recording the objects synced, or failed for a declared failure no retry resolves
+        try {
+            await declared.project(key, context);
+            await record(SYNCED_CONDITION);
+        } catch (error) {
+            // hold a pass a suspension refused midway, until the resume projects it again
+            const failure = Failure.of(error);
+            if (failure.reason === "SCOPE_SUSPENDED") {
+                return;
+            }
+
+            // record a lasting failure, then report it
+            if (Failure.isDeclared(error) && !Failure.isTransient(failure)) {
+                await record(ObjectController.failedCondition(failure));
             }
             throw error;
         }

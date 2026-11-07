@@ -95,11 +95,47 @@ const gate = defineObject(
     ],
 });
 
+/** Latches whose projection fails as their outcome field says. */
+const latch = defineObject(
+    {
+        name: "latch",
+        plural: "latches",
+        scope: space,
+        controlled: true,
+        fields: {
+            owner: field.reference(principal.user).caller(),
+            outcome: field.string(),
+        },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    (method) => ({
+        create: method.create("write", { fields: ["outcome"] }),
+        update: method.update("write", { fields: ["outcome"] }),
+    }),
+).implement({
+    projections: [
+        {
+            watches: [],
+            // refuse a latch whose outcome says so
+            project: async (_id, { rows }) => {
+                if (rows.some((row) => row.outcome === "refused")) {
+                    throw Failure.error({
+                        code: "FORBIDDEN",
+                        reason: "PERMISSION_DENIED",
+                        domain: "@destack/access",
+                        message: "permission denied: bind",
+                    });
+                }
+            },
+        },
+    ],
+});
+
 /** The database with the reminders, their access and the journal. */
 const reminderDatabase = defineDatabase({
     name: "main",
     ...tablesOf({
-        packages: [objectPackage, { objects: { reminder, gate }, tables: [] }],
+        packages: [objectPackage, { objects: { reminder, gate, latch }, tables: [] }],
         follows: [],
         tables: [],
     }),
@@ -395,6 +431,88 @@ test("record a lasting reconcile failure on a controlled object as its synced co
             ],
             unavailable: [0, {}],
         },
+    });
+});
+
+test("record a lasting projection failure on a controlled object as its synced condition, and sync it once projected", async () => {
+    // run in a world of its own, its latches projected by a running loop
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(reminderDatabase, {
+        environment: world,
+        isMigrated: true,
+    });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await openSpace(database, world, spaceId);
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([latch]),
+        database,
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        origin: { package: latch.package },
+    });
+    const loop = new ControlLoop(database, store.control(), { report: () => {} });
+    const stopping = new AbortController();
+    const running = loop.run(stopping.signal);
+    onTestFinished(async () => {
+        stopping.abort();
+        await running;
+    });
+
+    // create a refused latch, then open it
+    const access = userContext(users.frank, spaceId, { environment: world }).access();
+    const [created] = await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [latch.call("create", { spaceId, outcome: "refused" })],
+    });
+    await loop.idle();
+    const state = async () => {
+        const [row] = await database.select().from(latch.table);
+
+        return [row?.syncedGeneration, row?.conditions];
+    };
+    const refused = await state();
+    await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [
+            latch.call("update", {
+                ...latch.target(present(created, "the latch")),
+                outcome: "open",
+            }),
+        ],
+    });
+    await loop.idle();
+
+    // record the refusal on the latch, then sync it at its next generation
+    const at = world.clock.now();
+    expect({ refused, opened: await state() }).toEqual({
+        refused: [
+            0,
+            {
+                Synced: {
+                    status: "false",
+                    observedGeneration: 1,
+                    reason: "ReconcileError",
+                    message: "@destack/access PERMISSION_DENIED: permission denied: bind",
+                    lastTransitionAt: at,
+                },
+            },
+        ],
+        opened: [
+            2,
+            {
+                Synced: {
+                    status: "true",
+                    observedGeneration: 2,
+                    reason: "ReconcileSuccess",
+                    message: "",
+                    lastTransitionAt: at,
+                },
+            },
+        ],
     });
 });
 
