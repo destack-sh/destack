@@ -189,6 +189,18 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
                     reconciliation,
                 );
             }
+
+            // keep one change request open for the plan it waits on now, none once none waits
+            const snapshot = Snapshot.live(reconciliation.database);
+            const rolled = await snapshot
+                .read(rollout.table)
+                .findMany({ where: { installationId: target.installationId } });
+            const [current] = await Rollout.read(snapshot, rolled);
+            const [row] = rolled;
+            if (current !== undefined && row !== undefined) {
+                const waiting = await Approval.of(snapshot, options.resources, current);
+                await waiting.request(row, reconciliation);
+            }
         },
     };
 }
@@ -260,8 +272,9 @@ export function implementRollouts(options: InstallationOptions) {
                 // join the plans the installation and its managed, owned or bound resources wait on
                 const target = await Rollout.of(call);
                 const plan = (await Approval.of(call, options.resources, target)).plan();
+                const digest = await Plan.digest(plan, call.environment.crypto);
 
-                return { plan, digest: await Plan.digest(plan, call.environment.crypto) };
+                return { plan, digest, approval: await Approval.asked(call, call.target, digest) };
             },
             submit: {
                 // refuse a foreign repository, then pull the selected release and describe its revision

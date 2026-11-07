@@ -6,7 +6,9 @@ import { testHost } from "@destack/test/host";
 import type { Crypto } from "@destack/environment";
 import objectHandle from "@destack/object/package";
 import {
+    approval,
     type BindingTarget,
+    changeRequest,
     defineObject,
     field,
     type Field,
@@ -19,7 +21,7 @@ import {
 import { MemoryBuild } from "@destack/package/test";
 import { Plan } from "@destack/resource";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { expect, refusal, test } from "@destack/test";
+import { expect, refusal, single, test } from "@destack/test";
 import { pathToFileURL } from "node:url";
 import {
     type DatabaseConnection,
@@ -42,9 +44,11 @@ import {
 } from "@destack/package";
 import { TestEntitlement } from "@destack/account/test";
 import {
+    AccessContext,
     accessGrant,
     accessRole,
     accessRolePermission,
+    Caller,
     type GrantRequest,
     principal,
 } from "@destack/access";
@@ -376,6 +380,7 @@ async function serveControllers(
     return {
         root,
         runtime,
+        store,
         authorizer: store.authorizer,
         deployments: {
             reconcile: async (id: string) => {
@@ -1935,6 +1940,110 @@ test("hold a revision asking its space for more access until approved, whatever 
         ],
         before: [],
         applied: [true, ["read"]],
+    });
+});
+
+/** Run notes, hold a revision asking to read the space, and read the change request its rollout opens. */
+async function holdForAccess() {
+    // run notes, then hold a revision asking to read the space
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const { crypto } = fixture.environment;
+    const notes = await installNotes(fixture, ids.notes, await notesBuild([main], crypto));
+    const { deployments, store } = await serveControllers(fixture);
+    await deployments.reconcile(notes.installationId);
+    const request = requesting({ space: { space: [space.permission("read")] } });
+    await submitRevision(
+        fixture,
+        notes.installationId,
+        "f",
+        await notesBuild([main, request], crypto),
+    );
+    await deployments.reconcile(notes.installationId);
+
+    // read the change request its rollout opened and the one approval it asks
+    const [rolled] = await database
+        .select()
+        .from(object.rollout.table)
+        .where(eq(object.rollout.table.installationId, notes.installationId));
+    const opened = single(
+        await database
+            .select()
+            .from(changeRequest.table)
+            .where(eq(changeRequest.table.parentId, present(rolled, "the rollout").id)),
+    );
+    const asked = single(
+        await database.select().from(approval.table).where(eq(approval.table.parentId, opened.id)),
+    );
+
+    // decide it as the space's owner, a manager, and let the change request act on the decision
+    const decide = async (decision: "approve" | "reject") => {
+        const owner = fixture.owner.subject;
+        await store.mutate(AccessContext.of(Caller.of(owner), store.clock.now()), {
+            id: RequestId.create(store.environment),
+            calls: [approval.call(decision, approval.target(asked))],
+        });
+        await reconcile(store, "change-request", { id: opened.id });
+    };
+
+    return { fixture, database, deployments, notes, opened, asked, decide };
+}
+
+test("ask the space's managers to approve a held plan through a change request on its rollout, applying it once one approves", async () => {
+    // hold a revision asking to read the space, and read the plan it waits on
+    const { fixture, database, deployments, notes, opened, asked, decide } = await holdForAccess();
+    const plan = present(
+        (await readInstalled(database, notes.installationId)).installation.plan,
+        "the waiting plan",
+    );
+
+    // approve it as a manager, then deploy the approved plan
+    await decide("approve");
+    await deployments.reconcile(notes.installationId);
+    const [decided] = await database
+        .select()
+        .from(changeRequest.table)
+        .where(eq(changeRequest.table.id, opened.id));
+    const applied = await readInstalled(database, notes.installationId);
+
+    // ask the managers as one set to approve exactly the held plan, and apply it once the owner approved
+    expect({
+        asked: { ...ObjectReference.at("approver", asked), relation: asked.approverRelation },
+        call: [opened.call.method, opened.call.input["plan"], opened.as],
+        state: decided?.state,
+        applied: applied.appliedRevisionId === applied.revisionId,
+    }).toEqual({
+        asked: { ...principal.space.reference(Scope.universe.id, ids.space), relation: "manage" },
+        call: ["approve", await Plan.digest(plan, fixture.environment.crypto), "approver"],
+        state: "applied",
+        applied: true,
+    });
+});
+
+test("fail a held plan once a manager rejects it, keeping the applied revision", async () => {
+    // hold a revision asking to read the space, then reject its plan as a manager
+    const { database, deployments, notes, opened, decide } = await holdForAccess();
+    await decide("reject");
+    const refused = await refusal(deployments.reconcile(notes.installationId));
+    const held = await readInstalled(database, notes.installationId);
+    const digest = String(opened.call.input["plan"]);
+
+    // fail the installation with the rejection, still running the revision applied before
+    expect({
+        refused,
+        progress: [Observation.progress(held.installation), Observation.message(held.installation)],
+        upgraded: held.appliedRevisionId === held.revisionId,
+    }).toEqual({
+        refused: [
+            "CONFLICT",
+            "PLAN_REJECTED",
+            `plan ${digest} was rejected: change the installation for another plan`,
+        ],
+        progress: [
+            "failed",
+            `@destack/stack PLAN_REJECTED: plan ${digest} was rejected: change the installation for another plan`,
+        ],
+        upgraded: false,
     });
 });
 

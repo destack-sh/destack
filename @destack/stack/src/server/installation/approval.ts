@@ -1,24 +1,29 @@
 import { space } from "@destack/account/object";
-import type { Snapshot } from "@destack/db";
+import { Snapshot } from "@destack/db";
 import {
+    approval,
     AWAITING_APPROVAL,
+    changeRequest,
+    type ChangeRequestRow,
     installation,
     MethodContext,
+    type ObjectReconciliation,
     type ObservationReport,
     type ResourceType,
     type Resource,
 } from "@destack/object";
 import { Address, Plan } from "@destack/resource";
 import { principal } from "@destack/access";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, ObjectTypeReference, Scope, type Subject } from "@destack/sync";
 import type { Crypto } from "@destack/environment";
-import { canonicalize, present, schema } from "@destack/schema";
+import { canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
 import { MAIN_DATABASE } from "../../declare/index.ts";
 import {
     Database,
     installationRevision,
     type InstallationRollout,
     Rollout,
+    rollout,
 } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
@@ -47,6 +52,9 @@ type PendingPlan =
           /** The plan as its controller planned it. */
           readonly plan: Plan;
       };
+
+/** The input of the call a change request makes to approve a plan: the plan's digest. */
+const RequestedPlan = schema.looseObject({ plan: Digest });
 
 /** The plans an installation and its managed, owned or bound resources wait on. */
 export class Approval {
@@ -122,6 +130,112 @@ export class Approval {
                         : step,
                 ),
             ),
+        };
+    }
+
+    /** Keep one change request open for the plan an installation waits on, failing if rejected. */
+    async request(
+        rolled: Pick<Rollout, "id" | "scope" | "installationId">,
+        reconciliation: Pick<ObjectReconciliation, "database" | "mutate" | "store">,
+    ): Promise<void> {
+        // read the plan waiting and its digest, none when nothing waits
+        const plan = this.plan();
+        const { crypto } = reconciliation.store.environment;
+        const digest = plan.steps.length === 0 ? undefined : await Plan.digest(plan, crypto);
+
+        // read the rollout's plan approvals still open or rejected, and the plan each asks for
+        const parent = { packageId: rollout.package.id, type: rollout.name, id: rolled.id };
+        const requests = await Approval.requests(Snapshot.live(reconciliation.database), rolled);
+        const asked = (row: (typeof requests)[number]) => RequestedPlan.parse(row.call.input).plan;
+
+        // withdraw the open requests for another plan, and ask for this one unless decided already
+        const stale = requests.filter((row) => row.state === "open" && asked(row) !== digest);
+        const isAsked = requests.some((row) => asked(row) === digest);
+        const opened =
+            digest === undefined || isAsked
+                ? []
+                : [
+                      changeRequest.call("create", {
+                          ...changeRequest.in(rolled.scope),
+                          parent,
+                          call: rollout.call("approve", {
+                              ...rollout.target({ scope: rolled.scope, id: rolled.installationId }),
+                              plan: digest,
+                          }),
+                          as: "approver",
+                          approvers: [Approval.managers(rolled)],
+                      }),
+                  ];
+        const calls = [
+            ...stale.map((row) => changeRequest.call("withdraw", changeRequest.target(row))),
+            ...opened,
+        ];
+        if (calls.length > 0) {
+            await reconciliation.mutate(calls);
+        }
+
+        // fail the pass on a rejected plan until the plan changes
+        const rejected = requests.find((row) => row.state === "rejected" && asked(row) === digest);
+        if (rejected !== undefined) {
+            throw StackError.of(
+                "PLAN_REJECTED",
+                `plan ${digest} was rejected: change the installation for another plan`,
+            );
+        }
+    }
+
+    /** Read a rollout's plan approvals still open or rejected, past its other change requests. */
+    static async requests(
+        reader: Pick<Snapshot, "read">,
+        rolled: Pick<Rollout, "id" | "scope">,
+    ): Promise<ChangeRequestRow[]> {
+        const found = await reader.read(changeRequest.table).findMany({
+            where: {
+                scope: rolled.scope,
+                parentPackageId: rollout.package.id,
+                parentType: rollout.name,
+                parentId: rolled.id,
+                state: { in: ["open", "rejected"] },
+            },
+        });
+        const approving = ObjectTypeReference.key({
+            packageId: rollout.package.id,
+            type: rollout.name,
+        });
+
+        return found.filter(
+            (row) =>
+                row.call.method === "approve" &&
+                ObjectTypeReference.key(row.call.type) === approving,
+        );
+    }
+
+    /** Read the approval a plan's open change request asks, absent before the request opens. */
+    static async asked(
+        reader: Pick<Snapshot, "read">,
+        rolled: Pick<Rollout, "id" | "scope">,
+        digest: string,
+    ): Promise<Identifier<"approval"> | null> {
+        // find the open request for the plan, then the approval it asks
+        const requests = await Approval.requests(reader, rolled);
+        const request = requests.find(
+            (row) => row.state === "open" && RequestedPlan.parse(row.call.input).plan === digest,
+        );
+        const asked =
+            request === undefined
+                ? undefined
+                : await reader
+                      .read(approval.table)
+                      .findFirst({ where: { scope: rolled.scope, parentId: request.id } });
+
+        return asked?.id ?? null;
+    }
+
+    /** Read who a plan asks: the managers of the installation's space, as one subject set. */
+    static managers(target: Pick<Rollout, "scope">): Subject {
+        return {
+            ...principal.space.reference(Scope.universe.id, target.scope),
+            relation: "manage",
         };
     }
 

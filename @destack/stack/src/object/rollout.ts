@@ -19,6 +19,7 @@ import {
     type SQL,
 } from "@destack/db";
 import {
+    changeRequest,
     defineObject,
     field,
     Installation,
@@ -118,6 +119,8 @@ export const rollout = defineObject(
             target: none(),
             deploy: none(),
         },
+        // ask approval of a waiting plan through a change request on the rollout
+        attachments: [changeRequest.attach({ by: "apply" })],
         constraints: {
             space: {
                 kind: "foreignKey",
@@ -163,6 +166,8 @@ export const rollout = defineObject(
                 plan: Plan,
                 /** The plan's digest, which approving it names. */
                 digest: Digest,
+                /** The approval its change request asks of the space managers, null until open. */
+                approval: schema.identifier("approval").nullable(),
             }),
         }),
 

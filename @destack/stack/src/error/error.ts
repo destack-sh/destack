@@ -58,6 +58,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     PREVIOUS_REVISION_MISSING: { code: "CONFLICT" },
     PLACEMENT_MOVED: { code: "CONFLICT" },
     PLAN_MISMATCH: { code: "CONFLICT" },
+    PLAN_REJECTED: { code: "CONFLICT" },
     REPLICA_DIFFERS: { code: "CONFLICT" },
     RESTORE_PENDING: { code: "CONFLICT" },
     ROLLBACK_TO_BUILD: { code: "CONFLICT" },

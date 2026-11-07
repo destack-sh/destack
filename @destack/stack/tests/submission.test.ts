@@ -87,6 +87,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     expect(await owner.rollout.plan({ spaceId: ids.space, id: stack.installationId })).toEqual({
         plan: { steps: [] },
         digest: await Plan.digest({ steps: [] }, fixture.environment.crypto),
+        approval: null,
     });
 
     // apply the notes installation, then open a view its applied revision declares and refuse one it does not
