@@ -1,6 +1,6 @@
 import { Directory } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
-import type { PackageHandle } from "@destack/object";
+import { installation, type PackageHandle } from "@destack/object";
 import { ids, insertRelease, insertRollout, type TestSpace, workload } from "@destack/stack/test";
 import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
@@ -170,8 +170,12 @@ export async function deployNotes(
             generation: 1,
         });
         await transaction
+            .update(installation.table)
+            .set({ revisionId })
+            .where(eq(installation.table.id, ids.notes));
+        await transaction
             .update(rollout.table)
-            .set({ revisionId, appliedRevisionId: revisionId })
+            .set({ appliedRevisionId: revisionId })
             .where(eq(rollout.table.installationId, ids.notes));
     });
 

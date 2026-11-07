@@ -10,6 +10,7 @@ import {
     type DatabaseConnection,
     type Controller,
     Snapshot,
+    TABLE,
     type Table,
 } from "@destack/db";
 import { BuildStore } from "@destack/build/store";
@@ -20,6 +21,7 @@ import {
     claimTable,
     HookSandbox,
     installation,
+    Observation,
     PackageDescription,
     type CursorPage,
 } from "@destack/object";
@@ -442,18 +444,21 @@ export class Space {
         }
     }
 
-    /** Wait until an installation of the space serves its revision, refusing once a signal ends. */
+    /** Wait until an installation of the space is current, refusing once a signal ends. */
     async waitServed(name: string, signal: AbortSignal): Promise<void> {
-        const isServed = await this.database.log.waitUntil(async () => {
-            // read the named installation's rollout with its revisions
-            const snapshot = Snapshot.live(this.database);
-            const rows = await Rollout.read(
-                snapshot,
-                await snapshot.read(rollout.table).findMany({ where: { scope: this.id } }),
-            );
-            const named = rows.find((row) => row.installation.name === name);
+        const installations = installation.table[TABLE].sqlName;
+        const isServed = await this.database.log.waitUntil(async (tables) => {
+            // skip commits that change no installation
+            if (!tables.has(installations)) {
+                return false;
+            }
 
-            return named !== undefined && Rollout.progress(named) === "served";
+            // read the installation by its name, current once its latest change is served
+            const installed = await Snapshot.live(this.database)
+                .read(installation.table)
+                .findFirst({ where: { scope: this.id, name } });
+
+            return installed !== undefined && Observation.progress(installed) === "current";
         }, signal);
         if (!isServed) {
             const { status, reason } = this.health;

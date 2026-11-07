@@ -692,8 +692,12 @@ test(
             .select({ manifest: stackObject.build.table.manifest })
             .from(stackObject.rollout.table)
             .innerJoin(
+                installation.table,
+                eq(installation.table.id, stackObject.rollout.table.installationId),
+            )
+            .innerJoin(
                 stackObject.installationRevision.table,
-                eq(stackObject.installationRevision.table.id, stackObject.rollout.table.revisionId),
+                eq(stackObject.installationRevision.table.id, installation.table.revisionId),
             )
             .innerJoin(
                 stackObject.build.table,

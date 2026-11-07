@@ -13,7 +13,7 @@ import { createClient } from "@destack/object/client";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { installation } from "@destack/object";
-import { build, installationRevision, rollout } from "@destack/stack/object";
+import { build, installationRevision } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestComputer, SCENARIO_MILLISECONDS } from "./test/index.ts";
@@ -225,12 +225,12 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
 async function followed(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
         .select({ buildId: installationRevision.table.buildId })
-        .from(rollout.table)
+        .from(installation.table)
         .innerJoin(
             installationRevision.table,
-            eq(installationRevision.table.id, rollout.table.revisionId),
+            eq(installationRevision.table.id, installation.table.revisionId),
         )
-        .where(eq(rollout.table.installationId, id));
+        .where(eq(installation.table.id, id));
 
     return row?.buildId;
 }
