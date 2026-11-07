@@ -124,6 +124,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     SETTINGS_ENDED: { code: "BAD_GATEWAY" },
 
     // service unavailable
+    INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
     INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
     MACHINE_STOPPED: { code: "SERVICE_UNAVAILABLE" },
     REVISION_MISSING: { code: "SERVICE_UNAVAILABLE" },

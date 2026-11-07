@@ -10,6 +10,7 @@ import {
     type DatabaseConnection,
     type Controller,
     Snapshot,
+    TABLE,
     type Table,
 } from "@destack/db";
 import { BuildStore } from "@destack/build/store";
@@ -20,6 +21,7 @@ import {
     claimTable,
     HookSandbox,
     installation,
+    Observation,
     PackageDescription,
     type CursorPage,
 } from "@destack/object";
@@ -439,6 +441,31 @@ export class Space {
             ];
         } else {
             return ["up", "every installation serves its revision"];
+        }
+    }
+
+    /** Wait until an installation of the space is current, refusing once a signal ends. */
+    async waitServed(name: string, signal: AbortSignal): Promise<void> {
+        const installations = installation.table[TABLE].sqlName;
+        const isServed = await this.database.log.waitUntil(async (tables) => {
+            // skip commits that change no installation
+            if (!tables.has(installations)) {
+                return false;
+            }
+
+            // read the installation by its name, current once its latest change is served
+            const installed = await Snapshot.live(this.database)
+                .read(installation.table)
+                .findFirst({ where: { scope: this.id, name } });
+
+            return installed !== undefined && Observation.progress(installed) === "current";
+        }, signal);
+        if (!isServed) {
+            const { status, reason } = this.health;
+            throw MachineError.of(
+                "INSTALLATION_NOT_SERVED",
+                `installation ${name} of space ${this.id} serves nothing yet, the space is ${status}: ${reason}`,
+            );
         }
     }
 
