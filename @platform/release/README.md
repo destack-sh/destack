@@ -35,7 +35,15 @@ local         serve | reset                              src/local
 github        credential                                 src/github
 ```
 
-The OpenTofu roots (`shared`, `universe`, `residency`) live in `src/deployment/roots` and their modules (`kms`, `database`) in `src/deployment/modules`; `deployment/*.tfvars` is each root's configuration per stage.
+## OpenTofu roots
+
+The OpenTofu roots and their modules live under `src/deployment`, and `deployment/*.tfvars` configures each root per stage.
+
+```text
+src/deployment/roots     shared | universe | residency
+src/deployment/modules   kms | database
+deployment/*.tfvars      each root's configuration per stage
+```
 
 ## Deployments
 
@@ -73,7 +81,6 @@ DESTACK_STAGE=local bun run src/main.ts login \
 ## Workers
 
 `WorkerScript` deploys the entries: the universe's `@platform/release/deployment/universe`, and per residency `@destack/machine/cloudflare/worker` with its Tail Worker `@destack/machine/cloudflare/tail`, which posts each space's traced CPU time and Durable Object fetches to the space's object.
-Each bundle carries the data its deploy supplies as `destack:` modules, the distribution's manifest (`destack:distribution`) and the universe's declaration (`destack:universe`), since a Worker variable holds at most 5 KB.
 
 ```sh
 # bundle every script and build its upload with wrangler --dry-run
@@ -85,6 +92,15 @@ just @platform/release/custody seal production
 # apply shared, universe, eu and us, migrate, store the shipped releases in each packages bucket,
 #  deploy each Worker with the record's sealed keys and its KMS access key, and smoke
 just @platform/release/deploy production
+```
+
+### Bundles
+
+Each bundle carries the data its deploy supplies as `destack:` modules, since a Worker variable holds at most 5 KB.
+
+```ts
+import distribution from "destack:distribution"; // the distribution's manifest
+import universe from "destack:universe"; // the universe's declaration
 ```
 
 ## Key custody
@@ -144,8 +160,6 @@ The universe and residency roots are applied first by the operator, which create
 ## Publication
 
 `release.yml` releases main once a day when it moved and its checks pass, or now on `release`, as the month's next `vYYYY.M.N`; it tags the release, records it as a GitHub Release listing the commits since the previous tag, and deploys production once the repository variable `DESTACK_PLATFORM` is `deployed`.
-Downloads are the release bucket's objects served at `download.destack.sh` by an R2 custom domain, each with the content type and cache policy its upload stored; the bootstrap files `install` and `downloads.json` lie at the bucket's root, the feed below `stable/`.
-The daily renewal publishes the newly signed timestamp and snapshot with `update publish dist/refresh`, replacing the timestamp at the revision it read, as a release does.
 
 ```yaml
 jobs:
@@ -170,6 +184,24 @@ jobs:
         needs: [prepare, publish, renew]
     verify:
         needs: [prepare, publish]
+```
+
+## Downloads
+
+Downloads are the release bucket's objects served at `download.destack.sh` by an R2 custom domain, each with the content type and cache policy its upload stored.
+
+```text
+download.destack.sh/install          the bootstrap script, at the bucket's root
+download.destack.sh/downloads.json   the bootstrap index, at the bucket's root
+download.destack.sh/stable/…         the feed
+```
+
+## Renewal
+
+The daily renewal publishes the newly signed timestamp and snapshot, replacing the timestamp at the revision it read, as a release does.
+
+```sh
+bun run src/main.ts update publish dist/refresh
 ```
 
 ## Platforms
@@ -254,12 +286,7 @@ release-{channel}:
 renewal-{channel}:
     secrets: [DESTACK_SNAPSHOT_KEY, DESTACK_TIMESTAMP_KEY]
 production:
-    secrets:
-        [
-            CLOUDFLARE_COMPANY_API_TOKEN,
-            PLANETSCALE_SERVICE_TOKEN_ID,
-            PLANETSCALE_SERVICE_TOKEN,
-        ]
+    secrets: [CLOUDFLARE_COMPANY_API_TOKEN, PLANETSCALE_SERVICE_TOKEN_ID, PLANETSCALE_SERVICE_TOKEN]
     variables: [DESTACK_OPERATOR]
 build:
     secrets: []

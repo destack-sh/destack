@@ -19,7 +19,7 @@ import { LocalUniverse } from "../local/index.ts";
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 
 /** The package the released compiler builds and inspects. */
-const TEMPLATE_STACK = join(ROOT, "@template/stack");
+const TEMPLATE_STACK = join(ROOT, "@destack/template-stack");
 
 /** The keychain an isolated home keeps the machine's keys in, as a user's login keychain. */
 const KEYCHAIN = "login.keychain";
@@ -203,7 +203,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             });
             built = [build.manifest.package.name, Object.keys(build.manifest.outputs)];
         }
-        expect(built).toEqual(["@template/stack", ["browser", "bun", "workerd"]]);
+        expect(built).toEqual(["@destack/template-stack", ["browser", "bun", "workerd"]]);
 
         // inspect it through the compiled machine, which starts the compiler beside it
         const registered: unknown = JSON.parse(
@@ -228,7 +228,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             .checkout.inspect({
                 machineId: scope,
                 id,
-                directory: "@template/stack",
+                directory: "@destack/template-stack",
                 output: "bun",
             })
             .catch(async (error: unknown) => {
@@ -236,7 +236,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
                 const log = await files.readTextFile(join(directory, "state", "machine.log"));
                 throw new Error(`inspect failed; the machine logged:\n${log}`, { cause: error });
             });
-        expect(inspection.name).toBe("@template/stack");
+        expect(inspection.name).toBe("@destack/template-stack");
 
         // enforce the same restrictions through the compiled parent and launcher
         await files.writeTextFile(join(directory, "readable.txt"), "public");
