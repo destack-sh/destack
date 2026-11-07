@@ -14,7 +14,7 @@
             ".oxlintrc.json",
             ".oxfmtrc.json"
         ],
-        "dependencies": ["@template/stack"]
+        "dependencies": ["@destack/template-stack"]
     },
     "runtimes": ["browser", "bun", "workerd"]
 }

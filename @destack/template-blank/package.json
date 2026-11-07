@@ -1,5 +1,5 @@
 {
-    "name": "@template/blank",
+    "name": "@destack/template-blank",
     "version": "2026.11.0",
     "license": "MIT",
     "type": "module",
@@ -18,6 +18,6 @@
         "@destack/package": "2026.11.0",
         "@destack/schema": "2026.11.0",
         "@destack/setting": "2026.11.0",
-        "@template/stack": "2026.11.0"
+        "@destack/template-stack": "2026.11.0"
     }
 }
