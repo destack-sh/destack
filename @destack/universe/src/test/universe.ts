@@ -172,6 +172,8 @@ interface DeclaredMachine {
     readonly keychain: MemoryKeychain;
     /** The machine's declared public key. */
     readonly key: PublicKey;
+    /** The URL the machine answers at, as declared. */
+    readonly origin: string;
 }
 
 /** The universe served in process over a test database, signed in to as its native clients do. */
@@ -294,7 +296,8 @@ export class TestUniverse implements AsyncDisposable {
                 const publicKey =
                     restored?.key ??
                     (await new MachineIdentity(id, keychain, environment).generate()).publicKey;
-                machines.set(declaredResidency.code, { id, keychain, key: publicKey });
+                const origin = `https://${declaredResidency.code}.machine.test/`;
+                machines.set(declaredResidency.code, { id, keychain, key: publicKey, origin });
 
                 return {
                     ...TEST_LOCATION,
@@ -302,7 +305,7 @@ export class TestUniverse implements AsyncDisposable {
                     name: `${declaredResidency.code}-cloud`,
                     residencyId: declaredResidency.code,
                     key: publicKey,
-                    origin: `https://${declaredResidency.code}.machine.test/`,
+                    origin,
                 };
             }),
         );
@@ -740,6 +743,11 @@ export class TestUniverse implements AsyncDisposable {
         return opened;
     }
 
+    /** Read the URL a residency's declared cloud machine answers at. */
+    machineOrigin(code: ResidencyCode = TEST_RESIDENCY): string {
+        return present(this.#machines.get(code), `a cloud machine of ${code}`).origin;
+    }
+
     /** Enroll a machine of an account as a person, personal by default, relayed at an origin. */
     async enroll(
         person: TestPerson,
@@ -758,10 +766,10 @@ export class TestUniverse implements AsyncDisposable {
             name: TestMachine.nameOf(id),
         });
 
-        return await this.#published(id, keychain, accountId, { relay: origin });
+        return await this.#published(id, keychain, accountId, { kind: "relayed", relay: origin });
     }
 
-    /** Declare an account's dedicated cloud machine as the platform does, under its plan. */
+    /** Declare an account's dedicated cloud machine at its origin, as the platform does. */
     async declare(
         accountId: Identifier<"account">,
         origin: string,
@@ -782,11 +790,12 @@ export class TestUniverse implements AsyncDisposable {
                     kind: "cloud",
                     ...declared,
                     publicKey,
+                    origin,
                 }),
             ],
         });
 
-        return await this.#published(id, keychain, accountId, { url: origin });
+        return await this.#published(id, keychain, accountId, { kind: "declared" });
     }
 
     /** Open a machine following the directory as it, published where it answers. */
@@ -794,7 +803,9 @@ export class TestUniverse implements AsyncDisposable {
         id: Identifier<"machine">,
         keychain: MemoryKeychain,
         accountId: Identifier<"account">,
-        published: { readonly url: string } | { readonly relay: string },
+        published:
+            | { readonly kind: "declared" }
+            | { readonly kind: "relayed"; readonly relay: string },
     ): Promise<TestMachine> {
         // follow the directory as the machine
         const opened = await TestMachine.open({
@@ -806,12 +817,12 @@ export class TestUniverse implements AsyncDisposable {
         });
         this.#opened.use(opened);
 
-        // publish where a cloud machine answers as the machine
+        // follow a cloud machine's declared endpoint into the machine's directory
         const now = this.clock.now();
-        if ("url" in published) {
-            await opened.publish(published.url);
+        if (published.kind === "declared") {
+            await opened.simulation.idle();
         }
-        // publish a personal machine's tunnel as its account's residency's relay accepting it
+        // record a personal machine's tunnel as its account's residency's relay accepting it
         else {
             const owning = await Snapshot.live(this.storage.database)
                 .read(account.table)
