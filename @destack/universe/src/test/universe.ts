@@ -347,6 +347,7 @@ export class TestUniverse implements AsyncDisposable {
                                 `the test universe opens no release ${packageId} ${release}`,
                             );
                         },
+                        distribution: [],
                     },
                 policies: options.policies ?? [],
                 lifetimes: options.lifetimes ?? new Map(),

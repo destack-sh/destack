@@ -30,7 +30,7 @@ import {
 } from "@destack/object";
 import { Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
-import { Package, type PackageId } from "@destack/package";
+import { Package, type PackageId, PackageRelease } from "@destack/package";
 import { AccessContext, Authorization, Caller, type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, schema } from "@destack/schema";
@@ -191,9 +191,13 @@ export class Universe implements AsyncDisposable {
         ];
         const { crypto } = options.environment;
         const store: ObjectStore = new ObjectStore({
-            // open the version a value names, as the universe installs no release
-            release: async (_view, _scope, packageId, version) =>
-                version === undefined ? undefined : await releases.open(packageId, version),
+            // open the version a value names, else the release the universe runs: the distribution's
+            release: async (_view, _scope, packageId, version) => {
+                const runs = PackageRelease.newest(releases.distribution, packageId);
+                const named = version ?? runs?.package.version;
+
+                return named === undefined ? undefined : await releases.open(packageId, named);
+            },
             servers: await Promise.all(
                 implementations.map((server) => server.base(Scope.universe, crypto)),
             ),
