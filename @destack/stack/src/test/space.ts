@@ -1206,6 +1206,7 @@ export class TestSpace implements AsyncDisposable {
         return new Projection(store.database, {
             name: "host",
             tables: [object.rollout.table, object.database.table],
+            observed: [object.rollout.table],
             keys: async () => [spaceId],
             all: async () => [spaceId],
             project: async () => this.serveInstalled(store, spaceId),

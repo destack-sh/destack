@@ -25,7 +25,9 @@ import {
     installation,
     type MethodContext,
     type ObjectOf,
+    Observation,
     PackageDescription,
+    SYNCED,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
@@ -101,6 +103,7 @@ export const rollout = defineObject(
         plural: "rollouts",
         scope: space,
         key: "installationId",
+        controlled: true,
         fields: {
             /** The installation rolling out, its rollout removed with it. */
             installation: field.reference(() => installation, { delete: "cascade" }).immutable(),
@@ -616,20 +619,32 @@ export const Rollout = {
 
     /** Read how far an installation's rollout is: serving its revision, waiting to, or failed. */
     progress(
-        target: Pick<InstallationRollout, "revisionId" | "servedRevisionId" | "installation">,
+        target: Pick<
+            InstallationRollout,
+            "revisionId" | "servedRevisionId" | "conditions" | "generation"
+        > & {
+            readonly installation: Pick<Installation, "conditions" | "generation">;
+        },
     ): RolloutProgress {
-        const ready = target.installation.conditions["Ready"];
+        // read the installation's readiness and whether the rollout synced
+        const { installation: installed } = target;
+        const ready = installed.conditions["Ready"];
+        const synced = target.conditions[SYNCED];
 
         // serve the targeted revision
         if (target.revisionId !== null && target.servedRevisionId === target.revisionId) {
             return "served";
         }
-        // wait while unready, deploying, or waiting on others
-        else if (
-            ready === undefined ||
-            ready.status === "true" ||
-            WAITING_REASONS.has(ready.reason)
-        ) {
+        // wait until the installation's controller saw its latest change
+        else if (ready === undefined || !Observation.isCurrent(installed, "Ready")) {
+            return "waiting";
+        }
+        // fail once the rollout failed at its generation in a way no retry resolves
+        else if (synced?.status === "false" && Observation.isCurrent(target, SYNCED)) {
+            return "failed";
+        }
+        // wait while deploying or waiting on others
+        else if (ready.status === "true" || WAITING_REASONS.has(ready.reason)) {
             return "waiting";
         }
         // fail on any other reason, which someone must act on

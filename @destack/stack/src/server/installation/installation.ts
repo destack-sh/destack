@@ -132,13 +132,16 @@ function rolloutProjection(options: InstallationOptions): ObjectProjection<typeo
     return {
         watches: [
             // project a new rollout, a moved target or served revision, and a followed space stack, past its own applied and consumed records
-            ObjectWatch.of(rollout.table, (row, _database, change) =>
-                change.operation !== "update" ||
-                change.before.revisionId !== change.after.revisionId ||
-                change.before.servedRevisionId !== change.after.servedRevisionId ||
-                change.before.spaceStack !== change.after.spaceStack
-                    ? [rolloutKey(row)]
-                    : [],
+            ObjectWatch.of(
+                rollout.table,
+                (row, _database, change) =>
+                    change.operation !== "update" ||
+                    change.before.revisionId !== change.after.revisionId ||
+                    change.before.servedRevisionId !== change.after.servedRevisionId ||
+                    change.before.spaceStack !== change.after.spaceStack
+                        ? [rolloutKey(row)]
+                        : [],
+                { isObserving: true },
             ),
             ...rolloutWatches(options.resources, options.binder.objects()),
             ...(options.forge === null ? [] : forgeWatches(options.forge)),
@@ -607,35 +610,39 @@ function rolloutWatches(
                   ],
         ),
         // wake the space's other rollouts still waiting once one serves another revision, as what they wait for may be served now
-        ObjectWatch.of(rollout.table, async (row, database, change) => {
-            // leave a change that serves no other revision
-            const before = Change.before(change);
-            if (before !== null && before.servedRevisionId === row.servedRevisionId) {
-                return [];
-            }
+        ObjectWatch.of(
+            rollout.table,
+            async (row, database, change) => {
+                // leave a change that serves no other revision
+                const before = Change.before(change);
+                if (before !== null && before.servedRevisionId === row.servedRevisionId) {
+                    return [];
+                }
 
-            // find the space's other rollouts, with whether each is ready
-            const rollouts = await database
-                .select({
-                    id: rollout.table.installationId,
-                    conditions: installation.table.conditions,
-                })
-                .from(rollout.table)
-                .innerJoin(
-                    installation.table,
-                    eq(installation.table.id, rollout.table.installationId),
-                )
-                .where(
-                    and(
-                        eq(rollout.table.scope, row.scope),
-                        ne(rollout.table.installationId, row.installationId),
-                    ),
-                );
+                // find the space's other rollouts, with whether each is ready
+                const rollouts = await database
+                    .select({
+                        id: rollout.table.installationId,
+                        conditions: installation.table.conditions,
+                    })
+                    .from(rollout.table)
+                    .innerJoin(
+                        installation.table,
+                        eq(installation.table.id, rollout.table.installationId),
+                    )
+                    .where(
+                        and(
+                            eq(rollout.table.scope, row.scope),
+                            ne(rollout.table.installationId, row.installationId),
+                        ),
+                    );
 
-            return rollouts
-                .filter((entry) => entry.conditions["Ready"]?.status !== "true")
-                .map((entry) => ({ installationId: entry.id }));
-        }),
+                return rollouts
+                    .filter((entry) => entry.conditions["Ready"]?.status !== "true")
+                    .map((entry) => ({ installationId: entry.id }));
+            },
+            { isObserving: true },
+        ),
         // wake a space's rollouts once its row arrives or changes, as the space serves its applications only then
         ObjectWatch.of(space.table, async (row, database) => {
             const rollouts = await database

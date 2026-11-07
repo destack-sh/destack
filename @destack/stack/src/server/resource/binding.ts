@@ -740,6 +740,7 @@ export class Binder {
                 placement.table,
                 ...this.#resourceObjects().map((object) => object.table),
             ],
+            observed: [rollout.table],
             keys: async (change) => this.#specificationKeys(change, store),
             all: async () => this.#servedResources(store),
             project: async (key) => this.#specify(key, store, main, linked),
