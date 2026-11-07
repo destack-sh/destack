@@ -87,7 +87,12 @@ async function written(
     for (const [path, text] of Object.entries(sources)) {
         await writer.write(path, new TextEncoder().encode(text));
     }
-    const manifest = await writer.finish({ destack: "2026.11.0", role: "app", package: built, outputs });
+    const manifest = await writer.finish({
+        destack: "2026.11.0",
+        role: "app",
+        package: built,
+        outputs,
+    });
 
     return new BuildReader(
         manifest,
@@ -1123,7 +1128,7 @@ test("map a view's browser modules and its dependencies' below a prefix, each bu
     );
 
     // map the application's imports at the root, the library's in its own scope
-    const closure = await store.browser(application, "/.destack/build/");
+    const closure = await store.browser(application, "/.destack/build/", new Map());
 
     expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
         map: {
@@ -1139,5 +1144,81 @@ test("map a view's browser modules and its dependencies' below a prefix, each bu
             },
         },
         builds: [application, middle, deep],
+    });
+});
+
+test("map a builtin every build imports at its linked release, once per page, with the builds it imports", async () => {
+    // store the linked builtin importing a deep library, and a library and an application each recording the builtin at an older release
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const { crypto } = environment;
+    const deep = await store.put(
+        await written({ "src/deep.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] }, {})),
+    );
+    const view = {
+        id: PackageId.parse("package-00000000-0000-7000-8000-00000000a005"),
+        name: "@example/view",
+        version: "2026.11.0",
+    };
+    const linked = await store.put(
+        await written(
+            { "src/view.ts": "export {};\n" },
+            crypto,
+            browserOutputs(
+                { ".": ["@example/deep"] },
+                { "@example/deep": library("@example/deep", deep) },
+            ),
+            view,
+        ),
+    );
+    const older = { kind: "builtin" as const, package: { ...view, version: "2026.10.0" } };
+    const middle = await store.put(
+        await written(
+            { "src/middle.ts": "export {};\n" },
+            crypto,
+            browserOutputs({ ".": ["@example/view"] }, { "@example/view": older }),
+        ),
+    );
+    const application = await store.put(
+        await written(
+            SOURCES,
+            crypto,
+            browserOutputs(
+                { "./view": ["@example/middle", "@example/view"] },
+                {
+                    "@example/middle": library("@example/middle", middle),
+                    "@example/view": older,
+                },
+                "./view",
+            ),
+        ),
+    );
+
+    // map the builtin at the linked build in every scope, and its own imports in its scope
+    const closure = await store.browser(
+        application,
+        "/.destack/build/",
+        new Map([[view.id, { package: view, manifest: linked }]]),
+    );
+
+    expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
+        map: {
+            imports: {
+                "@example/middle": `/.destack/build/${middle}/browser/index.js`,
+                "@example/view": `/.destack/build/${linked}/browser/index.js`,
+            },
+            scopes: {
+                [`/.destack/build/${middle}/`]: {
+                    "@example/view": `/.destack/build/${linked}/browser/index.js`,
+                },
+                [`/.destack/build/${linked}/`]: {
+                    "@example/deep": `/.destack/build/${deep}/browser/index.js`,
+                },
+                [`/.destack/build/${deep}/`]: {},
+            },
+        },
+        builds: [application, middle, linked, deep],
     });
 });

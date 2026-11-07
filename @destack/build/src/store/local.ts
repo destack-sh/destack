@@ -3,6 +3,7 @@ import { LocalBlobStorage } from "@destack/bucket/bun";
 import { BlobStore, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
+import { DependencyRelease } from "@destack/package";
 import type { PackageFile } from "@destack/package/file";
 import { BuildStore } from "./store.ts";
 import { BuildError } from "../error/index.ts";
@@ -466,7 +467,6 @@ export class LocalBuildStore
                 return found;
             },
             "export",
-            "link",
         );
 
         // place each closure build's output once
@@ -474,8 +474,9 @@ export class LocalBuildStore
             Object.values(manifest.outputs).find((each) => each.runtime === runtime),
             `the ${runtime} output of ${manifest.package.name}`,
         );
-        const dependencies = Object.values(output.dependencies).filter((dependency) =>
-            closure.has(dependency.manifest),
+        const dependencies = Object.values(output.dependencies).filter(
+            (dependency) =>
+                DependencyRelease.hasManifest(dependency) && closure.has(dependency.manifest),
         );
 
         return await DependencyTree.materialize(this, dependencies, directory, {

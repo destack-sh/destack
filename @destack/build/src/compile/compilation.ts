@@ -17,7 +17,7 @@ import {
     DependencyName,
     DependencyRelease,
     type DependencyResolution,
-    type Package,
+    Package,
     type DeclarationDescription,
 } from "@destack/package";
 import {
@@ -699,7 +699,12 @@ export class OutputCompilation implements Compilation {
                     `unsupported ${this.runtime} dependency: ${specifier}${by}`,
                 );
             }
-            compiled.output.dependencies[dependency] = DependencyRelease.parse(selected);
+
+            // record a builtin by its release, which every runtime links, and another build by its manifest
+            compiled.output.dependencies[dependency] =
+                this.project.tree.roles.get(dependency) === "builtin"
+                    ? { kind: "builtin", package: Package.of(selected.package) }
+                    : DependencyRelease.parse(selected);
         }
         // leave an npm package to the host's link, which pins its unit for the runtime
         else if (selected === undefined) {

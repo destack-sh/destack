@@ -2,10 +2,12 @@ import { basename, dirname, join, relative, sep } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import {
     DependencyName,
+    PackageDefinition,
     PackageJson,
+    type PackageRole,
     RuntimeRequirements,
     type DependencyPackage,
-    type DependencyRelease,
+    DependencyRelease,
     type DependencyResolution,
 } from "@destack/package";
 import type { NpmDependency } from "./npm.ts";
@@ -57,6 +59,9 @@ const AuthoredPackage = RuntimeRequirements.extend({
     ),
 });
 
+/** The file a Destack package declares itself in, a source member and its builds alike. */
+const DEFINITION_FILE = "destack.json";
+
 /** The package.json a materialized dependency has. */
 const MaterializedPackage = schema.looseObject({
     name: schema.string().min(1),
@@ -75,15 +80,19 @@ export interface TreeRun {
 export class DependencyTree {
     /** The directory of each dependency's build or npm unit, by package name. */
     readonly directories: Readonly<Record<string, string>>;
+    /** The role of each placed Destack build, by package name. */
+    readonly roles: ReadonlyMap<string, PackageRole>;
     /** The exports of each Destack dependency, by package name. */
     readonly #exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>;
 
-    /** Read a tree from its dependencies' directories and their exports. */
+    /** Read a tree from its dependencies' directories, their roles and their exports. */
     private constructor(
         directories: Readonly<Record<string, string>>,
+        roles: ReadonlyMap<string, PackageRole>,
         exports: ReadonlyMap<string, schema.Infer<typeof MaterializedExports>>,
     ) {
         this.directories = directories;
+        this.roles = roles;
         this.#exports = exports;
     }
 
@@ -160,7 +169,8 @@ export class DependencyTree {
             }
             manifests.set(dependency.package.name, dependency.manifest);
             // visit the Destack dependencies the build's outputs import, as builds
-            const { manifest } = await store.contents(dependency.manifest);
+            const reader = await store.contents(dependency.manifest);
+            const { manifest } = reader;
             const recorded: Record<string, DependencyRelease> = {};
             const outputs = Object.values(manifest.outputs).toSorted(
                 (left, right) =>
@@ -169,6 +179,23 @@ export class DependencyTree {
             // take each npm unit from the Bun output where it has one, which the tree places
             for (const output of outputs) {
                 Object.assign(recorded, output.dependencies);
+            }
+
+            // place each builtin a compile reads at its locked build
+            if (run === undefined) {
+                const locked = new Map(
+                    Object.values(await reader.dependencies()).flatMap((each) =>
+                        each.kind === "destack" ? [[each.package.name, each] as const] : [],
+                    ),
+                );
+                for (const [name, release] of Object.entries(recorded)) {
+                    if (release.kind === "builtin") {
+                        recorded[name] = present(
+                            locked.get(name),
+                            `the build of ${name} that ${manifest.package.name} compiled against`,
+                        );
+                    }
+                }
             }
             pending.push(
                 ...Object.values(recorded).filter(
@@ -202,7 +229,7 @@ export class DependencyTree {
         // read the builds' exports, beside the npm units placed directly
         const tree = await DependencyTree.read(directories, files);
 
-        return new DependencyTree({ ...placedNpm, ...tree.directories }, tree.#exports);
+        return new DependencyTree({ ...placedNpm, ...tree.directories }, tree.roles, tree.#exports);
     }
 
     /** Write one build into its place below a directory: its files, links and package.json. */
@@ -297,7 +324,9 @@ export class DependencyTree {
             ));
 
         return Object.fromEntries(
-            Object.entries(pinned).filter(([, each]) => imported.has(each.manifest)),
+            Object.entries(pinned).filter(
+                ([, each]) => DependencyRelease.hasManifest(each) && imported.has(each.manifest),
+            ),
         );
     }
 
@@ -678,15 +707,24 @@ export class DependencyTree {
         directories: Readonly<Record<string, string>>,
         files: FileSystem,
     ): Promise<DependencyTree> {
+        // read each package's exports, and its role where it declares one
+        const roles = new Map<string, PackageRole>();
         const exports = new Map<string, schema.Infer<typeof MaterializedExports>>();
         for (const [name, directory] of Object.entries(directories)) {
+            // read its exports
             const packageJson = MaterializedPackage.parse(
                 JSON.parse(await files.readTextFile(join(directory, "package.json"))),
             );
             exports.set(name, packageJson.exports);
+
+            // read its declared role, absent for an npm package
+            const definition = join(directory, DEFINITION_FILE);
+            if (await files.exists(definition)) {
+                roles.set(name, PackageDefinition.read(await files.readTextFile(definition)).role);
+            }
         }
 
-        return new DependencyTree(directories, exports);
+        return new DependencyTree(directories, roles, exports);
     }
 
     /** List the real roots a tree's packages link to, each once. */

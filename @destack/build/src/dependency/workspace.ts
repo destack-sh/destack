@@ -555,7 +555,9 @@ export class Workspace {
         dependencies: Readonly<Record<string, DependencyResolution>>,
     ): Promise<void> {
         const released = Object.values(dependencies).flatMap((dependency) =>
-            dependency.kind === "source" ? [] : [dependency.manifest],
+            dependency.kind === "source" || dependency.kind === "builtin"
+                ? []
+                : [dependency.manifest],
         );
         await this.#store.rootDirectory(unit.directory, new Set([manifest, ...released]));
     }

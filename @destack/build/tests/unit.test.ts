@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { CompilerPool, DependencyTree, Workspace } from "../src/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
+import { Package } from "@destack/package";
+import { schema } from "@destack/schema";
 import { BuildStore } from "../src/store/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
@@ -289,4 +291,72 @@ test("build a package against the release of a Destack package installed from ou
         pinned: release,
         releases: [{ package: release.package, manifest: release.manifest }],
     });
+});
+
+/** Declare a unit a builtin, as the platform's own packages are. */
+async function declareBuiltin(unit: string, files: FileSystem): Promise<void> {
+    const definition = join(unit, "destack.json");
+    const declared = schema.looseObject({}).parse(JSON.parse(await files.readTextFile(definition)));
+    await files.writeFile(
+        definition,
+        new TextEncoder().encode(JSON.stringify({ ...declared, role: "builtin" })),
+    );
+}
+
+test("record a builtin dependency by its release, which every runtime links", async () => {
+    // build the library as a builtin release in a workspace of its own
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("destack-build-builtin-");
+    const library = join(directory, "library", "library");
+    const application = join(directory, "application", "application");
+    await copyUnit("unit-library", library, files);
+    await declareBuiltin(library, files);
+    await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store);
+    const released = await (await Workspace.open(library, compilers)).build({ outputs: OUTPUTS });
+    const release = {
+        kind: "destack",
+        package: PackageManifest.package(released.manifest),
+        manifest: await BuildStore.digest(released.manifest, crypto),
+    } as const;
+
+    // build an application against it
+    await copyUnit("unit-application", application, files);
+    await files.mkdir(join(application, "node_modules", "@destack"), { recursive: true });
+    await files.symlink(library, join(application, "node_modules", LIBRARY));
+    await initializeWorkspace(
+        join(directory, "application"),
+        { application: "@destack/build-unit-application-fixture" },
+        environment,
+    );
+    const built = await (
+        await Workspace.open(application, compilers, async () => release)
+    ).build({ outputs: OUTPUTS });
+
+    // record the builtin by its package and version alone in its output, and the release it compiled against in its lockfile
+    expect({
+        recorded: built.manifest.outputs["bun"]?.dependencies?.[LIBRARY],
+        releases: await built.releases(),
+    }).toEqual({
+        recorded: { kind: "builtin", package: Package.of(release.package) },
+        releases: [{ package: release.package, manifest: release.manifest }],
+    });
+});
+
+test("record a builtin member of the workspace by its release, as its source declares it", async () => {
+    // lay out a workspace whose application links its builtin library unit from source
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { library, application } = await layOut(environment);
+    await declareBuiltin(library, environment.files);
+    await using store = await LocalBuildStore.temporary(environment);
+    await using compilers = await CompilerPool.open(store);
+
+    // build both units, recording the library by its package and version alone
+    const built = await (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS });
+    const recorded = built.manifest.outputs["bun"]?.dependencies?.[LIBRARY];
+    expect(recorded?.kind === "builtin" ? recorded.package.name : recorded).toBe(LIBRARY);
 });

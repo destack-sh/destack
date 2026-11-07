@@ -126,10 +126,8 @@ test("place a running tree's npm units as their Bun outputs alone, under runtime
     const unit = await installation.store(await installation.open(copy(root, "store")), "bun");
 
     // materialize it as a running tree on Bun, over the closure of both units
-    const lists = present(
-        (await store.get(unit.manifest)).outputs["bun"]?.dependencies["lists"],
-        "the lists unit",
-    );
+    const recorded = (await store.get(unit.manifest)).outputs["bun"]?.dependencies["lists"];
+    const lists = present(recorded?.kind === "npm" ? recorded : undefined, "the lists unit");
     const directory = join(root, "run");
     const tree = await DependencyTree.materialize(store, [unit], directory, {
         run: { runtime: "bun", closure: new Set([unit.manifest, lists.manifest]) },

@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FileSystem } from "@destack/environment";
-import { type DependencyResolution, PackageJson } from "@destack/package";
+import { DependencyRelease, type DependencyResolution, PackageJson } from "@destack/package";
 import type { PackageBuildOptions } from "../build/build.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { DependencyTree } from "../dependency/tree.ts";
@@ -102,7 +102,9 @@ export class PackageCopy implements AsyncDisposable {
         const { files } = this.store.environment;
         await build.writeDirectory(destination, files);
         const recorded = Object.values(build.manifest.outputs).flatMap((output) =>
-            Object.values(output.dependencies),
+            Object.values(output.dependencies).filter((each) =>
+                DependencyRelease.hasManifest(each),
+            ),
         );
         const unique = [...new Map(recorded.map((each) => [each.manifest, each])).values()];
         const tree = await DependencyTree.materialize(

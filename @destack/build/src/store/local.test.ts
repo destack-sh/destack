@@ -2,7 +2,7 @@ import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { type DependencyRelease, Package, type PackageRole } from "@destack/package";
+import { type DependencyRelease, Package, PackageId, type PackageRole } from "@destack/package";
 import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -308,29 +308,24 @@ test("leave the builtins out of a run tree, as the runtime links them", async ()
     const environment = simulation.environment("test");
     const { crypto } = environment;
     await using store = await LocalBuildStore.temporary(environment);
-    const stored = async (name: string, id: string, role: PackageRole) => {
-        const reader = await written(`export const ${name} = 1;`, crypto, {
-            id,
-            name: `@example/${name}`,
-            role,
-        });
-
-        return {
-            kind: "destack" as const,
-            package: PackageManifest.package(reader.manifest),
-            manifest: await store.put(reader),
-        };
+    const reader = await written("export const library = 1;", crypto, {
+        id: "package-00000000-0000-7000-8000-00000000a002",
+        name: "@example/library",
+        role: "library",
+    });
+    const library = {
+        kind: "destack" as const,
+        package: PackageManifest.package(reader.manifest),
+        manifest: await store.put(reader),
     };
-    const library = await stored(
-        "library",
-        "package-00000000-0000-7000-8000-00000000a002",
-        "library",
-    );
-    const builtin = await stored(
-        "object",
-        "package-00000000-0000-7000-8000-00000000a004",
-        "builtin",
-    );
+    const builtin = {
+        kind: "builtin" as const,
+        package: {
+            id: PackageId.parse("package-00000000-0000-7000-8000-00000000a004"),
+            name: "@example/object",
+            version: "2026.11.0",
+        },
+    };
     const app = await written("export const app = 1;", crypto, ANSWER, {
         "@example/library": library,
         "@example/object": builtin,

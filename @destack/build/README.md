@@ -108,6 +108,8 @@ const digest = await store.put(build.reader);
 const response = await store.fetch(request, new URL("https://packages.example.com/"), access);
 const now = environment.clock.now();
 await store.sweep(retained, new Date(now - 60 * 60 * 1000), Retention.none, new Date(now));
+const closure = await store.closure(digest, packageId, "bun"); // the builds it runs with, its builtins left to the runtime
+const { map } = await store.browser(digest, "/.destack/build/", linked); // builtins at the linked releases, one copy per page
 ```
 
 ## Local store

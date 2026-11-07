@@ -17,6 +17,7 @@ import {
     DependencyRelease,
     type DependencyResolution,
     type PackageId,
+    type PackageRelease,
 } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
@@ -61,9 +62,6 @@ const CACHE_ROOT_PREFIX = "cache:";
 
 /** Where a closure starts: at what a build runs, or at every export a dependent may import. */
 export type ClosureEntries = "run" | "export";
-
-/** What a closure does with builtins: follow them, or skip them as the runtime links them. */
-export type ClosureBuiltins = "follow" | "link";
 
 /** Read a build's manifest at a package's registry, absent where none is stored. */
 export type ManifestRead = (
@@ -818,7 +816,6 @@ export class BuildStore<
         runtime: Runtime,
         read: ManifestRead = (digest) => this.get(digest),
         entries: ClosureEntries = "run",
-        builtins: ClosureBuiltins = "follow",
     ): Promise<ReadonlySet<Digest>> {
         // start at what each output runs, its workloads and the exports its views mount, or at every export
         const manifests = new Map<Digest, Promise<PackageManifest | undefined>>();
@@ -880,24 +877,17 @@ export class BuildStore<
                         output.dependencies[DependencyName.of(specifier)],
                         `the dependency of ${specifier} in ${next.manifest}`,
                     );
-                    // skip builtins, which the runtime links
-                    const isLinked =
-                        builtins === "link" &&
-                        dependency.kind !== "npm" &&
-                        (await once(dependency.manifest, dependency.package.id))?.role ===
-                            "builtin";
-                    if (isLinked) {
-                        continue;
-                    }
-
-                    // collect npm units, follow Destack exports
-                    closure.add(dependency.manifest);
+                    // collect an npm unit beside its importer
                     if (dependency.kind === "npm") {
+                        closure.add(dependency.manifest);
                         units.set(dependency.manifest, {
                             located: next.packageId,
                             beside: output.dependencies,
                         });
-                    } else {
+                    }
+                    // follow a Destack export, leaving a builtin to the runtime that links it
+                    else if (dependency.kind === "destack") {
+                        closure.add(dependency.manifest);
                         pending.push({
                             manifest: dependency.manifest,
                             packageId: dependency.package.id,
@@ -936,10 +926,11 @@ export class BuildStore<
         return closure;
     }
 
-    /** Map a build's browser modules and its dependencies' below a URL prefix. */
+    /** Map a build's browser modules below a URL prefix, its builtins at their linked releases. */
     async browser(
         start: Digest,
         base: string,
+        linked: ReadonlyMap<PackageId, PackageRelease>,
         read: (digest: Digest) => Promise<PackageManifest> = async (digest) =>
             present(await this.get(digest), `the manifest of build ${digest}`),
     ): Promise<BrowserClosure> {
@@ -952,19 +943,39 @@ export class BuildStore<
             read,
         );
 
-        // map each reached dependency's exports in its dependent's scope, visiting each build once
+        // map each dependency's exports in its dependent's scope, visiting each build once
         const map: ImportMap = { imports: {}, scopes: {} };
         const builds = new Set<Digest>([start]);
-        const pending = [{ digest: start, scope: map.imports }];
-        for (const { digest, scope } of pending) {
+        const pending = [{ digest: start, scope: map.imports, isLinked: false }];
+        for (const { digest, scope, isLinked } of pending) {
             for (const output of browserOutputs(await read(digest))) {
-                const dependencies = Object.entries(output.dependencies).filter(([, release]) =>
-                    reached.has(release.manifest),
+                // take a builtin at its linked release, a reached build, and every build a builtin imports
+                const dependencies = Object.entries(output.dependencies).flatMap(
+                    ([name, release]) => {
+                        // link a builtin
+                        if (release.kind === "builtin") {
+                            const { manifest } = present(
+                                linked.get(release.package.id),
+                                `the linked release of ${name}`,
+                            );
+
+                            return [{ name, manifest, isLinked: true }];
+                        }
+                        // take a build the views reach, or one a builtin imports
+                        else if (isLinked || reached.has(release.manifest)) {
+                            return [{ name, manifest: release.manifest, isLinked }];
+                        }
+                        // leave a build no view reaches
+                        else {
+                            return [];
+                        }
+                    },
                 );
-                for (const [name, release] of dependencies) {
+                for (const dependency of dependencies) {
+                    const { name, manifest } = dependency;
                     // map the dependency's exports to its files below its build's prefix
-                    const prefix = `${base}${release.manifest}/`;
-                    for (const each of browserOutputs(await read(release.manifest))) {
+                    const prefix = `${base}${manifest}/`;
+                    for (const each of browserOutputs(await read(manifest))) {
                         for (const [subpath, exported] of Object.entries(each.exports)) {
                             const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
                             scope[specifier] = `${prefix}${exported.path}`;
@@ -972,10 +983,14 @@ export class BuildStore<
                     }
 
                     // map the dependency's own imports in its scope
-                    if (!builds.has(release.manifest)) {
-                        builds.add(release.manifest);
+                    if (!builds.has(manifest)) {
+                        builds.add(manifest);
                         map.scopes[prefix] = {};
-                        pending.push({ digest: release.manifest, scope: map.scopes[prefix] });
+                        pending.push({
+                            digest: manifest,
+                            scope: map.scopes[prefix],
+                            isLinked: dependency.isLinked,
+                        });
                     }
                 }
             }
@@ -1168,7 +1183,9 @@ export class BuildStore<
     ): Promise<void> {
         // list the build's files and the builds it depends on
         const dependencies = Object.values(recorded.outputs).flatMap((output) =>
-            Object.values(output.dependencies).map((dependency) => dependency.manifest),
+            Object.values(output.dependencies)
+                .filter((each) => DependencyRelease.hasManifest(each))
+                .map((dependency) => dependency.manifest),
         );
         const referenced = [...new Set([...files.map((file) => file.digest), ...dependencies])];
 
@@ -1193,7 +1210,9 @@ export class BuildStore<
         // list the output's files and the builds it depends on
         const dependencies = Object.values(
             present(recorded.outputs[output], `the output ${output}`).dependencies,
-        ).map((dependency) => dependency.manifest);
+        )
+            .filter((each) => DependencyRelease.hasManifest(each))
+            .map((dependency) => dependency.manifest);
         const referenced = [...new Set([...files.map((file) => file.digest), ...dependencies])];
 
         // record the references, then the output
