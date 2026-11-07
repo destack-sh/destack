@@ -80,6 +80,8 @@ const { url } = await session.launch(address); // GRANT_REQUIRED with the permis
 await session.grant(address); // once the person allows, then launch again
 ```
 
+## Sessions
+
 A session opens a scope's objects as the person in a client in memory, closed with the stack.
 
 ```ts

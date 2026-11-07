@@ -10,7 +10,9 @@ import { Computer, MACHINE_KEYS, ROOT_KEYS } from "./computer.ts";
 import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS } from "./test/index.ts";
 
 /** The template stack package, used as a registered checkout. */
-const templateStack = dirname(dirname(fileURLToPath(import.meta.resolve("@template/stack"))));
+const templateStack = dirname(
+    dirname(fileURLToPath(import.meta.resolve("@destack/template-stack"))),
+);
 
 /** Another machine's entry in the system's keychains, which erasing leaves. */
 const OTHER_MACHINE = "machine-01a10f00-0000-7000-8000-000000000003";

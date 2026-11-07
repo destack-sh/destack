@@ -30,7 +30,9 @@ import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS, WorldDriver } from "../test/index.ts";
 
 /** The template stack package, used as a registered checkout. */
-const templateStack = dirname(dirname(fileURLToPath(import.meta.resolve("@template/stack"))));
+const templateStack = dirname(
+    dirname(fileURLToPath(import.meta.resolve("@destack/template-stack"))),
+);
 
 /** The stack package of the registered checkout's working tree. */
 const STACK_CHECKOUT_PACKAGE = "package-01996ab0-0000-7000-8000-0000000000d1";
