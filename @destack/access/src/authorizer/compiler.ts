@@ -848,8 +848,8 @@ export class Compiler {
         const columns = TableMapping.reference(mapping, expression.reference);
         const related = TableMapping.column(source, expression.relation);
         const branches = this.#authorizer.mappings().flatMap((target) => {
-            // skip the row's type, whose rows relate other objects
-            if (target.policy === mapping.policy) {
+            // skip the row's own type, and the types this database has no table of
+            if (target.policy === mapping.policy || !this.#authorizer.hasTable(target)) {
                 return [];
             }
 

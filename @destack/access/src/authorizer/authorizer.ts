@@ -252,7 +252,7 @@ export class Authorizer {
             this.#policies.has(Authorizer.#policyKey(set.policy)),
         );
         const declared = [...mappings, ...granted];
-        for (const source of [...declared, ...this.#implicitMappings(declared)]) {
+        for (const source of [...declared, ...this.#universalMappings(declared)]) {
             this.#registerMapping(source);
         }
         for (const type of types) {
@@ -336,8 +336,13 @@ export class Authorizer {
         }
     }
 
+    /** Report whether this database has a mapped type's table, every one without given tables. */
+    hasTable(mapping: TableMapping): boolean {
+        return this.#tables?.has(mapping.table) ?? true;
+    }
+
     /** List every database's mappings: scope types onto ancestry, access types onto tables. */
-    #implicitMappings(mappings: readonly TableMapping[]): TableMapping[] {
+    #universalMappings(mappings: readonly TableMapping[]): TableMapping[] {
         // map scope types this database has no table of onto the ancestry every database has
         const scopes = this.policies()
             .filter(
@@ -1113,7 +1118,7 @@ export class Authorizer {
         const stored = types.filter((type) => {
             const mapping = this.mapping(type);
 
-            return mapping !== undefined && (this.#tables?.has(mapping.table) ?? true);
+            return mapping !== undefined && this.hasTable(mapping);
         });
 
         // read each typed table once, with its condition
