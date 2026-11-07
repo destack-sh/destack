@@ -265,7 +265,7 @@ export class MachineIdentity {
         // read the private half from the store
         const stored = await this.#keys.load(this.machineId);
         if (stored === undefined) {
-            throw AccountError.of("MACHINE_KEY_MISSING", `machine ${this.machineId} has no key`);
+            throw AccountError.of("MACHINE_KEY_MISSING", "this machine has no key");
         }
         this.#pair = await KeyPair.read(stored, this.#environment.crypto);
 

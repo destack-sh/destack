@@ -547,17 +547,17 @@ test("relate an installation its residency's space declares once its release ask
             [
                 "FORBIDDEN",
                 "INSTALLATION_NAME_MISMATCH",
-                `installation ${other} is not billing of the space ${homeId}`,
+                `installation ${other} is not billing of this space`,
             ],
             [
                 "FORBIDDEN",
                 "UNIVERSE_PERMISSIONS_MISMATCH",
-                `${greedy.id}@2026.9.0 asks for account.entitle, account.serve, residency.locate, user.suspend in the universe, not what a residency's installation holds`,
+                "@example/greedy@2026.9.0 asks for account.entitle, account.serve, residency.locate, user.suspend in the universe, not what a residency's installation holds",
             ],
             [
                 "FORBIDDEN",
                 "UNIVERSE_PERMISSIONS_MISMATCH",
-                `${modest.id}@2026.9.0 asks for account.serve in the universe, not what a residency's installation holds`,
+                "@example/modest@2026.9.0 asks for account.serve in the universe, not what a residency's installation holds",
             ],
         ],
         ["done", "done", [installation]],

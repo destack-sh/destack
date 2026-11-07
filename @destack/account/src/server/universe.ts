@@ -434,7 +434,7 @@ export class Platform {
             if (recipient === undefined) {
                 throw AccountError.of(
                     "ACCOUNT_NOT_FOUND",
-                    `handle ${handle} transfers to no account ${accountId}`,
+                    `handle ${handle} transfers to an account that does not exist`,
                 );
             }
 
@@ -449,7 +449,7 @@ export class Platform {
             if (conflict !== undefined) {
                 throw AccountError.of(
                     "HANDLE_RESERVED",
-                    `reserved handle ${conflict.key} is claimed outside the operating organization ${organizationId}`,
+                    `reserved handle ${conflict.key} is claimed outside the operating organization`,
                 );
             }
 

@@ -1397,7 +1397,7 @@ export class TestAccountStore implements AsyncDisposable {
             const reader = releases.get(`${packageId}@${version}`);
             if (reader === undefined) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `release ${version} of ${packageId} not found`,
+                    message: `release ${version} of this package not found`,
                 });
             }
 

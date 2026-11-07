@@ -78,7 +78,7 @@ async function place(
     if (!isRetained && !isAdvanced) {
         throw AccountError.of(
             "PLACEMENT_MISMATCH",
-            `${current.spaceId} is not placed on or moving to ${caller} at epoch ${epoch}`,
+            `this space is not placed on or moving to ${caller} at epoch ${epoch}`,
         );
     }
 

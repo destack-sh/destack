@@ -14,7 +14,7 @@ export function implementHostname(): typeof hostname {
                 const accountId = schema.identifier("account").parse(call.scope);
                 const row = await call.read(account).findFirst({ where: { id: accountId } });
                 if (row === undefined) {
-                    throw AccountError.of("ACCOUNT_NOT_FOUND", `account ${accountId} not found`);
+                    throw AccountError.of("ACCOUNT_NOT_FOUND", "no such account");
                 }
 
                 // require a verified domain of the account or its owner covering the name

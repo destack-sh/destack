@@ -14,6 +14,7 @@ import objectPackage from "@destack/object/package";
 import type { ObjectReference, Publisher } from "@destack/sync";
 import { account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
+import { machine } from "../object/machine.ts";
 import { placement, type PlacementEndpoint } from "../object/placement.ts";
 import { SpaceAddress } from "./address.ts";
 import type {} from "@destack/package/import-meta";
@@ -98,7 +99,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         // read the placement, then where its machine answers
         const placed = await this.#placement(spaceId);
         if (placed === undefined) {
-            throw AccountError.of("SPACE_NOT_PLACED", `nothing responds for ${spaceId}`);
+            throw AccountError.of("SPACE_NOT_PLACED", "nothing responds for this space");
         }
         const url = await this.answering(placed.machine, now);
 
@@ -205,9 +206,12 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
             .read(endpoint.table)
             .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, now)) {
+            const named = await this.snapshot
+                .read(machine.table)
+                .findFirst({ where: { id: machineId } });
             throw AccountError.of(
                 "MACHINE_NOT_PUBLISHED",
-                `machine ${machineId} has no published endpoint`,
+                `${present(named, `machine ${machineId}`).name} has no published endpoint`,
             );
         }
 

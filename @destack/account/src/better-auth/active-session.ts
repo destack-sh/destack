@@ -91,7 +91,7 @@ export class ActiveSession {
         if (email === null || emailVerified === null) {
             throw AccountError.of(
                 "PRIVATE_FIELDS_CONCEALED",
-                `user ${active.userId} has its private fields concealed`,
+                "the active user has its private fields concealed",
             );
         }
 

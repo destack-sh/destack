@@ -40,7 +40,7 @@ async function entitle(
     if (allowed.size !== allowances.length) {
         throw AccountError.of(
             "FEATURE_REPEATED",
-            `the allowances of account ${accountId} repeat a feature`,
+            "the account's allowances repeat a feature",
         );
     }
 

@@ -713,7 +713,7 @@ test("move and withdraw a space only as the machine serving it, at the epoch it 
     ]).toEqual([
         [
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: move"],
-            ["CONFLICT", "EPOCH_STALE", `${laptop} is no longer placed at epoch 2`],
+            ["CONFLICT", "EPOCH_STALE", "this space is no longer placed at epoch 2"],
             "done",
         ],
         [local.subject.id, peer.subject.id],
@@ -952,7 +952,7 @@ test("refuse declaring an account's dedicated cloud machine its plan does not un
     expect(await refusal(declared)).toEqual([
         "PAYMENT_REQUIRED",
         "DEDICATED_TENANCY_UNENTITLED",
-        `${accountId} has no dedicated tenancy: no plan of the account grants dedicated tenancy`,
+        "this account has no dedicated tenancy: no plan of the account grants dedicated tenancy",
     ]);
 });
 

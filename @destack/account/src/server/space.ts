@@ -104,7 +104,7 @@ async function pickMachine(
     // place it on the enabled shared machine of the account's residency scoring highest for it
     const owner = await context.read(account).findFirst({ where: { id: accountId } });
     if (owner === undefined) {
-        throw AccountError.of("ACCOUNT_NOT_FOUND", `account ${accountId} not found`);
+        throw AccountError.of("ACCOUNT_NOT_FOUND", "no such account");
     }
     const shared = await context.read(machine).findMany({
         where: {

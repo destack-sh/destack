@@ -114,7 +114,7 @@ export const Placement = Object.assign(PlacementSchema, {
         if (row.epoch !== epoch) {
             throw AccountError.of(
                 "EPOCH_STALE",
-                `${row.spaceId} is no longer placed at epoch ${epoch}`,
+                `this space is no longer placed at epoch ${epoch}`,
             );
         }
     },

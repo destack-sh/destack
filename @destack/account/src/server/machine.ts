@@ -77,7 +77,7 @@ async function declare(
         if (allowed.status !== "true") {
             throw AccountError.of(
                 "DEDICATED_TENANCY_UNENTITLED",
-                `${accountId} has no dedicated tenancy: ${allowed.message}`,
+                `this account has no dedicated tenancy: ${allowed.message}`,
             );
         }
     }

@@ -8,6 +8,7 @@ import {
 } from "@destack/access";
 import { Claim, claimTable, PackageDescription } from "@destack/object";
 import { present } from "@destack/schema";
+import { PackageManifest } from "@destack/package/manifest";
 import { Scope } from "@destack/sync";
 import { Account, account } from "../object/account.ts";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
@@ -49,9 +50,11 @@ async function touch(
     await requireInstallation(context, context.input);
 
     // require the release to declare its package, asking for exactly what the relation gives in the universe
-    const description = await PackageDescription.of(await releases.open(packageId, release));
+    const reader = await releases.open(packageId, release);
+    const released = `${PackageManifest.package(reader.manifest).name}@${release}`;
+    const description = await PackageDescription.of(reader);
     if (description === undefined) {
-        throw AccountError.of("PACKAGE_UNDECLARED", `${packageId}@${release} declares no package`);
+        throw AccountError.of("PACKAGE_UNDECLARED", `${released} declares no package`);
     }
     const requested = description.permissions.space?.universe ?? [];
     const asked = permissionKeys(requested);
@@ -62,7 +65,7 @@ async function touch(
         const named = requested.map(({ type, name }) => `${type}.${name}`).toSorted();
         throw AccountError.of(
             "UNIVERSE_PERMISSIONS_MISMATCH",
-            `${packageId}@${release} asks for ${named.join(", ") || "nothing"} in the universe, not what a residency's installation holds`,
+            `${released} asks for ${named.join(", ") || "nothing"} in the universe, not what a residency's installation holds`,
         );
     }
 
@@ -106,7 +109,7 @@ async function requireInstallation(
     if (expected !== input.installation) {
         throw AccountError.of(
             "INSTALLATION_NAME_MISMATCH",
-            `installation ${input.installation} is not ${input.name} of the space ${spaceId}`,
+            `installation ${input.installation} is not ${input.name} of this space`,
         );
     }
 }
