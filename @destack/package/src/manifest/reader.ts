@@ -344,7 +344,11 @@ export class BuildReader {
         });
         if (!response.ok) {
             await response.body?.cancel();
-            throw PackageError.of("FILE_INVALID", `package read failed: HTTP ${response.status}`);
+            const address = `${url.origin}${url.pathname}`;
+            throw PackageError.of(
+                "FILE_INVALID",
+                `package read failed: HTTP ${response.status} at ${address}`,
+            );
         }
 
         return response;

@@ -117,7 +117,11 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "FILE_INVALID", "package read failed: HTTP 404"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "FILE_INVALID",
+        "package read failed: HTTP 404 at https://registry.example/missing/manifest.json",
+    ]);
 });
 
 test("list the Destack releases a build resolved, leaving its npm dependencies out", async () => {
@@ -226,7 +230,8 @@ test("read a build a directory keeps: its manifest, its file list and each file'
         world.crypto,
     );
     await writer.write("output/bun/index.js", new TextEncoder().encode("export {};\n"));
-    const written = await writer.finish({ destack: "2026.11.0",
+    const written = await writer.finish({
+        destack: "2026.11.0",
         role: "app",
         package: Package.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000a1",
