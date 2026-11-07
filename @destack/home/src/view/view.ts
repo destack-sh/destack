@@ -7,7 +7,7 @@ export const home = defineView({
     name: "home",
     categories: ["home"],
     objects: [space],
-    component: () => import("./app.tsx"),
+    component: () => import("./home.tsx"),
 });
 
 /** The person's settings, stored in their own scope and copied into their home. */
@@ -15,4 +15,11 @@ export const settings = defineView({
     name: "settings",
     objects: [setting],
     component: () => import("./settings.tsx"),
+});
+
+/** The command palette over the commands and views of the person's installations. */
+export const command = defineView({
+    name: "command",
+    categories: ["command"],
+    component: () => import("../palette/palette.tsx"),
 });

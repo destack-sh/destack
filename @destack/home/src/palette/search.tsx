@@ -21,7 +21,7 @@ import {
     type ViewEntry,
     type WindowEntry,
 } from "@destack/view/palette";
-import type { PaletteListing } from "../command/listing.ts";
+import type { PaletteListing } from "./listing.ts";
 import type { PaletteRun, RunEntry } from "./run.ts";
 
 /** Search the palette's entries and act on the one the person picks. */

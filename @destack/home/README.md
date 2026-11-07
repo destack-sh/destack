@@ -11,7 +11,7 @@ export const home = defineView({
     name: "home",
     categories: ["home"],
     objects: [space],
-    component: () => import("./app.tsx"),
+    component: () => import("./home.tsx"),
 });
 
 <Spaces /> // "Personal · Connected · home--florian", then its views: "Notes", "Tasks"
@@ -48,7 +48,7 @@ await new BrowserClient({ path: CLIENT_PATH, origin, environment }).bind(
 
 ## Commands
 
-`command` is the command palette, Home's view the desktop opens over a window: `PaletteListing` reads the person's home through its scope's home path, and their device's windows and recent objects at the device's home.
+`command` is the command palette, Home's view the desktop opens over a window: `PaletteListing` reads each space's `SpaceCatalog` from one `ObjectStoreDescription` of its store, and the device's windows and recent objects at the device's home.
 
 ```ts
 const listing = await PaletteListing.read(
@@ -57,8 +57,9 @@ const listing = await PaletteListing.read(
     { keybindings, sources },
     Clock.system,
 );
-const shape = listing.catalog(command).shape(command); // from the type's describeMethods()
-await listing.catalog(command).call(command, { id }); // through the installation, at /.destack/home/<space>
+const catalog = listing.catalog(entry); // the space's installations, commands, views and types
+catalog.command(entry); // the Command, bound to the type it calls
+await catalog.call(entry, input, id); // through the installation, at /.destack/home/<space>
 ```
 
 ## Palette

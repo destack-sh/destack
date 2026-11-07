@@ -28,7 +28,7 @@ import {
     sources,
     type ViewEntry,
 } from "@destack/view/palette";
-import { CommandPalette } from "../palette/index.ts";
+import { CommandPalette } from "./command-palette.tsx";
 import { PaletteListing } from "./listing.ts";
 import { ParentPage } from "./parent.ts";
 

@@ -6,7 +6,7 @@ import { t } from "@destack/locale";
 import { Loading, onSettled, useEnvironment, useLocale } from "@destack/view";
 import { CLIENT_PATH } from "@destack/view/declare";
 import { BrowserClient } from "@destack/account/browser";
-import { Spaces } from "../space/index.ts";
+import { Spaces } from "./space.tsx";
 
 /** The home layout: the account's spaces with the views their apps mount. */
 const styles = style.create({

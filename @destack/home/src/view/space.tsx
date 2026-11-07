@@ -24,7 +24,7 @@ import {
 } from "@destack/view/declare";
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
-import { SpaceCatalog } from "../command/catalog.ts";
+import { SpaceCatalog } from "../palette/catalog.ts";
 
 /** List the account's spaces by name, each with the views its apps mount. */
 export function Spaces() {

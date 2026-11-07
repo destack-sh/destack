@@ -3,7 +3,7 @@ import type { Identifier, JsonObject } from "@destack/schema";
 import { type Accessor, createSignal, type Setter } from "@destack/view";
 import { schemaFields } from "@destack/ui/schema-form";
 import { type CommandEntry, PaletteFocus, type RegisteredEntry } from "@destack/view/palette";
-import type { PaletteListing } from "../command/listing.ts";
+import type { PaletteListing } from "./listing.ts";
 
 /** A command the palette runs: one an installation declares, or one the page under it registers. */
 export type RunEntry = CommandEntry | RegisteredEntry;

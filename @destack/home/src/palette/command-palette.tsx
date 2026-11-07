@@ -10,7 +10,7 @@ import type {
     ViewEntry,
     WindowEntry,
 } from "@destack/view/palette";
-import type { PaletteListing } from "../command/listing.ts";
+import type { PaletteListing } from "./listing.ts";
 import { ApproveCommand, ConfirmCommand, Outcome } from "./outcome.tsx";
 import { ObjectPicker } from "./picker.tsx";
 import { PaletteRun, stepOf } from "./run.ts";

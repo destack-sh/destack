@@ -8,7 +8,7 @@ import {
 } from "@destack/ui/command";
 import { createEffect, createSignal, For, type JSX, useLocale } from "@destack/view";
 import type { CommandEntry } from "@destack/view/palette";
-import type { PickedObject, SpaceCatalog } from "../command/catalog.ts";
+import type { PickedObject, SpaceCatalog } from "./catalog.ts";
 
 /** Render the picker of a command's target, listing the objects it applies to by title. */
 export function ObjectPicker(properties: {

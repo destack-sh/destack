@@ -1,26 +1,26 @@
 import { Filter } from "@destack/db";
 import {
-    COMMAND_KIND,
-    Command,
-    CommandDescription,
+    type Command,
     InstallationMount,
-    ObjectTypePool,
-    ObjectType,
+    type ObjectType,
     PackageMount,
     Presentation,
 } from "@destack/object";
-import { type ClientOptions, createClient, DynamicObjectClient } from "@destack/object/client";
+import {
+    type ClientOptions,
+    DynamicObjectClient,
+    ObjectClient,
+    ObjectStoreDescription,
+} from "@destack/object/client";
 import { DeclarationName, type PackageId } from "@destack/package";
 import type { Localization } from "@destack/locale";
 import { type Identifier, type JsonObject, type JsonValue, schema, Text } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
-import { Declaration } from "@destack/stack/client";
-import { HOME_PATH, View } from "@destack/view/declare";
+import { HOME_PATH, VIEW_KIND } from "@destack/view/declare";
 import { type CommandEntry, Palette, type PaletteEntry } from "@destack/view/palette";
 import homePackage from "../package.ts";
 import type { Environment } from "@destack/environment";
-import objectPackage from "@destack/object/package";
 
 /** The view of Home the command palette's page mounts, which it leaves out of its views. */
 const PALETTE_VIEW = "command";
@@ -46,7 +46,7 @@ interface CatalogInstallation {
     readonly commands: readonly Command[];
     /** The views it declares. */
     readonly views: readonly DeclarationName[];
-    /** The object types of its package, as the space's store describes them. */
+    /** The object types it lists, as the space's store describes them. */
     readonly objects: readonly ObjectType[];
 }
 
@@ -85,80 +85,36 @@ export class SpaceCatalog {
         this.#environment = connection.environment;
     }
 
-    /** Read what a space's installations declare and the types its store serves, at its home. */
+    /** Read a space's installations with what they declare, as its store describes them. */
     static async read(
         space: PaletteSpace,
         origin: (path: string) => ClientOptions,
         environment: Environment,
     ): Promise<SpaceCatalog> {
-        // read the commands and views the space's installations declare, from their builds' index
-        const home = (path: string) => origin(`${HOME_PATH}/${space.id}${path}`);
-        const stack = createClient(
-            stackPackage,
-            home(PackageMount.path(stackPackage.id)),
-            environment,
-        );
-        const objects = createClient(
-            objectPackage,
-            home(PackageMount.path(objectPackage.id)),
-            environment,
-        );
-        const declarations = await Declaration.read(stack, objects, space.id, [
-            COMMAND_KIND.identity,
-            View.kind,
-        ]);
-        const commands = declarations.filter(
-            ({ declaration }) => declaration.kind === COMMAND_KIND.identity.kind,
-        );
-        const views = declarations.filter(({ declaration }) => declaration.kind === View.kind.kind);
+        // describe the space's store at its home, in one call
+        const home = origin(`${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`);
+        const description = await ObjectStoreDescription.read(ObjectClient.store(home, environment));
 
-        // declare every type the space's store describes, each installation's by its package
-        const store = new DynamicObjectClient({
-            objects: [],
-            scope: space.id,
-            endpoint: home(""),
-            environment,
-        });
-        const types = ObjectTypePool.of([]).declare(await store.describe());
+        // list each named installation's commands, views and types, by name
+        const installations = description.installations
+            .flatMap((installation) => {
+                const { name } = installation;
 
-        // list each installation's declared commands and views
-        const declaring = new Map(
-            declarations.map(({ rollout }) => [rollout.installation.name, rollout.installation]),
-        );
-        const installations = [...declaring.values()]
-            .toSorted((left, right) => Text.compare(left.name, right.name))
-            .map((installation) => {
-                // read each command on the type it calls among the store's
-                const { packageId } = installation;
-                const declared = commands
-                    .filter((entry) => entry.rollout.installation.name === installation.name)
-                    .map(({ declaration }) => {
-                        // find the type the command's description calls
-                        const description = CommandDescription.parse(declaration.description);
-                        const type = types.find(
-                            (each) =>
-                                each.package.id === description.packageId &&
-                                each.name === description.type,
-                        );
-                        if (type === undefined) {
-                            throw new TypeError(
-                                `${space.address} serves no ${description.type} objects for ${declaration.name}`,
-                            );
-                        }
-
-                        return Command.of(declaration.name, description, type);
-                    });
-
-                return {
-                    name: DeclarationName.parse(installation.name),
-                    packageId,
-                    commands: declared,
-                    views: views
-                        .filter((entry) => entry.rollout.installation.name === installation.name)
-                        .map(({ declaration }) => DeclarationName.parse(declaration.name)),
-                    objects: types.filter((type) => type.package.id === packageId),
-                };
-            });
+                return name === undefined
+                    ? []
+                    : [
+                          {
+                              name: DeclarationName.parse(name),
+                              packageId: installation.packageId,
+                              commands: description.commands(installation),
+                              views: description
+                                  .declarations(installation, VIEW_KIND)
+                                  .map((view) => DeclarationName.parse(view.name)),
+                              objects: description.types(installation),
+                          },
+                      ];
+            })
+            .toSorted((left, right) => Text.compare(left.name, right.name));
 
         return new SpaceCatalog(space, installations, { origin, environment });
     }
