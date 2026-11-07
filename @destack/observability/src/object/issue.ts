@@ -367,7 +367,7 @@ export const Issue = {
             if (found === undefined) {
                 throw ObservabilityError.of(
                     "REVISION_UNKNOWN",
-                    `revision ${until.after} is not a revision of installation ${target.installationId}`,
+                    `revision ${until.after} is not a revision of this installation`,
                 );
             }
         }
