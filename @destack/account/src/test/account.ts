@@ -1212,7 +1212,7 @@ export class TestAccountStore implements AsyncDisposable {
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
-                    releases: { open: opening },
+                    releases: { open: opening, distribution: [] },
                 }).at(await base(accountPackage)),
                 settingServer({ after: [] }).at(await base(settingPackage)),
             ],

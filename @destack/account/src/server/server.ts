@@ -19,7 +19,7 @@ import { implementOrganization } from "./organization.ts";
 import { Verification } from "../authentication/table.ts";
 import { implementPlacement } from "./placement.ts";
 import { implementResidency } from "./residency.ts";
-import type { PackageId } from "@destack/package";
+import type { PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { implementSpace } from "./space.ts";
 import { implementUser } from "./user.ts";
@@ -36,10 +36,12 @@ export interface AccountOptions {
     readonly releases: ReleaseRegistry;
 }
 
-/** A registry of package releases, opened by version. */
+/** A registry of package releases, opened by version, and the releases it ships. */
 export interface ReleaseRegistry {
     /** Open a package's release. */
     readonly open: (packageId: PackageId, release: string) => Promise<BuildReader>;
+    /** The releases the distribution ships, which a scope runs of a package it installs none of. */
+    readonly distribution: readonly PackageRelease[];
 }
 
 /** Serve the account package in the universe's store, its oauth adapter answering sign-in. */
