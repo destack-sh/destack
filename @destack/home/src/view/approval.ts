@@ -1,0 +1,89 @@
+import type { Environment } from "@destack/environment";
+import { Observation, PackageMount } from "@destack/object";
+import { type ClientOptions, createClient } from "@destack/object/client";
+import objectPackage from "@destack/object/package";
+import type { Plan } from "@destack/resource";
+import { type Identifier, present } from "@destack/schema";
+import stackPackage from "@destack/stack/package";
+import { RequestId } from "@destack/sync";
+import { HOME_PATH } from "@destack/view/declare";
+
+/** A plan an installation of a space waits on, as a person reviews it. */
+export interface WaitingPlan {
+    /** The space. */
+    readonly space: Identifier<"space">;
+    /** The installation waiting. */
+    readonly installation: Identifier<"installation">;
+    /** The installation's name. */
+    readonly name: string;
+    /** The plan as its controller planned it. */
+    readonly plan: Plan;
+    /** The plan's digest, which approving it names. */
+    readonly digest: string;
+}
+
+/** Read the plans a space's installations wait on, each with the digest approving it names. */
+export async function readWaitingPlans(
+    space: Identifier<"space">,
+    origin: (path: string) => ClientOptions,
+    environment: Environment,
+): Promise<WaitingPlan[]> {
+    // list the space's installations, page by page
+    const objects = createClient<typeof objectPackage.router>(
+        objectPackage,
+        origin(`${HOME_PATH}/${space}${PackageMount.path(objectPackage.id)}`),
+        environment,
+    );
+    const items = [];
+    let cursor: string | undefined;
+    do {
+        const page = await objects.installation.list({
+            scope: space,
+            ...(cursor === undefined ? {} : { cursor }),
+        });
+        items.push(...page.items);
+        cursor = page.cursor ?? undefined;
+    } while (cursor !== undefined);
+
+    // read the plan of each named installation awaiting approval
+    const stack = stackClient(space, origin, environment);
+    const awaiting = items.filter(
+        (entry) => entry.name !== null && Observation.progress(entry) === "approval",
+    );
+
+    return Promise.all(
+        awaiting.map(async (entry) => ({
+            space,
+            installation: entry.id,
+            name: present(entry.name, `the name of installation ${entry.id}`),
+            ...(await stack.rollout.plan({ spaceId: space, id: entry.id })),
+        })),
+    );
+}
+
+/** Approve a waiting plan by the digest the person reviewed. */
+export async function approveWaitingPlan(
+    waiting: WaitingPlan,
+    origin: (path: string) => ClientOptions,
+    environment: Environment,
+): Promise<Plan> {
+    return stackClient(waiting.space, origin, environment).rollout.approve({
+        spaceId: waiting.space,
+        id: waiting.installation,
+        requestId: RequestId.create(environment),
+        plan: waiting.digest,
+    });
+}
+
+/** Open the stack package's client in a space. */
+function stackClient(
+    space: Identifier<"space">,
+    origin: (path: string) => ClientOptions,
+    environment: Environment,
+) {
+    return createClient<typeof stackPackage.router>(
+        stackPackage,
+        origin(`${HOME_PATH}/${space}${PackageMount.path(stackPackage.id)}`),
+        environment,
+    );
+}

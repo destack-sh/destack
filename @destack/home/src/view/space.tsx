@@ -1,9 +1,18 @@
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { Failure } from "@destack/error";
 import { argument, t } from "@destack/locale";
 import { present, schema, type Identifier } from "@destack/schema";
 import { Badge } from "@destack/ui/badge";
+import { Button } from "@destack/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@destack/ui/empty";
-import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@destack/ui/item";
+import {
+    Item,
+    ItemActions,
+    ItemContent,
+    ItemDescription,
+    ItemGroup,
+    ItemTitle,
+} from "@destack/ui/item";
 import {
     createEffect,
     createSignal,
@@ -25,6 +34,7 @@ import {
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
 import { SpaceCatalog } from "../palette/catalog.ts";
+import { approveWaitingPlan, readWaitingPlans, type WaitingPlan } from "./approval.ts";
 
 /** List the account's spaces by name, each with the views its apps mount. */
 export function Spaces() {
@@ -96,6 +106,28 @@ function SpaceItem(properties: {
     const environment = useEnvironment();
     const [views, setViews] = createSignal<readonly ViewEntry[]>([]);
     const [failure, setFailure] = createSignal<string | undefined>(undefined);
+
+    // read the plans the space's installations wait on, again after each approval
+    const [waitingPlans, setWaitingPlans] = createSignal<readonly WaitingPlan[]>([]);
+    const [approvalFailure, setApprovalFailure] = createSignal<string | undefined>(undefined);
+    const readApproval = (id: Identifier<"space">) =>
+        readWaitingPlans(id, origin, environment).then(setWaitingPlans, (error: unknown) => {
+            globalThis.reportError(error);
+            setApprovalFailure(Failure.of(error).message);
+        });
+    const approve = (waiting: WaitingPlan) => {
+        approveWaitingPlan(waiting, origin, environment).then(
+            () => {
+                setApprovalFailure(undefined);
+                void readApproval(properties.id);
+            },
+            (error: unknown) => setApprovalFailure(Failure.of(error).message),
+        );
+    };
+    createEffect(
+        () => properties.id,
+        (id) => void readApproval(id),
+    );
     createEffect(
         () => properties.id,
         (id) => {
@@ -106,7 +138,7 @@ function SpaceItem(properties: {
                 },
                 (error: unknown) => {
                     globalThis.reportError(error);
-                    setFailure(error instanceof Error ? error.message : String(error));
+                    setFailure(Failure.of(error).message);
                 },
             );
         },
@@ -144,6 +176,38 @@ function SpaceItem(properties: {
                             )}
                         </ItemDescription>
                     )}
+                </Show>
+
+                {/* Plans waiting for approval, each with its steps */}
+                <For each={waitingPlans()}>
+                    {(waiting) => (
+                        <Item variant="muted">
+                            <ItemContent>
+                                <ItemTitle>
+                                    {locale.render(t`${argument("name")} waits for approval`, {
+                                        name: waiting.name,
+                                    })}
+                                </ItemTitle>
+                                <For each={waiting.plan.steps}>
+                                    {(step) => (
+                                        <ItemDescription>
+                                            {step.detail} <Badge>{step.risk}</Badge>
+                                        </ItemDescription>
+                                    )}
+                                </For>
+                            </ItemContent>
+                            <ItemActions>
+                                <Button onClick={() => approve(waiting)}>
+                                    {locale.render(t`Approve`)}
+                                </Button>
+                            </ItemActions>
+                        </Item>
+                    )}
+                </For>
+
+                {/* Why the plans could not be read or approved */}
+                <Show when={approvalFailure()}>
+                    {(message) => <ItemDescription>{message()}</ItemDescription>}
                 </Show>
             </ItemContent>
         </Item>

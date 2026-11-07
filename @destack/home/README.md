@@ -17,6 +17,16 @@ export const home = defineView({
 <Spaces /> // "Personal · Connected · home--florian", then its views: "Notes", "Tasks"
 ```
 
+## Approvals
+
+Each space shows the plans its installations wait on, and the person approves one by the digest they reviewed, an access grant among them.
+
+```ts
+const waiting = await readWaitingPlans(spaceId, origin, environment); // installations whose progress is "approval"
+waiting[0]; // { name: "notes", plan: { steps: [{ action: "grant", risk: "privileged", detail: "request read on space" }] }, digest }
+await approveWaitingPlan(waiting[0], origin, environment); // rollout.approve at the space's stack
+```
+
 ## Settings
 
 `settings` shows and changes the person's settings.
