@@ -117,8 +117,11 @@ export class NpmInstallation {
                 dependencies.set(name, await this.#open(real, next));
             }
         }
-        for (const peer of PackageJson.peers(manifest).toSorted()) {
-            // pin a peer the install linked beside it, leaving one leading back to it to the tree, whichever way it was opened
+        const requiredPeers = PackageJson.peers(manifest).filter(
+            (peer) => !PackageJson.isOptional(manifest, peer),
+        );
+        for (const peer of requiredPeers.toSorted()) {
+            // pin a required peer the install linked beside it, leaving one leading back to it and every optional one to the tree
             const installed = await locator.directory(peer, directory);
             const real =
                 installed === undefined

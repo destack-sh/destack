@@ -118,7 +118,7 @@ test("place a stored file by its blob and a layered one from where its layer kee
         await using distributor = await LocalBuildStore.temporary(environment);
         await distributor.writeLayer(
             [await distributor.put(build)],
-            [],
+            ["bun"],
             join(directory, "distribution"),
         );
     }
@@ -164,7 +164,7 @@ test("lay out a distribution's release trees once, cloning a root and the trees 
     const build = await written("export const answer = 42;", crypto);
     const release = await store.put(build);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([release], [], distribution);
+    await store.writeLayer([release], ["bun"], distribution);
 
     // ship an npm tree beside it, which its root reaches through a relative link alone
     const npm = join(distribution, "trees", "npm-left-pad", "node_modules", "left-pad");
@@ -236,7 +236,7 @@ test("ship a build in a layer without its output's maps, reading a map through t
     );
     const release = await store.put(build);
     const distribution = join(directory, "distribution");
-    await store.writeLayer([release], [], distribution);
+    await store.writeLayer([release], ["bun"], distribution);
     await using layered = await LocalBuildStore.of({
         blobs: store.blobs,
         directory: join(directory, "layered"),
@@ -251,6 +251,45 @@ test("ship a build in a layer without its output's maps, reading a map through t
         map: await files.exists(join(distribution, release, "src/answer.ts.map")),
         read: new TextDecoder().decode(await read.load("src/answer.ts.map")),
     }).toEqual({ module: true, map: false, read: map });
+});
+
+test("read an addressed layer's builds in assets by digest, without other runtimes' outputs", async () => {
+    // write a layer of a release for workerd alone, whose build has a Bun output too
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { files, crypto } = environment;
+    const directory = await files.makeTemporaryDirectory("test-stores-");
+    await using store = await LocalBuildStore.open(join(directory, "store"), environment);
+    const release = await store.put(await written("export const answer = 42;", crypto));
+    const distribution = join(directory, "distribution");
+    await store.writeLayer([release], ["workerd"], distribution, "addressed");
+
+    // open it through assets answering the layer's files by path, as a Worker's binding does
+    const fetch = async (input: string) => {
+        const file = join(distribution, new URL(input).pathname);
+
+        return (await files.exists(file))
+            ? new Response(await files.readFile(file))
+            : new Response(null, { status: 404 });
+    };
+    const layer = await BuildLayer.assets({ fetch }, crypto);
+    const read = await present(layer.build(release), "the layered release").then((reader) =>
+        reader.digest(),
+    );
+
+    // read the release by its digest, its blobs its manifest and lists alone, as it has no workerd output and ships no sources off the host
+    const shipped = (await store.contents(release)).references();
+    expect({
+        releases: layer.releases,
+        read,
+        blobs: (await files.readDirectory(join(distribution, "blobs")))
+            .map((entry) => entry.name)
+            .toSorted(),
+    }).toEqual({
+        releases: [release],
+        read: release,
+        blobs: [...new Set([release, ...shipped.map((file) => file.digest)])].toSorted(),
+    });
 });
 
 test("link a running tree's build to the dependencies its closure places alone, never reading a build outside it", async () => {

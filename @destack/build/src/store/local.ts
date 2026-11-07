@@ -8,7 +8,7 @@ import type { PackageFile } from "@destack/package/file";
 import { BuildStore } from "./store.ts";
 import { BuildError } from "../error/index.ts";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
-import { BuildLayer, LAYER_INDEX, LAYER_TREES, LayerIndex } from "./layer.ts";
+import { BuildLayer, LAYER_BLOBS, LAYER_INDEX, LAYER_TREES, LayerIndex } from "./layer.ts";
 import { Toolchain } from "../cache/cache.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, present, schema, Uuid } from "@destack/schema";
@@ -68,8 +68,8 @@ const CACHE_DIRECTORY = "destack";
 /** What the person's store has builds for: development tools, or test runs. */
 export type LocalStoreUse = "development" | "test";
 
-/** How a layer keeps its builds and trees: in itself as shipped, or linked to its store's own. */
-export type LayerLayout = "contained" | "linked";
+/** How a layer keeps its builds: in itself, linked to its store's own, or as blobs by digest. */
+export type LayerLayout = "contained" | "linked" | "addressed";
 
 /** The blobs, database, trees directory and environment of a store on this machine's disk. */
 export interface LocalBuildStoreOptions {
@@ -300,6 +300,13 @@ export class LocalBuildStore
             }
         }
 
+        // write an addressed layer's blobs alone, as a reader by digest needs no build directories nor trees
+        if (layout === "addressed") {
+            await this.#writeAddressed(roots, builds, runtimes, directory);
+
+            return;
+        }
+
         // write each build missing its manifest, which a build writes last, in the store's layered builds for a linked layer, else in the layer
         const { files } = this.environment;
         const pool = layout === "linked" ? join(this.directory, LAYERED_DIRECTORY) : undefined;
@@ -309,7 +316,7 @@ export class LocalBuildStore
             const reader = await this.contents(digest);
             readers.set(digest, reader);
             if (pool === undefined) {
-                await LocalBuildStore.#writeBuild(reader, join(directory, digest), files);
+                await LocalBuildStore.#writeBuild(reader, join(directory, digest), runtimes, files);
             } else {
                 await LocalBuildStore.#writePooled(reader, join(pool, digest), files);
                 if (!(await files.exists(join(directory, digest)))) {
@@ -330,7 +337,8 @@ export class LocalBuildStore
             await files.remove(join(directory, entry.name), { recursive: true });
         }
 
-        // lay out the releases' trees once, in the store's own trees for a linked layer, an empty directory for no releases
+        // lay out the releases' trees once for the host, in the store's own trees for a linked layer, an empty directory for none
+        const isHosting = runtimes.includes(HOST_RUNTIME);
         const trees = pool === undefined ? join(directory, LAYER_TREES) : this.trees;
         await files.mkdir(trees, { recursive: true });
         if (pool !== undefined && !(await files.exists(join(directory, LAYER_TREES)))) {
@@ -343,10 +351,11 @@ export class LocalBuildStore
                 manifest: digest,
             })),
         );
-        await DependencyTree.materialize(this, released, trees);
+        if (isHosting) {
+            await DependencyTree.materialize(this, released, trees);
+        }
 
         // link each root's host run tree as its node_modules, so the host runs it in place
-        const isHosting = runtimes.includes(HOST_RUNTIME);
         for (const root of isHosting ? roots : []) {
             const reader = present(readers.get(root), `the layered build ${root}`);
             const isRunning = Object.values(reader.manifest.outputs).some(
@@ -371,7 +380,7 @@ export class LocalBuildStore
         }
 
         // write the index of its builds and their files last
-        await BuildLayer.writeIndex(directory, roots, readers, files);
+        await BuildLayer.writeIndex(directory, roots, readers, runtimes, files);
     }
 
     /** Write a linked layer of releases once, keyed with the runtimes, returning its directory. */
@@ -402,11 +411,48 @@ export class LocalBuildStore
         return directory;
     }
 
-    /** Write a build's directory unless its manifest, which a build writes last, is there. */
-    static async #writeBuild(reader: BuildReader, build: string, files: FileSystem): Promise<void> {
+    /** Write each build's manifest and shipped files as blobs by digest, the index last. */
+    async #writeAddressed(
+        roots: readonly Digest[],
+        builds: ReadonlySet<Digest>,
+        runtimes: readonly Runtime[],
+        directory: string,
+    ): Promise<void> {
+        // start from an empty directory of blobs
+        const { files } = this.environment;
+        const blobs = join(directory, LAYER_BLOBS);
+        await files.remove(directory, { recursive: true, force: true });
+        await files.mkdir(blobs, { recursive: true });
+
+        // write each build's manifest at its digest, and each file it ships at the file's, once
+        const index: LayerIndex = { releases: [...roots], builds: {}, files: {} };
+        for (const digest of builds) {
+            const reader = await this.contents(digest);
+            const manifest = PackageManifest.serialize(reader.manifest);
+            await files.writeFile(join(blobs, digest), manifest);
+            index.builds[digest] = manifest.byteLength;
+            for (const file of await BuildLayer.shipped(reader, runtimes)) {
+                if (index.files[file.digest] === undefined) {
+                    await files.writeFile(join(blobs, file.digest), await reader.load(file.path));
+                    index.files[file.digest] = `${LAYER_BLOBS}/${file.digest}`;
+                }
+            }
+        }
+
+        // write the index last
+        await files.writeTextFile(join(directory, LAYER_INDEX), JSON.stringify(index));
+    }
+
+    /** Write a build's directory for some runtimes unless its manifest, written last, is there. */
+    static async #writeBuild(
+        reader: BuildReader,
+        build: string,
+        runtimes: readonly Runtime[],
+        files: FileSystem,
+    ): Promise<void> {
         if (!(await files.exists(join(build, MANIFEST_PATH)))) {
             await files.remove(build, { recursive: true, force: true });
-            await reader.writeDirectory(build, files, await BuildLayer.shipped(reader));
+            await reader.writeDirectory(build, files, await BuildLayer.shipped(reader, runtimes));
         }
     }
 
@@ -430,7 +476,11 @@ export class LocalBuildStore
             await reader.writeDirectory(
                 join(staging, "build"),
                 files,
-                await BuildLayer.shipped(reader),
+                // keep every output, as linked layers of any runtimes share the pooled build
+                await BuildLayer.shipped(
+                    reader,
+                    Object.values(reader.manifest.outputs).map((output) => output.runtime),
+                ),
             );
             await files.rename(join(staging, "build"), build).catch(async (error: unknown) => {
                 if (!(await files.exists(join(build, MANIFEST_PATH)))) {

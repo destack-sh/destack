@@ -37,13 +37,13 @@ test("convert a CommonJS package to ESM for workerd while the world's time stand
         isFired,
     }).toEqual({
         exports: { ".": "index.js" },
-        paths: ["_rolldown/_virtual__rolldown_runtime.js", "index.js", "package.json"],
+        paths: ["index.js"],
         elapsed: 0,
         isFired: false,
     });
 });
 
-test("convert a package to the same files wherever its copy is converted, emptied modules included", async () => {
+test("convert a package to the same files wherever its copy is converted, bundling emptied modules in", async () => {
     // convert a package whose browser field empties a module, in two worlds with their own temporary roots
     const files = new Map([
         [
@@ -79,15 +79,58 @@ test("convert a package to the same files wherever its copy is converted, emptie
         return [...converted.files].map(([path, bytes]) => [path, new TextDecoder().decode(bytes)]);
     };
 
-    // write the same paths and bytes from both roots, emptying the replaced module and dependency
+    // write the same bytes from both roots, the replaced module and dependency emptied inside the export's chunk
     const [first, second] = [await convert(), await convert()];
     expect(second).toEqual(first);
-    expect(first.map(([path]) => path)).toEqual([
-        "package.json",
-        "lib/index.js",
-        "lib/node.js",
-        "_rolldown/_virtual__destack_empty.js",
-        "_rolldown/_virtual__rolldown_empty_js_lib_node.js",
-        "_rolldown/_virtual__rolldown_runtime.js",
+    expect(first.map(([path]) => path)).toEqual(["lib/index.js"]);
+});
+
+test("keep the converted modules with the files they load and the license, leaving the rest", async () => {
+    // convert a package importing a stylesheet, and a module below it loading a wasm file and a worker by URL
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const files = new Map([
+        [
+            "package.json",
+            encode(JSON.stringify({ name: "engine", version: "1.0.0", main: "index.js" })),
+        ],
+        ["LICENSE", encode("MIT")],
+        ["README.md", encode("# engine")],
+        ["index.d.ts", encode("export declare const engine: URL;")],
+        ["src/index.ts", encode("export const engine = 1;")],
+        ["index.js", encode('import "./style.css";\nexport * from "./lib/engine.js";')],
+        [
+            "lib/engine.js",
+            encode(
+                'export const engine = new URL("./engine.wasm", import.meta.url);\nexport const worker = new URL("./worker.js", import.meta.url);',
+            ),
+        ],
+        ["style.css", encode("body {}")],
+        ["lib/engine.wasm", encode("wasm")],
+        ["lib/worker.js", encode('fetch(new URL("./data.bin", import.meta.url));')],
+        ["lib/data.bin", encode("data")],
+        ["unused.js", encode("export const unused = true;")],
     ]);
+    const converted = await new NpmConversion("engine", [], [], "browser", environment).convert(
+        files,
+    );
+
+    // bundle the module into the export's chunk, its URLs resolved from there, keeping the files they load beside it
+    const chunk = new TextDecoder().decode(converted.files.get("index.js"));
+    expect({
+        paths: [...converted.files.keys()].toSorted(),
+        urls: [...chunk.matchAll(/new URL\("([^"]+)", import\.meta\.url\)/gu)].map(
+            ([, url]) => url,
+        ),
+    }).toEqual({
+        paths: [
+            "LICENSE",
+            "index.js",
+            "lib/data.bin",
+            "lib/engine.wasm",
+            "lib/worker.js",
+            "style.css",
+        ],
+        urls: ["lib/engine.wasm", "lib/worker.js"],
+    });
 });

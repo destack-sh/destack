@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { Digest, schema } from "@destack/schema";
+import { Digest, present, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 
 import { NpmInstallation } from "./npm.ts";
@@ -47,11 +47,21 @@ async function place(
         }
     }
     if (runtime === "workerd") {
-        const packageJson = join(directory, "node_modules", name, "package.json");
-        const declared = schema
-            .looseObject({})
-            .parse(JSON.parse(await files.readTextFile(packageJson)));
-        await files.writeTextFile(packageJson, JSON.stringify({ ...declared, type: "module" }));
+        // resolve the converted package by its manifest's exports, as a runtime's loader does
+        const output = present(
+            reader.manifest.outputs[runtime],
+            `the ${runtime} output of ${name}`,
+        );
+        const exports = Object.fromEntries(
+            Object.entries(output.exports).map(([subpath, module]) => [
+                subpath,
+                `./${module.path.slice(prefix.length)}`,
+            ]),
+        );
+        await files.writeTextFile(
+            join(directory, "node_modules", name, "package.json"),
+            JSON.stringify({ name, type: "module", exports }),
+        );
     }
 }
 
@@ -303,6 +313,54 @@ test("fail an absent optional dependency's require when it runs, and an absent o
         "ERR_MODULE_NOT_FOUND",
         `Cannot find package 'plugin' imported from ${loading}`,
     ]);
+});
+
+test("pin a required peer the install linked beside a unit, leaving an optional one to its dependents", async () => {
+    // install a loader importing a required and an optional peer, both linked beside it
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const { root, locked } = await writeStore(
+        {
+            host: {
+                manifest: { type: "module", main: "index.js" },
+                files: { "index.js": "export const host = 1;\n" },
+            },
+            plugin: {
+                manifest: { type: "module", main: "index.js" },
+                files: { "index.js": "export const plugin = 1;\n" },
+            },
+            loader: {
+                manifest: {
+                    type: "module",
+                    main: "index.js",
+                    peerDependencies: { host: "1.0.0", plugin: "1.0.0" },
+                    peerDependenciesMeta: { plugin: { optional: true } },
+                },
+                files: {
+                    "index.js":
+                        'export { host } from "host";\nexport const load = () => import("plugin");\n',
+                },
+                links: ["host", "plugin"],
+            },
+        },
+        environment.files,
+    );
+    await using store = await LocalBuildStore.temporary(environment);
+    const installation = new NpmInstallation(locked, store, CONTEXT, environment);
+    const stored = await installation.store(
+        await installation.open(copy(root, "loader")),
+        "workerd",
+    );
+
+    // pin the required peer, and declare the optional one for the tree to provide
+    const output = (await store.contents(stored.manifest)).manifest.outputs["workerd"];
+    expect({
+        dependencies: Object.keys(output?.dependencies ?? {}),
+        peers: output?.peers,
+    }).toEqual({
+        dependencies: ["host"],
+        peers: { host: { isOptional: false }, plugin: { isOptional: true } },
+    });
 });
 
 test("refuse an npm unit with a missing dependency or a cycle, and a native addon and its importers off Bun", async () => {

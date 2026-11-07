@@ -54,6 +54,9 @@ import { dependencyPlugin, modulePath, type ModuleSource } from "./dependency.ts
 import { ASSET, assetPlugin, directoryPlugin, moduleScriptPlugin, rawPlugin } from "./asset.ts";
 import { transformPlugins } from "./extension.ts";
 
+/** The directory of the chunks entries share, below an output's directory. */
+const CHUNK_DIRECTORY = "chunk";
+
 /** A stylesheet import, by its extension, with or without a query. */
 const STYLESHEET = /\.css(?:\?.*)?$/u;
 
@@ -497,7 +500,9 @@ export class OutputCompilation implements Compilation {
             },
             cwd: project.directory,
             experimental: { attachDebugInfo: "none" },
-            input: [...input.entries],
+            input: Object.fromEntries(
+                input.entries.map((entry) => [entryName(project.directory, entry), entry]),
+            ),
             preserveEntrySignatures: "strict",
             // ignore bundler timings
             checks: { bundlerTimings: false },
@@ -508,11 +513,9 @@ export class OutputCompilation implements Compilation {
                 format: "esm",
                 // preserve function and class names in minified server modules, as error families and telemetry read them
                 keepNames: !isBrowser,
-                // keep each module its own file below the package, as runtimes load them unbundled and browsers by an import map
-                preserveModules: true,
-                preserveModulesRoot: project.directory,
+                // bundle each entry at its path, sharing chunks between entries, other packages left to the import map
                 entryFileNames: "[name].js",
-                chunkFileNames: "[name]-[hash].js",
+                chunkFileNames: `${CHUNK_DIRECTORY}/[name]-[hash].js`,
                 // name each asset by its file's name alone, wherever its source lives
                 assetFileNames: ({ names: [name = "asset"] }) =>
                     `asset/${posix.basename(name, posix.extname(name))}-[hash][extname]`,
@@ -610,7 +613,7 @@ export class OutputCompilation implements Compilation {
                     const reference = this.emitFile({
                         type: "chunk",
                         id: module,
-                        name,
+                        fileName: `${name}.js`,
                         preserveSignature: "strict",
                     });
                     references.set(entrypoint, reference);
@@ -873,6 +876,13 @@ export class OutputCompilation implements Compilation {
 
         return paths;
     }
+}
+
+/** Name an entry by its path below the package, its extension dropped but an HTML page's. */
+function entryName(directory: string, entry: string): string {
+    const path = relativePath(directory, entry);
+
+    return path.endsWith(".html") ? path : path.replace(/\.[^./]+$/u, "");
 }
 
 /** Retain each HTML entry's authored bytes under its package path. */

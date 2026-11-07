@@ -2,6 +2,7 @@ import type { Environment } from "@destack/environment";
 import { isBuiltin } from "node:module";
 import { dirname, join, relative, sep } from "node:path";
 import * as lexer from "cjs-module-lexer";
+import MagicString from "magic-string";
 import { type Plugin, rolldown } from "rolldown";
 import { DependencyName } from "@destack/package";
 import { HostModuleResolver, isHostModule, runtimeConditions } from "@destack/package/build";
@@ -14,6 +15,12 @@ const MODULE_PATTERN = /\.[cm]?js$/u;
 
 /** A file a framework compiles rather than JavaScript loads, such as a `.svelte` component. */
 const FOREIGN_PATTERN = /\.(?:svelte|vue|astro|css|scss|sass|less|styl)$/u;
+
+/** A file a module loads at runtime by its URL relative to the module, as bundlers detect it. */
+const URL_REFERENCE = /new URL\(\s*(["'`])(\.{1,2}\/[^"'`]+)\1\s*,\s*import\.meta\.url\s*\)/gu;
+
+/** A license file at a package's root, which a redistributed copy keeps. */
+const LICENSE_PATTERN = /^(?:licen[cs]e|copying|notice)(?:[.-][^/]*)?$/iu;
 
 /** A bare specifier, which names another package or a runtime module and stays external. */
 const BARE_PATTERN = /^[^./\0#]/u;
@@ -53,17 +60,17 @@ const EntryManifest = schema.looseObject({
 /** The runtimes an npm package converts for, the ones loading ES modules only. */
 export type ConvertedRuntime = Exclude<Runtime, "bun">;
 
-/** A module a conversion converted: its path and its code. */
-interface ConvertedModule {
-    /** The module's path in the package. */
+/** A file a conversion wrote: a bundled module, or an installed file one loads by its URL. */
+interface ConvertedFile {
+    /** The file's path in the package. */
     readonly path: string;
-    /** The converted ESM code. */
-    readonly code: string;
+    /** The file's bytes. */
+    readonly bytes: Uint8Array<ArrayBuffer>;
 }
 
 /** An npm package converted for a runtime: its files, its exports' modules and its imports. */
 export interface ConvertedPackage {
-    /** The installed files with every exported module converted, by package path. */
+    /** The converted modules, the files they reference and the license files, by package path. */
     readonly files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
     /** The module each export subpath resolves to. */
     readonly exports: Readonly<Record<string, string>>;
@@ -113,24 +120,60 @@ export class NpmConversion {
                 await files.writeFile(join(root, path), bytes);
             }
 
-            // convert every module its exports import over the installed files
+            // convert every module its exports import, noting the files they import that JavaScript does not load
             const exports = this.#exports(installed);
             const modules = [...new Set(exports.values())].toSorted();
             const imported = new Set<string>();
-            const converted = new Map(installed);
+            const foreign = new Set<string>();
+            const converted = new Map<string, Uint8Array<ArrayBuffer>>();
             if (modules.length > 0) {
                 // bundle as a long operation, as its plugin reads the world's files
                 const bundled = scheduler.waitUntil(
-                    lexer.init().then(() => this.#rolldown(root, modules, installed, imported)),
+                    lexer
+                        .init()
+                        .then(() => this.#rolldown(root, modules, installed, imported, foreign)),
                 );
-                for (const { path, code } of await bundled) {
-                    converted.set(path, new TextEncoder().encode(code));
+                for (const { path, bytes } of await bundled) {
+                    converted.set(path, bytes);
                 }
             }
+
+            // keep the files the modules reference, and the license files
+            const licenses = [...installed.keys()].filter((path) => LICENSE_PATTERN.test(path));
+            for (const path of [...foreign, ...licenses]) {
+                converted.set(path, present(installed.get(path), `${this.name}'s ${path}`));
+            }
+            NpmConversion.#keepReferenced(converted, installed);
 
             return { files: converted, exports: Object.fromEntries(exports), imported };
         } finally {
             await files.remove(root, { recursive: true });
+        }
+    }
+
+    /** Keep each installed file a kept module loads by its URL, and those its files load. */
+    static #keepReferenced(
+        kept: Map<string, Uint8Array<ArrayBuffer>>,
+        installed: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
+    ): void {
+        const pending = [...kept.keys()].filter((path) => MODULE_PATTERN.test(path));
+        for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
+            // read the URLs a module loads relative to itself
+            const code = new TextDecoder().decode(present(kept.get(path), path));
+            const referenced = [...code.matchAll(URL_REFERENCE)].map((match) =>
+                join(dirname(path), present(match[2], `a URL in ${path}`)),
+            );
+
+            // keep each installed one once, reading the modules among them in turn
+            for (const target of referenced) {
+                const bytes = installed.get(target);
+                if (bytes !== undefined && !kept.has(target)) {
+                    kept.set(target, bytes);
+                    if (MODULE_PATTERN.test(target)) {
+                        pending.push(target);
+                    }
+                }
+            }
         }
     }
 
@@ -139,6 +182,7 @@ export class NpmConversion {
         root: string,
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         seen: Set<string>,
+        foreign: Set<string>,
     ): Plugin {
         // leave runtime modules, empty replaced ones, and take requires as Node's require(esm) does
         const hosts = new HostModuleResolver(this.runtime, this.#environment.files);
@@ -148,8 +192,12 @@ export class NpmConversion {
         return {
             name: `destack-npm-${runtime}`,
             resolveId: async (specifier, importer, options) => {
-                // leave a relative import of a file JavaScript does not load, such as a component's source
+                // leave a relative import of a file JavaScript does not load, such as a component's source, keeping the file
                 if (specifier.startsWith(".") && FOREIGN_PATTERN.test(specifier)) {
+                    if (importer !== undefined && !importer.startsWith("\0")) {
+                        foreign.add(relative(root, join(dirname(importer), specifier)));
+                    }
+
                     return { id: specifier, external: true };
                 }
                 // leave relative, package-internal and stand-in modules, and rolldown's helpers' imports, to rolldown
@@ -190,6 +238,34 @@ export class NpmConversion {
                         ? `${REQUIRE_PREFIX}${specifier}`
                         : { id: specifier, external: true };
                 }
+            },
+            transform(code, id) {
+                // load each installed file a module references by its URL from wherever the bundle puts the module
+                if (id.startsWith("\0") || !id.startsWith(`${root}${sep}`)) {
+                    return null;
+                }
+                const path = relative(root, id);
+                const rewritten = new MagicString(code);
+                for (const match of code.matchAll(URL_REFERENCE)) {
+                    const target = join(dirname(path), present(match[2], `a URL in ${path}`));
+                    const source = files.get(target);
+                    if (source !== undefined) {
+                        const reference = this.emitFile({
+                            type: "asset",
+                            fileName: target,
+                            source,
+                        });
+                        rewritten.overwrite(
+                            match.index,
+                            match.index + match[0].length,
+                            `new URL(import.meta.ROLLUP_FILE_URL_${reference})`,
+                        );
+                    }
+                }
+
+                return rewritten.hasChanged()
+                    ? { code: rewritten.toString(), map: rewritten.generateMap({ hires: true }) }
+                    : null;
             },
             load: (id) => {
                 // load a stand-in as JavaScript, whatever its specifier's extension
@@ -410,16 +486,17 @@ export class NpmConversion {
         );
     }
 
-    /** Convert modules under a root to ESM, one file each. */
+    /** Bundle the exported modules below a root to ESM, a chunk each, sharing the rest. */
     async #rolldown(
         root: string,
         modules: readonly string[],
         files: ReadonlyMap<string, Uint8Array<ArrayBuffer>>,
         imported: Set<string>,
-    ): Promise<ConvertedModule[]> {
+        foreign: Set<string>,
+    ): Promise<ConvertedFile[]> {
         // resolve imports as the bundled form did, leaving other packages external
         const bundle = await rolldown({
-            input: modules.map((path) => join(root, path)),
+            input: Object.fromEntries(modules.map((path) => [path, join(root, path)])),
             cwd: root,
             // read no tsconfig a package publishes, whose extends name absent development packages
             tsconfig: false,
@@ -431,25 +508,33 @@ export class NpmConversion {
                 mainFields: MAIN_FIELDS,
                 aliasFields: [["browser"]],
             },
-            plugins: [this.#plugin(root, files, imported)],
+            plugins: [this.#plugin(root, files, imported, foreign)],
         });
         try {
-            // key each module's file by its path below the root, and rolldown's helpers below their directory
+            // key each export's chunk by its module's path below the root, and shared chunks below the helpers' directory
             const rooted = `${root}${sep}`.replaceAll(/[^\w]/gu, "_");
-            const named = (id: string | null, name: string) =>
-                id !== null && id.startsWith(`${root}${sep}`)
-                    ? relative(root, id)
-                    : `${HELPER_DIRECTORY}/${name.replaceAll(/[^\w]/gu, "_").replace(rooted, "")}.js`;
+            const shared = (name: string) =>
+                `${HELPER_DIRECTORY}/${name.replaceAll(/[^\w]/gu, "_").replace(rooted, "")}-[hash].js`;
             const generated = await bundle.generate({
                 format: "esm",
-                preserveModules: true,
-                entryFileNames: (chunk) => named(chunk.facadeModuleId, chunk.name),
-                chunkFileNames: (chunk) => named(null, chunk.name),
+                entryFileNames: (chunk) =>
+                    chunk.facadeModuleId?.startsWith(`${root}${sep}`) === true
+                        ? relative(root, chunk.facadeModuleId)
+                        : shared(chunk.name),
+                chunkFileNames: (chunk) => shared(chunk.name),
             });
 
-            // answer each module's code
-            return generated.output.flatMap((chunk) =>
-                chunk.type === "chunk" ? [{ path: chunk.fileName, code: chunk.code }] : [],
+            // answer each chunk's code, and each file a module loads by its URL
+            return generated.output.map((file) =>
+                file.type === "chunk"
+                    ? { path: file.fileName, bytes: new TextEncoder().encode(file.code) }
+                    : {
+                          path: file.fileName,
+                          bytes:
+                              typeof file.source === "string"
+                                  ? new TextEncoder().encode(file.source)
+                                  : new Uint8Array(file.source),
+                      },
             );
         } finally {
             await bundle.close();
