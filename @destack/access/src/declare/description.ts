@@ -95,6 +95,8 @@ export const PolicyDescription = schema.object({
                 type: AccessName,
                 /** The open relation. */
                 relation: AccessName,
+                /** The relation of this type whose members are the subjects, for a subject set. */
+                members: AccessName.exactOptional(),
             }),
         )
         .exactOptional(),

@@ -300,6 +300,7 @@ export class Authorizer {
             contributed.push({
                 packageId: type.definition.packageId,
                 type: type.definition.name,
+                ...(entry.members === undefined ? {} : { relation: entry.members }),
             });
             this.#contributions.set(key, contributed);
         }
@@ -455,21 +456,23 @@ export class Authorizer {
 
     /** Collect the subject sets the declared relations accept and the permissions grant, by key. */
     #subjectSets(): Map<string, PermissionReference> {
-        // collect the sets the relations accept
-        const accepted = this.policies()
-            .flatMap((policy) => Object.values(policy.definition.relations))
-            .flatMap((relation) => relation.subjects)
-            .flatMap((subject) =>
-                subject.relation === undefined
-                    ? []
-                    : [
-                          {
-                              packageId: subject.packageId,
-                              type: subject.type,
-                              name: subject.relation,
-                          },
-                      ],
-            );
+        // collect the sets the relations accept, declared or contributed to open relations
+        const accepted = [
+            ...this.policies()
+                .flatMap((policy) => Object.values(policy.definition.relations))
+                .flatMap((relation) => relation.subjects),
+            ...[...this.#contributions.values()].flat(),
+        ].flatMap((subject) =>
+            subject.relation === undefined
+                ? []
+                : [
+                      {
+                          packageId: subject.packageId,
+                          type: subject.type,
+                          name: subject.relation,
+                      },
+                  ],
+        );
 
         // collect the sets the permissions grant to their members, the packages' installations among them
         const granted = this.policies().flatMap((policy) => policy.memberSets());

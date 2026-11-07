@@ -243,6 +243,7 @@ export class Policy<
                           packageId: entry.policy.definition.packageId,
                           type: entry.policy.definition.name,
                           relation: entry.relation,
+                          ...(entry.members === undefined ? {} : { members: entry.members }),
                       })),
                   }),
         });
@@ -399,7 +400,11 @@ interface PolicyFields<Name extends string, Kind extends string> {
     /** Whether the type's objects live in the universe, like users. */
     readonly isGlobal?: boolean;
     /** The open relations of other types this type's objects join, as an attachment's parent. */
-    readonly contributes?: readonly { readonly policy: Policy; readonly relation: string }[];
+    readonly contributes?: readonly {
+        readonly policy: Policy;
+        readonly relation: string;
+        readonly members?: string;
+    }[];
     /** The types of the subject sets the permissions grant to their members. */
     readonly sets?: readonly Policy[];
 }
