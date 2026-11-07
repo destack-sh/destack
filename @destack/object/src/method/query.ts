@@ -6,7 +6,7 @@ import type { LiveItems, Subscriber } from "../client/query.ts";
 import { ObjectQueryBuilder } from "../client/query.ts";
 import type { ObjectQueries } from "../client/client.ts";
 import { ObjectError } from "../error/error.ts";
-import { RelationGraph } from "../query/query.ts";
+import type { RelationGraph } from "../query/query.ts";
 import type { ObjectType } from "../object/object.ts";
 import type { ObjectQuery } from "../replica/replica.ts";
 
@@ -33,14 +33,13 @@ export class ViewSubscriber implements Subscriber {
         this.#read = read;
     }
 
-    /** Query each of some object types in a view, by key, as clients query them. */
+    /** Query each of some object types in a view, by key, as clients query them over a graph. */
     static queries<const Objects extends Readonly<Record<string, ObjectType>>>(
         objects: Objects,
+        relations: RelationGraph,
         read: TableReader,
     ): ObjectQueries<Objects> {
-        const subscriber = new ViewSubscriber(new RelationGraph(Object.values(objects)), read);
-
-        return ObjectQueryBuilder.of(subscriber, objects);
+        return ObjectQueryBuilder.of(new ViewSubscriber(relations, read), objects);
     }
 
     /** Follow a query's items in the view, read once since the view stays the same. */

@@ -68,6 +68,7 @@ export async function serveNotes(
         openDevice,
         server: objects.server(notesPackage),
         database: objects.database,
+        relations: objects.store.relations,
         environment: objects.environment,
         clock: objects.clock,
     };

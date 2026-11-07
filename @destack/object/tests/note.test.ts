@@ -790,7 +790,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
 });
 
 test("read notebooks with their notes and notes with their notebook in a method's view, a limit per notebook", async () => {
-    const { connect, database, environment } = await serveNotes();
+    const { connect, database, relations, environment } = await serveNotes();
     const alice = connect(users.alice);
 
     // file two notes into travel, one into work, and keep one loose
@@ -813,7 +813,7 @@ test("read notebooks with their notes and notes with their notebook in a method'
     await file("Ideas");
 
     // read both directions of the notebook relation through the live view, as a method does
-    const queries = ViewSubscriber.queries({ notebook, note }, (table) =>
+    const queries = ViewSubscriber.queries({ notebook, note }, relations, (table) =>
         Snapshot.live(database).read(table),
     );
     const books = await queries.notebook.findMany({

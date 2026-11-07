@@ -411,11 +411,13 @@ export class MethodContext<
         }
         // query several object types with their relations as clients do, by key
         else if (MethodContext.#isKeyed(source)) {
-            return ViewSubscriber.queries(source, (table) => this.read(table));
+            return ViewSubscriber.queries(source, this.relations, (table) => this.read(table));
         }
         // query one object type with its relations as clients do
         else {
-            return ViewSubscriber.queries({ object: source }, (table) => this.read(table)).object;
+            return ViewSubscriber.queries({ object: source }, this.relations, (table) =>
+                this.read(table),
+            ).object;
         }
     }
 
