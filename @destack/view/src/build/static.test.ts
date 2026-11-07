@@ -187,7 +187,8 @@ test(
         const exported = build.manifest.outputs["browser"]?.exports["./view/site"];
         const loadedCode = await Promise.all(loaded.map(read));
         const counter = deferred.find((path) => moduleName(path) === "counter") ?? "";
-        const counterCode = await read(counter);
+        const counterLoaded = await imported(read, counter);
+        const counterCode = (await Promise.all(counterLoaded.loaded.map(read))).join("\n");
 
         // render the heading as HTML and the counter as an island root, loading no page code at once
         expect({
@@ -199,7 +200,7 @@ test(
             deferred: deferred.map((path) => moduleName(path)).filter((name) => name === "counter"),
             imports: exported?.imports,
             prerender: build.manifest.outputs["prerender"]?.emit,
-            // claim the island's elements from the prerendered page, as hydration needs, instead of cloning new ones
+            // claim the island's elements from the prerendered page in what its chunk loads, as hydration needs, instead of cloning new ones
             isClaiming: counterCode.includes("getNextElement("),
         }).toEqual({
             headings: ["Static heading"],
