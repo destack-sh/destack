@@ -1,5 +1,5 @@
 {
-    "name": "@template/stack",
+    "name": "@destack/template-stack",
     "version": "2026.11.0",
     "license": "MIT",
     "type": "module",

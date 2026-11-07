@@ -1,4 +1,4 @@
-# @template/stack
+# @destack/template-stack
 
 Declare the base configuration of a space.
 
@@ -10,7 +10,7 @@ Declare the base configuration of a space.
 import observabilityPackage from "@destack/observability/package";
 import { defineStack } from "@destack/stack";
 import vaultPackage from "@destack/vault/package";
-import { credentials, files } from "@template/stack";
+import { credentials, files } from "@destack/template-stack";
 
 export const personal = defineStack([vaultPackage, observabilityPackage], {
     buckets: { files: files.declare({ retention: { within: { days: 30 } } }) },
