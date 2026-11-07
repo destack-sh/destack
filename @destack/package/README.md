@@ -106,6 +106,16 @@ const settings = await reader.declared(
 const module = await reader.module((await reader.graph()).modules["src/server.ts"]);
 ```
 
+## Dependencies
+
+A build records each dependency as one `DependencyRelease`: a Destack build or an npm unit by its manifest digest, and a builtin by its package and version alone, which every runtime links at its platform's release.
+
+```ts
+output.dependencies["@acme/notes"]; // { kind: "destack", package, manifest }
+output.dependencies["@destack/object"]; // { kind: "builtin", package: { id, name, version: "2026.11.0" } }
+Object.values(output.dependencies).filter((each) => DependencyRelease.hasManifest(each)); // the builds to pull
+```
+
 ## Stack frames
 
 `StackFrame.read` reads a stack trace's frames, a build's `Symbolicator` maps them through its source maps as an emitter does before export, and `StackFrame.attribute` resolves a frame to its symbol and declaration through the code index.

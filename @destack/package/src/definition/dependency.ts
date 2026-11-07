@@ -14,8 +14,8 @@ export const NpmRelease = schema.object({
 /** An npm release the lockfile pins. */
 export type NpmRelease = schema.Infer<typeof NpmRelease>;
 
-/** An immutable dependency release: a Destack build, or an npm release with its unit's build. */
-export const DependencyRelease = schema.union([
+/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
+const dependencyRelease = schema.union([
     PackageRelease.extend({
         /** The Destack registry format. */
         kind: schema.literal("destack"),
@@ -26,10 +26,27 @@ export const DependencyRelease = schema.union([
         /** The digest of its npm unit's build manifest: the release built for server runtimes. */
         manifest: Digest,
     }),
+    schema.object({
+        /** A builtin, which every runtime links at its platform's release. */
+        kind: schema.literal("builtin"),
+        /** The builtin package at the release the build compiled against. */
+        package: Package,
+    }),
 ]);
 
-/** An immutable dependency release available from a registry. */
-export type DependencyRelease = schema.Infer<typeof DependencyRelease>;
+/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
+export const DependencyRelease = Object.assign(dependencyRelease, {
+    /** Report whether a release names its build's manifest: a Destack build's or an npm unit's. */
+    hasManifest(release: DependencyRelease): release is ManifestRelease {
+        return release.kind !== "builtin";
+    },
+});
+
+/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
+export type DependencyRelease = schema.Infer<typeof dependencyRelease>;
+
+/** A dependency release with its build's manifest: a Destack build or an npm unit's. */
+export type ManifestRelease = Exclude<DependencyRelease, { readonly kind: "builtin" }>;
 
 /** A registry release or source snapshot selected during package resolution. */
 export const DependencyResolution = schema.union([
