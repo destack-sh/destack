@@ -23,6 +23,7 @@ export const CliError = defineErrorFamily(import.meta.destack.package, {
     // conflict
     INSTALLATION_FAILED: { code: "CONFLICT" },
     INSTALLATION_NAME_TAKEN: { code: "CONFLICT" },
+    PLAN_NOT_WAITING: { code: "CONFLICT" },
     METHOD_AMBIGUOUS: { code: "CONFLICT" },
 
     // precondition failed

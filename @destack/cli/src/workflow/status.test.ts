@@ -5,6 +5,11 @@ import { plain } from "../output/index.ts";
 import { Plan } from "@destack/resource";
 import { InstallationStatus } from "./status.ts";
 
+/** The approval a waiting plan's change request asks. */
+const APPROVAL = schema
+    .identifier("approval")
+    .parse("approval-01996ab0-0000-7000-8000-000000000009");
+
 /** A space the rendered results belong to. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
@@ -105,7 +110,7 @@ test("render a stack's readiness with aligned resources and the plan it waits on
             installation: stack,
             rollout: stack,
             resources,
-            waiting: { plan: waiting, digest },
+            waiting: { plan: waiting, digest, approval: APPROVAL },
         }).render(plain),
     ).toBe(
         [
@@ -163,7 +168,7 @@ test("render an application waiting to be granted more access, approved by its n
         },
         rollout: { appliedRevisionId: revisionId, servedRevisionId: null },
         resources: [],
-        waiting: { plan: waiting, digest },
+        waiting: { plan: waiting, digest, approval: APPROVAL },
     });
 
     // wait on the approval, and show the grant with the command approving it by the installation's name

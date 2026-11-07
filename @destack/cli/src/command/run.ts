@@ -8,7 +8,7 @@ import { loginCommand, logoutCommand, whoamiCommand } from "../context/login.ts"
 import { switchCommand } from "../context/space.ts";
 import { nounCommand } from "../object/command.ts";
 import { settingCommand, settingsCommand } from "../object/setting.ts";
-import { applyCommand, approveCommand, planCommand } from "../workflow/apply.ts";
+import { applyCommand, approveCommand, planCommand, rejectCommand } from "../workflow/apply.ts";
 import { buildCommand, devCommand, publishCommand } from "../workflow/dev.ts";
 import { tagCommand } from "../workflow/tag.ts";
 import { installCommand } from "../workflow/install.ts";
@@ -106,6 +106,7 @@ export class CommandLine {
             apply: applyCommand(context),
             plan: planCommand(context),
             approve: approveCommand(context),
+            reject: rejectCommand(context),
 
             // this computer's checkouts
             dev: devCommand(context),

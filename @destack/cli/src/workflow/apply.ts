@@ -79,8 +79,20 @@ export function planCommand(context: Context): Verb {
 
 /** Approve the plan an installation, the space's stack by default, waits on. */
 export function approveCommand(context: Context): Verb {
+    return decideCommand("approve", context);
+}
+
+/** Reject the plan an installation, the space's stack by default, waits on. */
+export function rejectCommand(context: Context): Verb {
+    return decideCommand("reject", context);
+}
+
+/** Decide the plan an installation waits on through its change request, by the reviewed digest. */
+function decideCommand(decision: "approve" | "reject", context: Context): Verb {
+    const verb = decision === "approve" ? "Approve" : "Reject";
+
     return {
-        description: "Approve the plan an installation, the space's stack by default, waits on",
+        description: `${verb} the plan an installation, the space's stack by default, waits on`,
         arguments: [INSTALLATION_ARGUMENT],
         json: true,
         options: {
@@ -91,28 +103,34 @@ export function approveCommand(context: Context): Verb {
             },
         },
         async run({ arguments: { installation: name }, options, json }) {
-            // approve the reviewed plan's digest
+            // decide the reviewed plan's digest
             const plan = OptionValue.string(options["plan"], "plan");
             if (plan === undefined) {
                 throw CliError.of("USAGE_INVALID", "give the reviewed plan's digest with --plan");
             }
-            const { environment } = await context.native();
             const space = await context.requireSpace();
-            const location = await context.locate();
-            const objects = await context.package(objectPackage, location);
+            const objects = await context.package(objectPackage, await context.locate());
             const { id } = await objects.installation.get({
                 scope: space,
                 id: present(name, "the installation argument"),
             });
-            const stack = await context.package(stackPackage, location);
-            const approved = await stack.rollout.approve({
-                spaceId: space,
-                id,
+            const { environment } = await context.native();
+            const stack = await context.package(stackPackage, await context.locate());
+            const waiting = await stack.rollout.plan({ spaceId: space, id });
+            if (waiting.digest !== plan || waiting.approval === null) {
+                throw CliError.of(
+                    "PLAN_NOT_WAITING",
+                    `${name} waits on no change request for plan ${plan}`,
+                );
+            }
+            await objects.approval[decision]({
+                scope: space,
+                id: waiting.approval,
                 requestId: RequestId.create(environment),
-                plan,
             });
+            const done = decision === "approve" ? "Approved" : "Rejected";
             await context.terminal.print(
-                json ? JSON.stringify(approved) : `Approved plan ${plan}.`,
+                json ? JSON.stringify({ id, plan, decision }) : `${done} plan ${plan}.`,
             );
         },
     };

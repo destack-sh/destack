@@ -1,6 +1,7 @@
 import { RelationalQuery } from "@destack/object/client";
 import { principal } from "@destack/access";
 import {
+    approval,
     type Installation,
     installation,
     type InstallationSelection,
@@ -10,6 +11,7 @@ import {
 } from "@destack/object";
 import { type Action, Plan, type Risk } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
+import objectPackage from "@destack/object/package";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { bucket, database, type Rollout, rollout } from "@destack/stack/object";
 import { vault } from "@destack/vault/object";
@@ -61,7 +63,7 @@ export async function* followInstallation(
     await using opened = new AsyncDisposableStack();
     const { query } = await person.open(
         { space },
-        { installation, rollout, database, bucket, vault },
+        { installation, rollout, database, bucket, vault, approval },
         opened,
     );
     const watching = new AbortController();
@@ -82,6 +84,8 @@ export async function* followInstallation(
         {
             installed: query.installation.findFirst({ where: { id } }),
             rolled: query.rollout.findFirst({ where: { installationId: id } }),
+            // wake once a plan's change request asks its approval
+            asked: query.approval.findMany({ where: { state: "requested" } }),
             databases: query.database.findMany(owned),
             buckets: query.bucket.findMany(owned),
             vaults: query.vault.findMany(owned),
@@ -100,11 +104,15 @@ export async function* followInstallation(
             throw CliError.of("INSTALLATION_MISSING", `${space} has no installation ${id}`);
         }
 
-        // read the plan and its digest only while the installation awaits approval
-        const waiting =
+        // read the plan, its digest and the approval it asks while the installation awaits approval
+        const planned =
             Observation.progress(installed) === "approval"
                 ? await stack.rollout.plan({ spaceId: space, id })
                 : undefined;
+        const waiting =
+            planned === undefined || planned.approval === null
+                ? undefined
+                : { ...planned, approval: planned.approval };
         yield new InstallationStatus({
             installation: installed,
             rollout: rolled,
@@ -150,12 +158,11 @@ export async function driveInstallation(
                 );
             }
             const { environment } = await context.native();
-            const stack = await context.package(stackPackage, await context.locate());
-            await stack.rollout.approve({
-                spaceId: await context.requireSpace(),
-                id,
+            const objects = await context.package(objectPackage, await context.locate());
+            await objects.approval.approve({
+                scope: await context.requireSpace(),
+                id: waiting.approval,
                 requestId: RequestId.create(environment),
-                plan: waiting.digest,
             });
             approved = waiting.digest;
         }
@@ -163,6 +170,16 @@ export async function driveInstallation(
 
     // stop following once interrupted
     throw CliError.of("FOLLOW_STOPPED", `stopped following ${id} before it was current`);
+}
+
+/** A plan an installation waits on, with its digest and the approval its change request asks. */
+interface Waiting {
+    /** The plan. */
+    readonly plan: Plan;
+    /** The plan's digest, which approving it names. */
+    readonly digest: string;
+    /** The approval the plan's change request asks of the space's managers. */
+    readonly approval: Identifier<"approval">;
 }
 
 /** Where an installation stands: its progress, revisions, resources and the plan it waits on. */
@@ -177,14 +194,14 @@ export class InstallationStatus {
     /** The resources the installation manages or owns. */
     readonly resources: readonly Pick<Resource, "name" | "conditions">[];
     /** The plan the installation waits on with its digest, absent unless it awaits approval. */
-    readonly waiting: { readonly plan: Plan; readonly digest: string } | undefined;
+    readonly waiting: Waiting | undefined;
 
     /** Take an installation's rollout, resources and waiting plan. */
     constructor(fields: {
         readonly installation: InstallationStatus["installation"];
         readonly rollout: InstallationStatus["rollout"];
         readonly resources: InstallationStatus["resources"];
-        readonly waiting?: { readonly plan: Plan; readonly digest: string };
+        readonly waiting?: Waiting;
     }) {
         // set the installation, the rollout, the resources and the waiting plan
         this.installation = fields.installation;

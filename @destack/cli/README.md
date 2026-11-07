@@ -66,13 +66,14 @@ destack notebook notebook-0199… rename-to-ideas --revision 3
 
 ## Stacks
 
-`apply` changes the space's stack, and `plan` and `approve` show and approve the plan any installation waits on, the stack's by default.
+`apply` changes the space's stack; `plan` shows the plan any installation waits on, the stack's by default, and `approve` or `reject` decides the change request asking the space's managers for it.
 
 ```sh
 destack apply ./stack --export space --parameters '{"region":"eu"}'
 destack plan --watch
 destack approve --plan 3f1c…
 destack approve notes --plan 9a2e…   # an update of notes asking for more access
+destack reject notes --plan 9a2e…
 ```
 
 ## Installations
