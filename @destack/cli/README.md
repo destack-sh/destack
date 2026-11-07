@@ -77,7 +77,7 @@ destack approve --plan 3f1c…
 
 ## Installations
 
-`install` installs a package's release in the space.
+`install` installs a package's release in the space and waits until the space serves it.
 
 ```sh
 destack install @acme/notebooks@2026.10.0 --name notes

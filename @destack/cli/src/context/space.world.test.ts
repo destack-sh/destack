@@ -3,9 +3,22 @@ import accountPackage from "@destack/account/package";
 import objectPackage from "@destack/object/package";
 import { schema } from "@destack/schema";
 import settingPackage from "@destack/setting/package";
+import stackPackage from "@destack/stack/package";
 import universePackage from "@destack/universe/package";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
+
+/** A printed space's identifier. */
+const Created = schema.looseObject({ id: schema.identifier("space") });
+
+/** The printed installations: each one's name, scope and package. */
+const Installed = schema.array(
+    schema.looseObject({
+        name: schema.string().nullable(),
+        scope: schema.string(),
+        packageId: schema.string(),
+    }),
+);
 
 /** Write what whoami prints as JSON for the owner acting in a space. */
 function whoami(terminal: TerminalFixture, space: string | null): string {
@@ -123,4 +136,41 @@ test("act in the space DESTACK_SPACE gives when the command line gives no --spac
             error: `${JSON.stringify({ error: { code: "NOT_FOUND", message: `nothing responds at ${missing}` } })}\n`,
         },
     ]);
+});
+
+test("create a space on this computer's machine, switch to it, and list the installations its base stack applied", async () => {
+    // create the space on this computer's machine, and wait until it serves its stack
+    const terminal = await TerminalFixture.open();
+    const machine = terminal.computer.machine.id;
+    const words = ["space", "create", "--name", "projects", "--machine", machine, "--json"];
+    const created = await terminal.printed(words);
+    const space = Created.parse(JSON.parse(created.output)).id;
+    await terminal.wait(terminal.computer.ready(space));
+
+    // switch to it, then list its installations
+    const switched = await terminal.printed(["switch", "projects"]);
+    const installations = await terminal.printed(["installations", "--json"]);
+    const own = Installed.parse(JSON.parse(installations.output)).filter(
+        (row) => row.scope === space,
+    );
+
+    // install the base packages unnamed, and the base stack's installations and their dependencies by name
+    expect({
+        created: [created.code, created.error],
+        switched,
+        base: own
+            .filter((row) => row.name === null)
+            .map((row) => row.packageId)
+            .toSorted(),
+        named: own.flatMap((row) => (row.name === null ? [] : [row.name])).toSorted(),
+    }).toEqual({
+        created: [0, ""],
+        switched: {
+            code: 0,
+            output: `Switched to ${terminal.address("projects")}.\n`,
+            error: "",
+        },
+        base: [objectPackage.id, settingPackage.id, stackPackage.id].toSorted(),
+        named: ["message", "notification", "observability", "social", "stack", "vault"],
+    });
 });

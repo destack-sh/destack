@@ -3,7 +3,7 @@ import { card } from "@destack/machine-board-fixture/object";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
-import { TerminalFixture } from "../test/terminal.ts";
+import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** A printed object's identifier. */
 const Printed = schema.looseObject({ id: schema.string() });
@@ -364,5 +364,55 @@ test("run a declared command without a target as a verb of its noun, setting its
         code: 0,
         output: `${JSON.stringify(await terminal.object(card, "work", id))}\n`,
         error: "",
+    });
+});
+
+test("watch a noun's objects as JSON lines, printing them again at each change, until interrupted", async () => {
+    // watch the cards, then create one
+    const terminal = await open("work");
+    const watching = terminal.start(["--space", "home", "cards", "--watch", "--json"]);
+    await watching.waitLines(1);
+    const id = await create(terminal, "Plans");
+    await watching.waitLines(2);
+
+    // stop watching as Ctrl-C does
+    watching.interrupt();
+    const { code, output, error } = await watching.printed;
+    const stored = await terminal.object(card, "work", id);
+
+    // print no cards, then the created one, each as a JSON line, and exit as interrupted
+    expect({ code, lines: jsonLines(output), error }).toEqual({
+        code: 130,
+        lines: [[], [stored]],
+        error: "",
+    });
+});
+
+test("watch one object as JSON lines, printing it again at each change, until interrupted", async () => {
+    // watch a card, then retitle it
+    const terminal = await open("work");
+    const id = await create(terminal, "Plans");
+    const watching = terminal.start(["--space", "home", "card", id, "--watch", "--json"]);
+    await watching.waitLines(1);
+    const created = await terminal.object(card, "work", id);
+    await line(terminal, ["card", id, "update", "--title", "Ideas", "--revision", "1"]);
+    await watching.waitLines(2);
+
+    // stop watching as Ctrl-C does
+    watching.interrupt();
+    const { code, output, error } = await watching.printed;
+    const updated = await terminal.object(card, "work", id);
+
+    // print the card as created, then as retitled, and exit as interrupted
+    expect({
+        code,
+        lines: jsonLines(output),
+        error,
+        titles: [created["title"], updated["title"]],
+    }).toEqual({
+        code: 130,
+        lines: [created, updated],
+        error: "",
+        titles: ["Plans", "Ideas"],
     });
 });

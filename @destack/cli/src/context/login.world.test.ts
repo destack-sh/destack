@@ -1,11 +1,22 @@
 import { currentLogin, currentSpace } from "@destack/account/native";
 import { Account } from "@destack/account/object";
 import { OWNER_EMAIL } from "@destack/machine/test";
+import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 
 /** The email of a second person signed in on the computer. */
 const OTHER_EMAIL = "bea@example.test";
+
+/** A printed login's name, status and space. */
+const Person = schema.looseObject({
+    name: schema.string(),
+    status: schema.string(),
+    space: schema.string().nullable(),
+});
+
+/** A printed list of spaces, by name. */
+const Listed = schema.array(schema.looseObject({ name: schema.string() }));
 
 /** Type a mailed code as it was mailed. */
 function typed(code: string): string {
@@ -98,4 +109,41 @@ test("sign a person out of this computer", async () => {
         { code: 0, output: `${JSON.stringify({ id: terminal.login.id })}\n`, error: "" },
         [],
     ]);
+});
+
+test("sign a new person up with a handle and a residency, then show who they are and their spaces", async () => {
+    // sign Ada up with a mailed code, then show the login and list the spaces
+    const terminal = await TerminalFixture.open();
+    const email = "ada@example.test";
+    const words = [
+        "login",
+        "--email",
+        email,
+        "--handle",
+        "ada",
+        "--residency",
+        "eu",
+        "--name",
+        "Ada",
+    ];
+    const signedUp = await terminal.signIn(words, email, [], typed);
+    const whoami = await terminal.printed(["whoami", "--json"]);
+    const spaces = await terminal.printed(["spaces", "--json"]);
+    const person = Person.parse(JSON.parse(whoami.output));
+    const listed = Listed.parse(JSON.parse(spaces.output));
+
+    // sign Ada up into a new home, signed in there, which is the one space
+    expect({
+        signedUp,
+        whoami: [whoami.code, whoami.error, person.name, person.status, person.space],
+        spaces: [spaces.code, spaces.error, listed.map((space) => space.name)],
+    }).toEqual({
+        signedUp: {
+            code: 0,
+            output: "Signed in as Ada.\nSwitched to home--ada.\n",
+            error: `Sent a code to ${email}.\n`,
+        },
+        whoami: [0, "", "Ada", "authenticated", "home--ada"],
+        spaces: [0, "", ["home"]],
+    });
 });

@@ -148,10 +148,11 @@ export class CommandLine {
             const line = CommandLine.read(words[0] === COMPLETE ? words.slice(1) : words);
             const space = line.space ?? environment.process.variables[SPACE_VARIABLE];
             const context = new Context(open, space, environment);
+            await using terminal = context.terminal;
             const tree = new CommandTree(CommandLine.tree(context));
             if (words[0] === COMPLETE) {
                 for (const candidate of await Completion.candidates(tree, line.words)) {
-                    await context.terminal.print(Completion.line(candidate));
+                    await terminal.print(Completion.line(candidate));
                 }
             }
             // print the version
@@ -160,11 +161,11 @@ export class CommandLine {
                     throw CliError.of("USAGE_INVALID", "use --version without a command");
                 }
                 const version = import.meta.destack.package.version;
-                await context.terminal.print(line.isJson ? JSON.stringify({ version }) : version);
+                await terminal.print(line.isJson ? JSON.stringify({ version }) : version);
             }
             // run the command of the words, or show help without one
             else {
-                await tree.execute(line.words, line.isJson, context.terminal);
+                await tree.execute(line.words, line.isJson, terminal);
             }
 
             return 0;

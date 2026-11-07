@@ -9,7 +9,7 @@ import { type Identifier, type JsonObject, present, schema } from "@destack/sche
 import { onTestFinished } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
 import type { Scheduler } from "@destack/environment";
-import { SimulatedProcess } from "@destack/environment/simulation";
+import { type Simulation, SimulatedProcess } from "@destack/environment/simulation";
 import { CommandLine } from "../command/run.ts";
 import { Context } from "../context/context.ts";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
@@ -22,6 +22,9 @@ const TERMINAL_PROCESS = 1;
 
 /** The user a terminal's command lines run as: the first regular user on Linux. */
 const TERMINAL_USER = 1000;
+
+/** How long a command line may take to print a line: 10 s, far above its milliseconds. */
+const PRINT_MILLISECONDS = 10_000;
 
 /** How long a rollout may take to meet a check: 2 min, a space pulling a closure in ~30 s. */
 const ROLLOUT_MILLISECONDS = 120_000;
@@ -139,11 +142,14 @@ export class TerminalFixture {
         );
     }
 
-    /** Install a published fixture in the owner's home under a name, until applied. */
-    async install(fixture: string, name: string): Promise<void> {
-        const { owner } = this.computer.world;
+    /** Install a published fixture under a name in a space, the owner's home by default. */
+    async install(
+        fixture: string,
+        name: string,
+        space: Identifier<"space"> = this.computer.world.owner.home,
+    ): Promise<void> {
         const build = await WorldDriver.fixture(fixture);
-        await this.computer.install(this.login.id, owner.home, build, name);
+        await this.computer.install(this.login.id, space, build, name);
     }
 
     /** Read an object of an installation in the owner's home as the owner, as JSON prints it. */
@@ -263,23 +269,78 @@ export class TerminalFixture {
     }
 
     /** Run a command line on its input, returning what it printed and its exit status. */
-    async printed(words: readonly string[], input: TerminalInput = {}): Promise<Printed> {
+    printed(words: readonly string[], input: TerminalInput = {}): Promise<Printed> {
+        return this.start(words, input).printed;
+    }
+
+    /** Start a command line on its input as a job of the terminal, which runs until it ends. */
+    start(words: readonly string[], input: TerminalInput = {}): TerminalJob {
         // run the command line on the terminal's node through the computer's client device
         const { simulation } = this.computer.world;
         const node = simulation.environment(TERMINAL_NODE);
-        const running = TerminalFixture.process(this.#variables, node.scheduler, input);
-        const environment = { ...node, process: running };
-        const code = await simulation.wait(
-            CommandLine.run(words, async () => this.native, environment),
-        );
+        const process = TerminalFixture.process(this.#variables, node.scheduler, input);
+        const ended = CommandLine.run(words, async () => this.native, { ...node, process });
 
-        // read what it wrote to standard output and standard error
-        return {
-            code,
-            output: decodeChunks(running.stdout.chunks),
-            error: decodeChunks(running.stderr.chunks),
-        };
+        return new TerminalJob(process, simulation, ended);
     }
+
+    /** List the URLs the terminal's command lines opened in the person's browser, in order. */
+    opened(): readonly string[] {
+        return this.computer.world.simulation.opener.opened(TERMINAL_NODE);
+    }
+}
+
+/** A command line running on the terminal as a shell job: its output, interrupt and end. */
+export class TerminalJob {
+    /** What it printed and how it exited, once it ends. */
+    readonly printed: Promise<Printed>;
+    /** The process it runs as. */
+    readonly #process: SimulatedProcess;
+    /** The world it runs in. */
+    readonly #simulation: Simulation;
+    /** Whether it ended. */
+    #isEnded = false;
+
+    /** Follow a command line's process until its run ends. */
+    constructor(process: SimulatedProcess, simulation: Simulation, ended: Promise<number>) {
+        // read what it wrote to standard output and standard error once it ends
+        this.#process = process;
+        this.#simulation = simulation;
+        this.printed = simulation.wait(ended).then((code) => {
+            this.#isEnded = true;
+
+            return {
+                code,
+                output: decodeChunks(process.stdout.chunks),
+                error: decodeChunks(process.stderr.chunks),
+            };
+        });
+    }
+
+    /** Read what it printed to standard output so far. */
+    output(): string {
+        return decodeChunks(this.#process.stdout.chunks);
+    }
+
+    /** Run the world until it printed some lines or ended, refusing a late one. */
+    async waitLines(count: number): Promise<void> {
+        const lines = () => this.output().split("\n").length - 1;
+        const deadline = this.#simulation.clock.now() + PRINT_MILLISECONDS;
+        await this.#simulation.waitUntil(() => this.#isEnded || lines() >= count, deadline);
+    }
+
+    /** Interrupt it, as Ctrl-C sends SIGINT to the terminal's foreground job. */
+    interrupt(): void {
+        this.#process.kill(this.#process.id, "SIGINT");
+    }
+}
+
+/** Read the JSON lines a watch printed, one value per line. */
+export function jsonLines(output: string): unknown[] {
+    return output
+        .split("\n")
+        .filter((each) => each !== "")
+        .map((each): unknown => JSON.parse(each));
 }
 
 /** Decode the chunks a process wrote to one of its standard streams. */

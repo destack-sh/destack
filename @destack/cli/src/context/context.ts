@@ -20,7 +20,7 @@ import { CliError } from "../error/index.ts";
 const BUILT_IN_SETTINGS: readonly Setting[] = [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS];
 
 /** The environment capabilities a command line runs with. */
-export type CliEnvironment = Environment<"files" | "process" | "host" | "server">;
+export type CliEnvironment = Environment<"files" | "process" | "host" | "opener" | "server">;
 
 /** What a command line acts in: its environment, this computer's device, the person and a space. */
 export class Context {

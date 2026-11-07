@@ -22,6 +22,7 @@ export const CliError = defineErrorFamily(import.meta.destack.package, {
 
     // conflict
     STACK_FAILED: { code: "CONFLICT" },
+    INSTALLATION_FAILED: { code: "CONFLICT" },
     METHOD_AMBIGUOUS: { code: "CONFLICT" },
 
     // precondition failed
@@ -32,7 +33,6 @@ export const CliError = defineErrorFamily(import.meta.destack.package, {
     COMMAND_UNAVAILABLE: { code: "PRECONDITION_FAILED" },
 
     // internal server error
-    BROWSER_LAUNCH_FAILED: { code: "INTERNAL_SERVER_ERROR" },
     MACHINE_START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
 
     // service unavailable

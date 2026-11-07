@@ -7,7 +7,7 @@ import type { SpaceAddress } from "@destack/account/address";
 import { type Device, type SignInMethod } from "@destack/machine/device";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
 import type { Environment } from "@destack/environment";
-import { browse, Prompt } from "../output/index.ts";
+import { Prompt } from "../output/index.ts";
 import type { Context } from "./context.ts";
 import { CliError } from "../error/index.ts";
 
@@ -198,7 +198,7 @@ async function signPersonIn(
         // open the page in the browser
         if (state.kind === "open") {
             await terminal.printDiagnostic(`Opening ${state.url}`);
-            await browse(state.url, environment);
+            await environment.opener.openUrl(state.url);
         }
         // show the code to enter at the page
         else if (state.kind === "enter") {

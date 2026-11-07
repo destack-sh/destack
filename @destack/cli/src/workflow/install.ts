@@ -1,12 +1,16 @@
 import { LATEST_TAG } from "@destack/registry/object";
 import { PackageName } from "@destack/package";
-import { present } from "@destack/schema";
+import { type Identifier, present } from "@destack/schema";
+import { installation } from "@destack/object";
+import { RelationalQuery } from "@destack/object/client";
+import { Rollout, rollout } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
 
 import type { Context } from "../context/context.ts";
 
+import { Interrupt } from "../command/error.ts";
 import { CliError } from "../error/index.ts";
 import { Forge } from "./forge.ts";
 
@@ -35,10 +39,11 @@ export function installCommand(context: Context): Verb {
             const name =
                 OptionValue.string(options["name"], "name") ?? PackageName.split(packageName).local;
 
-            // resolve the release, and install it
+            // resolve the release, install it, and follow it until it serves the release
             const forge = await Forge.open(packageName, context);
             const resolved = await forge.resolve(packageName, release);
             const id = await install(context, resolved, name);
+            await follow(context, id);
             const { version } = resolved.release;
             await context.terminal.print(
                 json
@@ -72,7 +77,7 @@ async function install(
     context: Context,
     resolved: Awaited<ReturnType<Forge["resolve"]>>,
     name: string,
-): Promise<string> {
+): Promise<Identifier<"installation">> {
     // create the installation following the release in the space, which its controller deploys
     const { environment } = await context.native();
     const space = await context.requireSpace();
@@ -87,4 +92,54 @@ async function install(
     });
 
     return created.id;
+}
+
+/** Follow an installation until it serves its release, showing its waits and refusing a failure. */
+async function follow(context: Context, id: Identifier<"installation">): Promise<void> {
+    // follow the installation and its rollout as the person until interrupted
+    const space = await context.requireSpace();
+    const person = await context.person();
+    await using opened = new AsyncDisposableStack();
+    const { query } = await person.open({ space }, { installation, rollout }, opened);
+    using interrupt = new Interrupt(context.environment.process);
+    const status = RelationalQuery.latest(
+        {
+            installed: query.installation.findFirst({ where: { id } }),
+            rolled: query.rollout.findFirst({ where: { installationId: id } }),
+        },
+        interrupt.signal,
+    );
+
+    // end once it serves its release, refuse a failed rollout, and show each new reason it waits on
+    let shown: string | undefined;
+    for await (const { installed, rolled } of status) {
+        // read how far the rollout is, and the readiness it reports
+        const target =
+            installed === undefined || rolled === undefined
+                ? undefined
+                : Rollout.join(rolled, installed);
+        const progress = target === undefined ? "waiting" : Rollout.progress(target);
+        const ready = target?.installation.conditions["Ready"];
+
+        // end once it serves its release
+        if (progress === "served") {
+            return;
+        }
+        // refuse a rollout that failed, with its reason
+        else if (progress === "failed") {
+            throw CliError.of(
+                "INSTALLATION_FAILED",
+                `installation ${id} failed: ${ready?.reason} ${ready?.message}`,
+            );
+        }
+        // show a reason it waits on once
+        else if (ready !== undefined && ready.status === "false" && ready.reason !== shown) {
+            shown = ready.reason;
+            await context.terminal.printDiagnostic(ready.message);
+        }
+    }
+
+    // stop following once interrupted
+    interrupt.require();
+    throw CliError.of("FOLLOW_STOPPED", `stopped following installation ${id} before it served`);
 }

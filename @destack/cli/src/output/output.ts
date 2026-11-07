@@ -15,7 +15,7 @@ export type TerminalProcess = Environment<"process">["process"];
 export const plain: Style = (_, text) => text;
 
 /** The terminal a command line writes its output and diagnostics to. */
-export class Terminal {
+export class Terminal implements AsyncDisposable {
     /** The process whose standard streams the terminal writes. */
     readonly process: TerminalProcess;
     /** Format text only when standard output is a terminal accepting colour. */
@@ -48,6 +48,11 @@ export class Terminal {
     /** Write a line of a command's progress notes and failures to standard error. */
     async printDiagnostic(text: string): Promise<void> {
         await this.process.stderr.write(`${text}\n`);
+    }
+
+    /** Stop reading the answers on standard input. */
+    async [Symbol.asyncDispose](): Promise<void> {
+        await this.prompt[Symbol.asyncDispose]();
     }
 
     /** Start output following a changing value, as text or JSON. */

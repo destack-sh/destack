@@ -6,7 +6,6 @@ import { type Verb, OptionValue } from "../command/command.ts";
 
 import type { Context } from "../context/context.ts";
 import { Application } from "@destack/desktop/workload";
-import { browse } from "../output/index.ts";
 import { CliError } from "../error/index.ts";
 import type { GrantPermission } from "@destack/access";
 import { MachineError } from "@destack/machine/error";
@@ -55,7 +54,7 @@ export function openCommand(context: Context): Verb {
                     return person.launch(address);
                 });
                 await context.terminal.printDiagnostic(`Opening ${url}`);
-                await browse(url, context.environment);
+                await context.environment.opener.openUrl(url);
                 await context.terminal.print(json ? JSON.stringify({ url }) : `Opened ${url}.`);
             }
             // open it as a window of the running desktop, else launch the desktop with it
