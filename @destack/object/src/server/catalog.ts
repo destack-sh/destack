@@ -418,7 +418,7 @@ export class Catalog {
         return ObjectPolicy.authorizer(
             [...objects, ...attached],
             options.policies,
-            new Set(options.database.tables.filter((table) => options.database.replicates(table))),
+            options.database,
             { partition: options.partition, sets, servers },
         );
     }

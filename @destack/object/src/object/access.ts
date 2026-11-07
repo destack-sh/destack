@@ -17,7 +17,7 @@ import { Roles } from "../trait/shareable.ts";
 import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/trait.ts";
 import { Casing } from "./name.ts";
 import { AccessName, ObjectReference, Scope, Subject } from "@destack/sync";
-import { TABLE, type Table } from "@destack/db";
+import { type DatabaseConnection, TABLE, type Table } from "@destack/db";
 import { present, schema } from "@destack/schema";
 import { type MethodContext } from "../method/context.ts";
 import { type Method } from "../method/method.ts";
@@ -125,11 +125,11 @@ export const ObjectPolicy = {
         };
     },
 
-    /** Build the authorizer of stored object types, their scope types and related types. */
+    /** Build the authorizer of object types over the durable database its SQL runs in. */
     authorizer(
         objects: readonly ObjectType[],
         others: readonly (Policy | ObjectType | TableMapping)[],
-        replicated: ReadonlySet<Table>,
+        database: Pick<DatabaseConnection, "tables" | "replicates">,
         options: {
             /** The one partition whose scopes' access the database stores, else none. */
             readonly partition?: string | undefined;
@@ -172,8 +172,9 @@ export const ObjectPolicy = {
                 ),
             ],
             {
-                replicated,
-                tables: new Set([...replicated, ...objects.map((object) => object.table)]),
+                // compile only against the tables the database declares, as its SQL runs there alone
+                replicated: new Set(database.tables.filter((table) => database.replicates(table))),
+                tables: new Set(database.tables),
                 ...(options.partition === undefined ? {} : { partition: options.partition }),
                 ...(options.sets === undefined ? {} : { sets: options.sets }),
                 ...(options.servers === undefined ? {} : { servers: options.servers }),

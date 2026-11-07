@@ -482,11 +482,7 @@ export class ObjectClient<
             scope: options.scope,
             tables: decisionTables,
         });
-        this.#authorizer = ObjectPolicy.authorizer(
-            this.objects,
-            [],
-            new Set(options.database.tables.filter((table) => options.database.replicates(table))),
-        );
+        this.#authorizer = ObjectPolicy.authorizer(this.objects, [], options.database);
 
         // read every replica and the local objects through one local feed
         const others = SEPARATE_STORAGES.flatMap((storage) => this.#stored(storage));
