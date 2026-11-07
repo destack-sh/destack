@@ -63,7 +63,7 @@ const Offering = {
         // read the seller of the product's account
         const [sold] = await context.read(seller).findMany({ where: { accountId: row.accountId } });
         if (sold === undefined) {
-            throw FinanceError.of("SELLER_MISSING", `account ${row.accountId} is not a seller`);
+            throw FinanceError.of("SELLER_MISSING", "this account is not a seller");
         } else if (row.isDefault) {
             return { product: row, seller: sold, prices: [] };
         }

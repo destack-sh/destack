@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { subscription } from "../src/object/index.ts";
-import { Finance, ids } from "./fixture/finance.ts";
+import { Finance } from "./fixture/finance.ts";
 
 /** The start of the subscription's first billing period. */
 const START = Date.UTC(2026, 9, 1);
@@ -59,6 +59,6 @@ test("refuse subscribing without a customer", async () => {
     expect(await refusal(finance.subscribe(offer, { start: START, end: END }))).toEqual([
         "PRECONDITION_FAILED",
         "CUSTOMER_MISSING",
-        `account ${ids.buyer} has no customer`,
+        "this account has no customer",
     ]);
 });

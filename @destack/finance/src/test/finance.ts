@@ -115,7 +115,7 @@ export interface FinanceFixtureOptions {
     readonly start?: number;
 }
 
-/** Finance's build, declaring its package, notifications, secrets and resources, as its home installs it. */
+/** Finance's build, declaring its package, notifications, secrets and resources. */
 const FINANCE: TestPackage = {
     handle: financePackage,
     build: await MemoryBuild.of(
@@ -157,7 +157,7 @@ const PACKAGES: readonly TestPackage[] = [
 /** The packages whose types the home's stack declares. */
 const HOME_TYPES = [vaultPackage, connectionPackage, financePackage] as const;
 
-/** The home's stack, as the residency's declares it: finance bound to the platform's Stripe connection. */
+/** The home's stack: finance bound to the platform's Stripe connection. */
 const RESIDENCY_STACK = {
     vaults: { connections: connectionVault.declare() },
     connections: {

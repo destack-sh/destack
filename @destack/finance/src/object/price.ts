@@ -233,7 +233,7 @@ export const Price = {
             .read(seller.table)
             .findMany({ where: { accountId: owner.accountId } });
         if (sold === undefined) {
-            throw FinanceError.of("SELLER_MISSING", `account ${owner.accountId} is not a seller`);
+            throw FinanceError.of("SELLER_MISSING", "this account is not a seller");
         } else if (sold.creditPrices[terms.currency] === undefined) {
             throw FinanceError.of(
                 "CURRENCY_UNPRICED",

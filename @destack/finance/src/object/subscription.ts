@@ -355,7 +355,7 @@ export const Subscription = {
         if (granting.some((row) => row.sellerId === sold.id)) {
             throw FinanceError.of(
                 "SUBSCRIPTION_DUPLICATE",
-                `account ${accountId} already subscribes to seller ${sold.id}: change that subscription`,
+                `this account already subscribes to seller ${sold.id}: change that subscription`,
             );
         }
     },
