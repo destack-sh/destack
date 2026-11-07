@@ -6,9 +6,10 @@ import { grant, Installation, role, type PackageDescription } from "@destack/obj
 import { nth } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import stackPackage from "../package.ts";
-import { ids, insertRollout, openSpaceDatabase } from "../test/index.ts";
-import { Rollout, rollout } from "./index.ts";
+import stackPackage from "../../package.ts";
+import { ids, insertRollout, openSpaceDatabase } from "../../test/index.ts";
+import { Rollout, rollout } from "../../object/index.ts";
+import { InstallationAccess } from "./access.ts";
 
 /** The description of a notes release requesting reading the space and its own notes. */
 const DESCRIPTION: PackageDescription = {
@@ -73,9 +74,8 @@ test("bind an installation's requests on other packages' types on its consenter'
     const stack = await Installation.base(scope, stackPackage, crypto);
     const subject = principal.installation.reference(ids.space, stack.installation);
     const installation = principal.installation.reference(ids.space, ids.notes);
-    const actor = { subject, now };
-    const installed = await Rollout.access(snapshot, target, DESCRIPTION, actor);
-    const removed = await Rollout.access(snapshot, target, undefined, actor);
+    const installed = await InstallationAccess.changes(snapshot, target, DESCRIPTION, subject, now);
+    const removed = await InstallationAccess.changes(snapshot, target, undefined, subject, now);
 
     // run the consented role for the installer
     const binding = (permissions: readonly Permission[]) =>
@@ -143,8 +143,8 @@ test("relate a residency home's declared installation for its universe-scoped re
     const set = { universe: [user.permission("recipient")] };
     const at = residency.target({ scope: Scope.universe.id, id: lab });
     expect({
-        installed: await Rollout.relate(snapshot, target, set),
-        removed: await Rollout.relate(snapshot, target, {}),
+        installed: await InstallationAccess.relate(snapshot, target, set),
+        removed: await InstallationAccess.relate(snapshot, target, {}),
     }).toEqual({
         installed: [
             residency.call("touch", {

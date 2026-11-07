@@ -21,14 +21,12 @@ import {
     build,
     deployment,
     installationRevision,
-    InstallationRevision,
     Rollout,
     rollout,
     type SubmissionPreparation,
     Build,
     type Submission,
     type InstallationRollout,
-    type RevisionOptions,
 } from "../../object/index.ts";
 import { PackageManifest, ViewDescription } from "@destack/package/manifest";
 import { type ApplicationOptions, ApplicationInstallation } from "./application.ts";
@@ -41,6 +39,7 @@ import type { TokenIssuer } from "@destack/access/token";
 import { InstallationAssertion } from "./token.ts";
 import { StackError } from "../../error/index.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
+import { RolloutTarget, type RevisionOptions } from "./target.ts";
 
 /** The options a machine serves installations with. */
 export interface InstallationOptions extends RevisionOptions, ApplicationOptions {
@@ -267,7 +266,7 @@ export function implementRollouts(options: InstallationOptions) {
 
                     return {
                         release,
-                        ...(await InstallationRevision.describe(
+                        ...(await RolloutTarget.describe(
                             target.installation,
                             reader,
                             context.objects,
@@ -357,8 +356,8 @@ async function submit(
     const evaluation =
         stack === undefined
             ? undefined
-            : await Rollout.evaluate(
-                  await Rollout.inputs(context, { ...target.installation, ...stack }),
+            : await RolloutTarget.evaluate(
+                  await RolloutTarget.inputs(context, { ...target.installation, ...stack }),
                   reader,
                   options,
               );
@@ -475,7 +474,7 @@ function forgeWatches(forge: Forge) {
         // wake the installations of every served space selecting a moved tag of its package
         ObjectWatch.of(forge.tags, async (row, database) => {
             const tagged = forge.tag(row);
-            const selecting = await Rollout.selecting(
+            const selecting = await RolloutTarget.selecting(
                 database,
                 undefined,
                 (selection) => selection.kind === "tag" && selection.tag === tagged.name,
@@ -489,7 +488,7 @@ function forgeWatches(forge: Forge) {
         ObjectWatch.of(forge.references, async (row, database) => {
             const { repository, name } = forge.reference(row);
             // key the installations of every space the database serves selecting the reference
-            const selecting = await Rollout.selecting(
+            const selecting = await RolloutTarget.selecting(
                 database,
                 undefined,
                 (selection) =>
@@ -509,7 +508,7 @@ function forgeWatches(forge: Forge) {
             }
 
             // key the space's installations selecting its directory
-            const selecting = await Rollout.selecting(
+            const selecting = await RolloutTarget.selecting(
                 database,
                 row.scope,
                 (selection) =>
@@ -534,7 +533,7 @@ function checkoutWatch() {
         }
 
         // key the managers of the space's installations selecting its directory
-        const selecting = await Rollout.selecting(
+        const selecting = await RolloutTarget.selecting(
             database,
             row.scope,
             (selection) =>

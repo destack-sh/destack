@@ -14,15 +14,11 @@ import { type Commit, type Identifier, present } from "@destack/schema";
 import { DatabaseError } from "@destack/db";
 import { StackError } from "../../error/index.ts";
 import { ACTIVE_BUILD_STATES, build, Build } from "../../object/build.ts";
-import {
-    installationRevision,
-    type InstallationRollout,
-    Rollout,
-    rollout,
-} from "../../object/rollout.ts";
+import { installationRevision, type InstallationRollout, rollout } from "../../object/rollout.ts";
 import type { SpaceBuildStore, CommitSource, Registry } from "./build.ts";
 import { SelectedRepository } from "./selection.ts";
 import { space } from "@destack/account/object";
+import { RolloutTarget } from "./target.ts";
 
 /** The forge a machine follows: the references and tags its spaces' installations select. */
 export interface Forge {
@@ -151,7 +147,7 @@ export class CommitBuild {
         const { database } = reconciliation;
         const isSame = (source: { readonly repository: string; readonly directory: string }) =>
             source.repository === selected.repository && source.directory === selected.directory;
-        const selecting = await Rollout.selecting(
+        const selecting = await RolloutTarget.selecting(
             database,
             scope,
             (selection) => selection.kind === "repository" && isSame(selection),

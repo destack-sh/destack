@@ -23,9 +23,7 @@ const PACKAGE = { id: ids.package, name: "@example/library", version: "2026.9.0"
 function writeBuild(): Promise<BuildReader> {
     return MemoryBuild.write(
         new Map([["index.js", new TextEncoder().encode("export {};\n")]]),
-        { role: "app",
-            package: PACKAGE,
-        },
+        { role: "app", package: PACKAGE },
         testHost().crypto,
     );
 }

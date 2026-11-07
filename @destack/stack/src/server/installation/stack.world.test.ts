@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { declaredStack, install, StackDefinition } from "../../declare/index.ts";
+import { install, StackDefinition } from "../../declare/index.ts";
 import objectPackage from "@destack/object/package";
 import { BindingTarget, role } from "@destack/object";
 import { STACKS } from "@destack/account/test";
@@ -726,10 +726,10 @@ test("install the installable packages a stack's installations depend on, leavin
 
     // install a stack's notes with its installable dependency, and refuse notes next to pages
     const definition = StackDefinition.collections(
-        await declaredStack(await installingStack([notes], world), "space", {}, read),
+        await StackDefinition.declared(await installingStack([notes], world), "space", {}, read),
     );
     const refused = await refusal(
-        declaredStack(await installingStack([notes, pages], world), "space", {}, read),
+        StackDefinition.declared(await installingStack([notes, pages], world), "space", {}, read),
     );
     expect([Object.keys(definition.installations).toSorted(), refused]).toEqual([
         ["notes", "vault"],
@@ -750,7 +750,7 @@ test("keep a stack's installation following a tag, pinning the releases its depe
 
     // follow the tag for notes, and pin vault, which notes depends on, to its release
     const { installations } = StackDefinition.collections(
-        await declaredStack(stack, "space", {}, read),
+        await StackDefinition.declared(stack, "space", {}, read),
     );
     expect([installations["notes"]?.selection, installations["vault"]?.selection]).toEqual([
         latest,

@@ -332,7 +332,8 @@ async function writeNotebook(): Promise<{ reader: BuildReader; modules: graph.Mo
 
     const reader = await MemoryBuild.write(
         sources,
-        { role: "app",
+        {
+            role: "app",
             package: {
                 id: PackageId.parse(NOTEBOOK_ID),
                 name: "@example/notebook",

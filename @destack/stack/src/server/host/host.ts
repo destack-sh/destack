@@ -100,6 +100,7 @@ import type {
     WorkloadInstallation,
     WorkloadResource,
 } from "../../runtime/runtime.ts";
+import { RolloutTarget } from "../installation/target.ts";
 
 /** The origin in-process installations call their space's stack service at, in process. */
 const STACK_ORIGIN = "http://stack.localhost";
@@ -964,7 +965,10 @@ export class SpaceHost {
                 locale,
                 timeZone,
             },
-            settings: await Rollout.settings(this.database, reader, { scope, installation: id }),
+            settings: await RolloutTarget.settings(this.database, reader, {
+                scope,
+                installation: id,
+            }),
             publisher: Uplink.of(() => stack.store),
             publisherAt: (address, packageId) => {
                 // follow the stack package at the address

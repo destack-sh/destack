@@ -46,7 +46,7 @@ import type { Runtime } from "../runtime/index.ts";
 import { settingServer } from "@destack/setting/server";
 import { type BaseServerContext, PackageContext } from "@destack/object/workload";
 import settingPackage from "@destack/setting/package";
-import { Rollout, rollout } from "../object/index.ts";
+import { rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
 import { SPACE_KERNEL } from "../declare/index.ts";
@@ -74,6 +74,7 @@ import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
 import type { Environment } from "@destack/environment";
+import { RolloutTarget } from "./installation/target.ts";
 
 /** The account package's methods a machine calls about its spaces, as the machine. */
 export interface SpaceAccounts {
@@ -345,7 +346,7 @@ export class SpaceStore {
         // read the installed release and the distribution's
         const options = this.#options;
         const { registry, builds } = options;
-        const installed = await Rollout.reader(view, spaceId, packageId, undefined, options);
+        const installed = await RolloutTarget.reader(view, spaceId, packageId, undefined, options);
         const distributed = PackageRelease.newest(registry.distribution, packageId);
         const isInstalled =
             installed !== undefined &&

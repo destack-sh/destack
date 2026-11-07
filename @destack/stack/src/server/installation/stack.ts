@@ -19,11 +19,11 @@ import {
     rollout,
     type StackReason,
     type InstallationRollout,
-    type RevisionOptions,
 } from "../../object/index.ts";
 import { Approval } from "./approval.ts";
 import { implementRelationship, implementRole } from "../access/role.ts";
 import { Failure } from "@destack/error";
+import { RolloutTarget, type RevisionOptions } from "./target.ts";
 
 /** The space's stack installation: it applies its document and targets what it manages. */
 export class StackInstallation {
@@ -46,7 +46,7 @@ export class StackInstallation {
         const kind = following?.stack.installation.selection.kind;
         const isFollowing = following?.stack.submittedById === null;
         if (following !== undefined && isFollowing && (kind === "release" || kind === "tag")) {
-            await Rollout.revise(reconciliation, [following.stack], this.#options);
+            await RolloutTarget.revise(reconciliation, [following.stack], this.#options);
         }
 
         // apply the stack's document, then target the revisions of the installations it manages while it lives
@@ -199,7 +199,7 @@ export class StackInstallation {
             },
         });
         const rows = await Rollout.installed(snapshot, managed);
-        await Rollout.revise(reconciliation, rows, this.#options);
+        await RolloutTarget.revise(reconciliation, rows, this.#options);
     }
 }
 
@@ -332,7 +332,7 @@ async function installedTypes(
         following.map(async (entry) => {
             const { packageId } = entry.installation;
             const reader = present(
-                await Rollout.reader(
+                await RolloutTarget.reader(
                     snapshot,
                     stack.scope,
                     packageId,

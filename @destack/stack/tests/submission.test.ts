@@ -26,6 +26,7 @@ import {
 } from "../src/test/index.ts";
 import { BuildStore } from "@destack/build/store";
 import stackPackage from "../src/package.ts";
+import { RolloutTarget } from "../src/server/installation/target.ts";
 
 /** The checkout the stack follows. */
 const selection = {
@@ -583,7 +584,7 @@ test("open the build each package's installation in a space follows, and none fo
     // open each package's build, and none for a package the space does not install
     const builds = await fixture.builds();
     const version = (packageId: PackageId) =>
-        Rollout.reader(Snapshot.live(database), ids.space, packageId, undefined, {
+        RolloutTarget.reader(Snapshot.live(database), ids.space, packageId, undefined, {
             builds,
             registry: fixture.registry,
             forge: null,

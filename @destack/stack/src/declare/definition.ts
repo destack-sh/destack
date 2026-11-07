@@ -37,6 +37,136 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         return StackCollections.parse(definition);
     },
 
+    /** Read the stack a package declares at an export, with its installations' dependencies. */
+    async declared(
+        reader: BuildReader,
+        name: string,
+        settings: Readonly<Record<string, JsonValue>>,
+        read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
+    ): Promise<JsonObject> {
+        // require the package's stack declared at the export the name has
+        const found = (await STACK_KIND.read(reader)).find(
+            (entry) => graph.Moniker.name(entry.symbol) === name,
+        );
+        if (found === undefined) {
+            throw StackError.of("STACK_NOT_FOUND", `stack package declares no stack ${name}`);
+        }
+        const declared = found.description;
+
+        // read the one release the build resolved each Destack package at
+        const resolved = oneReleaseEach(await reader.releases(), name);
+
+        // refuse a stack declaring the main database every space has
+        const document = StackDefinition.collections(declared);
+        if (document.databases[MAIN_DATABASE] !== undefined) {
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `stack ${name} declares ${MAIN_DATABASE}, but every space already has it`,
+            );
+        }
+
+        // read each installation with the manifest of the release its package resolved to
+        const declaredInstallations = Object.entries(document.installations).map(
+            ([key, installed]) => {
+                const manifest = resolved.get(installed.packageId)?.manifest;
+                if (manifest === undefined) {
+                    throw StackError.of(
+                        "DEFINITION_INVALID",
+                        `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
+                    );
+                }
+
+                return { key, installed, manifest };
+            },
+        );
+
+        // pin each release selection to its manifest, leaving a tag selection to follow its tag
+        const pinned = Object.fromEntries(
+            declaredInstallations.map(({ key, installed, manifest }) => [
+                key,
+                installed.selection.kind === "release"
+                    ? { ...installed, selection: { ...installed.selection, manifest } }
+                    : installed,
+            ]),
+        );
+
+        // read the installable packages each declared installation's build depends on, except those only its optional capabilities need
+        const declaredManifests = new Map(
+            declaredInstallations.map(({ installed, manifest }) => [installed.packageId, manifest]),
+        );
+        const born = new Set([
+            import.meta.destack.package.id,
+            ...SPACE_KERNEL.map((kernel) => kernel.id),
+        ]);
+        const closures = await Promise.all(
+            declaredInstallations.map(async ({ installed, manifest }) => {
+                // read the installation's package and the packages only its optional capabilities need
+                const build = await read(installed.packageId, manifest);
+                const description = await PackageDescription.of(build);
+                const optional = new Set(Installation.optionalPackages(description));
+
+                // refuse a dependency on a declared package at another release
+                const releases = await installableReleases(build, read);
+                for (const release of releases) {
+                    const pinnedManifest = declaredManifests.get(release.package.id);
+                    if (pinnedManifest !== undefined && pinnedManifest !== release.manifest) {
+                        throw StackError.of(
+                            "DEFINITION_INVALID",
+                            `stack ${name} declares ${release.package.name} at another release than ${PackageManifest.package(build.manifest).name} depends on`,
+                        );
+                    }
+                }
+
+                // list its installable dependencies the stack leaves out, except the installer and its kernel
+                return releases.filter(
+                    (release) =>
+                        !declaredManifests.has(release.package.id) &&
+                        !optional.has(release.package.id) &&
+                        !born.has(release.package.id),
+                );
+            }),
+        );
+
+        // run in the store each dependency of an installation in the store, whose build runs its code there already
+        const stored = new Set(
+            closures.flatMap((releases, index) =>
+                declaredInstallations[index]?.installed.isolation === "process"
+                    ? releases.map((release) => release.package.id)
+                    : [],
+            ),
+        );
+
+        // install each once as any package, bound to nothing, at the release its dependents resolved
+        const transitive: Record<string, InstallationDefinition> = {};
+        for (const release of oneReleaseEach(closures.flat(), name).values()) {
+            const isolation = stored.has(release.package.id) ? "process" : "sandbox";
+            const installed = install(
+                { ...release.package, resources: {}, secrets: {} },
+                {},
+                { isolation },
+            );
+            if (Object.hasOwn(document.installations, installed.name)) {
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `stack ${name} declares installation ${installed.name}, which is the key of its dependency ${release.package.name}`,
+                );
+            }
+            transitive[installed.name] = {
+                ...installed,
+                selection:
+                    installed.selection.kind === "release"
+                        ? { ...installed.selection, manifest: release.manifest }
+                        : installed.selection,
+            };
+        }
+
+        return StackDefinition.parse({
+            ...declared,
+            installations: { ...transitive, ...pinned },
+            settings: { ...document.settings, ...StackDefinition.placed(settings) },
+        });
+    },
+
     /** Describe the setting values of a space as the settings a stack places. */
     placed(settings: Readonly<Record<string, JsonValue>>): Record<string, JsonObject> {
         return Object.fromEntries(
@@ -50,134 +180,6 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 
 /** The stack declaration kind, which stack defines. */
 export const STACK_KIND = defineDeclarationKind("stack", StackDefinition);
-
-/** Read the stack a stack package declares at an export, with its installations' dependencies. */
-export async function declaredStack(
-    reader: BuildReader,
-    name: string,
-    settings: Readonly<Record<string, JsonValue>>,
-    read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
-): Promise<JsonObject> {
-    // require the package's stack declared at the export the name has
-    const found = (await STACK_KIND.read(reader)).find(
-        (entry) => graph.Moniker.name(entry.symbol) === name,
-    );
-    if (found === undefined) {
-        throw StackError.of("STACK_NOT_FOUND", `stack package declares no stack ${name}`);
-    }
-    const declared = found.description;
-
-    // read the one release the build resolved each Destack package at
-    const resolved = oneReleaseEach(await reader.releases(), name);
-
-    // refuse a stack declaring the main database every space has
-    const document = StackDefinition.collections(declared);
-    if (document.databases[MAIN_DATABASE] !== undefined) {
-        throw StackError.of(
-            "DEFINITION_INVALID",
-            `stack ${name} declares ${MAIN_DATABASE}, but every space already has it`,
-        );
-    }
-
-    // read each installation with the manifest of the release its package resolved to
-    const declaredInstallations = Object.entries(document.installations).map(([key, installed]) => {
-        const manifest = resolved.get(installed.packageId)?.manifest;
-        if (manifest === undefined) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
-            );
-        }
-
-        return { key, installed, manifest };
-    });
-
-    // pin each release selection to its manifest, leaving a tag selection to follow its tag
-    const pinned = Object.fromEntries(
-        declaredInstallations.map(({ key, installed, manifest }) => [
-            key,
-            installed.selection.kind === "release"
-                ? { ...installed, selection: { ...installed.selection, manifest } }
-                : installed,
-        ]),
-    );
-
-    // read the installable packages each declared installation's build depends on, except those only its optional capabilities need
-    const declaredManifests = new Map(
-        declaredInstallations.map(({ installed, manifest }) => [installed.packageId, manifest]),
-    );
-    const born = new Set([
-        import.meta.destack.package.id,
-        ...SPACE_KERNEL.map((kernel) => kernel.id),
-    ]);
-    const closures = await Promise.all(
-        declaredInstallations.map(async ({ installed, manifest }) => {
-            // read the installation's package and the packages only its optional capabilities need
-            const build = await read(installed.packageId, manifest);
-            const description = await PackageDescription.of(build);
-            const optional = new Set(Installation.optionalPackages(description));
-
-            // refuse a dependency on a declared package at another release
-            const releases = await installableReleases(build, read);
-            for (const release of releases) {
-                const pinnedManifest = declaredManifests.get(release.package.id);
-                if (pinnedManifest !== undefined && pinnedManifest !== release.manifest) {
-                    throw StackError.of(
-                        "DEFINITION_INVALID",
-                        `stack ${name} declares ${release.package.name} at another release than ${PackageManifest.package(build.manifest).name} depends on`,
-                    );
-                }
-            }
-
-            // list its installable dependencies the stack leaves out, except the installer and its kernel
-            return releases.filter(
-                (release) =>
-                    !declaredManifests.has(release.package.id) &&
-                    !optional.has(release.package.id) &&
-                    !born.has(release.package.id),
-            );
-        }),
-    );
-
-    // run in the store each dependency of an installation in the store, whose build runs its code there already
-    const stored = new Set(
-        closures.flatMap((releases, index) =>
-            declaredInstallations[index]?.installed.isolation === "process"
-                ? releases.map((release) => release.package.id)
-                : [],
-        ),
-    );
-
-    // install each once as any package, bound to nothing, at the release its dependents resolved
-    const transitive: Record<string, InstallationDefinition> = {};
-    for (const release of oneReleaseEach(closures.flat(), name).values()) {
-        const isolation = stored.has(release.package.id) ? "process" : "sandbox";
-        const installed = install(
-            { ...release.package, resources: {}, secrets: {} },
-            {},
-            { isolation },
-        );
-        if (Object.hasOwn(document.installations, installed.name)) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `stack ${name} declares installation ${installed.name}, which is the key of its dependency ${release.package.name}`,
-            );
-        }
-        transitive[installed.name] = {
-            ...installed,
-            selection:
-                installed.selection.kind === "release"
-                    ? { ...installed.selection, manifest: release.manifest }
-                    : installed.selection,
-        };
-    }
-
-    return StackDefinition.parse({
-        ...declared,
-        installations: { ...transitive, ...pinned },
-        settings: { ...document.settings, ...StackDefinition.placed(settings) },
-    });
-}
 
 /** List the releases a build depends on that declare a package with a type stored in a space. */
 export async function installableReleases(

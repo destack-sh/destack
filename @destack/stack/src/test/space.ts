@@ -80,7 +80,7 @@ import {
 import objectPackage from "@destack/object/package";
 import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
-import { Database, InstallationRevision, Rollout } from "../object/index.ts";
+import { Database, Rollout } from "../object/index.ts";
 import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
 import { REFUSAL_REASONS } from "../server/installation/application.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
@@ -124,6 +124,7 @@ import { MemoryBuild } from "@destack/package/test";
 import type { StackRelease } from "@destack/account/object";
 import { PackageClient, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
+import { RolloutTarget } from "../server/installation/target.ts";
 
 /** The Destack version the fixture machine runs: this checkout's. */
 const DESTACK_VERSION = import.meta.destack.package.version;
@@ -1421,7 +1422,7 @@ export class TestSpace implements AsyncDisposable {
             kernel: KERNEL_TYPES,
         };
 
-        return InstallationRevision.describe(target, reader, store.objects, options);
+        return RolloutTarget.describe(target, reader, store.objects, options);
     }
 
     /** Put a build with its code index in the build store, and record it succeeded now. */

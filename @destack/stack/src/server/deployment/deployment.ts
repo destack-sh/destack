@@ -53,7 +53,6 @@ import {
     type InstanceCondition,
     installationRevision,
     type InstallationRevision,
-    Rollout,
     dependency,
 } from "../../object/index.ts";
 import { MAIN_DATABASE } from "../../declare/index.ts";
@@ -61,6 +60,7 @@ import { StackError } from "../../error/index.ts";
 import type { ProviderIndex } from "../resource/resource.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
 import type { SpaceBuildStore } from "../installation/build.ts";
+import { RolloutTarget } from "../installation/target.ts";
 
 /** The instance statuses of a recorded workload not stopped for good. */
 const UNSTOPPED_STATUSES = ["starting", "running", "failed"] as const;
@@ -558,7 +558,7 @@ class Reconcile {
                 resources: resources
                     .filter((entry) => Reconcile.#isUsed(current.description, entry))
                     .map((entry) => this.#workloadResource(entry)),
-                settings: await Rollout.settings(this.#reconciliation.database, reader, {
+                settings: await RolloutTarget.settings(this.#reconciliation.database, reader, {
                     scope: current.scope,
                     installation: current.installationId,
                 }),

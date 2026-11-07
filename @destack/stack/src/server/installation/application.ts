@@ -73,6 +73,8 @@ import { Approval } from "./approval.ts";
 import type { Forge } from "./follow.ts";
 import { HOOK_WORKLOAD } from "../../workload/hook.ts";
 import { type DeploymentRuntime, PROCESS_RUNTIME } from "../../object/index.ts";
+import { RolloutTarget } from "./target.ts";
+import { InstallationAccess } from "./access.ts";
 
 /** The condition of an installation whose bound targets are each ready. */
 const BOUND = { status: "true", reason: "Bound", message: "every bound target is ready" } as const;
@@ -197,7 +199,7 @@ export class ApplicationInstallation {
 
         // revise an unmanaged installation once an input changed, its manager revising a managed one, then deploy it
         if (!Manager.isManaged(target.installation) && (await this.#isChanged(reconciliation))) {
-            await Rollout.revise(reconciliation, [target], this.#options);
+            await RolloutTarget.revise(reconciliation, [target], this.#options);
         }
         await reconciliation.mutate([
             rollout.call(
@@ -221,7 +223,7 @@ export class ApplicationInstallation {
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
         // relate it at the universe as its space, through the uplink, converging on each pass
-        const calls = await Rollout.relate(snapshot, deployed ?? target, set);
+        const calls = await InstallationAccess.relate(snapshot, deployed ?? target, set);
         if (calls.length > 0) {
             const delegator = principal.space.reference(Scope.universe.id, target.scope);
             const lending = Caller.acting(delegator, reconciliation.caller.subject);
@@ -294,7 +296,7 @@ export class ApplicationInstallation {
 
         // retain the revision once per digest, releasing the owned resources no current revision binds
         const [revision] = await call.mutate(call.self, [
-            await InstallationRevision.create(
+            await RolloutTarget.create(
                 target.installation,
                 { id: built.id, manifest: built.manifest },
                 input,
@@ -400,7 +402,7 @@ export class ApplicationInstallation {
         ]);
 
         // drop its grant and its own types' permissions
-        await Rollout.upsertAccess(call, target, undefined);
+        await InstallationAccess.upsert(call, target, undefined);
     }
 
     /** Relate the application as consumer of exactly what its live deployments' revisions bind. */
@@ -463,7 +465,7 @@ export class ApplicationInstallation {
             fresh.length === 0 &&
             replaced.length === 0
         ) {
-            await Rollout.upsertAccess(call, target, description);
+            await InstallationAccess.upsert(call, target, description);
             await this.#observeApplied(call, workloads.length);
 
             return;
@@ -560,7 +562,7 @@ export class ApplicationInstallation {
         }
 
         // grant the installation exactly what its package and its enabled capabilities request
-        await Rollout.upsertAccess(call, target, description);
+        await InstallationAccess.upsert(call, target, description);
 
         // drain the replaced deployments down to one active deployment per workload
         await call.mutate(
