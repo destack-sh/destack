@@ -15,8 +15,8 @@ import type { Component } from "solid-js";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
 
-/** The view declaration kind, which view defines. */
-export const VIEW_KIND = defineDeclarationKind("view", ViewDescription);
+/** The view declaration kind, described as builds index a view's declaration. */
+export const VIEW_KIND = defineDeclarationKind("view", ViewDescription.declaration);
 
 /** How a view renders: in the browser, prerendered at build, or per request on the server. */
 export type ViewRender =
@@ -92,11 +92,6 @@ export interface Presentation {
 
 /** A view a package declares, acting under its user's grant to the package's installation. */
 export class View {
-    /** The declaration kind of views, by its package and name, as builds index them. */
-    static get kind() {
-        return { kindPackageId: import.meta.destack.package.id, kind: "view" } as const;
-    }
-
     /** The declaring package. */
     readonly package: Package;
     /** The name. */
