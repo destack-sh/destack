@@ -2,7 +2,7 @@ import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
 import { basename, dirname, join } from "node:path";
-import type { ResidencyCode } from "@destack/account/object";
+import { Account, type ResidencyCode } from "@destack/account/object";
 import { DOMAINS } from "@destack/account/address";
 import type { StepUp } from "@destack/access";
 import type { Login } from "@destack/account/native";
@@ -97,9 +97,31 @@ const HomeWorld = schema.object({
     keychains: schema.record(schema.string(), schema.record(schema.string(), schema.string())),
     /** The owner's login on the cloud computer's device. */
     login: schema.identifier("login"),
+    /** The accounts of the organizations the owner created, by handle. */
+    organizations: schema.record(schema.string(), schema.identifier("account")),
 });
 /** The world a home template wrote. */
 type HomeWorld = schema.Infer<typeof HomeWorld>;
+
+/** An organization the owner creates in a home's template: its handle and its name. */
+export interface TestOrganization {
+    /** The organization's handle. */
+    readonly handle: string;
+    /** The organization's name. */
+    readonly name: string;
+}
+
+/** The organization publishing the tests' packages, which a home's template creates on request. */
+export const PUBLISHER: TestOrganization = { handle: "acme", name: "Acme" };
+
+/** What the owner's home starts with beside the cloud computer's options. */
+export interface TestHomeOptions extends Omit<
+    TestComputerOptions,
+    "residency" | "directory" | "keychains"
+> {
+    /** The organizations the owner created, each serving its home, none by default. */
+    readonly organizations?: readonly TestOrganization[];
+}
 
 /** A test universe on a simulation's network, with what its computers ship and its owner. */
 export interface TestWorld {
@@ -327,7 +349,7 @@ export class TestComputer implements AsyncDisposable {
 
     /** List the templates the run writes once for the computers' worlds. */
     static templates() {
-        return [TestComputer.#universe(), TestComputer.#home()] as const;
+        return [TestComputer.#universe(), TestComputer.homeTemplate([])] as const;
     }
 
     /** Start a computer in a world, a new one by default, as its process composes it. */
@@ -487,11 +509,17 @@ export class TestComputer implements AsyncDisposable {
 
     /** Start the residency's cloud computer serving the owner's home, from the run's template. */
     static async home(
-        started: Omit<TestComputerOptions, "residency" | "directory" | "keychains"> = {},
+        options: TestHomeOptions = {},
         defer: Defer = onTestFinished,
-    ): Promise<{ readonly home: TestComputer; readonly login: Identifier<"login"> }> {
-        // fork the template's world with its universe
-        const { simulation, databases, value } = await TestDatabase.copy(TestComputer.#home(), {
+    ): Promise<{
+        readonly home: TestComputer;
+        readonly login: Identifier<"login">;
+        readonly organizations: ReadonlyMap<string, Identifier<"account">>;
+    }> {
+        // fork the template of the owner's organizations with its universe
+        const { organizations = [], ...started } = options;
+        const template = TestComputer.homeTemplate(organizations);
+        const { simulation, databases, value } = await TestDatabase.copy(template, {
             label: "copy",
         });
         defer(() => databases.universe.close());
@@ -519,13 +547,21 @@ export class TestComputer implements AsyncDisposable {
         );
         await home.ready(world.owner.home);
 
-        return { home, login: value.login };
+        return {
+            home,
+            login: value.login,
+            organizations: new Map(Object.entries(value.organizations)),
+        };
     }
 
-    /** Describe the world of the owner's home on its cloud computer, which the run writes once. */
-    static #home(): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
+    /** Describe the world of the owner's home and organizations, which the run writes once. */
+    static homeTemplate(
+        organizations: readonly TestOrganization[],
+    ): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
+        const handles = organizations.map((organization) => organization.handle);
+
         return new TestTemplate({
-            name: "machine.home",
+            name: ["machine.home", ...handles].join("."),
             databases: { universe: Universe.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
@@ -554,6 +590,18 @@ export class TestComputer implements AsyncDisposable {
                 );
                 const login = await home.signIn(OWNER_EMAIL);
                 await home.ready(world.owner.home);
+
+                // serve the residency's home and each organization's, their stacks applied
+                const { owner } = world;
+                const accounts = await home.machine.accounts();
+                const located = await accounts.residency.locate({ account: owner.account });
+                await home.ready(schema.identifier("space").parse(located));
+                const created: Record<string, Identifier<"account">> = {};
+                for (const { handle, name } of organizations) {
+                    const accountId = await owner.organize(handle, name);
+                    created[handle] = accountId;
+                    await home.ready(Account.home(accountId));
+                }
                 await home.close();
 
                 // record the state, the keychains and the universe's keys
@@ -564,6 +612,7 @@ export class TestComputer implements AsyncDisposable {
                     directory: state,
                     keychains,
                     login: login.id,
+                    organizations: created,
                 };
             },
         });

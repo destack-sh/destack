@@ -38,6 +38,7 @@ import machinePackage from "../package.ts";
 import type { TestRelay } from "@destack/relay/test";
 import {
     OWNER_EMAIL,
+    PUBLISHER,
     RELAY_NODE,
     TestComputer,
     type TestComputerOptions,
@@ -48,9 +49,6 @@ import {
 
 /** The step-up a move of a space asks for: a second factor within the last 15 minutes. */
 const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
-
-/** The handle of the organization of the board's space and of the echo packages. */
-const ACME_HANDLE = "acme";
 
 /** The package both spaces install: one workload answering each call with its caller. */
 const echo = Package.parse({
@@ -381,10 +379,13 @@ async function serving(
 }
 
 /** Serve a board's space of a shared account on a computer in the home's world. */
-async function openBoard(home: TestComputer, options: TestComputerOptions = {}): Promise<Served> {
-    // create the shared account as the owner, and serve the board's space on a computer enrolled in it
+async function openBoard(
+    home: TestComputer,
+    account: Identifier<"account">,
+    options: TestComputerOptions = {},
+): Promise<Served> {
+    // serve the board's space of the shared account on a computer enrolled in it
     const { world } = home;
-    const account = await world.owner.organize(ACME_HANDLE, "Acme");
     const served = await openComputer(world, account, "board", options);
 
     // publish the board from the home's machine, and install it
@@ -484,8 +485,8 @@ async function steppedUp(served: Served) {
 
 /** Serve a source space and a caller space on two of the owner's computers through a relay. */
 async function openComputers() {
-    // serve the owner's home on the residency's cloud computer, which runs the forge
-    const { home } = await TestComputer.home();
+    // serve the owner's home and acme organization on the residency's cloud computer
+    const { home } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { world } = home;
 
     // serve both spaces
@@ -497,7 +498,6 @@ async function openComputers() {
     const { crypto } = world.simulation.environment("builds");
     const echoRelease = await echoBuild(crypto);
     const visitorRelease = await visitorBuild(echoRelease, crypto);
-    await world.owner.organize(ACME_HANDLE, "Acme");
     for (const release of [echoRelease, visitorRelease]) {
         await world.distribution.publish(release, world.owner, home.machine);
     }
@@ -679,8 +679,8 @@ test(
     { timeout: SCENARIO_MILLISECONDS },
     async () => {
         // run the board sandboxed
-        const { home } = await TestComputer.home();
-        const source = await openBoard(home);
+        const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
+        const source = await openBoard(home, found(organizations, PUBLISHER.handle));
         const { computer, space } = source;
         const sourced = (await computer.machine.space(space)).database;
         const [boards] = await Snapshot.live(sourced)

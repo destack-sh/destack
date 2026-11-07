@@ -6,6 +6,7 @@ import accountPackage from "@destack/account/package";
 import { accessRelationship, Caller, principal, Role } from "@destack/access";
 import {
     OWNER_EMAIL,
+    PUBLISHER,
     SCENARIO_MILLISECONDS,
     TestComputer,
     type TestComputerOptions,
@@ -19,13 +20,10 @@ import vaultPackage from "@destack/vault/package";
 import { installation, PackageMount } from "@destack/object";
 import * as stackObject from "@destack/stack/object";
 import { createClient } from "@destack/object/client";
-import { Identifier, present, schema } from "@destack/schema";
+import { found, Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import boardPackage from "@destack/machine-mention-fixture/package";
-
-/** The handle of the shared account the board's space lives in. */
-const BOARD_HANDLE = "acme";
 
 /** The email of the person the owner shares the board's account with. */
 const STRANGER_EMAIL = "stranger@example.test";
@@ -45,13 +43,13 @@ test(
     { timeout: SCENARIO_MILLISECONDS },
     async () => {
         // serve the owner's home on the cloud computer, its inbox in process as computers run it
-        const { home } = await TestComputer.home();
+        const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
         const { world } = home;
-        await home.ready(world.owner.home);
 
         // serve the board's space on another computer behind the relay, shared with another person
         const relay = await TestComputer.relay(world);
-        const source = await openBoard(home, { relay: relay.url });
+        const account = found(organizations, PUBLISHER.handle);
+        const source = await openBoard(home, account, { relay: relay.url });
         const stranger = await grantStranger(world, source);
 
         // let that person mention the owner on a card the owner may read
@@ -87,10 +85,13 @@ test(
 );
 
 /** Serve a board's space of a shared account on a computer, with its vault, messages and inbox. */
-async function openBoard(home: TestComputer, options: TestComputerOptions = {}): Promise<Served> {
-    // create the shared account as the owner, and serve the board's space on a computer enrolled in it
+async function openBoard(
+    home: TestComputer,
+    account: Identifier<"account">,
+    options: TestComputerOptions = {},
+): Promise<Served> {
+    // serve the board's space of the shared account on a computer enrolled in it
     const { world } = home;
-    const account = await world.owner.organize(BOARD_HANDLE, "Acme");
     const computer = await TestComputer.open({ ...options, world });
     const login = await computer.signIn(OWNER_EMAIL);
     await computer.enroll(login, account);

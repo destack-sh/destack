@@ -456,11 +456,7 @@ export class Space {
             );
             const named = rows.find((row) => row.installation.name === name);
 
-            return (
-                named !== undefined &&
-                named.revisionId !== null &&
-                named.servedRevisionId === named.revisionId
-            );
+            return named !== undefined && Rollout.progress(named) === "served";
         }, signal);
         if (!isServed) {
             const { status, reason } = this.health;

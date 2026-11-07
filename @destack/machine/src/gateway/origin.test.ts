@@ -35,7 +35,12 @@ import { expect, refusal, test } from "@destack/test";
 import { type Address, HOME_PATH, PLATFORM_PATH } from "@destack/view/declare";
 import viewPackage from "@destack/view/destack.json" with { type: "json" };
 import { LINK_COOKIE, SESSION_COOKIE } from "./origin.ts";
-import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS } from "../computer/test/index.ts";
+import {
+    OWNER_EMAIL,
+    PUBLISHER,
+    TestComputer,
+    SCENARIO_MILLISECONDS,
+} from "../computer/test/index.ts";
 import { TestViewBuild } from "./test/view.ts";
 
 /** The address of a second person signing in on the owner's computer. */
@@ -44,21 +49,21 @@ const MEMBER_EMAIL = "member@example.test";
 /** The greeting package, whose view reads its own catalogs and its widget library's. */
 const GREETING = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
-    name: "@example/greeting",
+    name: "@acme/greeting",
     version: "2026.9.0-dev.1",
 });
 
 /** The widget library the greeting package pins as a release, with catalogs of its own. */
 const WIDGETS = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
-    name: "@example/widgets",
+    name: "@acme/widgets",
     version: "2026.9.0-dev.1",
 });
 
 /** The notes package whose views the launches open. */
 const notes = Package.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
-    name: "@example/notes",
+    name: "@acme/notes",
     version: "2026.9.0-dev.1",
 });
 
@@ -325,13 +330,10 @@ interface Served {
     readonly address: string;
 }
 
-/** Serve the owner's home on its cloud computer, the owner organizing the test packages' scopes. */
+/** Serve the owner's home on its cloud computer, with the organization publishing the packages. */
 async function openHome(): Promise<Served> {
-    // serve the home, and create the organizations publishing the test's packages
-    const { home, login } = await TestComputer.home();
+    const { home, login } = await TestComputer.home({ organizations: [PUBLISHER] });
     const { owner } = home.world;
-    await owner.organize("acme", "Acme");
-    await owner.organize("example", "Example");
     const address = `home--${owner.handle}`;
 
     return { computer: home, cloud: home, login, spaceId: owner.home, address };
@@ -607,23 +609,9 @@ test(
     "store a link's secret in its origin's cookie for an anonymous visitor, dropping it from the address on the same origin, and refuse a malformed one",
     async () => {
         // install notes in the owner's home, and draw a link's secret
-        const t0 = performance.now();
         const opened = await openHome();
-        const t1 = performance.now();
         const { computer } = opened;
-        const built = await notesBuild(computer.environment.crypto);
-        const t2 = performance.now();
-        await computer.world.distribution.publish(
-            built,
-            computer.world.owner,
-            opened.cloud.machine,
-        );
-        const t3 = performance.now();
-        await computer.install(opened.login, opened.spaceId, built, "notes");
-        const t4 = performance.now();
-        process.stderr.write(
-            `PHASES open=${Math.round(t1 - t0)} build=${Math.round(t2 - t1)} publish=${Math.round(t3 - t2)} install=${Math.round(t4 - t3)}\n`,
-        );
+        await install(opened, await notesBuild(computer.environment.crypto), "notes");
         const { secret } = await LinkSecret.create(computer.environment);
         const port = new URL(await computer.device.origin()).port;
         const page = `http://notes--${opened.address}.localhost:${port}/home`;
@@ -1536,7 +1524,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
     ]);
     const site = Package.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
-        name: "@example/site",
+        name: "@acme/site",
         version: "2026.9.0-dev.1",
     });
 
