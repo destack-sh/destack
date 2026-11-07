@@ -942,7 +942,7 @@ export class MethodContext<
         if (release === undefined) {
             throw ObjectError.of(
                 "INSTALLATION_NOT_FOUND",
-                `${this.scope} runs no release of ${packageId}`,
+                `this space runs no release of ${packageId}`,
             );
         }
 

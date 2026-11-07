@@ -178,7 +178,7 @@ test("claim the names of writes outside the object store and finish expired rese
     const world = simulation.environment("test");
     const storage = await universeStorage(world);
     const claims = await serveClaims(storage.database, world);
-    const east = await serveProfiles(world, claims);
+    const east = await receiveProfiles(world, claims);
     const handle = async (name: string) =>
         (await Claim.lookup(profile, names(storage.database), "handle", [name]))?.id;
 
@@ -427,10 +427,10 @@ test("build a global index a migration declares from the rows stored before it, 
     const west = await storeUnindexed(world, ["ada"]);
 
     // migrate each database to the indexed type, which claims the rows stored before
-    const eastServed = await serveProfiles(world, claims, east);
-    await settleControl(eastServed.store);
-    const westServed = await serveProfiles(world, claims, west);
-    const refused = await settleControl(westServed.store).then(
+    const eastReceived = await receiveProfiles(world, claims, east);
+    await settleControl(eastReceived.store);
+    const westReceived = await receiveProfiles(world, claims, west);
+    const refused = await settleControl(westReceived.store).then(
         () => undefined,
         (error: unknown) => (error instanceof AggregateError ? error.errors.map(String) : error),
     );
@@ -481,7 +481,8 @@ async function storeUnindexed(world: Environment, handles: readonly string[]) {
     return storage.database;
 }
 
-async function serveProfiles(
+/** Receive the profiles package's store on a world's database, a new one unless given. */
+async function receiveProfiles(
     world: Environment,
     claims: ClaimPrimary,
     stored?: DatabaseConnection,
@@ -493,31 +494,31 @@ async function serveProfiles(
         await stored.migrate(profilesDatabase.tables);
     }
 
+    // receive the space's store, whose controllers the test runs
+    const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
+        servers: [implementPackage(profilesPackage, {})],
+        chain: async () => undefined,
+        environment: world,
+        origin: { package: Package.of(profilesPackage) },
+        principal: spacePrincipal(spaceId),
+        callKey: testCallKey,
+        events: await testEvents(database, world),
+        database,
+        claims,
+    });
+
+    return { environment: world, spaceId, store, database };
+}
+
+/** Serve the profiles package on a world's database, running its controllers, under some claims. */
+async function serveProfiles(world: Environment, claims: ClaimPrimary) {
     // authenticate each request as the user its bearer credential identifies
-    const served = TestObjectStore.serve(
-        await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
-            servers: [implementPackage(profilesPackage, {})],
-            chain: async () => undefined,
-            environment: world,
-            origin: { package: Package.of(profilesPackage) },
-            principal: spacePrincipal(spaceId),
-            callKey: testCallKey,
-            events: await testEvents(database, world),
-            database,
-            claims,
-        }),
-    );
+    const received = await receiveProfiles(world, claims);
+    const served = TestObjectStore.serve(received.store);
     onTestFinished(() => served[Symbol.asyncDispose]());
     const connect = (user: Identifier<"user">) => served.as(user).client(profilesPackage);
 
-    return {
-        environment: world,
-        spaceId,
-        store: served.store,
-        database,
-        alice: connect(users.alice),
-        bob: connect(users.bob),
-    };
+    return { ...received, alice: connect(users.alice), bob: connect(users.bob) };
 }
 
 /** Store a space's profiles in a fresh database of their own. */
