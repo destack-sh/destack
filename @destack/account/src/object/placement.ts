@@ -190,6 +190,8 @@ export const placement = defineObject(
         },
         reserved: ["serve"],
         constraints: {
+            // place each space once, whichever account it belongs to
+            space: { kind: "unique", on: ["spaceId"] },
             epoch: { kind: "check", condition: { epoch: { gt: 0 } } },
             target: {
                 kind: "check",
