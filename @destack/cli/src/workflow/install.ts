@@ -1,7 +1,7 @@
 import { LATEST_TAG } from "@destack/registry/object";
 import { PackageName } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
-import { installation } from "@destack/object";
+import { installation, SYNCED } from "@destack/object";
 import { RelationalQuery } from "@destack/object/client";
 import { Rollout, rollout } from "@destack/stack/object";
 import objectPackage from "@destack/object/package";
@@ -125,12 +125,16 @@ async function follow(context: Context, id: Identifier<"installation">): Promise
         if (progress === "served") {
             return;
         }
-        // refuse a rollout that failed, with its reason
+        // refuse a rollout that failed, with its rollout's failure, else its refusal
         else if (progress === "failed") {
-            throw CliError.of(
-                "INSTALLATION_FAILED",
-                `installation ${id} failed: ${ready?.reason} ${ready?.message}`,
+            const failing = present(target, "the failed rollout");
+            const { name } = failing.installation;
+            const synced = failing.conditions[SYNCED];
+            const failed = present(
+                synced?.status === "false" ? synced : ready,
+                `the failure of ${name}`,
             );
+            throw CliError.of("INSTALLATION_FAILED", `${name} failed: ${failed.message}`);
         }
         // show a reason it waits on once
         else if (ready !== undefined && ready.status === "false" && ready.reason !== shown) {
