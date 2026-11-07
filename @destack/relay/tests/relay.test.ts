@@ -21,12 +21,12 @@ function unresolved(name: string) {
     return ["NOT_FOUND", "NAME_UNRESOLVED", `${name} does not resolve`];
 }
 
-/** Describe the refusal of a machine no tunnel or endpoint reaches. */
-function disconnected(computer: TestTunnelMachine) {
+/** Describe the refusal of a machine no tunnel or endpoint reaches, by its address. */
+async function disconnected(computer: TestTunnelMachine) {
     return [
         "SERVICE_UNAVAILABLE",
         "MACHINE_DISCONNECTED",
-        `machine ${computer.machine.id} is disconnected`,
+        `${await computer.address()} is disconnected`,
     ];
 }
 
@@ -295,7 +295,7 @@ test("refuse a machine's handshake at a relay of another residency than its acco
     expect(await refusal(handshakes.handshake(offer))).toEqual([
         "FORBIDDEN",
         "RESIDENCY_FOREIGN",
-        `machine ${computer.machine.id} tunnels through the relay of its account's residency`,
+        `${await computer.address()} tunnels through the relay of its account's residency`,
     ]);
 });
 
@@ -447,7 +447,7 @@ test("route a request from an eu relay to a machine's name in the us residency t
     await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([forwarded, lapsed, computer.received, computer.tunnels()]).toEqual([
         "hello GET /status",
-        disconnected(computer),
+        await disconnected(computer),
         [`GET ${name}/status`],
         [event(computer, "tunnel.open"), event(computer, "tunnel.close", "lapsed")],
     ]);
@@ -529,7 +529,7 @@ test("end a revoked machine's tunnel at once, refuse its names, and emit the ope
     ]).toEqual([
         "hello GET /",
         unresolved(name),
-        disconnected(computer),
+        await disconnected(computer),
         [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-revoked")],
     ]);
 });
@@ -590,7 +590,7 @@ test("end a machine's tunnel once its last key is revoked, emitting why", async 
         computer.tunnels(),
     ]).toEqual([
         "hello GET /",
-        disconnected(computer),
+        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
         [event(computer, "tunnel.open"), event(computer, "tunnel.close", "key-revoked")],
     ]);
 });

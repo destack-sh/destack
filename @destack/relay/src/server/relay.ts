@@ -23,7 +23,7 @@ import {
 import { Change, type DatabaseConnection, Projection, type Snapshot } from "@destack/db";
 import { type Clock, type Environment, Forwarded } from "@destack/environment";
 import { Failure } from "@destack/error";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { PackageMount, refusal, reportError } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
@@ -180,7 +180,7 @@ export class Relay {
         if (resident === undefined) {
             throw RelayError.of(
                 "RESIDENCY_FOREIGN",
-                `machine ${machineId} tunnels through the relay of its account's residency`,
+                `${standing.name} tunnels through the relay of its account's residency`,
             );
         }
 
@@ -498,7 +498,8 @@ export class Relay {
             .read(endpoint.table)
             .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, this.#clock.now())) {
-            throw RelayError.of("MACHINE_DISCONNECTED", `machine ${machineId} is disconnected`);
+            const named = present(await this.#machine(machineId), `machine ${machineId}`);
+            throw RelayError.of("MACHINE_DISCONNECTED", `${named.name} is disconnected`);
         }
 
         // route through its tunnel here, else to the relay with its tunnel or its own URL

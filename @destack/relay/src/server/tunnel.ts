@@ -231,12 +231,12 @@ export class Tunnel implements SocketHandler {
         if (newest === undefined) {
             throw RelayError.of(
                 "MACHINE_DISCONNECTED",
-                `machine ${this.machineId} is disconnected`,
+                "the machine is disconnected",
             );
         } else if (newest.session.size >= MAX_STREAMS) {
             throw RelayError.of(
                 "STREAMS_EXHAUSTED",
-                `machine ${this.machineId} already has ${MAX_STREAMS} open requests`,
+                `the machine already has ${MAX_STREAMS} open requests`,
             );
         }
 
@@ -258,7 +258,7 @@ export class Tunnel implements SocketHandler {
         if (!response.ok) {
             throw RelayError.of(
                 "RENEWAL_REFUSED",
-                `machine ${this.machineId} refused to renew: ${response.status}`,
+                `the machine refused to renew: ${response.status}`,
             );
         }
     }
@@ -415,7 +415,7 @@ export class Tunnel implements SocketHandler {
             if (expiring.signal.aborted) {
                 throw RelayError.of(
                     "HEAD_TIMEOUT",
-                    `machine ${this.machineId} sent no response head within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
+                    `the machine sent no response head within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
                 );
             }
             throw error;

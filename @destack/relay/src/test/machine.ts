@@ -1,13 +1,14 @@
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import type { Environment } from "@destack/environment";
-import { endpoint, type Endpoint, type ResidencyCode } from "@destack/account/object";
+import { DOMAINS, MachineAddress } from "@destack/account/address";
+import { endpoint, type Endpoint, machine, type ResidencyCode } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { Snapshot } from "@destack/db";
 import { Simulation, type SimulatedClock } from "@destack/environment/simulation";
 import { createClient } from "@destack/object/client";
-import { Identifier } from "@destack/schema";
+import { Identifier, present } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -131,18 +132,18 @@ export class TestTunnelMachine implements AsyncDisposable {
         });
 
         // enroll the computer, and place the work space on it
-        const machine = await universe.enroll(owner, created.id, COMPUTER_ORIGIN);
+        const enrolled = await universe.enroll(owner, created.id, COMPUTER_ORIGIN);
         const space = await client.space.create({
             accountId: created.id,
             requestId: RequestId.create(simulation.environment("universe")),
             name: SPACE,
-            machine: machine.id,
+            machine: enrolled.id,
         });
         const computer = new TestTunnelMachine({
             simulation,
             universe,
             owner,
-            machine,
+            machine: enrolled,
             accountId: created.id,
             spaceId: space.id,
         });
@@ -230,6 +231,16 @@ export class TestTunnelMachine implements AsyncDisposable {
         return Snapshot.live(this.universe.storage.database)
             .read(endpoint.table)
             .findFirst({ where: { parentId: this.machine.id } });
+    }
+
+    /** Read the computer's address, its name within its account under the account's handle. */
+    async address(): Promise<string> {
+        const enrolled = await Snapshot.live(this.universe.storage.database)
+            .read(machine.table)
+            .findFirst({ where: { id: this.machine.id } });
+        const name = present(enrolled, `machine ${this.machine.id}`).name;
+
+        return MachineAddress.format({ machine: name, handle: HANDLE }, DOMAINS.machine);
     }
 
     /** Open a tunnel from the computer to a relay, which publishes its endpoint at each renewal. */
