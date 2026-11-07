@@ -16,6 +16,7 @@
         "@destack/db": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
+        "@destack/home": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
