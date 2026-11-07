@@ -33,6 +33,12 @@ export const ResourceError = defineErrorFamily(
         // conflict
         PLAN_UNREACHABLE: { code: "CONFLICT", data: UnreachablePlan },
 
+        // precondition failed
+        PROVIDER_MISSING: { code: "PRECONDITION_FAILED" },
+
+        // not implemented
+        PROVISIONING_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+
         // internal server error
         ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
         BINDING_MISSING: { code: "INTERNAL_SERVER_ERROR" },
