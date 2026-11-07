@@ -6,23 +6,24 @@ import objectPackage from "@destack/object/package";
 import type { ObjectAddress } from "@destack/view/declare";
 import type { SpaceAddress } from "@destack/account/address";
 import {
-    Command,
-    COMMAND_KIND,
-    CommandDescription,
+    type Command,
     type InstallationDescription,
-    ObjectDescription,
-    ObjectTypePool,
     type MethodKind,
     ObjectType,
     type PackageHandle,
     Casing,
 } from "@destack/object";
-import { type ClientOptions, DynamicObjectClient, ObjectClient } from "@destack/object/client";
+import {
+    type ClientOptions,
+    DynamicObjectClient,
+    ObjectClient,
+    ObjectStoreDescription,
+} from "@destack/object/client";
 import { PARTITION_HEADER } from "@destack/object/workload";
 import { nth, present, schema } from "@destack/schema";
-import { ObjectTypeReference, Scope } from "@destack/sync";
+import { Scope } from "@destack/sync";
 import stackPackage from "@destack/stack/package";
-import { Setting, SETTING_KIND, SettingDescription } from "@destack/setting";
+import { Setting, SETTING_KIND } from "@destack/setting";
 
 import type { Context } from "../context/context.ts";
 import type {} from "@destack/package/import-meta";
@@ -71,12 +72,21 @@ export class Noun {
     readonly store: Store;
     /** The object type. */
     readonly type: ObjectType;
+    /** The commands the installation declares on the type. */
+    readonly commands: readonly Command[];
 
-    /** Keep an object type at the installation listing it, in a store. */
-    constructor(installation: InstallationDescription, store: Store, type: ObjectType) {
+    /** Keep an object type at the installation listing it, in a store, with its commands. */
+    constructor(
+        installation: InstallationDescription,
+        store: Store,
+        type: ObjectType,
+        commands: readonly Command[],
+    ) {
+        // keep the type, where it is listed, and its commands
         this.installation = installation;
         this.store = store;
         this.type = type;
+        this.commands = commands;
     }
 
     /** Read the singular word. */
@@ -100,18 +110,6 @@ export class Noun {
     /** List the words of the noun: its plural and its singular. */
     get forms(): readonly string[] {
         return [this.plural, this.name];
-    }
-
-    /** List the commands the installation declares on the type. */
-    get commands(): Command[] {
-        return this.installation.declarations
-            .filter((entry) => COMMAND_KIND.has(entry))
-            .map((entry) => ({
-                name: entry.name,
-                description: CommandDescription.parse(entry.description),
-            }))
-            .filter(({ description }) => description.type === this.type.name)
-            .map(({ name, description }) => Command.of(name, description, this.type));
     }
 
     /** Report whether a word is the noun's plural, which lists. */
@@ -305,17 +303,21 @@ export class Catalog {
         const described = await Promise.all(
             stores.map(async (store) => ({
                 store,
-                ...(await Catalog.describe(context, store)),
+                description: await Catalog.describe(context, store),
             })),
         );
 
-        // make a noun of each listed type, kept at the innermost store keeping its objects
-        const nouns = described.flatMap(({ store, installations, pool }) =>
-            installations.flatMap((installation) =>
-                installation.types.map(
-                    (reference) => new Noun(installation, store, Catalog.#type(pool, reference)),
-                ),
-            ),
+        // make a noun of each listed type with its commands, kept at the innermost store keeping its objects
+        const nouns = described.flatMap(({ store, description }) =>
+            description.installations.flatMap((installation) => {
+                const commands = description.commands(installation);
+
+                return description.types(installation).map((type) => {
+                    const own = commands.filter((command) => command.object === type);
+
+                    return new Noun(installation, store, type, own);
+                });
+            }),
         );
         const owned = nouns.filter((noun) => noun.isOwn);
         const innermost = owned.filter((noun) => {
@@ -330,49 +332,27 @@ export class Catalog {
         });
 
         // read the settings the installations declare
-        const settings = described.flatMap(({ installations }) =>
-            installations.flatMap((installation) =>
-                installation.declarations
-                    .filter((entry) => SETTING_KIND.has(entry))
-                    .map((entry) => Setting.of(SettingDescription.parse(entry.description))),
+        const settings = described.flatMap(({ description }) =>
+            description.installations.flatMap((installation) =>
+                description
+                    .declarations(installation, SETTING_KIND)
+                    .map((declared) => Setting.of(declared.description)),
             ),
         );
 
         return new Catalog(innermost, settings);
     }
 
-    /** Describe a store's installations and types, as the person or this machine's owner. */
-    static async describe(
-        context: Context,
-        store: Store,
-    ): Promise<{
-        readonly installations: readonly InstallationDescription[];
-        readonly pool: ObjectTypePool;
-    }> {
+    /** Describe a store as the person or this machine's owner, knowing the built-in types. */
+    static async describe(context: Context, store: Store): Promise<ObjectStoreDescription> {
         // describe the store, the machine's partition by its scope beside the device's default one
         const client = await context.native();
         const options = await Noun.options(context, store, { packageId: DESCRIBING[store] });
-        const remote = ObjectClient.store(options, client.environment);
-        const { objects, installations } = await remote.describe({});
-        const pool = ObjectTypePool.of(
-            BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
-                (type): type is ObjectType => type instanceof ObjectType,
-            ),
+        const known = BUILT_IN_PACKAGES.flatMap((handle) => Object.values(handle.objects)).filter(
+            (type): type is ObjectType => type instanceof ObjectType,
         );
-        const unknown = objects
-            .map((object) => ObjectDescription.parse(object))
-            .filter((described) => !pool.objects.has(ObjectDescription.key(described)));
-        pool.declare(unknown);
 
-        return { installations, pool };
-    }
-
-    /** Find a listed type among the described ones by its reference. */
-    static #type(pool: ObjectTypePool, reference: ObjectTypeReference): ObjectType {
-        return present(
-            pool.objects.get(ObjectTypeReference.key(reference)),
-            `the type ${reference.type} of ${reference.packageId}`,
-        );
+        return await ObjectStoreDescription.read(ObjectClient.store(options, client.environment), known);
     }
 
     /** Select an object by its identifier, in a space and a view. */

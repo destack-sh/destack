@@ -38,8 +38,7 @@ destack logout
 
 ## Objects
 
-A plural lists a type's objects, and a singular gets, creates and calls methods on one.
-The nouns come from the installations of this computer's machine, the universe and the space.
+A plural lists a type's objects, and a singular gets, creates and calls methods on one, from the nouns the stores of this computer's machine, the universe and the space describe.
 
 ```sh
 destack spaces                                       # account:spaces, served by the universe

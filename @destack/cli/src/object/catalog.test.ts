@@ -40,6 +40,7 @@ function noun(installation: string, name: string, identity = name): Noun {
         },
         "space",
         type,
+        [],
     );
 }
 
