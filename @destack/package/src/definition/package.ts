@@ -139,46 +139,50 @@ export const Package = Object.assign(packageSchema, {
 /** A named, versioned package. */
 export type Package = Readonly<schema.Infer<typeof packageSchema>>;
 
+/** The structure of a package release. */
+const packageRelease = schema.object({
+    /** The released package name and version. */
+    package: Package,
+    /** The digest of its immutable build manifest. */
+    manifest: Digest,
+});
+
 /** An immutable Destack release and the manifest identifying its distributed contents. */
-export const PackageRelease = Object.assign(
-    schema.object({
-        /** The released package name and version. */
-        package: Package,
-        /** The digest of its immutable build manifest. */
-        manifest: Digest,
-    }),
-    {
-        /** Select the release at an exact version, else the newest build of a named release. */
-        select(
-            releases: readonly PackageRelease[],
-            packageId: PackageId,
-            release: string,
-        ): PackageRelease | undefined {
-            // take the exact version
-            const builds = releases.filter((each) => each.package.id === packageId);
-            const exact = builds.find((each) => each.package.version === release);
-            if (exact !== undefined) {
-                return exact;
-            }
-
-            // take the newest build of a release, a dev build among them, named by its version alone
-            const parsed = Version.safeParse(release);
-            const isRelease = parsed.success && Version.release(parsed.data) === parsed.data;
-
-            return builds
-                .filter(
-                    (each) =>
-                        isRelease &&
-                        Version.release(Version.parse(each.package.version)) === release,
-                )
-                .toSorted((left, right) =>
-                    Version.compare(
-                        Version.parse(right.package.version),
-                        Version.parse(left.package.version),
-                    ),
-                )[0];
-        },
+export const PackageRelease = Object.assign(packageRelease, {
+    /** Select the newest of the releases of a package, none when it has none. */
+    newest(releases: readonly PackageRelease[], packageId: PackageId): PackageRelease | undefined {
+        return releases
+            .filter((each) => each.package.id === packageId)
+            .toSorted((left, right) =>
+                Version.compare(
+                    Version.parse(right.package.version),
+                    Version.parse(left.package.version),
+                ),
+            )[0];
     },
-);
+
+    /** Select the release at an exact version, else the newest build of a named release. */
+    select(
+        releases: readonly PackageRelease[],
+        packageId: PackageId,
+        release: string,
+    ): PackageRelease | undefined {
+        // take the exact version
+        const builds = releases.filter((each) => each.package.id === packageId);
+        const exact = builds.find((each) => each.package.version === release);
+        if (exact !== undefined) {
+            return exact;
+        }
+
+        // take the newest build of a release, a dev build among them, named by its version alone
+        const parsed = Version.safeParse(release);
+        const isRelease = parsed.success && Version.release(parsed.data) === parsed.data;
+        const named = builds.filter(
+            (each) => isRelease && Version.release(Version.parse(each.package.version)) === release,
+        );
+
+        return PackageRelease.newest(named, packageId);
+    },
+});
 /** An immutable Destack package release. */
-export type PackageRelease = schema.Infer<typeof PackageRelease>;
+export type PackageRelease = schema.Infer<typeof packageRelease>;

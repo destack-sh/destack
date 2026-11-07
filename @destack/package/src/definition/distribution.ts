@@ -19,8 +19,8 @@ const manifest = schema.object({
 
 /** The releases a Destack distribution ships, each with its role, wherever their builds lie. */
 export const DistributionManifest = Object.assign(manifest, {
-    /** Read the shipped releases without their roles, which machines resolve installations to. */
-    shipped(value: DistributionManifest): PackageRelease[] {
+    /** Read the releases without their roles, as machines resolve installations to them. */
+    releases(value: DistributionManifest): PackageRelease[] {
         return value.releases.map(({ package: released, manifest: digest }) => ({
             package: released,
             manifest: digest,
