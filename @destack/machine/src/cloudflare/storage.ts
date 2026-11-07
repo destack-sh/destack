@@ -45,7 +45,7 @@ import { S3Host, SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/i
 import { type Count, Reading } from "../meter/index.ts";
 import { Traffic } from "../gateway/index.ts";
 import { CACHE_NAMESPACE, DurableObjectSpaceDatabaseHost, SPACE_NAMESPACE } from "./database.ts";
-import type { PackageRelease } from "@destack/package";
+import { DistributionManifest } from "@destack/package";
 import type { DurableObjectNamespace } from "./runtime/index.ts";
 
 /** The prefix of the machines' build caches in the residency's build bucket, a space's below it. */
@@ -155,7 +155,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
     /** Open the machine's build cache in the object's storage, adopting the deploy's releases. */
     async cache(
         builds: Cloudflare.R2Bucket,
-        shipped: readonly PackageRelease[],
+        distribution: DistributionManifest,
     ): Promise<BuildCache> {
         // index the cache in the object's storage, its blobs in the build bucket
         const { environment, space } = this.#options;
@@ -166,7 +166,12 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         const bucket = new R2Bucket(builds);
         const storage = new R2BlobStorage(bucket, `${CACHE_PREFIX}${space}/`, environment.random);
         const blobs = new BlobStore({ storage, database, environment });
-        const cache = new BuildCache(new BuildStore({ blobs, environment }), CLOUD_RUNTIMES);
+        const cache = new BuildCache(
+            new BuildStore({ blobs, environment }),
+            CLOUD_RUNTIMES,
+            DistributionManifest.builtins(distribution),
+        );
+        const shipped = DistributionManifest.releases(distribution);
 
         // adopt each release the deploy wrote to the bucket and the cache lacks
         const released = new BuildBucket(bucket, environment.crypto);

@@ -592,7 +592,7 @@ export class Computer implements AsyncDisposable {
 
     /** Open the build cache: blobs below the machine's directory, shipped builds read in place. */
     static async #openCache(
-        options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
+        options: Pick<ComputerOptions, "directory" | "environment" | "layer" | "shipped">,
         database: SqliteDatabase,
     ): Promise<{ readonly cache: BuildCache; readonly packages: LocalBuildStore }> {
         // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
@@ -609,7 +609,10 @@ export class Computer implements AsyncDisposable {
             layer: options.layer,
         });
 
-        return { cache: new BuildCache(packages, COMPUTER_RUNTIMES), packages };
+        // cache builds for the computer's runtimes, loading the shipped builtins in place of any other build of them
+        const linked = DistributionManifest.builtins(options.shipped);
+
+        return { cache: new BuildCache(packages, COMPUTER_RUNTIMES, linked), packages };
     }
 
     /** Start the instances' runtime, unless replaced, and the Bun processes loading builds. */
