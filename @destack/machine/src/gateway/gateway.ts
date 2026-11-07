@@ -952,10 +952,7 @@ export class Gateway {
             (resource) => resource.kind === InstallationKind.name && resource.reference === address,
         );
         if (bound === undefined) {
-            throw MachineError.of(
-                "ADDRESS_UNBOUND",
-                `this installation does not bind ${address}`,
-            );
+            throw MachineError.of("ADDRESS_UNBOUND", `this installation does not bind ${address}`);
         }
         const audience = InstallationBindingSpec.parse(bound.spec).package;
 

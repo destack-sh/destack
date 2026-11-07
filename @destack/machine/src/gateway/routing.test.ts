@@ -337,11 +337,7 @@ test("resolve each bound connection to its own API, borrowing it as the installa
         lent,
     }).toEqual({
         resolved: ["https://api.example.com/v1/items", "https://api.other.com/items"],
-        unbound: [
-            "FORBIDDEN",
-            "ADDRESS_UNBOUND",
-            `this installation does not bind ${unbound}`,
-        ],
+        unbound: ["FORBIDDEN", "ADDRESS_UNBOUND", `this installation does not bind ${unbound}`],
         lent: [
             [first.id, run.installationId],
             [second.id, run.installationId],

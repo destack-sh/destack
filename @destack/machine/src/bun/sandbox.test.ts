@@ -33,7 +33,8 @@ const spec: InstanceSpec = {
         .parse("deployment-01996ab0-0000-7000-8000-0000000000f5"),
     build: await MemoryBuild.write(
         new Map(),
-        { role: "app",
+        {
+            role: "app",
             package: {
                 id: PACKAGE,
                 name: "@example/indexer",

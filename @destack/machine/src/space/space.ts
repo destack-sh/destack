@@ -210,10 +210,7 @@ export class Space {
     ): Promise<Response> {
         const served = this.instance.packages.find((handle) => handle.id === packageId);
         if (served === undefined) {
-            throw MachineError.of(
-                "PACKAGE_NOT_SERVED",
-                "this space serves no such package",
-            );
+            throw MachineError.of("PACKAGE_NOT_SERVED", "this space serves no such package");
         }
 
         return this.instance.fetch(served, request, authentication);
