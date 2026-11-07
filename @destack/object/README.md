@@ -536,6 +536,19 @@ const description = ObjectDescription.of(page); // { package, definition: { fiel
 const [declared] = ObjectTypePool.of([space, principal.user]).declare([description]);
 ```
 
+## Store descriptions
+
+`ObjectStoreDescription.read` reflects what a store serves in one call, its installations with their listed types and declarations, which the command line, Home and the desktop read alike.
+
+```ts
+const description = await ObjectStoreDescription.read(ObjectClient.store(options, environment), known);
+for (const installation of description.installations) {
+    description.types(installation); // the ObjectTypes it lists, declared from their descriptions
+    description.commands(installation); // each Command bound to the type it calls
+    description.declarations(installation, VIEW_KIND); // any kind's declarations, read by its schema
+}
+```
+
 ## Packages
 
 `definePackage` declares a package's handle from its objects, views, adapters, resources, secrets, the permissions its installations request of their space and their users, and its capabilities, and `defineAdapter` answers a protocol others define below the package's mount.

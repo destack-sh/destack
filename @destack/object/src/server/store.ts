@@ -6,7 +6,7 @@ import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
 import { CallError } from "../error/call.ts";
 import { Package, type PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { EventStore } from "@destack/event";
 import {
     Authorizer,
@@ -821,24 +821,18 @@ export class ObjectStore {
     }
 
     /** Describe the installations the store runs, with their listed types and declarations. */
-    describeInstallations(): Promise<InstallationDescription[]> {
-        return Promise.all(
-            this.#catalog.served.map(async ({ package: served, objects, server }) => {
+    async describeInstallations(): Promise<InstallationDescription[]> {
+        // describe each served package's installation with its listed types
+        const served = await Promise.all(
+            this.#catalog.served.map(async ({ package: packaged, objects, server }) => {
                 // require the installation every store runs its packages in
-                const installation = present(server, `the installation of ${served.name}`);
+                const installation = present(server, `the installation of ${packaged.name}`);
 
                 // read an installed build's listed declarations, else the base package's commands
                 const isInstalled = ServerContext.isInstalled(installation);
                 const declarations = isInstalled
-                    ? (await installation.build.declarations()).map(
-                          ({ kind, kindPackageId, name, description }) => ({
-                              kind,
-                              kindPackageId,
-                              name,
-                              description,
-                          }),
-                      )
-                    : Object.values(served.commands).map((command) => ({
+                    ? await ObjectStore.#declarations(installation)
+                    : Object.values(packaged.commands).map((command) => ({
                           ...COMMAND_KIND.identity,
                           name: command.name,
                           description: command.describe(),
@@ -848,12 +842,43 @@ export class ObjectStore {
                     id: installation.installation,
                     scope: installation.scope,
                     ...(isInstalled ? { name: installation.name } : {}),
-                    packageId: served.id,
+                    packageId: packaged.id,
                     types: objects
                         .filter((type) => type.listing !== undefined)
                         .map((type) => type.typeReference),
                     declarations,
                 };
+            }),
+        );
+
+        // describe each sandboxed installation serving no package here, such as one shipping views alone, without types
+        const described = new Set(served.map((each) => each.id));
+        const unserved = await Promise.all(
+            this.#catalog.sandboxes
+                .filter((sandbox) => !described.has(sandbox.server.installation))
+                .map(async ({ server }) => ({
+                    id: server.installation,
+                    scope: server.scope,
+                    name: server.name,
+                    packageId: PackageManifest.package(server.build.manifest).id,
+                    types: [],
+                    declarations: await ObjectStore.#declarations(server),
+                })),
+        );
+
+        return [...served, ...unserved];
+    }
+
+    /** Read an installed build's declarations as a description lists them. */
+    static async #declarations(
+        installation: InstalledServerContext,
+    ): Promise<InstallationDescription["declarations"]> {
+        return (await installation.build.declarations()).map(
+            ({ kind, kindPackageId, name, description }) => ({
+                kind,
+                kindPackageId,
+                name,
+                description,
             }),
         );
     }

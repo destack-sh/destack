@@ -6,3 +6,4 @@ export * from "./package.ts";
 export { Bookmark, BOOKMARK_HEADER } from "../procedure/bookmark.ts";
 export { safe } from "@orpc/client";
 export * from "./observable.ts";
+export * from "./description.ts";

@@ -27,6 +27,7 @@ import { definePackage, OBJECT_KIND, PACKAGE_KIND, PackageHandle } from "@destac
 import { describePackage } from "@destack/object/inspect";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
+import { MemoryBuild } from "@destack/package/test";
 import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
@@ -91,6 +92,9 @@ const photo = defineObject({
     fields: { owner: field.reference(principal.user).caller(), image: field.file(images) },
     permissions: { read: relation("owner"), write: relation("owner") },
 });
+
+/** The package defining the view declaration kind, as a build names it. */
+const VIEW_PACKAGE = "package-01996ab0-0000-7000-8000-0000000000da";
 
 /** The package of the installed cards, apart from the platform's. */
 const OTHER_PACKAGE = schema
@@ -924,4 +928,57 @@ test("throw a hook's failure out of its sandbox as the failure it was, caused at
         Failure.http("INTERNAL_SERVER_ERROR", "the card has no title"),
         ["the card has no title", thrown.stack],
     ]);
+});
+
+test("describe a sandboxed installation that serves no objects, such as one shipping views alone, by its declarations", async () => {
+    // run in a world of its own, over the platform's tables alone
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        defineDatabase({
+            name: "main",
+            ...tablesOf({ packages: [objectPackage], follows: [], tables: [] }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+
+    // install a package whose build declares one view and no objects, its hooks in a sandbox
+    const pages = Package.parse({ id: OTHER_PACKAGE, name: "@acme/pages", version: "2026.9.0" });
+    const view = {
+        kind: "view",
+        kindPackageId: VIEW_PACKAGE,
+        name: "home",
+        description: { categories: ["home"] },
+    };
+    const installed = {
+        ...(await testServerContext(pages, spaceId, world)),
+        build: await MemoryBuild.of(pages, [view], world.crypto),
+    };
+    const sandbox = new HookSandbox({
+        server: installed,
+        declarations: [],
+        send: () => Promise.reject(new TypeError("the pages have no hooks")),
+    });
+    const store = new ObjectStore({
+        servers: [],
+        chain: async () => undefined,
+        environment: world,
+        blobs: new MemoryBlobStorage(world.crypto),
+        principal: spacePrincipal(spaceId),
+        database: storage.database,
+        origin: { package: Package.of(objectPackage) },
+        policies: [space],
+        sandboxes: [sandbox],
+    });
+
+    // describe it with no types and the view it declares
+    const described = await store.describeInstallations();
+    expect(described.find((each) => each.packageId === pages.id)).toEqual({
+        id: installed.installation,
+        scope: spaceId,
+        name: installed.name,
+        packageId: pages.id,
+        types: [],
+        declarations: [view],
+    });
 });
