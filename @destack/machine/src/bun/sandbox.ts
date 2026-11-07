@@ -75,7 +75,7 @@ export class BunWorkloadSandbox {
             if (path === undefined) {
                 throw MachineError.of(
                     "COMMAND_MISSING",
-                    `${spec.installationId} runs ${command}, which this machine lacks`,
+                    `${spec.name} runs ${command}, which this machine lacks`,
                 );
             }
 

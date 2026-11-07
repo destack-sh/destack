@@ -162,6 +162,6 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
         code: "FORBIDDEN",
         reason: "BUCKET_UNBOUND",
         domain: "@destack/machine",
-        message: `installation ${ids.notes} does not bind bucket ${UNBOUND_ID}`,
+        message: `this installation does not bind bucket ${UNBOUND_ID}`,
     });
 });

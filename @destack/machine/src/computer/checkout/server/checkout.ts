@@ -197,7 +197,7 @@ export class CheckoutServer {
         if (!(await spaces.list()).includes(spaceId)) {
             throw MachineError.of(
                 "CHECKOUT_SPACE_ELSEWHERE",
-                `${spaceId} is not served on this machine, which has the working tree`,
+                "the space is not served on this machine, which has the working tree",
             );
         }
         const { database } = await this.machine.space(spaceId);

@@ -740,7 +740,7 @@ export class Gateway {
         if (newest === undefined) {
             throw MachineError.of(
                 "RUNNING_DEPLOYMENT_MISSING",
-                `no running deployment of ${installationId} ${serving}`,
+                `no running deployment of this installation ${serving}`,
             );
         }
 
@@ -926,7 +926,7 @@ export class Gateway {
             else if (!EgressCaller.binds(caller, peer, mount.path)) {
                 throw MachineError.of(
                     "INSTALLATION_UNBOUND",
-                    `installation ${caller.installationId} does not bind installation ${peer.name} of space ${peer.spaceId}`,
+                    `this installation does not bind installation ${peer.name}`,
                 );
             }
 
@@ -954,7 +954,7 @@ export class Gateway {
         if (bound === undefined) {
             throw MachineError.of(
                 "ADDRESS_UNBOUND",
-                `installation ${caller.installationId} does not bind ${address}`,
+                `this installation does not bind ${address}`,
             );
         }
         const audience = InstallationBindingSpec.parse(bound.spec).package;
@@ -971,7 +971,7 @@ export class Gateway {
         if (!isBound) {
             throw MachineError.of(
                 "BUCKET_UNBOUND",
-                `installation ${caller.installationId} does not bind bucket ${bucketId}`,
+                `this installation does not bind bucket ${bucketId}`,
             );
         }
         const { s3 } = this.#serving;
@@ -991,6 +991,7 @@ export class Gateway {
 
     /** Resolve a bound connection to its API, applying its credential as the installation's. */
     #resolveConnection(caller: EgressCaller, resource: WorkloadResource): Destination {
+        // read the connection's API, the installation consuming it and the connection
         const { resource: url } = ConnectionSpec.parse(resource.spec);
         const consumer = principal.installation.reference(caller.scope, caller.installationId);
         const id = schema.identifier("connection").parse(resource.id);

@@ -261,7 +261,7 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         if (found === undefined) {
             throw MachineError.of(
                 "PACKAGE_NOT_SERVED",
-                `the test computer ships no release ${release} of ${packageId}`,
+                `the test computer ships no release ${release} of this package`,
             );
         }
 

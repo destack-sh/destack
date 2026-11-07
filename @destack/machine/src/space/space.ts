@@ -212,7 +212,7 @@ export class Space {
         if (served === undefined) {
             throw MachineError.of(
                 "PACKAGE_NOT_SERVED",
-                `space ${this.id} has no package ${packageId}`,
+                "this space serves no such package",
             );
         }
 
@@ -564,7 +564,7 @@ export class Space {
             if (!response.ok) {
                 throw MachineError.of(
                     "TELEMETRY_REFUSED",
-                    `${receiver.packageId} refused a ${signal} export with ${response.status}: ${answer}`,
+                    `the telemetry receiver refused a ${signal} export with ${response.status}: ${answer}`,
                 );
             }
         }

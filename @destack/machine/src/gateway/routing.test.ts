@@ -7,8 +7,7 @@ import { PackageMount } from "@destack/object";
 import { EgressCaller, type InstanceSpec, type WorkloadResource } from "@destack/stack/runtime";
 import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, type Identifier, schema } from "@destack/schema";
-import type { Gateway } from "./gateway.ts";
+import { Digest, schema } from "@destack/schema";
 import { openGateway } from "./test/gateway.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "@destack/stack/package";
@@ -169,7 +168,7 @@ test("resolve each kind of address a workload calls", async () => {
             audience: ids.package,
             path: `${notesMount}/store/stream`,
         },
-        `FORBIDDEN: INSTALLATION_UNBOUND: installation ${notes} does not bind installation notes of space ${ids.space}`,
+        "FORBIDDEN: INSTALLATION_UNBOUND: this installation does not bind installation notes",
         {
             kind: "remote",
             scope: acme,
@@ -177,7 +176,7 @@ test("resolve each kind of address a workload calls", async () => {
             audience: stackPackage.id,
         },
         `NOT_FOUND: PACKAGE_MOUNT_MISSING: /notes/list is not a package mount of installation ${peer}`,
-        `FORBIDDEN: INSTALLATION_UNBOUND: installation ${notes} does not bind installation ${unbound} of space ${acme}`,
+        `FORBIDDEN: INSTALLATION_UNBOUND: this installation does not bind installation ${unbound}`,
         {
             kind: "remote",
             scope: acme,
@@ -210,7 +209,7 @@ test("resolve each kind of address a workload calls", async () => {
             url: `https://destack.cloud/${ACCOUNT_PACKAGE}`,
             audience: ACCOUNT_PACKAGE,
         },
-        `FORBIDDEN: ADDRESS_UNBOUND: installation ${run.installationId} does not bind tasks`,
+        "FORBIDDEN: ADDRESS_UNBOUND: this installation does not bind tasks",
         `NOT_FOUND: INSTALLATION_NOT_FOUND: installation notes of ${OTHER_PACKAGE} not found in ${ids.space}`,
     ]);
 });
@@ -326,9 +325,9 @@ test("resolve each bound connection to its own API, borrowing it as the installa
         if (destination.kind !== "external") {
             throw new TypeError("a bound connection resolves to its external API");
         }
-        const lent = await destination.lend(new Request(`${destination.url}/items`));
+        const borrowed = await destination.lend(new Request(`${destination.url}/items`));
 
-        return lent.request.url;
+        return borrowed.request.url;
     };
     const unbound = "connection-01996ab0-0000-7000-8000-0000000000c4";
 
@@ -341,7 +340,7 @@ test("resolve each bound connection to its own API, borrowing it as the installa
         unbound: [
             "FORBIDDEN",
             "ADDRESS_UNBOUND",
-            `installation ${run.installationId} does not bind ${unbound}`,
+            `this installation does not bind ${unbound}`,
         ],
         lent: [
             [first.id, run.installationId],

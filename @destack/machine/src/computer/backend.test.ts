@@ -16,7 +16,7 @@ test("report a restarted machine's missing key as the failure of its start", asy
 
     // receive the failure its start met for want of the machine's key, captured once by its close
     const { code, reason, message } = Failure.of(await opened.reported);
-    const missing = `machine ${opened.machine.id} has no key`;
+    const missing = "this machine has no key";
     await opened.close();
     expect({
         reported: [code, reason, message],

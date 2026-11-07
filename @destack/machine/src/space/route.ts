@@ -43,7 +43,7 @@ export interface SpaceRequest {
 
 /** The partition a request addresses: the innermost scoped route's, else its scoped body's. */
 export const PartitionRequest = {
-    /** Read the partition of a request at a path: its header's, its path's or its body's, absent for none. */
+    /** Read the partition of a request: its header's, its path's or its body's, absent for none. */
     async of(request: Request, pathname: string): Promise<string | undefined> {
         return (
             request.headers.get(PARTITION_HEADER) ??

@@ -660,7 +660,7 @@ test(
                     defined: true,
                     code: "SERVICE_UNAVAILABLE",
                     status: 503,
-                    message: `machine ${source.computer.machine.id} is disconnected`,
+                    message: "the machine is disconnected",
                     reason: "MACHINE_DISCONNECTED",
                     domain: "@destack/relay",
                 },

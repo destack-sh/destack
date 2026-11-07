@@ -303,8 +303,8 @@ test("route each call to the newest deployment serving the caller's release, and
         EARLIER.instanceId,
         NEWEST.instanceId,
         NEWEST.instanceId,
-        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of ${ids.notes} runs release 2026.11.0`,
-        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of ${ids.notes} runs release 2026.11.0-dev.1`,
+        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.11.0`,
+        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.11.0-dev.1`,
         "BAD_REQUEST: VERSION_INVALID: requires Destack-Version",
         "BAD_REQUEST: VERSION_INVALID: invalid Destack-Version: next",
     ]);
@@ -512,7 +512,7 @@ test("forward a webhook below an installation to its newest running deployment, 
         refused: await answerOf(refused),
     }).toEqual({
         accepted: [202, [[NEWEST.instanceId, `${WEBHOOK_PATH}/pushes/notes`, null]]],
-        refused: `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of ${ids.notes} receives webhooks`,
+        refused: `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation receives webhooks`,
     });
 });
 
@@ -570,18 +570,18 @@ test("apply a bound connection's credential to a workload's call to its API with
     const sent: [string, string | null, string | null, string | null, string | undefined][] = [];
     const { gateway } = await openNotes([EARLIER, NEWEST], {
         borrow: async (lent) => {
-            const resource = "https://api.example.com/v1";
+            const api = "https://api.example.com/v1";
             if (lent.id === CERTIFICATE_CONNECTION) {
                 const material = { kind: "mtls", certificate: "CERT", privateKey: "KEY" } as const;
 
-                return { protocol: { kind: "mtls" }, credential: { material }, resource };
+                return { protocol: { kind: "mtls" }, credential: { material }, resource: api };
             }
             const protocol = { kind: "key", header: "authorization", scheme: "Bearer" } as const;
 
             return {
                 protocol,
                 credential: { material: { kind: "key", key: "lent-token" } },
-                resource,
+                resource: api,
             };
         },
         send: async (request, options) => {

@@ -78,7 +78,7 @@ const OWN_MACHINE = "http://machine.invalid";
 /** How long this machine's own calls as itself to its spaces last: a minute, one call's latency. */
 const MACHINE_CALL_MILLISECONDS = 60_000;
 
-/** The oldest Destack version whose releases a machine runs: the version its oldest kept behavior serves. */
+/** The oldest Destack version whose releases a machine runs. */
 const OLDEST_DESTACK = "2026.11.0";
 
 /** What a machine serves its spaces with: its public and its private fields. */
@@ -613,7 +613,7 @@ export class Machine {
         return started;
     }
 
-    /** The Destack versions the machine runs releases built with: its own, and the oldest it supports. */
+    /** The Destack versions whose releases the machine runs: its own and the oldest it supports. */
     get destack(): VersionRange {
         return { oldest: OLDEST_DESTACK, newest: this.#version };
     }

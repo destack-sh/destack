@@ -15,7 +15,7 @@ import vaultPackage from "@destack/vault/package";
 /** The vault of a residency's home, whose secrets the forge binds. */
 export const platformVault = defineVault({ name: "platform", spec: {} });
 
-/** The stack of every account's home, as the platform's: a start page, inbox, connections and observability. */
+/** The stack of every account's home: a start page, inbox, connections and observability. */
 export const HOME_STACK = defineStack([vaultPackage], {
     vaults: { credentials: connectionVault.declare() },
     installations: {

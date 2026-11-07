@@ -35,7 +35,7 @@ export class TestFixture {
         return fileURLToPath(new URL(`../../../tests/fixture/${this.name}/`, import.meta.url));
     }
 
-    /** Read the package's name and the dev version it builds and loads at, as the local stage's first build. */
+    /** Read the package's name and the dev version of the local stage's first build. */
     async version(files: FileSystem): Promise<readonly [string, Version]> {
         const text = await files.readTextFile(join(this.directory, "package.json"));
         const { name, version } = FixtureManifest.parse(JSON.parse(text));

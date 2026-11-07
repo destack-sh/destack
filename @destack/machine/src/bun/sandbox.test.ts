@@ -201,7 +201,7 @@ test("open a workload's sandbox to exactly what its capabilities grant, refusing
         refused: [
             "INTERNAL_SERVER_ERROR",
             "COMMAND_MISSING",
-            `${spec.installationId} runs hg, which this machine lacks`,
+            "notes runs hg, which this machine lacks",
         ],
     });
 });
