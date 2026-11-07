@@ -453,7 +453,7 @@ export class Forge {
         if ("id" in pushed && pushed.id !== packageId) {
             throw ForgeError.of(
                 "FOREIGN_MANIFEST",
-                `the pushed manifest belongs to ${pushed.id}, not ${packageId}`,
+                `the pushed manifest belongs to ${pushed.name}, not this package`,
             );
         }
     }
