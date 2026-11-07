@@ -18,7 +18,15 @@ const Installed = schema.object({
     name: schema.string(),
     package: schema.string(),
     version: schema.string(),
+    selection: schema.object({ kind: schema.literal("tag"), tag: schema.string() }),
 });
+
+/** The printed statuses of an installation's rollout, as far as the scenario reads them. */
+const Statuses = schema.array(
+    schema.looseObject({
+        rollout: schema.looseObject({ servedRevisionId: schema.string().nullable() }),
+    }),
+);
 
 /** The printed calls of the space's call log, by method. */
 const Calls = schema.array(
@@ -37,7 +45,9 @@ test(
 
         // install the latest release in the owner's home, which returns once the home serves it
         const installing = await run(["install", "@acme/notebooks", "--json"]);
-        const installed = Installed.parse(JSON.parse(installing.output));
+        const lines = jsonLines(installing.output);
+        const installed = Installed.parse(lines.at(-1));
+        const statuses = Statuses.parse(lines.slice(0, -1));
         const served = await terminal.rollout(installed.id, () => true);
 
         // watch the notebooks while creating one, then stop the watch
@@ -54,6 +64,10 @@ test(
             organized: organized.code,
             published: [published.code, published.error],
             installing: [installing.code, installing.error],
+            followed: [
+                installed.selection,
+                statuses.at(-1)?.rollout.servedRevisionId === served.revisionId,
+            ],
             installed,
             watched: [watched.code, jsonLines(watched.output), watched.error],
             calls: calls
@@ -62,9 +76,12 @@ test(
         }).toEqual({
             organized: 0,
             published: [0, ""],
-            installing: [0, `waiting for the space to serve revision ${served.revisionId}\n`],
+            installing: [0, ""],
+            // follow the latest tag, showing its rollout until the space serves its revision
+            followed: [{ kind: "tag", tag: "latest" }, true],
             installed: {
                 id: installed.id,
+                selection: { kind: "tag", tag: "latest" },
                 name: "notebooks",
                 package: "@acme/notebooks",
                 version: VERSION,

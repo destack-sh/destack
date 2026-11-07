@@ -1,3 +1,4 @@
+import { Observation } from "@destack/object";
 import { fileURLToPath } from "node:url";
 import { type JsonValue, present, schema } from "@destack/schema";
 import type { InstallationRollout } from "@destack/stack/object";
@@ -69,16 +70,9 @@ function readiness(target: InstallationRollout) {
     return { name, selection, ready };
 }
 
-/** Report whether an installation runs a revision it reports ready at its current generation. */
+/** Report whether an installation is current with its latest change. */
 function isReady(target: InstallationRollout): boolean {
-    const { conditions, generation } = target.installation;
-    const ready = conditions["Ready"];
-
-    return (
-        target.revisionId !== null &&
-        ready?.status === "true" &&
-        ready.observedGeneration === generation
-    );
+    return Observation.progress(target.installation) === "current";
 }
 
 test(
@@ -135,7 +129,7 @@ test(
         const source = { kind: "checkout", checkout, directory, machine };
         const ready = {
             status: "true",
-            observedGeneration: 1,
+            observedGeneration: 2,
             reason: "Deployed",
             message: "0 workloads deployed",
         };
@@ -165,7 +159,7 @@ test(
                 {
                     name: "notebooks",
                     selection: { kind: "release", version, manifest },
-                    ready: { ...ready, observedGeneration: 2 },
+                    ready: { ...ready, observedGeneration: 3 },
                 },
             ],
             builds: [

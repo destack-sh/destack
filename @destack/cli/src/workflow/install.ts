@@ -1,60 +1,64 @@
 import { LATEST_TAG } from "@destack/registry/object";
-import { PackageName } from "@destack/package";
-import { type Identifier, present } from "@destack/schema";
-import { installation, SYNCED } from "@destack/object";
-import { RelationalQuery } from "@destack/object/client";
-import { Rollout, rollout } from "@destack/stack/object";
+import { type PackageId, PackageName } from "@destack/package";
+import { type Identifier, present, Version } from "@destack/schema";
+import type { InstallationSelection } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
-
 import type { Context } from "../context/context.ts";
-
-import { Interrupt } from "../command/error.ts";
 import { CliError } from "../error/index.ts";
 import { Forge } from "./forge.ts";
+import { driveInstallation } from "./status.ts";
 
 /** The separator of a package specifier's version. */
 const VERSION_SEPARATOR = "@";
 
-/** Install a package's release in the space. */
+/** Install a package or change what it follows, and follow it until its space serves it. */
 export function installCommand(context: Context): Verb {
     return {
         description:
-            "Install a package's release in the space, the latest by default, following that release",
-        arguments: [{ name: "package", usage: "@scope/name[@version]" }],
+            "Install a package, following its latest release or a tag, or staying on a version",
+        arguments: [{ name: "package", usage: "@scope/name[@version|@tag]" }],
         options: {
             name: {
                 type: "string",
                 description: "The installation's name in the space, the package's name by default",
                 argument: "name",
             },
+            yes: { type: "boolean", description: "Approve each plan the installation waits on" },
         },
         json: true,
         async run({ arguments: { package: specifier }, options, json }) {
-            // read the package's name, the release asked for and the installation's name
+            // read the package's name, the release or tag asked for and the installation's name
             const { name: packageName, release } = readSpecifier(
                 present(specifier, "the package argument"),
             );
             const name =
                 OptionValue.string(options["name"], "name") ?? PackageName.split(packageName).local;
 
-            // resolve the release, install it, and follow it until it serves the release
+            // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
             const forge = await Forge.open(packageName, context);
             const resolved = await forge.resolve(packageName, release);
-            const id = await install(context, resolved, name);
-            await follow(context, id);
-            const { version } = resolved.release;
+            const { version, manifest } = resolved.release;
+            const selection: InstallationSelection = Version.safeParse(release).success
+                ? { kind: "release", version, manifest }
+                : { kind: "tag", tag: release };
+            const id = await upsert(context, resolved.packageId, name, selection);
+            await driveInstallation(id, options["yes"] === true, json, context);
+
+            // report the release it runs and what it follows
+            const follows =
+                selection.kind === "tag" ? `following ${selection.tag}` : "staying on it";
             await context.terminal.print(
                 json
-                    ? JSON.stringify({ id, name, package: packageName, version })
-                    : `Installed ${packageName}@${version} as ${name}.`,
+                    ? JSON.stringify({ id, name, package: packageName, version, selection })
+                    : `Installed ${packageName}@${version} as ${name}, ${follows}.`,
             );
         },
     };
 }
 
-/** Read a package specifier `@scope/name[@version]`: the name, and the version or latest. */
+/** Read a specifier `@scope/name[@version|@tag]`: the name, and the version, tag or latest. */
 export function readSpecifier(specifier: string): {
     readonly name: string;
     readonly release: string;
@@ -72,78 +76,49 @@ export function readSpecifier(specifier: string): {
     return { name, release: separator > 0 ? specifier.slice(separator + 1) : LATEST_TAG };
 }
 
-/** Create an installation following a release, pinned to the manifest the forge resolved. */
-async function install(
+/** Create an installation of a package by its name, or change what the installed one follows. */
+async function upsert(
     context: Context,
-    resolved: Awaited<ReturnType<Forge["resolve"]>>,
+    packageId: PackageId,
     name: string,
+    selection: InstallationSelection,
 ): Promise<Identifier<"installation">> {
-    // create the installation following the release in the space, which its controller deploys
+    // read the installation of that name
     const { environment } = await context.native();
     const space = await context.requireSpace();
     const objects = await context.package(objectPackage, await context.locate());
-    const { version, manifest } = resolved.release;
-    const created = await objects.installation.create({
-        scope: space,
-        requestId: RequestId.create(environment),
-        packageId: resolved.packageId,
-        selection: { kind: "release", version, manifest },
-        name,
-    });
+    const { items } = await objects.installation.list({ scope: space, where: { name }, limit: 1 });
+    const [installed] = items;
 
-    return created.id;
-}
+    // create it
+    if (installed === undefined) {
+        const created = await objects.installation.create({
+            scope: space,
+            requestId: RequestId.create(environment),
+            packageId,
+            selection,
+            name,
+        });
 
-/** Follow an installation until it serves its release, showing its waits and refusing a failure. */
-async function follow(context: Context, id: Identifier<"installation">): Promise<void> {
-    // follow the installation and its rollout as the person until interrupted
-    const space = await context.requireSpace();
-    const person = await context.person();
-    await using opened = new AsyncDisposableStack();
-    const { query } = await person.open({ space }, { installation, rollout }, opened);
-    using interrupt = new Interrupt(context.environment.process);
-    const status = RelationalQuery.latest(
-        {
-            installed: query.installation.findFirst({ where: { id } }),
-            rolled: query.rollout.findFirst({ where: { installationId: id } }),
-        },
-        interrupt.signal,
-    );
-
-    // end once it serves its release, refuse a failed rollout, and show each new reason it waits on
-    let shown: string | undefined;
-    for await (const { installed, rolled } of status) {
-        // read how far the rollout is, and the readiness it reports
-        const target =
-            installed === undefined || rolled === undefined
-                ? undefined
-                : Rollout.join(rolled, installed);
-        const progress = target === undefined ? "waiting" : Rollout.progress(target);
-        const ready = target?.installation.conditions["Ready"];
-
-        // end once it serves its release
-        if (progress === "served") {
-            return;
-        }
-        // refuse a rollout that failed, with its rollout's failure, else its refusal
-        else if (progress === "failed") {
-            const failing = present(target, "the failed rollout");
-            const { name } = failing.installation;
-            const synced = failing.conditions[SYNCED];
-            const failed = present(
-                synced?.status === "false" ? synced : ready,
-                `the failure of ${name}`,
-            );
-            throw CliError.of("INSTALLATION_FAILED", `${name} failed: ${failed.message}`);
-        }
-        // show a reason it waits on once
-        else if (ready !== undefined && ready.status === "false" && ready.reason !== shown) {
-            shown = ready.reason;
-            await context.terminal.printDiagnostic(ready.message);
-        }
+        return created.id;
     }
+    // refuse a name another package's installation has
+    else if (installed.packageId !== packageId) {
+        throw CliError.of(
+            "INSTALLATION_NAME_TAKEN",
+            `${name} installs another package: choose another name with --name`,
+        );
+    }
+    // change what it follows
+    else {
+        await objects.installation.update({
+            scope: space,
+            id: installed.id,
+            requestId: RequestId.create(environment),
+            revision: installed.revision,
+            selection,
+        });
 
-    // stop following once interrupted
-    interrupt.require();
-    throw CliError.of("FOLLOW_STOPPED", `stopped following installation ${id} before it served`);
+        return installed.id;
+    }
 }

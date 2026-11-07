@@ -4,7 +4,7 @@
 
 ```sh
 destack login                                     # a device code, switching to your home
-destack install @acme/notebooks                   # the latest release, in the current space
+destack install @acme/notebooks                   # following its latest release, in the current space
 destack switch work                               # an address, an alias, home, residency or a space's name
 destack notebooks --where 'name = Plans' --watch  # list, redrawn as the rows change
 destack notebook notebook-0199… update --name Ideas --revision 2  # a method call with field flags
@@ -66,20 +66,23 @@ destack notebook notebook-0199… rename-to-ideas --revision 3
 
 ## Stacks
 
-`apply`, `plan` and `approve` change the space's stack, asking before a plan applies.
+`apply` changes the space's stack, and `plan` and `approve` show and approve the plan any installation waits on, the stack's by default.
 
 ```sh
 destack apply ./stack --export space --parameters '{"region":"eu"}'
 destack plan --watch
 destack approve --plan 3f1c…
+destack approve notes --plan 9a2e…   # an update of notes asking for more access
 ```
 
 ## Installations
 
-`install` installs a package's release in the space and waits until the space serves it.
+`install` follows a package's latest release or a tag, or stays on a version, and waits until the space serves it, asking before a plan applies; installing an installed name changes what it follows.
 
 ```sh
-destack install @acme/notebooks@2026.10.0 --name notes
+destack install @acme/notebooks                    # follows latest
+destack install @acme/notebooks@next               # follows next
+destack install @acme/notebooks@2026.10.0 --name notes   # stays on 2026.10.0
 # the same through the installation type, a flag per field of the selection
 destack installation create --package-id package-0199… --selection-kind release --selection-version 2026.10.0 --name notes
 ```

@@ -17,12 +17,12 @@ export const CliError = defineErrorFamily(import.meta.destack.package, {
     // not found
     NOUN_NOT_FOUND: { code: "NOT_FOUND" },
     METHOD_MISSING: { code: "NOT_FOUND" },
-    STACK_MISSING: { code: "NOT_FOUND" },
+    INSTALLATION_MISSING: { code: "NOT_FOUND" },
     SETTING_NOT_DECLARED: { code: "NOT_FOUND" },
 
     // conflict
-    STACK_FAILED: { code: "CONFLICT" },
     INSTALLATION_FAILED: { code: "CONFLICT" },
+    INSTALLATION_NAME_TAKEN: { code: "CONFLICT" },
     METHOD_AMBIGUOUS: { code: "CONFLICT" },
 
     // precondition failed
