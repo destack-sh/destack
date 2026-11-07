@@ -80,7 +80,7 @@ jobs:
               # bubblewrap needs unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor
               run: |
                   sudo apt-get update
-                  sudo apt-get install --yes bubblewrap socat ripgrep
+                  sudo apt-get install --yes bubblewrap socat ripgrep zsh
                   sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
             - name: Run the gates
               env:

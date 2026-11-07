@@ -11,7 +11,6 @@
         "@destack/db": "workspace:*",
         "@destack/desktop": "workspace:*",
         "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/locale": "workspace:*",
@@ -30,12 +29,11 @@
         "@destack/registry": "workspace:*"
     },
     "devDependencies": {
-        "@destack/connection": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/message": "workspace:*",
-        "@destack/notification": "workspace:*",
+        "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
+        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.2"
     },
     "scripts": {

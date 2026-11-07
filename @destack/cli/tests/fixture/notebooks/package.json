@@ -1,0 +1,14 @@
+{
+    "name": "@acme/notebooks",
+    "version": "2026.11.0-dev.1",
+    "type": "module",
+    "exports": {
+        "./package": "./src/package.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*"
+    }
+}
