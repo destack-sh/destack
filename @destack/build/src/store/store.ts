@@ -926,29 +926,25 @@ export class BuildStore<
         return closure;
     }
 
-    /** Map a build's browser modules below a URL prefix, its builtins at their linked releases. */
-    async browser(
+    /** Map a build's modules on a runtime below a URL prefix, builtins at their linked releases. */
+    async imports(
         start: Digest,
+        runtime: Runtime,
         base: string,
         linked: ReadonlyMap<PackageId, PackageRelease>,
         read: (digest: Digest) => Promise<PackageManifest> = async (digest) =>
             present(await this.get(digest), `the manifest of build ${digest}`),
-    ): Promise<BrowserClosure> {
-        // read the builds its views' modules reach
+    ): Promise<ImportClosure> {
+        // read the builds its modules reach on the runtime
         const started = await read(start);
-        const reached = await this.closure(
-            start,
-            PackageManifest.package(started).id,
-            "browser",
-            read,
-        );
+        const reached = await this.closure(start, PackageManifest.package(started).id, runtime, read);
 
         // map each dependency's exports in its dependent's scope, visiting each build once
         const map: ImportMap = { imports: {}, scopes: {} };
         const builds = new Set<Digest>([start]);
         const pending = [{ digest: start, scope: map.imports, isLinked: false }];
         for (const { digest, scope, isLinked } of pending) {
-            for (const output of browserOutputs(await read(digest))) {
+            for (const output of outputsOn(await read(digest), runtime)) {
                 // take a builtin at its linked release, a reached build, and every build a builtin imports
                 const dependencies = Object.entries(output.dependencies).flatMap(
                     ([name, release]) => {
@@ -975,7 +971,7 @@ export class BuildStore<
                     const { name, manifest } = dependency;
                     // map the dependency's exports to its files below its build's prefix
                     const prefix = `${base}${manifest}/`;
-                    for (const each of browserOutputs(await read(manifest))) {
+                    for (const each of outputsOn(await read(manifest), runtime)) {
                         for (const [subpath, exported] of Object.entries(each.exports)) {
                             const specifier = subpath === "." ? name : `${name}${subpath.slice(1)}`;
                             scope[specifier] = `${prefix}${exported.path}`;
@@ -1340,15 +1336,15 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
     }
 }
 
-/** A build's browser closure: the import map of its modules and the builds the map reaches. */
-export interface BrowserClosure {
-    /** The import map of the build's browser modules and its dependencies'. */
+/** A build's closure on a runtime: the import map of its modules and the builds the map reaches. */
+export interface ImportClosure {
+    /** The import map of the build's modules and its dependencies' on the runtime. */
     readonly map: ImportMap;
-    /** The builds the map's URLs reach: the browser runtime build and its dependencies'. */
+    /** The builds the map's URLs reach: the build itself and its dependencies'. */
     readonly builds: ReadonlySet<Digest>;
 }
 
-/** List a build's browser outputs. */
-function browserOutputs(manifest: PackageManifest): PackageOutput[] {
-    return Object.values(manifest.outputs).filter((output) => output.runtime === "browser");
+/** List a build's outputs on a runtime. */
+function outputsOn(manifest: PackageManifest, runtime: Runtime): PackageOutput[] {
+    return Object.values(manifest.outputs).filter((output) => output.runtime === runtime);
 }

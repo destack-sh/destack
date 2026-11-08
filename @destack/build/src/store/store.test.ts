@@ -1128,7 +1128,7 @@ test("map a view's browser modules and its dependencies' below a prefix, each bu
     );
 
     // map the application's imports at the root, the library's in its own scope
-    const closure = await store.browser(application, "/.destack/build/", new Map());
+    const closure = await store.imports(application, "browser", "/.destack/build/", new Map());
 
     expect({ map: closure.map, builds: [...closure.builds] }).toEqual({
         map: {
@@ -1197,8 +1197,9 @@ test("map a builtin every build imports at its linked release, once per page, wi
     );
 
     // map the builtin at the linked build in every scope, and its own imports in its scope
-    const closure = await store.browser(
+    const closure = await store.imports(
         application,
+        "browser",
         "/.destack/build/",
         new Map([[view.id, { package: view, manifest: linked }]]),
     );
