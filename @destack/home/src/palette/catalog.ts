@@ -93,7 +93,9 @@ export class SpaceCatalog {
     ): Promise<SpaceCatalog> {
         // describe the space's store at its home, in one call
         const home = origin(`${HOME_PATH}/${space.id}${PackageMount.path(stackPackage.id)}`);
-        const description = await ObjectStoreDescription.read(ObjectClient.store(home, environment));
+        const description = await ObjectStoreDescription.read(
+            ObjectClient.store(home, environment),
+        );
 
         // list each named installation's commands, views and types, by name
         const installations = description.installations
