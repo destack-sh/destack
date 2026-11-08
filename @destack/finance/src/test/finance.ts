@@ -188,6 +188,7 @@ const RESIDENCY_STACK = {
 const HOME_OPTIONS = {
     ...TestPackage.options(PACKAGES),
     publishers: ["platform"],
+    trustedPublishers: [],
     packages: [...TestPackage.options(PACKAGES).packages, forgePackage],
     companions: serversOf([packageObject, resolvedRelease, tag]),
 };
