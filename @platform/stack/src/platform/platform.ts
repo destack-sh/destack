@@ -8,7 +8,7 @@ export const PLATFORM = {
     name: "Destack",
     handle: "destack",
     residencyId: "eu",
-    publishers: ["app", "template", "platform"],
+    publishers: ["platform"],
     reserved: [
         // platform nouns
         "universe",
