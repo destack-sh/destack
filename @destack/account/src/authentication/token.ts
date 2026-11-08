@@ -61,6 +61,8 @@ export const TokenResponse = Object.assign(
         refresh_token: schema.string().min(1).exactOptional(),
         /** The ID token identifying the signed-in person, granted with the openid scope. */
         id_token: schema.string().min(1).exactOptional(),
+        /** The granted scopes, space-delimited (RFC 6749 5.1). */
+        scope: schema.string().exactOptional(),
     }),
     {
         /** Read the granted access token and when it lapses, counted from its receipt now. */

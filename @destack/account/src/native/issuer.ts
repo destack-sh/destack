@@ -84,7 +84,7 @@ export interface DeviceAuthorization {
 }
 
 /** The tokens a sign-in or refresh grants. */
-export interface Tokens {
+export interface TokenSet {
     /** The access token for the account package. */
     readonly accessToken: string;
     /** When the access token expires, in UTC epoch milliseconds. */
@@ -96,7 +96,7 @@ export interface Tokens {
 /** A completed sign-in: the client's tokens and the person of its ID token. */
 export interface SignedIn {
     /** The client's tokens. */
-    readonly tokens: Tokens;
+    readonly tokens: TokenSet;
     /** The signed-in person's user. */
     readonly userId: Identifier<"user">;
 }
@@ -306,7 +306,7 @@ export class Issuer {
     }
 
     /** Refresh a client's tokens with its refresh token. */
-    refresh(clientId: Identifier<"client">, refreshToken: string): Promise<Tokens> {
+    refresh(clientId: Identifier<"client">, refreshToken: string): Promise<TokenSet> {
         return this.#tokens({
             grant_type: "refresh_token",
             refresh_token: refreshToken,
@@ -383,7 +383,7 @@ export class Issuer {
     }
 
     /** Post a token request, refusing a refused one as the issuer refused it. */
-    async #tokens(form: Readonly<Record<string, string>>): Promise<Tokens> {
+    async #tokens(form: Readonly<Record<string, string>>): Promise<TokenSet> {
         const response = await this.#post(TOKEN_PATH, form);
         if (!response.ok) {
             throw await TokenResponse.refusal(response);
@@ -393,7 +393,7 @@ export class Issuer {
     }
 
     /** Read granted tokens, refusing a grant without a refresh token. */
-    #granted(tokens: TokenResponse): Tokens {
+    #granted(tokens: TokenResponse): TokenSet {
         if (tokens.refresh_token === undefined) {
             throw AccountError.of("REFRESH_TOKEN_MISSING", "the issuer returned no refresh token");
         }

@@ -530,7 +530,7 @@ test("refuse a machine exchanging a token for itself, which it asks for with its
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { identity, laptop } = opened;
-    const accessToken = await identity.token(accountPackage.id, { url: ISSUER }, (request) =>
+    const accessToken = await identity.token(accountPackage.id, ISSUER, (request) =>
         fixture.fetch(request),
     );
 

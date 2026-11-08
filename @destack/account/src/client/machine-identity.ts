@@ -1,13 +1,10 @@
 import type { Fetch, OmitEach } from "@destack/object";
 import { PackageId } from "@destack/package";
-import { copyRequest, type Environment } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { RequestId, Scope } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
 import type { ClientOf } from "@destack/object/client";
-import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse } from "../authentication/token.ts";
 import { Machine, machine } from "../object/index.ts";
-import { JWT_BEARER } from "../oauth/bearer.ts";
 import accountPackage from "../package.ts";
 import {
     Keychain,
@@ -17,9 +14,11 @@ import {
     Proof,
     PublicKey,
 } from "@destack/identity";
-import { Assertion, type PartitionId, TokenCache } from "@destack/access/token";
+import { Assertion } from "@destack/access/token";
 import { principal } from "@destack/access";
 import { AccountError } from "../error/error.ts";
+import type { TokenBinding } from "../native/issuer.ts";
+import { TokenSource } from "./bearer.ts";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
 const MACHINE_KEY_LABEL = { label: "@destack/account/machine-key", context: "" } as const;
@@ -30,18 +29,6 @@ export type Enrollment = OmitEach<
     "id" | "publicKey" | "proof"
 >;
 
-/** The partition a machine's token acts in, none for a call outside partitions. */
-export interface TokenScope {
-    /** The partition the machine serves, receives or works in. */
-    readonly partition?: PartitionId;
-}
-
-/** The issuer a machine asks for tokens. */
-export interface MachineIssuer {
-    /** The issuer's URL, the account package's oauth adapter. */
-    readonly url: string;
-}
-
 /** The identity a machine proves with its key. */
 export class MachineIdentity {
     /** The machine's identifier. */
@@ -50,16 +37,18 @@ export class MachineIdentity {
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
     #pair: KeyPair | undefined;
-    /** The access tokens granted to this machine, by audience and binding. */
-    readonly #tokens = new TokenCache();
+    /** The access tokens granted to this machine by its assertions. */
+    readonly #tokens: TokenSource;
     /** The environment proofs are signed and tokens refreshed at, and requests drawn from. */
     readonly #environment: Environment;
 
     /** Prove a machine's identity with the key in its keychain, in an environment. */
     constructor(machineId: Identifier<"machine">, keys: Keychain, environment: Environment) {
+        // keep the keychain, and get tokens by the assertions the machine's key signs
         this.machineId = machineId;
         this.#keys = keys;
         this.#environment = environment;
+        this.#tokens = new TokenSource((endpoint) => this.assert(endpoint), environment);
     }
 
     /** Generate and store a key pair, and return its public half with a proof of possession. */
@@ -155,32 +144,23 @@ export class MachineIdentity {
     }
 
     /** Wrap a fetch to call a package with this machine's tokens, in a partition when given. */
-    fetch(send: Fetch, audience: PackageId, issuer: MachineIssuer, scope: TokenScope = {}): Fetch {
-        return async (request) => {
-            // replace the request's credential with the token for the audience
-            const accessToken = await this.token(audience, issuer, send, scope);
-            const headers = new Headers(request.headers);
-            headers.set("authorization", `Bearer ${accessToken}`);
-
-            return send(copyRequest(request, { headers }));
-        };
+    fetch(
+        send: Fetch,
+        audience: PackageId,
+        issuer: string,
+        binding: Pick<TokenBinding, "partition"> = {},
+    ): Fetch {
+        return this.#tokens.fetch(send, audience, issuer, binding);
     }
 
     /** Read this machine's access token for a package, in a partition when given (RFC 7523). */
-    async token(
+    token(
         audience: PackageId,
-        issuer: MachineIssuer,
+        issuer: string,
         fetch: Fetch,
-        scope: TokenScope = {},
+        binding: Pick<TokenBinding, "partition"> = {},
     ): Promise<string> {
-        // reuse a pending or fresh token, else ask the token endpoint with an assertion the machine's key signs
-        const key = JSON.stringify([audience, scope.partition ?? null]);
-
-        return this.#tokens.token(
-            key,
-            this.#environment.clock.now(),
-            async () => (await this.#grant(audience, issuer, fetch, scope)).accessToken,
-        );
+        return this.#tokens.token(audience, issuer, fetch, binding);
     }
 
     /** Sign an assertion of this machine for a token endpoint now (RFC 7523). */
@@ -270,33 +250,5 @@ export class MachineIdentity {
         this.#pair = await KeyPair.read(stored, this.#environment.crypto);
 
         return this.#pair;
-    }
-
-    /** Exchange an assertion of this machine for an access token at the issuer's token endpoint. */
-    async #grant(
-        audience: PackageId,
-        issuer: MachineIssuer,
-        fetch: Fetch,
-        scope: TokenScope,
-    ): Promise<{ accessToken: string; expiresAt: number }> {
-        // post the assertion for the package's resource
-        const endpoint = `${issuer.url}${TOKEN_PATH}`;
-        const body = new URLSearchParams({
-            grant_type: JWT_BEARER,
-            assertion: await this.assert(endpoint),
-            resource: PackageId.resource(audience),
-            ...(scope.partition === undefined ? {} : { partition: scope.partition }),
-        });
-        const response = await fetch(new Request(endpoint, { method: "POST", body }));
-
-        // refuse as the endpoint refused
-        if (!response.ok) {
-            throw await TokenResponse.refusal(response);
-        }
-
-        return TokenResponse.granted(
-            TokenResponse.parse(await response.json()),
-            this.#environment.clock.now(),
-        );
     }
 }

@@ -1,3 +1,4 @@
+import { TokenResponse } from "../src/authentication/index.ts";
 import { Scope, RequestId } from "@destack/sync";
 import { principal } from "@destack/access";
 import { eq, Snapshot } from "@destack/db";
@@ -25,7 +26,7 @@ import {
     OWNER_EMAIL,
     STRANGER_EMAIL,
 } from "../src/test/index.ts";
-import { ANY_STRING, Tokens } from "./fixture.ts";
+import { ANY_STRING } from "./fixture.ts";
 
 /** The token endpoint every assertion is for. */
 const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
@@ -68,7 +69,7 @@ async function ask(
 
     // answer issued tokens as done, and a refusal as its status and body
     if (response.ok) {
-        Tokens.parse(body);
+        TokenResponse.parse(body);
 
         return "done";
     }
@@ -282,7 +283,7 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
     await using accounts = await TestAccountStore.open();
     const { identity, enrolled } = await enrollCloud(accounts);
     const fetch = (request: Request) => accounts.fetch(request);
-    const accessToken = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
+    const accessToken = await identity.token(AUDIENCE, ISSUER, fetch);
 
     // verify the token as the machine alone, by its key's thumbprint
     const verifier = new TokenVerifier({
@@ -391,7 +392,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
     // declare a cloud machine on the same clock and take its token
     const identity = await fixture.declareCloudMachine(fixture.platform, "eu");
     const fetch = (request: Request) => fixture.fetch(request);
-    const accessToken = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
+    const accessToken = await identity.token(AUDIENCE, ISSUER, fetch);
 
     // verify it at the clock's time, with exactly the provider's claims
     const verifier = new TokenVerifier({
@@ -461,11 +462,9 @@ test("reuse a machine's token for several calls to one package, exchanging it on
     };
 
     // read the token for three calls at once and one later, and one for another package
-    const tokens = await Promise.all(
-        [1, 2, 3].map(() => identity.token(AUDIENCE, { url: ISSUER }, fetch)),
-    );
-    const later = await identity.token(AUDIENCE, { url: ISSUER }, fetch);
-    const other = await identity.token(accountPackage.id, { url: ISSUER }, fetch);
+    const tokens = await Promise.all([1, 2, 3].map(() => identity.token(AUDIENCE, ISSUER, fetch)));
+    const later = await identity.token(AUDIENCE, ISSUER, fetch);
+    const other = await identity.token(accountPackage.id, ISSUER, fetch);
 
     // send the first token every time for the package, and another one for the other package
     expect({
@@ -671,7 +670,7 @@ test("authenticate a machine's token in a space it serves while its key stands, 
             }),
         }),
     );
-    const token = Tokens.parse(await response.json()).access_token;
+    const token = TokenResponse.parse(await response.json()).access_token;
 
     // authenticate the token in the space, before and after the owner revokes the machine
     const authenticate = () =>

@@ -1,3 +1,4 @@
+import { TokenResponse } from "../src/authentication/index.ts";
 import accountPackage from "../src/package.ts";
 import { inArray } from "@destack/db";
 import { PackageId } from "@destack/package";
@@ -12,7 +13,7 @@ import {
     TestBrowser,
 } from "../src/test/index.ts";
 import { DEVICE_CLIENT_NAME, user } from "../src/object/index.ts";
-import { DeviceGrant, Tokens } from "./fixture.ts";
+import { DeviceGrant } from "./fixture.ts";
 
 /** The path of the issuer's pages, which their forms post to. */
 const PAGES = new URL(ISSUER).pathname;
@@ -438,7 +439,7 @@ test("approve an application on the consent page", async () => {
         state: "state-1",
         resource: null,
     });
-    expect([redeemed.status, Tokens.parse(await redeemed.json()).scope]).toEqual([
+    expect([redeemed.status, TokenResponse.parse(await redeemed.json()).scope]).toEqual([
         200,
         "openid email",
     ]);
@@ -513,7 +514,7 @@ test("approve a device code on the verification page", async () => {
             client_id: deviceClient,
         }),
     );
-    expect([redeemed.status, Tokens.parse(await redeemed.json()).token_type]).toEqual([
+    expect([redeemed.status, TokenResponse.parse(await redeemed.json()).token_type]).toEqual([
         200,
         "Bearer",
     ]);

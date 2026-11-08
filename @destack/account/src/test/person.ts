@@ -11,7 +11,7 @@ import type { PackageId } from "@destack/package";
 import { type ClientOptions, type ClientTarget, createClient } from "@destack/object/client";
 import { Identifier, present, schema, type UuidEnvironment } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
-import type { Issuer, TokenBinding, Tokens } from "../native/index.ts";
+import type { Issuer, TokenBinding, TokenSet } from "../native/index.ts";
 import { Account } from "../object/index.ts";
 import type { ResidencyCode } from "../object/index.ts";
 import type { TestMail } from "./account.ts";
@@ -82,7 +82,7 @@ export class TestPerson {
     /** The client the person signed in on. */
     readonly clientId: Identifier<"client">;
     /** The tokens of the person's client, refreshed once the access token expires. */
-    #client: Promise<Tokens>;
+    #client: Promise<TokenSet>;
     /** Where the person signed in. */
     readonly #signIn: TestSignIn;
     /** The tokens exchanged for packages, by package and binding, stored until they expire. */
@@ -176,7 +176,7 @@ export class TestPerson {
     }
 
     /** Read the client's tokens, refreshed once the access token expires (RFC 6749). */
-    tokens(): Promise<Tokens> {
+    tokens(): Promise<TokenSet> {
         // refresh expired tokens once, as every caller waits on the same refresh
         const current = this.#client;
         const refreshing = (async () => {

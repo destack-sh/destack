@@ -26,20 +26,6 @@ export const DeviceGrant = schema.looseObject({
     verification_uri_complete: schema.string(),
 });
 
-/** The tokens a token endpoint issues (RFC 6749). */
-export const Tokens = schema.looseObject({
-    /** The kind of the access token. */
-    token_type: schema.string(),
-    /** The access token. */
-    access_token: schema.string(),
-    /** The refresh token, issued for offline access. */
-    refresh_token: schema.string().exactOptional(),
-    /** The ID token, issued for the openid scope. */
-    id_token: schema.string().exactOptional(),
-    /** The granted scopes. */
-    scope: schema.string().exactOptional(),
-});
-
 /** A page an endpoint sends the browser on to. */
 export const Redirect = schema.looseObject({
     /** The page's address. */

@@ -1,3 +1,4 @@
+import { TokenResponse } from "../src/authentication/index.ts";
 import { Failure } from "@destack/error";
 import { AuditCaller } from "@destack/object";
 import { auditedCalls } from "@destack/object/test";
@@ -30,7 +31,7 @@ import {
     TestDirectory,
     TestJwt,
 } from "../src/test/index.ts";
-import { DeviceGrant, Redirect, Tokens } from "./fixture.ts";
+import { DeviceGrant, Redirect } from "./fixture.ts";
 import { principal } from "@destack/access";
 import { PackageId } from "@destack/package";
 import accountPackage from "../src/package.ts";
@@ -642,7 +643,7 @@ test("approve a device's new client in a signed-in session, and redeem its code 
             }),
         );
     const exchanged = await redeem();
-    const tokens = Tokens.parse(await exchanged.json());
+    const tokens = TokenResponse.parse(await exchanged.json());
     expect({
         approved: approved.status,
         credential: TestJwt.claims(tokens.access_token).caller.credential.kind,
@@ -681,7 +682,7 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
             device_code: grant.device_code,
         }),
     );
-    const tokens = Tokens.parse(await exchanged.json());
+    const tokens = TokenResponse.parse(await exchanged.json());
 
     // revoke the client, which no longer identifies
     await person.client(accountPackage).client.revoke({
