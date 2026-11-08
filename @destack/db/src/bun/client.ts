@@ -18,15 +18,6 @@ const PREPARED_TEXTS = 512;
 /** The work queue of each database file by its real path: one writer per file in the process. */
 const FILE_QUEUES = new Map<string, SqliteWorkQueue>();
 
-/** Bun's SQLite statements, with the integer mode Bun has beside its declared methods. */
-declare module "bun:sqlite" {
-    /** A Bun statement, with the integer mode Bun has beside its declared methods. */
-    interface Statement<ReturnType, ParamsType> {
-        /** Read integers as big integers, exactly, or as numbers. */
-        readonly safeIntegers: (enabled: boolean) => Statement<ReturnType, ParamsType>;
-    }
-}
-
 /** Statements on one SQLite database, prepared once per text. */
 export class BunQuery implements SqliteQueryClient {
     /** The most values one statement binds, as SQLite binds by default. */
