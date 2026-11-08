@@ -1,4 +1,4 @@
-import { eq } from "../sql/index.ts";
+import { eq, sql } from "../sql/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "../test/database.ts";
 import { defineTable, type Select } from "../table/table.ts";
@@ -370,4 +370,50 @@ test("select rows by keys of text and integer columns, none for a missing key", 
         { upload: "u", number: 2, scope: "inbox", size: 20 },
         { upload: "v", number: 1, scope: "inbox", size: 30 },
     ]);
+});
+
+test("fill a page of visible rows from candidates in batches, deciding every candidate once per batch", async () => {
+    // store twenty items, ranked 1 to 20
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create([item], { environment: world, isMigrated: true });
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    await database.transaction((transaction) =>
+        transaction
+            .insert(item)
+            .values(
+                Array.from({ length: 20 }, (_, index) => ({
+                    id: `i${String(index + 1).padStart(2, "0")}`,
+                    scope: "inbox",
+                    rank: index + 1,
+                    label: null,
+                })),
+            )
+            .execute(),
+    );
+
+    // match candidates above rank 2 in SQL, and show only every third of them in memory
+    const batches: number[] = [];
+    const visible = {
+        candidates: sql`${item.rank} > 2`,
+        decide: async (rows: readonly Row[]) => {
+            batches.push(rows.length);
+
+            return new Set(
+                rows.flatMap((row, position) => (Number(row["rank"]) % 3 === 0 ? [position] : [])),
+            );
+        },
+    };
+    const page = await Snapshot.live(database).ordered(item, {
+        where: {},
+        orderBy: { rank: "asc" },
+        limit: 4,
+        visible,
+    });
+
+    // read batches of 4, 8 and 16 candidates until four visible rows fill the page
+    expect({ ranks: page.map((row) => row.rank), batches }).toEqual({
+        ranks: [3, 6, 9, 12],
+        batches: [4, 8, 16],
+    });
 });

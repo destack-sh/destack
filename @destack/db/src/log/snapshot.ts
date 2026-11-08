@@ -69,12 +69,12 @@ export type Rewind = (
 /** Read a layer's rows over a table's rows by key name: a row, or null for a removed one. */
 export type Overlay = (table: Table) => Promise<ReadonlyMap<string, Row | null>>;
 
-/** Which rows an ordered read shows beyond a condition. */
+/** Which rows an ordered read shows beyond a condition: candidates in SQL, each decided after. */
 export interface Visibility {
-    /** Match the visible current rows, absent to decide in memory. */
-    readonly current?: SQL;
-    /** Decide whether a row image is visible. */
-    readonly image: (row: Row) => Promise<boolean>;
+    /** Match the rows that may be visible, a superset of them, absent to read every row. */
+    readonly candidates?: SQL;
+    /** Decide which of some rows are visible, by position. */
+    readonly decide: (rows: readonly Row[]) => Promise<ReadonlySet<number>>;
 }
 
 /** How a snapshot follows a table's relations in memory. */
@@ -128,6 +128,11 @@ export class Snapshot {
         return (
             this.position === undefined && this.#overlay === undefined && this.#reads === undefined
         );
+    }
+
+    /** Whether reads see the live database's rows as they are now: no position and no overlay. */
+    get isCurrent(): boolean {
+        return this.position === undefined && this.#overlay === undefined;
     }
 
     /** Show the same database and position under an overlay. */
@@ -391,8 +396,6 @@ export class Snapshot {
     ): Promise<Row[][]> {
         // record the scan, then read enough current rows to cover every changed row
         this.#reads?.images(table, query.where ?? {});
-        const visible = query.visible;
-        const isVisibleInMemory = visible !== undefined && visible.current === undefined;
         const order = Order.complete(Order.of(query.orderBy), table);
         const namespace = query.namespace ?? { extras: {} };
         const predicate = Condition.resolve(query.where, Namespace.fields(table, namespace));
@@ -405,8 +408,14 @@ export class Snapshot {
         let rows: Row[] = [];
         while (unsettled.size > changed) {
             changed = unsettled.size;
-            const limit = isVisibleInMemory ? undefined : query.limit + changed;
-            const read = await this.#readCurrent(table, query, partition, order, predicate, limit);
+            const read = await this.#readVisible(
+                table,
+                query,
+                partition,
+                order,
+                predicate,
+                query.limit + changed,
+            );
             rows = read.rows;
 
             // take the rows as they are when live
@@ -439,6 +448,36 @@ export class Snapshot {
         );
     }
 
+    /** Read the visible current rows of a windowed read up to a limit per window, in batches. */
+    async #readVisible<Read>(
+        table: Table,
+        query: WindowRead<Read> & { readonly after?: Row },
+        partition: Partition | undefined,
+        order: Order,
+        predicate: Predicate,
+        limit: number,
+    ): Promise<{ readonly rows: Row[]; readonly sequence: number | undefined }> {
+        // read the matching rows as they are without a visibility
+        const { visible } = query;
+        if (visible === undefined) {
+            return this.#readCurrent(table, query, partition, order, predicate, limit);
+        }
+
+        // decide batches of candidates, doubling a batch until each window is full or read to its end
+        for (let batch = limit; ; batch *= 2) {
+            const read = await this.#readCurrent(table, query, partition, order, predicate, batch);
+            const decided = await visible.decide(read.rows);
+            const rows = read.rows.filter((_, position) => decided.has(position));
+            const kept = windowsOf(table, rows, partition);
+            const isSettled = windowsOf(table, read.rows, partition).every(
+                (window, index) => window.length < batch || (kept[index]?.length ?? 0) >= limit,
+            );
+            if (isSettled) {
+                return { rows, sequence: read.sequence };
+            }
+        }
+    }
+
     /** Read the current rows matching a windowed read up to a limit per window. */
     #readCurrent<Read>(
         table: Table,
@@ -452,7 +491,7 @@ export class Snapshot {
         const namespace = query.namespace ?? { extras: {} };
         const selection = and(
             render(predicate, table, namespace),
-            query.visible?.current,
+            query.visible?.candidates,
             query.after === undefined
                 ? undefined
                 : Order.after(order, table, query.after, namespace),
@@ -503,22 +542,15 @@ export class Snapshot {
         order: Order,
         predicate: Predicate,
     ): Promise<Row[]> {
-        // take the current rows no image replaces
+        // take the visible current rows no image replaces
         const { visible, relations } = query;
         const namespace = query.namespace ?? { extras: {} };
         const match = Predicate.compile(predicate, table);
-        const current =
+        const kept =
             images.size === 0 ? rows : rows.filter((row) => !images.has(Key.name(table, row)));
 
-        // decide them in memory when the read matches no visible rows in SQL
-        const decided =
-            visible !== undefined && visible.current === undefined
-                ? await Promise.all(current.map((row) => visible.image(row)))
-                : undefined;
-        const kept =
-            decided === undefined ? current : current.filter((_, index) => decided[index] === true);
-
-        // add the visible images matching the read after its row
+        // take the images matching the read after its row
+        const matching: Row[] = [];
         for (const image of images.values()) {
             const augmented =
                 image === null
@@ -527,12 +559,20 @@ export class Snapshot {
             if (
                 augmented !== null &&
                 (await decides(match, predicate, table, augmented, relations)) &&
-                (query.after === undefined || Order.rows(order, augmented, query.after) > 0) &&
-                (visible === undefined || (await visible.image(augmented)))
+                (query.after === undefined || Order.rows(order, augmented, query.after) > 0)
             ) {
-                kept.push(augmented);
+                matching.push(augmented);
             }
         }
+
+        // add the visible ones, decided together
+        const decided =
+            visible === undefined || matching.length === 0
+                ? undefined
+                : await visible.decide(matching);
+        kept.push(
+            ...matching.filter((_, position) => decided === undefined || decided.has(position)),
+        );
 
         return kept;
     }
