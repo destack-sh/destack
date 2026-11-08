@@ -86,7 +86,7 @@ const ExchangeRequest = schema.looseObject({
 export interface ExchangeOptions {
     /** The account database with the people, grants and placements. */
     readonly database: DatabaseConnection;
-    /** The account objects, whose universe watermark stamps tokens acting under grants. */
+    /** The account objects, whose universe watermark stamps every exchanged token. */
     readonly objects: Pick<ObjectStore, "watermark">;
     /** The policies expanding memberships. */
     readonly authorizer: Authorizer;
@@ -123,17 +123,12 @@ export function exchangeGrant(options: ExchangeOptions): TokenGrant {
             ),
         };
 
-        // stamp a token acting under grants with the universe's position, which its readers wait for (Zanzibar's zookie)
-        const stamped =
-            authentication.caller.grants.length === 0
-                ? { ...authentication, credential }
-                : {
-                      ...authentication,
-                      credential: {
-                          ...credential,
-                          watermarks: [await options.objects.watermark(Scope.universe.id)],
-                      },
-                  };
+        // stamp the token with the universe's position, which its readers wait for (Zanzibar's zookie)
+        const watermark = await options.objects.watermark(Scope.universe.id);
+        const stamped = {
+            ...authentication,
+            credential: { ...credential, watermarks: [watermark] },
+        };
 
         return {
             authentication: stamped,

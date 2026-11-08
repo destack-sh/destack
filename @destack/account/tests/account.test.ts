@@ -1,4 +1,4 @@
-import { ObjectReference, RequestId } from "@destack/sync";
+import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { Account, account } from "../src/object/account.ts";
 import { expect, refusal, test } from "@destack/test";
 import { eq, Snapshot } from "@destack/db";
@@ -313,6 +313,7 @@ test("exchange a token acting as a member in the account's space, with the membe
     administrator = await fixture.elevate(administrator);
 
     // exchange the administrator's session for a token acting as the member in the space
+    const stampedAt = await fixture.store.watermark(Scope.universe.id);
     const acting = await fixture.issuer.exchange(await administrator.token(), accountPackage.id, {
         partition: spaceId,
         subject: member.subject,
@@ -345,6 +346,7 @@ test("exchange a token acting as a member in the account's space, with the membe
                 kind: "session",
                 id: signedIn.id,
                 assurance: { level: 2, authenticatedAt: assurance.authenticatedAt },
+                watermarks: [stampedAt],
             },
         },
     });
