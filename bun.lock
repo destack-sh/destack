@@ -111,7 +111,6 @@
         "@destack/resource": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
-        "@destack/test": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.16",
@@ -119,8 +118,15 @@
         "vite": "8.3.0",
       },
       "devDependencies": {
+        "@destack/test": "workspace:*",
         "@types/bun": "1.4.2",
       },
+      "peerDependencies": {
+        "@destack/test": "workspace:*",
+      },
+      "optionalPeers": [
+        "@destack/test",
+      ],
     },
     "@destack/build/tests/fixture/library/source": {
       "name": "@destack/build-library-fixture",
@@ -385,6 +391,7 @@
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
+        "@destack/workflow": "workspace:*",
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
@@ -804,6 +811,7 @@
         "@destack/error": "workspace:*",
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
+        "es-module-lexer": "3.0.4",
         "lightningcss": "1.33.0",
         "magic-string": "1.4.1",
       },
@@ -1286,7 +1294,6 @@
         "@destack/style": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
         "@solidjs/meta": "1.0.0-next.2",
         "@solidjs/router": "2.0.0-next.24",
@@ -1300,17 +1307,20 @@
       },
       "devDependencies": {
         "@destack/build": "workspace:*",
+        "@destack/test": "workspace:*",
         "@fontsource/ibm-plex-mono": "5.3.0",
         "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "peerDependencies": {
         "@destack/build": "workspace:*",
+        "@destack/test": "workspace:*",
         "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
       "optionalPeers": [
         "@destack/build",
+        "@destack/test",
         "vite",
       ],
     },
@@ -1345,6 +1355,7 @@
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
+        "@destack/vault": "workspace:*",
         "cron-parser": "5.7.0",
       },
       "devDependencies": {
@@ -1413,6 +1424,7 @@
         "@tufjs/canonical-json": "2.0.0",
         "@tufjs/models": "5.0.0",
         "magic-string": "1.4.1",
+        "reflect-metadata": "0.2.2",
         "rolldown": "1.2.16",
         "tuf-js": "6.0.0",
         "wrangler": "4.134.0",
@@ -2559,7 +2571,7 @@
 
     "error-stack-parser-es": ["error-stack-parser-es@1.0.5", "", {}, "sha512-5qucVt2XcuGMcEGgWI7i+yZpmpByQ8J1lHhcL7PwqCwu9FPP3VUXzT4ltHe5i2z9dePwEHcDVOAfSnHsOlCXRA=="],
 
-    "es-module-lexer": ["es-module-lexer@2.3.2", "", {}, "sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw=="],
+    "es-module-lexer": ["es-module-lexer@3.0.4", "", {}, "sha512-BldNY5mwkVu+cQ5Ymn3e6hB9Sx8XHx4ZevWbiUyZbfKxJxYO27Hf0wfzkxIaD5CAJMaGl3YspKELj0ff/7nCMA=="],
 
     "es-toolkit": ["es-toolkit@1.52.0", "", {}, "sha512-XTNEJQh1tY1ZJVcf6ayP/2n4ZPyaHlW2FWs7xvw5ddPuhUVjLD3olQVQS7kf58JbAB48iL0uL/jerTrjtV3lDA=="],
 
@@ -3042,6 +3054,8 @@
     "parse5/entities": ["entities@6.0.1", "", {}, "sha512-aN97NXWF6AWBTahfVOIrB/NShkzi5H7F9r1s9mD3cDj4Ko5f2qhhVoYMibXF7GlLveb/D2ioWay8lxI97Ven3g=="],
 
     "tsyringe/tslib": ["tslib@1.14.1", "", {}, "sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg=="],
+
+    "vitest/es-module-lexer": ["es-module-lexer@2.3.2", "", {}, "sha512-poHGpORABojJJucnV9KbOavETW8lBVnphkW77ER5/BQ5Fz7oXSoCNek7IH3vR5nRjdsEz926ibFYX8KtLQmdyw=="],
 
     "wrangler/miniflare": ["miniflare@5.20260917.0-alpha", "", { "dependencies": { "@cspotcode/source-map-support": "0.8.1", "sharp": "0.35.4", "undici": "7.29.0", "workerd": "1.20260917.1", "ws": "8.21.0", "youch": "4.1.0-beta.10" } }, "sha512-NpZyBR+h/nonVA/YO/+1/UJpIl8lTwCgpFPVp/KVzAhb8JuCRImPDfyrft040659Zna1RS3Lt2pzTs5Vwy5QSA=="],
 
