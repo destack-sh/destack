@@ -49,12 +49,25 @@ jobs:
               run: bun run src/main.ts release prepare
 
     check:
-        name: Check workspace
+        name: Require the commit's check
         needs: [prepare]
         if: needs.prepare.outputs.build == 'true'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
         permissions:
-            contents: read
-        uses: ./.github/workflows/check.yml
+            actions: read
+        steps:
+            - name: Require a passed check of the released commit
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  SHA: ${{ github.sha }}
+              run: |
+                  # take the check workflow's run for the commit's push to main, refusing a missing or unfinished one
+                  conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?head_sha=${SHA}&event=push" --jq '.workflow_runs[0].conclusion // "missing"')"
+                  if [ "$conclusion" != success ]; then
+                      echo "::error::the check of ${SHA} is ${conclusion}"
+                      exit 1
+                  fi
 
     build:
         name: Build distribution (${{ matrix.target }})

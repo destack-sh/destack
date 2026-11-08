@@ -50,8 +50,14 @@ test: (postgres "up")
     just @destack/test
     just @platform/test
 
-# format
+# regenerate the lint and format settings, then format every package
 format:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    # regenerate each tool root's settings: the workspace's and each template's, never a test's byte-exact fixtures
+    for directory in $(git ls-files '.oxfmtrc.json' '*/.oxfmtrc.json' | grep -v '/tests/' | xargs -n1 dirname); do
+        (cd "$directory" && bun run destack-check configure)
+    done
     just @destack/format
     just @platform/format
 
