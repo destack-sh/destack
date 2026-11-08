@@ -141,7 +141,7 @@ export class TestMachine implements AsyncDisposable {
         const kept = new MemoryKeychain(options.world?.secrets);
         const keyring = await LocalKeyring.open(kept, id, environment);
         const accounts = PackageMount.url(origin, accountPackage.id);
-        const issuer = { url: `${accounts}${OAUTH_PATH}` };
+        const issuer = `${accounts}${OAUTH_PATH}`;
         const store = createClient(
             accountPackage,
             {
@@ -195,12 +195,12 @@ export class TestMachine implements AsyncDisposable {
 
     /** Create a fetch calling a universe package as the machine. */
     fetch(audience: PackageId): Fetch {
-        return this.#identity.fetch(this.#send, audience, { url: this.universe.issuer });
+        return this.#identity.fetch(this.#send, audience, this.universe.issuer);
     }
 
     /** Read the machine's access token for a package, as the universe grants it. */
     token(audience: PackageId): Promise<string> {
-        return this.#identity.token(audience, { url: this.universe.issuer }, this.#send);
+        return this.#identity.token(audience, this.universe.issuer, this.#send);
     }
 
     /** Send a request to another origin as it is, in process. */
