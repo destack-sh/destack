@@ -18,14 +18,12 @@ export function describeTrigger<Input>(trigger: Trigger<Input>): TriggerDescript
             change: { ...change, object: DeclarationReference.of(object) },
         });
     }
-    // describe a webhook by its signature's name
+    // describe the webhook by reference
     else {
-        const { signature, path } = trigger.webhook;
-
         return TriggerDescription.parse({
             name,
             kind: "webhook",
-            webhook: { verification: signature.name, path },
+            webhook: DeclarationReference.of(trigger.webhook),
         });
     }
 }

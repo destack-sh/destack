@@ -103,8 +103,8 @@ export interface TestWorkflow {
     readonly simulation: Simulation;
     /** The world the space's store runs in. */
     readonly environment: Environment;
-    /** The workflow as the store serves it, its webhooks among it. */
-    readonly implementation: WorkflowImplementation;
+    /** Send a request to the notes package below its mount, as its adapters answer it. */
+    readonly fetch: (request: Request) => Promise<Response>;
     /** Call the space's objects by type name as a subject, such as a workflow's runs. */
     readonly objects: (subject: Subject) => DynamicObjectClient;
     /** Let a delegate act for a person, as the person grants at the universe. */
@@ -162,8 +162,12 @@ export async function openServed<Input, Output>(
         ...objects,
         ...workflows.flatMap((each) => Object.values(each.objects)),
     ];
+    const webhooks = workflow.triggers.flatMap((trigger) =>
+        trigger.kind === "webhook" ? [trigger.webhook] : [],
+    );
     const handle = PackageHandle.of(note.package, {
         objects: Object.fromEntries(declared.map((type) => [type.name, type])),
+        adapters: Object.fromEntries(webhooks.map((webhook) => [webhook.name, webhook])),
     });
 
     // serve the universe where people grant, in the simulated world
@@ -209,12 +213,16 @@ export async function openServed<Input, Output>(
         packages: [
             implementPackage(objectPackage, { follows: [grants] }),
             implementPackage(handle, {
+                // serve the implementations' types over the further ones they implement
                 objects: [
                     servedNote,
-                    ...objects,
                     ...implementations.flatMap((each) => each.objects),
+                    ...objects,
                 ],
                 cursors: implementations.flatMap((each) => each.cursors),
+                adapters: Object.fromEntries(
+                    implementations.flatMap((each) => Object.entries(each.adapters)),
+                ),
             }),
         ],
         simulation,
@@ -338,7 +346,7 @@ export async function openServed<Input, Output>(
         served,
         simulation,
         environment: served.environment,
-        implementation,
+        fetch: (request) => served.server(handle).fetch(request),
         objects: objectsOf,
         grant,
         start,

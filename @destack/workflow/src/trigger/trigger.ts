@@ -1,17 +1,10 @@
 import type { Condition } from "@destack/db";
 import { DeclarationName } from "@destack/package";
-import type { Declaration } from "@destack/package/declare";
-import type { InstalledServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
 import { ChangeOn, type ChangeOperation, type ObjectChange } from "./change.ts";
 import { Schedule, ScheduleOn } from "./schedule.ts";
-import {
-    type WebhookDelivery,
-    WebhookOn,
-    WebhookPath,
-    type WebhookParameters,
-    type WebhookSignature,
-} from "./webhook.ts";
+import { type Declaration, DeclarationReference } from "@destack/package/declare";
+import type { Webhook, WebhookDelivery } from "../webhook/webhook.ts";
 
 /** The digits an event's numbers take in its key: every safe integer. */
 const NUMBER_DIGITS = 16;
@@ -43,10 +36,10 @@ export const TriggerDescription = schema.discriminatedUnion("kind", [
     schema.object({
         /** The trigger's name within its workflow. */
         name: DeclarationName,
-        /** A trigger firing on signed webhook deliveries. */
+        /** A trigger firing on a webhook's verified deliveries. */
         kind: schema.literal("webhook"),
-        /** The signed deliveries that fire. */
-        webhook: WebhookOn,
+        /** The webhook whose deliveries fire. */
+        webhook: DeclarationReference,
     }),
 ]);
 /** A workflow's trigger in the manifest. */
@@ -62,17 +55,6 @@ export interface ChangeTriggerOn {
     readonly operations: readonly ChangeOperation[];
     /** Where a new trigger starts: at the log's head, now by default, or with a snapshot. */
     readonly from?: "now" | "snapshot";
-}
-
-/** The signed deliveries a trigger fires on, as its package declares them. */
-export interface WebhookTriggerOn extends Pick<WebhookOn, "path"> {
-    /** The scheme verifying each delivery's signature. */
-    readonly signature: WebhookSignature;
-    /** Read the signing secret of a delivery's route parameters. */
-    readonly secret?: (
-        parameters: WebhookParameters,
-        context: Pick<InstalledServerContext, "resources" | "keys">,
-    ) => Promise<string>;
 }
 
 /** A trigger firing on a schedule's occurrences. */
@@ -149,34 +131,23 @@ export class ChangeTrigger<Input = unknown> {
     }
 }
 
-/** A trigger firing on signed webhook deliveries. */
+/** A trigger firing on a webhook's verified deliveries. */
 export class WebhookTrigger<Input = unknown> {
-    /** A trigger firing on signed webhook deliveries. */
+    /** A trigger firing on a webhook's verified deliveries. */
     readonly kind: "webhook";
     /** The trigger's name within its workflow. */
     readonly name: string;
-    /** The signed deliveries that fire, their path template checked. */
-    readonly webhook: WebhookTriggerOn;
+    /** The webhook whose deliveries fire. */
+    readonly webhook: Webhook;
     /** Read the input of a delivery's run. */
     readonly input: (delivery: WebhookDelivery) => Input;
 
-    /** Check a webhook trigger as its workflow declares it, refusing a malformed path template. */
+    /** Check a webhook trigger as its workflow declares it. */
     constructor(name: string, definition: Omit<WebhookTrigger<Input>, "name" | "kind">) {
-        // require a secret exactly for a keyed scheme
-        const { signature, path, secret } = definition.webhook;
-        if (signature.isKeyed && secret === undefined) {
-            throw new TypeError(`${signature.name} webhooks need a secret on the trigger`);
-        } else if (!signature.isKeyed && secret !== undefined) {
-            throw new TypeError(`${signature.name} webhooks take no secret`);
-        }
-
-        // check the path template against the manifest's shape and its parameters
-        const { template } = new WebhookPath(
-            WebhookOn.parse({ verification: signature.name, path }).path,
-        );
+        // check the name, and take the webhook and the input
         this.kind = "webhook";
         this.name = DeclarationName.parse(name);
-        this.webhook = { signature, path: template, ...(secret === undefined ? {} : { secret }) };
+        this.webhook = definition.webhook;
         this.input = definition.input;
     }
 

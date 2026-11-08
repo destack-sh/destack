@@ -14,7 +14,6 @@ export const WorkflowError = defineErrorFamily(import.meta.destack.package, {
     // not found
     PATH_MISMATCH: { code: "NOT_FOUND" },
     STEP_NOT_FOUND: { code: "NOT_FOUND" },
-    TRIGGER_NOT_FOUND: { code: "NOT_FOUND" },
 
     // conflict
     RUN_STARTED: { code: "CONFLICT" },

@@ -19,9 +19,9 @@ import { Failure } from "@destack/error";
 import { changeRequest } from "@destack/object";
 import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
-import type { ObjectStore } from "@destack/object/server";
+import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
-import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import {
     type Trigger,
@@ -95,10 +95,10 @@ export type WorkflowDeclaration<Input = unknown, Output = unknown> = Omit<
     "implement"
 >;
 
-/** What a server needs beside a workflow's function: the source of its webhooks' secrets. */
+/** What a server needs beside a workflow's function: the installation its webhooks verify with. */
 export interface WorkflowServing {
-    /** The installation's resources, keys and environment, which its webhooks verify with. */
-    readonly server?: Pick<InstalledServerContext, "resources" | "keys" | "environment">;
+    /** The installation's resources, which bind its webhooks' secrets. */
+    readonly server?: Pick<InstalledServerContext, "resources">;
 }
 
 /** A workflow as a server serves it: its types, its trigger controllers and its webhooks. */
@@ -107,8 +107,8 @@ export interface WorkflowImplementation {
     readonly objects: readonly ObjectType[];
     /** The cursors recording the declared triggers at each start. */
     readonly cursors: readonly ((store: ObjectStore) => Cursor)[];
-    /** Answer the declared triggers' webhook deliveries through a store. */
-    readonly webhooks: (store: ObjectStore) => WebhookHandler;
+    /** The adapters of the triggers' webhooks, by webhook name. */
+    readonly adapters: Readonly<Record<string, AdapterFetch>>;
 }
 
 /** How a run starts: its actor, the key one live run takes, a repeated start's effect, and when. */
@@ -223,7 +223,8 @@ export function defineWorkflow<
             options: WorkflowServing = {},
         ) => {
             // serve the triggers through the workflow's server
-            const triggers = new TriggerServer(workflow, options.server);
+            const triggers = new TriggerServer(workflow);
+            const webhooks = triggers.webhooks(options.server);
 
             // advance each run of a reconciliation through the workflow's code
             const advance = async (reconciliation: ObjectReconciliation<typeof run>) => {
@@ -297,7 +298,11 @@ export function defineWorkflow<
                 triggers.implement(),
             ];
 
-            return { objects, cursors: [triggers.cursor()], webhooks: triggers.webhooks() };
+            return {
+                objects,
+                cursors: [triggers.cursor()],
+                adapters: Object.fromEntries(webhooks),
+            };
         },
     });
 

@@ -105,14 +105,29 @@ defineWorkflow({
             input: (change) => ({ id: change.after.id }),
         },
         pushes: {
-            kind: "webhook", // Standard Webhooks, or a scheme of the sender's own
-            webhook: { signature: new StandardSignature(), path: "/{repository}", secret },
+            kind: "webhook", // one run per verified delivery of a declared webhook
+            webhook: pushes,
             input: (delivery) => ({ repository: delivery.parameters.repository }),
         },
     },
 });
 remind.trigger.call("pause", target); // a paused change trigger keeps its changes six days at least
 remind.trigger.call("reset", target); // start a stopped trigger over as a new one begins
+```
+
+## Webhooks
+
+`defineWebhook` declares an adapter other services deliver to, as Stripe's and GitHub's webhooks and Standard Webhooks do: it verifies each delivery with its bound secret's live versions before a trigger or the package sees it.
+
+```ts
+const stripe = defineWebhook("stripe", { signature: new StripeSignature(), secret: stripeSecret }); // a vault secret, rotated there
+const pushes = defineWebhook("pushes", {
+    template: "/{repository}",
+    signature: new StandardSignature(),
+    secret,
+});
+definePackage({ adapters: { stripe, pushes } }); // <installation>/<package>/webhooks/stripe, …/webhooks/pushes/{repository}
+const fetch = stripe.serve(receive, context); // the adapter's answer: verify, then receive(delivery, store)
 ```
 
 ## Approvals

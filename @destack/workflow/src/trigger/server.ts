@@ -19,17 +19,11 @@ import {
     type LogPosition,
     Transaction,
 } from "@destack/db";
-import {
-    ObjectType,
-    type ObjectReconciliation,
-    ObjectWatch,
-    refuseInput,
-    refusal,
-} from "@destack/object";
-import type { ObjectStore } from "@destack/object/server";
+import { ObjectType, type ObjectReconciliation, ObjectWatch, refuseInput } from "@destack/object";
+import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
-import type { InstalledServerContext, WebhookHandler } from "@destack/object/workload";
+import type { InstalledServerContext } from "@destack/object/workload";
 import { Failure } from "@destack/error";
 import { Manager } from "@destack/access";
 import { canonicalize, present, schema } from "@destack/schema";
@@ -38,7 +32,7 @@ import type { TriggerType, Workflow } from "../workflow/workflow.ts";
 import type { ChangeOperation, ObjectChange } from "./change.ts";
 import { Schedule, ScheduleOn, ScheduleSkip } from "./schedule.ts";
 import { ChangeTrigger, ScheduleTrigger, type Trigger, WebhookTrigger } from "./trigger.ts";
-import { WebhookReceiver } from "./webhook.ts";
+import type { WebhookDelivery } from "../webhook/webhook.ts";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
 
@@ -47,14 +41,6 @@ type StartedWorkflow<Input> = Pick<
     Workflow<Input>,
     "name" | "package" | "scope" | "input" | "start" | "run" | "trigger" | "triggers"
 >;
-
-/** A webhook trigger as its installation serves it, with the receiver of its deliveries. */
-interface ServedWebhook<Input> {
-    /** The trigger. */
-    readonly trigger: WebhookTrigger<Input>;
-    /** The receiver verifying its deliveries for the installation. */
-    readonly receiver: WebhookReceiver;
-}
 
 /** The most missed occurrences a schedule looks back over at once. */
 const MAX_MISSED_OCCURRENCES = 100;
@@ -65,9 +51,6 @@ const SLOT_MILLISECONDS = 7 * 24 * 60 * 60_000;
 /** The rows one snapshot page reads: a few hundred kilobytes. */
 const SNAPSHOT_PAGE_ROWS = 500;
 
-/** The status of a delivery that started a run (RFC 9110 15.3.3). */
-const ACCEPTED = 202;
-
 /** A trigger's row as its workflow's trigger type stores it. */
 type TriggerRecord = Select<TriggerType["table"]>;
 
@@ -77,14 +60,9 @@ export class TriggerServer<Input> {
     readonly #workflow: StartedWorkflow<Input>;
     /** The declared triggers, by name. */
     readonly #declared: ReadonlyMap<string, Trigger<Input>>;
-    /** The webhook triggers as the installation serves them, by name. */
-    readonly #webhooks: ReadonlyMap<string, ServedWebhook<Input>>;
 
-    /** Host a workflow's declared triggers, refusing repeated names and unserved webhooks. */
-    constructor(
-        workflow: StartedWorkflow<Input>,
-        server: Pick<InstalledServerContext, "resources" | "keys" | "environment"> | undefined,
-    ) {
+    /** Host a workflow's declared triggers, refusing repeated names. */
+    constructor(workflow: StartedWorkflow<Input>) {
         // require each trigger to have a name of its own
         const declared = new Map<string, Trigger<Input>>();
         for (const trigger of workflow.triggers) {
@@ -95,30 +73,6 @@ export class TriggerServer<Input> {
         }
         this.#workflow = workflow;
         this.#declared = declared;
-
-        // build each webhook trigger's verifier once, refusing to serve webhooks without the installation's secrets
-        const webhooks = [...declared.values()].filter((each) => isWebhook(each));
-        const [first] = webhooks;
-        if (first !== undefined && server === undefined) {
-            throw new TypeError(
-                `${workflow.name} serves webhook trigger ${first.name} without its installation's context`,
-            );
-        }
-        this.#webhooks = new Map(
-            server === undefined
-                ? []
-                : webhooks.map((trigger) => [
-                      trigger.name,
-                      {
-                          trigger,
-                          receiver: new WebhookReceiver(
-                              trigger.webhook,
-                              trigger.webhook.signature.verifier(server),
-                              server,
-                          ),
-                      },
-                  ]),
-        );
     }
 
     /** Implement the trigger type: check created schedules and fire active ones. */
@@ -209,41 +163,41 @@ export class TriggerServer<Input> {
         });
     }
 
-    /** Answer webhook deliveries by their trigger's name, starting one run per delivery. */
-    webhooks(): (store: ObjectStore) => WebhookHandler {
-        return (store) => ({
-            fetch: async (request) => {
-                try {
-                    // find the active webhook trigger the first segment selects
-                    const url = new URL(request.url);
-                    const [, name = "", ...rest] = url.pathname.split("/");
-                    const webhook = this.#webhooks.get(name);
-                    if (webhook === undefined) {
-                        throw WorkflowError.of(
-                            "TRIGGER_NOT_FOUND",
-                            `webhook trigger ${name} not found`,
-                        );
-                    }
-                    const { trigger, receiver } = webhook;
-                    await this.#requireActive(store, trigger.name);
+    /** Serve the triggers' webhooks, starting a run of each active trigger per delivery. */
+    webhooks(
+        server: Pick<InstalledServerContext, "resources"> | undefined,
+    ): ReadonlyMap<string, AdapterFetch> {
+        // group the webhook triggers by their webhook, refusing to serve one without the installation
+        const triggers = [...this.#declared.values()].filter((each) => isWebhook(each));
+        const webhooks = Map.groupBy(triggers, (trigger) => trigger.webhook);
+        const [first] = triggers;
+        if (first !== undefined && server === undefined) {
+            throw new TypeError(
+                `${this.#workflow.name} serves webhook trigger ${first.name} without its installation`,
+            );
+        }
 
-                    // verify the delivery and start its run once per delivery
-                    const delivery = await receiver.receive(
-                        request,
-                        `/${rest.join("/")}`,
-                        store.clock.now(),
-                    );
+        // start a run of each active trigger once per delivery
+        const receive =
+            (fired: readonly WebhookTrigger<Input>[]) =>
+            async (delivery: WebhookDelivery, store: ObjectStore) => {
+                for (const trigger of fired) {
+                    await this.#requireActive(store, trigger.name);
                     const event = { key: WebhookTrigger.key(delivery), at: delivery.receivedAt };
                     await this.start(store, trigger.name, trigger.input(delivery), event, {
                         key: `trigger/${trigger.name}/${event.key}`,
                     });
-
-                    return new Response(null, { status: ACCEPTED });
-                } catch (error) {
-                    return refusal(error, store.environment.telemetry);
                 }
-            },
-        });
+            };
+
+        return new Map(
+            server === undefined
+                ? []
+                : [...webhooks].map(([webhook, fired]) => [
+                      webhook.name,
+                      webhook.serve(receive(fired), server),
+                  ]),
+        );
     }
 
     /** Check a created schedule's timing and its runs' input, answering the checked schedule. */

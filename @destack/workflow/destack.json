@@ -7,6 +7,9 @@
     "stamps": {
         "defineWorkflow": {
             "module": 1
+        },
+        "defineWebhook": {
+            "module": 2
         }
     },
     "exports": {
@@ -35,6 +38,14 @@
                 {
                     "kind": "workflow",
                     "function": "./inspect#describeWorkflow"
+                }
+            ]
+        },
+        "defineWebhook": {
+            "describes": [
+                {
+                    "kind": "webhook",
+                    "function": "./inspect#describeWebhook"
                 }
             ]
         }

@@ -1,11 +1,18 @@
+import { ResourceHandle, Secret } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
-import { testKeys } from "@destack/object/test";
 import { schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { Change } from "@destack/db";
 import { expect, refusal, test } from "@destack/test";
-import { defineWorkflow, StandardSignature } from "../src/index.ts";
-import { alice, note, notesPackage, openServed, openWorkflow } from "./workflow.ts";
+import { defineWebhook, defineWorkflow, StandardSignature } from "../src/index.ts";
+import {
+    alice,
+    note,
+    notesPackage,
+    openServed,
+    openWorkflow,
+    type TestWorkflow,
+} from "./workflow.ts";
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
@@ -16,8 +23,20 @@ const MINUTE = 60_000;
 /** A day, in milliseconds. */
 const DAY = 24 * 60 * MINUTE;
 
-/** The secret the webhook deliveries are signed with, in the Standard Webhooks form. */
-const SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+/** The secret a source signs its deliveries with, in the Standard Webhooks form. */
+const SOURCE_SECRET = "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw";
+
+/** The URL of the notes installation, which its webhooks are below. */
+const NOTES_URL = "https://notes.test";
+
+/** The secret a rotation of the bound secret makes current, in Standard Webhooks form. */
+const ROTATED_SECRET = "whsec_c2Vjb25kIHNlY3JldA==";
+
+/** A secret neither the bound secret nor the source issued. */
+const OTHER_SECRET = "whsec_b3RoZXIgc2VjcmV0IGtleQ==";
+
+/** The body of a ping delivery. */
+const PING = '{"type":"ping"}';
 
 /** The input of a tick's run: when it fired. */
 const TickInput = schema.object({ at: schema.number() });
@@ -80,26 +99,48 @@ const alarm = defineWorkflow(
     NOTES,
 );
 
-/** Tick for each signed delivery. */
-const hooked = defineWorkflow(
-    {
-        name: "hooked",
-        input: TickInput,
-        triggers: {
-            hooks: {
-                kind: "webhook",
-                webhook: {
-                    signature: new StandardSignature(),
-                    path: "/",
-                    secret: async () => SECRET,
+/** The secret a stack binds for a sender it configures, such as a GitHub App. */
+const appSecret = new ResourceHandle<Secret>(NOTES.package, "app-webhook");
+
+/** The deliveries of a sender the installation's bound secret signs. */
+const app = defineWebhook("app", { signature: new StandardSignature(), secret: appSecret }, NOTES);
+
+/** Tick for each delivery of a webhook. */
+function hookedOn(webhook: typeof app) {
+    return defineWorkflow(
+        {
+            name: "hooked",
+            input: TickInput,
+            triggers: {
+                delivered: {
+                    kind: "webhook",
+                    webhook,
+                    input: (delivery) => ({ at: delivery.receivedAt }),
                 },
-                input: (delivery) => ({ at: delivery.receivedAt }),
             },
+            output: NO_OUTPUT,
         },
-        output: NO_OUTPUT,
-    },
-    NOTES,
-);
+        NOTES,
+    );
+}
+
+/** Sign a ping as the Standard Webhooks sender does with a secret, now. */
+async function sign(fixture: TestWorkflow, secret: string, id: string): Promise<Headers> {
+    const message = { id, event: "ping", body: PING, sentAt: fixture.simulation.clock.now() };
+
+    return new StandardSignature().sign(message, secret, fixture.served.environment.crypto);
+}
+
+/** Deliver a ping with headers to a webhook of the fixture's installation, answering its status. */
+async function deliver(fixture: TestWorkflow, webhook: string, headers: Headers): Promise<number> {
+    // send the delivery and read its whole answer, closing the request
+    const url = `${NOTES_URL}/webhooks/${webhook}`;
+    const request = new Request(url, { method: "POST", headers, body: PING });
+    const response = await fixture.fetch(request);
+    await response.arrayBuffer();
+
+    return response.status;
+}
 
 /** A schedule every minute from the next minute on, its runs allowed to overlap. */
 const EVERY_MINUTE = {
@@ -329,42 +370,55 @@ test("stop a change trigger paused past its slot's retention, and start over fro
     ]);
 });
 
-test("start one run per verified webhook delivery, refusing a forged one", async () => {
-    // start a tick per signed delivery to the hooks trigger
+test("start one run per delivery verified with the bound secret, refusing a forged one", async () => {
+    // serve a tick per delivery signed with the secret the installation binds
+    const resources = new ResourceContext().bind(appSecret, Secret.of(SOURCE_SECRET));
     const fixture = await openWorkflow(
-        hooked,
+        hookedOn(app),
         async () => {},
-        async (space) => ({
-            server: {
-                resources: new ResourceContext(),
-                keys: await testKeys(space),
-                environment: space,
-            },
+        async () => ({
+            server: { resources },
         }),
     );
-    await fixture.waitUntil(() => true);
 
-    // deliver a signed message twice and a forged one
-    const body = '{"type":"ping"}';
-    const message = { id: "delivery-1", event: "ping", body, sentAt: TEST_START };
-    const headers = await new StandardSignature().sign(
-        message,
-        SECRET,
-        fixture.served.environment.crypto,
-    );
-    const deliver = async (signed: Headers) =>
-        (
-            await fixture.implementation.webhooks(fixture.served.store).fetch(
-                new Request("https://hooks.test/hooks", {
-                    method: "POST",
-                    headers: signed,
-                    body,
-                }),
-            )
-        ).status;
-    const statuses = [await deliver(headers), await deliver(headers), await deliver(new Headers())];
+    // deliver a message signed with the bound secret twice, and an unsigned one
+    const headers = await sign(fixture, SOURCE_SECRET, "delivery-1");
+    const statuses = [
+        await deliver(fixture, "app", headers),
+        await deliver(fixture, "app", headers),
+        await deliver(fixture, "app", new Headers()),
+    ];
     const runs = await fixture.waitUntil(
         (rows) => rows.length === 1 && rows[0]?.["state"] === "completed",
     );
+
+    // start one run for the repeated delivery
     expect([statuses, runs.length]).toEqual([[202, 202, 401], 1]);
+});
+
+test("verify a delivery signed with a rotated secret's previous version while it still retires", async () => {
+    // bind a secret rotated once, its previous version retiring beside the current one
+    const previous = { version: 1, value: { encoding: "text" as const, value: SOURCE_SECRET } };
+    const current = { version: 2, value: { encoding: "text" as const, value: ROTATED_SECRET } };
+    const rotated: Secret = {
+        read: async () => current,
+        versions: async () => [current, previous],
+    };
+    const resources = new ResourceContext().bind(appSecret, rotated);
+    const fixture = await openWorkflow(
+        hookedOn(app),
+        async () => {},
+        async () => ({
+            server: { resources },
+        }),
+    );
+
+    // deliver messages signed with the previous and the current version, and one with another secret
+    const statuses = [
+        await deliver(fixture, "app", await sign(fixture, SOURCE_SECRET, "delivery-1")),
+        await deliver(fixture, "app", await sign(fixture, ROTATED_SECRET, "delivery-2")),
+        await deliver(fixture, "app", await sign(fixture, OTHER_SECRET, "delivery-3")),
+    ];
+
+    expect(statuses).toEqual([202, 202, 401]);
 });
