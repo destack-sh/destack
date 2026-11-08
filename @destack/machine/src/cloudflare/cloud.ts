@@ -6,17 +6,19 @@ import type { ArtifactsNamespace } from "@destack/git/cloudflare";
 import type { DatabaseConnection, Snapshot } from "@destack/db";
 import { DurableObjectReader, Jurisdiction } from "@destack/db/cloudflare";
 import { copyRequest, type Environment, type FetchOptions } from "@destack/environment";
+import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { type LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { Envelope, EnvelopeConfiguration } from "@destack/identity/aws";
-import { SesClient, SesTransport } from "@destack/mail/ses";
+import { MailSender } from "@destack/mail/sender";
 import { mailConnector } from "@destack/mail/transport";
-import { CallKey, PackageMount } from "@destack/object";
+import { CallKey, PackageMount, tablesOf } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import type { DurableObjectNamespace, PartitionBindings } from "./runtime/index.ts";
-import { BLOB_TABLES, defineDatabase } from "@destack/db";
+import { defineDatabase } from "@destack/db";
 import { DIRECTORY_PREFIX, directoryConfiguration, directoryWorkload } from "./directory.ts";
 import type { Alarm } from "@destack/db";
 import { R2BlobStorage, R2Bucket } from "@destack/bucket/cloudflare";
+import { BuildLayer, type LayerAssets } from "@destack/build/store";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
 import { createClient } from "@destack/object/client";
@@ -27,7 +29,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 import type { MachineEnrollment } from "../computer/device/object/index.ts";
-import { Machine } from "../machine/index.ts";
+import { DRAIN_TIMEOUT_MILLISECONDS, Machine } from "../machine/index.ts";
 
 /** The runtimes a Cloudflare machine serves: its instances' workerd and its views' browser. */
 export const CLOUD_RUNTIMES = ["workerd", "browser"] as const;
@@ -45,14 +47,14 @@ export interface CloudflareStorageBindings {
     readonly DESTACK_S3: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
     readonly ARTIFACTS: ArtifactsNamespace;
-    /** The residency's R2 bucket of the machines' build caches and the deploy's releases. */
+    /** The residency's R2 bucket of the builds the machines pull from forges. */
     readonly BUILDS: Cloudflare.R2Bucket;
+    /** The releases the Worker version ships, a build layer in its static assets. */
+    readonly RELEASES: LayerAssets;
     /** The rates of the spaces' use, as `RateCard` JSON. */
     readonly DESTACK_RATES: string;
-    /** The AWS region the spaces' mail is signed for. */
-    readonly DESTACK_MAIL_REGION: string;
-    /** The mailbox the spaces' mail is sent from, such as `Destack <notices@destack.app>`. */
-    readonly DESTACK_MAIL_FROM: string;
+    /** Where the spaces' mail goes, as `MailSender` JSON. */
+    readonly DESTACK_MAIL: string;
     /** The access key sending the spaces' mail. */
     readonly AWS_ACCESS_KEY_ID: string;
     /** The secret of the access key sending the spaces' mail. */
@@ -141,7 +143,7 @@ export class CloudMachine {
     /** The database of a cloud machine's object: its directory replica. */
     static readonly database = defineDatabase({
         name: "directory",
-        tables: BLOB_TABLES,
+        ...tablesOf({ packages: [], follows: [], tables: [] }),
         replicated: Machine.replicated,
     });
 
@@ -216,10 +218,10 @@ export class CloudMachine {
         await keychain.save(id, await envelope.open(bindings.DESTACK_MACHINE_KEY));
         const identity = new MachineIdentity(id, keychain, environment);
 
-        // read the directory from the replica in the machine's object
+        // read the directory from the replica in the machine's object, through a stub per request as the isolate outlives each
         const objects = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
         const replica = DurableObjectReader.connect(
-            objects.get(objects.idFromName(id)),
+            { fetch: (request) => objects.get(objects.idFromName(id)).fetch(request) },
             CloudMachine.database.tables,
             environment,
         );
@@ -233,6 +235,11 @@ export class CloudMachine {
             replica,
             issuer: `${accounts}${OAUTH_PATH}`,
         });
+    }
+
+    /** Open the releases the deploy shipped with the Worker version, read in place. */
+    releases(): Promise<BuildLayer> {
+        return BuildLayer.assets(this.bindings.RELEASES, this.environment.crypto);
     }
 
     /** Read the machine's enrollment from its directory row, absent before it is declared. */
@@ -253,24 +260,21 @@ export class CloudMachine {
         };
     }
 
-    /** Open the connector sending mail through SES as the machine's sender. */
+    /** Open the connector sending the spaces' mail where the deployment directs it. */
     mail() {
-        // sign with the machine's access key
+        // send through SES signed with the machine's access key, or print to the Worker's log
+        const sender = MailSender.parse(JSON.parse(this.bindings.DESTACK_MAIL));
         const credentials = {
             accessKeyId: this.bindings.AWS_ACCESS_KEY_ID,
             secretAccessKey: this.bindings.AWS_SECRET_ACCESS_KEY,
         };
-        const client = new SesClient({
-            region: this.bindings.DESTACK_MAIL_REGION,
-            endpoint: SesClient.endpoint(this.bindings.DESTACK_MAIL_REGION),
+        const transport = MailSender.transport(sender, {
             credentials: async () => credentials,
+            print: (text) => WorkerdEnvironment.print(text),
             environment: this.environment,
         });
 
-        return mailConnector(
-            "ses",
-            new SesTransport(client, { from: this.bindings.DESTACK_MAIL_FROM }),
-        );
+        return mailConnector(sender.kind, transport);
     }
 
     /** Derive the key the machine's journals fingerprint sensitive inputs under. */
@@ -332,7 +336,7 @@ export class CloudMachine {
                 environment: this.environment,
                 authenticate: () => Promise.reject(CloudMachine.#refusal()),
                 authorizeMachine: () => Promise.reject(CloudMachine.#refusal()),
-                drainTimeout: 0,
+                drainTimeout: DRAIN_TIMEOUT_MILLISECONDS,
             }),
         });
 

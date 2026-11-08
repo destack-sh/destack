@@ -2,6 +2,7 @@ import { principal } from "@destack/access";
 import type { BlobStorage } from "@destack/resource";
 import type { DatabaseConnection } from "@destack/db";
 import { implementPackage, ObjectStore } from "@destack/object/server";
+import { type ObjectType, PackageHandle } from "@destack/object";
 import { Package } from "@destack/package";
 import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/object/workload";
@@ -42,10 +43,12 @@ export const directoryWorkload = defineWorkload({
         const { database, publisher, blobs } = configuration;
         const { machineId } = configuration.machine;
 
-        // serve them as the machine package's base installation in the machine's scope
+        // serve the machine package's follows without its types, which only computers serve
         const machineScope = machine.reference(Scope.universe.id, machineId);
+        const objects: Readonly<Record<string, ObjectType>> = {};
+        const handle = PackageHandle.of(Package.of(machinePackage), { objects });
         const follows = Machine.follows(machineId);
-        const server = await implementPackage(machinePackage, { follows }).base(
+        const server = await implementPackage(handle, { follows }).base(
             machineScope,
             context.environment.crypto,
         );

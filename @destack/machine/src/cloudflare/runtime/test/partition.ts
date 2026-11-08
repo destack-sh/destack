@@ -11,6 +11,8 @@ import {
 interface ScenarioBindings extends PartitionBindings {
     /** The bundled echo workload, the one module of its build. */
     readonly MODULE: string;
+    /** The echo workload's module name. */
+    readonly MODULE_NAME: string;
     /** The space whose object serves the build. */
     readonly SPACE: string;
     /** The secret the host stamps on requests for the workload. */
@@ -42,8 +44,8 @@ export class Partition {
         if (this.#name === this.#bindings.SPACE) {
             const { pathname } = new URL(request.url);
 
-            return pathname.startsWith(`${BUILD_PATH}/`)
-                ? new Response(this.#bindings.MODULE)
+            return pathname === BUILD_PATH
+                ? Response.json({ [this.#bindings.MODULE_NAME]: this.#bindings.MODULE })
                 : Response.json({ calls: [] });
         }
 

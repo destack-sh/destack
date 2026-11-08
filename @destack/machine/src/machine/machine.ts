@@ -95,6 +95,7 @@ export type MachineOptions = Pick<
     | "isEnforcingEntitlements"
     | "isServingHostnames"
     | "domain"
+    | "s3Domain"
     | "runtimes"
     | "hibernation"
     | "alarm"
@@ -122,13 +123,13 @@ export type MachineOptions = Pick<
     readonly registry: string;
     /** The Destack version the machine runs. */
     readonly version: string;
-    /** The relay the machine tunnels through while enrolled, absent to publish its endpoint. */
+    /** The relay a personal machine tunnels through while enrolled, absent for none. */
     readonly tunnel?: {
         /** The relay's tunnel URL, its account residency's relay's when absent. */
         readonly url?: string;
         /** Answer a request for one of the machine's names. */
         readonly fetch: (request: Request) => Promise<Response>;
-        /** Report a failed publication of the tunnel's name. */
+        /** Report a failed renewal of the tunnel's name. */
         readonly report: (error: unknown) => void;
         /** Learn that the tunnel opened, or ended and dials again. */
         readonly changed: (status: TunnelStatus) => void;
@@ -192,12 +193,14 @@ export class Machine {
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The key of the SKU rating each meter of the spaces, by the meter's key, absent unbilled. */
     readonly skus: ReadonlyMap<string, string> | undefined;
-    /** The URL a cloud machine publishes, and a personal machine answers at locally. */
+    /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
     readonly endpoint: string;
     /** The origin the machine answers at: its endpoint, else its relayed name once renewed. */
     #origin: string;
     /** The domain of the installation origins the machine's own host names answer. */
     readonly domain: string;
+    /** The domain the spaces' buckets answer S3 below, as their S3 hosts name them. */
+    readonly s3Domain: string;
     /** Verify a caller of a package the machine serves, none for a call without a credential. */
     readonly authenticate: (
         request: Request,
@@ -210,7 +213,7 @@ export class Machine {
     readonly report: (error: unknown) => void;
     /** The version of the software the machine runs. */
     readonly #version: string;
-    /** The relay tunnel the machine publishes through, absent when peers call its endpoint. */
+    /** The relay a personal machine tunnels through, absent when peers call its origin. */
     readonly #tunnel: MachineOptions["tunnel"];
     /** Read this machine's enrollment as its record states it, valid or not. */
     readonly #readEnrollment: MachineOptions["enrollment"];
@@ -228,7 +231,7 @@ export class Machine {
         // set the machine's identity and its storage
         this.id = options.id;
         this.health = new Health(`machine ${options.id}`);
-        this.health.set("starting", "it has not enrolled yet: its first sign-in enrolls it");
+        this.health.set("starting", "it has not read its enrollment yet");
         this.environment = options.environment;
         this.identity = options.identity;
         this.keyring = options.keyring;
@@ -254,6 +257,7 @@ export class Machine {
         this.endpoint = options.endpoint;
         this.#origin = options.endpoint;
         this.domain = options.domain;
+        this.s3Domain = options.s3Domain;
         this.authenticate = options.authenticate;
         this.authorizeSpace = options.authorizeSpace;
         this.report = options.report;
@@ -620,7 +624,7 @@ export class Machine {
 
     /** Locate a space where its machine answers: this machine's origin for its own spaces. */
     async locate(spaceId: Identifier<"space">): Promise<accountObject.PlacementEndpoint> {
-        // answer this machine's own space at its origin, published or not, another where it answers
+        // answer this machine's own space at its origin, named by a relay or not, another where it answers
         const [placed] = await accountObject.Placement.find(this.directory.snapshot, [spaceId]);
 
         return placed?.machine === this.id
@@ -725,6 +729,24 @@ export class Machine {
         };
     }
 
+    /** Update the machine's health from its directory copy: up while enrolled and enabled. */
+    async updateHealth(): Promise<void> {
+        // read the enrollment and the status the universe declares
+        const enrollment = await this.#enrollment();
+        const { status } = await this.#replicated();
+
+        // wait for both, serve while enabled, and refuse with the status otherwise
+        if (enrollment === undefined) {
+            this.health.set("starting", "it has not enrolled yet");
+        } else if (status === undefined) {
+            this.health.set("starting", "its status has not replicated from the universe yet");
+        } else if (status === "enabled") {
+            this.health.set("up", "its account enables it");
+        } else {
+            this.health.set("down", `its account set its status to ${status}`);
+        }
+    }
+
     /** Serve the spaces while the account enables the machine, until it is revoked or stops. */
     async follow(following: Following): Promise<void> {
         // wait for the machine's record to state an enrollment
@@ -744,7 +766,7 @@ export class Machine {
         const partition = await this.#partition?.();
 
         // announce what this machine runs whether it serves or pauses
-        let publication: AsyncDisposable | undefined;
+        let tunnel: AsyncDisposable | undefined;
         const announced = this.#announceServing();
         try {
             // follow the replicas of this machine's status and the placements here until stopped
@@ -755,9 +777,9 @@ export class Machine {
                 const current = await this.#replicated();
                 replicated = canonicalize(current);
 
-                // publish where peers call this machine before its spaces start
+                // open the tunnel peers reach a personal machine through before its spaces start
                 if (current.status !== undefined) {
-                    publication ??= await this.#publish();
+                    tunnel ??= await this.#relay();
                 }
 
                 // serve while the account enables the machine
@@ -783,7 +805,7 @@ export class Machine {
         // stop the spaces however serving ended, then the machine's partition
         finally {
             try {
-                await this.#stopServing(publication, announced);
+                await this.#stopServing(tunnel, announced);
             } finally {
                 await partition?.[Symbol.asyncDispose]();
             }
@@ -794,6 +816,7 @@ export class Machine {
     async #route(request: Request): Promise<SpaceRequest | undefined> {
         return SpaceRequest.of(request, {
             domain: this.domain,
+            s3Domain: this.s3Domain,
             find: async (address) => (await this.directory.find(accountObject.space, address))?.id,
         });
     }
@@ -878,19 +901,19 @@ export class Machine {
         await this.#closeSpaces();
     }
 
-    /** Stop serving: close every space, even when one fails, and end the publication. */
+    /** Stop serving: close every space, even when one fails, and close the tunnel. */
     async #stopServing(
-        publication: AsyncDisposable | undefined,
+        tunnel: AsyncDisposable | undefined,
         announced: Promise<void>,
     ): Promise<void> {
         // refuse requests until the next serve
         this.health.set("draining", "it stops serving");
 
-        // close every space, then end the publication and settle the announcement, idle again
+        // close every space, then the tunnel, and settle the announcement, idle again
         try {
             await this.#closeSpaces();
         } finally {
-            await publication?.[Symbol.asyncDispose]();
+            await tunnel?.[Symbol.asyncDispose]();
             await announced;
             this.health.set("stopped", "it stopped serving");
         }
@@ -949,24 +972,12 @@ export class Machine {
         return this.#origin;
     }
 
-    /** Publish where peers call a cloud machine, or tunnel a personal machine through its relay. */
-    async #publish(): Promise<AsyncDisposable> {
-        // publish a cloud machine's endpoint, as its relay publishes a personal machine's tunnel
-        const enrollment = await this.enrolled("publishing its names");
+    /** Keep a personal machine's tunnel open at its relay, renewed under each name it gives. */
+    async #relay(): Promise<AsyncDisposable> {
+        // open none for a cloud machine, which answers at its declared origin, nor for a personal one without a relay
+        const enrollment = await this.enrolled("opening its tunnel");
         const relayed = this.#tunnel;
-        if (enrollment.kind === "cloud") {
-            const accounts = await this.accounts();
-            await accounts.machine.publish({
-                scope: MachineEnrollment.scope(enrollment),
-                id: this.id,
-                url: this.endpoint,
-                requestId: RequestId.create(this.environment),
-            });
-
-            return { [Symbol.asyncDispose]: async () => {} };
-        }
-        // leave a personal machine without a relay unreachable
-        else if (relayed === undefined) {
+        if (enrollment.kind === "cloud" || relayed === undefined) {
             return { [Symbol.asyncDispose]: async () => {} };
         }
 

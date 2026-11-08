@@ -1,5 +1,6 @@
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
+import { ServerBundle } from "./bundle.ts";
 import { Once } from "@destack/package/manifest";
 import { ProcessRuntime } from "@destack/stack/runtime";
 import { traceSampling } from "@destack/stack/setting";
@@ -149,13 +150,17 @@ export class PartitionObject {
             }
             Attribution.publish({ scope: served.space.id });
 
-            // read a file of an instance's build
-            if (url.pathname.startsWith(`${BUILD_PATH}/`)) {
-                const path = decodeURIComponent(url.pathname.slice(BUILD_PATH.length + 1));
+            // serve while the machine's account enables it, as its directory copy says, else refuse with why
+            const { machine } = served.space;
+            await machine.updateHealth();
+            const refused = machine.health.refusal();
+            if (refused !== undefined) {
+                throw refused;
+            }
 
-                return new Response(
-                    await served.runtime.build(Bearer.require(request.headers), path),
-                );
+            // read every module of an instance's build and its dependencies, their imports resolved
+            if (url.pathname === BUILD_PATH) {
+                return Response.json(await served.runtime.modules(Bearer.require(request.headers)));
             }
             // serve a page of a database replica an installation's object copies
             else if (url.pathname.startsWith(`${CONTENT_PATH}/`)) {
@@ -189,12 +194,14 @@ export class PartitionObject {
                 await this.#directory
             ).alarm(WorkerdEnvironment.system.clock.now() + ALARM_MILLISECONDS);
         }
-        // run the space's controllers
+        // run the space's controllers while the machine's account enables it
         else if (served !== undefined) {
             Attribution.publish({ scope: served.space.id });
-            await served.space.instance.alarm(
-                served.space.machine.clock.now() + ALARM_MILLISECONDS,
-            );
+            const { machine } = served.space;
+            await machine.updateHealth();
+            if (machine.health.status === "up") {
+                await served.space.instance.alarm(machine.clock.now() + ALARM_MILLISECONDS);
+            }
         }
         // run the facet's own alarm otherwise
         else {
@@ -283,10 +290,18 @@ export class PartitionObject {
                 return served.host.identity();
             },
             random: cloud.environment.random,
+            builds: () => {
+                if (served === undefined) {
+                    throw MachineError.of("SPACE_STARTING", `${space} is starting`);
+                }
+
+                return served.builds;
+            },
         });
 
         // serve the space on the one machine, enrolled by the universe's declaration of it, started now
         const shipped = await WorkerdDistribution.read();
+        const bundle = await ServerBundle.read(shipped);
         const startedAt = cloud.environment.clock.now();
         const machine = new Machine({
             id: cloud.id,
@@ -297,22 +312,18 @@ export class PartitionObject {
             describe: async () => ({ osVersion: null, startedAt, update: null, host: null }),
             enrollment: (view) => cloud.enrollment(view ?? Snapshot.live(cloud.replica)),
             spaces: host,
-            cache: await host.cache(bindings.BUILDS, shipped),
+            cache: await host.cache(bindings.BUILDS, await cloud.releases(), shipped),
             isBuilding: false,
             isEnforcingEntitlements: true,
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
             isServingHostnames: false,
             domain: bindings.DESTACK_SPACE_DOMAIN,
+            s3Domain: new URL(bindings.DESTACK_S3).hostname,
             runtimes: [runtime, new ProcessRuntime()],
             hibernation: undefined,
             alarm: this.#storage,
-            // TODO #Incomplete: load a trusted installation's server into a loader isolate holding the store binding
-            server: async (manifest) => {
-                throw MachineError.of(
-                    "SERVER_INVALID",
-                    `a cloud machine cannot load the server of build ${manifest} yet`,
-                );
-            },
+            // run in process the servers the deploy bundled with the machine
+            server: (manifest) => Promise.resolve(bundle.server(manifest)),
             linked: DistributionManifest.builtins(shipped),
             shipped: DistributionManifest.releases(shipped),
             registry: bindings.DESTACK_REGISTRY,
@@ -349,11 +360,19 @@ export class PartitionObject {
 
                 return verified;
             },
-            authorizeSpace: async () => {
-                throw MachineError.of("OWNER_MISSING", "no owner can call a cloud machine");
+            authorizeSpace: async ({ access }) => {
+                // refuse machine procedures, which only a computer's owner calls, and pass every other call
+                if (access.authentication === "machine") {
+                    throw MachineError.of(
+                        "OWNER_MISSING",
+                        "no owner can call a cloud machine's machine procedures",
+                    );
+                }
             },
             report,
         });
+        // read the machine's health from its directory copy, then start the space, which refuses unless it serves
+        await machine.updateHealth();
         served = await machine.space(space);
 
         return { space: served, host, runtime };
@@ -373,10 +392,13 @@ export class MachineWorker {
 
         // find the space of a request to the machine's own host or S3's
         const url = new URL(request.url);
+        const s3Domain = new URL(bindings.DESTACK_S3).hostname;
         const isOwn =
-            url.hostname === bindings.DESTACK_HOST || S3Host.space(url.hostname) !== undefined;
+            url.host === bindings.DESTACK_HOST ||
+            S3Host.space(url.hostname, s3Domain) !== undefined;
         const origins = {
             domain: bindings.DESTACK_SPACE_DOMAIN,
+            s3Domain,
             find: async (address: SpaceAddress) => {
                 // find an installation origin's space, served here alone
                 const { replica, id } = await this.#machine(bindings);

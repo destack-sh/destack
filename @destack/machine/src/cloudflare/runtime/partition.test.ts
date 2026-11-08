@@ -43,7 +43,13 @@ async function start(): Promise<Miniflare> {
         script,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
-        bindings: { DESTACK_JURISDICTION: "local", MODULE: workload, SPACE, SECRET },
+        bindings: {
+            DESTACK_JURISDICTION: "local",
+            MODULE: workload,
+            MODULE_NAME: MODULE,
+            SPACE,
+            SECRET,
+        },
         durableObjects: { PARTITION: { className: "Partition", useSQLite: true } },
         workerLoaders: { LOADER: {} },
     });
@@ -88,9 +94,7 @@ test("leave a partition's WebSocket open in workerd while the host answers pings
     const started: DurableObjectInstanceStart = {
         workload: { start: workload, manifest: build.manifest },
         space: SPACE,
-        directory: "workerd",
         main: MODULE,
-        modules: [MODULE],
     };
     const startup = await worker.dispatchFetch(`https://partition/${name}${START_PATH}`, {
         method: "POST",

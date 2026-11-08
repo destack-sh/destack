@@ -28,7 +28,7 @@ import { S3Host, SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/i
 const INSTANCE_GIGABYTES = 0.125;
 
 /** The host name serving a machine's buckets over S3 (RFC 6761 6.3). */
-const S3_HOST = "s3.localhost";
+export const S3_HOST = "s3.localhost";
 
 /** The region a machine's S3 requests are signed for. */
 const S3_REGION = "local";

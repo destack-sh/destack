@@ -47,7 +47,7 @@ import { ProcessRuntime, type Runtime } from "@destack/stack/runtime";
 import { createClient, type ClientOf } from "@destack/object/client";
 import { BuildCache } from "@destack/stack/server";
 import { SeverityNumber, TelemetryScope } from "@destack/telemetry";
-import { ProcessExporter, startTelemetry } from "@destack/telemetry/bun";
+import { startTelemetry } from "@destack/telemetry/bun";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import stackPackage from "@destack/stack/package";
 import type { Telemetry } from "@destack/telemetry/sdk";
@@ -58,12 +58,12 @@ import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
 import { LOOPBACK_DOMAIN } from "./device/session.ts";
 import { ComputerServer } from "./server/index.ts";
-import { LocalSpaceStorage } from "./storage.ts";
+import { LocalSpaceStorage, S3_HOST } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
 import { MachineProcess, LOCK_FILE, StageHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
 import { computerServer, machineWorkload, deviceWorkload } from "./server/workload.ts";
-import { Environment, HostAddress } from "@destack/environment";
+import { Environment, HostAddress, LineExporter } from "@destack/environment";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { PartitionRequest } from "../space/index.ts";
 
@@ -362,6 +362,7 @@ export class Computer implements AsyncDisposable {
             // serve accounts' hostnames on a cloud machine, which their DNS points at
             isServingHostnames: options.enrollment?.kind === "cloud",
             domain: LOOPBACK_DOMAIN,
+            s3Domain: S3_HOST,
             runtimes: [runtime, new ProcessRuntime()],
             hibernation,
             alarm: undefined,
@@ -1201,7 +1202,7 @@ export class Computer implements AsyncDisposable {
 
         // keep every record in the machine's own log too, beside its owner's home
         const options = exporter.options(MACHINE_PACKAGE);
-        const local = new ProcessExporter((line) => environment.process.stderr.writeSync(line));
+        const local = new LineExporter((line) => environment.process.stderr.writeSync(line));
 
         return startTelemetry(
             {

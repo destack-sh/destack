@@ -1,6 +1,6 @@
 import type { Random } from "@destack/environment";
 import { Authentication } from "@destack/access";
-import { type Identifier, JsonValue, present } from "@destack/schema";
+import { Digest, type Identifier, JsonValue } from "@destack/schema";
 import { START_PATH, STOP_PATH } from "@destack/object/cloudflare";
 import type { Deriver } from "@destack/identity";
 import {
@@ -17,7 +17,9 @@ import {
     type DurableObjectNamespace,
     PartitionName,
 } from "./instance.ts";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, ImportMap } from "@destack/package/manifest";
+import type { SpaceBuildStore } from "@destack/stack/server";
+import type { ImportClosure } from "@destack/build/store";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../../error/index.ts";
 
@@ -29,6 +31,9 @@ const WORKERD_RUNTIME = "workerd";
 
 /** The media type of the JavaScript modules a workerd output distributes. */
 const MODULE_MEDIA_TYPE = "text/javascript";
+
+/** The base of the module names in an isolate, which name each build's modules below its digest. */
+const MODULE_BASE = "/";
 
 /** An instance this runtime started, with its object and secret. */
 interface Runner {
@@ -71,6 +76,8 @@ export class CloudflareRuntime implements Runtime {
     readonly #identity: (scope: string) => Promise<Pick<Deriver, "derive">>;
     /** The randomness the instances' secrets draw from. */
     readonly #random: Random;
+    /** Read the space's builds, which map a build's imports and open its dependencies. */
+    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
     /** The instances starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
     /** The builds of the calls in flight, by the secret each call's isolate reads them with. */
@@ -98,6 +105,8 @@ export class CloudflareRuntime implements Runtime {
         readonly identity: (scope: string) => Promise<Pick<Deriver, "derive">>;
         /** The randomness the instances' secrets draw from. */
         readonly random: Random;
+        /** Read the space's builds, which map a build's imports and open its dependencies. */
+        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
     }) {
         // set the objects, the space, its egress, the sampling and the spaces' identities
         this.#instances = options.instances;
@@ -107,6 +116,7 @@ export class CloudflareRuntime implements Runtime {
         this.#url = options.url;
         this.#identity = options.identity;
         this.#random = options.random;
+        this.#builds = options.builds;
     }
 
     /** Start an instance in its installation's object, replacing its previous deployment. */
@@ -149,14 +159,31 @@ export class CloudflareRuntime implements Runtime {
         }
     }
 
-    /** Read a file of the build of the instance or the call a secret proves. */
-    async build(secret: string, path: string): Promise<Uint8Array<ArrayBuffer>> {
+    /** Read every module of the build a secret proves and of its dependencies, imports resolved. */
+    async modules(secret: string): Promise<Record<string, string>> {
+        // require the build a secret proves
         const build = this.identify(secret)?.build ?? this.#calls.get(secret);
         if (build === undefined) {
             throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
         }
 
-        return build.load(path);
+        // read each module the build's imports reach, its specifiers resolved through the closure's import map
+        const closure = await this.#closure(build);
+        const own = await build.digest();
+        const read = await Promise.all(
+            (await this.#names(build, closure)).map(async (name) => {
+                // load the module from its build, the instance's own or a dependency the space keeps
+                const [digest = "", ...path] = name.split("/");
+                const reader =
+                    digest === own ? build : await this.#builds().contents(Digest.parse(digest));
+                const code = new TextDecoder().decode(await reader.load(path.join("/")));
+                const resolved = await ImportMap.apply(closure.map, code, `${MODULE_BASE}${name}`);
+
+                return [name, resolved] as const;
+            }),
+        );
+
+        return Object.fromEntries(read);
     }
 
     /** Call an export of a build's module once, in an isolate of a fresh object of its own. */
@@ -166,16 +193,6 @@ export class CloudflareRuntime implements Runtime {
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // find the workerd output with the module, and list its modules
-        const output = present(
-            Object.values(build.manifest.outputs).find(
-                (each) => each.runtime === WORKERD_RUNTIME && path.startsWith(`${each.directory}/`),
-            ),
-            `the workerd output of ${path}`,
-        );
-        const prefix = `${output.directory}/`;
-        const modules = await CloudflareRuntime.#modules(build, prefix);
-
         // hand the call to an object of its own with a secret its isolate reads the build with
         const secret = this.#random.bytes(SECRET_BYTES).toHex();
         this.#calls.set(secret, build);
@@ -188,9 +205,7 @@ export class CloudflareRuntime implements Runtime {
             const call: DurableObjectCall = {
                 space: this.#space,
                 secret,
-                directory: output.directory,
-                main: path.slice(prefix.length),
-                modules,
+                main: `${await build.digest()}/${path}`,
                 name,
                 input: [...input],
             };
@@ -315,7 +330,7 @@ export class CloudflareRuntime implements Runtime {
         const body: DurableObjectInstanceStart = {
             workload: { start, manifest: spec.build.manifest },
             space: this.#space,
-            ...(await CloudflareRuntime.#code(spec)),
+            main: `${await spec.build.digest()}/${InstanceSpec.entry(spec).path}`,
         };
         const running: Runner = {
             spec,
@@ -336,27 +351,35 @@ export class CloudflareRuntime implements Runtime {
         return running;
     }
 
-    /** Find the output's directory, its modules and the workload's entry among them. */
-    static async #code(
-        spec: InstanceSpec,
-    ): Promise<Pick<DurableObjectInstanceStart, "directory" | "main" | "modules">> {
-        // find the workload's entry among the output's exports
-        const { output, path: main } = InstanceSpec.entry(spec);
+    /** Name every module of a build and its dependencies on workerd, below their digests. */
+    async #names(build: BuildReader, closure: ImportClosure): Promise<string[]> {
+        const own = await build.digest();
+        const names = await Promise.all(
+            [...closure.builds].map(async (digest) => {
+                // read the build's workerd output directories
+                const reader = digest === own ? build : await this.#builds().contents(digest);
+                const directories = Object.values(reader.manifest.outputs)
+                    .filter((output) => output.runtime === WORKERD_RUNTIME)
+                    .map((output) => `${output.directory}/`);
+                const files = await reader.files();
 
-        // list the output's modules relative to its directory
-        const prefix = `${output.directory}/`;
-        const modules = await CloudflareRuntime.#modules(spec.build, prefix);
+                // name each JavaScript module below them by its build's digest and its path
+                return files
+                    .filter(
+                        (file) =>
+                            file.mediaType === MODULE_MEDIA_TYPE &&
+                            directories.some((directory) => file.path.startsWith(directory)),
+                    )
+                    .map((file) => `${digest}/${file.path}`);
+            }),
+        );
 
-        return { directory: output.directory, main: main.slice(prefix.length), modules };
+        return names.flat();
     }
 
-    /** List a build's JavaScript modules below an output's directory, relative to it. */
-    static async #modules(build: BuildReader, prefix: string): Promise<string[]> {
-        const files = await build.files();
-
-        return files
-            .filter((file) => file.path.startsWith(prefix) && file.mediaType === MODULE_MEDIA_TYPE)
-            .map((file) => file.path.slice(prefix.length));
+    /** Map a build's imports on workerd to its dependencies' modules, below their digests. */
+    async #closure(build: BuildReader): Promise<ImportClosure> {
+        return this.#builds().imports(await build.digest(), WORKERD_RUNTIME, MODULE_BASE);
     }
 
     /** Read an object's answer to the end, refusing a failed one. */

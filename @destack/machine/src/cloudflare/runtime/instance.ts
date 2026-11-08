@@ -47,14 +47,10 @@ const CALL_MODULE = "destack-call.js";
 export const DurableObjectCall = schema.object({
     /** The space whose object serves the build's files. */
     space: schema.string().min(1),
-    /** The secret the space serves the build's files to. */
+    /** The secret the space serves the build's modules to. */
     secret: schema.string().min(1),
-    /** The output's directory within the build, which module names are relative to. */
-    directory: schema.string().min(1),
-    /** The module with the export, relative to the output's directory. */
+    /** The module with the export, named below its build's digest. */
     main: schema.string().min(1),
-    /** The output's modules, relative to its directory. */
-    modules: schema.array(schema.string().min(1)).min(1),
     /** The function the module exports. */
     name: schema.string().min(1),
     /** The JSON arguments of the call. */
@@ -69,12 +65,8 @@ export const DurableObjectInstanceStart = schema.object({
     workload: DurableObjectStart,
     /** The space whose object serves the instance's egress and build files. */
     space: schema.string().min(1),
-    /** The output's directory within the build, which module names are relative to. */
-    directory: schema.string().min(1),
-    /** The module exporting the workload's class, relative to the output's directory. */
+    /** The module exporting the workload's class, named below its build's digest. */
     main: schema.string().min(1),
-    /** The output's modules, relative to its directory. */
-    modules: schema.array(schema.string().min(1)).min(1),
 });
 /** A start of an instance's workload. */
 export type DurableObjectInstanceStart = schema.Infer<typeof DurableObjectInstanceStart>;
@@ -88,7 +80,7 @@ export interface WorkerLoader {
             readonly compatibilityDate: string;
             readonly compatibilityFlags: readonly string[];
             readonly mainModule: string;
-            readonly modules: Readonly<Record<string, string>>;
+            readonly modules: Readonly<Record<string, { readonly js: string }>>;
             readonly env: Readonly<Record<string, unknown>>;
             readonly globalOutbound: { readonly fetch: (request: Request) => Promise<Response> };
         }>,
@@ -485,7 +477,7 @@ export class PartitionFacet {
             compatibilityDate: WORKERD_COMPATIBILITY_DATE,
             compatibilityFlags: ["nodejs_compat"],
             mainModule: started.main,
-            modules: await PartitionFacet.#modules(space, secret, started),
+            modules: await PartitionFacet.#modules(space, secret),
             env: { PARTITION: self },
             globalOutbound: space,
         }));
@@ -501,8 +493,10 @@ export class PartitionFacet {
             compatibilityFlags: ["nodejs_compat"],
             mainModule: CALL_MODULE,
             modules: {
-                ...(await PartitionFacet.#modules(space, call.secret, call)),
-                [CALL_MODULE]: `import * as module from ${main};\nexport default {\n    async fetch(request) {\n        const { name, input } = await request.json();\n        return Response.json((await module[name](...input)) ?? null);\n    },\n};\n`,
+                ...(await PartitionFacet.#modules(space, call.secret)),
+                [CALL_MODULE]: {
+                    js: `import * as module from ${main};\nexport default {\n    async fetch(request) {\n        const { name, input } = await request.json();\n        return Response.json((await module[name](...input)) ?? null);\n    },\n};\n`,
+                },
             },
             env: {},
             globalOutbound: space,
@@ -517,33 +511,29 @@ export class PartitionFacet {
         );
     }
 
-    /** Read an output's modules through the space serving the build, all at once. */
+    /** Read a start's modules through the space serving its builds, in one request. */
     static async #modules(
         space: { readonly fetch: (request: Request) => Promise<Response> },
         secret: string,
-        output: Pick<DurableObjectCall, "directory" | "modules">,
-    ): Promise<Record<string, string>> {
-        const read = await Promise.all(
-            output.modules.map(async (module) => {
-                // read the module through the space, refusing one it does not serve
-                const response = await space.fetch(
-                    new Request(`https://space${BUILD_PATH}/${output.directory}/${module}`, {
-                        headers: { authorization: `Bearer ${secret}` },
-                    }),
-                );
-                const text = await response.text();
-                if (!response.ok) {
-                    throw MachineError.of(
-                        "MODULE_NOT_SERVED",
-                        `the space has no module ${module}: ${response.status} ${text}`,
-                    );
-                }
-
-                return [module, text] as const;
+    ): Promise<Record<string, { readonly js: string }>> {
+        // read every module the start reaches, refusing an answer of a failure
+        const response = await space.fetch(
+            new Request(`https://space${BUILD_PATH}`, {
+                headers: { authorization: `Bearer ${secret}` },
             }),
         );
+        if (!response.ok) {
+            throw MachineError.of(
+                "MODULE_NOT_SERVED",
+                `the space serves no modules: ${response.status} ${await response.text()}`,
+            );
+        }
+        const modules = schema
+            .record(schema.string(), schema.string())
+            .parse(await response.json());
 
-        return Object.fromEntries(read);
+        // type each as a module explicitly, whatever its extension, such as an npm build's .mjs
+        return Object.fromEntries(Object.entries(modules).map(([name, js]) => [name, { js }]));
     }
 
     /** Get a space's object, in its jurisdiction. */

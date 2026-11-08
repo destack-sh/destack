@@ -1,7 +1,7 @@
 import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { MachineError } from "../error/index.ts";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
-import { BuildBucket, BuildStore } from "@destack/build/store";
+import { type BuildLayer, BuildStore } from "@destack/build/store";
 import type { Connector } from "@destack/resource";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { Entitlement } from "@destack/account/object";
@@ -152,36 +152,30 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         return new DurableObjectSpaceStorage(options, declared, host, database);
     }
 
-    /** Open the machine's build cache in the object's storage, adopting the deploy's releases. */
+    /** Open the machine's build cache in the object's storage, over the shipped releases. */
     async cache(
         builds: Cloudflare.R2Bucket,
+        releases: BuildLayer,
         distribution: DistributionManifest,
     ): Promise<BuildCache> {
-        // index the cache in the object's storage, its blobs in the build bucket
+        // index the pulled builds in the object's storage, their blobs in the build bucket, the shipped ones read in place
         const { environment, space } = this.#options;
         const database = this.#host.connect(BuildStore.database.tables, {
             namespace: CACHE_NAMESPACE,
         });
         await database.migrate(BuildStore.database.tables, { others: "retain" });
-        const bucket = new R2Bucket(builds);
-        const storage = new R2BlobStorage(bucket, `${CACHE_PREFIX}${space}/`, environment.random);
+        const storage = new R2BlobStorage(
+            new R2Bucket(builds),
+            `${CACHE_PREFIX}${space}/`,
+            environment.random,
+        );
         const blobs = new BlobStore({ storage, database, environment });
-        const cache = new BuildCache(
-            new BuildStore({ blobs, environment }),
+
+        return new BuildCache(
+            new BuildStore({ blobs, environment, layer: releases }),
             CLOUD_RUNTIMES,
             DistributionManifest.builtins(distribution),
         );
-        const shipped = DistributionManifest.releases(distribution);
-
-        // adopt each release the deploy wrote to the bucket and the cache lacks
-        const released = new BuildBucket(bucket, environment.crypto);
-        for (const { manifest } of shipped) {
-            if (!(await cache.store.contains(manifest))) {
-                await cache.adopt(await released.read(manifest), manifest);
-            }
-        }
-
-        return cache;
     }
 
     /** List the one space the object stores. */
