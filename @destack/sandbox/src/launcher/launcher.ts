@@ -1,4 +1,5 @@
 import { SandboxManager, getDefaultWritePaths } from "@anthropic-ai/sandbox-runtime";
+import { getApplySeccompBinaryPath } from "@anthropic-ai/sandbox-runtime/dist/sandbox/generate-seccomp-filter.js";
 import {
     type Environment,
     type OperatingSystem,
@@ -73,10 +74,11 @@ export async function runLauncher(environment: Environment<"process" | "host">):
         }
     });
     try {
-        // require the system files of this platform
+        // require the system files of this platform, and on Linux the seccomp helper bwrap runs
         const options = await request.promise;
         const runtime = RUNTIME_PATHS[host.os];
-        if (runtime === undefined) {
+        const helper = host.os === "linux" ? getApplySeccompBinaryPath() : undefined;
+        if (runtime === undefined || helper === null) {
             throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${host.os}`);
         }
 
@@ -87,6 +89,7 @@ export async function runLauncher(environment: Environment<"process" | "host">):
                     denyRead: ["/"],
                     allowRead: [
                         ...runtime,
+                        ...(helper === undefined ? [] : [helper]),
                         options.executable,
                         ...options.read,
                         ...options.write,
