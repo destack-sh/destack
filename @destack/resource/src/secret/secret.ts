@@ -51,7 +51,7 @@ export interface Secret {
     /** Read the captured version's value. */
     readonly read: () => Promise<SecretReading>;
     /** Read the captured version and the earlier versions still readable, newest first. */
-    readonly versions: () => Promise<readonly SecretReading[]>;
+    readonly versions: () => Promise<readonly [SecretReading, ...SecretReading[]]>;
 }
 
 /** Secrets as code reads them. */
