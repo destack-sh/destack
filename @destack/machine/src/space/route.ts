@@ -1,4 +1,4 @@
-import { Directory, InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { Directory, InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
 import { type Identifier, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
@@ -78,40 +78,26 @@ export const PartitionRequest = {
     },
 };
 
-/** The host name of a space's buckets over S3: its label below an S3 domain. */
-export const S3Host = {
-    /** Write a space's S3 host below an S3 domain, such as s3.localhost. */
-    of(space: Identifier<"space">, domain: string): string {
-        return `${space}.${domain}`;
-    },
-
-    /** Read the space of an S3 host below an S3 domain, absent for any other host. */
-    space(hostname: string, domain: string): Identifier<"space"> | undefined {
-        const suffix = `.${domain}`;
-        const label = hostname.endsWith(suffix) ? hostname.slice(0, -suffix.length) : undefined;
-
-        return isSpace(label) ? label : undefined;
-    },
-};
-
 /** Find the space a request is for, as a machine routes it to the space's object. */
 export const SpaceRequest = {
-    /** Find the space of an installation origin's address in the machine's directory replica. */
-    served(
-        directory: Directory,
-        machine: Identifier<"machine">,
-    ): (address: SpaceAddress) => Promise<string | undefined> {
-        return async (address) => {
-            // resolve the address's space, then require its placement on the machine
-            const named = await directory.find(accountObject.space, address);
-            const [placed] =
-                named === undefined
-                    ? []
-                    : await accountObject.Placement.find(directory.snapshot, [
-                          schema.identifier("space").parse(named.id),
-                      ]);
+    /** Find the spaces a machine serves by address or identifier in its directory replica. */
+    served(directory: Directory, machine: Identifier<"machine">): SpaceNames {
+        // require a space's placement on the machine
+        const serves = async (space: Identifier<"space">) => {
+            const [placed] = await accountObject.Placement.find(directory.snapshot, [space]);
 
-            return placed?.machine === machine ? named?.id : undefined;
+            return placed?.machine === machine;
+        };
+
+        return {
+            serves,
+            find: async (address) => {
+                // resolve the address's space, then require its placement
+                const named = await directory.find(accountObject.space, address);
+                const space = named === undefined ? undefined : SPACE_IDENTIFIER.parse(named.id);
+
+                return space !== undefined && (await serves(space)) ? space : undefined;
+            },
         };
     },
 
@@ -134,22 +120,18 @@ export const SpaceRequest = {
     /** Read the space of a request at the machine's own hosts. */
     async of(
         given: Request,
-        origins: {
-            /** The domain the installation origins sit below. */
+        origins: Pick<SpaceNames, "find"> & {
+            /** The domain the installation origins and S3 origins sit below. */
             readonly domain: string;
-            /** The domain the spaces' buckets answer S3 below. */
-            readonly s3Domain: string;
-            /** Find the space of an origin's address, absent for none. */
-            readonly find: (address: SpaceAddress) => Promise<string | undefined>;
         },
     ): Promise<SpaceRequest | undefined> {
         // drop the headers only a machine hands on
         const request = SpaceRequest.received(given);
 
-        // read the request's installation origin, S3 host and path
+        // read the request's installation origin, S3 origin and path
         const origin = InstallationOrigin.of(request, origins.domain);
         const url = new URL(request.url);
-        const s3 = S3Host.space(url.hostname, origins.s3Domain);
+        const s3 = S3Origin.of(request, origins.domain);
         const installed = InstallationMount.of(request);
         const explicit = SpaceMount.parse(url.pathname);
         const scoped = PartitionRequest.scoped(url.pathname);
@@ -158,9 +140,7 @@ export const SpaceRequest = {
         if (origin !== undefined) {
             const space = await origins.find(SpaceAddress.of(origin));
 
-            return space === undefined
-                ? undefined
-                : addressed(request, SPACE_IDENTIFIER.parse(space));
+            return space === undefined ? undefined : addressed(request, space);
         }
         // take the space of an S3 request at its host name
         else if (s3 !== undefined) {
@@ -198,11 +178,9 @@ export const SpaceRequest = {
     /** Read the space of a request to a name. */
     async named(
         given: Request,
-        names: {
-            /** The domain the installation origins sit below. */
+        names: SpaceNames & {
+            /** The domain the installation origins and S3 origins sit below. */
             readonly domain: string;
-            /** Find the space of an origin's address, absent for none. */
-            readonly find: (address: SpaceAddress) => Promise<string | undefined>;
             /** Find the route a host's path takes, absent for none. */
             readonly route: (
                 host: string,
@@ -210,12 +188,18 @@ export const SpaceRequest = {
             ) => Promise<{ readonly scope: string; readonly id: Identifier<"route"> } | undefined>;
         },
     ): Promise<SpaceRequest | undefined> {
-        // drop the machine's headers, then take the space of an installation origin served here
+        // drop the machine's headers, then take the space of an installation or S3 origin served here
         const request = SpaceRequest.received(given);
         const origin = InstallationOrigin.of(request, names.domain);
-        const space = origin === undefined ? undefined : await names.find(SpaceAddress.of(origin));
+        const s3 = S3Origin.of(request, names.domain);
+        const space =
+            origin !== undefined
+                ? await names.find(SpaceAddress.of(origin))
+                : s3 !== undefined && (await names.serves(s3))
+                  ? s3
+                  : undefined;
         if (space !== undefined) {
-            return addressed(request, SPACE_IDENTIFIER.parse(space));
+            return addressed(request, space);
         }
 
         // take the route the host and path take, with the route and the client's head
@@ -231,6 +215,14 @@ export const SpaceRequest = {
         return addressed(copyRequest(request, { headers }), SPACE_IDENTIFIER.parse(route.scope));
     },
 };
+
+/** The spaces a machine serves, by their installation origins' addresses and their identifiers. */
+export interface SpaceNames {
+    /** Find the space of an origin's address, absent for none served here. */
+    readonly find: (address: SpaceAddress) => Promise<Identifier<"space"> | undefined>;
+    /** Report whether the machine serves a space. */
+    readonly serves: (space: Identifier<"space">) => Promise<boolean>;
+}
 
 /** Read the space of a request body. */
 async function bodySpace(

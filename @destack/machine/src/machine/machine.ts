@@ -95,7 +95,6 @@ export type MachineOptions = Pick<
     | "isEnforcingEntitlements"
     | "isServingHostnames"
     | "domain"
-    | "s3Domain"
     | "runtimes"
     | "hibernation"
     | "alarm"
@@ -199,8 +198,6 @@ export class Machine {
     #origin: string;
     /** The domain of the installation origins the machine's own host names answer. */
     readonly domain: string;
-    /** The domain the spaces' buckets answer S3 below, as their S3 hosts name them. */
-    readonly s3Domain: string;
     /** Verify a caller of a package the machine serves, none for a call without a credential. */
     readonly authenticate: (
         request: Request,
@@ -257,7 +254,6 @@ export class Machine {
         this.endpoint = options.endpoint;
         this.#origin = options.endpoint;
         this.domain = options.domain;
-        this.s3Domain = options.s3Domain;
         this.authenticate = options.authenticate;
         this.authorizeSpace = options.authorizeSpace;
         this.report = options.report;
@@ -689,11 +685,11 @@ export class Machine {
             return refused;
         }
 
-        // find the space of the name's installation origin or route
+        // find the space of the name's installation origin, S3 origin or route
         const claims = ClaimLookup.of(this.directory.snapshot.read(claimTable));
         const routed = await SpaceRequest.named(request, {
             domain: DOMAINS.space,
-            find: SpaceRequest.served(this.directory, this.id),
+            ...SpaceRequest.served(this.directory, this.id),
             route: (host, path) => stackObject.Route.locate(claims, host, path),
         });
 
@@ -816,7 +812,6 @@ export class Machine {
     async #route(request: Request): Promise<SpaceRequest | undefined> {
         return SpaceRequest.of(request, {
             domain: this.domain,
-            s3Domain: this.s3Domain,
             find: async (address) => (await this.directory.find(accountObject.space, address))?.id,
         });
     }

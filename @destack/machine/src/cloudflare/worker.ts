@@ -19,7 +19,7 @@ import {
 } from "@destack/object/cloudflare";
 import type { Alarm } from "@destack/db";
 import { CloudMachine, CONNECTING_IP_HEADER, type MachineBindings } from "./cloud.ts";
-import { schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
 import { Route } from "@destack/stack/object";
 import { TelemetryScope } from "@destack/telemetry";
@@ -32,7 +32,7 @@ import {
 } from "./runtime/index.ts";
 import { Machine } from "../machine/index.ts";
 import machinePackage from "../package.ts";
-import { S3Host, type Space, SPACE_HEADER, SpaceRequest } from "../space/index.ts";
+import { type Space, SPACE_HEADER, SpaceRequest } from "../space/index.ts";
 import { Attribution, TRACES_PATH } from "./attribution.ts";
 import { TraceCount } from "../gateway/index.ts";
 import { DurableObjectSpaceStorage } from "./storage.ts";
@@ -252,7 +252,7 @@ export class PartitionObject {
             storage: this.#storage,
             files: bindings.FILES,
             filesName: bindings.DESTACK_FILES,
-            s3: bindings.DESTACK_S3,
+            domain: bindings.DESTACK_SPACE_DOMAIN,
             artifacts: bindings.ARTIFACTS,
             partitions: bindings.PARTITION,
             graphs: bindings.GRAPH,
@@ -318,7 +318,6 @@ export class PartitionObject {
             // TODO #Incomplete: serve accounts' own hostnames once Cloudflare for SaaS provisions their certificates, after launch
             isServingHostnames: false,
             domain: bindings.DESTACK_SPACE_DOMAIN,
-            s3Domain: new URL(bindings.DESTACK_S3).hostname,
             runtimes: [runtime, new ProcessRuntime()],
             hibernation: undefined,
             alarm: this.#storage,
@@ -390,24 +389,20 @@ export class MachineWorker {
         const client = given.headers.get(CONNECTING_IP_HEADER);
         const request = client === null ? given : Forwarded.replace(given, { for: client });
 
-        // find the space of a request to the machine's own host or S3's
-        const url = new URL(request.url);
-        const s3Domain = new URL(bindings.DESTACK_S3).hostname;
-        const isOwn =
-            url.host === bindings.DESTACK_HOST ||
-            S3Host.space(url.hostname, s3Domain) !== undefined;
+        // find the spaces served here alone, by a request to the machine's own host or a name
+        const isOwn = new URL(request.url).host === bindings.DESTACK_HOST;
+        const served = async () => {
+            const { replica, id } = await this.#machine(bindings);
+
+            return SpaceRequest.served(new Directory(Snapshot.live(replica)), id);
+        };
         const origins = {
             domain: bindings.DESTACK_SPACE_DOMAIN,
-            s3Domain,
-            find: async (address: SpaceAddress) => {
-                // find an installation origin's space, served here alone
-                const { replica, id } = await this.#machine(bindings);
-
-                return SpaceRequest.served(new Directory(Snapshot.live(replica)), id)(address);
-            },
+            find: async (address: SpaceAddress) => (await served()).find(address),
+            serves: async (space: Identifier<"space">) => (await served()).serves(space),
         };
 
-        // find the space of a name: its installation origin's, else its route's
+        // find the space of a name: its installation origin's or S3 origin's, else its route's
         const routed = isOwn
             ? await SpaceRequest.of(request, origins)
             : await SpaceRequest.named(request, {

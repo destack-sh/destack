@@ -58,7 +58,7 @@ import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
 import { LOOPBACK_DOMAIN } from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
-import { LocalSpaceStorage, S3_HOST } from "./storage.ts";
+import { LocalSpaceStorage } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
 import { MachineProcess, LOCK_FILE, StageHome } from "./process/index.ts";
 import { BuildRunner } from "./build.ts";
@@ -362,7 +362,6 @@ export class Computer implements AsyncDisposable {
             // serve accounts' hostnames on a cloud machine, which their DNS points at
             isServingHostnames: options.enrollment?.kind === "cloud",
             domain: LOOPBACK_DOMAIN,
-            s3Domain: S3_HOST,
             runtimes: [runtime, new ProcessRuntime()],
             hibernation,
             alarm: undefined,

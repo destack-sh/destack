@@ -51,7 +51,7 @@ import { Bucket, Snapshot } from "@destack/db";
 import { Attribution } from "@destack/package/stack";
 import { OTLP_ORIGIN_PATH, OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
-import { copyRequest } from "@destack/environment";
+import { copyRequest, Forwarded } from "@destack/environment";
 import { type Space, type SpaceRun } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
@@ -70,7 +70,7 @@ import { ViewOrigin } from "./origin.ts";
 import { MachineError } from "../error/index.ts";
 import { Failure } from "@destack/error";
 import { HOOK_WORKLOAD } from "@destack/stack/workload";
-import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { DOMAINS, InstallationOrigin, S3Origin, SpaceAddress } from "@destack/account/address";
 import { RouteRequest } from "./route.ts";
 import type {} from "@destack/package/import-meta";
 
@@ -376,6 +376,9 @@ export class Gateway {
         // take the workloads' calls out, sockets and telemetry
         const url = new URL(request.url);
         const installed = InstallationMount.of(request);
+        const isS3 =
+            S3Origin.of(request, this.#space.machine.domain) !== undefined ||
+            S3Origin.of(request, DOMAINS.space) !== undefined;
         // send an instance's call out
         if (url.pathname.startsWith(`${Egress.path}/`)) {
             return await this.egress(request);
@@ -394,9 +397,9 @@ export class Gateway {
         else if (url.pathname.startsWith(`${CONNECTION_PATH}/`)) {
             return await this.#connect(url, request, authentication);
         }
-        // serve the buckets over S3
-        else if (url.hostname === this.#serving.s3.hostname) {
-            return await this.#serving.s3.server.fetch(request);
+        // serve the buckets over S3 at the host their client signed, which a front door forwards
+        else if (isS3) {
+            return await this.#serving.s3.fetch(Forwarded.restore(request));
         }
         // serve a call or a webhook to an installation
         else if (installed !== undefined) {
@@ -978,7 +981,7 @@ export class Gateway {
                 const url = new URL(request.url);
                 url.pathname = `/${bucketId}${url.pathname}`;
 
-                return s3.server.serve(copyRequest(request, {}, url.href), caller.scope);
+                return s3.serve(copyRequest(request, {}, url.href), caller.scope);
             },
         };
     }

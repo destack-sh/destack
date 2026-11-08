@@ -4,6 +4,7 @@ import { Entitlement } from "@destack/account/object";
 import { SettingValue } from "@destack/setting/object";
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { LOOPBACK_DOMAIN, S3Origin } from "@destack/account/address";
 import { LocalBlobStorage, LocalBucket, LocalBucketHost } from "@destack/bucket/bun";
 import type { S3Credentials } from "@destack/bucket/s3";
 import { databaseProvider, Tracker } from "@destack/db";
@@ -22,13 +23,10 @@ import * as stackObject from "@destack/stack/object";
 import { type SpaceBuildStore, SocketRegistry, type SpaceOptions } from "@destack/stack/server";
 import { Traffic } from "../gateway/index.ts";
 import { Reading } from "../meter/index.ts";
-import { S3Host, SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
+import { SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
 
 /** The memory a local instance's run time counts in GB-seconds at: 128 MB. */
 const INSTANCE_GIGABYTES = 0.125;
-
-/** The host name serving a machine's buckets over S3 (RFC 6761 6.3). */
-export const S3_HOST = "s3.localhost";
 
 /** The region a machine's S3 requests are signed for. */
 const S3_REGION = "local";
@@ -37,7 +35,7 @@ const S3_REGION = "local";
 export interface LocalSpaceStorageOptions {
     /** The directory of the spaces' databases, buckets, events and snapshots. */
     readonly directory: string;
-    /** The URL of the machine's listener, whose port the spaces' S3 host names answer at. */
+    /** The URL of the machine's listener, whose port the spaces' S3 origins answer at. */
     readonly endpoint: string;
     /** The machine's root keys, wrapping the spaces' personal keys. */
     readonly keyring: Keyring;
@@ -253,11 +251,11 @@ export class LocalVolume implements Volume {
         this.#lifetime = fields.lifetime;
     }
 
-    /** Open the space's buckets once below its own S3 host name. */
+    /** Open the space's buckets once at its own S3 origin. */
     buckets(credentials: (scope: string) => Promise<S3Credentials | undefined>): LocalBucketHost {
         // answer S3 at the listener's port below the space's own host name
         const endpoint = new URL(this.#options.endpoint);
-        endpoint.hostname = S3Host.of(this.#space, S3_HOST);
+        endpoint.hostname = S3Origin.format(this.#space, LOOPBACK_DOMAIN);
         this.#buckets ??= this.#lifetime.use(
             new LocalBucketHost({
                 directory: join(this.#options.directory, "buckets"),

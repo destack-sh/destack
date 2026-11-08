@@ -824,3 +824,39 @@ test("refuse a request to an installation origin the space has no installation o
         "NOT_FOUND: INSTALLATION_NOT_HERE: this machine does not serve installation nots in this space",
     ]);
 });
+
+test("serve S3 at the host its client signed: directly, forwarded to the machine's host, or tunnelled below the space domain", async () => {
+    // record the URL and host each request reaches the space's S3 server at
+    const received: (string | null)[][] = [];
+    const s3 = {
+        fetch: async (request: Request) => {
+            received.push([request.url, request.headers.get("host")]);
+
+            return new Response(null, { status: 204 });
+        },
+        serve: async () => new Response(null, { status: 500 }),
+    };
+    const space = await TestSpace.open();
+    const gateway = openGateway(space, { s3 });
+
+    // send each shape of an S3 request to the gateway of a machine below localhost
+    const host = `s3--${ids.space}.destack.space`;
+    const statuses = await Promise.all(
+        [
+            new Request(`http://s3--${ids.space}.localhost:4102/bucket-1/notes.txt`),
+            new Request("https://eu-central--platform.destack.computer/bucket-1/notes.txt", {
+                headers: { forwarded: `host=${host};proto=https` },
+            }),
+            new Request(`https://${host}/bucket-1/notes.txt`),
+        ].map(async (request) => (await gateway.serve(request)).status),
+    );
+
+    expect([statuses, received]).toEqual([
+        [204, 204, 204],
+        [
+            [`http://s3--${ids.space}.localhost:4102/bucket-1/notes.txt`, null],
+            [`https://${host}/bucket-1/notes.txt`, host],
+            [`https://${host}/bucket-1/notes.txt`, null],
+        ],
+    ]);
+});

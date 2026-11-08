@@ -8,7 +8,7 @@ import { PartitionRequest, SPACE_HEADER, SpaceRequest } from "./route.ts";
 const MACHINE = "machine-01996ab0-0000-7000-8000-000000000007";
 
 /** A space of the scenarios. */
-const SPACE = "space-01996ab0-0000-7000-8000-000000000002";
+const SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
 
 /** An account of the scenarios. */
 const ACCOUNT = "account-01996ab0-0000-7000-8000-000000000001";
@@ -19,11 +19,11 @@ const SERVICE = "/package-01a0c80b-614e-739c-9b50-70e5119010b1";
 /** The stack service's mount on the machine's origin. */
 const MOUNT = `https://eu.destack.cloud${SERVICE}`;
 
-/** The installation origins below the space domain, where only work--ada lives, and S3's domain. */
+/** The spaces served here below the space domain: work--ada alone. */
 const ORIGINS = {
     domain: "destack.space",
-    s3Domain: "s3--eu-cloud--platform.destack.computer",
     find: async (address: string) => (address === "work--ada" ? SPACE : undefined),
+    serves: async (space: string) => space === SPACE,
 };
 
 /** Post a JSON body to a path of the machine, with some headers. */
@@ -35,10 +35,13 @@ function post(path: string, body: unknown, headers: Record<string, string> = {})
     });
 }
 
-test("route a request to the space of its S3 host name, space prefix, scoped route, creation or replica scope, and none for an account or otherwise", async () => {
+test("route a request to the space of its S3 origin, forwarded or not, space prefix, scoped route, creation or replica scope, and none for an account or otherwise", async () => {
     // read the space, its header and the path of each request at the space
     const requests = [
-        new Request(`https://${SPACE}.s3--eu-cloud--platform.destack.computer/bucket-1/notes.txt`),
+        new Request(`https://s3--${SPACE}.destack.space/bucket-1/notes.txt`),
+        new Request("https://eu.destack.cloud/bucket-1/notes.txt", {
+            headers: { forwarded: `host=s3--${SPACE}.destack.space;proto=https` },
+        }),
         new Request(
             `https://eu.destack.cloud/spaces/${SPACE}/.destack/egress/@destack/vault/ingest`,
         ),
@@ -87,6 +90,7 @@ test("route a request to the space of its S3 host name, space prefix, scoped rou
 
     // add the space to its header and strip only an explicit space prefix
     expect(routed).toEqual([
+        [SPACE, SPACE, "/bucket-1/notes.txt"],
         [SPACE, SPACE, "/bucket-1/notes.txt"],
         [SPACE, SPACE, "/.destack/egress/@destack/vault/ingest"],
         [SPACE, SPACE, `${SERVICE}/spaces/${SPACE}/installations`],
@@ -166,7 +170,7 @@ test("route a nested scoped route to its space, a stream below a space to the sp
     ]);
 });
 
-test("route a request to a name to the space of its installation origin served here, else to its route's space with the route and the URL asked for, and none for a name nothing serves", async () => {
+test("route a request to a name to the space of its installation origin or S3 origin served here, else to its route's space with the route and the URL asked for, and none for a name nothing serves", async () => {
     // serve work--ada here and route notes.acme.com/blog to a route of another space
     const ROUTED = "space-01996ab0-0000-7000-8000-000000000003";
     const ROUTE = "route-01996ab0-0000-7000-8000-000000000004";
@@ -182,8 +186,10 @@ test("route a request to a name to the space of its installation origin served h
     const named = await Promise.all(
         [
             "https://notes--work--ada.destack.space/",
+            `https://s3--${SPACE}.destack.space/bucket-1/notes.txt`,
             "https://notes.acme.com/blog/2026?page=2",
             "https://notes--other--ada.destack.space/",
+            `https://s3--${ROUTED}.destack.space/bucket-1/notes.txt`,
             "https://notes.acme.com/shop",
         ].map(async (url) => {
             const found = await SpaceRequest.named(new Request(url), names);
@@ -200,7 +206,9 @@ test("route a request to a name to the space of its installation origin served h
 
     expect(named).toEqual([
         [SPACE, null, null],
+        [SPACE, null, null],
         [ROUTED, ROUTE, "https://notes.acme.com/blog/2026?page=2"],
+        undefined,
         undefined,
         undefined,
     ]);

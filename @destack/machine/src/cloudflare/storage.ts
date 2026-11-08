@@ -14,6 +14,7 @@ import {
     R2Bucket,
     R2BucketHost,
 } from "@destack/bucket/cloudflare";
+import { S3Origin } from "@destack/account/address";
 import type { S3Credentials } from "@destack/bucket/s3";
 import {
     BlobStore,
@@ -41,7 +42,7 @@ import { DurableObjectGraphStorage } from "@destack/stack/cloudflare";
 import * as stackObject from "@destack/stack/object";
 import { BuildCache, SocketRegistry, type SpaceOptions } from "@destack/stack/server";
 import type { Environment } from "@destack/environment";
-import { S3Host, SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
+import { SpaceDatabaseHost, SpaceStorage, type Volume } from "../space/index.ts";
 import { type Count, Reading } from "../meter/index.ts";
 import { Traffic } from "../gateway/index.ts";
 import { CACHE_NAMESPACE, DurableObjectSpaceDatabaseHost, SPACE_NAMESPACE } from "./database.ts";
@@ -69,8 +70,8 @@ export interface DurableObjectSpaceStorageOptions {
     readonly files: Cloudflare.R2Bucket;
     /** The name of the residency's R2 bucket. */
     readonly filesName: string;
-    /** The origin whose host name each space's buckets answer S3 below. */
-    readonly s3: string;
+    /** The domain of the installation origins, which each space's S3 origin answers below. */
+    readonly domain: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
     readonly artifacts: ArtifactsNamespace;
     /** The installations' objects, one per installation partition. */
@@ -304,9 +305,10 @@ export class DurableObjectVolume implements Volume {
 
     /** Open the space's buckets once in the residency's bucket, catalogued in its object. */
     buckets(credentials: (scope: string) => Promise<S3Credentials | undefined>): R2BucketHost {
-        // answer S3 below the space's own host name
-        const endpoint = new URL(this.#options.s3);
-        endpoint.hostname = S3Host.of(this.#options.space, endpoint.hostname);
+        // answer S3 at the space's own host name
+        const endpoint = new URL(
+            `https://${S3Origin.format(this.#options.space, this.#options.domain)}`,
+        );
 
         // store the buckets' files in the residency's bucket, counting its operations for the meters
         this.#buckets ??= new R2BucketHost({

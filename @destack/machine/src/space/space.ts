@@ -79,8 +79,8 @@ export interface SpaceRun {
     adapters: readonly SpaceAdapter[];
     /** The host of the space's buckets. */
     readonly buckets: CatalogueBucketHost;
-    /** The S3 API over the space's buckets, and the host name it answers at. */
-    readonly s3: { readonly server: Pick<S3Server, "fetch" | "serve">; readonly hostname: string };
+    /** The S3 API over the space's buckets. */
+    readonly s3: Pick<S3Server, "fetch" | "serve">;
     /** The space's store, once it serves. */
     readonly store: PromiseWithResolvers<ObjectStore>;
     /** The gateway routing the installations' calls, once the store serves. */
@@ -297,10 +297,7 @@ export class Space {
         this.#serving = {
             adapters: Space.#adapters(installed),
             buckets,
-            s3: {
-                server: serveS3(buckets, database, this.machine.environment),
-                hostname: buckets.endpoint.hostname,
-            },
+            s3: serveS3(buckets, database, this.machine.environment),
             store: Promise.withResolvers(),
             gateway: Promise.withResolvers(),
             role,

@@ -43,8 +43,6 @@ export interface CloudflareStorageBindings {
     readonly FILES: Cloudflare.R2Bucket;
     /** The name of the residency's R2 bucket. */
     readonly DESTACK_FILES: string;
-    /** The origin whose host name each space's buckets answer S3 below. */
-    readonly DESTACK_S3: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
     readonly ARTIFACTS: ArtifactsNamespace;
     /** The residency's R2 bucket of the builds the machines pull from forges. */

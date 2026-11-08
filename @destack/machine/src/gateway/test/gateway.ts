@@ -119,13 +119,7 @@ export function openGateway(
             },
         },
         {
-            s3: {
-                server: options.s3 ?? {
-                    fetch: refuse("serve S3"),
-                    serve: refuse("serve S3"),
-                },
-                hostname: "s3.test",
-            },
+            s3: options.s3 ?? { fetch: refuse("serve S3"), serve: refuse("serve S3") },
         },
         { packages: (options.packages ?? []).map((handle) => ({ package: handle })) },
         options.tokens,
