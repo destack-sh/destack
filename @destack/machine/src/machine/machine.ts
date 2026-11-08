@@ -1,11 +1,6 @@
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS } from "@destack/account/address";
-import type {
-    Enrollment,
-    MachineIdentity,
-    MachineIssuer,
-    TokenScope,
-} from "@destack/account/client";
+import type { Enrollment, MachineIdentity, TokenIssuer, TokenScope } from "@destack/account/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
@@ -1012,7 +1007,7 @@ export class Machine {
     }
 
     /** Read the issuer of this machine's tokens: its universe's account package oauth adapter. */
-    static #issuer(enrollment: MachineEnrollment): MachineIssuer {
+    static #issuer(enrollment: MachineEnrollment): TokenIssuer {
         return { url: `${PackageMount.url(enrollment.issuer, accountPackage.id)}${OAUTH_PATH}` };
     }
 

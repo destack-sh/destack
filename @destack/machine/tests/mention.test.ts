@@ -108,10 +108,10 @@ async function openBoard(
         const installed = await Snapshot.live(database)
             .read(installation.table)
             .findFirst({ where: { scope: space, packageId } });
-        // publish a missing one from the home's machine, and install it
+        // publish a missing one as the platform's operator, and install it
         if (installed === undefined) {
             const build = await WorldDriver.fixture(fixture);
-            await world.distribution.publish(build, home.machine, home.machine);
+            await world.distribution.publish(build, await world.universe.operator(), home.machine);
             await computer.install(login.id, space, build, name);
         }
     }

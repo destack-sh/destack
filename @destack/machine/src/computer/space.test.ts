@@ -392,11 +392,11 @@ async function openBoard(
     const { world } = home;
     const served = await openComputer(world, account, "board", options);
 
-    // publish the board from the home's machine, and install it
+    // publish the board as the platform's operator, and install it
     const { computer, login, space } = served;
     const database = (await computer.machine.space(space)).database;
     const build = await WorldDriver.fixture("board");
-    await world.distribution.publish(build, home.machine, home.machine);
+    await world.distribution.publish(build, await world.universe.operator(), home.machine);
     await computer.install(login.id, space, build, "board");
     await storing(served, boardPackage.id);
 

@@ -282,9 +282,10 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
 
     /** Install a fixture build in the owner's home as the owner, recording its object types. */
     async #install(fixture: string, build: BuildReader): Promise<void> {
-        // publish the build from the home's machine, and install it as the owner
+        // publish the build as the platform's operator, and install it as the owner
         const { world } = this.home;
-        await world.distribution.publish(build, this.home.machine, this.home.machine);
+        const operator = await world.universe.operator();
+        await world.distribution.publish(build, operator, this.home.machine);
         await this.home.install(this.login, world.owner.home, build, fixture);
 
         // record its object types by name

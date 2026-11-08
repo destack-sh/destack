@@ -591,6 +591,9 @@ export class TestComputer implements AsyncDisposable {
                 const login = await home.signIn(OWNER_EMAIL);
                 await home.ready(world.owner.home);
 
+                // sign the platform's operator in as its organization's owner, who publishes the fixtures
+                await world.universe.operator();
+
                 // serve the residency's home and each organization's, their stacks applied
                 const { owner } = world;
                 const accounts = await home.machine.accounts();

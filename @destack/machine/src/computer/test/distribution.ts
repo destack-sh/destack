@@ -58,7 +58,7 @@ const DIRECTORY_MILLISECONDS = 30_000;
 /** How long a residency home may take to serve its forge: 30 s, as a fresh home deploys it. */
 const FORGE_MILLISECONDS = 30_000;
 
-/** The publisher of a scope's packages: a person, or the platform organization's cloud machine. */
+/** The publisher of a scope's packages: a person managing or publishing for its account. */
 export type TestPublisher = Pick<Machine, "fetch">;
 
 /** What a test computer ships: the platform's stacks, what they install, and other builds. */
