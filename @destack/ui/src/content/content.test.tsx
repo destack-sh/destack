@@ -1,7 +1,7 @@
 import type { Root } from "hast";
 import { expect, test } from "@destack/test";
 import { Errored } from "@destack/view";
-import { render } from "@destack/view/test";
+import { render, unmarked } from "@destack/view/test";
 import { Content, type ContentElementProperties } from "./index.ts";
 
 /** A page as remark and rehype build it from Markdown. */
@@ -76,7 +76,7 @@ test("render a content tree as elements with their HTML and SVG attributes, swap
     const { container } = render(() => <Content tree={PAGE} components={{ pre: Listing }} />);
 
     // name each attribute as HTML or SVG does, leave out the comment, and frame the listing with its component
-    expect(container.innerHTML).toBe(
+    expect(unmarked(container)).toBe(
         '<h2 id="setup">Setup</h2>' +
             '<p class="lead muted">Install it<a href="#fn-1" data-footnote-ref="" aria-describedby="footnote-label">1</a></p>' +
             '<figure data-listing="install.sh"><figcaption>pre</figcaption><code class="language-sh">curl destack.sh/install | sh</code></figure>' +
@@ -94,7 +94,7 @@ test("refuse raw HTML a builder left unparsed in the tree", () => {
     ));
 
     // a raw node means the tree was built without parsing its HTML, which the renderer cannot trust
-    expect(container.innerHTML).toBe(
+    expect(unmarked(container)).toBe(
         "TypeError: content tree holds raw HTML its builder left unparsed",
     );
 });

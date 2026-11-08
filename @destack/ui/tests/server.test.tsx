@@ -24,9 +24,9 @@ const STATE = new Set([
     "virtualizer",
 ]);
 
-/** The components the package exports, its wrapped chart entry points and state units left out. */
+/** The components the package exports, leaving out wrapped chart entries, stylesheets and state. */
 const COMPONENTS = Object.keys(manifest.exports)
-    .filter((path) => !path.includes("*"))
+    .filter((path) => !path.includes("*") && !path.endsWith(".css"))
     .map((path) => path.slice(2))
     .filter((name) => !STATE.has(name));
 
