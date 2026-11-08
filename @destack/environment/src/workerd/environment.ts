@@ -1,3 +1,4 @@
+import { SeverityNumber } from "@opentelemetry/api";
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import { Clock } from "../clock/clock.ts";
 import { Environment } from "../environment/environment.ts";
@@ -11,13 +12,30 @@ export type WorkerdEnvironment = Environment;
 
 /** Environments on workerd. */
 export const WorkerdEnvironment = {
-    /** The isolate's base, its telemetry context following each request through async hooks. */
+    /** The isolate's base, logging to its console and tracing each request's context. */
     get system(): WorkerdEnvironment {
         system ??= {
             ...Environment.system,
-            telemetry: Telemetry.none(Clock.system, new AsyncLocalStorageContextManager().enable()),
+            telemetry: Telemetry.local(
+                Clock.system,
+                (line, severity) => {
+                    // write errors as errors, so the Worker's logs keep their level
+                    const text = line.trimEnd();
+                    if (severity >= SeverityNumber.ERROR) {
+                        console.error(text);
+                    } else {
+                        console.log(text);
+                    }
+                },
+                new AsyncLocalStorageContextManager().enable(),
+            ),
         };
 
         return system;
+    },
+
+    /** Write text to the isolate's console, its own log. */
+    print(text: string): void {
+        console.log(text);
     },
 };

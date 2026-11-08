@@ -20,5 +20,14 @@
         "./workerd": {
             "runtimes": ["workerd"]
         }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/workerd/environment.ts"],
+                "rules": ["eslint/no-console"],
+                "reason": "a Worker's console is its own log, where the workerd environment writes its log records"
+            }
+        ]
     }
 }

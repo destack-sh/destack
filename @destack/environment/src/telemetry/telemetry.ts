@@ -16,6 +16,7 @@ import {
 import * as logs from "@opentelemetry/sdk-logs";
 import * as metrics from "@opentelemetry/sdk-metrics";
 import * as traces from "@opentelemetry/sdk-trace";
+import { LineExporter } from "./line.ts";
 
 /** The W3C propagator of trace context and baggage, which keeps no state. */
 export const W3C_PROPAGATOR: TextMapPropagator = new CompositePropagator({
@@ -49,6 +50,20 @@ export const Telemetry = {
             propagator: W3C_PROPAGATOR,
             context,
             clock,
+        };
+    },
+
+    /** Write log records as lines to the runtime's own log, exporting nothing else. */
+    local(
+        clock: Clock,
+        write: ConstructorParameters<typeof LineExporter>[0],
+        context: ContextManager = new RootContextManager(),
+    ): Telemetry {
+        const exporter = new LineExporter(write);
+
+        return {
+            ...Telemetry.none(clock, context),
+            loggers: new logs.LoggerProvider({ processors: [exporter.processor] }),
         };
     },
 };
