@@ -20,9 +20,6 @@ interface Finding {
 /** The region of a Markdown file a line belongs to. */
 type Region = "prose" | "front matter" | "fence" | "comment";
 
-/** What a line of a package README section has. */
-type Block = "prose" | "listing" | "table";
-
 /** A Markdown source line and the region containing it. */
 interface SourceLine {
     /** The line text. */
@@ -41,7 +38,6 @@ export function checkMarkdown(filename: string, text: string): Diagnostic[] {
         ...checkSentences(lines),
         ...checkHeadings(lines, /^---\n(?:.*\n)*?title:/u.test(text)),
         ...checkFences(lines),
-        ...(/(?:^|\/)README\.md$/u.test(filename) ? checkReadme(lines) : []),
     ];
 
     // convert character positions to UTF-8 byte offsets
@@ -257,67 +253,4 @@ function checkFences(lines: readonly SourceLine[]): Finding[] {
     }
 
     return findings;
-}
-
-/** Report package README sections other than one prose line followed by listings, and tables. */
-function checkReadme(lines: readonly SourceLine[]): Finding[] {
-    // track what the current section has, starting with the opening line under the title
-    const findings: Finding[] = [];
-    let section: Block | undefined;
-    let previous: Block | undefined;
-    for (const [index, line] of lines.entries()) {
-        // start a section at each heading
-        if (line.region === "prose" && /^#{1,6}\s/u.test(line.text)) {
-            section = undefined;
-            previous = undefined;
-            continue;
-        }
-
-        // skip blank lines and comments
-        const block = readmeBlock(line, previous);
-        if (block === undefined) {
-            continue;
-        }
-
-        // report a table once at its first row
-        const position = { line: index, column: 0, offset: line.start };
-        if (block === "table" && previous !== "table") {
-            const message = "replace the table with a listing";
-            findings.push({ code: "readme-table", message, ...position });
-        }
-        // report a second prose line and prose after a listing
-        else if (block === "prose" && section !== undefined) {
-            const message =
-                section === "prose"
-                    ? "open the section with one prose line, then a listing"
-                    : "move the prose after the listing into its own section";
-            findings.push({ code: "readme-section", message, ...position });
-        }
-
-        // buffer the section's first block until a listing follows its prose
-        section = section === undefined || block !== "prose" ? block : section;
-        previous = block;
-    }
-
-    return findings;
-}
-
-/** Classify a package README line as prose, a listing or a table. */
-function readmeBlock(line: SourceLine, previous: Block | undefined): Block | undefined {
-    // read code blocks as listings and skip front matter, comments and blank lines
-    if (line.region === "fence") {
-        return "listing";
-    } else if (line.region !== "prose" || !line.text.trim()) {
-        return undefined;
-    }
-
-    // read list items and their indented continuations as listings
-    if (
-        /^\s*(?:[-*+]|\d+\.)\s/u.test(line.text) ||
-        (previous === "listing" && /^\s/u.test(line.text))
-    ) {
-        return "listing";
-    }
-
-    return /^\s*\|/u.test(line.text) ? "table" : "prose";
 }
