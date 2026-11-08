@@ -365,6 +365,8 @@ jobs:
                   aws-region: ${{ env.AWS_REGION }}
             - name: Deploy production
               run: bun run src/main.ts platform deploy production
+            - name: Publish the platform's releases
+              run: bun run src/main.ts platform publish production
 
     renew:
         name: Renew release metadata

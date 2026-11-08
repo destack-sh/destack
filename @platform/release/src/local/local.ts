@@ -30,15 +30,16 @@ import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import type { Environment, HostCapability } from "@destack/environment";
 import { LocalProcess } from "./process.ts";
 import { Publication } from "./publication.ts";
+import { Issuer } from "@destack/account/native";
+import { Bookmark } from "@destack/object/client";
+import { PrintedMail } from "./mail.ts";
+import { Operator } from "./operator.ts";
 
 /** The state a reset removes below the local directory, keeping the store and distribution. */
 const STATE = ["universe", "machines", "publication.json"] as const;
 
 /** The local stage. */
 const STAGE = Stage.of("local");
-
-/** The operator of the local universe, invited as the platform organization's owner. */
-const OPERATOR = "operator@destack.test";
 
 /** The root keys of the local universe, which only this computer uses. */
 const UNIVERSE_ROOT_KEY =
@@ -144,9 +145,10 @@ export class LocalUniverse implements AsyncDisposable {
         options.print("build", `built ${build.readers.length} releases`);
 
         // start the universe as its declaration declares it over the fixed local keys, printing its mail
+        const mail = new PrintedMail();
         const custody = await LocalUniverse.#custody(options.environment);
         const declaration = await local.universe(
-            OPERATOR,
+            Operator.LOCAL,
             custody,
             build.stacks(STAGE.tag),
             await local.homes(build),
@@ -158,7 +160,10 @@ export class LocalUniverse implements AsyncDisposable {
                 origin: local.issuer,
                 database: url,
                 rootKey: UNIVERSE_ROOT_KEY,
-                mail: new PrintTransport((text) => options.print("mail", text)),
+                mail: new PrintTransport((text) => {
+                    mail.push(text);
+                    options.print("mail", text);
+                }),
                 directory: join(options.directory, "universe"),
                 report: (error) =>
                     options.print("universe", inspect(error, { getters: true, depth: 6 })),
@@ -204,16 +209,19 @@ export class LocalUniverse implements AsyncDisposable {
             });
         }
 
-        // publish the releases into the forge as the platform residency's cloud machine
-        const platform = present(
-            clouds.get(PLATFORM.residencyId),
-            "the platform residency's machine",
-        );
+        // sign the operator in, then publish the releases into the forge as the platform's owner
+        const platform = clouds.get(PLATFORM.residencyId);
+        if (platform === undefined) {
+            throw new Error(`no cloud machine serves residency ${PLATFORM.residencyId}`);
+        }
+        const send = (request: Request) => options.environment.network.fetch(request);
+        const issuer = new Issuer(local.issuerUrl, send, options.environment, new Bookmark());
+        const operator = await Operator.signIn(issuer, mail, options.environment);
         const print = (line: string) => options.print("publish", line);
         await publication.publish(
             build,
             STAGE.tag,
-            Publication.forges(platform.machine, print),
+            Publication.forges(platform.machine, operator, print),
             print,
         );
 

@@ -8,7 +8,7 @@ import type { UniverseDefinition } from "@destack/universe";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { MachineIdentity } from "@destack/account/client";
+import { TokenSource, MachineIdentity } from "@destack/account/client";
 import { Envelope } from "@destack/identity/aws";
 import { MemoryKeychain } from "@destack/identity";
 import { createClient } from "@destack/object/client";
@@ -22,6 +22,9 @@ import { Claim, SpaceMount } from "@destack/object";
 import registryPackage from "@destack/registry/package";
 import { Registry } from "@destack/registry/client";
 import { type ForgeOpen, Publication } from "../local/publication.ts";
+import { ActionsToken } from "../github/oidc.ts";
+import { Operator } from "../local/operator.ts";
+import { PrintedMail } from "../local/mail.ts";
 import { Bookmark } from "@destack/object/client";
 import { VERSION_HEADER } from "@destack/object";
 import type { Fetch } from "@destack/object";
@@ -57,9 +60,6 @@ import type { Environment, HostCapability } from "@destack/environment";
 /** The identifier a rehearsal binds where a deployment's state has a real one. */
 const REHEARSAL_IDENTIFIER = "0".repeat(32);
 
-/** The operator a rehearsal declares, where a release reads the real one from its environment. */
-const REHEARSAL_OPERATOR = "operator@destack.test";
-
 /** The offset of a script's inspector port from its own port, clear of the loopback ports. */
 const INSPECTOR_OFFSET = 5000;
 
@@ -69,17 +69,8 @@ const DEPLOYED_KEYS = new Set(["routes", "tail_consumers", "artifacts"]);
 /** The directory below a stage's target an end-to-end run plans its local versions in. */
 const E2E_DIRECTORY = "e2e";
 
-/** How long a sign-up check waits for the universe to print its code: a sign-in mail's send. */
-const MAIL_PRINT_MILLISECONDS = 30_000;
-
 /** How often a check asks a space's readiness probe, as a probe is polled. */
 const READY_POLL_MILLISECONDS = 1000;
-
-/** How often a sign-up check looks for the printed code. */
-const MAIL_POLL_MILLISECONDS = 100;
-
-/** The line of a printed sign-in mail with its code, as `AccountMail.code` writes it. */
-const CODE_LINE = /Your Destack sign-in code is (\w+)\./u;
 
 /** A residency's cloud machine a check acts as: its sends toward packages, bound to a space. */
 interface MachineActor {
@@ -305,7 +296,7 @@ export class Deployment {
         await using build = await this.#build();
         const custody = await Custody.local(this.#machineIds(), environment);
         const declaration = await this.universe(
-            REHEARSAL_OPERATOR,
+            Operator.LOCAL,
             custody,
             build.stacks(this.stage.tag),
             await this.homes(build),
@@ -376,7 +367,7 @@ export class Deployment {
         // declare the universe over keys in the clear with the stacks built from the checkout
         const custody = await Custody.local(this.#machineIds(), environment);
         const declaration = await this.universe(
-            REHEARSAL_OPERATOR,
+            Operator.LOCAL,
             custody,
             build.stacks(this.stage.tag),
             await this.homes(build),
@@ -393,7 +384,7 @@ export class Deployment {
 
         // serve each script on its own ports with placeholder secrets and its root key, and check it answers, keeping the universe's lines
         await using children = new AsyncDisposableStack();
-        const mailed: string[] = [];
+        const mail = new PrintedMail();
         for (const [script, configuration] of scripts) {
             // write the configuration without what only a deployment binds
             const local = Object.fromEntries(
@@ -437,7 +428,7 @@ export class Deployment {
                         print: (name, line) => {
                             print(name, line);
                             if (script.target.kind === "universe") {
-                                mailed.push(line);
+                                mail.push(line);
                             }
                             if (line.includes(READY_LINE)) {
                                 ready.resolve();
@@ -466,11 +457,14 @@ export class Deployment {
             print("e2e", `the home of ${residency.code} serves its forge`);
         }
 
-        // publish the platform's releases under the stage's tag, as a release does
+        // sign the operator in, and publish the platform's releases under the stage's tag as its owner
+        const send = (request: Request) => this.environment.network.fetch(request);
+        const issuer = new Issuer(this.issuerUrl, send, this.environment, new Bookmark());
+        const operator = await Operator.signIn(issuer, mail, this.environment);
         await Publication.release(
             build,
             this.stage.tag,
-            this.#forges(custody, build),
+            this.#forges(custody, build, operator),
             async () => {},
         );
         print("e2e", `the releases are published under ${this.stage.tag}`);
@@ -478,7 +472,7 @@ export class Deployment {
         // sign a person up in the first residency, as the CLI does, and require their home to serve
         const [first] = RESIDENCIES;
         const residency = present(first, "a residency");
-        await this.#smokeSignUp(residency, custody, mailed);
+        await this.#smokeSignUp(residency, custody, mail);
         print("e2e", `a person signed up in ${residency.code} and their home serves`);
     }
 
@@ -519,16 +513,16 @@ export class Deployment {
     async #smokeSignUp(
         residency: PlatformResidency,
         custody: Custody,
-        mailed: readonly string[],
+        mail: PrintedMail,
     ): Promise<void> {
         // mail a code to a fresh address, and read it from the universe's printed mail
         const { environment } = this;
         const send = (request: Request) => environment.network.fetch(request);
-        const issuer = new Issuer(this.#issuerUrl, send, environment, new Bookmark());
+        const issuer = new Issuer(this.issuerUrl, send, environment, new Bookmark());
         const email = `e2e-${environment.random.bytes(4).toHex()}@example.com`;
-        const printed = mailed.length;
+        const printed = mail.lines.length;
         await issuer.sendCode(email);
-        const code = await this.#mailedCode(mailed, printed);
+        const code = await mail.code(printed, environment.clock);
 
         // redeem it on a new client, signing the person up in the residency
         const { userId } = await issuer.redeemCode(
@@ -548,33 +542,8 @@ export class Deployment {
         await this.#waitReady(residency, Account.home(Account.personal(userId)));
     }
 
-    /** Read the sign-in code the universe printed after a line, waiting until it prints one. */
-    async #mailedCode(mailed: readonly string[], after: number): Promise<string> {
-        // read each line printed since, until the code's line or the deadline
-        const { clock } = this.environment;
-        const deadline = clock.now() + MAIL_PRINT_MILLISECONDS;
-        let read = after;
-        for (;;) {
-            // take the code of a printed line
-            const code = mailed
-                .slice(read)
-                .map((line) => CODE_LINE.exec(line)?.[1])
-                .find((found) => found !== undefined);
-            read = mailed.length;
-            if (code !== undefined) {
-                return code;
-            }
-            // refuse once the deadline passed, else look again
-            else if (clock.now() >= deadline) {
-                throw new Error("the universe printed no sign-in code");
-            } else {
-                await clock.sleep(MAIL_POLL_MILLISECONDS);
-            }
-        }
-    }
-
-    /** Open the forges of the stage's residency homes, as the cloud machine serving each. */
-    #forges(custody: Custody, build: PlatformBuild): ForgeOpen {
+    /** Open the residency homes' forges, located as their machines, called as the operator. */
+    #forges(custody: Custody, build: PlatformBuild, operator: Operator): ForgeOpen {
         return async (handle) => {
             // find the handle's account and its residency's home at the universe, as a machine signed in
             const { environment } = this;
@@ -615,8 +584,8 @@ export class Deployment {
                 version,
             );
 
-            // call the forge below its installation in the home, as the machine bound to the home
-            const fetch = machine.fetch(registryPackage.id, home);
+            // call the forge below its installation in the home, as the operator bound to the home
+            const fetch = operator.fetch(registryPackage.id, { partition: home });
             const origin = InstallationMount.url(
                 this.machineOrigin(residency),
                 home,
@@ -645,7 +614,7 @@ export class Deployment {
             keychain,
             environment,
         );
-        const issuer = { url: this.#issuerUrl };
+        const issuer = this.issuerUrl;
         const send = (request: Request) => environment.network.fetch(request);
 
         // send as the machine toward a package, bound to a space when given
@@ -731,7 +700,7 @@ export class Deployment {
     }
 
     /** The URL of the universe's issuer, the account package's OAuth adapter. */
-    get #issuerUrl(): string {
+    get issuerUrl(): string {
         return `${PackageMount.url(this.issuer, accountPackage.id)}${OAUTH_PATH}`;
     }
 
@@ -799,6 +768,63 @@ export class Deployment {
                 await script.smoke();
             }
         }
+    }
+
+    /** Publish the stage's releases into the platform accounts' forge as the release workflow. */
+    async publish(print: (name: string, line: string) => void): Promise<void> {
+        // sign in as the workflow's trusted publisher, by the job's OIDC token for the token endpoint
+        const { environment } = this;
+        const tokens = new TokenSource(
+            (endpoint) => ActionsToken.request(endpoint, environment),
+            environment,
+        );
+        const issuer = this.issuerUrl;
+        const send = (request: Request) => environment.network.fetch(request);
+        const accounts = createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(this.issuer, accountPackage.id),
+                fetch: tokens.fetch(send, accountPackage.id, issuer),
+            },
+            environment,
+        );
+
+        // find each handle's account, and the platform account's home, which serves its forge
+        const owner = async (handle: string) => {
+            const claimed = await accounts.claim.owner(Claim.key(account, "handle", [handle]));
+            if (claimed === null) {
+                throw new Error(`no account claims @${handle}`);
+            }
+
+            return account.identifier(claimed.objectId);
+        };
+        const home = Account.home(await owner(PLATFORM.handle));
+
+        // call the forge on the platform residency's cloud machine, as the trusted publisher bound to the home
+        const residency = RESIDENCIES.find((each) => each.code === PLATFORM.residencyId);
+        if (residency === undefined) {
+            throw new Error(`no residency ${PLATFORM.residencyId} serves the platform`);
+        }
+        const origin = InstallationMount.url(
+            this.machineOrigin(residency),
+            home,
+            FORGE_INSTALLATION,
+        );
+        const url = `${origin}${PackageMount.path(registryPackage.id)}`;
+        const fetch = tokens.fetch(send, registryPackage.id, issuer, { partition: home });
+        const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
+
+        // release each build under the stage's tag, in the account of its handle
+        await using build = await this.#build();
+        await Publication.release(
+            build,
+            this.stage.tag,
+            async (handle) => ({ accountId: await owner(handle), registry }),
+            async (reader) => {
+                const { name, version } = PackageManifest.package(reader.manifest);
+                print("publish", `${name}@${version}`);
+            },
+        );
     }
 
     /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */

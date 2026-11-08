@@ -65,6 +65,21 @@ export async function deployPlatform(
     }
 }
 
+/** Publish a deployed stage's releases into the platform accounts' forge, as its workflow. */
+export async function publishPlatform(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    // refuse arguments beyond the stage
+    const [name, ...rest] = arguments_;
+    if (rest.length > 0) {
+        throw new Error(`platform publish takes a stage, then nothing more: ${rest.join(" ")}`);
+    }
+    await Deployment.deployed(name, environment).publish((title, line) =>
+        printStatus(title, line, environment),
+    );
+}
+
 /** Seal the keys a deployed stage's custody record lacks, as the operator does once per key. */
 export async function sealCustody(
     environment: Environment<HostCapability>,

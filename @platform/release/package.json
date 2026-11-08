@@ -14,10 +14,11 @@
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0"
     },
     "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
@@ -29,13 +30,14 @@
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/identity": "workspace:*",
-        "@destack/mail": "workspace:*",
         "@destack/machine": "workspace:*",
+        "@destack/mail": "workspace:*",
         "@destack/message": "workspace:*",
         "@destack/notification": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/registry": "workspace:*",
         "@destack/relay": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/schema": "workspace:*",
@@ -56,7 +58,6 @@
         "reflect-metadata": "0.2.2",
         "rolldown": "1.2.16",
         "tuf-js": "6.0.0",
-        "wrangler": "4.134.0",
-        "@destack/registry": "workspace:*"
+        "wrangler": "4.134.0"
     }
 }

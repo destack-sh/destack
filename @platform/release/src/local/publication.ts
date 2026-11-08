@@ -6,6 +6,7 @@ import { Registry } from "@destack/registry/client";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import registryPackage from "@destack/registry/package";
 import type { Machine } from "@destack/machine";
+import type { Operator } from "./operator.ts";
 import { PackageName } from "@destack/package";
 import { Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { InstallationMount, PackageMount } from "@destack/object";
@@ -162,7 +163,7 @@ export class Publication {
     }
 
     /** Open the forges a machine reaches, as a machine in each residency home it publishes in. */
-    static forges(machine: Machine, print: (line: string) => void): ForgeOpen {
+    static forges(machine: Machine, operator: Operator, print: (line: string) => void): ForgeOpen {
         return async (handle) => {
             // resolve the handle in the machine's synced replica of the directory, and its home at the universe
             await machine.synced(machine.environment.clock.timeout(DIRECTORY_SYNC_MILLISECONDS));
@@ -192,8 +193,8 @@ export class Publication {
                 waiting.abort();
             }
 
-            // call the forge below its installation in the home, with tokens bound to the home
-            const fetch = machine.fetch(registryPackage.id, { partition: home });
+            // call the forge below its installation in the home, as the operator bound to the home
+            const fetch = operator.fetch(registryPackage.id, { partition: home });
             const where = await directory.locate(home, environment.clock.now());
             const origin = InstallationMount.url(where.url, home, FORGE_INSTALLATION);
             const url = `${origin}${PackageMount.path(registryPackage.id)}`;

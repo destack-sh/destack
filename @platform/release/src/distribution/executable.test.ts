@@ -14,6 +14,7 @@ import { buildToolchain } from "./toolchain.ts";
 import { schema } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
 import { LocalUniverse } from "../local/index.ts";
+import { PrintedMail } from "../local/mail.ts";
 
 /** Source root used only while producing the executables. */
 const ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
@@ -32,9 +33,6 @@ const DATABASE = "destack_executable";
 
 /** The person signing up on the compiled machine. */
 const PERSON = { email: "ada@destack.test", handle: "ada", residency: "eu", name: "Ada" };
-
-/** The sign-in code in a printed mail. */
-const MAILED_CODE = /code is (?<code>\S+)\./u;
 
 /** How long building the releases cold, compiling and the scenario may take, in milliseconds. */
 const TIMEOUT_MILLISECONDS = 600_000;
@@ -260,21 +258,15 @@ const Registered = schema
 class Mailbox {
     /** The lines printed so far, each under its process's name. */
     readonly lines: string[] = [];
-    /** The first mailed sign-in code. */
-    readonly #code = Promise.withResolvers<string>();
+    /** The universe's printed mail, which sign-ins read their codes from. */
+    readonly mail = new PrintedMail();
 
-    /** Keep a printed line, taking the sign-in code from a mail. */
+    /** Keep a printed line, and a mail's line apart. */
     receive(name: string, line: string): void {
         this.lines.push(`${name}: ${line}`);
-        const code = name === "mail" ? MAILED_CODE.exec(line)?.groups?.["code"] : undefined;
-        if (code !== undefined) {
-            this.#code.resolve(code);
+        if (name === "mail") {
+            this.mail.push(line);
         }
-    }
-
-    /** Wait for the first mailed sign-in code. */
-    code(): Promise<string> {
-        return this.#code.promise;
     }
 }
 
@@ -285,8 +277,9 @@ async function signUp(
     variables: Record<string, string>,
     mailbox: Mailbox,
 ): Promise<string> {
-    // ask for a mailed code as a new person in a residency
+    // ask for a mailed code as a new person in a residency, reading the mail printed after asking
     const { email, handle, residency, name } = PERSON;
+    const asked = mailbox.mail.lines.length;
     const child = HOST.process.spawn(
         [
             cli,
@@ -309,7 +302,7 @@ async function signUp(
     ]);
 
     // type the code back once the universe mails it, until the CLI exits
-    void mailbox.code().then(async (code) => {
+    void mailbox.mail.code(asked, HOST.clock).then(async (code) => {
         const writer = child.stdin.getWriter();
         await writer.write(new TextEncoder().encode(`${code}\n`));
         await writer.close();
