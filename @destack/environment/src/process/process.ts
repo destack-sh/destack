@@ -114,8 +114,8 @@ export interface Subprocess {
     readonly stderr: ReadableStream<Uint8Array>;
     /** Settles with the exit code once it exited. */
     readonly exited: Promise<number>;
-    /** The name of the signal that ended it, absent while it runs or after it exited itself. */
-    readonly signal: string | undefined;
+    /** The signal that ended it, by name or by number if it has none, absent otherwise. */
+    readonly signal: string | number | undefined;
     /** Send it a signal, SIGTERM by default. */
     readonly kill: (signal?: Signal) => void;
     /** Read its whole output once it exited, as Deno's `ChildProcess.output` does. */
@@ -126,8 +126,8 @@ export interface Subprocess {
 export interface SubprocessOutput {
     /** The exit code. */
     readonly code: number;
-    /** The name of the signal that ended it, absent once it exited itself. */
-    readonly signal: string | undefined;
+    /** The signal that ended it, by name or by number if it has none, absent otherwise. */
+    readonly signal: string | number | undefined;
     /** The bytes of its standard output, empty unless piped. */
     readonly stdout: Uint8Array;
     /** The bytes of its standard error, empty unless piped. */
