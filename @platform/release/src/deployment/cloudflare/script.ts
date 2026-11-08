@@ -17,7 +17,7 @@ import {
     ROOT,
     type ResidencyOutputs,
     type AccessKey,
-    type SharedOutputs,
+    type GlobalOutputs,
     type UniverseOutputs,
     WRANGLER_VARIABLES,
 } from "../root.ts";
@@ -124,7 +124,7 @@ export class WorkerScript {
     secrets(
         custody: Custody,
         kms: AccessKey | undefined,
-        shared: SharedOutputs,
+        global: GlobalOutputs,
     ): Readonly<Record<string, string>> {
         // keep no secrets in a tail
         const target = this.target;
@@ -161,12 +161,12 @@ export class WorkerScript {
             };
         }
 
-        // send mail with the shared root's key
+        // send mail with the global root's key
         return {
             ...sealed,
             ...decrypting,
-            AWS_ACCESS_KEY_ID: shared.mail.accessKeyId,
-            AWS_SECRET_ACCESS_KEY: shared.mail.secretAccessKey,
+            AWS_ACCESS_KEY_ID: global.mail.accessKeyId,
+            AWS_SECRET_ACCESS_KEY: global.mail.secretAccessKey,
         };
     }
 
@@ -252,7 +252,6 @@ export class WorkerScript {
                 DESTACK_SPACE_DOMAIN: DOMAINS.space,
                 DESTACK_HOST: outputs.host,
                 DESTACK_FILES: outputs.files,
-                DESTACK_S3: `https://${outputs.s3}`,
                 DESTACK_REGISTRY: FORGE_INSTALLATION,
                 DESTACK_RATES: JSON.stringify({
                     skus: Object.fromEntries(
@@ -275,9 +274,9 @@ export class WorkerScript {
 
     /** Route a machine's own names and relay host, and the edge's names at the platform's. */
     #routes(outputs: ResidencyOutputs, residency: PlatformResidency) {
-        // route the machine's host, its buckets' S3 names and its relay's host
+        // route the machine's host and its relay's host
         const relay = new URL(this.deployment.relayOrigin(residency)).host;
-        const own = [outputs.host, outputs.s3, `*.${outputs.s3}`, relay].map((name) => ({
+        const own = [outputs.host, relay].map((name) => ({
             pattern: `${name}/*`,
             zone_name: DOMAINS.machine,
         }));

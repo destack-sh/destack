@@ -6,7 +6,7 @@ import { Root, ROOT, TOFU_VARIABLES, WRANGLER_VARIABLES } from "./index.ts";
 test("select each tier's root and keep each deployment's remote state key", () => {
     // read the root, state key and data directory of every deployment kind
     const environment = testSimulation().environment("operator");
-    const selected = [["shared"], ["production", "universe"], ["production", "eu"]].map(
+    const selected = [["global"], ["production", "universe"], ["production", "eu"]].map(
         (selection) => {
             const { name, directory, state, cache } = new Root(selection, environment);
 
@@ -14,18 +14,18 @@ test("select each tier's root and keep each deployment's remote state key", () =
         },
     );
 
-    // keep the universe state at the key its resources were first applied under
+    // select each root's directory, state key and cache
     expect(selected).toEqual([
         {
-            name: "shared",
-            directory: resolve(ROOT, "src/deployment/roots/shared"),
-            state: "platform.tfstate",
-            cache: resolve(ROOT, ".terraform/shared"),
+            name: "global",
+            directory: resolve(ROOT, "src/deployment/roots/global"),
+            state: "global.tfstate",
+            cache: resolve(ROOT, ".terraform/global"),
         },
         {
             name: "production/universe",
             directory: resolve(ROOT, "src/deployment/roots/universe"),
-            state: "production/global.tfstate",
+            state: "production/universe.tfstate",
             cache: resolve(ROOT, ".terraform/production/universe"),
         },
         {
@@ -40,7 +40,7 @@ test("select each tier's root and keep each deployment's remote state key", () =
 test("refuse a scope outside the universe and the residencies", () => {
     const environment = testSimulation().environment("operator");
     expect(() => new Root(["production", "global"], environment)).toThrow(
-        new Error("select shared, or production followed by universe|eu|us"),
+        new Error("select global, or production followed by universe|eu|us"),
     );
 });
 

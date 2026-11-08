@@ -10,10 +10,6 @@ output "host" {
   description = "The cloud machine's name, which its Worker's routes answer."
   value       = local.host
 }
-output "s3" {
-  description = "The name below which the cloud machine answers its buckets over S3."
-  value       = local.s3
-}
 output "account" {
   description = "The Cloudflare account running the machine Worker."
   value       = var.account_id

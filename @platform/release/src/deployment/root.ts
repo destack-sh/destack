@@ -8,9 +8,6 @@ import { RESIDENCIES } from "@platform/stack";
 /** The release package's directory. */
 export const ROOT = resolve(import.meta.dirname, "../..");
 
-/** The remote state name of the universe tier. */
-const UNIVERSE_STATE = "global";
-
 /** The variables of this process every tool runs with: its user, paths, language and CI. */
 const HOST_VARIABLES: ReadonlySet<string> = new Set([
     "HOME",
@@ -30,39 +27,38 @@ export const WRANGLER_VARIABLES = ["WRANGLER_", "CLOUDFLARE_ACCOUNT_ID"] as cons
 
 /** The KMS outputs of a universe or residency root, as `tofu output -json` prints them. */
 const KmsOutputs = schema.object({
-    kms_region: schema.object({ value: schema.string().min(1) }),
-    kms_key_arn: schema.object({ value: schema.string().min(1) }),
-    kms_access_key_id: schema.object({ value: schema.string().min(1) }),
-    kms_secret_access_key: schema.object({ value: schema.string().min(1) }),
+    kms_region: output(schema.string().min(1)),
+    kms_key_arn: output(schema.string().min(1)),
+    kms_access_key_id: output(schema.string().min(1)),
+    kms_secret_access_key: output(schema.string().min(1)),
 });
 
 /** The outputs of a universe root, as `tofu output -json` prints them. */
 const UniverseOutputs = KmsOutputs.extend({
-    account: schema.object({ value: schema.string().min(1) }),
-    hyperdrive: schema.object({ value: schema.string().min(1) }),
-    history: schema.object({ value: schema.string().min(1) }),
-    role: schema.object({
-        value: schema.object({
+    account: output(schema.string().min(1)),
+    hyperdrive: output(schema.string().min(1)),
+    history: output(schema.string().min(1)),
+    role: output(
+        schema.object({
             host: schema.string().min(1),
             user: schema.string().min(1),
             password: schema.string().min(1),
         }),
-    }),
+    ),
 });
 
 /** The outputs of a residency root, as `tofu output -json` prints them. */
 const ResidencyOutputs = KmsOutputs.extend({
-    account: schema.object({ value: schema.string().min(1) }),
-    files: schema.object({ value: schema.string().min(1) }),
-    packages: schema.object({ value: schema.string().min(1) }),
-    host: schema.object({ value: schema.string().min(1) }),
-    s3: schema.object({ value: schema.string().min(1) }),
+    account: output(schema.string().min(1)),
+    files: output(schema.string().min(1)),
+    packages: output(schema.string().min(1)),
+    host: output(schema.string().min(1)),
 });
 
-/** The outputs of the shared root, as `tofu output -json` prints them. */
-const SharedOutputs = schema.object({
-    mail_access_key_id: schema.object({ value: schema.string().min(1) }),
-    mail_secret_access_key: schema.object({ value: schema.string().min(1) }),
+/** The outputs of the global root, as `tofu output -json` prints them. */
+const GlobalOutputs = schema.object({
+    mail_access_key_id: output(schema.string().min(1)),
+    mail_secret_access_key: output(schema.string().min(1)),
 });
 
 /** An access key and its secret, as AWS and R2's S3 API sign with them. */
@@ -73,8 +69,8 @@ export interface AccessKey {
     readonly secretAccessKey: string;
 }
 
-/** What the applied shared root provisions for the Workers. */
-export interface SharedOutputs {
+/** What the applied global root provisions for the Workers. */
+export interface GlobalOutputs {
     /** The key the universe and the cloud machines send mail through SES with. */
     readonly mail: AccessKey;
 }
@@ -111,8 +107,6 @@ export interface ResidencyOutputs {
     readonly packages: string;
     /** The cloud machine's host, which its Worker's routes answer. */
     readonly host: string;
-    /** The name below which the cloud machine answers its buckets over S3. */
-    readonly s3: string;
     /** The KMS key sealing the cloud machine's keys, with the Worker's key decrypting them. */
     readonly kms: KmsOutputs;
 }
@@ -135,14 +129,14 @@ export class Root {
     /** The host the tools run on. */
     readonly environment: Environment<HostCapability>;
 
-    /** Select shared infrastructure or one stage and scope. */
+    /** Select the global infrastructure or one stage and scope. */
     constructor(selection: readonly string[], environment: Environment<HostCapability>) {
-        // select the shared root, or one stage and scope
+        // select the global root, or one stage and scope
         const [stage, scope] = selection;
-        if (selection.length === 1 && stage === "shared") {
-            this.name = "shared";
-            this.directory = resolve(ROOT, "src/deployment/roots/shared");
-            this.state = "platform.tfstate";
+        if (selection.length === 1 && stage === "global") {
+            this.name = "global";
+            this.directory = resolve(ROOT, "src/deployment/roots/global");
+            this.state = "global.tfstate";
         } else if (
             selection.length === 2 &&
             stage === "production" &&
@@ -154,10 +148,10 @@ export class Root {
                 "src/deployment/roots",
                 scope === "universe" ? "universe" : "residency",
             );
-            this.state = `${stage}/${scope === "universe" ? UNIVERSE_STATE : scope}.tfstate`;
+            this.state = `${stage}/${scope}.tfstate`;
         } else {
             const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
-            throw new Error(`select shared, or production followed by ${scopes.join("|")}`);
+            throw new Error(`select global, or production followed by ${scopes.join("|")}`);
         }
 
         // derive paths after validating the deployment selection
@@ -166,11 +160,11 @@ export class Root {
         this.environment = environment;
     }
 
-    /** List a stage's roots in dependency order: shared, the universe, then each residency. */
+    /** List a stage's roots in dependency order: global, the universe, then each residency. */
     static all(stage: string, environment: Environment<HostCapability>): Root[] {
         const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
 
-        return [["shared"], ...scopes.map((scope) => [stage, scope])].map(
+        return [["global"], ...scopes.map((scope) => [stage, scope])].map(
             (selection) => new Root(selection, environment),
         );
     }
@@ -291,14 +285,13 @@ export class Root {
             files: parsed.files.value,
             packages: parsed.packages.value,
             host: parsed.host.value,
-            s3: parsed.s3.value,
             kms: kmsOf(parsed),
         };
     }
 
-    /** Read the applied shared root's outputs. */
-    async shared(variables: Readonly<Record<string, string>>): Promise<SharedOutputs> {
-        const parsed = SharedOutputs.parse(await this.#outputs(variables));
+    /** Read the applied global root's outputs. */
+    async global(variables: Readonly<Record<string, string>>): Promise<GlobalOutputs> {
+        const parsed = GlobalOutputs.parse(await this.#outputs(variables));
 
         return {
             mail: {
@@ -400,15 +393,15 @@ export class Root {
             ["tofu", `-chdir=${this.directory}`, "output", "-json"],
             { workingDirectory: ROOT, variables, stdout: "pipe", stderr: "pipe" },
         );
-        const output = await command.output();
+        const ran = await command.output();
         const decoder = new TextDecoder();
 
         // refuse a failed run
-        if (output.code !== 0) {
-            throw new Error(`tofu output of ${this.name} failed: ${decoder.decode(output.stderr)}`);
+        if (ran.code !== 0) {
+            throw new Error(`tofu output of ${this.name} failed: ${decoder.decode(ran.stderr)}`);
         }
 
-        return JSON.parse(decoder.decode(output.stdout));
+        return JSON.parse(decoder.decode(ran.stdout));
     }
 }
 
@@ -425,4 +418,9 @@ function kmsOf(parsed: schema.Infer<typeof KmsOutputs>): KmsOutputs {
             secretAccessKey: parsed.kms_secret_access_key.value,
         },
     };
+}
+
+/** Describe one output as `tofu output -json` prints it: its sensitivity, type and value. */
+function output<Value extends schema.Schema>(value: Value) {
+    return schema.object({ sensitive: schema.boolean(), type: schema.unknown(), value });
 }

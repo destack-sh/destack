@@ -1,7 +1,3 @@
-output "database" {
-  description = "Provisioned database and branch identifiers."
-  value       = module.database.database
-}
 output "hyperdrive" {
   description = "The Hyperdrive configuration the universe Worker connects through."
   value       = cloudflare_hyperdrive_config.universe.id

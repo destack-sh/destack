@@ -39,7 +39,7 @@ import {
     Root,
     ROOT,
     type ResidencyOutputs,
-    type SharedOutputs,
+    type GlobalOutputs,
     type UniverseOutputs,
     WRANGLER_VARIABLES,
 } from "./root.ts";
@@ -52,7 +52,6 @@ import { DISTRIBUTION_MODULE, PackageId } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
-import { S3_HOST } from "@destack/machine/computer";
 import type { Environment, HostCapability } from "@destack/environment";
 
 /** The identifier a rehearsal binds where a deployment's state has a real one. */
@@ -103,10 +102,10 @@ export const REPOSITORY = resolve(ROOT, "../..");
 /** The access key a rehearsal and a local run bind in place of a provisioned one. */
 const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
 
-/** The shared root's outputs a rehearsal and a local run bind. */
-const PLACEHOLDER_SHARED: SharedOutputs = { mail: PLACEHOLDER_KEY };
+/** The global root's outputs a rehearsal and a local run bind. */
+const PLACEHOLDER_GLOBAL: GlobalOutputs = { mail: PLACEHOLDER_KEY };
 
-/** The AWS region SES sends Destack's mail from, where the shared root verifies destack.app. */
+/** The AWS region SES sends Destack's mail from, where the global root verifies destack.app. */
 const MAIL_REGION = "eu-central-1";
 
 /** The mailbox Destack's mail comes from, on the domain SES verifies. */
@@ -324,7 +323,7 @@ export class Deployment {
         // build each upload as wrangler deploys it, with the secrets it reads
         for (const [script, configuration] of scripts) {
             const path = await script.write(configuration, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_SHARED);
+            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL);
             print("rehearse", `${script.name} reads ${Object.keys(secrets).join(", ")}`);
             await Root.execute(
                 resolve(ROOT, "node_modules/.bin/wrangler"),
@@ -401,7 +400,7 @@ export class Deployment {
                 Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
             );
             const path = await script.write(local, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_SHARED);
+            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL);
             const variables = Object.entries(secrets).map(([name, value]) => `${name}=${value}\n`);
             await environment.files.writeTextFile(
                 resolve(path, "..", ".dev.vars"),
@@ -739,7 +738,7 @@ export class Deployment {
         return `${PackageMount.url(this.issuer, accountPackage.id)}${OAUTH_PATH}`;
     }
 
-    /** Apply the shared root, the universe's and the residencies', then release the Workers. */
+    /** Apply the global root, the universe's and the residencies', then release the Workers. */
     async deploy(print: (name: string, line: string) => void): Promise<void> {
         const { environment } = this;
 
@@ -757,7 +756,7 @@ export class Deployment {
         // read the operator, the roots' outputs and the custody record the operator sealed
         const { environment } = this;
         const operator = Root.required("DESTACK_OPERATOR", environment);
-        const { shared, outputs, outputsOf } = await this.#outputs();
+        const { global, outputs, outputsOf } = await this.#outputs();
         const custody = await Custody.read(
             Custody.file(this.stage.name),
             Deployment.#envelopes(outputs, outputsOf),
@@ -794,7 +793,7 @@ export class Deployment {
                     : script.target.kind === "machine"
                       ? outputsOf(script.target.residency).kms.access
                       : undefined;
-            await script.deploy(configuration, script.secrets(custody, kms, shared), modules);
+            await script.deploy(configuration, script.secrets(custody, kms, global), modules);
         }
 
         // check every deployed origin answers, a tail answering none
@@ -838,16 +837,16 @@ export class Deployment {
         print("custody", `sealed ${file}: commit it before the next deploy`);
     }
 
-    /** Read the applied shared, universe and residency roots' outputs. */
+    /** Read the applied global, universe and residency roots' outputs. */
     async #outputs(): Promise<{
-        readonly shared: SharedOutputs;
+        readonly global: GlobalOutputs;
         readonly outputs: UniverseOutputs;
         readonly outputsOf: (residency: PlatformResidency) => ResidencyOutputs;
     }> {
-        // read the shared and the universe root's outputs
+        // read the global and the universe root's outputs
         const { environment } = this;
-        const sharedRoot = new Root(["shared"], environment);
-        const shared = await sharedRoot.shared(await sharedRoot.initialize());
+        const globalRoot = new Root(["global"], environment);
+        const global = await globalRoot.global(await globalRoot.initialize());
         const universe = new Root([this.stage.name, "universe"], environment);
         const outputs = await universe.universe(await universe.initialize());
 
@@ -861,7 +860,7 @@ export class Deployment {
         const outputsOf = (residency: PlatformResidency) =>
             present(residencies.get(residency.code), `the outputs of ${residency.code}`);
 
-        return { shared, outputs, outputsOf };
+        return { global, outputs, outputsOf };
     }
 
     /** List the KMS envelopes the custody record seals under: the universe's and each machine's. */
@@ -941,11 +940,6 @@ export class Deployment {
             files: `destack-${this.stage.name}-files-${residency.code}`,
             packages: `destack-${this.stage.name}-packages-${residency.code}`,
             host,
-            // answer S3 below the machine's own name, locally below the loopback S3 name on its port
-            s3:
-                this.stage.name === "local"
-                    ? `${S3_HOST}:${new URL(this.machineOrigin(residency)).port}`
-                    : `s3--${host}`,
             kms: PLACEHOLDER_KMS,
         };
     }
