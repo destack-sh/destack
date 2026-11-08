@@ -1,9 +1,10 @@
-import { nth, present } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import {
     DOMAINS,
     MachineAddress,
     InstallationOrigin,
+    S3Origin,
     SpaceAddress,
     SpaceOrigin,
 } from "../src/address/index.ts";
@@ -76,6 +77,37 @@ test("write an installation origin's URL below the loopback domain on a loopback
         InstallationOrigin.url(origin, "http://127.0.0.1:4102"),
         InstallationOrigin.url(origin, "https://eu-central--platform.destack.computer"),
     ]).toEqual(["http://home--home--ada.localhost:4102", "https://home--home--ada.destack.space"]);
+});
+
+test("read and write a space's S3 origin in one label, forwarded or not, and nothing for origins or deeper names", () => {
+    const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
+    const host = S3Origin.format(space, DOMAINS.space);
+    const forwarded = new Request("https://eu-central--platform.destack.computer/bucket-1", {
+        headers: { forwarded: `host=${host};proto=https` },
+    });
+
+    // read the host back, through a front door's Forwarded header too, and refuse other shapes
+    expect([
+        host,
+        S3Origin.parse(host, DOMAINS.space),
+        S3Origin.of(forwarded, DOMAINS.space),
+        S3Origin.of(new Request(`http://${S3Origin.format(space, "localhost")}:4102/`), "localhost"),
+        S3Origin.parse("notes--work--ada.destack.space", DOMAINS.space),
+        S3Origin.parse(`bucket.${host}`, DOMAINS.space),
+        S3Origin.parse("s3--work--ada.destack.space", DOMAINS.space),
+        InstallationOrigin.parse(host, DOMAINS.space),
+        SpaceOrigin.parse(host, DOMAINS.space),
+    ]).toEqual([
+        `s3--${space}.destack.space`,
+        space,
+        space,
+        space,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+    ]);
 });
 
 test("read and write the origins of spaces and branches under a domain, and nothing for installation origins or other hostnames", () => {

@@ -1,5 +1,5 @@
 import { Forwarded, HostAddress } from "@destack/environment";
-import { present, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
 import { InstallationName } from "@destack/object";
@@ -35,8 +35,14 @@ const NAME_SEPARATOR = "--";
 /** The separator between a branch and its space in a label. */
 const BRANCH_SEPARATOR = "---";
 
+/** The first name of a space's S3 label, before its identifier. */
+const S3_NAME = "s3";
+
 /** The pattern of a name separator: a hyphen pair with no third hyphen beside it. */
 const NAME_SEPARATOR_PATTERN = /(?<!-)--(?!-)/u;
+
+/** The identifier schema of spaces. */
+const SPACE_IDENTIFIER = schema.identifier("space");
 
 /** The parent domains of view origins and machine addresses. */
 export interface Domains {
@@ -220,11 +226,7 @@ export const InstallationOrigin = {
 
     /** Read the installation origin of a request under a domain. */
     of(request: Request, domain: string): InstallationOrigin | undefined {
-        // read the forwarded host, else the request's host
-        const forwarded = Forwarded.first(request).host;
-        const host = new URL(`http://${forwarded ?? new URL(request.url).host}`).hostname;
-
-        return InstallationOrigin.parse(host, domain);
+        return InstallationOrigin.parse(askedHostname(request), domain);
     },
 };
 
@@ -258,6 +260,34 @@ export const SpaceOrigin = {
         return domain === undefined ? label : `${label}.${domain}`;
     },
 };
+
+/** Read and write the origins of spaces' buckets over S3: `s3--<space>` below a domain. */
+export const S3Origin = {
+    /** Read the space of an S3 origin's host name under a domain, absent for any other name. */
+    parse(hostname: string, domain: string): Identifier<"space"> | undefined {
+        // take the identifier after the S3 name in the label below the domain
+        const [name, space, ...rest] =
+            labelBelow(hostname, domain)?.split(NAME_SEPARATOR_PATTERN) ?? [];
+        const parsed = SPACE_IDENTIFIER.safeParse(space);
+
+        return name === S3_NAME && rest.length === 0 && parsed.success ? parsed.data : undefined;
+    },
+
+    /** Write the host name of a space's S3 origin under a domain. */
+    format(space: Identifier<"space">, domain: string): string {
+        return `${S3_NAME}${NAME_SEPARATOR}${space}.${domain}`;
+    },
+
+    /** Read the space of a request's S3 origin under a domain, the forwarded host first. */
+    of(request: Request, domain: string): Identifier<"space"> | undefined {
+        return S3Origin.parse(askedHostname(request), domain);
+    },
+};
+
+/** Read the host name a request's client asked for, without its port. */
+function askedHostname(request: Request): string {
+    return new URL(`http://${Forwarded.host(request)}`).hostname;
+}
 
 /** Write a branch's label. */
 function branchedLabel(before: string, origin: SpaceOrigin): string {
