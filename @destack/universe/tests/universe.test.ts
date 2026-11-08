@@ -9,7 +9,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestUniverse, type TestUniverseOptions, UNIVERSE_NODE } from "../src/test/index.ts";
 import { apply, Universe } from "../src/universe/index.ts";
 
-test("start a universe over its definition, answering the account package below its mount and nothing elsewhere", async () => {
+test("start a universe over its definition, answering the account package below its mount, sending its root to sign in, and nothing elsewhere", async () => {
     // start the universe with a cloud machine serving its residency
     await using started = await TestUniverse.open();
     const { universe, origin } = started;
@@ -23,8 +23,14 @@ test("start a universe over its definition, answering the account package below 
         .looseObject({ issuer: schema.string() })
         .parse(await discovery.json());
     const outside = await universe.fetch(new Request(`${origin}/auth/sign-in`));
+    const root = await universe.fetch(new Request(`${origin}/`));
     await started.simulation.idle();
-    expect([discovery.status, discovered, outside.status]).toEqual([200, issuer, 404]);
+    expect([
+        discovery.status,
+        discovered,
+        outside.status,
+        [root.status, root.headers.get("location")],
+    ]).toEqual([200, issuer, 404, [303, `${issuer}/sign-in`]]);
 });
 
 test("apply a definition once across starts, again once the operator's invitation lapses, and again once it changes", async () => {

@@ -9,7 +9,7 @@ import {
 import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { claim, Residency } from "@destack/account/object";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage, { OAUTH_PATH, SIGN_IN_PATH } from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
 import {
     accountServer,
@@ -53,6 +53,9 @@ export const UNIVERSE_SCHEMA = "public";
 
 /** The longest drain on shutdown, in milliseconds. */
 const DRAIN_MILLISECONDS = 5000;
+
+/** The status sending a browser on with a GET to another page (RFC 9110 15.4.4). */
+const SEE_OTHER = 303;
 
 /** What a host runs a universe with. */
 export interface UniverseOptions {
@@ -114,16 +117,21 @@ export class Universe implements AsyncDisposable {
     readonly servers: ReadonlyMap<string, Server>;
     /** The store serving the universe's packages, which runs their internal methods in process. */
     readonly store: ObjectStore;
+    /** The sign-in page, where the universe's origin sends a browser at its root. */
+    readonly signIn: string;
 
     /** Create a started universe. */
     private constructor(
         definition: UniverseDefinition,
         servers: ReadonlyMap<string, Server>,
         store: ObjectStore,
+        signIn: string,
     ) {
+        // keep the definition, the servers, the store and the sign-in page
         this.definition = definition;
         this.servers = servers;
         this.store = store;
+        this.signIn = signIn;
     }
 
     /** Start the universe's packages over its database. */
@@ -323,14 +331,21 @@ export class Universe implements AsyncDisposable {
                 }),
             ]),
         );
-        const universe = new Universe(definition, servers, store);
+        const universe = new Universe(definition, servers, store, `${issuer}${SIGN_IN_PATH}`);
         serving.resolve(universe);
 
         return universe;
     }
 
-    /** Answer a request at the universe's origin: the package mounted at its path. */
+    /** Answer a request at the universe's origin: the sign-in page at its root, else a package. */
     fetch(request: Request): Promise<Response> {
+        // send a browser at the root to sign in, which continues to its Home
+        const url = new URL(request.url);
+        if (url.pathname === "/") {
+            return Promise.resolve(Response.redirect(this.signIn, SEE_OTHER));
+        }
+
+        // answer the package mounted at the path, nothing elsewhere
         const mounted = PackageMount.of(request);
         const server = mounted === undefined ? undefined : this.servers.get(mounted.packageId);
 
