@@ -7,7 +7,7 @@ import type { Lease, LeaseMode } from "@destack/resource";
 import type { Fetch } from "@destack/object";
 import { ForgeError } from "../error/index.ts";
 
-import { SecretReading } from "@destack/vault";
+import { SecretReading } from "@destack/resource";
 import { secret, vault } from "@destack/vault/object";
 import { type Call, ObjectReference } from "@destack/sync";
 import type { GitHubHosting } from "../github/index.ts";

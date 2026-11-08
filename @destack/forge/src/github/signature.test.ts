@@ -56,10 +56,18 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
     };
     const headers = await signature.sign(message, GITHUB_EXAMPLE.secret, crypto);
 
-    // know the delivery by its signed body
-    expect(
-        await signature.verify(post(headers, body), GITHUB_EXAMPLE.secret, {}, NOW, crypto),
-    ).toEqual({
+    // know the delivery by its signed body, also while a rotation keeps its secret as the previous one
+    const rotating = ["another secret", GITHUB_EXAMPLE.secret] as const;
+    const rotated = await signature.verify(post(headers, body), rotating, {}, NOW, crypto);
+    const verified = await signature.verify(
+        post(headers, body),
+        [GITHUB_EXAMPLE.secret],
+        {},
+        NOW,
+        crypto,
+    );
+    expect(rotated).toEqual(verified);
+    expect(verified).toEqual({
         id: readDigest(headers),
         event: "push",
         payload: { ref: "refs/heads/main", after: "aa218f56b14c9653891f9e74264a383fa43fefbd" },
@@ -70,6 +78,8 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
     // refuse another secret
     const forged = await signature.sign(message, "another secret", crypto);
     expect(
-        await refusal(signature.verify(post(forged, body), GITHUB_EXAMPLE.secret, {}, NOW, crypto)),
+        await refusal(
+            signature.verify(post(forged, body), [GITHUB_EXAMPLE.secret], {}, NOW, crypto),
+        ),
     ).toEqual(["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"]);
 });

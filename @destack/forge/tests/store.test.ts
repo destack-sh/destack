@@ -284,7 +284,11 @@ test("serve a release's npm units and its Bun output by digest to its readers on
             ["bun/index.js", encoder.encode("export const tiny = 1;\n")],
             ["bun/index.d.ts", encoder.encode("export declare const tiny: number;\n")],
         ]),
-        { role: "app", package: TINY, outputs: { bun: { ...output, exports: {}, dependencies: {} } } },
+        {
+            role: "app",
+            package: TINY,
+            outputs: { bun: { ...output, exports: {}, dependencies: {} } },
+        },
         crypto,
     );
     const unitManifest = await BuildStore.digest(unit.manifest, crypto);

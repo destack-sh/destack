@@ -21,7 +21,8 @@ import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
-import type { PackageContext } from "@destack/object/workload";
+import type { InstalledServerContext, PackageContext } from "@destack/object/workload";
+import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository } from "@destack/registry/object";
 import { unit } from "../object/index.ts";
@@ -30,7 +31,7 @@ import { github } from "../stack/setting.ts";
 import {
     credentialVault,
     githubPrivateKey,
-    githubWebhookSecret,
+    githubWebhook,
     repositoryStorage,
 } from "../stack/index.ts";
 import type { GitStorage } from "@destack/git";
@@ -67,6 +68,8 @@ export interface ForgeOptions {
     readonly vault: ObjectReference;
     /** The forge's installation, the consumer its accounts bind their connections to. */
     readonly installation: Subject;
+    /** The installation's resources, which bind the GitHub App's webhook secret. */
+    readonly server: Pick<InstalledServerContext, "resources">;
 }
 
 /** How long the forge follows a calling space's row: an hour, 2 renewals and 1 KB per space. */
@@ -155,7 +158,6 @@ export class Forge {
                 : new GitHubApp({
                       id: app.appId,
                       key: context.resources.get(githubPrivateKey),
-                      secret: context.resources.get(githubWebhookSecret),
                       api: GITHUB_API,
                       fetch,
                       environment: context.environment,
@@ -172,20 +174,38 @@ export class Forge {
             fetch,
             vault: context.resources.get(credentialVault).reference,
             installation: principal.installation.reference(context.scope, context.installation),
+            server: context,
         });
     }
 
-    /** Define the forge's server: its objects, follows and adapters. */
+    /** Define the forge's server: its objects, follows, adapters and webhooks. */
     definition(): ImplementationInput<typeof forgePackage> {
+        // take the GitHub App's deliveries, refusing them where the universe runs no GitHub App
+        const hosting = this.#github;
+        const webhook =
+            hosting === undefined
+                ? undefined
+                : githubWebhook.serve(
+                      (delivery, store) => this.#receive(delivery, store, hosting),
+                      this.#options.server,
+                  );
+
         return {
             objects: this.handled,
             protocols: [registryPackage],
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
-            // answer builds and the GitHub App's deliveries
+            // answer builds, and the GitHub App's deliveries
             adapters: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
-                github: (request, _caller, _context, store) => this.#delivered(request, store),
+                github:
+                    webhook ??
+                    (async () => {
+                        throw ForgeError.of(
+                            "GITHUB_WEBHOOK_MISSING",
+                            "the forge has no GitHub App",
+                        );
+                    }),
             },
         };
     }
@@ -293,32 +313,19 @@ export class Forge {
         return found;
     }
 
-    /** Answer a delivery of the forge's GitHub App, refusing one where the universe runs none. */
-    async #delivered(request: Request, objects: ObjectStore): Promise<Response> {
-        // refuse a delivery without a GitHub App, and one that is no POST
-        const hosting = this.#github;
-        if (hosting === undefined) {
-            throw ForgeError.of("GITHUB_WEBHOOK_MISSING", "the forge has no GitHub App");
-        } else if (request.method !== "POST") {
-            return new Response(null, { status: 405 });
-        }
-
-        // refresh the repositories the delivery changes
-        await this.#receive(request, objects, hosting);
-
-        return new Response(null, { status: 204 });
-    }
-
-    /** Receive a delivery of the forge's GitHub App signed with its webhook secret. */
-    async #receive(request: Request, objects: ObjectStore, hosting: GitHubHosting): Promise<void> {
+    /** Refresh the repositories a verified delivery of the forge's GitHub App changes. */
+    async #receive(
+        delivery: WebhookDelivery,
+        objects: ObjectStore,
+        hosting: GitHubHosting,
+    ): Promise<void> {
         // read the repositories the delivery changes, none for a ping
-        const changed = await hosting.receive(request, Runner.of(objects));
+        const changed = await hosting.receive(delivery, Runner.of(objects));
         if (changed.length === 0) {
             return;
         }
 
         // refresh them, observing references as they are now
-        request.signal.throwIfAborted();
         await objects.mutate(
             objects.as(repository),
             {

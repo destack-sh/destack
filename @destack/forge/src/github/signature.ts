@@ -1,7 +1,5 @@
-import type { Crypto } from "@destack/environment";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { Crypto, Environment } from "@destack/environment";
 import { HmacKey, ObjectError, RequestBody } from "@destack/object";
-import { present } from "@destack/schema";
 import {
     WebhookDelivery,
     WebhookSignature,
@@ -18,13 +16,10 @@ const SIGNATURE_PREFIX = "sha256=";
 export class GitHubSignature implements WebhookSignature {
     /** The scheme's name. */
     readonly name: string;
-    /** Whether the scheme verifies with a shared secret, which it does. */
-    readonly isKeyed: boolean;
 
     /** Create the GitHub scheme. */
     constructor() {
         this.name = "github";
-        this.isKeyed = true;
     }
 
     /** Sign the body. */
@@ -40,18 +35,16 @@ export class GitHubSignature implements WebhookSignature {
         });
     }
 
-    /** Verify deliveries alike for every installation, on its environment's crypto. */
-    verifier(
-        context: Pick<InstalledServerContext, "resources" | "keys" | "environment">,
-    ): WebhookVerifier {
-        return (request, secret, parameters, now) =>
-            this.verify(request, secret, parameters, now, context.environment.crypto);
+    /** Verify deliveries on an environment's crypto. */
+    verifier(environment: Environment): WebhookVerifier {
+        return (request, secrets, parameters, now) =>
+            this.verify(request, secrets, parameters, now, environment.crypto);
     }
 
-    /** Verify the body's signature and read the delivery. */
+    /** Verify the body's signature by any secret and read the delivery. */
     async verify(
         request: Request,
-        secret: string | undefined,
+        secrets: readonly [string, ...string[]],
         parameters: WebhookParameters,
         now: number,
         crypto: Crypto,
@@ -62,16 +55,19 @@ export class GitHubSignature implements WebhookSignature {
             throw ObjectError.of("SIGNATURE_MISSING", "missing github webhook signature");
         }
 
-        // match it over the body's exact bytes
+        // match it over the body's exact bytes, by any secret
         const body = await RequestBody.bytes(request, "a webhook delivery");
-        const key = await HmacKey.of(
-            new TextEncoder().encode(present(secret, "the trigger's secret")),
-            crypto,
+        const keys = await Promise.all(
+            secrets.map(async (secret) => HmacKey.of(new TextEncoder().encode(secret), crypto)),
         );
         const digest = signature.startsWith(SIGNATURE_PREFIX)
             ? GitHubSignature.#decodeHex(signature.slice(SIGNATURE_PREFIX.length))
             : undefined;
-        if (digest === undefined || !(await key.verify(digest, body))) {
+        let isSigned = false;
+        for (const key of keys) {
+            isSigned ||= digest !== undefined && (await key.verify(digest, body));
+        }
+        if (digest === undefined || !isSigned) {
             throw ObjectError.of("SIGNATURE_MISMATCH", "webhook signature does not match");
         }
 

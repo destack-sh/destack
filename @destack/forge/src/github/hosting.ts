@@ -1,9 +1,8 @@
-import { Secret } from "@destack/vault";
 import { Connection, connection, integration } from "@destack/connection/object";
 import type { Runner } from "@destack/connection/server";
 import type { Lease, LeaseMode } from "@destack/resource";
 import { ForgeError } from "../error/index.ts";
-import { GitHubSignature } from "./signature.ts";
+import type { WebhookDelivery } from "@destack/workflow";
 import { type Repository, repository } from "@destack/registry/object";
 import { GitHubApp } from "./app.ts";
 import { GitHubEvent } from "./event.ts";
@@ -12,28 +11,16 @@ import { GitHubEvent } from "./event.ts";
 export class GitHubHosting {
     /** The GitHub App the installations belong to. */
     readonly app: GitHubApp;
-    /** The signature of the App's webhook deliveries. */
-    readonly signature: GitHubSignature;
 
     /** Host the repositories of an App's installations. */
     constructor(app: GitHubApp) {
         this.app = app;
-        this.signature = new GitHubSignature();
     }
 
-    /** Verify a delivery of the App and list the live repositories it changed. */
-    async receive(request: Request, runner: Runner): Promise<Repository[]> {
-        // verify the delivery and read the changed repository, none for a ping
-        const secret = await Secret.text(this.app.secret);
-        const event = GitHubEvent.read(
-            await this.signature.verify(
-                request,
-                secret,
-                {},
-                runner.now,
-                this.app.environment.crypto,
-            ),
-        );
+    /** List the live repositories a verified delivery of the App changed. */
+    async receive(delivery: WebhookDelivery, runner: Runner): Promise<Repository[]> {
+        // read the changed repository, none for a ping
+        const event = GitHubEvent.read(delivery);
         if (event === null) {
             return [];
         }

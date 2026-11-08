@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { Secret } from "@destack/vault";
+import { type Secret, SecretReading } from "@destack/resource";
 import { GitHubIssuer } from "./issuer.ts";
 import type { InstallationGrant, Token } from "@destack/connection";
 import { nth, present, schema } from "@destack/schema";
@@ -34,13 +34,11 @@ export interface GitHubAppOptions {
     readonly id: string;
     /** The app's private key, a PKCS #1 or PKCS #8 PEM. */
     readonly key: Secret;
-    /** The secret GitHub signs the app's webhook deliveries with. */
-    readonly secret: Secret;
     /** The REST API base, https://api.github.com for github.com. */
     readonly api: URL;
     /** The fetch calling the API. */
     readonly fetch: Fetch;
-    /** The WebCrypto and randomness signing the app's tokens and checking its deliveries. */
+    /** The WebCrypto and randomness signing the app's tokens. */
     readonly environment: Pick<Environment, "crypto" | "random">;
 }
 
@@ -48,9 +46,7 @@ export interface GitHubAppOptions {
 export class GitHubApp {
     /** The app's client ID or app ID. */
     readonly id: string;
-    /** The secret GitHub signs the app's webhook deliveries with. */
-    readonly secret: Secret;
-    /** The WebCrypto and randomness signing the app's tokens and checking its deliveries. */
+    /** The WebCrypto and randomness signing the app's tokens. */
     readonly environment: Pick<Environment, "crypto" | "random">;
     /** The app's private key. */
     readonly #key: Secret;
@@ -59,9 +55,8 @@ export class GitHubApp {
 
     /** Use an app's identity and key. */
     constructor(options: GitHubAppOptions) {
-        // take the identity, secret and key, and call the API through the issuer
+        // take the identity and key, and call the API through the issuer
         this.id = options.id;
-        this.secret = options.secret;
         this.#key = options.key;
         this.environment = options.environment;
         this.#issuer = new GitHubIssuer({
@@ -137,14 +132,19 @@ export class GitHubApp {
 
     /** Issue an installation's token now, narrowed to a grant. */
     async issue(installationId: string, grant: InstallationGrant, now: number): Promise<Token> {
-        const key = await Secret.text(this.#key);
+        const key = SecretReading.text(await this.#key.read());
 
         return this.#issuer.token(this.id, installationId, key, grant, now);
     }
 
     /** Remove the app from an installation's account now. */
     async uninstall(installationId: string, now: number): Promise<void> {
-        await this.#issuer.revoke(this.id, installationId, await Secret.text(this.#key), now);
+        await this.#issuer.revoke(
+            this.id,
+            installationId,
+            SecretReading.text(await this.#key.read()),
+            now,
+        );
     }
 
     /** Read the installation GitHub's setup redirect returns with. */

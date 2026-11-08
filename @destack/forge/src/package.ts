@@ -1,5 +1,6 @@
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineAdapter, definePackage } from "@destack/object";
+import { githubWebhook } from "./stack/webhook.ts";
 import { appInstallation, issuer, unit } from "./object/index.ts";
 import {
     credentialVault,
@@ -22,7 +23,7 @@ export default definePackage({
     tables: BUILD_STORE_TABLES,
     adapters: {
         builds: defineAdapter("builds", { path: "/builds" }),
-        github: defineAdapter("github", { path: "/github" }),
+        github: githubWebhook,
     },
     resources: {
         repositories: repositoryStorage,

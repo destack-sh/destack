@@ -13,7 +13,7 @@ import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
-import { build, installationRevision, rollout } from "@destack/stack/object";
+import { build, installationRevision } from "@destack/stack/object";
 import { SpaceStore } from "@destack/stack/server";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";

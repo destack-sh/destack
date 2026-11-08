@@ -1,5 +1,5 @@
 import { testSimulation } from "@destack/object/test";
-import { Secret } from "@destack/vault";
+import { Secret } from "@destack/resource";
 import { AuditCaller } from "@destack/object";
 import { eq } from "@destack/db";
 import { found, type Identifier } from "@destack/schema";
@@ -80,7 +80,7 @@ function source(installation: number) {
     };
 }
 
-/** Sign a delivery as GitHub sends it to the forge's webhook route. */
+/** Sign a delivery as GitHub sends it to the forge's webhook adapter. */
 async function deliver(
     forge: TestForge,
     delivery: { readonly id: string; readonly event: string; readonly payload: unknown },
@@ -94,7 +94,7 @@ async function deliver(
     );
     headers.set("content-type", "application/json");
 
-    return forge.fetch(forgePackage.adapters.github.path, { method: "POST", headers, body });
+    return forge.fetch("/webhooks/github", { method: "POST", headers, body });
 }
 
 test("identify a repository and issue installation tokens limited to it and to the permissions each use needs", async () => {
@@ -104,7 +104,6 @@ test("identify a repository and issue installation tokens limited to it and to t
         id: APP_ID,
         environment: world,
         key: Secret.of(githubPrivateKey()),
-        secret: Secret.of(WEBHOOK_SECRET),
         api: GITHUB_API,
         fetch: github.fetch,
     });
@@ -156,7 +155,6 @@ test("read an installation from GitHub's setup redirect, refuse a redirect witho
         id: APP_ID,
         environment: world,
         key: Secret.of(githubPrivateKey()),
-        secret: Secret.of(WEBHOOK_SECRET),
         api: GITHUB_API,
         fetch: github.fetch,
     });
@@ -321,7 +319,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
 
     // move main, add v2 at its peeled commit, delete next, and leave the other installation's push alone
     expect({ statuses, references: await references() }).toEqual({
-        statuses: [204, 204, 204, 204, 204],
+        statuses: [202, 202, 202, 202, 202],
         references: [
             ["refs/heads/main", objects.third, objects.third, true],
             ["refs/heads/next", objects.second, objects.second, false],
@@ -373,7 +371,7 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
         },
         "another secret",
     );
-    const read = await forge.fetch(forgePackage.adapters.github.path);
+    const read = await forge.fetch("/webhooks/github");
     expect([
         [refused.status, await refused.json()],
         [read.status, await read.text()],
