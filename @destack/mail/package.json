@@ -15,6 +15,7 @@
         "./smtp": "./src/smtp/index.ts",
         "./ses": "./src/ses/index.ts",
         "./print": "./src/print/index.ts",
+        "./sender": "./src/sender/index.ts",
         "./test": "./src/test/index.ts"
     },
     "dependencies": {
