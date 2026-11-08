@@ -127,6 +127,10 @@
             "rules": { "destack/no-ambient-effect": "off" }
         },
         {
+            "files": ["@destack/environment/src/workerd/environment.ts"],
+            "rules": { "eslint/no-console": "off" }
+        },
+        {
             "files": [
                 "@destack/forge/tests/fixture/consumer/run.js",
                 "@destack/forge/tests/fixture/greeting/src/main.js"
