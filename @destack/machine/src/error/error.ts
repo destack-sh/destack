@@ -1,7 +1,7 @@
 import { GrantPermission } from "@destack/access";
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import { schema } from "@destack/schema";
-import { ERROR_DATA } from "@destack/object";
+import { ERROR_DATA, RetryAfter } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 
 /** What a person is asked to grant an installation before its view opens. */
@@ -124,6 +124,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     SETTINGS_ENDED: { code: "BAD_GATEWAY" },
 
     // service unavailable
+    DEPLOYMENT_STARTING: { code: "SERVICE_UNAVAILABLE", data: RetryAfter },
     INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
     INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
     MACHINE_STOPPED: { code: "SERVICE_UNAVAILABLE" },

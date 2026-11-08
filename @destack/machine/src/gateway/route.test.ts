@@ -1,13 +1,16 @@
+import { PackageId } from "@destack/package";
 import { found } from "@destack/schema";
-import { ROUTE_PATH } from "@destack/object/workload";
+import { ROUTE_HEADER } from "@destack/object/workload";
 import { route } from "@destack/stack/object";
 import { TestRoute } from "@destack/stack/test";
-import { expect, test } from "@destack/test";
-import { ROUTE_HEADER } from "../space/route.ts";
+import { expect, refusal, test } from "@destack/test";
 import { RouteRequest } from "./route.ts";
 
+/** The package of the routed installation, which declares the notes adapter. */
+const NOTES_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1");
+
 /** Address a request the machine routed to the space. */
-test("address a routed request to its installation's adapter, redirect or view by the route it matches", async () => {
+test("address a routed request to its installation's adapter path, redirect or view by the route it matches, refusing an undeclared adapter", async () => {
     await using fixture = await TestRoute.open();
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId).name;
@@ -44,13 +47,20 @@ test("address a routed request to its installation's adapter, redirect or view b
     const declared = (name: string) =>
         found(new Map(rows.map((row) => [row.managerName, row.id])), name);
 
-    // mount each routed request at the machine's own origin
-    const mount = async (name?: string) => {
+    // mount each routed request at the machine's own origin, the installation declaring the notes adapter at /feed
+    const adapter = {
+        installationId: installation,
+        packageId: NOTES_PACKAGE,
+        name: "notes",
+        path: "/feed",
+    };
+    const mount = async (name?: string, adapters = [adapter]) => {
         const headers = name === undefined ? {} : { [ROUTE_HEADER]: declared(name) };
         const mounted = await RouteRequest.mount(
             fixture.database(first),
             first,
-            new Request("https://eu.destack.cloud/api/notes", { headers }),
+            new Request("https://eu.destack.cloud/api/notes?page=2", { headers }),
+            () => adapters,
         );
 
         // read a redirect by its status and location, and an adapter's request by its address
@@ -63,10 +73,22 @@ test("address a routed request to its installation's adapter, redirect or view b
         return mounted;
     };
 
-    expect([await mount("api"), await mount("old"), await mount(), await mount("home")]).toEqual([
-        `https://eu.destack.cloud/spaces/${first}/installations/${installation}${ROUTE_PATH}/notes`,
+    // address the adapter below its package's mount, the path below the route's after its own
+    expect([
+        await mount("api"),
+        await mount("old"),
+        await mount(),
+        await mount("home"),
+        await refusal(mount("api", [])),
+    ]).toEqual([
+        `https://eu.destack.cloud/spaces/${first}/installations/${installation}/${NOTES_PACKAGE}/feed/notes?page=2`,
         [308, "https://blog.example/"],
         undefined,
         { kind: "view", installation, mount: { base: "", view: "notes" } },
+        [
+            "NOT_FOUND",
+            "ROUTE_NOT_FOUND",
+            `route ${declared("api")} leads to adapter notes, which installation ${installation} does not declare`,
+        ],
     ]);
 });

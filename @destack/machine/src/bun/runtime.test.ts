@@ -11,7 +11,6 @@ import { schema } from "@destack/schema";
 import { PackageMount } from "@destack/object";
 import { Scope } from "@destack/sync";
 import { BunRuntime } from "./runtime.ts";
-import { WEBHOOK_PATH } from "@destack/object/workload";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { testKeys, testSimulation } from "@destack/object/test";
 import { testStore } from "@destack/build/test";
@@ -28,8 +27,8 @@ const MOUNT = PackageMount.path(PACKAGE);
 /** The echo of a forwarded call: the runner's secret beside what the runner saw. */
 const CallEcho = schema.looseObject({ secret: schema.string() });
 
-/** The echo of a forwarded webhook request. */
-const WebhookEcho = schema.looseObject({
+/** The echo of a delivered request. */
+const DeliveryEcho = schema.looseObject({
     path: schema.string(),
     isForwarded: schema.boolean(),
     caller: schema.unknown(),
@@ -218,12 +217,12 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     );
     const { secret, ...answered } = await echo("/store/stream");
     const identified = [runtime.identify(secret)?.instanceId, runtime.identify("other")];
-    const webhook = WebhookEcho.parse(
+    const delivered = DeliveryEcho.parse(
         await (
             await runtime.deliver(
                 instanceId,
-                `${WEBHOOK_PATH}/pushes/notes`,
-                new Request("http://notes.test/.destack/webhook/pushes/notes", {
+                `${MOUNT}/webhooks/pushes/notes`,
+                new Request(`http://notes.test${MOUNT}/webhooks/pushes/notes`, {
                     method: "POST",
                     headers: {
                         [CALLER_HEADER]: JSON.stringify(authentication),
@@ -249,13 +248,13 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     const isRunning = runtime.isRunning(instanceId);
 
     expect({
-        webhook: [webhook.path, webhook.isForwarded, webhook.caller],
+        delivered: [delivered.path, delivered.isForwarded, delivered.caller],
         answered,
         identified,
         isRunning,
         starts,
     }).toEqual({
-        webhook: ["/.destack/webhook/pushes/notes", true, null],
+        delivered: [`/${PACKAGE}/webhooks/pushes/notes`, true, null],
         answered: {
             method: "POST",
             body: '{"after":1}',

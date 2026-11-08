@@ -13,6 +13,7 @@ import {
     InstallationBindingSpec,
     InstallationKind,
     InstallationMount,
+    Observation,
     type PackageHandle,
     PackageMount,
     refusal,
@@ -33,11 +34,10 @@ import { Bearer, Exchange, TOKEN_LIFETIME_MILLISECONDS, TokenCache } from "@dest
 import {
     HOOK_PATH,
     PARTITION_HEADER,
-    ROUTE_PATH,
+    ROUTE_HEADER,
     SOCKET_HEADER,
     SOCKET_INSTANCE_HEADER,
     SOCKET_PATH,
-    WEBHOOK_PATH,
 } from "@destack/object/workload";
 import {
     CodeIndex,
@@ -52,7 +52,6 @@ import { Attribution } from "@destack/package/stack";
 import { OTLP_ORIGIN_PATH, OtlpSignal } from "@destack/telemetry/otlp";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { copyRequest } from "@destack/environment";
-import { ROUTE_HEADER } from "../space/route.ts";
 import { type Space, type SpaceRun } from "../space/space.ts";
 import { BucketKind } from "@destack/bucket";
 import { S3_PACKAGE } from "@destack/bucket/s3";
@@ -75,6 +74,9 @@ import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/addr
 import { RouteRequest } from "./route.ts";
 import type {} from "@destack/package/import-meta";
 
+/** The milliseconds a caller waits for a deploying installation: an instance starts in seconds. */
+const DEPLOYMENT_RETRY_MILLISECONDS = 1000;
+
 /** The path below which a person's own tools call through the space's connections. */
 const CONNECTION_PATH = "/.destack/connection";
 
@@ -93,14 +95,14 @@ const MAX_RESENT_BODY_BYTES = 1024 * 1024;
 /** The space a gateway serves, with the machine serving it and its host. */
 export type GatewaySpace = Pick<
     Space,
-    "id" | "database" | "traffic" | "call" | "observe" | "borrow"
+    "id" | "database" | "traffic" | "call" | "observe" | "borrow" | "adapters"
 > & {
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;
     /** The space's builds, read through to the machine's cache. */
     readonly builds: Pick<
         SpaceBuildStore,
-        "pull" | "contents" | "referrer" | "file" | "browser" | "get"
+        "pull" | "contents" | "referrer" | "file" | "imports" | "get"
     >;
     /** The space's identity and its link to the universe, which the gateway signs with. */
     readonly host: Pick<SpaceHost, "source" | "contain" | "database"> & {
@@ -316,7 +318,12 @@ export class Gateway {
     /** Serve a routed request: its redirect or views, else its adapter's request. */
     async #route(request: Request): Promise<Request | Response | undefined> {
         // answer a redirect
-        const routed = await RouteRequest.mount(this.#space.database, this.#space.id, request);
+        const routed = await RouteRequest.mount(
+            this.#space.database,
+            this.#space.id,
+            request,
+            (installationId) => this.#space.adapters(installationId),
+        );
         if (routed?.kind === "redirect") {
             return routed.response;
         }
@@ -333,7 +340,7 @@ export class Gateway {
         return routed?.request;
     }
 
-    /** Address an installation origin's webhooks below its mount, else serve the origin. */
+    /** Address an installation origin's packages below its mount, else serve the origin. */
     async #origin(origin: InstallationOrigin, request: Request): Promise<Request | Response> {
         // refuse the digest of a name and branch, which names no installation here
         if (origin.digest !== undefined) {
@@ -343,19 +350,16 @@ export class Gateway {
             );
         }
 
-        // find the installation of the origin's name in the space
-        const found = await Rollout.find(this.#space.database, this.#space.id, origin.name);
-        if (found === undefined) {
-            throw MachineError.of(
-                "INSTALLATION_NOT_FOUND",
-                `${SpaceAddress.of(origin)} has no installation ${origin.name}`,
-            );
-        }
+        // read the installation of the origin's name the space serves
+        const found = await Rollout.requireServed(this.#space.database, {
+            spaceId: this.#space.id,
+            installation: origin.name,
+        });
         const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
         const url = new URL(request.url);
 
-        // address its webhooks below its mount
-        if (url.pathname.startsWith(`${WEBHOOK_PATH}/`)) {
+        // address its packages below its mount, such as an adapter a service calls
+        if (PackageMount.parse(url.pathname) !== undefined) {
             return copyRequest(request, {}, `${mount}${url.pathname}${url.search}`);
         }
         // serve any other path at the origin: its platform paths, build files and views
@@ -466,7 +470,7 @@ export class Gateway {
             : this.#space.machine.authenticate(request, stackPackage.id, this.#space.id);
     }
 
-    /** Deliver a webhook, a routed request or a call to an installation, which answers it. */
+    /** Deliver an adapter's request, a routed request or a call to an installation. */
     async #installation(
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         authentication: Authentication | undefined,
@@ -480,34 +484,22 @@ export class Gateway {
             return traffic.countResponse(served.scope, served.installationId, answered);
         }
 
-        // deliver a webhook below the installation's mount
+        // hand a request at an adapter its package declares to the newest deployment, as it speaks no release
         const path = new URL(installed.request.url).pathname;
-        if (path.startsWith(`${WEBHOOK_PATH}/`)) {
-            const answered = await this.#receive(
+        const own = PackageId.parse(served.installation.packageId);
+        if (this.#isAdapted(served.installationId, own, path)) {
+            const called = await this.#authenticate(installed, served, own, authentication);
+            const answered = await this.#adapted(
                 served.installationId,
-                path.slice(WEBHOOK_PATH.length),
+                path,
                 installed.request,
+                called.authentication,
             );
-
-            return traffic.countResponse(served.scope, served.installationId, answered);
-        }
-        // refuse the route path to a request the machine routed to no adapter
-        else if (
-            path.startsWith(`${ROUTE_PATH}/`) &&
-            !installed.request.headers.has(ROUTE_HEADER)
-        ) {
-            throw MachineError.of("ROUTE_NOT_FOUND", "no route hands this request to an adapter");
-        }
-        // hand a routed request to the installation's adapter its route selects
-        else if (path.startsWith(`${ROUTE_PATH}/`)) {
-            const adapter = decodeURIComponent(path.slice(ROUTE_PATH.length + 1));
-            const answered = await this.#adapter(served.installationId, adapter, installed.request);
 
             return traffic.countResponse(served.scope, served.installationId, answered);
         }
 
         // verify the caller for the installation's package and route the call to the deployment serving its release
-        const own = PackageId.parse(served.installation.packageId);
         const called = await this.#authenticate(installed, served, own, authentication);
         const answered = await this.ingress(
             called.rollout.installationId,
@@ -525,17 +517,9 @@ export class Gateway {
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        // hand a webhook over unverified to the package's adapter at its path, which verifies it
-        const packageId = PackageId.parse(served.installation.packageId);
-        const url = new URL(installed.request.url);
-        const path = url.pathname;
-        if (path.startsWith(`${WEBHOOK_PATH}/`)) {
-            url.pathname = path.slice(WEBHOOK_PATH.length);
-
-            return this.#space.call(packageId, copyRequest(installed.request, {}, url.href));
-        }
-
         // hand a call below its package's mount or a protocol's the package implements over as its verified caller
+        const packageId = PackageId.parse(served.installation.packageId);
+        const path = new URL(installed.request.url).pathname;
         const mounted = PackageMount.of(installed.request);
         const handle = this.#packages().find((each) => each.id === packageId);
         const isServed =
@@ -658,29 +642,42 @@ export class Gateway {
         return new Response(answer.body, { status: answer.status, headers });
     }
 
-    /** Forward a webhook request to the newest running deployment of an installation. */
-    #receive(
+    /** Report whether a path below an installation is at an adapter its package declares. */
+    #isAdapted(
         installationId: Identifier<"installation">,
+        packageId: PackageId,
         path: string,
-        request: Request,
-    ): Promise<Response> {
-        return this.#serveNewest(
-            installationId,
-            `${WEBHOOK_PATH}${path}`,
-            request,
-            "receives webhooks",
+    ): boolean {
+        const mounted = PackageMount.parse(path);
+
+        return (
+            mounted !== undefined &&
+            mounted.packageId === packageId &&
+            this.#space
+                .adapters(installationId)
+                .some(
+                    (adapter) =>
+                        mounted.path === adapter.path ||
+                        mounted.path.startsWith(`${adapter.path}/`),
+                )
         );
     }
 
-    /** Forward a request a route sends to an installation's adapter. */
-    #adapter(
+    /** Forward a request at an adapter to the newest running deployment, as its caller. */
+    async #adapted(
         installationId: Identifier<"installation">,
-        adapter: string,
+        path: string,
         request: Request,
+        authentication: Authentication | undefined,
     ): Promise<Response> {
-        const path = `${ROUTE_PATH}/${encodeURIComponent(adapter)}`;
+        const newest = await this.#newest(installationId, () => true, "serves its adapters");
 
-        return this.#serveNewest(installationId, path, request, `serves ${adapter}`);
+        return this.#runtime(newest.runtime).fetch(
+            newest.instanceId,
+            path,
+            request,
+            authentication,
+        );
     }
 
     /** Send an installation's sandbox a request to run a hook, at its newest hooks instance. */
@@ -713,19 +710,6 @@ export class Gateway {
         return HandlerAnswer.parse(await answered.json());
     }
 
-    /** Deliver an unauthenticated request to an installation's newest running deployment. */
-    async #serveNewest(
-        installationId: Identifier<"installation">,
-        path: string,
-        request: Request,
-        serving: string,
-    ): Promise<Response> {
-        // pick the newest running deployment
-        const newest = await this.#newest(installationId, () => true, serving);
-
-        return this.#runtime(newest.runtime).deliver(newest.instanceId, path, request);
-    }
-
     /** Find an installation's newest running deployment that serves a call, refusing none. */
     async #newest(
         installationId: Identifier<"installation">,
@@ -737,14 +721,26 @@ export class Gateway {
         const [newest] = endpoints
             .filter(serves)
             .toSorted((left, right) => Version.compare(right.release, left.release));
-        if (newest === undefined) {
+        if (newest !== undefined) {
+            return newest;
+        }
+
+        // ask the caller to wait while the installation still deploys, else refuse
+        const installed = await Snapshot.live(this.#space.database)
+            .read(installation.table)
+            .findFirst({ where: { id: installationId } });
+        if (installed !== undefined && Observation.progress(installed) === "waiting") {
+            throw MachineError.of(
+                "DEPLOYMENT_STARTING",
+                `the deployment of this installation that ${serving} is starting`,
+                { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
+            );
+        } else {
             throw MachineError.of(
                 "RUNNING_DEPLOYMENT_MISSING",
                 `no running deployment of this installation ${serving}`,
             );
         }
-
-        return newest;
     }
 
     /** List the running instances serving an installation. */
@@ -792,11 +788,12 @@ export class Gateway {
             throw MachineError.of("EGRESS_ADDRESS_MISSING", "the request has no egress address");
         }
 
-        // drop the caller's secret and identity claims
+        // drop the caller's secret and identity claims, and the route only a machine marks
         const headers = new Headers(routed.request.headers);
         headers.delete("authorization");
         headers.delete(CALLER_HEADER);
         headers.delete("cookie");
+        headers.delete(ROUTE_HEADER);
 
         // stream a large body or one of unknown length once
         const resendable = await Gateway.#resendable(routed.request);

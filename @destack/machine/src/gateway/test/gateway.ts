@@ -4,7 +4,7 @@ import { installation, type PackageHandle } from "@destack/object";
 import { ids, insertRelease, insertRollout, type TestSpace, workload } from "@destack/stack/test";
 import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
-import { Digest, Identifier } from "@destack/schema";
+import { Digest, Identifier, present } from "@destack/schema";
 import { type GatewaySpace, Gateway, type TokenExchange } from "../gateway.ts";
 import type { Machine } from "../../machine/index.ts";
 import type { Runtime } from "@destack/stack/runtime";
@@ -44,6 +44,8 @@ export function openGateway(
         readonly call?: GatewaySpace["call"];
         /** The space's traffic, which its gateway counts. */
         readonly traffic?: Traffic;
+        /** The adapters the space's installations declare, none by default. */
+        readonly adapters?: GatewaySpace["adapters"];
         /** Sign an installation's token leaving the machine, its claims readable. */
         readonly sign?: (claims: JwtClaims) => string;
     } = {},
@@ -61,6 +63,7 @@ export function openGateway(
             call: options.call ?? refuse("serve calls"),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
+            adapters: options.adapters ?? (() => []),
             instance: { implements: () => false },
             host: {
                 database,
@@ -94,7 +97,7 @@ export function openGateway(
                 contents: refuse("read builds"),
                 referrer: refuse("read code indexes"),
                 file: refuse("read code indexes"),
-                browser: refuse("map browser builds"),
+                imports: refuse("map builds' imports"),
                 get: refuse("read builds"),
             },
             machine: {
@@ -104,7 +107,14 @@ export function openGateway(
                 runtimes: options.runtimes ?? [],
                 hibernation: undefined,
                 send: options.send ?? refuse("call other origins"),
-                authenticate: refuse("verify callers"),
+                // verify no credential, answering none for a call without one as the machine does
+                authenticate: async (request) => {
+                    if (request.headers.has("authorization")) {
+                        throw new Error("the fixture cannot verify callers");
+                    }
+
+                    return undefined;
+                },
                 releases: { locate: refuse("locate releases") },
             },
         },
@@ -154,10 +164,11 @@ export async function deployNotes(
     const notes = { id: ids.notes, scope: ids.space, packageId: ids.package, name: "notes" };
     await insertRollout(database, { ...notes, selection, installer: space.owner.subject }, now);
 
-    // follow the release's revision
+    // follow the release's revision, applied, served and deployed as the machine's start leaves it
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
     const revisionId = Identifier.create("installation-revision", environment);
     await database.transaction(async (transaction) => {
+        // record the revision
         await transaction.insert(installationRevision.table).values({
             ...record,
             id: revisionId,
@@ -169,13 +180,31 @@ export async function deployNotes(
             digest: Digest.parse("e".repeat(64)),
             generation: 1,
         });
+
+        // follow it, observed as deployed at the installation's generation
+        const [installed] = await transaction
+            .select({ generation: installation.table.generation })
+            .from(installation.table)
+            .where(eq(installation.table.id, ids.notes));
+        const observed = {
+            status: "true" as const,
+            observedGeneration: present(installed, "the notes installation").generation,
+            message: "",
+            lastTransitionAt: now,
+        };
         await transaction
             .update(installation.table)
-            .set({ revisionId })
+            .set({
+                revisionId,
+                conditions: {
+                    Synced: { ...observed, reason: "ReconcileSuccess" },
+                    Ready: { ...observed, reason: "Deployed" },
+                },
+            })
             .where(eq(installation.table.id, ids.notes));
         await transaction
             .update(rollout.table)
-            .set({ appliedRevisionId: revisionId })
+            .set({ appliedRevisionId: revisionId, servedRevisionId: revisionId })
             .where(eq(rollout.table.installationId, ids.notes));
     });
 

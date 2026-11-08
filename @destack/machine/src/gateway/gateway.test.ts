@@ -1,4 +1,5 @@
 import { Failure } from "@destack/error";
+import { eq } from "@destack/db";
 import { ConnectionKind } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
 import { testSimulation } from "@destack/object/test";
@@ -11,12 +12,13 @@ import { Exchange } from "@destack/access/token";
 import {
     CallError,
     Egress,
+    installation,
     InstallationMount,
     PackageMount,
     SpaceMount,
     VERSION_HEADER,
 } from "@destack/object";
-import { PARTITION_HEADER, WEBHOOK_PATH } from "@destack/object/workload";
+import { PARTITION_HEADER, ROUTE_HEADER } from "@destack/object/workload";
 import { ResourceId } from "@destack/resource";
 import { Scope } from "@destack/sync";
 import objectPackage from "@destack/object/package";
@@ -135,7 +137,7 @@ class RecordingRuntime implements Runtime {
     /** The server runtime. */
     readonly name = "bun";
     /** The forwarded calls: instance, path, caller subject and authorization. */
-    readonly forwarded: [string, string, string, string | null][] = [];
+    readonly forwarded: [string, string, string | null, string | null][] = [];
     /** The forwarded authentications. */
     readonly authentications: Authentication[] = [];
     /** The delivered webhook requests: instance, path and authorization. */
@@ -164,12 +166,14 @@ class RecordingRuntime implements Runtime {
         request: Request,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        const caller = present(authentication, "the forwarded call's caller");
-        this.authentications.push(caller);
+        // record the caller, none for an adapter's anonymous caller
+        if (authentication !== undefined) {
+            this.authentications.push(authentication);
+        }
         this.forwarded.push([
             instanceId,
             path,
-            caller.caller.subject.id,
+            authentication?.caller.subject.id ?? null,
             request.headers.get("authorization"),
         ]);
 
@@ -240,18 +244,29 @@ function egress(
             authorization: `Bearer ${secret}`,
             [VERSION_HEADER]: "2026.10.0",
             [CALLER_HEADER]: "forged",
+            [ROUTE_HEADER]: "route-forged",
             cookie: "session=forged",
             ...init.headers,
         },
     });
 }
 
-/** Make a webhook request below the notes installation's mount. */
-function webhook(): Request {
-    return new Request(
-        `${InstallationMount.url("http://127.0.0.1:7470", ids.space, ids.notes)}${WEBHOOK_PATH}/pushes/notes`,
-        { method: "POST", body: "{}" },
-    );
+/** The webhook adapter notes declares, at its path below its package's mount. */
+const PUSHES = {
+    installationId: ids.notes,
+    packageId: ids.package,
+    name: "pushes",
+    path: "/webhooks/pushes",
+};
+
+/** Make a delivery to notes' webhook adapter below its package's mount, as a sender posts it. */
+function delivery(): Request {
+    const mount = InstallationMount.url("http://127.0.0.1:7470", ids.space, ids.notes);
+
+    return new Request(`${mount}${PackageMount.path(ids.package)}/webhooks/pushes/notes`, {
+        method: "POST",
+        body: "{}",
+    });
 }
 
 /** Answer that the called space moved to another machine. */
@@ -382,18 +397,18 @@ test("send a workload's calls as its installation, signing only the calls that l
         await call(ids.space, remote),
         await call("notes", "/notes/list", "other"),
     ];
-    const installation = principal.installation.reference(ids.space, tasks.installationId).id;
+    const caller = principal.installation.reference(ids.space, tasks.installationId).id;
     const located = await space.machine.directory.locate(ids.space, space.machine.clock.now());
     expect({ statuses, forwarded: runtime.forwarded, served, sent }).toEqual({
         statuses: [200, 200, 200, "UNAUTHORIZED: INSTANCE_SECRET_INVALID: invalid instance secret"],
         forwarded: [
-            [NEWEST.instanceId, `${PackageMount.path(ids.package)}/notes/list`, installation, null],
+            [NEWEST.instanceId, `${PackageMount.path(ids.package)}/notes/list`, caller, null],
         ],
         served: [["/notes/list", objectPackage.id, null, null]],
         sent: [
             [
                 `${SpaceMount.url(located.url, ids.space)}${remote}?limit=1`,
-                `Bearer signed ${installation} for ${PackageId.resource(REMOTE_PACKAGE)}`,
+                `Bearer signed ${caller} for ${PackageId.resource(REMOTE_PACKAGE)}`,
                 null,
             ],
         ],
@@ -500,20 +515,61 @@ test("answer another origin's 421 the egress cannot read as a moved scope to the
     });
 });
 
-test("forward a webhook below an installation to its newest running deployment, and refuse one without a deployment", async () => {
-    // deliver a webhook to notes over its two deployments, and over none
-    const deployed = await openNotes();
-    const accepted = await deployed.gateway.serve(webhook());
-    const undeployed = await openNotes([]);
-    const refused = await undeployed.gateway.serve(webhook());
+test("forward a request at a sandboxed package's adapter to its newest deployment without a release, and refuse one without a deployment", async () => {
+    // deliver to notes' webhook adapter over its two deployments, and over none
+    const adapters = (installationId: string) => (installationId === ids.notes ? [PUSHES] : []);
+    const deployed = await openNotes(undefined, { adapters });
+    const accepted = await deployed.gateway.serve(delivery());
+    const undeployed = await openNotes([], { adapters });
+    const refused = await undeployed.gateway.serve(delivery());
 
+    // forward it below the installation, anonymously, to the newest deployment
+    const path = `${PackageMount.path(ids.package)}/webhooks/pushes/notes`;
     expect({
-        accepted: [accepted.status, deployed.runtime.received],
+        accepted: [accepted.status, deployed.runtime.forwarded],
         refused: await answerOf(refused),
     }).toEqual({
-        accepted: [202, [[NEWEST.instanceId, `${WEBHOOK_PATH}/pushes/notes`, null]]],
-        refused: `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation receives webhooks`,
+        accepted: [200, [[NEWEST.instanceId, path, null, null]]],
+        refused: `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation serves its adapters`,
     });
+});
+
+test("ask a caller to wait for an installation still deploying, and refuse a deployed one without the release", async () => {
+    // call notes speaking its release while it has no running deployment, deployed and then still deploying
+    const { gateway, space } = await openNotes([]);
+    const call = async () => {
+        const answered = await gateway.serve(
+            new Request(
+                `${InstallationMount.url("http://127.0.0.1:7470", ids.space, ids.notes)}/notes/list`,
+                {
+                    headers: { [VERSION_HEADER]: "2026.9.0" },
+                },
+            ),
+            personAt(space.machine.clock.now()),
+        );
+
+        return [answered.headers.get("retry-after"), await answerOf(answered)];
+    };
+    const deployed = await call();
+    await space.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(installation.table)
+                .set({ conditions: {} })
+                .where(eq(installation.table.id, ids.notes)),
+    );
+
+    // refuse the deployed installation outright, and ask a second's wait of the deploying one
+    expect([deployed, await call()]).toEqual([
+        [
+            null,
+            "SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.9.0",
+        ],
+        [
+            "1",
+            "SERVICE_UNAVAILABLE: DEPLOYMENT_STARTING: the deployment of this installation that runs release 2026.9.0 is starting",
+        ],
+    ]);
 });
 
 test("forward a verified person's call to the installation as that person, exchanging no token", async () => {
@@ -567,7 +623,14 @@ test("relay an instance's OTLP export for the spec its secret proves", async () 
 
 test("apply a bound connection's credential to a workload's call to its API without its secret or identity", async () => {
     // borrow a header from one connection and a client certificate from the other
-    const sent: [string, string | null, string | null, string | null, string | undefined][] = [];
+    const sent: [
+        string,
+        string | null,
+        string | null,
+        string | null,
+        string | null,
+        string | undefined,
+    ][] = [];
     const { gateway } = await openNotes([EARLIER, NEWEST], {
         borrow: async (lent) => {
             const api = "https://api.example.com/v1";
@@ -589,6 +652,7 @@ test("apply a bound connection's credential to a workload's call to its API with
                 request.url,
                 request.headers.get("authorization"),
                 request.headers.get(CALLER_HEADER),
+                request.headers.get(ROUTE_HEADER),
                 request.headers.get("cookie"),
                 options?.certificate?.certificate,
             ]);
@@ -604,8 +668,15 @@ test("apply a bound connection's credential to a workload's call to its API with
     expect({ statuses, sent }).toEqual({
         statuses: [200, 200],
         sent: [
-            ["https://api.example.com/v1/items?page=2", "Bearer lent-token", null, null, undefined],
-            ["https://api.example.com/v1/items?page=2", null, null, null, "CERT"],
+            [
+                "https://api.example.com/v1/items?page=2",
+                "Bearer lent-token",
+                null,
+                null,
+                null,
+                undefined,
+            ],
+            ["https://api.example.com/v1/items?page=2", null, null, null, null, "CERT"],
         ],
     });
 });
@@ -750,6 +821,6 @@ test("refuse a request to an installation origin the space has no installation o
 
     expect([answered.status, await answerOf(answered)]).toEqual([
         404,
-        "NOT_FOUND: INSTALLATION_NOT_FOUND: space--acme has no installation nots",
+        "NOT_FOUND: INSTALLATION_NOT_HERE: this machine does not serve installation nots in this space",
     ]);
 });

@@ -4,13 +4,15 @@ import { type Identifier, schema } from "@destack/schema";
 import { InstallationMount, RequestBody, SpaceMount } from "@destack/object";
 import { copyRequest } from "@destack/environment";
 import { CALLER_HEADER } from "@destack/access";
-import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
+import {
+    CLIENT_HEAD_HEADER,
+    ClientHead,
+    PARTITION_HEADER,
+    ROUTE_HEADER,
+} from "@destack/object/workload";
 
 /** The header with the space a machine routes a request to. */
 export const SPACE_HEADER = "Destack-Space";
-
-/** The header with the route the machine found for a request to a name. */
-export const ROUTE_HEADER = "Destack-Route";
 
 /** The headers only a machine and its hosts write, which a client's request loses. */
 const MACHINE_HEADERS = [ROUTE_HEADER, CLIENT_HEAD_HEADER, CALLER_HEADER] as const;
@@ -83,11 +85,12 @@ export const S3Host = {
         return `${space}.${domain}`;
     },
 
-    /** Read the space of an S3 host, absent for any other host. */
-    space(hostname: string): Identifier<"space"> | undefined {
-        const [label, service] = hostname.split(".");
+    /** Read the space of an S3 host below an S3 domain, absent for any other host. */
+    space(hostname: string, domain: string): Identifier<"space"> | undefined {
+        const suffix = `.${domain}`;
+        const label = hostname.endsWith(suffix) ? hostname.slice(0, -suffix.length) : undefined;
 
-        return service === "s3" && isSpace(label) ? label : undefined;
+        return isSpace(label) ? label : undefined;
     },
 };
 
@@ -134,6 +137,8 @@ export const SpaceRequest = {
         origins: {
             /** The domain the installation origins sit below. */
             readonly domain: string;
+            /** The domain the spaces' buckets answer S3 below. */
+            readonly s3Domain: string;
             /** Find the space of an origin's address, absent for none. */
             readonly find: (address: SpaceAddress) => Promise<string | undefined>;
         },
@@ -144,7 +149,7 @@ export const SpaceRequest = {
         // read the request's installation origin, S3 host and path
         const origin = InstallationOrigin.of(request, origins.domain);
         const url = new URL(request.url);
-        const s3 = S3Host.space(url.hostname);
+        const s3 = S3Host.space(url.hostname, origins.s3Domain);
         const installed = InstallationMount.of(request);
         const explicit = SpaceMount.parse(url.pathname);
         const scoped = PartitionRequest.scoped(url.pathname);

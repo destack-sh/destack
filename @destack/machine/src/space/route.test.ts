@@ -1,7 +1,8 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
-import { PartitionRequest, ROUTE_HEADER, SPACE_HEADER, SpaceRequest } from "./route.ts";
+import { ROUTE_HEADER } from "@destack/object/workload";
+import { PartitionRequest, SPACE_HEADER, SpaceRequest } from "./route.ts";
 
 /** A machine partition a request addresses. */
 const MACHINE = "machine-01996ab0-0000-7000-8000-000000000007";
@@ -18,9 +19,10 @@ const SERVICE = "/package-01a0c80b-614e-739c-9b50-70e5119010b1";
 /** The stack service's mount on the machine's origin. */
 const MOUNT = `https://eu.destack.cloud${SERVICE}`;
 
-/** The installation origins below the space domain, where only work--ada lives. */
+/** The installation origins below the space domain, where only work--ada lives, and S3's domain. */
 const ORIGINS = {
     domain: "destack.space",
+    s3Domain: "s3--eu-cloud--platform.destack.computer",
     find: async (address: string) => (address === "work--ada" ? SPACE : undefined),
 };
 
@@ -36,7 +38,7 @@ function post(path: string, body: unknown, headers: Record<string, string> = {})
 test("route a request to the space of its S3 host name, space prefix, scoped route, creation or replica scope, and none for an account or otherwise", async () => {
     // read the space, its header and the path of each request at the space
     const requests = [
-        new Request(`https://${SPACE}.s3.eu.destack.cloud/bucket-1/notes.txt`),
+        new Request(`https://${SPACE}.s3--eu-cloud--platform.destack.computer/bucket-1/notes.txt`),
         new Request(
             `https://eu.destack.cloud/spaces/${SPACE}/.destack/egress/@destack/vault/ingest`,
         ),

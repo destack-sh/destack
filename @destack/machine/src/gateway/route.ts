@@ -1,11 +1,11 @@
 import type { DatabaseConnection } from "@destack/db";
 import { type Identifier, schema } from "@destack/schema";
-import { InstallationMount } from "@destack/object";
+import { InstallationMount, PackageMount } from "@destack/object";
 import { copyRequest } from "@destack/environment";
-import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "@destack/object/workload";
+import { CLIENT_HEAD_HEADER, ROUTE_HEADER } from "@destack/object/workload";
 import { Route } from "@destack/stack/object";
 import type { ViewMount } from "./origin.ts";
-import { ROUTE_HEADER } from "../space/route.ts";
+import type { SpaceAdapter } from "../space/space.ts";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
@@ -18,7 +18,7 @@ export type RouteAnswer =
           readonly response: Response;
       }
     | {
-          /** The route hands the request to an installation's adapter. */
+          /** The route hands the request to an installation's adapter below its package's mount. */
           readonly kind: "adapter";
           /** The request below the installation's mount. */
           readonly request: Request;
@@ -39,6 +39,7 @@ export const RouteRequest = {
         database: DatabaseConnection,
         space: Identifier<"space">,
         request: Request,
+        adapters: (installationId: Identifier<"installation">) => readonly SpaceAdapter[],
     ): Promise<RouteAnswer | undefined> {
         // read the route the machine found
         const header = request.headers.get(ROUTE_HEADER);
@@ -62,14 +63,26 @@ export const RouteRequest = {
 
             return { kind: "redirect", response };
         }
-        // hand the installation's adapter the request below the installation's mount
+        // hand the installation's adapter the request at its path, the path below the route's after it
         else if (destination.kind === "adapter") {
-            const mount = InstallationMount.url(request.url, space, destination.installationId);
-            const adapter = encodeURIComponent(destination.adapter);
+            const { installationId } = destination;
+            const adapter = adapters(installationId).find(
+                (each) => each.name === destination.adapter,
+            );
+            if (adapter === undefined) {
+                throw MachineError.of(
+                    "ROUTE_NOT_FOUND",
+                    `route ${id} leads to adapter ${destination.adapter}, which installation ${installationId} does not declare`,
+                );
+            }
+            const url = new URL(request.url);
+            const mount = InstallationMount.url(request.url, space, installationId);
+            const below = url.pathname.slice(base.length);
+            const path = `${PackageMount.path(adapter.packageId)}${adapter.path}${below === "/" ? "" : below}`;
 
             return {
                 kind: "adapter",
-                request: copyRequest(request, {}, `${mount}${ROUTE_PATH}/${adapter}`),
+                request: copyRequest(request, {}, `${mount}${path}${url.search}`),
             };
         }
         // serve the installation's whole origin below the route's path

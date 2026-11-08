@@ -27,7 +27,7 @@ import { ANONYMOUS, Authentication, GrantClaim, LinkSecret, principal } from "@d
 import { IdentityError, Jwt, Proof, PROOF_HEADER } from "@destack/identity";
 import { copyRequest, Forwarded, HostAddress } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
-import type { BrowserClosure } from "@destack/build/store";
+import type { ImportClosure } from "@destack/build/store";
 import { ObjectReference, Scope, Subject, RequestId } from "@destack/sync";
 import accountPackage from "@destack/account/package";
 import {
@@ -102,7 +102,7 @@ export class ViewOrigin {
     /** The build of each revision served so far, which a revision never changes, by revision. */
     readonly #builds = new Map<string, Promise<Pick<Page, "manifest" | "reader">>>();
     /** The browser import map closure of each build served so far, by build and base. */
-    readonly #closures = new Map<string, Promise<BrowserClosure>>();
+    readonly #closures = new Map<string, Promise<ImportClosure>>();
 
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
@@ -695,7 +695,7 @@ export class ViewOrigin {
         const policy = await this.#policy(page);
         const { base } = page.mount;
         const closure = await ViewOrigin.#memo(this.#closures, `${page.manifest} ${base}`, () =>
-            this.#space.builds.browser(page.manifest, `${base}${BUILD_PATH}`),
+            this.#space.builds.imports(page.manifest, "browser", `${base}${BUILD_PATH}`),
         );
         if (pathname.startsWith(BUILD_PATH)) {
             const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
@@ -841,7 +841,7 @@ export class ViewOrigin {
     }
 
     /** Find a package's runtime build among those a page's views reach, refusing others. */
-    async #reached(closure: BrowserClosure, packageId: PackageId): Promise<BuildReader> {
+    async #reached(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
         for (const digest of closure.builds) {
             const reader = await this.#space.builds.contents(digest);
             if (PackageManifest.package(reader.manifest).id === packageId) {

@@ -1,6 +1,7 @@
 import { Failure } from "@destack/error";
 import { MACHINE_KEYS } from "./computer.ts";
 import { expect, refusal, test } from "@destack/test";
+import { SpaceMount } from "@destack/object";
 import { OWNER_EMAIL, TestComputer } from "./test/index.ts";
 
 test("report a restarted machine's missing key as the failure of its start", async () => {
@@ -40,5 +41,26 @@ test("start a space while the machine serves, and refuse to start it once the ma
             "SERVER_STOPPED",
             `machine ${home.machine.id} is stopped: it stopped serving`,
         ],
+    ]);
+});
+
+test("answer a served space's liveness and readiness below its mount, as a server answers its own", async () => {
+    // probe the owner's served home
+    const { home } = await TestComputer.home();
+    const spaceId = home.world.owner.home;
+    await home.ready(spaceId);
+    const space = await home.machine.space(spaceId);
+    const probe = async (path: string) => {
+        const answered = await space.fetch(
+            new Request(`${SpaceMount.url("http://127.0.0.1", spaceId)}${path}`),
+        );
+
+        return [answered.status, await answered.text()];
+    };
+
+    // answer both ok while every installation serves its revision
+    expect([await probe("/livez"), await probe("/readyz")]).toEqual([
+        [200, "ok\n"],
+        [200, "ok\n"],
     ]);
 });

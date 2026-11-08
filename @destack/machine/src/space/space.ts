@@ -23,6 +23,7 @@ import {
     installation,
     Observation,
     PackageDescription,
+    SpaceMount,
     type CursorPage,
 } from "@destack/object";
 import {
@@ -36,7 +37,7 @@ import { ResourceContext } from "@destack/resource/context";
 import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
 import { type Identifier, present } from "@destack/schema";
-import { Database, Rollout, rollout, type InstallationRollout } from "@destack/stack/object";
+import { Database, Rollout, rollout } from "@destack/stack/object";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
     SpaceBuildStore,
@@ -60,10 +61,22 @@ import { MachineError } from "../error/index.ts";
 /** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
 const OTLP_ADAPTER = "otlp";
 
+/** An adapter an installation of the space declares, at its path below its package's mount. */
+export interface SpaceAdapter {
+    /** The installation answering it. */
+    readonly installationId: Identifier<"installation">;
+    /** The installation's package. */
+    readonly packageId: PackageId;
+    /** The adapter's name in its package. */
+    readonly name: string;
+    /** The adapter's path below the package's mount. */
+    readonly path: string;
+}
+
 /** What one start of a space's workload serves with: its keys, its store and its buckets. */
 export interface SpaceRun {
-    /** The installations taking the space's telemetry: their package and the adapter's path. */
-    receivers: readonly { readonly packageId: PackageId; readonly path: string }[];
+    /** The adapters the served installations declare. */
+    adapters: readonly SpaceAdapter[];
     /** The host of the space's buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The S3 API over the space's buckets, and the host name it answers at. */
@@ -74,7 +87,9 @@ export interface SpaceRun {
     readonly gateway: PromiseWithResolvers<Gateway>;
     /** The space's role on the machine this start serves. */
     readonly role: SpaceRole;
-    /** The revision this start serves each installation at. */
+    /** The installed set this start applied, each installation at its revision. */
+    installed: Awaited<ReturnType<typeof Database.installed>>;
+    /** The revision this start serves each installation at, leaving out one that failed to load. */
     revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>;
     /** Serve a changed installed set in this start, keeping the unchanged installations served. */
     readonly apply: (installed: Awaited<ReturnType<typeof Database.installed>>) => Promise<void>;
@@ -218,8 +233,23 @@ export class Space {
         return this.instance.fetch(served, request, authentication);
     }
 
-    /** Serve a request to the space through its gateway. */
+    /** Serve a request to the space: its health's probes, else through its gateway. */
     async fetch(request: Request, authentication?: Authentication): Promise<Response> {
+        // answer the space's liveness and readiness, as a server answers its own, while it starts too
+        const mounted = SpaceMount.parse(new URL(request.url).pathname);
+        const probed =
+            mounted === undefined
+                ? undefined
+                : this.health.probe(
+                      new Request(new URL(mounted.path, request.url).href, {
+                          method: request.method,
+                      }),
+                  );
+        if (probed !== undefined) {
+            return probed;
+        }
+
+        // serve anything else through the gateway once it serves
         const gateway = await this.#current().gateway.promise;
 
         return gateway.serve(request, authentication);
@@ -265,7 +295,7 @@ export class Space {
                   )
                 : [];
         this.#serving = {
-            receivers: Space.#receivers(installed),
+            adapters: Space.#adapters(installed),
             buckets,
             s3: {
                 server: serveS3(buckets, database, this.machine.environment),
@@ -274,7 +304,8 @@ export class Space {
             store: Promise.withResolvers(),
             gateway: Promise.withResolvers(),
             role,
-            revisions: Space.#revisions(installed),
+            installed,
+            revisions: new Map(),
             apply: (changed) => this.#apply(changed, start, context),
             restart: () => {
                 context.reload().catch((error: unknown) => context.report(error));
@@ -305,11 +336,12 @@ export class Space {
         // fail the store and gateway waits of a start that fails, which its calls await
         const serving = this.#serving;
         try {
-            const { servers, sandboxes } = await this.host.servers(
+            const { servers, sandboxes, revisions } = await this.host.servers(
                 installed,
                 start,
                 context.signal,
             );
+            serving.revisions = revisions;
 
             // serve the space with the host's own jobs: what it serves, and a rated primary's metering
             const { skus } = machine;
@@ -322,11 +354,7 @@ export class Space {
                               measure: (from, to) =>
                                   volume.measure(buckets, from, to, this.traffic),
                               skus,
-                              payer: async () =>
-                                  accountObject.Account.payer(
-                                      this.machine.directory.snapshot,
-                                      await this.host.account(),
-                                  ),
+                              account: () => this.host.account(),
                               traffic: (signal) => this.traffic.next(signal),
                           }).controller(),
                   ]
@@ -334,7 +362,7 @@ export class Space {
             const controllers = [() => this.controller(), ...meters];
             const cursors: NonNullable<ImplementationInput["cursors"]> = isMetered
                 ? [
-                      // append each payer's uses of a page an hour at a time, kept while a billing call may retry
+                      // append each account's uses of a page an hour at a time, kept while a billing call may retry
                       stackObject.reading.cursor("metering", (page) => this.#append(page), {
                           hold: { milliseconds: REQUEST_LIFETIME_MILLISECONDS },
                           batch: { hours: 1 },
@@ -393,7 +421,7 @@ export class Space {
                 (packageId, manifest) =>
                     this.builds.pull(this.machine.releases, packageId, manifest),
             );
-            if (Space.#key(Space.#revisions(installed)) !== Space.#key(serving.revisions)) {
+            if (Space.#key(installed) !== Space.#key(serving.installed)) {
                 await serving.apply(installed);
             }
             await Rollout.serve(await serving.store.promise, this.id, serving.revisions);
@@ -485,43 +513,46 @@ export class Space {
     ): Promise<void> {
         // load the changed installations' servers, apply them to the store and serve their packages
         const serving = present(this.#serving, `the serving of ${this.id}`);
-        const { servers, sandboxes } = await this.host.servers(installed, start, context.signal);
+        const { servers, sandboxes, revisions } = await this.host.servers(
+            installed,
+            start,
+            context.signal,
+        );
         const packages = present(this.#store, `the store of ${this.id}`).apply(servers, sandboxes);
         context.serve(packages);
 
-        // record what the start serves now
-        serving.revisions = Space.#revisions(installed);
-        serving.receivers = Space.#receivers(installed);
+        // record what the start applied and serves now
+        serving.installed = installed;
+        serving.revisions = revisions;
+        serving.adapters = Space.#adapters(installed);
     }
 
-    /** Read the installations taking the space's telemetry: their package and adapter's path. */
-    static #receivers(
-        installed: Awaited<ReturnType<typeof Database.installed>>,
-    ): SpaceRun["receivers"] {
+    /** Read the adapters the installed set's packages declare. */
+    static #adapters(installed: Awaited<ReturnType<typeof Database.installed>>): SpaceAdapter[] {
         return installed.flatMap((entry) => {
-            const adapter = PackageDescription.find(entry.declarations)?.adapters[OTLP_ADAPTER];
+            // read the adapters the package declares, none for a library
+            const { installationId } = entry.rollout;
             const packageId = PackageId.parse(entry.rollout.installation.packageId);
+            const adapters = PackageDescription.find(entry.declarations)?.adapters ?? {};
 
-            return adapter === undefined ? [] : [{ packageId, path: adapter.path }];
+            return Object.entries(adapters).map(([name, adapter]) => ({
+                installationId,
+                packageId,
+                name,
+                path: adapter.path,
+            }));
         });
     }
 
-    /** Read the revision each installed entry is served at. */
-    static #revisions(
-        installed: readonly {
-            readonly rollout: InstallationRollout;
-            readonly revisionId: Identifier<"installation-revision">;
-        }[],
-    ): ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">> {
-        return new Map(installed.map((entry) => [entry.rollout.installationId, entry.revisionId]));
+    /** List the adapters an installation the space serves declares. */
+    adapters(installationId: Identifier<"installation">): readonly SpaceAdapter[] {
+        return this.#current().adapters.filter((each) => each.installationId === installationId);
     }
 
-    /** Key served revisions as one sorted string. */
-    static #key(
-        revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>,
-    ): string {
-        return [...revisions]
-            .map(([installationId, revisionId]) => `${installationId}@${revisionId}`)
+    /** Key an installed set as one sorted string of its installations at their revisions. */
+    static #key(installed: Awaited<ReturnType<typeof Database.installed>>): string {
+        return installed
+            .map((entry) => `${entry.rollout.installationId}@${entry.revisionId}`)
             .toSorted()
             .join(",");
     }
@@ -550,7 +581,8 @@ export class Space {
     /** Forward a telemetry export to each installation taking it, as the space itself. */
     async observe(signal: OtlpSignal, body: unknown): Promise<void> {
         const self = principal.space.reference(Scope.universe.id, this.id);
-        for (const receiver of this.#current().receivers) {
+        const receivers = this.#current().adapters.filter((each) => each.name === OTLP_ADAPTER);
+        for (const receiver of receivers) {
             // post the export below the receiver's adapter, refusing a failed answer
             const url = new URL(`${receiver.path}/${signal}`, this.machine.origin);
             const request = new Request(url.href, {
@@ -592,12 +624,15 @@ export class Space {
         return primary.connection.lease({ scope: lent.scope, id: lent.id });
     }
 
-    /** Append each payer's uses of a page of readings in its residency's home, as the machine. */
+    /** Append an account's uses of a page of readings at its payer's home, as the machine. */
     async #append(page: CursorPage): Promise<void> {
         const { directory, environment } = this.machine;
         for (const use of await Reading.uses(page, environment.crypto)) {
-            // call the stack in the home of the payer's residency
-            const home = await this.#residencyHome(use.accountId);
+            // bill the payer of the space this machine serves, at the stack in the home of the payer's residency
+            const payer = await this.host
+                .accounts()
+                .placement.payer({ accountId: use.accountId, id: this.id });
+            const home = await this.#residencyHome(payer);
             const fetch = this.machine.fetch(stackPackage.id);
             const stack = directory.client(
                 stackPackage,
@@ -606,7 +641,7 @@ export class Space {
                 fetch,
                 environment,
             );
-            await stack.usage.append(use);
+            await stack.usage.append({ ...use, accountId: payer });
         }
     }
 
