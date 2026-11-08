@@ -5,7 +5,8 @@ import { expect, refusal, test } from "@destack/test";
 import { Commit, Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { Package, PackageId } from "@destack/package";
-import { PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { BuildStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
 import { Registry } from "@destack/registry/client";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
@@ -123,6 +124,46 @@ test("resolve a published release by version and by the tag pointing at it, and 
         answer.manifest,
         await answer.reader.distributed(),
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `${packageId} has no release next`],
+    ]);
+});
+
+test("release a stored build under a tag once, point another tag at the release, and refuse another build at a released version", async () => {
+    // keep each build in a store of its own
+    const forge = await TestForge.open();
+    const releases = new Registry(async () => forge.registry(), forge.environment);
+    const { crypto } = forge.environment;
+    const committed = (await fixtureBuild("answer", "2026.9.1")).reader;
+    const uncommitted = (await uncommittedBuild()).reader;
+    const stored = (reader: BuildReader) => ({
+        contents: async () => reader,
+        units: async () => [],
+    });
+    const manifest = await BuildStore.digest(committed.manifest, crypto);
+    const other = await BuildStore.digest(uncommitted.manifest, crypto);
+    const { id, name } = PackageManifest.package(committed.manifest);
+
+    // release under next, point latest at the release, and refuse the uncommitted build at its version
+    const outcomes = [
+        await releases.release(stored(committed), manifest, ACCOUNT_ID, "next"),
+        await releases.release(stored(committed), manifest, ACCOUNT_ID, LATEST_TAG),
+        await refusal(releases.release(stored(uncommitted), other, ACCOUNT_ID, "next")),
+    ];
+
+    // resolve the release by version and by each tag
+    expect([
+        outcomes,
+        await releases.find(id, "2026.9.1"),
+        await releases.find(id, "next"),
+        await releases.find(id, LATEST_TAG),
+    ]).toEqual([
+        [
+            "released",
+            "pointed",
+            ["CONFLICT", "RELEASE_CONFLICT", `${name}@2026.9.1 is published from another build`],
+        ],
+        manifest,
+        manifest,
+        manifest,
     ]);
 });
 
