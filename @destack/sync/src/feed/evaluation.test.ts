@@ -28,9 +28,14 @@ class SwitchingAudience implements Audience {
         return this.#current.key;
     }
 
-    /** Match the visible rows of a table by the current conditions. */
-    where(table: Table) {
-        return this.#current.where(table);
+    /** Match the candidates of a table's visible rows by the current conditions. */
+    candidates(table: Table) {
+        return this.#current.candidates(table);
+    }
+
+    /** Match exactly the visible rows of a table by the current conditions. */
+    readable(table: Table) {
+        return this.#current.readable(table);
     }
 
     /** Show the rows the current conditions allow. */
@@ -88,9 +93,14 @@ class TimedAudience implements Audience {
         this.#current = this.#decided();
     }
 
-    /** Match the visible rows of a table as of now. */
-    where(table: Table) {
-        return this.#current.where(table);
+    /** Match the candidates of a table's visible rows as of now. */
+    candidates(table: Table) {
+        return this.#current.candidates(table);
+    }
+
+    /** Match exactly the visible rows of a table as of now. */
+    readable(table: Table) {
+        return this.#current.readable(table);
     }
 
     /** Show the rows visible now. */

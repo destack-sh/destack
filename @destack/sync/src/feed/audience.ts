@@ -15,7 +15,8 @@ import type { Query } from "../query/query.ts";
 /** An audience that shows and reads every row. */
 export const EVERYONE: Audience = {
     watches: [],
-    where: () => sql`true`,
+    candidates: async () => sql`true`,
+    readable: async () => sql`true`,
     key: "everyone",
     visible: async (_table, rows) => new Set(rows.keys()),
     concealable: () => [],
@@ -29,8 +30,10 @@ export const EVERYONE: Audience = {
 export interface Audience {
     /** The tables whose changes decide visibility. */
     readonly watches: readonly Watch[];
-    /** Match the rows the subscriber may have, under a query's permission too, or "memory". */
-    readonly where: (table: Table, permission?: string) => SQL | "memory";
+    /** Match a superset of the rows the subscriber may have, which `visible` decides. */
+    readonly candidates: (table: Table, permission?: string) => Promise<SQL>;
+    /** Match exactly the rows the subscriber may have, where SQL reads related rows whole. */
+    readonly readable: (table: Table, permission?: string) => Promise<SQL>;
     /** The name of what the audience decides by, alike for audiences deciding alike. */
     readonly key: string;
     /** Decide which rows the subscriber may have by index, under a query's permission too. */

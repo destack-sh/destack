@@ -180,7 +180,7 @@ export class View {
     }
 
     /** Read the first visible rows of each partition after each segment's row, up to a count. */
-    ordered(
+    async ordered(
         node: Node,
         segments: readonly Segment[],
         count: number,
@@ -190,7 +190,7 @@ export class View {
     ): Promise<(readonly Row[])[]> {
         // read fresh partitions of a key path together in ranked batches
         const read = (segment: Segment) => View.#orderedKey(node, segment, count, audience);
-        const options = View.#orderedOptions(node, count, audience, run, relations);
+        const options = await View.#orderedOptions(node, count, audience, run, relations);
         const fresh = segments.filter(
             (segment) =>
                 segment.after === undefined &&
@@ -273,26 +273,21 @@ export class View {
     }
 
     /** Measure an aggregate node's visible groups among a condition's rows, in one grouped read. */
-    measure(
+    async measure(
         node: Node,
         within: Condition,
         audience: Audience,
         reading: TallyReading,
     ): Promise<{ readonly sequence: number; readonly tallies: Tally[] }> {
-        // decide rows in memory when the audience decides none in SQL
-        const matching = (table: Table) => View.#visibleSQL(audience, table);
-        const current = audience.where(node.table, node.permission);
+        // select exactly the rows and related rows the audience shows
+        const matching = await View.#readable(node, audience);
+        const readable = await audience.readable(node.table, node.permission);
         const selection = Predicate.render(
             node.resolve({ AND: [node.condition(), within] }),
             node.bind(matching),
         );
-        if (current === "memory") {
-            return Tally.measure(this.database, node, selection, reading, matching, async (rows) =>
-                audience.visible(node.table, rows, this.position, node.permission),
-            );
-        }
 
-        return Tally.measure(this.database, node, and(selection, current), reading, matching);
+        return Tally.measure(this.database, node, and(selection, readable), reading, matching);
     }
 
     /** Read a node's rows before and after their related rows changed between two sequences. */
@@ -462,40 +457,65 @@ export class View {
     }
 
     /** Build the options every ordered read of a node's partitions shares. */
-    static #orderedOptions(
+    static async #orderedOptions(
         node: Node,
         count: number,
         audience: Audience,
         run: Run,
         relations: RelationView | undefined,
-    ): Omit<WindowRead, "where"> {
-        // match the visible rows once, in SQL unless the audience decides them in memory
-        const where = audience.where(node.table, node.permission);
+    ): Promise<Omit<WindowRead, "where">> {
+        // read the candidates, their related rows exactly as the audience shows them, each candidate decided
+        const candidates = await audience.candidates(node.table, node.permission);
+        const matching = await View.#readable(node, audience);
 
         return {
             orderBy: node.orderBy,
-            namespace: node.namespace((table: Table) => View.#visibleSQL(audience, table)),
+            namespace: node.namespace(matching),
             limit: count,
             visible: {
-                ...(where === "memory" ? {} : { current: where }),
-                image: async (row: Row) =>
-                    (await run.seen(node.table, [row], node.permission)).length > 0,
+                candidates,
+                decide: async (rows) => {
+                    const seen = new Set(await run.seen(node.table, rows, node.permission));
+
+                    return new Set(
+                        rows.flatMap((row, position) => (seen.has(row) ? [position] : [])),
+                    );
+                },
             },
             ...(relations === undefined ? {} : { relations }),
         };
     }
 
-    /** Match the rows of a table an audience shows in SQL, under a query's permission too. */
-    static #visibleSQL(audience: Audience, table: Table, permission?: string): SQL {
-        const where = audience.where(table, permission);
-        if (where === "memory") {
-            throw DatabaseError.of(
-                "QUERY_INVALID",
-                `relations cannot read rows of ${table[TABLE].name}: the audience decides them in memory`,
-            );
+    /** Match the related rows a node's relations read, exactly as an audience shows them. */
+    static async #readable(node: Node, audience: Audience): Promise<(table: Table) => SQL> {
+        // read each related and join table's rows the audience shows, through every relation below the node
+        const tables = new Set<Table>();
+        const pending = [...node.relations];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            tables.add(next.table);
+            if (next.path?.kind === "junction") {
+                tables.add(next.path.table);
+            }
+            pending.push(...next.relations);
         }
+        const readable = new Map(
+            await Promise.all(
+                [...tables].map(async (table) => [table, await audience.readable(table)] as const),
+            ),
+        );
 
-        return where;
+        // refuse a table no relation of the node reads, which the reads above never decided
+        return (table) => {
+            const matched = readable.get(table);
+            if (matched === undefined) {
+                throw DatabaseError.of(
+                    "QUERY_INVALID",
+                    `the audience decided no rows of ${table[TABLE].name} for this query's relations`,
+                );
+            }
+
+            return matched;
+        };
     }
 }
 

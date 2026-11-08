@@ -20,7 +20,7 @@ import {
     until,
     START,
 } from "../test/fixture.ts";
-import { AUDIENCE, MEMORY_AUDIENCE } from "./test/query.ts";
+import { AUDIENCE } from "./test/query.ts";
 
 /** The tables the feed serves. */
 const TABLES: readonly Table[] = [project, task, comment, tag, taskTag, page];
@@ -71,7 +71,7 @@ test("refuse queries reading what the audience or the feed hides", async () => {
         return error;
     };
 
-    // refuse reads of concealable columns, unserved tables and rows the audience decides in memory
+    // refuse reads of concealable columns and unserved tables
     expect(
         await Promise.all([
             reason({ table: task, scopes: ["inbox"], where: { title: "write" } }, AUDIENCE),
@@ -85,21 +85,11 @@ test("refuse queries reading what the audience or the feed hides", async () => {
                 },
                 AUDIENCE,
             ),
-            reason(
-                {
-                    table: project,
-                    scopes: ["inbox"],
-                    relations,
-                    extras: { open: Expression.rollup("count", "tasks") },
-                },
-                MEMORY_AUDIENCE,
-            ),
         ]),
     ).toEqual([
         "query query reads concealable columns of task: title",
         "feed does not read note",
         "query query reads concealable columns of task: title",
-        "relations cannot read rows of task: the audience decides them in memory",
     ]);
 });
 
@@ -152,7 +142,9 @@ test("follow rows whose visibility the audience changes", async () => {
                 }),
             );
         },
-        where: (table) =>
+        candidates: async (table) =>
+            table === task ? sql`${task.id} IN (SELECT ${note.id} FROM ${note})` : sql`true`,
+        readable: async (table) =>
             table === task ? sql`${task.id} IN (SELECT ${note.id} FROM ${note})` : sql`true`,
         key: "granted",
         decides: async (change: Change) => change.table === note,
@@ -213,7 +205,9 @@ test("send the rows each query selects under the query's permission, and a row o
     const audience: Audience = {
         ...EVERYONE,
         watches: [{ table: task, scopes: ["inbox"] }],
-        where: (table, permission) =>
+        candidates: async (table, permission) =>
+            table === task && permission === "edit" ? sql`${task.rank} < 5` : sql`true`,
+        readable: async (table, permission) =>
             table === task && permission === "edit" ? sql`${task.rank} < 5` : sql`true`,
         visible: async (table, rows, _position, permission) =>
             new Set(

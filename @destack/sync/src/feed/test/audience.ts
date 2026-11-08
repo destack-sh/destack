@@ -49,18 +49,16 @@ export class ConditionAudience implements Audience {
         ]);
     }
 
-    /** Match the visible rows of a table in SQL, or in memory. */
-    where(table: Table) {
+    /** Match the candidates of a table's visible rows: every row in memory, else the condition. */
+    async candidates(table: Table) {
+        return this.#isInMemory ? sql`true` : this.readable(table);
+    }
+
+    /** Match exactly the visible rows of a table by its condition, every row without one. */
+    async readable(table: Table) {
         const condition = this.#visible.get(table);
 
-        // show every row of a table without a condition, and decide the others in memory or SQL
-        if (condition === undefined) {
-            return sql`true`;
-        } else if (this.#isInMemory) {
-            return "memory";
-        } else {
-            return Condition.render(condition, table);
-        }
+        return condition === undefined ? sql`true` : Condition.render(condition, table);
     }
 
     /** Decide which rows of a table are visible. */

@@ -5,14 +5,16 @@ import { Feed } from "../feed/feed.ts";
 import { ConditionAudience } from "../feed/test/audience.ts";
 import { first, note, open, take, START } from "../test/fixture.ts";
 
-/** An audience showing every row and counting the rows it decides. */
+/** An audience showing every row and recording the rows it decides. */
 class CountingAudience extends ConditionAudience {
-    /** The rows the audience decided. */
-    decided = 0;
+    /** The identifiers of the rows the audience decided. */
+    readonly decided = new Set<unknown>();
 
-    /** Show every row and count it. */
+    /** Show every row and record it. */
     override async visible(table: Table, rows: readonly Row[]): Promise<ReadonlySet<number>> {
-        this.decided += rows.length;
+        for (const row of rows) {
+            this.decided.add(row["id"]);
+        }
 
         return super.visible(table, rows);
     }
@@ -41,5 +43,5 @@ test("decide only the changed rows meeting a query's condition", async () => {
     await accepted;
 
     // ask the audience only about the accepted note
-    expect(audience.decided).toBe(1);
+    expect([...audience.decided]).toEqual(["b"]);
 });

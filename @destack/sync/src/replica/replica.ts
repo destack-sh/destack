@@ -5,6 +5,7 @@ import {
     count,
     defineTable,
     eq,
+    isNotNull,
     gt,
     gte,
     index,
@@ -22,6 +23,7 @@ import {
     TABLE,
     type DatabaseConnection,
     type SQL,
+    type SQLWrapper,
     Condition,
     Namespace,
     Predicate,
@@ -697,6 +699,17 @@ export class Replica {
 
             return origin === undefined ? [] : [{ position: origin, tables }];
         });
+    }
+
+    /** Match a log, or a log at an epoch, that some replica here reflects. */
+    static reflects(log: SQLWrapper, epoch?: SQLWrapper): SQL {
+        // reflect the relaying source's home position, else the source's own
+        const isRelayed = isNotNull(replicaPosition.originLog);
+        const reflectedLog = sql`CASE WHEN ${isRelayed} THEN ${replicaPosition.originLog} ELSE ${replicaPosition.log} END`;
+        const reflectedEpoch = sql`CASE WHEN ${isRelayed} THEN ${replicaPosition.originEpoch} ELSE ${replicaPosition.epoch} END`;
+        const isAtEpoch = epoch === undefined ? sql`TRUE` : sql`${reflectedEpoch} = ${epoch}`;
+
+        return sql`EXISTS (SELECT 1 FROM ${replica} INNER JOIN ${replicaPosition} ON ${POSITIONED} WHERE ${reflectedLog} = ${log} AND ${isAtEpoch})`;
     }
 
     /** Report whether a database replicates a scope, or the scope's rows of one table. */
@@ -1873,10 +1886,7 @@ export class Replica {
                     }
 
                     // predict again what the source lacks, at the home position
-                    await rebased?.replay(transaction, {
-                        position: origin ?? page.position,
-                        isSnapshot: run.isSnapshot,
-                    });
+                    await rebased?.replay(transaction, origin ?? page.position);
 
                     return {
                         position,

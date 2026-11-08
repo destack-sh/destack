@@ -13,7 +13,6 @@ import {
     Key,
     gte,
     not,
-    or,
     lte,
     max,
     sql,
@@ -233,13 +232,10 @@ export class Prediction {
     }
 
     /** Settle the queue a completed page covers and predict the stack again over the replica. */
-    async replay(
-        transaction: DatabaseConnection,
-        settled?: { readonly position: LogPosition; readonly isSnapshot: boolean },
-    ): Promise<void> {
-        // settle the queue
+    async replay(transaction: DatabaseConnection, settled?: LogPosition): Promise<void> {
+        // drop the mutations whose changes the replica has
         if (settled !== undefined) {
-            await this.#settle(transaction, settled.position, settled.isSnapshot);
+            await transaction.delete(mutation).where(Prediction.#acknowledged(settled));
         }
 
         // show the main line once the checked-out branch closes
@@ -444,7 +440,7 @@ export class Prediction {
         const query = database
             .select({ id: mutation.id, calls: mutation.calls, branch: mutation.branch })
             .from(mutation)
-            .where(and(isNull(mutation.epoch), isNull(mutation.error)))
+            .where(Prediction.#pending())
             .orderBy(asc(mutation.position));
         const rows = await (options.limit === undefined ? query : query.limit(options.limit));
 
@@ -460,12 +456,11 @@ export class Prediction {
         database: DatabaseConnection,
     ): Promise<{ readonly pending: number; readonly executed: number; readonly rejected: number }> {
         // count each state in one pass with pending as the push reads it
+        const pending = Prediction.#pending();
         const [counts] = await database
             .select({
-                pending: Prediction.#countWhen(and(isNull(mutation.epoch), isNull(mutation.error))),
-                executed: Prediction.#countWhen(
-                    and(isNotNull(mutation.epoch), isNull(mutation.error)),
-                ),
+                pending: Prediction.#countWhen(pending),
+                executed: Prediction.#countWhen(and(isNull(mutation.error), not(pending))),
                 rejected: Prediction.#countWhen(isNotNull(mutation.error)),
             })
             .from(mutation);
@@ -516,10 +511,7 @@ export class Prediction {
             // settle at its position
             if (reflecting !== undefined) {
                 await transaction.log.asReplica(() => this.revert(transaction));
-                await this.replay(transaction, {
-                    position: reflecting.position,
-                    isSnapshot: false,
-                });
+                await this.replay(transaction, reflecting.position);
             }
         });
     }
@@ -538,28 +530,6 @@ export class Prediction {
             .limit(1);
 
         return recorded !== undefined;
-    }
-
-    /** Drop executed mutations a replica's position covers, and push again what a snapshot lost. */
-    async #settle(
-        transaction: DatabaseConnection,
-        position: LogPosition,
-        isSnapshot: boolean,
-    ): Promise<void> {
-        // drop the mutations whose changes the replica has
-        await transaction.delete(mutation).where(Prediction.#acknowledged(position));
-
-        // push again what an epoch no replica here follows executed, which the server's journal answers
-        if (isSnapshot) {
-            const reflections = await Replica.reflections(transaction);
-            const isFollowed = reflections.map(({ position: home }) =>
-                and(eq(mutation.log, home.log), eq(mutation.epoch, home.epoch)),
-            );
-            await transaction
-                .update(mutation)
-                .set({ log: null, epoch: null, sequence: null })
-                .where(and(isNotNull(mutation.epoch), not(or(sql`FALSE`, ...isFollowed))));
-        }
     }
 
     /** Read mutations' outcomes in one statement. */
@@ -620,6 +590,15 @@ export class Prediction {
         }
 
         return { ...written, before: definition.encode(change.before) };
+    }
+
+    /** Match the mutations to push: unacknowledged, or at an epoch the log's replicas left. */
+    static #pending(): SQL {
+        // push a mutation the server never acknowledged, or one at an epoch no replica of its log reflects
+        const isUnacknowledged = isNull(mutation.epoch);
+        const isLost = sql`${Replica.reflects(mutation.log)} AND NOT ${Replica.reflects(mutation.log, mutation.epoch)}`;
+
+        return sql`(${isNull(mutation.error)} AND (${isUnacknowledged} OR (${isLost})))`;
     }
 
     /** Match the executed mutations whose changes a position includes. */
