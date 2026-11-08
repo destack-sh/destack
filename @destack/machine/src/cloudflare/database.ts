@@ -1,6 +1,7 @@
-import { Provisioned } from "@destack/object";
+import { Installation } from "@destack/object";
 import type { Random } from "@destack/environment";
 import {
+    Snapshot,
     and,
     type DatabaseConnection,
     type DatabaseHandle,
@@ -236,26 +237,23 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     async #object(
         record: ResourceRecord<typeof DatabaseKind>,
     ): Promise<InstanceObject | undefined> {
-        // find the installation owning the database
+        // find the application installation managing the database, none for the space's own
+        const scope = schema.identifier("space").parse(record.scope);
         const [row] = await this.#records
-            .select(Provisioned.ownerColumns(database.table))
+            .select({ manager: database.table.managerInstallationId })
             .from(database.table)
-            .where(
-                and(
-                    database.inScope(schema.identifier("space").parse(record.scope)),
-                    database.withIds([record.id]),
-                ),
-            );
-        const installation = row === undefined ? undefined : Provisioned.owner(row);
-        if (row === undefined || installation === undefined) {
+            .where(and(database.inScope(scope), database.withIds([record.id])));
+        const manager = row?.manager ?? null;
+        const applications =
+            manager === null
+                ? new Set<string>()
+                : await Installation.applications(Snapshot.live(this.#records), [manager]);
+        if (manager === null || !applications.has(manager)) {
             return undefined;
         }
 
         // address the installation's object
-        return this.#instance({
-            scope: schema.identifier("space").parse(row.ownerScope),
-            installationId: installation,
-        });
+        return this.#instance({ scope, installationId: manager });
     }
 
     /** Address an installation's object. */

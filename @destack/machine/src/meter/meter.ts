@@ -29,8 +29,8 @@ export interface MeterOptions {
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
     /** The key of the SKU rating each meter on the space's machine, by the meter's key. */
     readonly skus: ReadonlyMap<string, string>;
-    /** Read the account paying for the space now. */
-    readonly payer: () => Promise<Identifier<"account">>;
+    /** Read the account the space belongs to. */
+    readonly account: () => Promise<Identifier<"account">>;
     /** Wait until the space's traffic is counted, or until the signal aborts. */
     readonly traffic: (signal: AbortSignal) => Promise<void>;
 }
@@ -87,10 +87,10 @@ export class SpaceMeter {
         const from = (await this.#latest()) ?? now;
         const measured = await this.#options.measure(from, now);
 
-        // append each reading at its SKU and payer, a level as constant over each month of the interval
+        // append each reading at its SKU and the space's account, a level as constant over each month of the interval
         const { space, skus } = this.#options;
         if (measured.length > 0) {
-            const payer = await this.#options.payer();
+            const account = await this.#options.account();
             const items = await Promise.all(
                 measured.flatMap((each) =>
                     SpaceMeter.#readingsOf(
@@ -98,7 +98,7 @@ export class SpaceMeter {
                         from,
                         now,
                         SpaceMeter.#skuOf(skus, each.meter),
-                        payer,
+                        account,
                         this.#store.environment.crypto,
                     ),
                 ),
@@ -151,7 +151,7 @@ export class SpaceMeter {
         from: number,
         to: number,
         sku: string,
-        payer: string,
+        account: string,
         crypto: DigestCrypto,
     ) {
         // record an averaged meter's level beside its level times each month's part of the interval
@@ -170,7 +170,7 @@ export class SpaceMeter {
             meter: key,
             installationId: installation,
             sku,
-            payerId: payer,
+            accountId: account,
             value: isAverage ? measured.value * (end - start) : measured.value,
             data: isAverage ? { level: measured.value } : {},
         }));

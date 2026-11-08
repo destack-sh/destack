@@ -24,14 +24,14 @@ import {
 import { DOMAINS } from "@destack/account/address";
 import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { createClient } from "@destack/object/client";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { defineWorkload, type RunnerOptions } from "@destack/object/workload";
 import { BucketError } from "@destack/bucket";
 import { bucket } from "@destack/stack/object";
 import * as stackObject from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import objectPackage from "@destack/object/package";
-import { StepUp } from "@destack/access";
+import { StepUp, principal } from "@destack/access";
 import { expect, refusal, test } from "@destack/test";
 import boardPackage from "../../tests/fixture/board/src/package.ts";
 import machinePackage from "../package.ts";
@@ -283,6 +283,10 @@ async function keepBucket(
         await transaction.insert(bucket.table).values({
             id,
             scope: space,
+            ...ObjectReference.columns(
+                "owner",
+                principal.space.reference(Scope.universe.id, space),
+            ),
             name: definition.name,
             definitionPackageId: definition.package.id,
             definitionVersion: definition.package.version,

@@ -77,7 +77,7 @@ test("append a space's use as readings each round, measuring a failed round in t
     const options = {
         space: spaceId,
         skus: SKUS,
-        payer: async () => accountId,
+        account: async () => accountId,
         traffic: quiet,
         measure: async (from: number, to: number) => {
             measured.push([from, to]);
@@ -127,7 +127,7 @@ test("append a space's use as readings each round, measuring a failed round in t
                 meter: key,
                 installationId: installation,
                 sku,
-                payerId: accountId,
+                accountId,
                 value,
             },
             data: level === null ? {} : { level },
@@ -181,7 +181,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
     const meters = new SpaceMeter(store, {
         space: spaceId,
         skus: SKUS,
-        payer: async () => fixture.account,
+        account: async () => fixture.account,
         traffic: (signal) => traffic.next(signal),
         measure: async (from, to) => {
             measured.push([from, to]);

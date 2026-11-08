@@ -1,5 +1,15 @@
-import { type CursorPage, Provisioned } from "@destack/object";
-import { and, type DatabaseConnection, eq, gt, isNotNull, isNull, lt, or } from "@destack/db";
+import { type CursorPage, Installation } from "@destack/object";
+import {
+    and,
+    type DatabaseConnection,
+    eq,
+    gt,
+    isNotNull,
+    isNull,
+    lt,
+    or,
+    Snapshot,
+} from "@destack/db";
 import type { Meter } from "@destack/telemetry/meter";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
 import { bucket, database, deployment, instance, reading, usage } from "@destack/stack/object";
@@ -78,16 +88,17 @@ export const Reading = {
             .select({
                 scope: database.table.scope,
                 reference: database.table.reference,
-                ...Provisioned.ownerColumns(database.table),
+                manager: database.table.managerInstallationId,
             })
             .from(database.table)
             .where(isNotNull(database.table.reference));
+        const applications = await managing(records, rows);
 
         return Promise.all(
             rows.map(async (row) => ({
                 meter: databaseBytes,
                 scope: row.scope,
-                ...ownerOf(row),
+                ...applicationOf(row, applications),
                 value: await bytes(present(row.reference, "a provisioned database's reference")),
             })),
         );
@@ -106,17 +117,15 @@ export const Reading = {
             readonly installationId: Identifier<"installation">;
         }) => Promise<number>,
     ): Promise<Reading[]> {
-        // find the installations owning provisioned databases, each once
+        // find the application installations managing provisioned databases, each once
         const rows = await records
-            .select({ scope: database.table.scope, ...Provisioned.ownerColumns(database.table) })
+            .select({ scope: database.table.scope, manager: database.table.managerInstallationId })
             .from(database.table)
             .where(isNotNull(database.table.reference))
-            .groupBy(
-                database.table.scope,
-                ...Object.values(Provisioned.ownerColumns(database.table)),
-            );
+            .groupBy(database.table.scope, database.table.managerInstallationId);
+        const applications = await managing(records, rows);
         const owners = rows.flatMap((row) => {
-            const { installation } = ownerOf(row);
+            const { installation } = applicationOf(row, applications);
 
             return installation === undefined ? [] : [{ scope: row.scope, installation }];
         });
@@ -146,22 +155,23 @@ export const Reading = {
             .select({
                 id: bucket.table.id,
                 scope: bucket.table.scope,
-                ...Provisioned.ownerColumns(bucket.table),
+                manager: bucket.table.managerInstallationId,
             })
             .from(bucket.table)
             .where(isNotNull(bucket.table.reference));
+        const applications = await managing(records, rows);
 
         return Promise.all(
             rows.map(async (row) => ({
                 meter: storageBytes,
                 scope: row.scope,
-                ...ownerOf(row),
+                ...applicationOf(row, applications),
                 value: await bytes(row.id),
             })),
         );
     },
 
-    /** Fold a page of a space's readings into each payer's uses, one per meter, SKU and month. */
+    /** Fold a page of a space's readings into its account's uses, one per meter, SKU and month. */
     async uses(page: CursorPage, crypto: Crypto) {
         // read each reading with the keys and data its kind declares
         const kind = reading.eventKind();
@@ -173,10 +183,10 @@ export const Reading = {
             data: kind.parseData(event.data),
         }));
 
-        // sum each payer's readings of a meter, SKU, installation and month
+        // sum the account's readings of each meter, SKU, installation and month
         const totals = Map.groupBy(readings, ({ time, keys }) =>
             JSON.stringify([
-                keys.payerId,
+                keys.accountId,
                 keys.meter,
                 keys.sku,
                 keys.installationId,
@@ -188,16 +198,16 @@ export const Reading = {
                 // span the readings' times, a level as its share of the month and an amount as read
                 const first = present(summed[0], "a use's first reading");
                 const last = present(summed.at(-1), "a use's last reading");
-                const { payerId, meter, sku, installationId } = first.keys;
+                const { accountId, meter, sku, installationId } = first.keys;
                 const times = summed.map((each) => each.time);
                 const from = Math.min(...times);
                 const value = summed.reduce((total, each) => total + each.keys.value, 0);
                 const { level } = last.data;
                 const read = summed.map((each) => each.id).toSorted();
-                const contents = [payerId, meter, sku, installationId, monthStart(from), ...read];
+                const contents = [accountId, meter, sku, installationId, monthStart(from), ...read];
 
                 return {
-                    accountId: payerId,
+                    accountId,
                     read,
                     item: {
                         id: await usage.derive(spaceId, JSON.stringify(contents), crypto),
@@ -215,28 +225,44 @@ export const Reading = {
             }),
         );
 
-        // gather each payer's uses in one request, keyed by its readings and timed by the claim, which a retry repeats
+        // gather each account's uses in one request, keyed by its readings and timed by the claim, which a retry repeats
         return Promise.all(
-            [...Map.groupBy(uses, (use) => use.accountId)].map(async ([accountId, payerUses]) => ({
-                accountId,
-                requestId: await RequestId.derive(
-                    page.claimedAt,
-                    JSON.stringify([accountId, ...payerUses.flatMap((use) => use.read).toSorted()]),
-                    crypto,
-                ),
-                items: payerUses.map((use) => use.item),
-            })),
+            [...Map.groupBy(uses, (use) => use.accountId)].map(
+                async ([accountId, accountUses]) => ({
+                    accountId,
+                    requestId: await RequestId.derive(
+                        page.claimedAt,
+                        JSON.stringify([
+                            accountId,
+                            ...accountUses.flatMap((use) => use.read).toSorted(),
+                        ]),
+                        crypto,
+                    ),
+                    items: accountUses.map((use) => use.item),
+                }),
+            ),
         );
     },
 };
 
-/** Read the installation owning a resource as a reading has it, none for the space's own. */
-function ownerOf(row: Parameters<typeof Provisioned.owner>[0]): {
-    readonly installation?: Identifier<"installation">;
-} {
-    const installation = Provisioned.owner(row);
+/** Read which managers of some resources are application installations. */
+function managing(
+    records: DatabaseConnection,
+    rows: readonly { readonly manager: Identifier<"installation"> | null }[],
+): Promise<ReadonlySet<string>> {
+    const managers = rows.flatMap((row) => (row.manager === null ? [] : [row.manager]));
 
-    return installation === undefined ? {} : { installation };
+    return Installation.applications(Snapshot.live(records), managers);
+}
+
+/** Read the application installation managing a resource, none for the space's own. */
+function applicationOf(
+    row: { readonly manager: Identifier<"installation"> | null },
+    applications: ReadonlySet<string>,
+): { readonly installation?: Identifier<"installation"> } {
+    return row.manager !== null && applications.has(row.manager)
+        ? { installation: row.manager }
+        : {};
 }
 
 /** Read the start of the UTC month a time falls in, in Unix milliseconds. */

@@ -9,11 +9,11 @@ import {
     type DurableObjectStorage,
 } from "@destack/db/cloudflare";
 import { DurableObjectDatabase } from "@destack/db/cloudflare/durable";
-import { ModuleMetadata } from "@destack/package";
+import { ModuleMetadata, PackageId } from "@destack/package";
 import { Plan, ResourceId } from "@destack/resource";
 import { MemoryContentStore } from "@destack/resource";
 import { schema } from "@destack/schema";
-import { refusal } from "@destack/object";
+import { installation, refusal } from "@destack/object";
 import { type DurableObjectNamespace, PartitionName } from "../runtime/index.ts";
 import { database } from "@destack/stack/object";
 import { ObjectReference } from "@destack/sync";
@@ -32,6 +32,7 @@ const INSTALLED = {
     installationId: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-00000000e002"),
+    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-00000000e004"),
 };
 
 /** The installation whose object the space restores the copy into. */
@@ -40,6 +41,7 @@ const RESTORED = {
     installationId: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-00000000e003"),
+    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-00000000e00f"),
 };
 
 /** The database the first installation's object stores. */
@@ -232,7 +234,7 @@ class Space {
         const written = await this.#instance(INSTALLED).fetch(
             new Request("https://instance/write"),
         );
-        const installation = Counted.parse(await written.json()).bytes;
+        const counted = Counted.parse(await written.json()).bytes;
 
         return Response.json({
             space: {
@@ -241,7 +243,7 @@ class Space {
             },
             installation: {
                 measured: (await this.databases.measure(INSTALLED)).bytes,
-                own: installation,
+                own: counted,
             },
         });
     }
@@ -256,21 +258,39 @@ class Space {
             spec: { replicated: [] },
             reference: null,
         };
-        await this.records.transaction(
-            async (transaction) =>
-                await transaction.insert(database.table).values({
-                    id: database.identifier(id),
-                    scope: record.scope,
-                    name,
-                    definitionPackageId: MODULE.package.id,
-                    definitionVersion: MODULE.package.version,
-                    definitionName: name,
-                    spec: record.spec,
-                    ...ObjectReference.columns("owner", owner),
+        await this.records.transaction(async (transaction) => {
+            // record the application installation managing it once, as its rollout would
+            await transaction
+                .insert(installation.table)
+                .values({
+                    id: installed.installationId,
+                    scope: installed.scope,
+                    packageId: installed.packageId,
+                    name: `app-${name}`,
+                    selection: { kind: "release", version: MODULE.package.version },
+                    capabilities: [],
                     createdAt: 0,
                     updatedAt: 0,
-                }),
-        );
+                })
+                .onConflictDoNothing();
+
+            // record the database the installation declares
+            await transaction.insert(database.table).values({
+                id: database.identifier(id),
+                scope: record.scope,
+                name,
+                definitionPackageId: MODULE.package.id,
+                definitionVersion: MODULE.package.version,
+                definitionName: name,
+                spec: record.spec,
+                ...ObjectReference.columns("owner", owner),
+                managerInstallationId: installed.installationId,
+                managerPackageId: installed.packageId,
+                managerName: name,
+                createdAt: 0,
+                updatedAt: 0,
+            });
+        });
 
         // provision it and apply its tables in the installation's object
         const provisioned = { ...record, ...(await this.databases.provision(record)) };

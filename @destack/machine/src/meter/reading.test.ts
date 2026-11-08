@@ -39,22 +39,22 @@ const DISK_SKU = "package-019f5530-8000-7000-8000-000000000402/disk";
 /** The SKU rating machine hours, by its declaration key. */
 const UPTIME_SKU = "package-019f5530-8000-7000-8000-000000000402/uptime";
 
-test("fold a page of readings into each payer's uses, a counter's amount as read and a level as its share of the month", async () => {
-    // read 100 GB held an hour and 3 machine hours for the buyer, and 2 machine hours for another payer
+test("fold a page of readings into each account's uses, a counter's amount as read and a level as its share of the month", async () => {
+    // read 100 GB held an hour and 3 machine hours for the buyer, and 2 machine hours for another account
     const { crypto } = testSimulation().environment("machine");
     const level = 100 * GB;
     const read = (
         id: string,
         meter: string,
         sku: string,
-        payerId: string,
+        accountId: string,
         value: number,
         data: object,
     ) => ({
         scope: SPACE,
         id,
         time: EventTime.of(START + HOUR),
-        keys: { meter, installationId: null, sku, payerId, value },
+        keys: { meter, installationId: null, sku, accountId, value },
         data,
     });
     const folded = await Reading.uses(
@@ -72,9 +72,9 @@ test("fold a page of readings into each payer's uses, a counter's amount as read
         crypto,
     );
 
-    // give each payer its own uses, keyed by the page's claim and readings, as a retry repeats them
+    // give each account its own uses, keyed by the page's claim and readings, as a retry repeats them
     const use = async (
-        payer: string,
+        account: string,
         meter: string,
         sku: string,
         quantity: number,
@@ -83,7 +83,7 @@ test("fold a page of readings into each payer's uses, a counter's amount as read
     ) => ({
         id: await usage.derive(
             SPACE,
-            JSON.stringify([payer, meter, sku, null, START, reading]),
+            JSON.stringify([account, meter, sku, null, START, reading]),
             crypto,
         ),
         time: EventTime.of(START + HOUR),
@@ -96,8 +96,8 @@ test("fold a page of readings into each payer's uses, a counter's amount as read
         level: isLevel ? level : null,
         data: { from: START + HOUR, to: START + HOUR },
     });
-    const request = (payer: string, readings: string[]) =>
-        RequestId.derive(START + 2 * HOUR, JSON.stringify([payer, ...readings]), crypto);
+    const request = (account: string, readings: string[]) =>
+        RequestId.derive(START + 2 * HOUR, JSON.stringify([account, ...readings]), crypto);
     expect(folded).toEqual([
         {
             accountId: BUYER,
