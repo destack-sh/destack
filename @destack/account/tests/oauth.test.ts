@@ -1,3 +1,5 @@
+import { Contact } from "@destack/access";
+import { TokenResponse } from "../src/authentication/index.ts";
 import { eq } from "@destack/db";
 import { RequestId } from "@destack/sync";
 import { expect, test, refusal } from "@destack/test";
@@ -15,7 +17,7 @@ import {
     TestJwt,
     type TestPerson,
 } from "../src/test/index.ts";
-import { ANY_STRING, DeviceGrant, Tokens } from "./fixture.ts";
+import { ANY_STRING, DeviceGrant } from "./fixture.ts";
 import { JWKS_PATH } from "../src/authentication/path.ts";
 import { EMAIL_CODE, JWT_BEARER, TOKEN_EXCHANGE } from "../src/oauth/index.ts";
 import { Pkce, TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
@@ -238,7 +240,7 @@ test("sign a user in to another application through the authorization code flow 
         });
     const code = present(callback.searchParams.get("code"), "the authorization code");
     const redeemed = await redeem(code);
-    const tokens = Tokens.parse(await redeemed.clone().json());
+    const tokens = TokenResponse.parse(await redeemed.clone().json());
     expect(await answered(redeemed)).toEqual([
         200,
         issued("openid profile email offline_access", ACCESS_SECONDS, { refresh: true, id: true }),
@@ -312,9 +314,9 @@ test("sign a user in to another application through the authorization code flow 
 
     // refresh the tokens of another authorization
     const another = present((await authorize()).searchParams.get("code"), "the authorization code");
-    const fresh = Tokens.parse(await (await redeem(another)).json());
+    const fresh = TokenResponse.parse(await (await redeem(another)).json());
     const refreshed = await refresh(present(fresh.refresh_token, "the refresh token"));
-    const renewed = Tokens.parse(await refreshed.clone().json());
+    const renewed = TokenResponse.parse(await refreshed.clone().json());
     expect(await answered(refreshed)).toEqual([
         200,
         issued("openid profile email offline_access", ACCESS_SECONDS, { refresh: true, id: true }),
@@ -369,7 +371,10 @@ test("refuse a refresh token issued before a revoked consent was granted again",
     const grant = async () => {
         const redeemed = await fixture.authorize(browser, authorization);
 
-        return present(Tokens.parse(await redeemed.json()).refresh_token, "the refresh token");
+        return present(
+            TokenResponse.parse(await redeemed.json()).refresh_token,
+            "the refresh token",
+        );
     };
     const refresh = async (token: string) =>
         answered(
@@ -489,7 +494,7 @@ test("sign a device in to a confidential application through the device authoriz
         });
     const unauthenticated = await exchange({ ...credentials, client_secret: "dst_ocs_wrong" });
     const issuedTokens = await exchange(credentials);
-    const tokens = Tokens.parse(await issuedTokens.clone().json());
+    const tokens = TokenResponse.parse(await issuedTokens.clone().json());
     expect([await answered(unauthenticated), await answered(issuedTokens)]).toEqual([
         [401, { error: "invalid_client", error_description: "invalid client_secret" }],
         [200, issued("openid profile offline_access", ACCESS_SECONDS, { refresh: true, id: true })],
@@ -592,7 +597,7 @@ test("sign a device in as a new client through the browser once the person allow
     const fresh = present((await authorize()).searchParams.get("code"), "the fresh code");
     const redeemed = await redeem(fresh);
     const replayed = await redeem(fresh);
-    const tokens = Tokens.parse(await redeemed.clone().json());
+    const tokens = TokenResponse.parse(await redeemed.clone().json());
     expect([await answered(forged), await answered(redeemed), await answered(replayed)]).toEqual([
         [
             400,
@@ -652,7 +657,7 @@ test("sign a device in as a new client through the browser once the person allow
     ]);
 });
 
-test("include the second factor of the session approving a device's client in its tokens, and keep it in refreshed ones", async () => {
+test("include the second factor and verified email of the session approving a device's client in its tokens, and keep them in refreshed ones", async () => {
     // authorize a fresh client in a browser the person stepped up in
     await using fixture = await TestAccountStore.open();
     const { person, browser } = await fixture.signInWithLink("ada@example.com");
@@ -668,26 +673,31 @@ test("include the second factor of the session approving a device's client in it
     });
 
     // refresh the tokens a minute later
-    const tokens = Tokens.parse(await redeemed.json());
+    const tokens = TokenResponse.parse(await redeemed.json());
     await fixture.simulation.jump(fixture.clock.now() + 60 * SECOND);
     const refreshed = await provider(fixture, "/oauth2/token", {
         grant_type: "refresh_token",
         refresh_token: present(tokens.refresh_token, "the refresh token"),
         client_id: clientId,
     });
-    const renewed = Tokens.parse(await refreshed.json());
+    const renewed = TokenResponse.parse(await refreshed.json());
 
-    // carry the approving session's second factor into the tokens and their renewal
+    // carry the approving session's second factor and the person's verified email into the tokens and their renewal
     const { caller } = TestJwt.claims(tokens.access_token);
+    const renewedCaller = TestJwt.claims(renewed.access_token).caller;
     const approving = await fixture.database
         .select({ authenticatedAt: session.table.authenticatedAt })
         .from(session.table)
         .where(eq(session.table.id, schema.identifier("session").parse(caller.credential.id)));
     const assurance = { level: 2, authenticatedAt: nth(approving, 0).authenticatedAt };
+    const contacts = [Contact.email("ada@example.com")];
     expect([
-        caller.credential.assurance,
-        TestJwt.claims(renewed.access_token).caller.credential.assurance,
-    ]).toEqual([assurance, assurance]);
+        [caller.credential.assurance, caller.contacts],
+        [renewedCaller.credential.assurance, renewedCaller.contacts],
+    ]).toEqual([
+        [assurance, contacts],
+        [assurance, contacts],
+    ]);
 });
 
 test("send a signed-in person asked to sign in again within an age to the sign-in page", async () => {
@@ -777,7 +787,7 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
     const wrong = await redeem(otp === "000000" ? "111111" : "000000");
     const redeemed = await redeem(otp);
     const spent = await redeem(otp);
-    const tokens = Tokens.parse(await redeemed.clone().json());
+    const tokens = TokenResponse.parse(await redeemed.clone().json());
 
     // issue tokens of the new client in a new session, registered as the person's
     const registered = await fixture.database
@@ -926,7 +936,7 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
             client_id: registered.clientId,
             code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
         });
-    const tokens = Tokens.parse(await (await redeem(first)).json());
+    const tokens = TokenResponse.parse(await (await redeem(first)).json());
 
     // rotate the refresh token twice, then refuse the first one returning and every token of its family
     const refresh = async (token: string | undefined) =>
@@ -943,8 +953,8 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
             scope: "offline_access",
         }),
     );
-    const second = Tokens.parse(await (await refresh(tokens.refresh_token)).json());
-    const third = Tokens.parse(await (await refresh(second.refresh_token)).json());
+    const second = TokenResponse.parse(await (await refresh(tokens.refresh_token)).json());
+    const third = TokenResponse.parse(await (await refresh(second.refresh_token)).json());
     const reused = await answered(await refresh(tokens.refresh_token));
     const revoked = await answered(await refresh(third.refresh_token));
 
@@ -992,7 +1002,7 @@ test("answer tokens uncached, introspect only the asking client's own standing t
         client_id: registered.clientId,
         code_verifier: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
     });
-    const tokens = Tokens.parse(await redeemed.clone().json());
+    const tokens = TokenResponse.parse(await redeemed.clone().json());
 
     // introspect both tokens as their client and as another
     const stranger = Identifier.create("client", fixture.environment);

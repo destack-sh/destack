@@ -8,6 +8,7 @@ import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { ActiveSession } from "../better-auth/active-session.ts";
 import { AccountError } from "../error/error.ts";
 import { Client } from "../object/client.ts";
+import { User } from "../object/user.ts";
 import {
     DeviceAuthorization,
     type DeviceDecision,
@@ -268,7 +269,11 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
         }
         const resource = row.resource ?? undefined;
         const authentication = AccountAuthentication.client(
-            { userId: decision.userId, clientId: party.clientId },
+            {
+                userId: decision.userId,
+                clientId: party.clientId,
+                contacts: await User.contacts(database, decision.userId),
+            },
             Number.POSITIVE_INFINITY,
             PackageResource.audience(resource),
             now,

@@ -79,6 +79,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
     MACHINE_NOT_FOUND: { code: "NOT_FOUND" },
     MACHINE_NOT_PUBLISHED: { code: "NOT_FOUND" },
     PERSON_REQUIRED: { code: "NOT_FOUND" },
+    USER_NOT_FOUND: { code: "NOT_FOUND" },
     CLIENT_KEY_MISSING: { code: "NOT_FOUND" },
     LOCAL_KEYS_MISSING: { code: "NOT_FOUND" },
     MACHINE_KEY_MISSING: { code: "NOT_FOUND" },

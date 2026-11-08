@@ -112,18 +112,21 @@ export const AccountAuthentication = {
             readonly clientId: string;
             /** How the person authenticated, absent for a device code grant. */
             readonly assurance?: AuthenticationAssurance | undefined;
+            /** The person's verified contacts. */
+            readonly contacts: readonly Contact[];
         },
         lapse: number,
         audience: PackageId,
         now: number,
     ): Authentication {
-        // describe the person through the client, keeping how they authenticated
-        const { userId, clientId, assurance } = acting;
+        // describe the person through the client, with their contacts and how they authenticated
+        const { userId, clientId, assurance, contacts } = acting;
         const authentication = authenticationOf("client", clientId, userId, lapse, audience, now);
-        const { caller, credential } = authentication;
+        const caller = { ...authentication.caller, contacts: [...contacts] };
+        const { credential } = authentication;
         const assured =
             assurance === undefined
-                ? authentication
+                ? { caller, credential }
                 : { caller, credential: { ...credential, assurance } };
 
         return withClient(assured, clientId);

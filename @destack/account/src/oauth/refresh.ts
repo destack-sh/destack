@@ -5,6 +5,7 @@ import { schema } from "@destack/schema";
 import { OAuthError } from "../authentication/token.ts";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { RefreshToken } from "../object/refresh-token.ts";
+import { User } from "../object/user.ts";
 import { ClientAuthentication } from "./party.ts";
 import { PackageResource } from "./resource.ts";
 import { spaceSeparated, type TokenGrant } from "./token.ts";
@@ -71,6 +72,7 @@ export function refreshGrant(options: RefreshOptions): TokenGrant {
                 userId: consent.scope,
                 clientId: party.clientId,
                 assurance: row.assurance ?? undefined,
+                contacts: await User.contacts(database, consent.scope),
             },
             row.expiresAt,
             PackageResource.audience(resource),

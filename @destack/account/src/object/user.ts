@@ -1,4 +1,4 @@
-import { anyone, Invitation, none, principal, relation, union } from "@destack/access";
+import { anyone, Contact, Invitation, none, principal, relation, union } from "@destack/access";
 import {
     and,
     type DatabaseConnection,
@@ -174,5 +174,19 @@ export const User = {
             .limit(1);
 
         return active !== undefined;
+    },
+
+    /** Read a user's contacts: their email address once verified. */
+    async contacts(database: DatabaseConnection, userId: string): Promise<Contact[]> {
+        const [row] = await database
+            .select({ email: user.table.email, emailVerified: user.table.emailVerified })
+            .from(user.table)
+            .where(eq(user.table.id, schema.identifier("user").parse(userId)))
+            .limit(1);
+        if (row === undefined) {
+            throw AccountError.of("USER_NOT_FOUND", `user ${userId} does not exist`);
+        }
+
+        return row.emailVerified === true && row.email !== null ? [Contact.email(row.email)] : [];
     },
 };
