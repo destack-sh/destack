@@ -39,6 +39,9 @@ import { identityKey } from "./identity/key.ts";
 /** The path the oauth adapter answers below the account package's mount. */
 export const OAUTH_PATH = "/oauth";
 
+/** The path of the sign-in page below the issuer, where a browser without a session starts. */
+export const SIGN_IN_PATH = "/sign-in";
+
 /** The account package: its objects, authentication records, OAuth adapter and errors. */
 export default definePackage({
     objects: {

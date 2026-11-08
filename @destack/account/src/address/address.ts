@@ -1,4 +1,4 @@
-import { Forwarded } from "@destack/environment";
+import { Forwarded, HostAddress } from "@destack/environment";
 import { present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
@@ -57,6 +57,9 @@ export const DOMAINS = {
     /** The machines. */
     machine: "destack.computer",
 } as const;
+
+/** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
+export const LOOPBACK_DOMAIN = "localhost";
 
 /** A machine of an account: `<machine>--<handle>.destack.computer`. */
 export interface MachineAddress {
@@ -200,6 +203,19 @@ export const InstallationOrigin = {
                   : branchedLabel(`${origin.name}${NAME_SEPARATOR}${origin.branch}`, origin);
 
         return domain === undefined ? label : `${label}.${domain}`;
+    },
+
+    /** Write the URL an installation origin answers at wherever its space's machine answers. */
+    url(origin: InstallationOrigin, machine: string): string {
+        // keep a loopback machine's port below the loopback domain
+        const url = new URL(machine);
+        if (HostAddress.isLoopbackName(url.hostname)) {
+            url.hostname = InstallationOrigin.format(origin, LOOPBACK_DOMAIN);
+
+            return url.origin;
+        }
+
+        return `https://${InstallationOrigin.format(origin, DOMAINS.space)}`;
     },
 
     /** Read the installation origin of a request under a domain. */

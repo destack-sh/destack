@@ -131,8 +131,11 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         return createClient<Handle["router"]>(handle, { url, fetch }, environment);
     }
 
-    /** Find a space's placement and its machine's URL now, absent until both are known. */
-    async #find(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint | undefined> {
+    /** Read a space's placement and its machine's URL now, absent until both are known. */
+    async serving(
+        spaceId: Identifier<"space">,
+        now: number,
+    ): Promise<PlacementEndpoint | undefined> {
         // read the placement, then the endpoint its machine publishes
         const placed = await this.#placement(spaceId);
         const published =
@@ -188,7 +191,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         let located: PlacementEndpoint | undefined;
         await this.snapshot.database.log.waitUntil(async (committed) => {
             if (watched.some((table) => committed.has(table))) {
-                located = await this.#find(spaceId, clock.now());
+                located = await this.serving(spaceId, clock.now());
             }
 
             return located !== undefined;

@@ -69,6 +69,15 @@ test("read and write the origins of views and branches under a domain, and nothi
     ]);
 });
 
+test("write an installation origin's URL below the loopback domain on a loopback machine, else below the space domain", () => {
+    const origin = { name: "home", space: "home", handle: "ada" };
+
+    expect([
+        InstallationOrigin.url(origin, "http://127.0.0.1:4102"),
+        InstallationOrigin.url(origin, "https://eu-central--platform.destack.computer"),
+    ]).toEqual(["http://home--home--ada.localhost:4102", "https://home--home--ada.destack.space"]);
+});
+
 test("read and write the origins of spaces and branches under a domain, and nothing for installation origins or other hostnames", () => {
     const origins = [
         "personal--florian.destack.space",

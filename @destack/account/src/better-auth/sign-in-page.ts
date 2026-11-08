@@ -5,7 +5,10 @@ import { CallError, claimTable } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import { alert, html, type Markup, redirect, render, timeZoneField } from "./markup.ts";
 import { SignUp } from "./sign-up.ts";
-import { Account } from "../object/account.ts";
+import { Account, account, HOME_APPLICATION, HOME_SPACE } from "../object/account.ts";
+import { InstallationOrigin } from "../address/address.ts";
+import { Directory } from "../address/directory.ts";
+import type { Clock } from "@destack/environment";
 import { HANDLE_LENGTH, type HandleAvailability } from "../address/handle.ts";
 import { DisplayName, NAME_LENGTH } from "../object/display-name.ts";
 import { Residency, type ResidencyCode } from "../object/residency.ts";
@@ -48,7 +51,7 @@ const SignedIn = schema.looseObject({ twoFactorRedirect: schema.boolean().exactO
 /** A Better Auth answer with the browser's session, null when signed out. */
 const Session = schema
     .looseObject({
-        user: schema.looseObject({ email: schema.string() }),
+        user: schema.looseObject({ id: schema.string(), email: schema.string() }),
         session: schema.looseObject({ createdAt: schema.string() }),
     })
     .nullable();
@@ -99,6 +102,8 @@ export class SignInPage {
     readonly database: DatabaseConnection;
     /** The authorization server, whose requests and device sign-ins the pages decide. */
     readonly server: AuthorizationServer;
+    /** The clock that decides whether a home's machine still answers. */
+    readonly clock: Clock;
 
     /** Serve the pages at their URLs over the Better Auth routes. */
     constructor(
@@ -114,6 +119,7 @@ export class SignInPage {
             | "send"
             | "database"
             | "server"
+            | "clock"
         >,
     ) {
         // store the routes and the database the pages read
@@ -122,6 +128,7 @@ export class SignInPage {
         this.send = options.send;
         this.database = options.database;
         this.server = options.server;
+        this.clock = options.clock;
 
         // store the page URLs
         this.signIn = options.signIn;
@@ -227,10 +234,20 @@ export class SignInPage {
         else if (query.has("callbackURL")) {
             return redirect(present(query.get("callbackURL"), "the callback URL"), []);
         }
-        // confirm the sign-in
-        else {
-            return render("Signed in", greeting);
-        }
+
+        // send a signed-in person home, else say it is still starting
+        const home = await this.#home(session.user.id);
+
+        return home === undefined
+            ? render(
+                  "Signed in",
+                  html`${greeting}
+                      <p>
+                          Your home is starting. <a href="${this.signIn.href}">Open it</a> in a
+                          moment.
+                      </p>`,
+              )
+            : redirect(home, []);
     }
 
     /** Submit an email, a code or a provider of a sign-in. */
@@ -745,10 +762,31 @@ export class SignInPage {
         return redirect(target(this.signIn, query), cookies);
     }
 
+    /** Read where a person's Home answers, absent while no answering machine serves their home. */
+    async #home(userId: string): Promise<string | undefined> {
+        // find where the person's home space answers, none while it is placed nowhere answering
+        const accountId = Account.personal(userId);
+        const snapshot = Snapshot.live(this.database);
+        const located = await new Directory(snapshot).serving(
+            Account.home(accountId),
+            this.clock.now(),
+        );
+        if (located === undefined) {
+            return undefined;
+        }
+
+        // address Home's installation origin in the home space of the person's account
+        const owner = await snapshot.read(account.table).findFirst({ where: { id: accountId } });
+        const handle = present(owner, `the account of ${userId}`).handle;
+        const origin = { name: HOME_APPLICATION, space: HOME_SPACE, handle };
+
+        return `${InstallationOrigin.url(origin, located.url)}/`;
+    }
+
     /** Read the browser's session. */
     async #session(
         request: Request,
-    ): Promise<{ user: { email: string }; session: { createdAt: string } } | null> {
+    ): Promise<{ user: { id: string; email: string }; session: { createdAt: string } } | null> {
         // read the session through Better Auth
         const response = await this.#forward(request, "/get-session");
 

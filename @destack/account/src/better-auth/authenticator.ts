@@ -31,10 +31,11 @@ import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
 import { type Clock, type Environment, type Scheduler } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { SIGN_IN_PATH } from "../package.ts";
 
 /** The sign-in pages below the issuer's URL. */
 const SIGN_IN_PATHS = {
-    signIn: "/sign-in",
+    signIn: SIGN_IN_PATH,
     signUp: "/sign-up",
     consent: "/consent",
     verification: "/device",
@@ -265,6 +266,7 @@ export class BetterAuthAuthenticator {
             send: protocol,
             database: options.database,
             server,
+            clock: environment.clock,
         });
 
         return new BetterAuthAuthenticator(options, auth, signIn, server, authorization, protocol);

@@ -2,7 +2,15 @@ import { Failure } from "@destack/error";
 import { AuditCaller } from "@destack/object";
 import { auditedCalls } from "@destack/object/test";
 import { ObjectReference, Subject, RequestId } from "@destack/sync";
-import { Account, account, factor, passkey, session, userLogin } from "../src/object/index.ts";
+import {
+    Account,
+    account,
+    factor,
+    passkey,
+    placement,
+    session,
+    userLogin,
+} from "../src/object/index.ts";
 import { user } from "../src/object/user.ts";
 import { expect, single, test } from "@destack/test";
 import { eq } from "@destack/db";
@@ -19,6 +27,7 @@ import {
     SIGN_UP,
     TestAccountStore,
     TestBrowser,
+    TestDirectory,
     TestJwt,
 } from "../src/test/index.ts";
 import { DeviceGrant, Redirect, Tokens } from "./fixture.ts";
@@ -332,6 +341,39 @@ test("sign a person up by a mailed link once, and end the browser's session from
             details: { path: "/magic-link/verify" },
             outcome: { kind: "success" },
         },
+    ]);
+});
+
+test("send a signed-in person from the sign-in page to their Home, and say it starts while their home's machine answers nowhere", async () => {
+    // sign a person up through a mailed link, which places their home at the residency's machine, and open the sign-in page
+    await using fixture = await TestAccountStore.open();
+    const { person, browser } = await fixture.signInWithLink("ada@example.com", "ada");
+    const answering = await browser.fetch("/sign-in");
+
+    // withdraw the endpoint of the machine serving their home, and open the page again
+    const home = Account.home(Account.personal(person.id));
+    const placed = single(
+        await fixture.database
+            .select()
+            .from(placement.table)
+            .where(eq(placement.table.spaceId, home)),
+    );
+    await TestDirectory.publish(
+        fixture.database,
+        placed.machineId,
+        placed.scope,
+        null,
+        fixture.clock,
+    );
+    const starting = await browser.fetch("/sign-in");
+
+    // send the person to Home's origin in their home space, then say it starts
+    expect([
+        [answering.status, answering.headers.get("location")],
+        [starting.status, starting.headers.get("location")],
+    ]).toEqual([
+        [303, "https://home--home--ada.destack.space/"],
+        [200, null],
     ]);
 });
 

@@ -159,14 +159,17 @@ export const TestDirectory = {
                 await transaction.delete(endpoint.table).where(eq(endpoint.table.parentId, id)),
         );
         if (url !== null) {
-            await database.insert(endpoint.table).values({
-                id: Identifier.derive("endpoint", Identifier.uuid(id)),
-                parentId: id,
-                scope,
-                url,
-                relay: null,
-                ...times,
-            });
+            await database.transaction(
+                async (transaction) =>
+                    await transaction.insert(endpoint.table).values({
+                        id: Identifier.derive("endpoint", Identifier.uuid(id)),
+                        parentId: id,
+                        scope,
+                        url,
+                        relay: null,
+                        ...times,
+                    }),
+            );
         }
     },
 };
