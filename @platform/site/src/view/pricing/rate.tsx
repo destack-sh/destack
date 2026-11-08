@@ -14,7 +14,7 @@ const CPU_HOUR_MILLIONS = 3.6;
 /** A meter: what it measures and per which unit, and its price in US dollars. */
 type Meter = { name: string; price: number };
 
-/** The meters at their generated rates, grouped: the apps', then the database's, files' and network's. */
+/** The meters at their generated rates, grouped by apps, database, files and network. */
 const meterGroups: readonly { name: string; meters: readonly Meter[] }[] = [
     {
         name: "Compute",
@@ -209,7 +209,8 @@ const styles = style.create({
         fontSize: typeScale.label,
         fontWeight: weight.regular,
         letterSpacing: tracking.label,
-        paddingBlock: "1.5rem 0.5rem",
+        paddingBlockStart: "1.5rem",
+        paddingBlockEnd: "0.5rem",
         textAlign: "start",
         textTransform: "uppercase",
     },
