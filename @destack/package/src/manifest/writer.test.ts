@@ -90,7 +90,8 @@ test("write one manifest for one closure listed in any order", async () => {
         kind: "destack" as const,
     };
     const finish = (dependencies: Record<string, typeof schemaRelease>) =>
-        new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({ destack: "2026.11.0",
+        new BuildWriter({ write: () => Promise.resolve() }, crypto).finish({
+            destack: "2026.11.0",
             package: app,
             role: "app",
             dependencies,
@@ -130,7 +131,8 @@ test("list each output's loaded files: its own but maps and types, the package.j
     for (const path of paths) {
         await writer.write(path, new TextEncoder().encode(path));
     }
-    const manifest = await writer.finish({ destack: "2026.11.0",
+    const manifest = await writer.finish({
+        destack: "2026.11.0",
         package: app,
         role: "app",
         outputs: { bun: output("bun"), browser: output("browser") },
