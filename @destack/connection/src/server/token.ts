@@ -26,7 +26,7 @@ import {
 import { Assertion } from "../oauth/assertion.ts";
 import type { Fetch } from "@destack/object";
 import { AuthorizationServer, JWT_BEARER, TOKEN_EXCHANGE } from "../oauth/server.ts";
-import { SecretReading } from "@destack/vault";
+import { SecretReading } from "@destack/resource";
 import { secret, vault } from "@destack/vault/object";
 import type { ObjectStore } from "@destack/object/server";
 import { AccessContext, Caller } from "@destack/access";

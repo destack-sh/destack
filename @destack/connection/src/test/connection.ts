@@ -83,7 +83,7 @@ const ISSUER_INSTALLATION = schema
 /** A protected resource whose metadata lists the test authorization server. */
 export const RESOURCE = "https://mcp.test/mcp";
 
-/** The connection the tests' connections satisfy: the test server's API, with no scopes required. */
+/** The declaration the tests' connections satisfy: the test server's API, no scopes required. */
 export const TEST_CONNECTION = defineConnection("api", { resource: RESOURCE });
 
 /** How long the test server's access tokens last, in seconds. */
@@ -930,7 +930,7 @@ export class TestConnection {
         return http.fetch(new Request(mount.request, { headers }));
     }
 
-    /** Bind a consumer to exactly some connections of a scope, as the stack's binder does at install. */
+    /** Bind a consumer to exactly some connections of a scope, as the stack's binder installs. */
     async bind(scope: string, consumer: Subject, ids: readonly string[]): Promise<void> {
         const owner = AccessContext.of(
             Caller.of(principal.user.reference(Scope.universe.id, OWNER)),

@@ -28,7 +28,7 @@ type Created = Pick<CallInput<typeof connection, "create">, "protocol" | "integr
     readonly resource?: string;
 };
 
-/** Create a connection as the owner, declared as the tests' connection, rotating in its material. */
+/** Create a connection as the owner under the tests' declaration, rotating in its material. */
 async function create(fixture: TestConnection, input: Created): Promise<ObjectReference> {
     // name it by its identifier, unique in its scope
     const { scopes = [], resource = RESOURCE, material, ...rest } = input;
