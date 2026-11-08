@@ -25,7 +25,7 @@ import { accessRole, accessRolePermission } from "../role/table.ts";
 import type { Access } from "./access.ts";
 import type { PermittedRows, Authorizer } from "./authorizer.ts";
 import type { Decision } from "./decision.ts";
-import type { TupleReader, Lookup } from "./tuple.ts";
+import type { Reader } from "./tuple.ts";
 
 /** The relationship fields that authorization reads from a request, invitation or stored row. */
 type RelationshipFields = {
@@ -164,7 +164,7 @@ export class Authorization {
     async check(
         permission: PermissionReference,
         target: ObjectReference,
-        reader?: TupleReader,
+        reader?: Reader,
     ): Promise<Decision> {
         const access = await this.in(this.authorizer.governingScope(target));
 
@@ -172,7 +172,7 @@ export class Authorization {
     }
 
     /** Start reading tuples for decisions in a scope. */
-    async reader(scope: string): Promise<TupleReader> {
+    async reader(scope: string): Promise<Reader> {
         return this.authorizer.reader(this.snapshot, (await this.in(scope)).scopes);
     }
 
@@ -187,21 +187,12 @@ export class Authorization {
         permission: PermissionReference,
         scope: string,
         rows: readonly Row[],
-        reader?: TupleReader,
+        reader?: Reader,
         below?: ReadonlyMap<string, Access>,
-        lookup?: Lookup,
     ): Promise<PermittedRows> {
         const access = await this.in(scope);
 
-        return this.authorizer.checkRows(
-            this.snapshot,
-            permission,
-            access,
-            rows,
-            reader,
-            below,
-            lookup,
-        );
+        return this.authorizer.checkRows(this.snapshot, permission, access, rows, reader, below);
     }
 
     /** Resolve the caller's access in a scope's enclosed scopes, in reads shared by all. */

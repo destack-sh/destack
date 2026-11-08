@@ -2,7 +2,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Digest, nth, schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Scope, type Subject } from "@destack/sync";
-import { Snapshot, and, asc, eq, sql } from "@destack/db";
+import { Snapshot, asc, eq } from "@destack/db";
 import {
     Relationship,
     accessRelationship,
@@ -29,8 +29,9 @@ import {
 } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
 import { TestAccess } from "../test/access.ts";
-import { TupleTree } from "./tuple.ts";
+import { Tree } from "./tuple.ts";
 import { relationship } from "../declare/principal.ts";
+import { isListed, listRows } from "../test/listing.ts";
 
 /** The number of random access models each dialect checks. */
 const MODELS = 6;
@@ -299,21 +300,13 @@ test("decide in memory exactly as the permission queries do, for objects and the
                     const access = await authorizer.resolve(snapshot, "personal", context);
                     const reader = authorizer.reader(snapshot, access.scopes);
 
-                    // query the rows every permission allows in one statement, a flag column per permission
-                    const flags = await database.execute(
-                        sql`SELECT ${item.id} AS id, ${sql.join(
-                            permissions.map(
-                                (permission, index) =>
-                                    sql`CASE WHEN ${authorizer.where(permission, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`p${index}`)}`,
-                            ),
-                            sql.raw(", "),
-                        )} FROM ${item} WHERE ${eq(item.scope, "personal")} ORDER BY ${item.id}`,
-                        schema.looseObject({ id: schema.string() }),
-                    );
-                    for (const [index, permission] of permissions.entries()) {
-                        const queried = flags
-                            .filter((flagged) => Number(flagged[`p${index}`]) === 1)
-                            .map((flagged) => flagged.id);
+                    // list the rows every permission allows: its candidates, each decided
+                    for (const permission of permissions) {
+                        const queried = (
+                            await listRows(authorizer, snapshot, permission, access, item)
+                        )
+                            .filter((listed) => listed["scope"] === "personal")
+                            .map((listed) => listed["id"]);
                         const { permitted } = await authorizer.checkRows(
                             snapshot,
                             permission,
@@ -352,40 +345,6 @@ test("decide in memory exactly as the permission queries do, for objects and the
                                     decided.push(row.id);
                                 }
 
-                                // decide a permission of another type from roles bound on or above the node
-                                const across = cell.permission("read");
-                                const crossed = await authorizer.check(
-                                    snapshot,
-                                    across,
-                                    target,
-                                    access,
-                                    reader,
-                                );
-                                const permitting = nth(
-                                    await database.execute(
-                                        sql`SELECT CASE WHEN ${authorizer.permits(across, target, access)} THEN 1 ELSE 0 END AS permitted`,
-                                        schema.object({
-                                            permitted: schema.union([
-                                                schema.number(),
-                                                schema.string(),
-                                                schema.bigint(),
-                                            ]),
-                                        }),
-                                    ),
-                                    0,
-                                );
-                                expect({
-                                    model,
-                                    context,
-                                    row: row.id,
-                                    across: crossed.isAllowed,
-                                }).toEqual({
-                                    model,
-                                    context,
-                                    row: row.id,
-                                    across: Number(permitting.permitted) === 1,
-                                });
-
                                 // check each decision just before its expiry
                                 if (decision.until !== undefined) {
                                     const before = { ...context, now: decision.until - 1 };
@@ -394,21 +353,20 @@ test("decide in memory exactly as the permission queries do, for objects and the
                                         "personal",
                                         before,
                                     );
-                                    const [earlier] = await database
-                                        .select({ id: item.id })
-                                        .from(item)
-                                        .where(
-                                            and(
-                                                eq(item.id, row.id),
-                                                authorizer.where(permission, later),
-                                            ),
-                                        );
+                                    const isEarlier = await isListed(
+                                        authorizer,
+                                        snapshot,
+                                        permission,
+                                        later,
+                                        item,
+                                        row.id,
+                                    );
                                     expect({
                                         model,
                                         context,
                                         permission,
                                         row: row.id,
-                                        until: earlier !== undefined,
+                                        until: isEarlier,
                                     }).toEqual({
                                         model,
                                         context,
@@ -434,12 +392,8 @@ test("decide in memory exactly as the permission queries do, for objects and the
                         .from(accessRelationship)
                         .orderBy(asc(accessRelationship.id));
                     const queriedRelationships = (
-                        await database
-                            .select({ id: accessRelationship.id })
-                            .from(accessRelationship)
-                            .where(authorizer.where(read, access, accessRelationship))
-                            .orderBy(asc(accessRelationship.id))
-                    ).map((row) => row.id);
+                        await listRows(authorizer, snapshot, read, access, accessRelationship)
+                    ).map((row) => row["id"]);
                     const readable = await authorizer.checkRows(
                         snapshot,
                         read,
@@ -477,7 +431,7 @@ test("read an intersection's grants as the superset its decisions change with", 
     const trees = await authorizer
         .reader(Snapshot.live(database), [])
         .trees(cell.permission("edit"), rows);
-    expect(trees.map((tree) => TupleTree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
+    expect(trees.map((tree) => Tree.flatten(tree).map((grant) => grant.subject.id))).toEqual([
         ["alice"],
         ["alice"],
         ["alice"],

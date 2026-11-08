@@ -25,6 +25,7 @@ import {
     space,
     spaceTable,
 } from "../test/fixture.ts";
+import { listRows } from "../test/listing.ts";
 
 /** Assets in one scope, each belonging to the space in its holder column. */
 const assetTable = defineTable("example_asset", {
@@ -94,11 +95,15 @@ async function openWithOwner(mappings: readonly TableMapping[] = [...homeMapping
         const snapshot = Snapshot.live(database);
         const context = AccessContext.of(Caller.of(carol), TEST_START);
         const access = await authorizer.resolve(snapshot, home.id, context);
-        const selected = await database
-            .select({ id: assetTable.id })
-            .from(assetTable)
-            .where(authorizer.where(asset.permission("read"), access, assetTable))
-            .orderBy(asc(assetTable.id));
+        const selected = (
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                asset.permission("read"),
+                access,
+                assetTable,
+            )
+        ).map((row) => ({ id: row["id"] }));
         const rows = await database.select().from(assetTable).orderBy(asc(assetTable.id));
         const checked = await authorizer.checkRows(
             snapshot,

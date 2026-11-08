@@ -49,6 +49,7 @@ import {
 import { Authorization } from "./authorization.ts";
 import { openFixture, sessionCredential, userSubject } from "../test/database.ts";
 import { TestAccess } from "../test/access.ts";
+import { listRows } from "../test/listing.ts";
 
 /** The relationships of other subjects the stress test adds to a scope. */
 const STRESS_RELATIONSHIPS = 2000;
@@ -86,16 +87,15 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     cellSelection.attributes["row"] = "column";
 
     expect(
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                query.where(
-                    node.permission("edit"),
-                    await query.resolve(Snapshot.live(database), "personal", bob),
-                ),
+        (
+            await listRows(
+                query,
+                Snapshot.live(database),
+                node.permission("edit"),
+                await query.resolve(Snapshot.live(database), "personal", bob),
+                item,
             )
-            .orderBy(item.id),
+        ).map((row) => ({ id: row["id"] })),
     ).toEqual([{ id: "b" }]);
     expect(
         await refusal(
@@ -144,16 +144,15 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         { type: entity, context: elevated, editable: ["a"] },
     ];
     for (const { type, context, editable } of examples) {
-        const selected = await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    type.permission("edit"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", context),
-                ),
+        const selected = (
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                type.permission("edit"),
+                await authorizer.resolve(Snapshot.live(database), "personal", context),
+                item,
             )
-            .orderBy(item.id);
+        ).map((row) => ({ id: row["id"] }));
         expect(selected.map((row) => row.id)).toEqual(editable);
     }
 
@@ -166,15 +165,15 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
         },
     };
     expect(
-        await database
-            .select({ id: item.id })
-            .from(item)
-            .where(
-                authorizer.where(
-                    entity.permission("edit"),
-                    await authorizer.resolve(Snapshot.live(database), "personal", stale),
-                ),
-            ),
+        (
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                entity.permission("edit"),
+                await authorizer.resolve(Snapshot.live(database), "personal", stale),
+                item,
+            )
+        ).map((row) => ({ id: row["id"] })),
     ).toEqual([]);
 
     // challenge the stale caller for the elevation's authentication, and refuse one no authentication allows
@@ -238,15 +237,15 @@ databaseTest(
             [anonymous, []],
         ] as const) {
             expect(
-                await database
-                    .select({ id: item.id })
-                    .from(item)
-                    .where(
-                        authorizer.where(
-                            node.permission("read"),
-                            await authorizer.resolve(Snapshot.live(database), "personal", context),
-                        ),
-                    ),
+                (
+                    await listRows(
+                        authorizer,
+                        Snapshot.live(database),
+                        node.permission("read"),
+                        await authorizer.resolve(Snapshot.live(database), "personal", context),
+                        item,
+                    )
+                ).map((row) => ({ id: row["id"] })),
             ).toEqual(expected);
         }
         const shared = await Authorization.run(
@@ -1108,11 +1107,15 @@ databaseTest(
                 ...bob,
                 now,
             });
-            const read = await database
-                .select({ id: item.id })
-                .from(item)
-                .where(authorizer.where(node.permission("read"), access))
-                .orderBy(item.id);
+            const read = (
+                await listRows(
+                    authorizer,
+                    Snapshot.live(database),
+                    node.permission("read"),
+                    access,
+                    item,
+                )
+            ).map((row) => ({ id: row["id"] }));
 
             return { until: access.until, read: read.map((row) => row.id) };
         };
@@ -1177,16 +1180,15 @@ async function expectEditable(
     context: AccessContext,
     expected: readonly string[],
 ): Promise<void> {
-    const selected = await database
-        .select({ id: item.id })
-        .from(item)
-        .where(
-            authorizer.where(
-                type.permission("edit"),
-                await authorizer.resolve(Snapshot.live(database), "personal", context),
-            ),
+    const selected = (
+        await listRows(
+            authorizer,
+            Snapshot.live(database),
+            type.permission("edit"),
+            await authorizer.resolve(Snapshot.live(database), "personal", context),
+            item,
         )
-        .orderBy(item.id);
+    ).map((row) => ({ id: row["id"] }));
     expect(selected.map((row) => row.id)).toEqual(expected);
 }
 

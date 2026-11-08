@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, defineTable, Transaction, text, defineDatabase } from "@destack/db";
+import { defineTable, Transaction, text, defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
     AccessContext,
@@ -15,6 +15,7 @@ import {
     through,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
+import { listRows } from "../test/listing.ts";
 
 /** Remarks attached to any object with a type that contributes itself to their parent. */
 const remark = new Policy(module1.package, {
@@ -164,17 +165,15 @@ test("allow a remark exactly when the caller may read its parent, of whichever t
         );
         decided.push([id, decision.isAllowed]);
     }
-    const queried = await database
-        .select({ id: remarks.id })
-        .from(remarks)
-        .where(
-            authorization.authorizer.where(
-                remark.permission("read"),
-                await authorization.in("personal"),
-                remarks,
-            ),
+    const queried = (
+        await listRows(
+            authorization.authorizer,
+            Snapshot.live(database),
+            remark.permission("read"),
+            await authorization.in("personal"),
+            remarks,
         )
-        .orderBy(asc(remarks.id));
+    ).map((row) => ({ id: row["id"] }));
 
     // allow the remarks on her article and photo, never bob's article or a photo that does not exist
     expect(decided).toEqual([

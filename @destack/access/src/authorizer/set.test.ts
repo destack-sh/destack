@@ -16,6 +16,7 @@ import {
     union,
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
+import { listRows } from "../test/listing.ts";
 
 /** The package whose installations notes take pins from. */
 const PINNING = "package-019f5530-8000-7000-8000-0000000000a1";
@@ -116,10 +117,9 @@ test("permit a package's installations in a note's scope as members of its set, 
         subjects.map(async (subject) => {
             const access = await authorizer.resolve(snapshot, "space-1", caller(subject));
             const checked = await authorizer.check(snapshot, pin, target, access);
-            const listed = await database
-                .select({ id: noteTable.id })
-                .from(noteTable)
-                .where(authorizer.where(pin, access, noteTable));
+            const listed = (
+                await listRows(authorizer, Snapshot.live(database), pin, access, noteTable)
+            ).map((row) => ({ id: row["id"] }));
 
             return [checked.isAllowed, listed.map((row) => row.id)];
         }),

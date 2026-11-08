@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, type DatabaseConnection, Snapshot } from "@destack/db";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { Relationship } from "../relationship/relationship.ts";
@@ -19,6 +19,7 @@ import {
     through,
     union,
 } from "../index.ts";
+import { listRows } from "../test/listing.ts";
 
 /** Organizations, with editors and viewers whose permissions apply everywhere below them. */
 const org = new Policy(module1.package, {
@@ -148,12 +149,16 @@ test("inherit a scope's relations onto the objects it encloses, through every sc
         const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
         const listed = (
-            await database
-                .select({ id: item.id })
-                .from(item)
-                .where(authorizer.where(document.permission(name), access))
-                .orderBy(asc(item.id))
-        ).map((row) => row.id);
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                document.permission(name),
+                access,
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
         const checked = (
             await authorizer.check(
                 Snapshot.live(database),
@@ -260,11 +265,16 @@ test("share an object with everyone with a permission on another, as its relatio
         const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
         const listed = (
-            await database
-                .select({ id: item.id })
-                .from(item)
-                .where(authorizer.where(note.permission("read"), access))
-        ).map((row) => row.id);
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                note.permission("read"),
+                access,
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
         const checked = (
             await authorizer.check(
                 Snapshot.live(database),
@@ -333,11 +343,16 @@ test("share an object with a scope's readers, including those of the scopes encl
         const context = AccessContext.of(Caller.of(people[person]), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), "plans", context);
         const listed = (
-            await database
-                .select({ id: item.id })
-                .from(item)
-                .where(authorizer.where(shared.permission("read"), access))
-        ).map((row) => row.id);
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                shared.permission("read"),
+                access,
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
         const checked = (
             await authorizer.check(
                 Snapshot.live(database),
@@ -421,12 +436,16 @@ test("read a permission through each object's scope, granting nothing where the 
         const context = AccessContext.of(Caller.of(people.dave), 1000);
         const access = await authorizer.resolve(Snapshot.live(database), scope, context);
         const listed = (
-            await database
-                .select({ id: item.id })
-                .from(item)
-                .where(authorizer.where(note.permission("read"), access))
-                .orderBy(asc(item.id))
-        ).map((row) => row.id);
+            await listRows(
+                authorizer,
+                Snapshot.live(database),
+                note.permission("read"),
+                access,
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
         const checked = (
             await authorizer.check(
                 Snapshot.live(database),

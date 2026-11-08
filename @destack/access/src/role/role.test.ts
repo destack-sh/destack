@@ -36,6 +36,7 @@ import {
 } from "../test/fixture.ts";
 import { openFixture } from "../test/database.ts";
 import { TestAccess } from "../test/access.ts";
+import { listRows } from "../test/listing.ts";
 
 /** The members of carol's account as a subject set. */
 const carolMembership = { ...account.reference("universe", "account-1"), relation: "member" };
@@ -67,17 +68,16 @@ async function openRoleFixture() {
     // select readable nodes
     const readable = async (context: AccessContext) => {
         const ids = (
-            await database
-                .select({ id: item.id })
-                .from(item)
-                .where(
-                    query.where(
-                        node.permission("read"),
-                        await query.resolve(Snapshot.live(database), "personal", context),
-                    ),
-                )
-                .orderBy(asc(item.id))
-        ).map((row) => row.id);
+            await listRows(
+                query,
+                Snapshot.live(database),
+                node.permission("read"),
+                await query.resolve(Snapshot.live(database), "personal", context),
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
 
         return ids;
     };
@@ -756,17 +756,16 @@ test("list the spaces an account contains to the account's owner", async () => {
     // list by container: the owner sees the account's spaces, and a stranger sees none
     const listed = async (context: AccessContext) =>
         (
-            await database
-                .select({ id: spaceTable.id })
-                .from(spaceTable)
-                .where(
-                    query.where(
-                        space.permission("read"),
-                        await query.resolve(Snapshot.live(database), "account-1", context),
-                    ),
-                )
-                .orderBy(asc(spaceTable.id))
-        ).map((row) => row.id);
+            await listRows(
+                query,
+                Snapshot.live(database),
+                space.permission("read"),
+                await query.resolve(Snapshot.live(database), "account-1", context),
+                spaceTable,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
     expect(await listed(carol)).toEqual(["space-1", "space-2"]);
     expect(await listed(alice)).toEqual([]);
 
@@ -776,17 +775,14 @@ test("list the spaces an account contains to the account's owner", async () => {
         account,
     );
     const scopes = new Authorizer(policies, mappings);
-    const recorded = await database
-        .select({ id: Scope.table.scope })
-        .from(Scope.table)
-        .where(
-            scopes.where(
-                space.permission("read"),
-                await scopes.resolve(Snapshot.live(database), "account-1", carol),
-            ),
-        )
-        .orderBy(asc(Scope.table.scope));
-    expect(recorded.map((row) => row.id)).toEqual(["space-1", "space-2"]);
+    const recorded = await listRows(
+        scopes,
+        Snapshot.live(database),
+        space.permission("read"),
+        await scopes.resolve(Snapshot.live(database), "account-1", carol),
+        Scope.table,
+    );
+    expect(recorded.map((row) => row["scope"])).toEqual(["space-1", "space-2"]);
 });
 
 test("refuse an offer whose inviting principal lost the authority to grant it", async () => {
@@ -933,10 +929,15 @@ test("grant a space's own role bound on the space inside it alone, never on the 
     const snapshot = Snapshot.live(database);
     const decide = async (context: AccessContext) => {
         const access = await home.resolve(snapshot, "personal", context);
-        const listed = await database
-            .select({ id: spaceTable.id })
-            .from(spaceTable)
-            .where(home.where(space.permission("read"), access));
+        const listed = (
+            await listRows(
+                home,
+                Snapshot.live(database),
+                space.permission("read"),
+                access,
+                spaceTable,
+            )
+        ).map((row) => ({ id: row["id"] }));
 
         return [
             (await home.check(snapshot, space.permission("read"), place, access)).isAllowed,

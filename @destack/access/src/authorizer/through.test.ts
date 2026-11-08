@@ -1,6 +1,5 @@
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, sql, text, type Row } from "@destack/db";
-import { schema } from "@destack/schema";
+import { defineTable, Snapshot, text, type Row } from "@destack/db";
 import type { ObjectReference, Subject } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import type { Environment } from "@destack/environment";
@@ -21,6 +20,7 @@ import {
 } from "../index.ts";
 import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
+import { isListed } from "../test/listing.ts";
 
 /** Realms, root scopes guarded by their wardens. */
 const realm = new Policy(module4.package, {
@@ -269,14 +269,14 @@ test("decide a related object's permission with the chain of its scope, in memor
             context,
         );
         const memory = await authorizer.check(snapshot, permission, target, access);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${authorizer.where(permission, access, table)} AND ${table.id} = ${target.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            table,
+            target.id,
         );
-        const isPermitted = Number(row?.["permitted"]) === 1;
 
         return [id, memory.isAllowed === isPermitted ? isPermitted : "disagree"] as const;
     };
@@ -420,14 +420,14 @@ test("decide a scope arrow on the nearest scope only, of any declared type, thro
             : AccessContext.of(Caller.of(user(caller)), simulation.clock.now());
         const access = await authorizer.resolve(snapshot, target.scope, context);
         const memory = await authorizer.check(snapshot, permission, target, access);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${authorizer.where(permission, access, table)} AND ${table.id} = ${target.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            table,
+            target.id,
         );
-        const isPermitted = Number(row?.["permitted"]) === 1;
 
         return [caller, memory.isAllowed === isPermitted ? isPermitted : "disagree"] as const;
     };
@@ -481,15 +481,16 @@ test("grant nothing through a declared type this database stores none of, in mem
         const context = AccessContext.of(Caller.of(user(id)), simulation.clock.now());
         const access = await authorizer.resolve(snapshot, upward.scope, context);
         const memory = await authorizer.check(snapshot, permission, upward, access);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${ticketTable} WHERE ${authorizer.where(permission, access, ticketTable)} AND ${ticketTable.id} = ${upward.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            ticketTable,
+            upward.id,
         );
 
-        return [memory.isAllowed, Number(row?.["permitted"]) === 1];
+        return [memory.isAllowed, isPermitted];
     };
 
     // refuse the keeper and the realm's owner, whose access would go through the vault

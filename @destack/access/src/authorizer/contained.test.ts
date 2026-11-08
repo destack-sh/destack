@@ -1,8 +1,8 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, sql, text } from "@destack/db";
-import { nth, schema } from "@destack/schema";
+import { defineTable, Snapshot, text } from "@destack/db";
+import { nth } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import {
     AccessContext,
@@ -27,6 +27,7 @@ import {
 } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
 import { sessionCredential } from "../test/database.ts";
+import { isListed } from "../test/listing.ts";
 
 /** Realms, root scopes with districts, read by the principals inside them. */
 const realm = new Policy(module4.package, {
@@ -127,16 +128,17 @@ test("permit a scope's row to the principals inside it and a row living in a sco
         const access = await authorizer.resolve(snapshot, holder, caller);
         const permission = { ...target, name };
         const memory = await authorizer.check(snapshot, permission, target, access);
-        const { table, id } = authorizer.requireMapping(target);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${table} WHERE ${authorizer.where(permission, access, table)} AND ${TableMapping.column(table, id)} = ${target.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const { table } = authorizer.requireMapping(target);
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            table,
+            target.id,
         );
 
-        return [scope, memory.isAllowed, Number(row?.["permitted"]) === 1];
+        return [scope, memory.isAllowed, isPermitted];
     };
 
     // permit the district only to its installation
@@ -446,15 +448,16 @@ test("admit the contents of a realm related as a zone's residents, through an ar
         const access = await authorizer.resolve(snapshot, door.scope, caller);
         const permission = { ...door, name: "pass" };
         const memory = await authorizer.check(snapshot, permission, door, access);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${groupTable} WHERE ${authorizer.where(permission, access, groupTable)} AND ${groupTable.id} = ${door.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            groupTable,
+            door.id,
         );
 
-        return [scope, memory.isAllowed, Number(row?.["permitted"]) === 1];
+        return [scope, memory.isAllowed, isPermitted];
     };
 
     // pass the near realm's installation inside it, and refuse the far realm's living beside the gate

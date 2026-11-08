@@ -28,6 +28,7 @@ import {
     spaceTable,
 } from "../test/fixture.ts";
 import { homePositions, openDatabase, openFixture } from "../test/database.ts";
+import { listRows } from "../test/listing.ts";
 
 /** The owner of the account and the space. */
 const alice = AccessContext.of(Caller.of(principal.user.reference("universe", "alice")), 1000);
@@ -143,17 +144,16 @@ test("relay an account's access through the space's database into an app's, and 
     await relay();
     const readable = async (context: AccessContext) =>
         (
-            await app.database
-                .select({ id: item.id })
-                .from(item)
-                .where(
-                    notes.where(
-                        node.permission("read"),
-                        await notes.resolve(Snapshot.live(app.database), "personal", context),
-                    ),
-                )
-                .orderBy(asc(item.id))
-        ).map((row) => row.id);
+            await listRows(
+                notes,
+                Snapshot.live(app.database),
+                node.permission("read"),
+                await notes.resolve(Snapshot.live(app.database), "personal", context),
+                item,
+            )
+        )
+            .map((row) => ({ id: row["id"] }))
+            .map((row) => row.id);
     expect(await readable(carol)).toEqual(["a", "b", "c"]);
 
     // revoke the binding in the account's database, and refuse deciding on a replica that stays stale for a lag

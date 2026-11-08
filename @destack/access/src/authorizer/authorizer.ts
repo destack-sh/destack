@@ -1,9 +1,7 @@
 import type { Authority } from "./authority.ts";
 import {
-    sql,
     type Transaction,
     type SQL,
-    type JsonCondition,
     type Table,
     Condition,
     Placeholder,
@@ -14,6 +12,7 @@ import {
     type Relation,
     type Row,
     type Select,
+    type Visibility,
 } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { Identifier, type UuidEnvironment, schema, zip } from "@destack/schema";
@@ -58,10 +57,10 @@ import { accessRole, accessRolePermission, OWNER_ROLE } from "../role/table.ts";
 import { accessTables, decisionTables } from "../replica/replica.ts";
 import { accessGrant } from "../grant/table.ts";
 import { earliest, Access } from "./access.ts";
-import { Compiler } from "./compiler.ts";
 import { TupleCondition } from "./condition.ts";
 import type { Decision, Explanation } from "./decision.ts";
-import { TupleReader, TupleTree, type Tuple, type Lookup } from "./tuple.ts";
+import { Reader, Tree, type Tuple } from "./tuple.ts";
+import { Lookup } from "./lookup.ts";
 import { TableMapping, type FieldRelation } from "./mapping.ts";
 
 /** The identifier of a wildcard subject, matching every identity of its type. */
@@ -186,8 +185,6 @@ export class Authorizer {
     readonly #contributions: Map<string, SubjectType[]>;
     /** The table mappings indexed by package and type. */
     readonly #mappings: Map<string, TableMapping>;
-    /** The compiler of the registered policies to SQL. */
-    readonly #compiler: Compiler;
 
     /** Validate the policies, their referenced policies and their tables in this database. */
     constructor(
@@ -246,7 +243,6 @@ export class Authorizer {
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.partition = options.partition;
         this.#tables = options.tables;
-        this.#compiler = new Compiler(this);
 
         // register the declared mappings, the granted sets' and the mappings every database has
         const granted = (options.sets ?? []).filter((set) =>
@@ -1320,11 +1316,7 @@ export class Authorizer {
         );
         const where = ObjectReference.columns("object", object);
         const rows = await snapshot.ordered(accessRelationship, {
-            visible: {
-                current: this.where(read, access, accessRelationship, where),
-                image: async (row) =>
-                    (await this.checkRows(snapshot, read, access, [row])).permitted.has(0),
-            },
+            visible: await this.visibility(snapshot, read, access),
             where,
             orderBy: { id: "asc" },
             ...(page.after === undefined
@@ -1453,26 +1445,33 @@ export class Authorizer {
         return Access.resolve(snapshot, scope, context, this, links, assumed);
     }
 
-    /** Restrict a table's rows meeting a condition to the permitted ones, before any page. */
-    where(
+    /** Match a table's rows a caller may hold a permission on: a superset `checkRows` decides. */
+    candidates(
+        snapshot: Snapshot,
         permission: PermissionReference,
         access: Access,
         source?: Table,
-        condition?: JsonCondition,
-    ): SQL {
-        return this.#compiler.where(permission, access, source, condition);
+    ): Promise<SQL> {
+        return new Lookup(this, snapshot, access).where(permission, source);
     }
 
-    /** Match one object in its scope if the caller has a permission directly or by a role above. */
-    permits(permission: PermissionReference, target: ObjectReference, access: Access): SQL {
-        return this.#isStated(permission, target, access)
-            ? sql`true`
-            : this.#compiler.permits(permission, target, access);
+    /** Show a permission's rows to a caller: candidates in SQL, each decided by its tuple tree. */
+    async visibility(
+        snapshot: Snapshot,
+        permission: PermissionReference,
+        access: Access,
+        source?: Table,
+    ): Promise<Visibility> {
+        return {
+            candidates: await this.candidates(snapshot, permission, access, source),
+            decide: async (rows) =>
+                (await this.checkRows(snapshot, permission, access, rows)).permitted,
+        };
     }
 
     /** Start reading the grants of rows in a scope chain from a snapshot, shared by all callers. */
-    reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): TupleReader {
-        return new TupleReader(this, snapshot, scopes);
+    reader(snapshot: Snapshot, scopes: readonly ObjectReference[]): Reader {
+        return new Reader(this, snapshot, scopes);
     }
 
     /** Decide whether a caller has a permission on one object, and until when. */
@@ -1481,7 +1480,7 @@ export class Authorizer {
         permission: PermissionReference,
         target: ObjectReference,
         access: Access,
-        reader?: TupleReader,
+        reader?: Reader,
     ): Promise<Decision> {
         // allow a permission the caller's stated sets decide on the object without its row
         if (this.#isStated(permission, target, access)) {
@@ -1507,15 +1506,12 @@ export class Authorizer {
 
         // read the permission's tuple tree on the object
         const tree = await reading.tree(permission, row, mapping);
-        const until = earliest([
-            access.until,
-            Authorizer.#grantsUntil(TupleTree.flatten(tree), access),
-        ]);
+        const until = earliest([access.until, Authorizer.#grantsUntil(Tree.flatten(tree), access)]);
 
         // allow the caller when it passes the gate and its authority has the permission
         const isAllowed =
-            (await this.#gate(snapshot, permission, mapping, row, access, "object")) ===
-                undefined && TupleTree.permits(tree, access);
+            (await this.#gate(snapshot, permission, mapping, row, access)) === undefined &&
+            Tree.permits(tree, access);
 
         return { isAllowed, ...(until === undefined ? {} : { until }) };
     }
@@ -1526,7 +1522,7 @@ export class Authorizer {
         permissions: readonly PermissionReference[],
         target: ObjectReference,
         access: Access,
-        reader?: TupleReader,
+        reader?: Reader,
     ): Promise<void> {
         // leave the permissions the caller's stated sets decide on the object without its row
         const undecided = permissions.filter(
@@ -1536,40 +1532,13 @@ export class Authorizer {
             return;
         }
 
-        // decide in memory when reads are cheap, the snapshot is past, layered or recorded, or the target is the universe
-        const database = snapshot.database;
-        const isUniverse =
-            target.packageId === Scope.universe.packageId && target.type === Scope.universe.type;
-        if (!snapshot.isLive || database.state.locality === "embedded" || isUniverse) {
-            const read = reader ?? this.reader(snapshot, access.scopes);
-            for (const permission of undecided) {
-                const decision = await this.check(snapshot, permission, target, access, read);
-                if (!decision.isAllowed) {
-                    await this.#refuse(snapshot, permission, target, access);
-                }
+        // decide each permission by its tuple tree, through one reader of the object's grants
+        const read = reader ?? this.reader(snapshot, access.scopes);
+        for (const permission of undecided) {
+            const decision = await this.check(snapshot, permission, target, access, read);
+            if (!decision.isAllowed) {
+                await this.#refuse(snapshot, permission, target, access);
             }
-
-            return;
-        }
-
-        // decide every permission as a column of a single row
-        const columns = undecided.map(
-            (permission, index) =>
-                sql`CASE WHEN ${this.permits(permission, target, access)} THEN 1 ELSE 0 END AS ${sql.identifier(`permitted_${index}`)}`,
-        );
-        const [row] = await database.execute(
-            sql`SELECT ${sql.join(columns, sql`, `)}`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint()]),
-            ),
-        );
-        if (row === undefined) {
-            throw new TypeError("the permission query returned no row");
-        }
-        const denied = undecided.find((_, index) => Number(row[`permitted_${index}`]) !== 1);
-        if (denied) {
-            await this.#refuse(snapshot, denied, target, access);
         }
     }
 
@@ -1723,7 +1692,7 @@ export class Authorizer {
         const candidates = new Map<string, Subject>();
         const seen = new Set<string>();
         for (
-            let frontier = TupleTree.flatten(tree).map((grant) => grant.subject);
+            let frontier = Tree.flatten(tree).map((grant) => grant.subject);
             frontier.length > 0;
         ) {
             const sets: Subject[] = [];
@@ -1825,7 +1794,7 @@ export class Authorizer {
         // read the owner bindings on or above the object
         const tree = await reader.ownership(row, mapping);
 
-        return TupleTree.permits(tree, access);
+        return Tree.permits(tree, access);
     }
 
     /** Check a permission on each row, returning the caller's permitted positions and expiry. */
@@ -1836,7 +1805,6 @@ export class Authorizer {
         rows: readonly Row[],
         reader = this.reader(snapshot, access.scopes),
         below: ReadonlyMap<string, Access> = new Map(),
-        lookup: Lookup = "listing",
     ): Promise<PermittedRows> {
         // decide each row by the caller's access in the row's scope
         const mapping = this.requireMapping(permission);
@@ -1850,21 +1818,22 @@ export class Authorizer {
         const until = earliest([
             access.until,
             ...decided.map(([[, evaluated], tree]) =>
-                earliest([
-                    evaluated.until,
-                    Authorizer.#grantsUntil(TupleTree.flatten(tree), evaluated),
-                ]),
+                earliest([evaluated.until, Authorizer.#grantsUntil(Tree.flatten(tree), evaluated)]),
             ),
         ]);
 
-        // allow the rows with a tree that allows the caller
+        // allow the rows of the caller's chain that pass the gate with a tree allowing the caller
         const gates = await Promise.all(
             decided.map(([[row, evaluated]]) =>
-                this.#gate(snapshot, permission, mapping, row, evaluated, lookup),
+                this.#gate(snapshot, permission, mapping, row, evaluated),
             ),
         );
-        const permitted = decided.flatMap(([[, evaluated], tree], position) =>
-            gates[position] === undefined && TupleTree.permits(tree, evaluated) ? [position] : [],
+        const permitted = decided.flatMap(([[row, evaluated], tree], position) =>
+            gates[position] === undefined &&
+            Authorizer.#isListed(mapping, row, evaluated) &&
+            Tree.permits(tree, evaluated)
+                ? [position]
+                : [],
         );
 
         return { permitted: new Set(permitted), ...(until === undefined ? {} : { until }) };
@@ -1892,9 +1861,9 @@ export class Authorizer {
         }
 
         // decide the authority by the permission's tree, and by each tuple alone
-        const blocked = await this.#gate(snapshot, permission, mapping, found, access, "object");
+        const blocked = await this.#gate(snapshot, permission, mapping, found, access);
         const tree = await reader.tree(permission, found);
-        const tuples = TupleTree.flatten(tree).flatMap((tuple) => {
+        const tuples = Tree.flatten(tree).flatMap((tuple) => {
             // drop relation sets the caller is no member of
             const failed = access.authority.failure(tuple, access);
             const isSet =
@@ -1920,7 +1889,7 @@ export class Authorizer {
         return {
             permission,
             object: target,
-            isAllowed: blocked === undefined && TupleTree.permits(tree, access),
+            isAllowed: blocked === undefined && Tree.permits(tree, access),
             ...(blocked === undefined ? {} : { gate: blocked }),
             tuples,
         };
@@ -1951,33 +1920,28 @@ export class Authorizer {
         mapping: TableMapping,
         row: Row,
         access: Access,
-        lookup: Lookup,
-    ): Promise<ReturnType<Access["gate"]> | "outside"> {
+    ): Promise<ReturnType<Access["gate"]>> {
         // refuse a request that its credential, elevation or suspension refuses
         const related =
             access.permissions === undefined
                 ? undefined
                 : await this.#derived(snapshot, permission, mapping, row);
-        const refused = access.gate(permission, mapping, row, related);
-        if (refused !== undefined) {
-            return refused;
-        }
 
-        // take an object read by its key in the scope unchanged
-        if (lookup === "object") {
-            return undefined;
-        }
+        return access.gate(permission, mapping, row, related);
+    }
 
-        // require a listed row to live in the scope or an ancestor, whose replica it holds, as a row of the mapped type
+    /** Report whether a listed row is the mapped type's, in the caller's scope chain. */
+    static #isListed(mapping: TableMapping, row: Row, access: Access): boolean {
+        // require the row's scope on the chain, and the mapped type in a shared table
         const definition = mapping.policy.definition;
         const scope = TableMapping.scope(mapping, row);
-        const isAncestor = access.scopes.some((object) => object.scope === scope);
+        const isChained =
+            scope === access.scope || access.scopes.some((object) => object.scope === scope);
+        const isTyped =
+            mapping.isShared !== true ||
+            (row["packageId"] === definition.packageId && row["type"] === definition.name);
 
-        return (scope !== access.scope && !isAncestor) ||
-            (mapping.isShared === true &&
-                (row["packageId"] !== definition.packageId || row["type"] !== definition.name))
-            ? "outside"
-            : undefined;
+        return isChained && isTyped;
     }
 
     /** Read the object a permission derives from through a row's field relation, none for none. */

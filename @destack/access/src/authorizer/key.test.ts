@@ -1,6 +1,5 @@
 import { TestDatabase } from "@destack/db/test";
-import { defineTable, Snapshot, sql, text } from "@destack/db";
-import { schema } from "@destack/schema";
+import { defineTable, Snapshot, text } from "@destack/db";
 import { type ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testSimulation } from "@destack/test/world";
@@ -18,6 +17,7 @@ import {
 } from "../index.ts";
 import { TestAccess } from "../test/access.ts";
 import { module4 } from "../test/fixture.ts";
+import { isListed } from "../test/listing.ts";
 
 /** Realms, the scopes the vaults and seals live in. */
 const realm = new Policy(module4.package, {
@@ -134,14 +134,14 @@ test("decide a relation that names its subject by key, in memory and in SQL alik
         const permission = { ...target, name: "break" };
         const access = await authorizer.resolve(snapshot, target.scope, context);
         const memory = await authorizer.check(snapshot, permission, target, access);
-        const [row] = await database.execute(
-            sql`SELECT EXISTS (SELECT 1 FROM ${sealTable} WHERE ${authorizer.where(permission, access, sealTable)} AND ${sealTable.id} = ${target.id}) AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint(), schema.boolean()]),
-            ),
+        const isPermitted = await isListed(
+            authorizer,
+            snapshot,
+            permission,
+            access,
+            sealTable,
+            target.id,
         );
-        const isPermitted = Number(row?.["permitted"]) === 1;
 
         return memory.isAllowed === isPermitted ? isPermitted : "disagree";
     };

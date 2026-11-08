@@ -1,14 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import {
-    and,
-    defineTable,
-    eq,
-    text,
-    type DatabaseConnection,
-    type Table,
-    Snapshot,
-} from "@destack/db";
+import { defineTable, text, type DatabaseConnection, type Table, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { AuthorizationEnvironment } from "../authorizer/authorization.ts";
 import { type ObjectReference, Scope } from "@destack/sync";
@@ -27,6 +19,7 @@ import {
 } from "../index.ts";
 import { module1 } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
+import { isListed, listRows } from "../test/listing.ts";
 
 /** Pages with text derived from reading them. */
 const page = new Policy(module1.package, {
@@ -277,10 +270,9 @@ test("cap every permission by the grant, lending a global type's permission in e
         );
         const containing = await authorizer.resolve(snapshot, target.scope, context);
         const checked = await authorizer.check(snapshot, asked, target, governing);
-        const listed = await database
-            .select({ id: table.id })
-            .from(table)
-            .where(authorizer.where(asked, containing, table));
+        const listed = (
+            await listRows(authorizer, Snapshot.live(database), asked, containing, table)
+        ).map((row) => ({ id: row["id"] }));
 
         return [checked.isAllowed, listed.map((row) => row.id)];
     };
@@ -304,7 +296,7 @@ test("cap every permission by the grant, lending a global type's permission in e
     ]);
 });
 
-/** Decide a derived permission per row: listed in SQL, permitted in SQL, checked in memory. */
+/** Decide a derived permission per row: listed, listed one row at a time, and checked. */
 async function decided(
     database: DatabaseConnection,
     authorizer: Authorizer,
@@ -324,20 +316,12 @@ async function decided(
     );
 
     // decide each way
-    const listed = await database
-        .select({ id: column })
-        .from(table)
-        .where(authorizer.where(derived, access, table))
-        .orderBy(column);
+    const listed = await listRows(authorizer, snapshot, derived, access, table);
     const permitted: string[] = [];
     const checked: string[] = [];
     for (const id of ids) {
         const target = policy.reference("personal", id);
-        const [found] = await database
-            .select({ id: column })
-            .from(table)
-            .where(and(eq(column, id), authorizer.permits(derived, target, access)));
-        if (found !== undefined) {
+        if (await isListed(authorizer, snapshot, derived, access, table, id)) {
             permitted.push(id);
         }
         if ((await authorizer.check(snapshot, derived, target, access)).isAllowed) {
@@ -345,7 +329,7 @@ async function decided(
         }
     }
 
-    return { listed: listed.map((row) => row.id), permitted, checked };
+    return { listed: listed.map((row) => row["id"]), permitted, checked };
 }
 
 test("include wanted permissions in given ones at least as wide, and merge only what they lack", () => {

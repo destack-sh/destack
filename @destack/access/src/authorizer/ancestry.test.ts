@@ -1,9 +1,8 @@
 import { testSimulation } from "@destack/test/world";
 import { present } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
-import { defineTable, integer, type DatabaseConnection, Snapshot, sql, text } from "@destack/db";
+import { defineTable, integer, type DatabaseConnection, Snapshot, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { schema } from "@destack/schema";
 import type { ObjectReference, Subject } from "@destack/sync";
 import {
     accessTables,
@@ -59,8 +58,8 @@ test("decide a scope with no table here on its ancestry row, refusing terms that
         ]),
         stranger: await decide(authorizer, storage.database, [carol]),
     }).toEqual({
-        member: { join: [true, true], visit: [false, false] },
-        stranger: { join: [false, false], visit: [false, false] },
+        member: { join: true, visit: false },
+        stranger: { join: false, visit: false },
     });
 });
 
@@ -86,8 +85,8 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and d
     // let a member's signed set decide joining while this database stores no row of the club, refusing terms on its attributes
     const member = [carol, { ...chess, relation: "member" }];
     expect(await decide(authorizer, storage.database, member)).toEqual({
-        join: [true, true],
-        visit: [false, false],
+        join: true,
+        visit: false,
     });
     await new TestAccess(storage.database, environment).replicateScope(chess, club);
 
@@ -99,15 +98,15 @@ test("decide a scope whose object row lives elsewhere on its ancestry row, and d
         ]),
         stranger: await decide(authorizer, storage.database, [carol]),
     }).toEqual({
-        member: { join: [true, true], visit: [false, false] },
-        stranger: { join: [false, false], visit: [false, false] },
+        member: { join: true, visit: false },
+        stranger: { join: false, visit: false },
     });
 
     // decide on the club's row once this database stores it, open and visited by anyone
     await storage.database.insert(clubTable).values({ id: "chess", scope: "universe", open: 1 });
     expect(await decide(authorizer, storage.database, [carol])).toEqual({
-        join: [false, false],
-        visit: [true, true],
+        join: false,
+        visit: true,
     });
 });
 
@@ -131,20 +130,9 @@ async function decide(
         attributes: {},
     });
 
-    // decide each permission in memory and as the permission query
-    const both = async (name: "join" | "visit") => {
-        const permission = club.permission(name);
-        const memory = await authorizer.check(snapshot, permission, chess, access);
-        const [row] = await database.execute(
-            sql`SELECT CASE WHEN ${authorizer.permits(permission, chess, access)} THEN 1 ELSE 0 END AS permitted`,
-            schema.record(
-                schema.string(),
-                schema.union([schema.number(), schema.string(), schema.bigint()]),
-            ),
-        );
-
-        return [memory.isAllowed, Number(row?.["permitted"]) === 1];
-    };
+    // decide each permission by the club's tuple tree, which lists no row of a scope stored elsewhere
+    const both = async (name: "join" | "visit") =>
+        (await authorizer.check(snapshot, club.permission(name), chess, access)).isAllowed;
 
     return { join: await both("join"), visit: await both("visit") };
 }

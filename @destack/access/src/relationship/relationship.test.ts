@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { type ObjectReference, Scope, Subject } from "@destack/sync";
-import { nth, present } from "@destack/schema";
+import { nth, present, schema } from "@destack/schema";
 import { Snapshot, asc, eq } from "@destack/db";
 import {
     ACCESS_MAPPINGS,
@@ -19,6 +19,7 @@ import {
 } from "../index.ts";
 import { account, accountTable, homeMappings, mappings, node, policies } from "../test/fixture.ts";
 import { openFixture, sessionCredential } from "../test/database.ts";
+import { listRows } from "../test/listing.ts";
 
 test("show an object's relationships to its readers, a concealed relation's only to its subject and whoever may grant it", async () => {
     // open the fixture, where alice is the owner of node b and granted bob editing it
@@ -38,16 +39,22 @@ test("show an object's relationships to its readers, a concealed relation's only
             "personal",
             context,
         );
-        const rows = await fixture.database
-            .select({
-                objectId: accessRelationship.objectId,
-                subjectId: accessRelationship.subjectId,
-            })
-            .from(accessRelationship)
-            .where(authorizer.where(relationship.permission("read"), access, accessRelationship))
-            .orderBy(asc(accessRelationship.subjectId));
+        const rows = await listRows(
+            authorizer,
+            Snapshot.live(fixture.database),
+            relationship.permission("read"),
+            access,
+            accessRelationship,
+        );
 
-        return rows.map((row) => `${row.objectId}:${row.subjectId}`);
+        return rows
+            .map(
+                (row) =>
+                    `${schema.string().parse(row["objectId"])}:${schema.string().parse(row["subjectId"])}`,
+            )
+            .toSorted(
+                (left, right) => left.split(":")[1]?.localeCompare(right.split(":")[1] ?? "") ?? 0,
+            );
     };
 
     // show the grant to its grantor and its subject, and to no one else
@@ -153,16 +160,22 @@ test("show an invitation to its inviting principal, its addressee and whoever ma
             "personal",
             context,
         );
-        const rows = await fixture.database
-            .select({
-                inviter: accessInvitation.inviterId,
-                addressee: accessInvitation.subjectId,
-            })
-            .from(accessInvitation)
-            .where(authorizer.where(invitation.permission("read"), access, accessInvitation))
-            .orderBy(asc(accessInvitation.subjectId));
+        const rows = await listRows(
+            authorizer,
+            Snapshot.live(fixture.database),
+            invitation.permission("read"),
+            access,
+            accessInvitation,
+        );
 
-        return rows.map((row) => `${row.inviter}>${row.addressee}`);
+        return rows
+            .map(
+                (row) =>
+                    `${schema.string().parse(row["inviterId"])}>${schema.string().parse(row["subjectId"])}`,
+            )
+            .toSorted(
+                (left, right) => left.split(">")[1]?.localeCompare(right.split(">")[1] ?? "") ?? 0,
+            );
     };
 
     // show both to alice as grantor, and each other caller only its relationships

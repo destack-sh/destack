@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
-import { asc, defineTable, Snapshot, text } from "@destack/db";
+import { defineTable, Snapshot, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import {
     AccessContext,
@@ -16,6 +16,7 @@ import {
 } from "../index.ts";
 import { module4, space } from "../test/fixture.ts";
 import { TestAccess } from "../test/access.ts";
+import { listRows } from "../test/listing.ts";
 
 /** Profiles living at the universe, which their viewers read. */
 const profile = new Policy(module4.package, {
@@ -111,12 +112,16 @@ test("follow a relation to a global type at the universe, through a plain and a 
         );
         const selected = async (name: "read" | "view") =>
             (
-                await database
-                    .select({ id: cardTable.id })
-                    .from(cardTable)
-                    .where(authorizer.where(card.permission(name), resolved, cardTable))
-                    .orderBy(asc(cardTable.id))
-            ).map((row) => row.id);
+                await listRows(
+                    authorizer,
+                    Snapshot.live(database),
+                    card.permission(name),
+                    resolved,
+                    cardTable,
+                )
+            )
+                .map((row) => ({ id: row["id"] }))
+                .map((row) => row.id);
 
         return {
             read: (await authorizer.check(snapshot, card.permission("read"), target, resolved))
