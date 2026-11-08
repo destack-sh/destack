@@ -20,7 +20,7 @@ import { Replica } from "@destack/sync";
 import type { MethodContext } from "../method/context.ts";
 import type { Session } from "../method/reader.ts";
 import { type EventRequest, SeriesRecord } from "../hook/record.ts";
-import type { ListInput } from "./listing.ts";
+import type { ListInput } from "./list.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 
 import type {} from "@destack/package/import-meta";

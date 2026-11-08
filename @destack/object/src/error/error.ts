@@ -26,6 +26,7 @@ export const ObjectError = defineErrorFamily(import.meta.destack.package, {
     CLAIM_FOREIGN: { code: "BAD_REQUEST" },
     HOME_UNREACHABLE: { code: "BAD_REQUEST" },
     QUORUM_UNREACHABLE: { code: "BAD_REQUEST" },
+    READABLE_TOO_LARGE: { code: "BAD_REQUEST" },
     SELF_APPROVAL: { code: "BAD_REQUEST" },
     TRASH_INCLUDED: { code: "BAD_REQUEST" },
     READ_UNSUPPORTED: { code: "BAD_REQUEST" },

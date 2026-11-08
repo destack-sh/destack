@@ -21,7 +21,7 @@ import { TestDatabase } from "@destack/db/test";
 import { schema, type Identifier, Uuid, type UuidEnvironment } from "@destack/schema";
 import { type Page, Scope, type Subject } from "@destack/sync";
 import { defineObject, field } from "../index.ts";
-import { ObjectAudience } from "./audience.ts";
+import { SubscriptionAudience } from "./audience.ts";
 import objectPackage from "../package.ts";
 import { tablesOf } from "../index.ts";
 import { TestObjectStore } from "../test/index.ts";
@@ -145,7 +145,7 @@ test("decide again after changes of the caller's access, and leave other identit
         events: await testEvents(database, world),
         origin: { package: notebook.package },
     });
-    const audience = await ObjectAudience.of(
+    const audience = await SubscriptionAudience.of(
         store,
         spaceId,
         AccessContext.of(Caller.of(ada), world.clock.now()),
@@ -298,7 +298,7 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
         events: await testEvents(database, world),
         origin: { package: album.package },
     });
-    const audience = await ObjectAudience.of(
+    const audience = await SubscriptionAudience.of(
         store,
         spaceId,
         AccessContext.of(Caller.of(ada), world.clock.now()),
@@ -398,8 +398,16 @@ test("drop a notebook from a live replica once the relationship sharing it expir
         origin: { package: notebook.package },
     });
     const [following, identical] = await Promise.all([
-        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), world.clock.now())),
-        ObjectAudience.of(store, spaceId, AccessContext.of(Caller.of(ada), world.clock.now())),
+        SubscriptionAudience.of(
+            store,
+            spaceId,
+            AccessContext.of(Caller.of(ada), world.clock.now()),
+        ),
+        SubscriptionAudience.of(
+            store,
+            spaceId,
+            AccessContext.of(Caller.of(ada), world.clock.now()),
+        ),
     ]);
     const subscription = new AbortController();
     onTestFinished(() => subscription.abort());
@@ -525,7 +533,7 @@ test("decide the keys an account propagates to its space like its own rows, by t
         events: await testEvents(database, world),
         origin: { package: key.package },
     });
-    const audience = await ObjectAudience.of(
+    const audience = await SubscriptionAudience.of(
         store,
         roomId,
         AccessContext.of(Caller.of(ada), world.clock.now()),
@@ -534,15 +542,16 @@ test("decide the keys an account propagates to its space like its own rows, by t
     const position = await database.log.position();
     const names = (allowed: ReadonlySet<number>) =>
         rows.filter((_row, index) => allowed.has(index)).map((row) => row.name);
-    const selected = async (permission?: string) => {
-        const where = audience.where(key.table, permission);
+    const selected = async (permission?: string) =>
+        (
+            await database
+                .select()
+                .from(key.table)
+                .where(await audience.readable(key.table, permission))
+                .orderBy(key.table.name)
+        ).map((row) => row.name);
 
-        return where === "memory"
-            ? where
-            : (await database.select().from(key.table).where(where)).map((row) => row.name);
-    };
-
-    // pass the two keys ada reads for listing in SQL and in memory, never carol's, and only ada's under her use
+    // pass the two keys ada reads for listing exactly and in memory, never carol's, and only ada's under her use
     expect({
         listed: names(await audience.visible(key.table, rows, position)),
         used: names(await audience.visible(key.table, rows, position, "use")),
@@ -552,7 +561,7 @@ test("decide the keys an account propagates to its space like its own rows, by t
         listed: ["Ada's", "Bob's"],
         used: ["Ada's"],
         selected: ["Ada's", "Bob's"],
-        selectedUsed: "memory",
+        selectedUsed: ["Ada's"],
     });
 });
 

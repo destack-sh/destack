@@ -20,9 +20,11 @@ import {
 } from "@destack/access";
 import { journal } from "../stack/db.ts";
 import {
+    DatabaseError,
     sql,
     type Row,
     type SQL,
+    TABLE,
     type Table,
     Change,
     type LogPosition,
@@ -31,15 +33,15 @@ import {
 } from "@destack/db";
 import { canonicalize } from "@destack/schema";
 import { type ObjectStorage, ObjectType } from "../object/object.ts";
-import { ObjectTypeIndex } from "../query/listing.ts";
+import { ObjectTypeIndex } from "../query/audience.ts";
 import type { Authorization } from "./authorization.ts";
 import type { ObjectStore } from "./store.ts";
 
 /** The columns that store a row's parent. */
 const PARENT_COLUMNS = ["parentPackageId", "parentType", "parentId"] as const;
 
-/** The caller's access to one stream of a scope's objects. */
-export class ObjectAudience implements Audience {
+/** The caller's access to one subscription of a scope's objects. */
+export class SubscriptionAudience implements Audience {
     /** The store serving the objects. */
     readonly #store: ObjectStore;
     /** The scope the stream follows. */
@@ -111,7 +113,7 @@ export class ObjectAudience implements Audience {
             readonly within?: readonly ObjectReference[];
             readonly via?: readonly string[];
         } = {},
-    ): Promise<ObjectAudience> {
+    ): Promise<SubscriptionAudience> {
         // decide ephemeral and external objects at the durable position
         const storage = options.storage ?? "durable";
         const isContained = options.isContained ?? false;
@@ -121,7 +123,7 @@ export class ObjectAudience implements Audience {
         const via =
             options.via === undefined
                 ? []
-                : await ObjectAudience.#relays(store, options.via, reader);
+                : await SubscriptionAudience.#relays(store, options.via, reader);
 
         // authorize the reader now as a principal, a contained caller or a remote caller this store serves
         const reauthorize = async () => {
@@ -141,7 +143,7 @@ export class ObjectAudience implements Audience {
             return authorization;
         };
 
-        return new ObjectAudience(
+        return new SubscriptionAudience(
             store,
             scope,
             reader,
@@ -192,29 +194,53 @@ export class ObjectAudience implements Audience {
         return this.#authorization.access.scopes[0];
     }
 
-    /** Match the rows of a table the caller may list, under a query's permission too. */
-    where(table: Table, permission?: string): SQL | "memory" {
-        // leave the journal and the replicas' records to their queries
+    /** Match a superset of the rows of a table the caller may list, which `visible` decides. */
+    async candidates(table: Table, permission?: string): Promise<SQL> {
+        // leave the journal and the replicas' records to their queries, and match no rows of a table no type here lists
         const listed = this.#listed(table, permission);
         if (listed === "query") {
             return sql`true`;
-        }
-        // match no rows of a table no type here lists
-        else if (listed === "none") {
+        } else if (listed === "none") {
             return sql`false`;
         }
-        // decide in memory the rows at their home in other scopes than the followed one, each in its chain
-        else if (
-            listed.object.storage === "durable" &&
-            listed.object.propagated === undefined &&
-            !this.#store.database.replicates(listed.object.table) &&
-            !this.#authorization.isHomeOf(listed.object)
-        ) {
-            return "memory";
+        // match every row at its home in another scope than the followed one, each decided in its chain
+        else if (this.#isElsewhere(listed.object)) {
+            return sql`true`;
         }
 
-        // match the listed rows the caller has the query's permission on
-        return this.#authorization.where(listed.object, listed.listing, listed.required);
+        // match the candidates of the query's permission
+        return this.#authorization.candidates(listed.object, listed.listing, listed.required);
+    }
+
+    /** Match exactly the rows of a table the caller may list, for reads of related rows. */
+    async readable(table: Table, permission?: string): Promise<SQL> {
+        // leave the journal and the replicas' records to their queries, and match no rows of a table no type here lists
+        const listed = this.#listed(table, permission);
+        if (listed === "query") {
+            return sql`true`;
+        } else if (listed === "none") {
+            return sql`false`;
+        }
+        // refuse related rows at their home in other scopes, which each scope's chain decides apart
+        else if (this.#isElsewhere(listed.object)) {
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `relations cannot read rows of ${table[TABLE].name}: their scopes decide them apart`,
+            );
+        }
+
+        // match the rows the caller holds the query's permission on
+        return this.#authorization.readable(listed.object, listed.listing, listed.required);
+    }
+
+    /** Report whether a type's rows live at their home in other scopes than the followed one. */
+    #isElsewhere(object: ObjectType): boolean {
+        return (
+            object.storage === "durable" &&
+            object.propagated === undefined &&
+            !this.#store.database.replicates(object.table) &&
+            !this.#authorization.isHomeOf(object)
+        );
     }
 
     /** The name of the caller's access inputs and resolved access, apart from time. */

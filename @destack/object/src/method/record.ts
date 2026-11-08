@@ -1,12 +1,6 @@
 import { Orderable } from "../trait/orderable.ts";
 import { ObjectError } from "../error/error.ts";
-import {
-    isPrincipal,
-    type Access,
-    type Creation,
-    type TupleReader,
-    Manager,
-} from "@destack/access";
+import { isPrincipal, type Access, type Creation, type Reader, Manager } from "@destack/access";
 import {
     TABLE,
     type InsertValue,
@@ -64,7 +58,7 @@ import {
 import { type InputObject, InputSchema } from "./input.ts";
 import { Casing } from "../object/name.ts";
 import { EventLog } from "../query/event.ts";
-import { Listing } from "../query/listing.ts";
+import { list } from "../query/list.ts";
 import { ListFields, QueryFields, ViewFields } from "../replica/replica.ts";
 import type { ObjectType, WrittenField } from "../object/object.ts";
 
@@ -506,7 +500,7 @@ export const RecordMethod = {
     async authorizeCreate(
         context: MethodContext,
         execution: StoreExecution,
-        grants?: TupleReader,
+        grants?: Reader,
     ): Promise<void> {
         // require the receiving parent and the creation
         const reader = grants ?? (await execution.authorization.reader(context.scope));
@@ -522,7 +516,7 @@ export const RecordMethod = {
         context: MethodContext,
         execution: StoreExecution,
         parent: ObjectReference,
-        reader?: TupleReader,
+        reader?: Reader,
     ): Promise<void> {
         // require a nested object, and an attachment host type
         const declared = context.object.parent;
@@ -1232,7 +1226,7 @@ export const RecordMethod = {
     async requireCreatable(
         context: MethodContext,
         execution: StoreExecution,
-        reader?: TupleReader,
+        reader?: Reader,
     ): Promise<void> {
         // build the row as it will be written, with column defaults
         const id = context.id ?? context.object.generateId(execution.store.environment);
@@ -1295,7 +1289,7 @@ export const RecordMethod = {
         context: MethodContext,
         execution: StoreExecution,
         row: Row,
-        grants: TupleReader,
+        grants: Reader,
         refusal: "open" | "concealed",
     ): Promise<void> {
         // check the permission on the row
@@ -1550,7 +1544,7 @@ export class MethodBuilder<
                 input: schemas.scope.extend({ ...QueryFields, ...PageFields, ...ViewFields }),
                 output: ListPage.schema(schemas.row).extend(ListFields),
             }),
-            handler: (context, execution) => new Listing(context, execution).list(),
+            handler: (context, execution) => list(context, execution),
         });
     }
 

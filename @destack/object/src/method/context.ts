@@ -57,12 +57,12 @@ import type { MethodKind } from "./kind.ts";
 import type { InstalledServerContext } from "../workload/workload.ts";
 import type { Settled, SettlementContext } from "./settlement.ts";
 import { type IsSum, RecordMethod } from "./record.ts";
-import type { Listing } from "../query/listing.ts";
+import type { list } from "../query/list.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type { Session } from "./reader.ts";
 import type { Follow, FollowKey } from "../replica/shape.ts";
 import { EventView } from "../query/event.ts";
-import { Execution } from "./execution.ts";
+import { Execution, type StoreExecution } from "./execution.ts";
 import { BranchWrite } from "../branch/write.ts";
 import { Replay } from "../audit/replay.ts";
 
@@ -227,6 +227,16 @@ export class MethodContext<
         const bits = new DataView(digest).getBigUint64(0) >> RANDOM_SHIFT;
 
         return Number(bits) / RANDOM_RANGE;
+    }
+
+    /** The store running the call with its transaction, refusing a prediction or a hook. */
+    get execution(): StoreExecution {
+        const location = this.#location;
+        if (location.kind !== "store") {
+            throw new TypeError(`${this.object.name}.${this.name} can only run in its store`);
+        }
+
+        return location;
     }
 
     /** Take the position of the transaction's next derived identifier, refusing a prediction. */
@@ -1184,7 +1194,7 @@ export type MethodResult<Configuration extends MethodConfiguration> = [
     OptionOf<Configuration, "output", never>,
 ] extends [never]
     ? OptionOf<Configuration, "kind", MethodKind> extends "list"
-        ? Awaited<ReturnType<Listing["list"]>>
+        ? Awaited<ReturnType<typeof list>>
         : Select<TableOf<Configuration>>
     : schema.Output<OptionOf<Configuration, "output", never>>;
 

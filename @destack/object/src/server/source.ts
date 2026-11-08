@@ -42,7 +42,7 @@ import { FOLLOW, ObjectType, REPLICATE, type ObjectStorage } from "../object/obj
 import { ExternalStorage } from "./external.ts";
 import { Authorization } from "./authorization.ts";
 import { EphemeralStorage } from "./ephemeral.ts";
-import { ObjectAudience } from "./audience.ts";
+import { SubscriptionAudience } from "./audience.ts";
 import type { ObjectStore } from "./store.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -588,7 +588,7 @@ export class ObjectSource {
         const { scope, after, previous } = subscription;
         const reader = this.#reader(follower, scope);
         const { generation } = this.store.database.state.commits;
-        const audience = await ObjectAudience.of(this.store, scope, reader);
+        const audience = await SubscriptionAudience.of(this.store, scope, reader);
 
         // compile a request's queries over the scope's chain now
         const compile = (parameters: JsonObject) =>
@@ -642,7 +642,7 @@ export class ObjectSource {
         followed: {
             readonly subscription: sync.Subscription;
             readonly caller: Subject | undefined;
-            readonly audience: ObjectAudience;
+            readonly audience: SubscriptionAudience;
             readonly generation: number;
             readonly compile: (parameters: JsonObject) => Record<string, sync.Query>;
             readonly after: LogPosition | undefined;
@@ -891,7 +891,7 @@ export class ObjectSource {
         context: RequestContext,
         storage: ObjectStorage,
         follow: (
-            audience: ObjectAudience,
+            audience: SubscriptionAudience,
             signal: AbortSignal,
             isFirst: boolean,
         ) => AsyncGenerator<sync.Page>,
@@ -902,7 +902,7 @@ export class ObjectSource {
             const revised = new AbortController();
             const signal = AbortSignal.any([context.request.signal, revised.signal]);
             const since = (await this.store.database.log.position()).sequence;
-            const audience = await ObjectAudience.of(
+            const audience = await SubscriptionAudience.of(
                 this.store,
                 scope,
                 this.#reader(follower, scope),
@@ -929,7 +929,7 @@ export class ObjectSource {
 
     /** Abort a follower's stream at the first access change deciding its audience's rows. */
     async #watchAccess(
-        audience: ObjectAudience,
+        audience: SubscriptionAudience,
         since: number,
         revised: AbortController,
         signal: AbortSignal,
@@ -1383,7 +1383,7 @@ export class ObjectSource {
 
         // decide a principal's chain by containment in the universe as a principal inside its parent's chain
         if ("subject" in follower && isContained) {
-            return ObjectAudience.of(
+            return SubscriptionAudience.of(
                 this.store,
                 Scope.universe.id,
                 AccessContext.of(Caller.of(follower.subject), this.store.clock.now()),
@@ -1399,7 +1399,7 @@ export class ObjectSource {
             const { parent } = follower;
             const within = parent === undefined ? [] : await this.#within(parent);
 
-            return ObjectAudience.of(
+            return SubscriptionAudience.of(
                 this.store,
                 request.scope,
                 AccessContext.of(Caller.of(follower.subject), this.store.clock.now()),
@@ -1408,7 +1408,7 @@ export class ObjectSource {
         }
         // decide a caller's chain by containment, with its fields from the scope it acts in
         else if (isContained) {
-            return ObjectAudience.of(
+            return SubscriptionAudience.of(
                 this.store,
                 request.target,
                 follower.context.access(request.target),
@@ -1429,7 +1429,7 @@ export class ObjectSource {
             );
             const scope = replicated.every(Boolean) ? request.target : request.scope;
 
-            return ObjectAudience.of(this.store, scope, follower.context.access(scope));
+            return SubscriptionAudience.of(this.store, scope, follower.context.access(scope));
         }
     }
 
@@ -1462,7 +1462,7 @@ export class ObjectSource {
     async *#interleave(
         pages: AsyncGenerator<sync.Page>,
         events: ScopeEvents,
-        audience: Pick<ObjectAudience, "authorization">,
+        audience: Pick<SubscriptionAudience, "authorization">,
         signal: AbortSignal,
     ): AsyncGenerator<sync.Page> {
         // decide each object's events once per access the audience has
