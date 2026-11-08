@@ -12,13 +12,7 @@ import {
     type Permission,
     type TableMapping,
 } from "@destack/access";
-import {
-    Scope,
-    type ObjectReference,
-    ObjectTypeReference,
-    type Subject,
-    Call,
-} from "@destack/sync";
+import { Scope, ObjectReference, ObjectTypeReference, type Subject, Call } from "@destack/sync";
 import {
     Expression,
     Condition,
@@ -1617,8 +1611,33 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             ...(field === undefined ? [] : [field]),
             "id",
             ...(ownerColumn === undefined ? [] : [ownerColumn]),
+            ...Object.keys(ObjectType.creator(this, undefined)),
             ...(this.definition.supplied ?? []),
         ];
+    }
+
+    /** State a creator in the caller columns a type's server-only creation takes. */
+    static creator(
+        object: ObjectType,
+        subject: Subject | undefined,
+    ): Record<string, string | null> {
+        // leave a type without creation, or one created through routes, which fill them
+        const create = object.methods["create"];
+        if (create === undefined || Method.isRouted(create)) {
+            return {};
+        }
+
+        // state the creator in each caller field's columns
+        const columns: Record<string, string | null> = {};
+        for (const [name, declared] of Object.entries(object.fields)) {
+            if (declared.isCallerFilled && declared.reference === "object") {
+                Object.assign(columns, ObjectReference.columns(declared.relationAt(name), subject));
+            } else if (declared.isCallerFilled && declared.reference !== "none") {
+                columns[name] = subject?.id ?? null;
+            }
+        }
+
+        return columns;
     }
 
     /** Find the type of a call's method among some types. */

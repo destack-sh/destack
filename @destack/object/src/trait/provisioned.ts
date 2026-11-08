@@ -2,8 +2,8 @@ import { principal, relation, none } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
 import { ResourcePlacement, ResourceRetention, type ResourceKind } from "@destack/resource";
-import { type Identifier, schema } from "@destack/schema";
-import { ObjectReference, Scope } from "@destack/sync";
+import { schema } from "@destack/schema";
+import { Scope } from "@destack/sync";
 import { field, type FieldsByColumn } from "../field/field.ts";
 import { method } from "../method/record.ts";
 import {
@@ -20,7 +20,7 @@ import { CONSUMER } from "./bindable.ts";
 import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
-import { adopt, specify } from "../method/provisioned.ts";
+import { restore, specify } from "../method/provisioned.ts";
 
 /** The constraints every resource takes. */
 const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
@@ -89,8 +89,8 @@ function resourceFields(kind: ResourceKind) {
         retention: field.json(ResourceRetention).default("forever"),
         /** When a removed resource's retained content is destroyed, absent unless a window runs. */
         retainedUntil: field.time().optional(),
-        /** The owner application installation, absent for stack resources and after release. */
-        owner: field.subject(principal.installation).optional(),
+        /** The principal that created the resource, which owns it for sharing. */
+        owner: field.subject().caller(),
     };
 }
 
@@ -191,7 +191,7 @@ export const Provisioned = {
             );
         }
 
-        // declare, reconcile, bind, share and adopt the resources as every kind does
+        // declare, reconcile, bind, share and restore the resources as every kind does
         return {
             ...definition,
             controlled: { approval: true },
@@ -222,33 +222,7 @@ export const Provisioned = {
     isProvisioned(row: { readonly reference: string | null }): boolean {
         return row.reference !== null;
     },
-
-    /** Select the columns of a resource table's owner reference. */
-    ownerColumns<Columns extends Readonly<Record<OwnerColumn, unknown>>>(
-        table: Columns,
-    ): Pick<Columns, OwnerColumn> {
-        return {
-            ownerPackageId: table.ownerPackageId,
-            ownerType: table.ownerType,
-            ownerScope: table.ownerScope,
-            ownerId: table.ownerId,
-        };
-    },
-
-    /** Read the application installation owning a resource, absent for a stack's own resource. */
-    owner(
-        row: Readonly<Record<OwnerColumn, string | null>>,
-    ): Identifier<"installation"> | undefined {
-        const owner = row.ownerId === null ? undefined : ObjectReference.at("owner", row);
-
-        return owner !== undefined && principal.installation.is(owner)
-            ? schema.identifier("installation").parse(owner.id)
-            : undefined;
-    },
 };
-
-/** The columns of a resource's owner reference. */
-type OwnerColumn = "ownerPackageId" | "ownerType" | "ownerScope" | "ownerId";
 
 /** Declare the methods every resource takes beside those of its kind. */
 function resourceMethods() {
@@ -263,10 +237,6 @@ function resourceMethods() {
                 "spec",
                 "placement",
                 "retention",
-                "ownerPackageId",
-                "ownerType",
-                "ownerScope",
-                "ownerId",
                 "provider",
                 "reference",
                 "tags",
@@ -277,7 +247,7 @@ function resourceMethods() {
             fields: ["definitionVersion", "spec", "retention"],
         }),
         delete: method.delete("declare", { visibility: "installation" }),
-        adopt,
+        restore,
         specify,
     };
 }

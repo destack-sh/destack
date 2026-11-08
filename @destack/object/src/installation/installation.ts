@@ -7,9 +7,9 @@ import {
     Role,
     self,
 } from "@destack/access";
-import { type Select, Table } from "@destack/db";
+import { type Select, type Snapshot, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { type DigestCrypto, Instant, schema } from "@destack/schema";
+import { type DigestCrypto, type Identifier, Instant, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { InstallationName } from "../declare/egress.ts";
 import { InstallationBindings, InstallationSelection } from "./selection.ts";
@@ -193,6 +193,18 @@ export type Installation = Select<typeof installation.table>;
 
 /** The installations of a scope: born with it, or installed through a rollout. */
 export const Installation = {
+    /** Read which of some installations are applications: the ones without a stack's export. */
+    async applications(
+        reader: Pick<Snapshot, "read">,
+        ids: readonly Identifier<"installation">[],
+    ): Promise<ReadonlySet<Identifier<"installation">>> {
+        const rows = await reader.read(installation.table).findMany({
+            where: { id: { in: [...new Set(ids)] }, export: { isNull: true } },
+        });
+
+        return new Set(rows.map((row) => row.id));
+    },
+
     /** Receive a scope with its base installations, each born once and bound to its role. */
     async receive(
         authorization: Authorization,

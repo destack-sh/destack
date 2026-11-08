@@ -95,6 +95,8 @@ export interface StackOptions {
     readonly manager: Omit<Manager, "name">;
     /** The principal running the declarations' calls, such as the space applying a stack. */
     readonly as: Subject;
+    /** The caller a declaration of a type writes as: the space, or an installation it consents. */
+    readonly declarer: (object: ObjectType) => Caller;
     /** The scope containing the declared records. */
     readonly scope: string;
     /** The stack's document, keyed by collection. */
@@ -653,13 +655,14 @@ export class StackPlan {
         throw new DependencyWait(message);
     }
 
-    /** Run calls as a declaration's manager in the stack's transaction, results in order. */
+    /** Run a type's calls as a declaration's manager in the stack's transaction, in order. */
     mutate<const Calls extends readonly Call[]>(
+        object: ObjectType,
         calls: Calls,
         name: string,
     ): Promise<ResultsOf<Calls>> {
         return this.stack.options.store.mutate(
-            this.caller,
+            AccessContext.of(this.stack.options.declarer(object), this.now),
             { id: RequestId.create(this.stack.options.store.environment), calls },
             {
                 transaction: this.transaction,
@@ -1047,8 +1050,11 @@ export class StackPlan {
         scope: string,
         input: JsonObject,
     ): Promise<Step> {
+        // create it in its scope with its declarer as creator
         const { object } = declaration;
-        await this.mutate([object.call("create", { ...object.in(scope), ...input })], name);
+        const creator = ObjectType.creator(object, this.stack.options.declarer(object).subject);
+        const created = { ...object.in(scope), ...input, ...creator };
+        await this.mutate(object, [object.call("create", created)], name);
 
         return StackPlan.#creation(object.name, name);
     }
@@ -1098,7 +1104,7 @@ export class StackPlan {
         const values: Row = loaded;
         const isDeleted = "deletedAt" in values && values["deletedAt"] !== null;
         if (isDeleted) {
-            await this.mutate([object.call("restore", object.target(loaded))], name);
+            await this.mutate(object, [object.call("restore", object.target(loaded))], name);
         }
         const row = isDeleted ? await this.#reread(declaration, loaded) : loaded;
 
@@ -1164,7 +1170,11 @@ export class StackPlan {
             Object.entries(fields).map(([field, value]) => [field, value.after]),
         );
         if (Object.keys(changed).length > 0) {
-            await this.mutate([object.call("update", { ...object.target(row), ...changed })], name);
+            await this.mutate(
+                object,
+                [object.call("update", { ...object.target(row), ...changed })],
+                name,
+            );
         }
 
         // list the restore and the update of the changed fields
@@ -1244,6 +1254,7 @@ export class StackPlan {
         if (retire === "archived") {
             if (mode === "apply") {
                 await this.mutate(
+                    object,
                     [object.call("update", { ...object.target(row), active: false })],
                     name,
                 );
@@ -1254,7 +1265,7 @@ export class StackPlan {
         // delete it through its type
         else {
             if (mode === "apply") {
-                await this.mutate([object.call("delete", object.target(row))], name);
+                await this.mutate(object, [object.call("delete", object.target(row))], name);
             }
 
             return [{ action: "delete", target, risk: "destructive", detail: "retire" }];

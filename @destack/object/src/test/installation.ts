@@ -39,7 +39,11 @@ export async function testServerContext(
             .parse("installation-019f5530-8000-7000-8000-00000000f001"),
         name: "fixture",
         scope: space,
-        build: await MemoryBuild.write(new Map(), { role: "app", package: owner }, environment.crypto),
+        build: await MemoryBuild.write(
+            new Map(),
+            { role: "app", package: owner },
+            environment.crypto,
+        ),
         settings: {},
         capabilities: [],
         resources: new ResourceContext(),

@@ -1,4 +1,5 @@
 export { recoverable } from "./recoverable.ts";
+export type { ManagedTable } from "./record.ts";
 export { controlled, type ControlledDefinition } from "./controlled.ts";
 export { suspendable } from "./suspendable.ts";
 export { fencing } from "./fencing.ts";

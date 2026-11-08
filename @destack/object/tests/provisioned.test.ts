@@ -24,7 +24,6 @@ import {
     CONSUMER,
     defineObject,
     type ObjectType,
-    Provisioned,
     type Resource,
 } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
@@ -112,6 +111,7 @@ const installationId = schema
 /** The fields a box of the fixture package starts with. */
 const declared = {
     scope: spaceId,
+    ...ObjectReference.columns("owner", spacePrincipal(spaceId)),
     definitionPackageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000056"),
     definitionVersion: "2026.9.0",
     definitionName: "box",
@@ -669,25 +669,6 @@ test("set a resource's name after another kind's resource in its space, refusing
 function conditions(row: { readonly conditions: Resource["conditions"] }) {
     return [row.conditions["Ready"]?.reason, row.conditions[DRAINING]?.status] as const;
 }
-
-test("read a resource's owning application installation from its owner columns, none for a stack's own resource", () => {
-    // store an installation's and its space's reference as owners, and none
-    const owned = ObjectReference.columns(
-        "owner",
-        principal.installation.reference(spaceId, installationId),
-    );
-    const spaceOwned = ObjectReference.columns(
-        "owner",
-        principal.space.reference(Scope.universe.id, spaceId),
-    );
-    const unowned = ObjectReference.columns("owner", undefined);
-
-    expect([owned, spaceOwned, unowned].map((row) => Provisioned.owner(row))).toEqual([
-        installationId,
-        undefined,
-        undefined,
-    ]);
-});
 
 test("leave an external kind's resources to their own type's controller, and refuse one for an internal kind's", async () => {
     // serve sockets controlled by their own type, and boxes given a controller of their own

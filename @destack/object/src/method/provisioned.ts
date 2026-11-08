@@ -1,6 +1,5 @@
 import { Risk } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
-import { ObjectReference } from "@destack/sync";
 
 import { ObjectError } from "../error/error.ts";
 import { Execution } from "./execution.ts";
@@ -9,22 +8,10 @@ import type { ResourceTable } from "../trait/provisioned.ts";
 /** The method declarations of provisioned resources. */
 export const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 
-/** Make an installation the owner of a retained resource it declares again, or release it. */
-export const adopt = provisionedMethod
-    .mutation({
-        permission: "declare",
-        visibility: "installation",
-        input: schema.object({
-            /** The owner installation of the resource, absent to release it. */
-            owner: ObjectReference.nullable(),
-        }),
-    })
-    .handle((context) =>
-        context.update({
-            ...ObjectReference.columns("owner", context.input.owner ?? undefined),
-            deletedAt: null,
-        }),
-    );
+/** Cancel a retiring resource's deletion, as its declaration declares it again. */
+export const restore = provisionedMethod
+    .mutation({ permission: "declare", visibility: "installation" })
+    .handle((context) => context.update({ deletedAt: null }));
 
 /** Write the desired states' digests and the approval threshold. */
 export const specify = Execution.handle(

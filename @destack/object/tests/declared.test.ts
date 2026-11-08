@@ -3,7 +3,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { testCallKey } from "@destack/object/test";
-import { anyone, Manager, principal } from "@destack/access";
+import { anyone, Manager, principal, Caller } from "@destack/access";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { defineObject, field } from "../src/index.ts";
@@ -149,6 +149,7 @@ test("declare records as their create inputs in reference order, the name fillin
             policies: [crate.policy],
             manager,
             as: spacePrincipal(spaceId),
+            declarer: () => Caller.of(spacePrincipal(spaceId)),
             scope: spaceId,
             document,
             applied,
