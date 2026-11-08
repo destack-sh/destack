@@ -331,6 +331,7 @@ export const ObjectPolicy = {
                 ...(relation.grantedBy === undefined ? {} : { grantedBy: relation.grantedBy }),
                 ...(relation.concealed === true ? { concealed: true } : {}),
                 ...(relation.isRequired === true ? { isRequired: true } : {}),
+                ...(relation.open === true ? { open: true } : {}),
             };
         }
 

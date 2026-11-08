@@ -264,6 +264,8 @@ export interface ObjectRelationInput {
     readonly concealed?: true;
     /** Whether each object keeps at least one relationship of the relation, as its owners. */
     readonly isRequired?: true;
+    /** Whether other types add themselves as subject types, as they contribute to it. */
+    readonly open?: true;
 }
 
 /** The scope objects live in: a scope type, a principal's policy, or the universe. */
