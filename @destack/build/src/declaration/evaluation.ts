@@ -288,7 +288,9 @@ async function evaluateProject(
                     project,
                     options,
                 );
-                declarations.push({ description, file, export: name });
+                if (description !== undefined) {
+                    declarations.push({ description, file, export: name });
+                }
             }
         }
     }
@@ -298,7 +300,7 @@ async function evaluateProject(
         seen.add(element);
     }
 
-    // name each module-level declaration its module does not export, by its first kind's description
+    // name each module-level declaration its module does not export, by the first kind describing it
     const exported = new Set(
         [...seen].flatMap((value) => {
             const site = sites.get(value);
@@ -309,11 +311,21 @@ async function evaluateProject(
     const unexported = new Map<string, string>();
     for (const [value, site] of sites) {
         if (!seen.has(value) && site.binding === "unexported") {
-            const [first] = constructorKinds(kinds, site);
-            const kind = present(first, `a kind of ${site.package}#${site.constructor}`).kind;
-            const located = { owner, name: site.constructor, site, kind };
-            const { name } = await describeDeclaration(value, located, evaluated, project, options);
-            unexported.set(siteKey(site), name);
+            let described: DeclarationDescription | undefined;
+            for (const { kind } of constructorKinds(kinds, site)) {
+                const located = { owner, name: site.constructor, site, kind };
+                described ??= await describeDeclaration(
+                    value,
+                    located,
+                    evaluated,
+                    project,
+                    options,
+                );
+            }
+            unexported.set(
+                siteKey(site),
+                present(described, `a description of ${site.package}#${site.constructor}`).name,
+            );
         }
     }
 
@@ -520,7 +532,7 @@ async function linkHost(specifier: string, program: Program): Promise<SyntheticM
     });
 }
 
-/** Describe one exported declaration as one kind, with its terms and symbols. */
+/** Describe one exported declaration as one kind, none where its value function answers none. */
 async function describeDeclaration(
     declared: unknown,
     located: {
@@ -532,7 +544,7 @@ async function describeDeclaration(
     evaluated: EvaluatedEntry,
     project: PackageSource,
     options: EvaluationOptions,
-): Promise<DeclarationDescription> {
+): Promise<DeclarationDescription | undefined> {
     // read the kind's value of the declaration and describe it, refusing a failure as the declaration's
     const { owner, name, site, kind } = located;
     const functions = present(
@@ -546,6 +558,9 @@ async function describeDeclaration(
             typeof functions.value === "function"
                 ? Reflect.apply(functions.value, undefined, [declared])
                 : declared;
+        if (value === undefined) {
+            return undefined;
+        }
         if (typeof functions.describe !== "function") {
             throw BuildError.of("INSPECTION_FAILED", `kind ${kind.kind} has no describe function`);
         }

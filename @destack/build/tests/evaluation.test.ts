@@ -182,3 +182,163 @@ test("refuse a declared kind function its module does not export, by its package
         "declaration evaluation failed: @example/owner/inspect#missing is not an exported function",
     ]);
 });
+
+/** Write a part kind's package beside the thing kind's, which reads a thing's part as its value. */
+async function partPackage(app: string, environment: Environment<"files" | "process">) {
+    // declare the part kind by its own package's constructor, linked into the thing kind's
+    const { files } = environment;
+    const directory = await thingPackage(app, environment);
+    const parts = join(directory, "../parts");
+    await files.mkdir(parts, { recursive: true });
+    await files.writeTextFile(
+        join(parts, "package.json"),
+        JSON.stringify({
+            name: "@example/parts",
+            version: "2026.9.0",
+            type: "module",
+            exports: { ".": "./index.ts", "./inspect": "./inspect.ts" },
+        }),
+    );
+    await files.writeTextFile(
+        join(parts, "index.ts"),
+        "export function definePart(definition: { part: string }) {\n    return definition;\n}\n",
+    );
+    await files.writeTextFile(
+        join(parts, "destack.json"),
+        JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-00000000000d",
+            role: "library",
+            language: "typescript",
+            runtimes: ["bun"],
+            declarations: {
+                definePart: { describes: [{ kind: "part", function: "./inspect#describe" }] },
+            },
+        }),
+    );
+    await files.writeTextFile(
+        join(parts, "inspect.ts"),
+        "export function describe(value: { part: string }) {\n    return { name: value.part };\n}\n",
+    );
+    await files.writeTextFile(
+        join(directory, "../bun.lock"),
+        JSON.stringify({
+            lockfileVersion: 2,
+            workspaces: {
+                owner: { name: "@example/owner" },
+                parts: { name: "@example/parts" },
+                app: { name: "@example/app" },
+            },
+            packages: {},
+        }),
+    );
+    await files.mkdir(join(directory, "../owner/node_modules/@example"), { recursive: true });
+    await files.symlink(parts, join(directory, "../owner/node_modules/@example/parts"));
+    await files.symlink(parts, join(directory, "node_modules/@example/parts"));
+
+    // let a thing declare a part first, reading none from a thing without one
+    const owner = join(directory, "../owner");
+    await files.writeTextFile(
+        join(owner, "destack.json"),
+        JSON.stringify({
+            $schema: "https://destack.app/schemas/2026.9.0/destack.json",
+            id: "package-01996ab0-0000-7000-8000-00000000000a",
+            role: "library",
+            language: "typescript",
+            runtimes: ["bun"],
+            declarations: {
+                defineThing: {
+                    describes: [
+                        { kind: "part", package: "@example/parts", value: "./inspect#part" },
+                        { kind: "thing", function: "./inspect#describe" },
+                    ],
+                },
+            },
+            stamps: { defineThing: { module: 1 } },
+        }),
+    );
+    await files.writeTextFile(
+        join(owner, "package.json"),
+        JSON.stringify({
+            name: "@example/owner",
+            version: "2026.9.0",
+            type: "module",
+            exports: { ".": "./index.ts", "./inspect": "./inspect.ts" },
+            dependencies: { "@example/parts": "2026.9.0" },
+        }),
+    );
+    await files.writeTextFile(
+        join(owner, "index.ts"),
+        `import { definePart } from "@example/parts";
+
+export function defineThing(definition: { name: string; part?: string }, module?: { package: object }) {
+    return { ...definition, package: module!.package, parts: definition.part === undefined ? [] : [definePart({ part: definition.part })] };
+}
+`,
+    );
+    await files.writeTextFile(
+        join(owner, "inspect.ts"),
+        `export function describe(value: { name: string }) {
+    return { name: value.name };
+}
+
+export function part(value: { parts: { part: string }[] }) {
+    return value.parts[0];
+}
+`,
+    );
+
+    return directory;
+}
+
+test("declare a dependency's kind by the value a constructor reads, and none where it reads none", async () => {
+    // declare a thing with a part and one without
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await partPackage(
+        `import { defineThing } from "@example/owner";
+
+export const plain = defineThing({ name: "plain" });
+export const wheeled = defineThing({ name: "wheeled", part: "wheel" });
+`,
+        environment,
+    );
+
+    // describe the part of the thing with one alone
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store);
+    const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
+    const declarations = await build.declarations();
+
+    expect(declarations.map((each) => [each.kind, each.description["name"]])).toEqual([
+        ["thing", "plain"],
+        ["part", "wheel"],
+        ["thing", "wheeled"],
+    ]);
+});
+
+test("name a declaration its module does not export by the first kind describing it", async () => {
+    // declare a thing without a part outside the module's exports
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    const directory = await partPackage(
+        `import { defineThing } from "@example/owner";
+
+const hidden = defineThing({ name: "hidden" });
+export const greeting = defineThing({ name: "greeting" });
+void hidden;
+`,
+        environment,
+    );
+
+    // refuse it by the thing kind's name, the part kind reading none
+    await using store = await LocalBuildStore.temporary(environment);
+    const compilers = await CompilerPool.open(store);
+    const workspace = await Workspace.open(directory, compilers);
+
+    expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([
+        "UNPROCESSABLE_CONTENT",
+        "DECLARATION_UNEXPORTED",
+        "declared hidden is not exported by @example/app",
+    ]);
+});
