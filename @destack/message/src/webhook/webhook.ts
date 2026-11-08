@@ -1,7 +1,7 @@
 import type { Crypto } from "@destack/environment";
 import { CallError, type Fetch, type StandardMessage, StandardWebhook } from "@destack/object";
 import { ObjectReference } from "@destack/sync";
-import { SecretReading } from "@destack/vault";
+import { SecretReading } from "@destack/resource";
 import { secret } from "@destack/vault/object";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
 import { encodeBody, type WebhookAuthentication } from "./message.ts";
@@ -89,7 +89,7 @@ async function authenticate(
     }
 
     // sign the identifier, time and body
-    const webhook = await StandardWebhook.of(value, crypto);
+    const webhook = await StandardWebhook.of([value], crypto);
 
     return webhook.sign(post);
 }

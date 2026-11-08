@@ -65,7 +65,7 @@ async function readPosts(fixture: TestMessage) {
                 headers: post.headers,
                 body: post.body,
             });
-            const webhook = await StandardWebhook.of(SECRET_VALUE, fixture.environment.crypto);
+            const webhook = await StandardWebhook.of([SECRET_VALUE], fixture.environment.crypto);
             const { body } = await webhook.verify(received, fixture.clock.now());
 
             return Envelope.parse(JSON.parse(body)).type;
