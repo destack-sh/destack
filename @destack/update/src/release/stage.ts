@@ -7,8 +7,8 @@ const NAMES = ["production", "local"] as const;
 /** The distribution tag of production's first-party releases, npm's default. */
 const PRODUCTION_TAG = "latest";
 
-/** The update feed every published release comes from, the `stable` path of the download origin. */
-const FEED = "https://download.destack.sh/stable/";
+/** The update feed every published release comes from: the download origin's root. */
+const FEED = "https://download.destack.sh/";
 
 /** The account service each stage signs people in with. */
 const ISSUERS = {

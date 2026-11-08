@@ -76,7 +76,7 @@ function distributionAt(
 ): Distribution {
     return new Distribution({
         home,
-        repository: new URL("https://download.destack.test/stable/"),
+        repository: new URL("https://download.destack.test/"),
         root: Distribution.root(),
         running: new Release("2026.9.0", "x86_64-unknown-linux-gnu"),
         executable: join(home, "bin", "destack"),

@@ -27,7 +27,7 @@ import { Distribution, Release } from "@destack/update";
 
 const distribution = new Distribution({
     home: "/Users/ada/.destack",
-    repository: new URL("https://download.destack.sh/stable/"),
+    repository: new URL("https://download.destack.sh/"),
     root: Distribution.root(),
     running: new Release("2026.10.1", "aarch64-apple-darwin"),
     executable: process.execPath,
