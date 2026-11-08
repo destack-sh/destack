@@ -6,7 +6,7 @@ import { RepositoryConfiguration } from "./configuration.ts";
 const ACCOUNT = "27c0d00fb3a27a4ccbf46a3cceab9301";
 
 /** The bucket keeping the feed's releases. */
-const BUCKET = "destack-releases-stable";
+const BUCKET = "destack-releases";
 
 /** Maximum duration of a streamed release upload, in milliseconds. */
 const UPLOAD_TIMEOUT_MILLISECONDS = 15 * 60 * 1000;

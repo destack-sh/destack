@@ -54,7 +54,7 @@ export async function deployPlatform(
 ): Promise<void> {
     // deploy a whole environment
     const [name] = arguments_;
-    if (arguments_.length === 1 && name !== undefined && name !== "shared") {
+    if (arguments_.length === 1 && name !== undefined && name !== "global") {
         await Deployment.deployed(name, environment).deploy((title, line) =>
             printStatus(title, line, environment),
         );

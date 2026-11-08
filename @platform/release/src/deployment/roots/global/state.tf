@@ -1,7 +1,7 @@
 terraform {
   backend "s3" {
     bucket                      = "destack-infrastructure"
-    key                         = "platform.tfstate"
+    key                         = "global.tfstate"
     region                      = "auto"
     use_lockfile                = true
     skip_credentials_validation = true

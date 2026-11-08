@@ -1,16 +1,7 @@
-# forget the legacy bucket without deleting its objects
-removed {
-  from = cloudflare_r2_bucket.releases
-
-  lifecycle {
-    destroy = false
-  }
-}
-
 # keep the feed's releases
 resource "cloudflare_r2_bucket" "release" {
   account_id    = local.account_id
-  name          = "destack-releases-stable"
+  name          = "destack-releases"
   storage_class = "Standard"
 
   lifecycle {

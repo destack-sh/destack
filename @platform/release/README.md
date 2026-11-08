@@ -40,7 +40,7 @@ github        credential                                 src/github
 The OpenTofu roots and their modules live under `src/deployment`, and `deployment/*.tfvars` configures each root per stage.
 
 ```text
-src/deployment/roots     shared | universe | residency
+src/deployment/roots     global | universe | residency
 src/deployment/modules   kms | database
 deployment/*.tfvars      each root's configuration per stage
 ```
@@ -89,7 +89,7 @@ just @platform/release/rehearse production
 just @platform/release/e2e
 # seal the keys custody/production.json lacks under each root's KMS key, once per key, then commit the record
 just @platform/release/custody seal production
-# apply shared, universe, eu and us, migrate, deploy each Worker with the shipped releases as its
+# apply global, universe, eu and us, migrate, deploy each Worker with the shipped releases as its
 #  static assets, the record's sealed keys and its KMS access key, then publish the releases and smoke
 just @platform/release/deploy production
 ```

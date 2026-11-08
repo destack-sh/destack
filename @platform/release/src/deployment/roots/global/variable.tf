@@ -1,5 +1,5 @@
 variable "account_id" {
-  description = "Cloudflare account containing shared infrastructure."
+  description = "Cloudflare account containing the global infrastructure."
   type        = string
 }
 
