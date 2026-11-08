@@ -352,7 +352,10 @@ export class Catalog {
             (type): type is ObjectType => type instanceof ObjectType,
         );
 
-        return await ObjectStoreDescription.read(ObjectClient.store(options, client.environment), known);
+        return await ObjectStoreDescription.read(
+            ObjectClient.store(options, client.environment),
+            known,
+        );
     }
 
     /** Select an object by its identifier, in a space and a view. */

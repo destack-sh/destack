@@ -7,7 +7,7 @@ import { RequestId } from "@destack/sync";
 import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { CliError } from "../error/index.ts";
-import { Forge } from "./forge.ts";
+import { openForge } from "./forge.ts";
 import { driveInstallation } from "./status.ts";
 
 /** The separator of a package specifier's version. */
@@ -37,13 +37,17 @@ export function installCommand(context: Context): Verb {
                 OptionValue.string(options["name"], "name") ?? PackageName.split(packageName).local;
 
             // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
-            const forge = await Forge.open(packageName, context);
-            const resolved = await forge.resolve(packageName, release);
-            const { version, manifest } = resolved.release;
+            const { client, home } = await openForge(packageName, context);
+            const found = await client.package.resolve({ spaceId: home, name: packageName });
+            const { version, manifest } = await client.release.resolve({
+                spaceId: home,
+                parentId: found.id,
+                release,
+            });
             const selection: InstallationSelection = Version.safeParse(release).success
                 ? { kind: "release", version, manifest }
                 : { kind: "tag", tag: release };
-            const id = await upsert(context, resolved.packageId, name, selection);
+            const id = await upsert(context, found.id, name, selection);
             await driveInstallation(id, options["yes"] === true, json, context);
 
             // report the release it runs and what it follows

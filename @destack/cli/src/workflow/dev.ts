@@ -1,13 +1,13 @@
 import { outputsOf } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
-import type { PackageJson } from "@destack/package";
+import { type PackageJson, PackageName } from "@destack/package";
 import { type Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import * as stackObject from "@destack/stack/object";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 
-import { Forge } from "./forge.ts";
+import { openForge } from "./forge.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -95,10 +95,16 @@ async function publish(
     // build the package, and open the forge of its account
     const built = await build(context, directory, json, values);
     const described = built.package;
-    const forge = await Forge.open(described.name, context);
+    const { client, home, accountId } = await openForge(described.name, context);
 
-    // create the package on its first publish
-    await forge.createPackage(described);
+    // create the package on its first publish, as the forge's create is idempotent
+    await client.package.create({
+        spaceId: home,
+        requestId: RequestId.create(environment),
+        id: described.id,
+        accountId,
+        name: PackageName.split(described.name).local,
+    });
 
     // push the build from its space to the package's forge and release it there
     const stack = await context.package(stackPackage, await context.locate());
@@ -108,8 +114,8 @@ async function publish(
         requestId: RequestId.create(environment),
     });
     const tag = OptionValue.string(values["tag"], "tag");
-    const released = await forge.client.release.create({
-        spaceId: forge.home,
+    const released = await client.release.create({
+        spaceId: home,
         requestId: RequestId.create(environment),
         parentId: described.id,
         manifest: built.manifest,
