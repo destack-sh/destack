@@ -55,6 +55,7 @@ function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayR
             issuers: { github: {} },
             secrets: {
                 "github-webhook": { parent: "platform", name: "github-webhook" },
+                "stripe-webhook": { parent: "platform", name: "stripe-webhook" },
                 "github-private-key": { parent: "platform", name: "github-private-key" },
             },
             installations: {
@@ -76,7 +77,7 @@ function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayR
                 ),
                 finance: install(
                     financePackage,
-                    { stripe: "stripe" },
+                    { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
                     { isolation: "process", name: FINANCE_INSTALLATION },
                 ),
                 message: install(messagePackage, {}, { isolation: "process", name: "message" }),
