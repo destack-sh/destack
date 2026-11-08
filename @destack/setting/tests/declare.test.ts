@@ -1,3 +1,4 @@
+import { Caller } from "@destack/access";
 import { ObjectReference } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
@@ -39,6 +40,7 @@ test("set, recommend and require declared values in the space and refuse undecla
             objects,
             store: served.store,
             as: served.store.principal,
+            declarer: () => Caller.of(served.store.principal),
             manager,
             scope: spaceId,
             document,
@@ -151,6 +153,7 @@ test("stamp a declared value with the release of the build declaring its setting
         objects: served.store.objects.filter((type) => type.same(setting)),
         store: served.store,
         as: served.store.principal,
+        declarer: () => Caller.of(served.store.principal),
         manager,
         scope: served.scope,
         document: {
