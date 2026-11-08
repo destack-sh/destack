@@ -13,7 +13,7 @@ import {
     ClientHead,
     HibernationHost,
     PARTITION_HEADER,
-    ROUTE_PATH,
+    ROUTE_HEADER,
     SOCKET_HEADER,
     SOCKET_INSTANCE_HEADER,
     SOCKET_PATH,
@@ -303,10 +303,11 @@ export class TestRelay implements AsyncDisposable {
             const asked = `http://${authority}${url.pathname}${url.search}`;
             const headers = new Headers({
                 [CLIENT_HEAD_HEADER]: ClientHead.write(request, asked),
+                [ROUTE_HEADER]: "route-names",
                 authorization: `Bearer ${root.secret}`,
             });
             const answer = await root.runner.fetch(
-                new Request(`http://runner${ROUTE_PATH}/names`, {
+                new Request(`http://runner${PackageMount.path(relayPackage.id)}/names`, {
                     method: request.method,
                     headers,
                     body: request.body,
