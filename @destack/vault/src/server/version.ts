@@ -3,7 +3,7 @@ import type { MethodContext } from "@destack/object";
 import { Binding } from "@destack/stack/object";
 import { VaultError } from "../error/error.ts";
 import { secret, secretVersion } from "../object/secret.ts";
-import { MAX_VALUE_BYTES, type SecretReading, type SecretValue } from "../secret/secret.ts";
+import { MAX_VALUE_BYTES, type SecretReading, type SecretValue } from "@destack/resource";
 
 /** A persisted secret version. */
 export type SecretVersion = Select<typeof secretVersion.table>;

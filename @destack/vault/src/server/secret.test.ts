@@ -322,11 +322,7 @@ test("refuse deleting a secret while its installation binds it", async () => {
             requestId: RequestId.create(fixture.environment),
         }),
     );
-    expect(refused).toEqual([
-        "CONFLICT",
-        "BOUND",
-        `${bound.id} is in use: bound by ${fixture.installation}`,
-    ]);
+    expect(refused).toEqual(["CONFLICT", "BOUND", `${bound.id} is in use: bound by application`]);
 });
 
 test("refuse reading a version whose stored value was copied from another version", async () => {

@@ -3,7 +3,8 @@ import { account, organization, space } from "@destack/account/object";
 import { defineObject } from "@destack/object";
 import { schema } from "@destack/schema";
 import { VaultKind } from "../declare/kind.ts";
-import { SecretDisclosure, SecretReading, SecretValue, VaultSelection } from "../secret/secret.ts";
+import { SecretReading, SecretValue } from "@destack/resource";
+import { SecretDisclosure, VaultSelection } from "../secret/secret.ts";
 
 /** A vault of secrets in a space, account or organization: a resource of the vault kind. */
 export const vault = defineObject(

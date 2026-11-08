@@ -6,7 +6,6 @@ export const VaultError = defineErrorFamily(import.meta.destack.package, {
     // bad request
     CURRENT_VERSION_REQUIRED: { code: "BAD_REQUEST" },
     EXPIRY_IN_PAST: { code: "BAD_REQUEST" },
-    TEXT_REQUIRED: { code: "BAD_REQUEST" },
     VAULT_UNBOUND: { code: "BAD_REQUEST" },
 
     // not found

@@ -7,7 +7,8 @@ import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { SecretDescription } from "../declare/secret.ts";
 import { secret, secretVersion } from "../object/index.ts";
 import { SecretVersion } from "./version.ts";
-import { type Secret, SecretGeneration, SecretReading } from "../secret/secret.ts";
+import { type Secret, SecretReading } from "@destack/resource";
+import { SecretGeneration } from "../secret/secret.ts";
 import { VAULT_REFERENCE } from "../provider/provider.ts";
 import { VaultError } from "../error/error.ts";
 

@@ -302,7 +302,7 @@ test("refuse removing a vault while an installation binds one of its secrets", a
         name: "token",
         requestId: RequestId.create(fixture.environment),
     });
-    const consumer = await installConsumer(fixture, { type: "secret", id: token.id });
+    await installConsumer(fixture, { type: "secret", id: token.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault and its secret
     const refused = await TestSpace.refusals(
@@ -319,7 +319,7 @@ test("refuse removing a vault while an installation binds one of its secrets", a
                 .from(secret.table),
         ],
     }).toEqual({
-        refused: [["CONFLICT", "BOUND", `${token.id} is in use: bound by ${consumer}`]],
+        refused: [["CONFLICT", "BOUND", `${token.id} is in use: bound by consumer`]],
         kept: [[{ deletedAt: null }], [{ deletedAt: null }]],
     });
 });
@@ -331,7 +331,7 @@ test("refuse removing a vault while an installation binds the vault itself", asy
         vaults: { shared: shared.declare({ retention: "delete" }) },
     });
     const provisioned = single(await fixture.served.database.select().from(vault.table));
-    const consumer = await installConsumer(fixture, { type: "vault", id: provisioned.id });
+    await installConsumer(fixture, { type: "vault", id: provisioned.id });
 
     // refuse the vault's removal, the stack reporting why, keeping the vault
     const refused = await TestSpace.refusals(
@@ -343,7 +343,7 @@ test("refuse removing a vault while an installation binds the vault itself", asy
             .select({ deletedAt: vault.table.deletedAt })
             .from(vault.table),
     }).toEqual({
-        refused: [["CONFLICT", "BOUND", `${provisioned.id} is in use: bound by ${consumer}`]],
+        refused: [["CONFLICT", "BOUND", `${provisioned.id} is in use: bound by consumer`]],
         kept: [{ deletedAt: null }],
     });
 });

@@ -3,13 +3,8 @@ import { account, organization, space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { defineObject, field, type ObjectType } from "@destack/object";
 import { type Duration, schema } from "@destack/schema";
-import {
-    SecretDisclosure,
-    SecretGeneration,
-    SecretReading,
-    SecretSelection,
-    SecretValue,
-} from "../secret/secret.ts";
+import { SecretReading, SecretValue } from "@destack/resource";
+import { SecretDisclosure, SecretGeneration, SecretSelection } from "../secret/secret.ts";
 import { vault } from "./vault.ts";
 
 /** The value of a new version and when its reads end. */
