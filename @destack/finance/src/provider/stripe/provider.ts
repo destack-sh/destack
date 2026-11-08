@@ -8,7 +8,9 @@ import type {
     ProviderEvent,
 } from "../provider.ts";
 import { type Customer, type Price, Product } from "../../object/index.ts";
+import type { WebhookDelivery } from "@destack/workflow";
 import { StripeClient, type StripeParameter } from "./client.ts";
+import { INVOICE_EVENTS, SUBSCRIPTION_EVENTS } from "./event.ts";
 import {
     Stripe,
     StripeAccount,
@@ -21,35 +23,6 @@ import {
 
 /** The metadata key tagging customers and connected accounts with their finance's home. */
 const HOME_KEY = "destack_home";
-
-/** The Checkout events finance follows. */
-const CHECKOUT_EVENTS = ["checkout.session.completed", "checkout.session.expired"] as const;
-
-/** The subscription events finance follows. */
-const SUBSCRIPTION_EVENTS: ReadonlySet<string> = new Set([
-    "customer.subscription.updated",
-    "customer.subscription.deleted",
-    "customer.subscription.paused",
-    "customer.subscription.resumed",
-]);
-
-/** The invoice events finance mirrors. */
-const INVOICE_EVENTS: ReadonlySet<string> = new Set([
-    "invoice.created",
-    "invoice.finalized",
-    "invoice.paid",
-    "invoice.payment_failed",
-    "invoice.voided",
-    "invoice.marked_uncollectible",
-]);
-
-/** The event types finance follows, which each home's webhook endpoint subscribes to. */
-export const STRIPE_EVENTS: readonly string[] = [
-    ...CHECKOUT_EVENTS,
-    ...SUBSCRIPTION_EVENTS,
-    ...INVOICE_EVENTS,
-    "account.updated",
-];
 
 /** The API and home a Stripe provider runs with. */
 export interface StripeProviderOptions {
@@ -259,13 +232,10 @@ export class StripeProvider implements PaymentProvider {
         });
     }
 
-    /** Read a webhook delivery's event as Stripe has it, absent for one finance here ignores. */
-    async receive(request: Request): Promise<ProviderEvent | undefined> {
-        // fetch the delivery's event
-        const { id } = StripeObject.parse(await request.json());
-        const event = StripeEvent.parse(await this.#fetch("events", id));
-
+    /** Read a verified delivery's event, absent for one finance here ignores. */
+    async read(delivery: WebhookDelivery): Promise<ProviderEvent | undefined> {
         // leave an event of another home's customer or seller
+        const event = StripeEvent.parse(delivery.payload);
         if (!(await this.#isHome(event.data.object))) {
             return undefined;
         }
@@ -353,13 +323,7 @@ export class StripeProvider implements PaymentProvider {
 
     /** Fetch an object of a kind as Stripe has it now. */
     #fetch(
-        kind:
-            | "subscriptions"
-            | "invoices"
-            | "accounts"
-            | "customers"
-            | "events"
-            | "checkout/sessions",
+        kind: "subscriptions" | "invoices" | "accounts" | "customers" | "checkout/sessions",
         id: string,
     ): Promise<unknown> {
         return this.#client.request("GET", `/v1/${kind}/${id}`);

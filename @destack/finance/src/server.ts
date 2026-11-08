@@ -31,5 +31,5 @@ export default implementPackage(financePackage, (context) => {
         context.environment.telemetry,
     );
 
-    return implementFinance(home, metering, charging);
+    return implementFinance(home, metering, charging, context);
 });

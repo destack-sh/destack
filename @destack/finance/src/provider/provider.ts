@@ -1,3 +1,4 @@
+import type { WebhookDelivery } from "@destack/workflow";
 import type { Call } from "@destack/sync";
 import { FinanceError } from "../error/error.ts";
 import { Snapshot, Transaction } from "@destack/db";
@@ -154,20 +155,20 @@ export interface PaymentProvider {
     /** Add a priced line to a draft invoice, returning the provider's identifier of the line. */
     readonly bill: (line: InvoiceLine, key: string) => Promise<string>;
 
-    /** Verify a webhook delivery and read its event, absent for an event finance ignores. */
-    readonly receive: (request: Request) => Promise<ProviderEvent | undefined>;
+    /** Read a verified webhook delivery's event, absent for an event finance ignores. */
+    readonly read: (delivery: WebhookDelivery) => Promise<ProviderEvent | undefined>;
 }
 
 /** The provider events finance follows, each applied once however often it arrives. */
 export const ProviderEvent = {
-    /** Read a webhook delivery's event and apply it in finance's space, ignoring other events. */
+    /** Read a verified delivery's event and apply it in finance's space, ignoring other events. */
     async receive(
         home: string,
         provider: PaymentProvider,
-        request: Request,
+        delivery: WebhookDelivery,
         store: ObjectStore,
     ): Promise<void> {
-        const event = await provider.receive(request);
+        const event = await provider.read(delivery);
         if (event !== undefined) {
             await ProviderEvent.apply(home, `${provider.name}/${event.id}`, event, store);
         }

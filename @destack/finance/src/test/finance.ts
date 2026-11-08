@@ -157,7 +157,7 @@ const PACKAGES: readonly TestPackage[] = [
 /** The packages whose types the home's stack declares. */
 const HOME_TYPES = [vaultPackage, connectionPackage, financePackage] as const;
 
-/** The home's stack: finance bound to the platform's Stripe connection. */
+/** The home's stack: finance bound to the platform's Stripe connection and webhook secret. */
 const RESIDENCY_STACK = {
     vaults: { connections: connectionVault.declare() },
     connections: {
@@ -166,6 +166,7 @@ const RESIDENCY_STACK = {
             protocol: { kind: "key", header: "authorization", scheme: "Bearer" } as const,
         },
     },
+    secrets: { "stripe-webhook": { parent: "connections", name: "stripe-webhook" } },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
         connection: install(
@@ -175,7 +176,11 @@ const RESIDENCY_STACK = {
         ),
         message: install(messagePackage, {}, { name: "message" }),
         notification: install(notificationPackage, {}, { name: "notification" }),
-        finance: install(financePackage, { stripe: "stripe" }, { name: FINANCE_INSTALLATION }),
+        finance: install(
+            financePackage,
+            { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
+            { name: FINANCE_INSTALLATION },
+        ),
     },
 };
 
@@ -653,7 +658,7 @@ function financeServer(
         // implement finance, handing the definition to the fixture that steps its cursors
         const provider = charging === undefined ? undefined : charging(context.scope);
         const metered = metering(context, published);
-        const definition = implementFinance(context.scope, metered, provider);
+        const definition = implementFinance(context.scope, metered, provider, context);
         implemented({ definition, home: context.scope, metering: metered });
 
         return definition;

@@ -1,5 +1,7 @@
 import type { ExternalClient } from "@destack/resource";
+import { BunCrypto } from "@destack/environment/bun";
 import { STRIPE_API } from "../declare/connection.ts";
+import { StripeSignature } from "../provider/stripe/signature.ts";
 
 /** The API key the fixture accepts. */
 const API_KEY = "sk_test_destack";
@@ -44,6 +46,8 @@ export class TestStripe {
     readonly objects = new Map<string, StripeObject>();
     /** The answers stored per idempotency key. */
     readonly #answers = new Map<string, StripeObject>();
+    /** The signing secrets of the webhook endpoints, by identifier. */
+    readonly #secrets = new Map<string, string>();
     /** The count of objects created, which numbers identifiers. */
     #created = 0;
     /** The current time, in seconds. */
@@ -102,22 +106,24 @@ export class TestStripe {
                 object: "list",
                 data: this.#all("we"),
             })),
-            this.#route("POST", /^\/v1\/webhook_endpoints$/u, (input) =>
-                this.#create("we", {
+            this.#route("POST", /^\/v1\/webhook_endpoints$/u, (input) => {
+                // answer the signing secret on creation alone, as Stripe does
+                const created = this.#create("we", {
                     object: "webhook_endpoint",
                     status: "enabled",
                     ...input,
                     enabled_events: Object.values(asObject(input["enabled_events"])),
-                }),
-            ),
-            this.#route("POST", /^\/v1\/webhook_endpoints\/([^/]+)$/u, (input, id) => {
-                const { disabled, ...changed } = input;
-
-                return this.#update(id, {
-                    ...changed,
-                    enabled_events: Object.values(asObject(input["enabled_events"])),
-                    status: disabled === "true" ? "disabled" : "enabled",
                 });
+                const secret = `whsec_test_${String(created["id"])}`;
+                this.#secrets.set(String(created["id"]), secret);
+
+                return { ...created, secret };
+            }),
+            this.#route("DELETE", /^\/v1\/webhook_endpoints\/([^/]+)$/u, (_input, id) => {
+                this.objects.delete(id);
+                this.#secrets.delete(id);
+
+                return { id, object: "webhook_endpoint", deleted: true };
             }),
             this.#route("POST", /^\/v1\/subscriptions\/([^/]+)$/u, (input, id) =>
                 this.#change(id, input),
@@ -258,7 +264,7 @@ export class TestStripe {
         return [{ type: "account.updated", object: account }];
     }
 
-    /** Store events and post each to the webhook endpoint, returning each answer's status. */
+    /** Store events and post each signed to the endpoint at a URL, returning each status. */
     async deliver(
         deliveries: readonly StripeDelivery[],
         endpoint: (request: Request) => Promise<Response>,
@@ -273,18 +279,32 @@ export class TestStripe {
                 data: { object: delivery.object },
             });
 
-            // post it as Stripe delivers it
-            const response = await endpoint(
-                new Request(url, {
-                    method: "POST",
-                    headers: { "content-type": "application/json" },
-                    body: JSON.stringify(event),
-                }),
+            // post it signed with the secret of the endpoint at the URL, as Stripe delivers it
+            const body = JSON.stringify(event);
+            const headers = await new StripeSignature().sign(
+                { id: String(event["id"]), event: delivery.type, body, sentAt: this.now * 1000 },
+                this.secret(url),
+                BunCrypto,
             );
+            headers.set("content-type", "application/json");
+            const response = await endpoint(new Request(url, { method: "POST", headers, body }));
             statuses.push(response.status);
         }
 
         return statuses;
+    }
+
+    /** Read the signing secret of the endpoint at a URL, refusing a URL without one. */
+    secret(url: string): string {
+        // find the endpoint at the URL and its secret
+        const endpoint = this.#all("we").find((each) => each["url"] === url);
+        const secret =
+            endpoint === undefined ? undefined : this.#secrets.get(String(endpoint["id"]));
+        if (secret === undefined) {
+            throw new TypeError(`the stripe fixture has no endpoint at ${url}`);
+        }
+
+        return secret;
     }
 
     /** List the stored objects of a kind by their identifier's prefix, oldest first. */

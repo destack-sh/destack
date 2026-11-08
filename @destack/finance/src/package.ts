@@ -1,5 +1,5 @@
 import { account, residency } from "@destack/account/object";
-import { defineAdapter, definePackage } from "@destack/object";
+import { definePackage } from "@destack/object";
 import { FinanceError } from "./error/error.ts";
 import {
     charge,
@@ -14,6 +14,7 @@ import {
     subscriptionItem,
 } from "./object/index.ts";
 import { stripe } from "./declare/connection.ts";
+import { stripeWebhook, stripeWebhookSecret } from "./declare/webhook.ts";
 
 /** The name the platform stack installs finance under in each residency home. */
 export const FINANCE_INSTALLATION = "finance";
@@ -32,8 +33,9 @@ export default definePackage({
         charge,
         invoice,
     },
-    adapters: { stripe: defineAdapter("stripe", { path: "/stripe" }) },
+    adapters: { stripe: stripeWebhook },
     resources: { stripe },
+    secrets: { "stripe-webhook": stripeWebhookSecret },
     errors: FinanceError,
     // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
     permissions: {

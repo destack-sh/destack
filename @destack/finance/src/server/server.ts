@@ -12,6 +12,8 @@ import type { Metering } from "./metering.ts";
 import { account, entitlementShape } from "@destack/account/object";
 import { Scope, RequestId } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
+import type { InstalledServerContext } from "@destack/object/workload";
+import { stripeWebhook } from "../declare/webhook.ts";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
 import { CustomerEntitlement } from "./entitlement.ts";
@@ -24,8 +26,17 @@ export function implementFinance(
     home: string,
     metering: Metering,
     charging: PaymentProvider | undefined,
+    server: Pick<InstalledServerContext, "resources">,
 ): ImplementationInput<typeof financePackage> {
+    // take the provider's verified deliveries, and refuse them without a provider
     const billing = new Billing(charging, home);
+    const webhook =
+        charging === undefined
+            ? undefined
+            : stripeWebhook.serve(
+                  (delivery, store) => ProviderEvent.receive(home, charging, delivery, store),
+                  server,
+              );
 
     return {
         objects: [
@@ -39,18 +50,12 @@ export function implementFinance(
             implementCharge(metering),
         ],
 
-        // take Stripe's webhook deliveries, refusing them where finance bills through no provider
         adapters: {
-            stripe: async (request, _caller, _context, store) => {
-                if (charging === undefined) {
+            stripe:
+                webhook ??
+                (async () => {
                     throw FinanceError.of("PROVIDER_MISSING", "finance has no payment provider");
-                } else if (request.method !== "POST") {
-                    return new Response(null, { status: 405 });
-                }
-                await ProviderEvent.receive(home, charging, request, store);
-
-                return new Response(null, { status: 204 });
-            },
+                }),
         },
 
         // follow each account's entitlements from the universe, which the derivations compare against

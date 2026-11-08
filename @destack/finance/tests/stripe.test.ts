@@ -1,9 +1,9 @@
 import { type Message, t } from "@destack/locale";
 import { asc, eq, Snapshot } from "@destack/db";
-import { JsonValue, present, schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import { RequestId, ObjectReference } from "@destack/sync";
 import { subjectContext, TEST_START } from "@destack/object/test";
-import type { CallInput } from "@destack/object";
+import { type CallInput, PackageMount } from "@destack/object";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import {
     charge,
@@ -18,15 +18,22 @@ import {
     SubscriptionItem,
     subscriptionItem,
 } from "../src/object/index.ts";
-import { ProviderEvent } from "../src/provider/index.ts";
-import { Stripe, StripeProvider } from "../src/provider/stripe/index.ts";
+import { type PaymentProvider, ProviderEvent } from "../src/provider/index.ts";
+import {
+    Stripe,
+    StripeClient,
+    StripeProvider,
+    STRIPE_EVENTS,
+} from "../src/provider/stripe/index.ts";
+import { StripeSignature } from "../src/provider/stripe/signature.ts";
+import financePackage from "../src/package.ts";
 import { spaces, type StripeDelivery, TestStripe } from "../src/test/index.ts";
 import { Finance, ids, resolved } from "./fixture/finance.ts";
 import { Period } from "../src/rate/period.ts";
 import { calls, disk, diskSku, requests, storage } from "./fixture/storage.ts";
 
-/** The endpoint finance takes Stripe's deliveries at, below the machine's webhook mount. */
-const WEBHOOK = "https://finance--home--destack.destack.space/.destack/webhook/stripe";
+/** The URL finance takes Stripe's deliveries at: its webhook adapter below its package's mount. */
+const WEBHOOK = `https://finance--home--destack.destack.space${PackageMount.path(financePackage.id)}/webhooks/stripe`;
 
 /** The pages Checkout returns buyers to. */
 const PAGES = {
@@ -66,6 +73,10 @@ async function open() {
     });
     const provider = present(finance.fixture.provider, "the Stripe provider");
     onTestFinished(() => finance.close());
+    await new StripeClient(stripe.api).request("POST", "/v1/webhook_endpoints", {
+        url: WEBHOOK,
+        enabled_events: STRIPE_EVENTS,
+    });
 
     // open Carol's connected account at her onboarding, finish it, and create Acme's customer
     const offer = await finance.offer();
@@ -79,15 +90,7 @@ async function open() {
         }),
     );
     const deliver = (deliveries: readonly StripeDelivery[]) =>
-        stripe.deliver(
-            deliveries,
-            async (request) => {
-                await ProviderEvent.receive(finance.fixture.home, provider, request, finance.store);
-
-                return new Response(null, { status: 204 });
-            },
-            WEBHOOK,
-        );
+        stripe.deliver(deliveries, endpoint(stripe, finance, provider), WEBHOOK);
     const [shop] = await finance.database.select().from(seller.table);
     await deliver(
         stripe.onboard(present(present(shop, "shop").providerId, "a provider identifier")),
@@ -95,6 +98,22 @@ async function open() {
     await finance.customer();
 
     return { stripe, provider, finance, offer, deliver };
+}
+
+/** Verify a delivery with the endpoint's secret, as finance's webhook does, then apply it. */
+function endpoint(stripe: TestStripe, finance: Finance, provider: PaymentProvider) {
+    return async (request: Request) => {
+        const delivery = await new StripeSignature().verify(
+            request,
+            [stripe.secret(WEBHOOK)],
+            {},
+            stripe.now * 1000,
+            finance.store.environment.crypto,
+        );
+        await ProviderEvent.receive(finance.fixture.home, provider, delivery, finance.store);
+
+        return new Response(null, { status: 202 });
+    };
 }
 
 /** Offer a plan in Carol's shop granting unlimited calls, returning the product. */
@@ -290,7 +309,7 @@ test("subscribe through Checkout, start the subscription from the signed webhook
             entitled?.kind === "metered" ? [entitled.limit, entitled.usage, entitled.state] : null,
     }).toEqual({
         url: `https://checkout.stripe.test/pay/${present(session.providerId, "the session's provider identifier")}`,
-        statuses: [204, 204],
+        statuses: [202, 202],
         session: { status: "complete", isLinked: true },
         subscriptions: [
             {
@@ -488,9 +507,9 @@ test("rate a seller's metered price into one line a repeated use counts once, ne
     });
 });
 
-test("apply only the event Stripe has, refusing an unknown event, and leave another home's events", async () => {
+test("apply a delivery signed with the endpoint's secret, refusing a forged one, and leave another home's events", async () => {
     // open a checkout of the Go plan
-    const { stripe, provider, finance } = await open();
+    const { stripe, provider, finance, deliver } = await open();
     const go = await offerGo(finance);
     const session = await finance.call(
         "alice",
@@ -501,29 +520,25 @@ test("apply only the event Stripe has, refusing an unknown event, and leave anot
             currency: "EUR",
         }),
     );
-    const post = (body: unknown) =>
-        ProviderEvent.receive(
-            finance.fixture.home,
-            provider,
-            new Request(WEBHOOK, { method: "POST", body: JSON.stringify(body) }),
-            finance.store,
-        );
 
-    // refuse an event Stripe never sent
-    const forged = await refusal(post({ id: "evt_forged", type: "checkout.session.completed" }));
-
-    // complete the session from the event Stripe has, whatever the delivery claims
-    const [completed] = stripe.complete(present(session.providerId, "the session"));
-    await stripe.deliver(
-        [present(completed, "completed")],
-        async (request) => {
-            const delivered = JsonValue.object(await request.json());
-            await post({ ...delivered, type: "checkout.session.expired" });
-
-            return new Response(null, { status: 204 });
-        },
-        WEBHOOK,
+    // refuse a completion signed with another secret
+    const body = JSON.stringify({ id: "evt_forged", type: "checkout.session.completed" });
+    const headers = await new StripeSignature().sign(
+        { id: "evt_forged", event: "checkout.session.completed", body, sentAt: stripe.now * 1000 },
+        "whsec_forged",
+        finance.store.environment.crypto,
     );
+    const forged = await refusal(
+        endpoint(
+            stripe,
+            finance,
+            provider,
+        )(new Request(WEBHOOK, { method: "POST", headers, body })),
+    );
+
+    // complete the session from Stripe's signed delivery
+    const [completed] = stripe.complete(present(session.providerId, "the session"));
+    await deliver([present(completed, "completed")]);
 
     // leave an invoice of another home's customer
     stripe.objects.set("cus_elsewhere", {
@@ -531,20 +546,12 @@ test("apply only the event Stripe has, refusing an unknown event, and leave anot
         object: "customer",
         metadata: { destack_home: "space-elsewhere" },
     });
-    const statuses = await stripe.deliver(
-        [
-            {
-                type: "invoice.created",
-                object: { id: "in_elsewhere", object: "invoice", customer: "cus_elsewhere" },
-            },
-        ],
-        async (request) => {
-            await post(await request.json());
-
-            return new Response(null, { status: 204 });
+    const statuses = await deliver([
+        {
+            type: "invoice.created",
+            object: { id: "in_elsewhere", object: "invoice", customer: "cus_elsewhere" },
         },
-        WEBHOOK,
-    );
+    ]);
     const [settled] = await finance.database
         .select({ status: checkoutSession.table.status })
         .from(checkoutSession.table);
@@ -558,13 +565,9 @@ test("apply only the event Stripe has, refusing an unknown event, and leave anot
         statuses,
         invoices: invoices.map((row) => row.providerId),
     }).toEqual({
-        forged: [
-            "NOT_FOUND",
-            "STRIPE_NOT_FOUND",
-            "stripe has no /v1/events/evt_forged: No such object: 'evt_forged'",
-        ],
+        forged: ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
         settled: { status: "complete" },
-        statuses: [204],
+        statuses: [202],
         invoices: [],
     });
 });
