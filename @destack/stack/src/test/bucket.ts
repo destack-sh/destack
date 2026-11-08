@@ -1,7 +1,7 @@
 import { space, account } from "@destack/account/object";
 import { and, type DatabaseConnection, defineDatabase, eq, Transaction } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { Scope, Subject } from "@destack/sync";
+import { Scope, Subject, ObjectReference } from "@destack/sync";
 import {
     AccessContext,
     accessRelationship,
@@ -553,6 +553,10 @@ export class TestBucket implements AsyncDisposable {
                     ...record,
                     id: bucketId,
                     scope: spaceId,
+                    ...ObjectReference.columns(
+                        "owner",
+                        principal.space.reference(Scope.universe.id, spaceId),
+                    ),
                     name: "files",
                     definitionPackageId: bucket.policy.definition.packageId,
                     definitionVersion: PACKAGE.version,

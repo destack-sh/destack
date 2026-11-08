@@ -2,7 +2,7 @@ import { installation } from "@destack/object";
 import type { Environment } from "@destack/environment";
 import { Plan } from "@destack/resource";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
-import { Scope, RequestId } from "@destack/sync";
+import { Scope, RequestId, ObjectReference } from "@destack/sync";
 import { pathToFileURL } from "node:url";
 import {
     DatabaseKind,
@@ -72,6 +72,10 @@ test("provision a space's database under the space's approval threshold, and lea
         async (transaction) =>
             await transaction.insert(object.database.table).values({
                 scope: ids.space,
+                ...ObjectReference.columns(
+                    "owner",
+                    principal.space.reference(Scope.universe.id, ids.space),
+                ),
                 definitionPackageId: ids.package,
                 definitionVersion: "1.0.0",
                 definitionName: "kept",
@@ -144,6 +148,10 @@ test("provision a resource as soon as its declaration changes", async () => {
             await transaction.insert(object.database.table).values({
                 id: named.kept,
                 scope: ids.space,
+                ...ObjectReference.columns(
+                    "owner",
+                    principal.space.reference(Scope.universe.id, ids.space),
+                ),
                 name: "archive",
                 definitionPackageId: ids.package,
                 definitionVersion: "1.0.0",
@@ -182,6 +190,10 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
             await transaction.insert(object.database.table).values({
                 id: named.kept,
                 scope: ids.space,
+                ...ObjectReference.columns(
+                    "owner",
+                    principal.space.reference(Scope.universe.id, ids.space),
+                ),
                 name: "archive",
                 definitionPackageId: ids.package,
                 definitionVersion: "1.0.0",
@@ -347,6 +359,10 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
             await transaction.insert(object.database.table).values({
                 id: named.removed,
                 scope: ids.space,
+                ...ObjectReference.columns(
+                    "owner",
+                    principal.space.reference(Scope.universe.id, ids.space),
+                ),
                 name: "removed",
                 retention: "delete",
                 definitionPackageId: ids.package,

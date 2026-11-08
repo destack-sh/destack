@@ -503,12 +503,12 @@ async function approvePlan(
             .where(eq(object.rollout.table.installationId, id)),
     );
     const resources = [object.database, object.dependency];
-    const approval = await Approval.of(
+    const pending = await Approval.of(
         Snapshot.live(database),
         resources,
         present(target, "the installation's rollout"),
     );
-    const digest = await Plan.digest(approval.plan(), database.state.environment.crypto);
+    const digest = await Plan.digest(pending.plan(), database.state.environment.crypto);
 
     // approve it as the system
     const [granted] = await store.mutate(store.as(object.rollout), {
@@ -633,7 +633,7 @@ test("apply an application's tables from its revision to the space's main databa
         instance: [running.deploymentId, running.status],
         resources: present(runtime.started.at(-1), "the started run").resources,
     }).toEqual({
-        main: ["main", null, "Applied"],
+        main: ["main", ids.space, "Applied"],
         bindings: [],
         tables: ["example__notes__note"],
         instance: [deployed.id, "running"],
@@ -910,7 +910,9 @@ test("redeploy an application once a binding its deployment captured targets ano
                         ...owned,
                         id: Identifier.create("bucket", fixture.environment),
                         name: "notes.archive",
-                        ...ObjectReference.columns("owner", undefined),
+                        managerInstallationId: null,
+                        managerPackageId: null,
+                        managerName: null,
                         createdAt: now,
                         updatedAt: now,
                     })
@@ -1394,6 +1396,10 @@ test("refuse to deploy an installation binding without an address, then run the 
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
     const declared = {
         ...record,
+        ...ObjectReference.columns(
+            "owner",
+            principal.space.reference(Scope.universe.id, ids.space),
+        ),
         id: schema
             .identifier("dependency")
             .parse("dependency-01996ab0-0000-7000-8000-000000000021"),
@@ -1687,6 +1693,10 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
     const record = { scope: ids.space, createdAt: now, updatedAt: now };
     const dependency = {
         ...record,
+        ...ObjectReference.columns(
+            "owner",
+            principal.space.reference(Scope.universe.id, ids.space),
+        ),
         id: schema
             .identifier("dependency")
             .parse("dependency-01996ab0-0000-7000-8000-000000000031"),
@@ -1943,7 +1953,7 @@ test("hold a revision asking its space for more access until approved, whatever 
     });
 });
 
-/** Run notes, hold a revision asking to read the space, and read the change request its rollout opens. */
+/** Run notes, hold a revision asking to read the space, and read the change request it opens. */
 async function holdForAccess() {
     // run notes, then hold a revision asking to read the space
     const fixture = await TestSpace.open();
@@ -2026,7 +2036,7 @@ test("fail a held plan once a manager rejects it, keeping the applied revision",
     await decide("reject");
     const refused = await refusal(deployments.reconcile(notes.installationId));
     const held = await readInstalled(database, notes.installationId);
-    const digest = String(opened.call.input["plan"]);
+    const digest = Digest.parse(opened.call.input["plan"]);
 
     // fail the installation with the rejection, still running the revision applied before
     expect({

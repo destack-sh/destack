@@ -1,6 +1,5 @@
 import { placement, Space, space } from "@destack/account/object";
 import { MAIN_DATABASE } from "../../declare/index.ts";
-import { ObjectReference, Subject } from "@destack/sync";
 import {
     type Bindable,
     type BindingSelection,
@@ -27,7 +26,7 @@ import {
     type Table,
     type TableState,
 } from "@destack/db";
-import type { PackageId, PackageRelease } from "@destack/package";
+import { PackageId, type PackageRelease } from "@destack/package";
 import type { ResourceState } from "@destack/package/declare";
 import { RequestId } from "@destack/sync";
 import type { SpaceOptions } from "../server.ts";
@@ -35,10 +34,11 @@ import {
     DRAINING,
     type ObjectStore,
     type PackageImplementation,
-    type StackPlan,
+    Stack,
+    StackPlan,
 } from "@destack/object/server";
 import { RESOURCE_KIND, type ResourceKind } from "@destack/resource";
-import { canonicalize, Digest, type Identifier, present, schema } from "@destack/schema";
+import { Digest, type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
 import {
     Binding,
@@ -57,6 +57,8 @@ import {
 export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
     /** The resource kind the objects are. */
     readonly kind: ResourceKind;
+    /** Read the record an installation's own need declares, as its type's stack declaration. */
+    readonly declare: (need: ResourceNeed, installation: string) => JsonObject;
 }
 
 /** A kind of object a package serves to workloads, such as secrets. */
@@ -68,14 +70,8 @@ export interface ObjectBindable<
     readonly provider: string;
     /** The address workloads call the package serving the bound objects at. */
     readonly reference: string;
-    /** Provision the owned target of its installation for an unbound need, as its declarer. */
-    readonly provision: (
-        context: MethodContext,
-        declarer: AccessContext,
-        target: InstallationRollout,
-        need: ResourceNeed,
-        bindings: readonly Binding[],
-    ) => Promise<string | undefined>;
+    /** Read the record an installation's own need declares, none while a binding it needs lacks. */
+    readonly declare: (need: ResourceNeed, bindings: readonly Binding[]) => JsonObject | undefined;
     /** Report whether a bound target is ready to run with, reading it alone. */
     readonly ready: (
         context: MethodContext,
@@ -118,7 +114,7 @@ export const ObjectBindable = {
 
     /** Report whether a bindable kind connects and provisions through the store. */
     is(bindable: Bindable): bindable is ObjectBindable {
-        return "connect" in bindable && "provision" in bindable;
+        return "connect" in bindable && "declare" in bindable;
     },
 };
 
@@ -133,6 +129,13 @@ export const ResourceBindable = {
             used: [object],
             version: (target, pin) => pin ?? target.generation,
             uses: async (bound) => [object.reference(bound.scope, bound.target)],
+            declare: (need, installationName) => ({
+                name: `${installationName}.${need.name}`,
+                definitionPackageId: need.package.id,
+                definitionVersion: need.package.version,
+                definitionName: need.name,
+                spec: need.spec,
+            }),
         };
     },
 };
@@ -237,11 +240,12 @@ export class Binder {
         return [...new Set(kinds)];
     }
 
-    /** Bind each declaration no stack binding satisfies to an owned target of the installation. */
+    /** Bind each need to the target its installation selects, else to the record it declares. */
     async bind(
         context: MethodContext,
         target: InstallationRollout,
         needs: readonly ResourceNeed[],
+        running: readonly ResourceNeed[],
     ): Promise<Binding[]> {
         // bind each need the installation selects a target for, at the target's version unless pinned
         const bound: Binding[] = [];
@@ -277,30 +281,13 @@ export class Binder {
             );
         }
 
-        // own a resource for each other resource need, following its declaration
-        for (const need of needs.filter(
-            (each) => this.#resources.has(each.kind) && isUnselected(each),
-        )) {
-            const owned = await this.#own(context, target, need);
-            const id = schema.anyIdentifier().parse(owned.id);
-            set(need, { target: { type: owned.type, id }, version: owned.version });
-        }
-
-        // provision the other kinds' owned targets among the bindings so far, leaving a kind no provider serves yet
-        const isOther = (need: ResourceNeed) =>
-            !this.#resources.has(need.kind) && this.#objects.has(need.kind) && isUnselected(need);
-        const current = await Binding.targeted(context, target.scope, target.installationId);
-        for (const need of needs.filter(isOther)) {
-            // keep the target the targeted revision binds, as an owned target stays across revisions, else provision one
-            const kept = current.find(
-                (entry) => entry.packageId === need.package.id && entry.name === need.name,
-            );
-            const id = kept?.target ?? (await this.#ownOther(context, target, need, bound));
-
-            // bind it at its current version
-            if (id !== undefined) {
+        // declare the installation's own targets, then bind each to its managed record at its version
+        await this.declare(context, target, { needs, running }, bound);
+        for (const need of needs.filter((each) => this.#isOwned(target, each))) {
+            const row = await this.#managed(context, target, need);
+            if (row !== undefined) {
                 const selection = {
-                    target: { type: need.kind, id: schema.anyIdentifier().parse(id) },
+                    target: { type: need.kind, id: schema.anyIdentifier().parse(row.id) },
                 };
                 set(need, await this.#select(context, target, need, selection));
             }
@@ -367,37 +354,251 @@ export class Binder {
         return false;
     }
 
-    /** Release an installation's owned resources that no current revision binds. */
-    async release(
+    /** Declare the installation's own targets as their manager, with what live deployments run. */
+    async declare(
         context: MethodContext,
         target: InstallationRollout,
-        current: readonly Binding[],
+        declared: {
+            readonly needs: readonly ResourceNeed[];
+            readonly running: readonly ResourceNeed[];
+        },
+        bindings: readonly Binding[],
     ): Promise<void> {
-        // read the resources the installation owns, still live
-        const owner = principal.installation.reference(target.scope, target.installationId);
-        const bound = new Set(current.map((entry) => entry.target));
-        for (const kind of this.#resources.values()) {
-            const owned = await context.read(kind.object.table).findMany({
-                where: {
-                    scope: target.scope,
-                    deletedAt: { isNull: true },
-                    ...ObjectReference.columns("owner", owner),
-                },
-            });
+        // keep what a live deployment still runs beside the build's own needs
+        const owned = declared.needs.filter((need) => this.#isOwned(target, need));
+        const kept = declared.running.filter(
+            (need) =>
+                this.#isOwned(target, need) &&
+                !owned.some(
+                    (each) => each.package.id === need.package.id && each.name === need.name,
+                ),
+        );
+        await this.#declare(context, target, [...owned, ...kept], bindings);
+    }
 
-            // disown each one no revision binds, for deletion as the installation declares it
-            const released = owned.filter((row) => !bound.has(row.id));
-            if (released.length > 0) {
-                const declarer = Binder.#declarer(context, target, kind.object);
-                await context.mutate(
-                    declarer,
-                    released.flatMap((row) => [
-                        kind.object.call("adopt", { id: row.id, owner: null }),
-                        kind.object.call("delete", { id: row.id }),
-                    ]),
-                );
+    /** Report whether a need is the installation's own: a declared kind no selection binds. */
+    #isOwned(target: InstallationRollout, need: ResourceNeed): boolean {
+        const isSelected = target.installation.bindings[need.package.id]?.[need.name] !== undefined;
+
+        return (this.#resources.has(need.kind) || this.#objects.has(need.kind)) && !isSelected;
+    }
+
+    /** Retire a removed installation's records: its own kinds' while it runs, then the others. */
+    async retire(
+        context: MethodContext,
+        target: InstallationRollout,
+        kept: readonly ResourceNeed[],
+        bindings: readonly Binding[],
+    ): Promise<void> {
+        // keep declaring the needs of other packages' kinds, which their consumers stop using first
+        const others = kept.filter(
+            (need) =>
+                this.#isOwned(target, need) &&
+                this.#bindable(need.kind).object.package.id !== target.installation.packageId,
+        );
+        await this.#declare(context, target, others, bindings);
+    }
+
+    /** Read the bindable kind of a need's kind. */
+    #bindable(kind: string): Bindable {
+        return present(
+            this.#resources.get(kind) ?? this.#objects.get(kind),
+            `the bindable kind ${kind}`,
+        );
+    }
+
+    /** Report whether a removed installation still manages records its own code finalizes. */
+    async isFinalizing(context: MethodContext, target: InstallationRollout): Promise<boolean> {
+        const own = this.#managedTypes().filter(
+            (object) => object.package.id === target.installation.packageId,
+        );
+        for (const object of own) {
+            const [row] = await context.read(Binder.#declarable(object).table).findMany({
+                where: { scope: target.scope, managerInstallationId: target.installationId },
+            });
+            if (row !== undefined) {
+                return true;
             }
         }
+
+        return false;
+    }
+
+    /** Let go of the retired records a removed installation still manages, which types keep. */
+    async disown(context: MethodContext, target: InstallationRollout): Promise<void> {
+        // release each managed record by its declared name, one document per declaring package
+        for (const packageId of await this.#managers(context, target)) {
+            const released = [];
+            for (const type of this.#managedTypes()) {
+                const object = Binder.#declarable(type);
+                const rows = await context.read(object.table).findMany({
+                    where: Binder.#managedBy(target, packageId),
+                });
+                for (const row of rows) {
+                    released.push(`${object.collection}/${String(row.managerName)}`);
+                }
+            }
+            await this.#apply(context, target, packageId, { released });
+        }
+    }
+
+    /** Declare an installation's own targets as their manager, one document per package. */
+    async #declare(
+        context: MethodContext,
+        target: InstallationRollout,
+        needs: readonly ResourceNeed[],
+        bindings: readonly Binding[],
+    ): Promise<void> {
+        // apply a document for each package declaring a need or managing a record
+        const packages = new Set([
+            ...needs.map((need) => need.package.id),
+            ...(await this.#managers(context, target)),
+        ]);
+        for (const packageId of packages) {
+            // declare each need's record in its type's collection, adopting a retained one of the same declaration
+            const document: Record<string, Record<string, JsonObject>> = {};
+            const adopted: Record<string, string> = {};
+            for (const need of needs.filter((each) => each.package.id === packageId)) {
+                const declared = this.#declaration(need, target, bindings);
+                if (declared !== undefined) {
+                    const { collection } = declared.object;
+                    document[collection] = { ...document[collection], [need.name]: declared.input };
+                    const retained = await this.#retained(context, target, need);
+                    if (retained !== undefined) {
+                        adopted[`${collection}/${need.name}`] = retained;
+                    }
+                }
+            }
+            await this.#apply(context, target, packageId, { ...document, adopted });
+        }
+    }
+
+    /** Read the record a need declares and its type, none while a binding it needs is missing. */
+    #declaration(
+        need: ResourceNeed,
+        target: InstallationRollout,
+        bindings: readonly Binding[],
+    ): { readonly object: ObjectType; readonly input: JsonObject } | undefined {
+        // declare a resource under the installation's name
+        const resource = this.#resources.get(need.kind);
+        if (resource !== undefined) {
+            return {
+                object: resource.object,
+                input: resource.declare(need, target.installation.name),
+            };
+        }
+
+        // declare another kind's record once the bindings it needs exist
+        const bindable = present(this.#objects.get(need.kind), `the object kind ${need.kind}`);
+        const input = bindable.declare(need, bindings);
+
+        return input === undefined ? undefined : { object: bindable.object, input };
+    }
+
+    /** Apply an installation's document of one package's declarations in the call's transaction. */
+    async #apply(
+        context: MethodContext,
+        target: InstallationRollout,
+        packageId: PackageId,
+        document: JsonObject,
+    ): Promise<void> {
+        const { store, transaction } = context.execution;
+        const stack = new Stack({
+            database: store.database,
+            objects: this.#managedTypes(),
+            manager: { installationId: target.installationId, packageId },
+            as: store.principal,
+            declarer: (object) => Binder.#caller(context, target, object),
+            scope: target.scope,
+            document,
+            applied: {},
+            store,
+            isHome: false,
+            ...(store.claims === undefined ? {} : { claims: store.claims }),
+        });
+        await StackPlan.open(stack, context.now, transaction);
+    }
+
+    /** List the packages whose declarations an installation's records are managed under. */
+    async #managers(
+        context: MethodContext,
+        target: InstallationRollout,
+    ): Promise<readonly PackageId[]> {
+        const packages = new Set<PackageId>();
+        for (const type of this.#managedTypes()) {
+            const rows = await context.read(Binder.#declarable(type).table).findMany({
+                where: { scope: target.scope, managerInstallationId: target.installationId },
+            });
+            for (const row of rows) {
+                packages.add(PackageId.parse(row.managerPackageId));
+            }
+        }
+
+        return [...packages];
+    }
+
+    /** Find the record an installation manages for a need, absent while it waits. */
+    async #managed(
+        context: MethodContext,
+        target: InstallationRollout,
+        need: ResourceNeed,
+    ): Promise<{ readonly id: string } | undefined> {
+        const kind = this.#bindable(need.kind);
+        const [row] = await context.read(Binder.#declarable(kind.object).table).findMany({
+            where: { ...Binder.#managedBy(target, need.package.id), managerName: need.name },
+        });
+
+        return row;
+    }
+
+    /** Find a retained, unmanaged resource of a need's declaration, to adopt again. */
+    async #retained(
+        context: MethodContext,
+        target: InstallationRollout,
+        need: ResourceNeed,
+    ): Promise<string | undefined> {
+        // look for the retained resource of the installation's name only
+        const kind = this.#resources.get(need.kind);
+        if (kind === undefined) {
+            return undefined;
+        }
+        const [named] = await context.read(kind.object.table).findMany({
+            where: { scope: target.scope, name: `${target.installation.name}.${need.name}` },
+        });
+
+        // adopt one of the same package's declaration, deleted with its content retained and unmanaged
+        const isAdoptable =
+            named !== undefined &&
+            named.deletedAt !== null &&
+            named.retention !== "delete" &&
+            named.managerInstallationId === null &&
+            named.definitionPackageId === need.package.id &&
+            named.definitionName === need.name;
+
+        return isAdoptable ? named.id : undefined;
+    }
+
+    /** List the types of an installation's records: the bindable kinds'. */
+    #managedTypes(): readonly ObjectType[] {
+        return this.#kinds.map((kind) => kind.object);
+    }
+
+    /** Require a bindable kind's type to be declarable, as installations declare its records. */
+    static #declarable(object: ObjectType) {
+        if (!object.isDeclarable()) {
+            throw new TypeError(`${object.name} records are bound, so they must be declarable`);
+        }
+
+        return object;
+    }
+
+    /** Match the records an installation manages under one package's declarations. */
+    static #managedBy(target: InstallationRollout, packageId: PackageId) {
+        return {
+            scope: target.scope,
+            managerInstallationId: target.installationId,
+            managerPackageId: packageId,
+        };
     }
 
     /** Read the object type of a bindable kind: a resource kind's, or an object kind's own. */
@@ -586,143 +787,26 @@ export class Binder {
         return kind;
     }
 
-    /** Bind a declaration to an owned resource of the installation, reusing a retained one. */
-    async #own(
-        context: MethodContext,
-        target: InstallationRollout,
-        need: ResourceNeed,
-    ): Promise<{ readonly type: string; readonly id: string; readonly version: number }> {
-        // require an object kind of the declaration's resource
-        const kind = this.#resources.get(need.kind);
-        if (kind === undefined) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `no machine here provides ${need.kind} resources`,
-            );
-        }
-
-        // find the kind's resource of the name in the space
-        const name = `${target.installation.name}.${need.name}`;
-        const owner = principal.installation.reference(target.scope, target.installationId);
-        const [named] = await context.read(kind.object.table).findMany({
-            where: {
-                scope: target.scope,
-                name,
-            },
-        });
-
-        // create the resource owned by the installation under the identifier the binding takes
-        const owning = Binder.#declarer(context, target, kind.object);
-        let ownedId: string;
-        if (named === undefined) {
-            ownedId = kind.object.generateId(context.environment);
-            await context.mutate(owning, [
-                kind.object.call("create", {
-                    id: ownedId,
-                    name,
-                    definitionPackageId: need.package.id,
-                    definitionVersion: need.package.version,
-                    definitionName: need.name,
-                    spec: need.spec,
-                    ...ObjectReference.columns("owner", owner),
-                }),
-            ]);
-        }
-        // follow the installation's own live resource to its declaration
-        else if (
-            named.deletedAt === null &&
-            named.ownerId !== null &&
-            Subject.same(ObjectReference.at("owner", named), owner)
-        ) {
-            ownedId = named.id;
-            await this.#upgrade(context, target, kind.object, named, need);
-        }
-        // adopt a retained resource of the same package's declaration without another owner, and cancel its deletion
-        else if (
-            named.deletedAt !== null &&
-            named.retention !== "delete" &&
-            named.definitionPackageId === need.package.id &&
-            named.definitionName === need.name &&
-            (named.ownerId === null || Subject.same(ObjectReference.at("owner", named), owner))
-        ) {
-            ownedId = named.id;
-            await context.mutate(owning, [kind.object.call("adopt", { id: named.id, owner })]);
-            await this.#upgrade(context, target, kind.object, named, need);
-        }
-        // refuse a name another resource has
-        else {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `resource ${name} already exists and is not a retained ${need.kind} that can be adopted`,
-            );
-        }
-
-        // bind the declaration to it at its current generation
-        const row = present(
-            await context.read(kind.object.table).findFirst({
-                where: { id: schema.identifier(kind.object.identity).parse(ownedId) },
-            }),
-            `resource ${ownedId}`,
-        );
-
-        return { type: need.kind, id: ownedId, version: row.generation };
-    }
-
-    /** Provision a declaration of another kind's owned target, among the bindings so far. */
-    async #ownOther(
-        context: MethodContext,
-        target: InstallationRollout,
-        need: ResourceNeed,
-        bound: readonly Binding[],
-    ): Promise<string | undefined> {
-        // require a kind binding the declaration's kind
-        const kind = this.#objects.get(need.kind);
-        if (kind === undefined) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `no machine here binds ${need.kind} declarations`,
-            );
-        }
-
-        // create the target among the bindings so far
-        const declarer = Binder.#declarer(context, target, kind.object);
-
-        return kind.provision(context, declarer, target, need, bound);
-    }
-
-    /** Read who declares an installation's resource: itself for its kind, else its consenter. */
+    /** Read who declares an installation's records: itself for its kind, else its consenter. */
     static #declarer(
         context: MethodContext,
         target: InstallationRollout,
         object: ObjectType,
     ): AccessContext {
+        return AccessContext.of(Binder.#caller(context, target, object), context.now);
+    }
+
+    /** Read the caller declaring an installation's records of a type, acting through the stack. */
+    static #caller(
+        context: MethodContext,
+        target: InstallationRollout,
+        object: ObjectType,
+    ): Caller {
         const owner = principal.installation.reference(target.scope, target.installationId);
         const declarer =
             object.package.id === target.installation.packageId ? owner : Rollout.consenter(target);
 
-        return AccessContext.of(Caller.acting(declarer, context.self.subject), context.now);
-    }
-
-    /** Update an owned resource to its declaration's release and specification. */
-    async #upgrade(
-        context: MethodContext,
-        target: InstallationRollout,
-        object: ObjectType,
-        owned: Resource,
-        need: ResourceNeed,
-    ): Promise<void> {
-        const isChanged =
-            owned.definitionVersion !== need.package.version ||
-            canonicalize(owned.spec) !== canonicalize(need.spec);
-        if (isChanged) {
-            await context.mutate(Binder.#declarer(context, target, object), [
-                object.call("update", {
-                    id: owned.id,
-                    definitionVersion: need.package.version,
-                    spec: need.spec,
-                }),
-            ]);
-        }
+        return Caller.acting(declarer, context.self.subject);
     }
 
     /** Declare the projection writing each resource's states from its consumers. */

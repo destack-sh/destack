@@ -64,6 +64,7 @@ import objectPackage from "@destack/object/package";
 import { type graph, type PackageId, type PackageRelease, Sandbox } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import {
+    ObjectReference,
     type Publisher,
     RequestId,
     Scope,
@@ -1394,6 +1395,10 @@ export class SpaceHost {
                     calls: [
                         database.call("create", {
                             ...database.in(spaceId),
+                            ...ObjectReference.columns(
+                                "owner",
+                                principal.space.reference(Scope.universe.id, spaceId),
+                            ),
                             name: MAIN_DATABASE,
                             ...main.declare({
                                 placement: { provider: SPACE_PROVIDER },

@@ -24,7 +24,7 @@ import { BunSqliteDatabaseHost, bunSqliteConnector } from "@destack/db/bun";
 import { SqliteDatabase } from "@destack/db/sqlite";
 import { Plan, ResourceId } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
-import { RequestId, Scope, type Uplink } from "@destack/sync";
+import { RequestId, Scope, type Uplink, ObjectReference } from "@destack/sync";
 import { Assertion } from "@destack/access/token";
 import { ProviderIndex, SpaceTransfer, type Handoff } from "../src/server/index.ts";
 import {
@@ -165,6 +165,10 @@ test(
         );
         const resource = {
             ...declared,
+            ...ObjectReference.columns(
+                "owner",
+                principal.space.reference(Scope.universe.id, ids.space),
+            ),
             reference: provision.reference,
             provider: "sqlite",
             states: [digest],
@@ -185,6 +189,10 @@ test(
         );
         const scratch = {
             ...scratchDeclared,
+            ...ObjectReference.columns(
+                "owner",
+                principal.space.reference(Scope.universe.id, ids.space),
+            ),
             reference: scratchProvision.reference,
             provider: "sqlite",
             appliedStates: [],

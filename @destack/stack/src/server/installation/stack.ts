@@ -1,3 +1,4 @@
+import { Caller } from "@destack/access";
 import { Account, Space, space } from "@destack/account/object";
 import { KERNEL_TYPES } from "../../stack/kernel.ts";
 import { Identifier, type JsonObject, present, schema } from "@destack/schema";
@@ -296,6 +297,7 @@ function stackApplication(
         objects,
         manager: { installationId: stack.installationId, packageId: stack.installation.packageId },
         as: options.store.principal,
+        declarer: () => Caller.of(options.store.principal),
         scope: stack.scope,
         document,
         applied,

@@ -1,3 +1,4 @@
+import { ObjectReference, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { type BindingSelection, installation } from "@destack/object";
 import { AccessContext, Authorization, Authorizer, Caller, principal } from "@destack/access";
@@ -14,7 +15,15 @@ test("deploy an installation capturing each binding at its target's generation o
     const { database } = fixture;
     const buckets = await fixture.buckets();
     const now = fixture.machine.clock.now();
-    const record = { scope: ids.space, createdAt: now, updatedAt: now };
+    const record = {
+        scope: ids.space,
+        createdAt: now,
+        updatedAt: now,
+        ...ObjectReference.columns(
+            "owner",
+            principal.space.reference(Scope.universe.id, ids.space),
+        ),
+    };
     const resource = (name: string, generation: number) => ({
         ...record,
         id: Identifier.create("bucket", fixture.environment),

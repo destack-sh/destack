@@ -1,3 +1,5 @@
+import { principal } from "@destack/access";
+import { ObjectReference, Scope } from "@destack/sync";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { nth, found, schema, zip } from "@destack/schema";
@@ -80,6 +82,10 @@ test("serve each space's buckets over S3 to its own credentials, concealing them
                 await transaction.insert(bucket.table).values({
                     id: bucketId,
                     scope: space,
+                    ...ObjectReference.columns(
+                        "owner",
+                        principal.space.reference(Scope.universe.id, space),
+                    ),
                     name: "files",
                     definitionPackageId: bucket.package.id,
                     definitionVersion: bucket.package.version,

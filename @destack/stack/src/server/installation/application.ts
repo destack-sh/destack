@@ -281,9 +281,9 @@ export class ApplicationInstallation {
         const bindings =
             target.installation.export !== null
                 ? []
-                : await this.#options.binder.bind(call, target, needs);
+                : await this.#options.binder.bind(call, target, needs, await this.#running(call));
 
-        // retain the revision once per digest, releasing the owned resources no current revision binds
+        // retain the revision once per digest
         const [revision] = await call.mutate(call.self, [
             await RolloutTarget.create(
                 target.installation,
@@ -294,13 +294,36 @@ export class ApplicationInstallation {
                 call.environment.crypto,
             ),
         ]);
-        await this.#releaseUnbound(call, revision);
 
         return revision;
     }
 
-    /** Release the owned resources neither a revision nor a live deployment's revision binds. */
-    async #releaseUnbound(call: MethodContext, revision: InstallationRevision): Promise<void> {
+    /** Declare the revision's needs with the live deployments' needs. */
+    async #redeclare(call: MethodContext, revision: InstallationRevision): Promise<void> {
+        await this.#options.binder.declare(
+            call,
+            this.#target,
+            { needs: await this.#needs(call, revision), running: await this.#running(call) },
+            revision.bindings,
+        );
+    }
+
+    /** Read the resource needs of a revision's build. */
+    async #needs(
+        call: MethodContext,
+        revision: Pick<InstallationRevision, "buildId">,
+    ): Promise<ResourceNeed[]> {
+        const built = await Build.require(
+            { read: (table) => call.read(table) },
+            this.#target.scope,
+            revision.buildId,
+        );
+
+        return this.#readNeeds(await this.#options.builds.contents(built.manifest), []);
+    }
+
+    /** Read the needs of the revisions the installation's live deployments still run. */
+    async #running(call: MethodContext): Promise<ResourceNeed[]> {
         // read the revisions the live deployments run
         const target = this.#target;
         const live = await call.read(deployment).findMany({
@@ -309,10 +332,11 @@ export class ApplicationInstallation {
         const running = await call.read(installationRevision).findMany({
             where: { id: { in: [...new Set(live.map((entry) => entry.revisionId))] } },
         });
-        await this.#options.binder.release(call, target, [
-            ...revision.bindings,
-            ...running.flatMap((each) => each.bindings),
-        ]);
+
+        // read each one's needs from its build
+        const needs = await Promise.all(running.map((revision) => this.#needs(call, revision)));
+
+        return needs.flat();
     }
 
     /** Deploy the revision of an enabled application, and drain a suspended one. */
@@ -332,8 +356,24 @@ export class ApplicationInstallation {
             },
         });
 
-        // drain every deployment of a deleted or suspended application or of one targeting no revision
+        // retire a deleted application's declarations, keeping it running until its own code finalized its records
         const isDeleted = target.installation.deletedAt !== null;
+        if (isDeleted && revision !== undefined) {
+            const needs = await this.#needs(call, revision);
+            await this.#options.binder.retire(
+                call,
+                target,
+                [...needs, ...(await this.#running(call))],
+                revision.bindings,
+            );
+            if (await this.#options.binder.isFinalizing(call, target)) {
+                await this.#relate(call);
+
+                return;
+            }
+        }
+
+        // drain every deployment of a deleted or suspended application or of one targeting no revision
         if (isDeleted || target.installation.status !== "enabled" || revision === undefined) {
             const active = live.filter((entry) => entry.status === "active");
             await call.mutate(
@@ -375,9 +415,10 @@ export class ApplicationInstallation {
 
     /** Release a drained application's resources, delete its deployments and drop its grants. */
     async #finalize(call: MethodContextOf<typeof rollout, "deploy">): Promise<void> {
-        // release its owned resources to their retention
+        // retire every record it declares, and let go of the ones their types keep, such as retained resources
         const target = this.#target;
-        await this.#options.binder.release(call, target, []);
+        await this.#options.binder.retire(call, target, [], []);
+        await this.#options.binder.disown(call, target);
 
         // delete its retired deployments with their instances
         const retired = await call
@@ -455,6 +496,7 @@ export class ApplicationInstallation {
             replaced.length === 0
         ) {
             await InstallationAccess.upsert(call, target, description);
+            await this.#redeclare(call, revision);
             await this.#observeApplied(call, workloads.length);
 
             return;
@@ -565,8 +607,8 @@ export class ApplicationInstallation {
             await this.#activate(call, revision, workload, releases);
         }
 
-        // release the owned resources neither the revision nor a live deployment's revision binds
-        await this.#releaseUnbound(call, revision);
+        // declare again what the revision and the live deployments need, retiring what only drained ones did
+        await this.#redeclare(call, revision);
 
         // observe the revision applied
         await this.#observeApplied(call, workloads.length);

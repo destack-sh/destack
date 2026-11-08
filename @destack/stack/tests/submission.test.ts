@@ -8,7 +8,7 @@ import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
 import { and, eq, Snapshot } from "@destack/db";
 import { SpaceStore } from "../src/server/index.ts";
-import { build, installationRevision, Rollout, rollout } from "../src/object/index.ts";
+import { build, installationRevision, Rollout } from "../src/object/index.ts";
 import { Package, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineSetting } from "@destack/setting/declare";
