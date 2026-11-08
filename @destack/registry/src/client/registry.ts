@@ -1,7 +1,7 @@
 import { Directory } from "@destack/account/address";
 import { PackageClient, type BuildStore } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
-import { type PackageId, PackageRelease } from "@destack/package";
+import { type PackageId, PackageName, PackageRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, schema } from "@destack/schema";
@@ -12,6 +12,7 @@ import { packageObject } from "../object/index.ts";
 import registryPackage from "../package.ts";
 import type { Environment } from "@destack/environment";
 import type { Lease } from "@destack/resource";
+import { RequestId } from "@destack/sync";
 
 /** The forge a caller calls for a package. */
 type ForgeEndpoint = {
@@ -135,20 +136,96 @@ export class Registry {
         manifest: Digest,
         signal?: AbortSignal,
     ): Promise<Digest> {
-        // upload below the package, which its forge stages for a publisher to release
+        // find the forge of the build's package
         const build = await store.contents(manifest);
         const packageId = PackageManifest.package(build.manifest).id;
         const forge = await this.#find({ package: packageId });
+        await Registry.#push(forge, store, manifest, packageId, signal, this.#environment);
+
+        return manifest;
+    }
+
+    /** Release a stored build under a tag at its account's forge, or point the tag at it. */
+    async release(
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        account: Identifier<"account">,
+        tag: string,
+    ): Promise<"released" | "pointed"> {
+        // create the build's package once at the account's forge
+        const build = await store.contents(manifest);
+        const { id, name, version } = PackageManifest.package(build.manifest);
+        const forge = await this.#find({ account });
+        const client = createClient(registryPackage, forge, this.#environment);
+        const spaceId = forge.space;
+        await client.package.create({
+            spaceId,
+            requestId: RequestId.create(this.#environment),
+            id,
+            accountId: account,
+            name: PackageName.split(name).local,
+        });
+
+        // read the release the forge has at the version
+        const listed = await client.release.list({
+            spaceId,
+            where: { parentId: id, version },
+            limit: 1,
+        });
+        const [published] = listed.items;
+
+        // push and release a version the forge lacks, under the tag
+        if (published === undefined) {
+            await Registry.#push(forge, store, manifest, id, undefined, this.#environment);
+            await client.release.create({
+                spaceId,
+                requestId: RequestId.create(this.#environment),
+                parentId: id,
+                manifest,
+                tag,
+            });
+
+            return "released";
+        }
+        // refuse a version the forge has from another build
+        else if (published.manifest !== manifest) {
+            throw RegistryError.of(
+                "RELEASE_CONFLICT",
+                `${name}@${version} is published from another build`,
+            );
+        }
+        // point the tag at the version the forge has from this build
+        else {
+            await client.package.point({
+                spaceId,
+                id,
+                requestId: RequestId.create(this.#environment),
+                name: tag,
+                version,
+            });
+
+            return "pointed";
+        }
+    }
+
+    /** Push a stored build and its npm units below its package at a forge. */
+    static async #push(
+        forge: ForgeEndpoint,
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        packageId: PackageId,
+        signal: AbortSignal | undefined,
+        environment: Environment,
+    ): Promise<void> {
+        // upload below the package, which its forge stages for a publisher to release
         const uploads = `${forge.url}${registryPackage.adapters.builds.path}/${packageId}/`;
-        const client = new PackageClient(uploads, forge.fetch, this.#environment);
+        const client = new PackageClient(uploads, forge.fetch, environment);
 
         // push each npm unit, then the build
         const units = await store.units(manifest, packageId);
         for (const subject of [...units, manifest]) {
             await client.push(await store.contents(subject), signal);
         }
-
-        return manifest;
     }
 
     /** Locate the files of a package's published build by its manifest's digest. */

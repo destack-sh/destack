@@ -11,6 +11,9 @@ export const RegistryError = defineErrorFamily(import.meta.destack.package, {
     // not found
     PUBLISHER_MISSING: { code: "NOT_FOUND" },
 
+    // conflict
+    RELEASE_CONFLICT: { code: "CONFLICT" },
+
     // bad gateway
     REMOTE_FAILED: { code: "BAD_GATEWAY" },
 });
