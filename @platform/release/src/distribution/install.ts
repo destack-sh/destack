@@ -1,6 +1,6 @@
 import { Bookmark } from "@destack/object/client";
 import { Loopback } from "@destack/machine/computer";
-import { selectedChannel } from "./identity.ts";
+import { selectedStage } from "./identity.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Updater, Release } from "@destack/update";
 import type { Target } from "@destack/update/release";
@@ -115,7 +115,7 @@ async function stageRelease(
         repository: configuration.url,
         root: JSON.stringify(configuration.root().toJSON()),
         target,
-        applicationIdentifier: selectedChannel(environment).applicationIdentifier,
+        applicationIdentifier: selectedStage(environment).applicationIdentifier,
         environment,
         ...(environment.host.os === "darwin" && {
             application: join(directory, "bootstrap.app"),

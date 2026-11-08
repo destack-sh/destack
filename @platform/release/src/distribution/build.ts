@@ -21,7 +21,7 @@ import {
 import { read, run } from "./command.ts";
 import { print } from "./output.ts";
 import { configureApplication } from "./application.ts";
-import { selectedChannel } from "./identity.ts";
+import { selectedStage } from "./identity.ts";
 import { Signer } from "../signing/signer.ts";
 import { Toolchain } from "@destack/check/toolchain";
 
@@ -49,14 +49,16 @@ export async function buildDistribution(
     const release = new Release(version, selected ?? Release.target(os, architecture));
     const target = release.target;
     const platform = Platform.of(target);
-    const stage = selectedChannel(environment);
+    const stage = selectedStage(environment);
     if (os !== platform.system) {
         throw new Error("build desktop distributions on their target operating system");
     }
 
     // refuse the published identity on a dev build's version
     if (stage.name === "production" && Version.isPrerelease(release.version)) {
-        throw new Error(`a stable distribution requires a release version, not ${release.version}`);
+        throw new Error(
+            `a production distribution requires a release version, not ${release.version}`,
+        );
     }
 
     // stage the distribution while the previous build stays in place

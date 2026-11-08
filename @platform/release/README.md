@@ -191,9 +191,10 @@ jobs:
 Downloads are the release bucket's objects served at `download.destack.sh` by an R2 custom domain, each with the content type and cache policy its upload stored.
 
 ```text
-download.destack.sh/install          the bootstrap script, at the bucket's root
-download.destack.sh/downloads.json   the bootstrap index, at the bucket's root
-download.destack.sh/stable/…         the feed
+download.destack.sh/install          the bootstrap script
+download.destack.sh/downloads.json   the bootstrap index
+download.destack.sh/metadata/…       the feed's TUF metadata
+download.destack.sh/targets/…        the feed's content-addressed archives and installers
 ```
 
 ## Renewal
@@ -223,10 +224,10 @@ Each released target is one `Platform` row in `distribution/platform.ts`, which 
 
 ## Download layout
 
-`PUBLIC_PATH` admits the TUF metadata, content-addressed targets, `downloads.json` and `install` the feed publishes below `download.destack.sh/stable/` from its R2 bucket, the last two also at the root.
+`PUBLIC_PATH` admits the TUF metadata, content-addressed targets, `downloads.json` and `install` the feed publishes at the root of `download.destack.sh` from its R2 bucket.
 
 ```sh
-curl https://download.destack.sh/stable/metadata/timestamp.json
+curl https://download.destack.sh/metadata/timestamp.json
 curl https://download.destack.sh/downloads.json
 ```
 
@@ -246,7 +247,7 @@ Stage.of("local").command; // "destack-local"
 The `install` script installs the Linux archive, and the first launch of the macOS DMG's application registers the CLI and the machine.
 
 ```sh
-curl -fsSL https://download.destack.sh/stable/install | sh
+curl -fsSL https://download.destack.sh/install | sh
 ```
 
 ## Keys
@@ -270,7 +271,7 @@ DESTACK_STAGE=production bun run @platform/release/src/main.ts update expiry
 Each GitHub environment holds only the secrets and variables its jobs sign, upload and deploy with.
 
 ```yaml
-release-{channel}:
+release:
     secrets:
         [
             DESTACK_TARGETS_KEY,
@@ -283,7 +284,7 @@ release-{channel}:
             APPLE_NOTARY_KEY,
         ]
     variables: [APPLE_SIGNING_IDENTITY, APPLE_NOTARY_KEY_ID, APPLE_NOTARY_ISSUER]
-renewal-{channel}:
+renewal:
     secrets: [DESTACK_SNAPSHOT_KEY, DESTACK_TIMESTAMP_KEY]
 production:
     secrets: [CLOUDFLARE_COMPANY_API_TOKEN, PLANETSCALE_SERVICE_TOKEN_ID, PLANETSCALE_SERVICE_TOKEN]
@@ -303,10 +304,10 @@ export BW_SESSION="$(bw unlock --raw)"
 bun run @platform/release/src/main.ts key enroll SERIAL /absolute/ceremony/A
 bun run @platform/release/src/main.ts key rehearse /absolute/ceremony/A/root.pem SERIAL \
     /opt/homebrew/lib/libykcs11.dylib
-bun run @platform/release/src/main.ts key generate /absolute/private/stable
+bun run @platform/release/src/main.ts key generate /absolute/private/release
 
 bun run @platform/release/src/main.ts key ceremony prepare \
-    /absolute/private/stable \
+    /absolute/private/release \
     /absolute/ceremony/A/root.pem /absolute/ceremony/B/root.pem /absolute/ceremony/C/root.pem \
     EXPIRY /absolute/ceremony/1.unsigned.json
 bun run @platform/release/src/main.ts key ceremony sign \

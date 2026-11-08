@@ -5,7 +5,7 @@ import {
     type Listener,
     Pipe,
 } from "@destack/environment";
-import { selectedChannel } from "./identity.ts";
+import { selectedStage } from "./identity.ts";
 import { Updater, type UpdaterOptions, Release } from "@destack/update";
 import { join, resolve, sep } from "node:path";
 import {
@@ -66,7 +66,7 @@ export async function rehearseUpdate(
             repository: new URL(server.url),
             root: JSON.stringify(root.toJSON()),
             target: release.target,
-            applicationIdentifier: selectedChannel(environment).applicationIdentifier,
+            applicationIdentifier: selectedStage(environment).applicationIdentifier,
             ...(host.os === "darwin" && { application: join(directory, "Destack.app") }),
             environment,
         };

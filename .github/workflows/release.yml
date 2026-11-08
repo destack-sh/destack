@@ -7,9 +7,6 @@ on:
 
 permissions: {}
 
-env:
-    DESTACK_RELEASE_CHANNEL: stable
-
 concurrency:
     group: release-${{ github.ref }}
     cancel-in-progress: false
@@ -113,7 +110,7 @@ jobs:
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
-        environment: release-stable
+        environment: release
         permissions:
             contents: read
         strategy:
@@ -175,7 +172,7 @@ jobs:
             (needs.sign.result == 'success' || (needs.prepare.outputs.publish != 'true' && needs.sign.result == 'skipped'))
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 40
-        environment: ${{ needs.prepare.outputs.publish == 'true' && 'release-stable' || 'build' }}
+        environment: ${{ needs.prepare.outputs.publish == 'true' && 'release' || 'build' }}
         permissions:
             contents: read
         strategy:
@@ -230,7 +227,7 @@ jobs:
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
-        environment: release-stable
+        environment: release
         permissions:
             contents: read
             id-token: write
@@ -362,7 +359,7 @@ jobs:
         if: needs.prepare.outputs.renew == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 10
-        environment: renewal-stable
+        environment: renewal
         permissions:
             contents: read
         concurrency:

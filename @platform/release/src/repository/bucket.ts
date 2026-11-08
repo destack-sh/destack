@@ -1,7 +1,6 @@
 import { S3Client } from "bun";
 import type { Environment } from "@destack/environment";
 import { RepositoryConfiguration } from "./configuration.ts";
-import { ROOT_FILES } from "./layout.ts";
 
 /** The Cloudflare account keeping the release buckets. */
 const ACCOUNT = "27c0d00fb3a27a4ccbf46a3cceab9301";
@@ -19,16 +18,11 @@ const READ_TIMEOUT_MILLISECONDS = 15_000;
 export class R2ReleaseBucket {
     /** Native S3 signer configured for one bucket. */
     readonly client: S3Client;
-    /** Object prefix corresponding to the selected public feed. */
-    readonly prefix: string;
     /** The host the transfers run on. */
     readonly environment: Environment<"files" | "process">;
 
     /** Require the selected environment's bucket-scoped S3 credentials. */
-    constructor(
-        configuration: RepositoryConfiguration,
-        environment: Environment<"files" | "process">,
-    ) {
+    constructor(environment: Environment<"files" | "process">) {
         // select the feed's R2 bucket over an encrypted S3 endpoint
         const { variables } = environment.process;
         const account = variables["CLOUDFLARE_ACCOUNT_ID"] ?? ACCOUNT;
@@ -58,18 +52,12 @@ export class R2ReleaseBucket {
             endpoint: endpoint.href,
             region: "auto",
         });
-        this.prefix = configuration.url.pathname.slice(1);
         this.environment = environment;
-    }
-
-    /** Read a public path's key: bootstrap files at the bucket's root, others below the feed. */
-    key(path: string): string {
-        return ROOT_FILES.has(path) ? path : `${this.prefix}${path}`;
     }
 
     /** Read directly from storage without using the public download cache. */
     async get(path: string): Promise<Response> {
-        const url = this.client.presign(this.key(path), { method: "GET", expiresIn: 60 });
+        const url = this.client.presign(path, { method: "GET", expiresIn: 60 });
         const { clock, network } = this.environment;
 
         return await network.fetch(
@@ -83,7 +71,7 @@ export class R2ReleaseBucket {
     /** Read the authoritative object revision before a conditional replacement. */
     async revision(path: string): Promise<string | undefined> {
         // read directly from storage, bypassing public caches
-        const url = this.client.presign(this.key(path), { method: "HEAD", expiresIn: 60 });
+        const url = this.client.presign(path, { method: "HEAD", expiresIn: 60 });
         const { clock, network } = this.environment;
         const response = await network.fetch(
             new Request(url, {
@@ -122,7 +110,7 @@ export class R2ReleaseBucket {
         headers.set(revision === undefined ? "if-none-match" : "if-match", revision ?? "*");
 
         // stream the file into the presigned upload
-        const url = this.client.presign(this.key(path), { method: "PUT", expiresIn: 900 });
+        const url = this.client.presign(path, { method: "PUT", expiresIn: 900 });
         const response = await network.fetch(
             new Request(url, {
                 method: "PUT",

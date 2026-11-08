@@ -33,7 +33,7 @@ test("publish platform archives and the universal macOS installer in the downloa
     );
     try {
         // preserve both file identities without letting insertion order replace either format
-        const feed = new URL("https://download.destack.sh/stable/");
+        const feed = new URL("https://download.destack.sh/");
         await writeBootstrap(directory, targets, feed, files);
         expect(JSON.parse(await files.readTextFile(join(directory, "downloads.json")))).toEqual({
             version: "2026.9.1",
@@ -43,7 +43,7 @@ test("publish platform archives and the universal macOS installer in the downloa
                         version: "2026.9.1",
                         sha256: archive,
                         size: 100,
-                        url: `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`,
+                        url: `https://download.destack.sh/targets/${archive}.aarch64-apple-darwin.tar.gz`,
                     },
                     installers: {},
                 },
@@ -53,7 +53,7 @@ test("publish platform archives and the universal macOS installer in the downloa
                             version: "2026.9.1",
                             sha256: installer,
                             size: 200,
-                            url: `https://download.destack.sh/stable/targets/${installer}.universal-apple-darwin.dmg`,
+                            url: `https://download.destack.sh/targets/${installer}.universal-apple-darwin.dmg`,
                         },
                     },
                 },
@@ -64,7 +64,7 @@ test("publish platform archives and the universal macOS installer in the downloa
         const shell = await files.readTextFile(
             fileURLToPath(new URL("../installer/install.sh", import.meta.url)),
         );
-        const url = `https://download.destack.sh/stable/targets/${archive}.aarch64-apple-darwin.tar.gz`;
+        const url = `https://download.destack.sh/targets/${archive}.aarch64-apple-darwin.tar.gz`;
         expect(script).toEqual(
             shell.replace(
                 "# __DISTRIBUTIONS__",

@@ -7,7 +7,7 @@ removed {
   }
 }
 
-# keep the feed's releases, named for its stable path
+# keep the feed's releases
 resource "cloudflare_r2_bucket" "release" {
   account_id    = local.account_id
   name          = "destack-releases-stable"

@@ -10,7 +10,7 @@ import { publish } from "./publish.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
 import { COMMIT } from "@destack/update/test";
 
-test("publish exact bytes, the bootstrap files at the bucket's root, and reject stale replacements through conditional S3 requests", async () => {
+test("publish exact bytes at the bucket's root, and reject stale replacements through conditional S3 requests", async () => {
     // keep the repository's files in a directory of the test's own
     const host = testHost();
     const directory = await host.files.makeTemporaryDirectory("destack-upload-");
@@ -44,9 +44,10 @@ test("publish exact bytes, the bootstrap files at the bucket's root, and reject 
         port: 9000,
         async fetch(request) {
             const url = new URL(request.url);
-            const path = url.pathname.startsWith("/stable/")
-                ? `/rehearsal${url.pathname}`
-                : url.pathname;
+            // read the public origin's paths as the bucket's keys, as its custom domain serves them
+            const path = url.pathname.startsWith("/rehearsal/")
+                ? url.pathname
+                : `/rehearsal${url.pathname}`;
             const current = objects.get(path);
             if (request.method === "PUT") {
                 // interrupt the catalog upload after the timestamp has already been committed
@@ -82,7 +83,7 @@ test("publish exact bytes, the bootstrap files at the bucket's root, and reject 
     const { files } = environment;
 
     // accept exact retries of an immutable artifact and refuse conflicting bytes
-    const bucket = new R2ReleaseBucket(new RepositoryConfiguration(environment), environment);
+    const bucket = new R2ReleaseBucket(environment);
     const first = join(directory, "first");
     const second = join(directory, "second");
     await files.writeTextFile(first, "first release");
@@ -104,8 +105,8 @@ test("publish exact bytes, the bootstrap files at the bucket's root, and reject 
     ).rejects.toThrow("release upload failed: metadata/timestamp.json (412)");
     expect(await (await bucket.get("metadata/timestamp.json")).text()).toBe("second release");
     expect([...objects.keys()].toSorted()).toEqual([
-        "/rehearsal/stable/metadata/timestamp.json",
-        "/rehearsal/stable/targets/artifact",
+        "/rehearsal/metadata/timestamp.json",
+        "/rehearsal/targets/artifact",
     ]);
 
     // sign a real repository with independent disposable keys
@@ -162,9 +163,8 @@ test("publish exact bytes, the bootstrap files at the bucket's root, and reject 
     expect(objects).toEqual(published);
     expect(await (await bucket.get("downloads.json")).text()).toBe(catalog);
 
-    // keep the bootstrap file at the bucket's root, which the download domain serves at its own, and the feed below its path
-    const rooted = [...published.keys()].filter((key) => !key.startsWith("/rehearsal/stable/"));
-    expect(rooted).toEqual(["/rehearsal/downloads.json"]);
+    // keep each public path at the bucket's root, which the download domain serves as its own
+    expect(published.has("/rehearsal/downloads.json")).toBe(true);
     expect(Buffer.from(await (await bucket.get("metadata/timestamp.json")).arrayBuffer())).toEqual(
         Buffer.from(await files.readFile(join(repository, "metadata/timestamp.json"))),
     );

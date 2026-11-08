@@ -37,7 +37,7 @@ export async function publish(
     environment: Environment<"files" | "process">,
 ): Promise<void> {
     // select the destination before accessing its publication credential
-    const bucket = new R2ReleaseBucket(configuration, environment);
+    const bucket = new R2ReleaseBucket(environment);
     const files = await list(directory, environment);
     const unexpected = files.find((path) => !PUBLIC_PATH.test(path));
     if (unexpected !== undefined) {

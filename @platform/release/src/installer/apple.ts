@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { COMMANDS, type Installer, releaseVersion } from "../distribution/index.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
-import { selectedChannel } from "../distribution/identity.ts";
+import { selectedStage } from "../distribution/identity.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Toolchain } from "@destack/check/toolchain";
 
@@ -32,7 +32,7 @@ export async function buildMacInstaller(
     const output = join(CHECKOUT, "dist", version);
     const staging = await files.makeTemporaryDirectory("destack-macos-");
     const image = join(staging, "image");
-    const title = selectedChannel(environment).title;
+    const title = selectedStage(environment).title;
     const application = join(image, `${title}.app`);
     const signing = new MacSigning(environment);
     try {
