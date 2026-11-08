@@ -17,7 +17,7 @@ export const ReadingData = schema.object({
 /** What a reading keeps beside its keys. */
 export type ReadingData = schema.Infer<typeof ReadingData>;
 
-/** One increment of a meter a space used, with the SKU and payer it is billed at. */
+/** One increment of a meter a space used, with its SKU and the account whose payer it bills. */
 export const reading = defineObject(
     {
         name: "reading",
@@ -36,8 +36,8 @@ export const reading = defineObject(
             installation: field.reference(installation).optional(),
             /** The SKU rating the use where it was read, by its declaration's key. */
             sku: field.string(),
-            /** The account paying for the space when it was read. */
-            payer: field.reference(account),
+            /** The account the space belongs to, whose payer the use is billed to. */
+            account: field.reference(account),
             /** The increment in the meter's unit: a delta, or a level times milliseconds. */
             value: field.number(),
             /** The level of an averaged meter when read. */
@@ -53,7 +53,7 @@ export const reading = defineObject(
         /** Append the readings a machine measured. */
         append: method.createMany("append", {
             visibility: "package",
-            fields: ["meter", "installationId", "sku", "payerId", "value", "data"],
+            fields: ["meter", "installationId", "sku", "accountId", "value", "data"],
         }),
     }),
 );
