@@ -318,6 +318,7 @@ export class TestUniverse implements AsyncDisposable {
                 transfers: {},
                 reserved: [],
                 publishers: options.publishers ?? [],
+                trustedPublishers: [],
                 handle: "destack",
                 domains: [],
                 homes: Object.fromEntries(
@@ -418,8 +419,8 @@ export class TestUniverse implements AsyncDisposable {
 
     /** Sign the operator in as an owner of the platform organization, accepting its invitation. */
     async operator(): Promise<TestPerson> {
-        // sign the operator in, joining the organization once however many callers ask at once
-        const operator = await this.signIn(OPERATOR_EMAIL);
+        // reuse the operator's sign-in, and join the organization once
+        const operator = this.#people.get(OPERATOR_EMAIL) ?? (await this.signIn(OPERATOR_EMAIL));
         this.#joining ??= this.#join(operator);
         await this.#joining;
 
