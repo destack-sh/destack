@@ -5,7 +5,7 @@ import { type Uplink } from "@destack/sync";
 import { Authorizer } from "@destack/access";
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { expect, onTestFinished, test, refusal } from "@destack/test";
+import { expect, onTestFinished, test } from "@destack/test";
 import type { Controller } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
@@ -303,59 +303,6 @@ test("reject a package served twice and release startup resources", async () => 
         ),
     ).rejects.toThrow(`duplicate workload package: ${first.name}`);
     expect(events).toEqual(["resources"]);
-}, 1500);
-
-test("hand the workload its webhook deliveries, refusing a workload receiving none", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    // start a workload answering deliveries with their path, and one receiving none
-    const server = await serverIn(world);
-    const start = (webhooks: boolean) =>
-        WorkloadInstance.start(
-            defineWorkload({
-                name: "fixture",
-                start: () => ({
-                    packages: [],
-                    ...(webhooks
-                        ? {
-                              webhooks: {
-                                  fetch: async (request: Request) =>
-                                      new Response(new URL(request.url).pathname, { status: 202 }),
-                              },
-                          }
-                        : {}),
-                }),
-            }),
-            {
-                environment: world,
-                callKey: testCallKey,
-                report: (error) => {
-                    throw error;
-                },
-                resources: hosting.resources,
-                server,
-                serverOptions: (handle) => ({
-                    ...hosting,
-                    authenticate: authenticateByName(world.clock),
-                    package: handle,
-                    drainTimeout: 1000,
-                }),
-            },
-        );
-    await using receiving = await start(true);
-    await using deaf = await start(false);
-
-    // answer a delivery, and refuse one to a workload receiving none
-    const answered = await receiving
-        .requireWebhookHandler()
-        .fetch(new Request("https://hooks.test/github/notes", { method: "POST" }));
-    expect([answered.status, await answered.text()]).toEqual([202, "/github/notes"]);
-    expect(await refusal(() => deaf.requireWebhookHandler())).toEqual([
-        "NOT_FOUND",
-        "WEBHOOKS_MISSING",
-        "the workload does not accept webhooks",
-    ]);
 }, 1500);
 
 test("give a starting workload its server context", async () => {

@@ -3,11 +3,8 @@ import { InstallationName } from "../declare/egress.ts";
 import { ResourceBinding } from "@destack/resource";
 import { schema } from "@destack/schema";
 
-/** The path below which an installation's origin receives webhook requests. */
-export const WEBHOOK_PATH = "/.destack/webhook";
-
-/** The path below which a host passes route requests to the workload's package. */
-export const ROUTE_PATH = "/.destack/route";
+/** The header a machine marks a request it routed by hostname with, naming the route. */
+export const ROUTE_HEADER = "Destack-Route";
 
 /** The header that gives the partition of an installation a call goes to. */
 export const PARTITION_HEADER = "Destack-Partition";

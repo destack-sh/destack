@@ -174,18 +174,10 @@ export interface InstalledServerContext {
 export interface WorkloadImplementation {
     /** The packages it serves, each with its procedures and enforcement. */
     readonly packages: readonly PackageHandler[];
-    /** What the workload does with the webhook deliveries its host forwards. */
-    readonly webhooks?: WebhookHandler;
     /** What the workload does with its hibernated sockets' messages and closes. */
     readonly sockets?: SocketHandler;
     /** What the workload does with its space store's requests to run its objects' hooks. */
     readonly hooks?: HookHandler;
-}
-
-/** What a workload does with the webhook deliveries its host forwards, below the webhook path. */
-export interface WebhookHandler {
-    /** Answer a delivery at its path below the webhook path. */
-    readonly fetch: (request: Request) => Promise<Response>;
 }
 
 /** What a workload does with its space store's requests to run its objects' hooks. */

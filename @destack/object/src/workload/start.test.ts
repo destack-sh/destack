@@ -8,7 +8,7 @@ test("restore a client's request a front door handed on with exactly its head an
         headers: { authorization: "Bearer client", "x-note": "1" },
         body: "pinned",
     });
-    const handed = new Request("http://runner/.destack/route", {
+    const handed = new Request("http://runner/names", {
         method: "POST",
         headers: {
             [CLIENT_HEAD_HEADER]: ClientHead.write(client),

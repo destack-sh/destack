@@ -167,7 +167,11 @@ const origin = ObjectReference.at("origin", row);
 Every object has its own identifier, and `key` is a column unique within its scope that callers can also address it by.
 
 ```ts
-const channel = defineObject({ name: "channel", key: "slug", fields: { slug: field.string(Slug).immutable() } });
+const channel = defineObject({
+    name: "channel",
+    key: "slug",
+    fields: { slug: field.string(Slug).immutable() },
+});
 await store.query(caller, channel.call("get", { spaceId, id: "core" })); // by key or by identifier
 await post.call("create", { spaceId, channelId: "core", text: "Hi" }); // stored as the channel's identifier
 ```
@@ -177,16 +181,19 @@ await post.call("create", { spaceId, channelId: "core", text: "Hi" }); // stored
 A trait adds columns, permissions and methods to a type.
 
 ```ts
-defineObject({
-    ...definition,
-    recoverable: { within: { days: 30 }, by: "write" }, // delete, restore and purge
-    controlled: { approval: true }, // desired generation, conditions and approved plan
-    provisioned: { kind }, // a resource kind's specification and provider
-    shareable: { isPublic: true }, // owner, editor, commenter and viewer roles
-    tracked: { by: "write", activity, session: { minutes: 10 } }, // history and revert
-    orderable: true, // a fractional index among the siblings
-    search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
-}, build);
+defineObject(
+    {
+        ...definition,
+        recoverable: { within: { days: 30 }, by: "write" }, // delete, restore and purge
+        controlled: { approval: true }, // desired generation, conditions and approved plan
+        provisioned: { kind }, // a resource kind's specification and provider
+        shareable: { isPublic: true }, // owner, editor, commenter and viewer roles
+        tracked: { by: "write", activity, session: { minutes: 10 } }, // history and revert
+        orderable: true, // a fractional index among the siblings
+        search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
+    },
+    build,
+);
 ```
 
 ## Declarations
@@ -245,7 +252,13 @@ Relationships relate subjects to objects, a subject set among them, and `relatio
 
 ```ts
 await client.relationship.check({ scope, subject: ada, permission: "read", object: page }); // { isAllowed: true }
-await client.relationship.lookup({ scope, object: group, permission: "member", type: user, limit: 50 });
+await client.relationship.lookup({
+    scope,
+    object: group,
+    permission: "member",
+    type: user,
+    limit: 50,
+});
 // { items: [ada, ben, …], cursor } — nested sets expanded, paged in subject order
 ```
 
@@ -260,11 +273,20 @@ await client.changeRequest.create({ scope, requestId, parent, call: merge, appro
 await client.approval.approve({ ...approval.target(asked), requestId }); // applies the call once enough others approve
 ```
 
+## Approver sets
+
 A change request may ask a subject set as one approver, as GitHub asks a team: any member decides, and the approval records who did; the sets come from the types that contribute them.
 
 ```ts
 // account's space offers its managers to approvals: contributes: [{ object: () => approval, relation: "approver", members: "manage" }]
-await client.changeRequest.create({ scope, requestId, parent, call, as: "approver", approvers: [{ ...space, relation: "manage" }] });
+await client.changeRequest.create({
+    scope,
+    requestId,
+    parent,
+    call,
+    as: "approver",
+    approvers: [{ ...space, relation: "manage" }],
+});
 Approval.asked(row); // the space's managers, as one set
 Approval.decider(row); // the manager who approved
 ```
@@ -289,6 +311,8 @@ export const reminder = base.reminder.implement({
 });
 export const reminderConditions = new Conditions(["Sent"]);
 ```
+
+## Controller status
 
 A pass records `Synced` at the generation it reconciled, on the controlled objects it reports on: its own, or those a projection's `reports` reads; a declared failure no retry resolves records `Synced=False`, and `Observation.progress` reads the outcome as kstatus does.
 
@@ -571,7 +595,10 @@ const [declared] = ObjectTypePool.of([space, principal.user]).declare([descripti
 `ObjectStoreDescription.read` reflects what a store serves in one call, its installations with their listed types and declarations, which the command line, Home and the desktop read alike.
 
 ```ts
-const description = await ObjectStoreDescription.read(ObjectClient.store(options, environment), known);
+const description = await ObjectStoreDescription.read(
+    ObjectClient.store(options, environment),
+    known,
+);
 for (const installation of description.installations) {
     description.types(installation); // the ObjectTypes it lists, declared from their descriptions
     description.commands(installation); // each Command bound to the type it calls
@@ -626,14 +653,13 @@ throw new CallError("NOT_FOUND", { message: `no page ${id}` });
 
 ## Workloads
 
-`defineWorkload` declares a `start` that runs once per instance and returns the served packages and what it does with its host's webhook deliveries and the WebSockets its host hibernates, as Durable Objects do.
+`defineWorkload` declares a `start` that runs once per instance and returns the served packages and what it does with the WebSockets its host hibernates, as Durable Objects do.
 
 ```ts
 export const workload = defineWorkload({
     name: "main",
     start: async (context) => ({
         packages: [implementPages(context)],
-        webhooks: { fetch: receive },
     }),
 });
 
@@ -647,7 +673,7 @@ start: async ({ server, hibernation }) => ({
 server.partition; // the one partition the instance serves, from the Destack-Partition header
 server.at(Egress.address(alias, spaceId)); // another installation by its alias, through the egress
 await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
-request.headers.get(FORWARDED_URL_HEADER); // a route's request at ROUTE_PATH, handed to the workload's own package
+ClientHead.restore(request); // in an adapter, the client's request a machine's route handed on
 await instance.fetch(rooms, request); // a request to one served package
 await instance.reload(); // serve the next start once started, drain the previous beside it, fold reloads meanwhile
 { package: rooms, router: {}, controllers, activation }; // run its controllers once activation settles

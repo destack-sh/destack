@@ -13,7 +13,6 @@ import { WorkloadRunner } from "./runner.ts";
 import type { RequestContext } from "../server/index.ts";
 import type { WorkloadStart } from "./start.ts";
 import { defineWorkload, type EphemeralHost } from "./workload.ts";
-import { ClientHead, CLIENT_HEAD_HEADER, ROUTE_PATH, WEBHOOK_PATH } from "./start.ts";
 import { SOCKET_HEADER, SOCKET_PATH } from "./socket.ts";
 
 /** The OTLP logs export the observability service receives. */
@@ -287,73 +286,6 @@ test("start the workload with its installation's settings, serve a forwarded cal
     });
 });
 
-test("forward a webhook delivery below the webhook path to the workload, refusing one without the host's secret", async () => {
-    const node = world.environment("test");
-    // start a workload answering each delivery with its path below the webhook path
-    const runner = await WorkloadRunner.start(
-        {
-            environment: node,
-            ephemeral: refusingEphemeral,
-            workload: defineWorkload(
-                {
-                    name: "main",
-                    start: async () => ({
-                        packages: [{ package: notes, router: {} }],
-                        webhooks: {
-                            fetch: async (request: Request) =>
-                                new Response(new URL(request.url).pathname, { status: 202 }),
-                        },
-                    }),
-                },
-                { package: NOTES },
-            ),
-            resources: {},
-            publisher: () => ({
-                request: async () => {},
-                stream: () => {
-                    throw new Error("the fixture publisher streams no replicas");
-                },
-                receive: () =>
-                    Promise.reject(new Error("the fixture publisher receives no changes")),
-                call: () => Promise.reject(new Error("the fixture publisher answers no queries")),
-            }),
-        },
-        start,
-        await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, node.crypto),
-        (options) => startSilentTelemetry(options, world.environment("runner")),
-        (error) => {
-            throw error;
-        },
-    );
-    onTestFinished(() => runner.close());
-
-    // forward a delivery with the host's secret, and refuse one without it
-    const post = async (headers: Record<string, string>) => {
-        const response = await runner.fetch(
-            new Request(`http://runner.test${WEBHOOK_PATH}/pushes/notes`, {
-                method: "POST",
-                headers,
-            }),
-        );
-
-        return [response.status, await response.text()];
-    };
-    expect([await post({ authorization: "Bearer forwarding" }), await post({})]).toEqual([
-        [202, "/pushes/notes"],
-        [
-            401,
-            JSON.stringify({
-                defined: true,
-                code: "UNAUTHORIZED",
-                status: 401,
-                message: "invalid host secret",
-                reason: "HOST_SECRET_INVALID",
-                domain: "@destack/object",
-            }),
-        ],
-    ]);
-});
-
 test("accept a hibernated socket, hand its messages and close to the workload, and send its answers in order through the host", async () => {
     const node = world.environment("test");
     // start a workload echoing each message and recording each close, its host in memory
@@ -413,7 +345,11 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
             socketHost: host,
         },
         start,
-        await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, world.environment("runner").crypto),
+        await MemoryBuild.write(
+            new Map(),
+            { role: "app", package: NOTES },
+            world.environment("runner").crypto,
+        ),
         (options) => startSilentTelemetry(options, world.environment("runner")),
         (error) => {
             throw error;
@@ -450,81 +386,5 @@ test("accept a hibernated socket, hand its messages and close to the workload, a
             ["POST", "/.destack/socket/socket-1", "echo two"],
         ],
         ["socket-1"],
-    ]);
-});
-
-test("hand a routed request to the workload's package at the route path, under the URL it asked for, and refuse a workload serving another package alone", async () => {
-    const node = world.environment("test");
-    // start a workload whose package answers the path and the URL a request asked for, then route a request to it
-    const routed = async (served: PackageHandle) => {
-        await using runner = await WorkloadRunner.start(
-            {
-                environment: node,
-                ephemeral: refusingEphemeral,
-                workload: defineWorkload(
-                    {
-                        name: "main",
-                        start: async () => ({
-                            packages: [
-                                {
-                                    package: served,
-                                    router: {},
-                                    fetch: async (request: Request) =>
-                                        new Response(
-                                            `${new URL(request.url).pathname} ${ClientHead.restore(request)?.url}`,
-                                        ),
-                                },
-                            ],
-                        }),
-                    },
-                    { package: NOTES },
-                ),
-                resources: {},
-                publisher: () => ({
-                    request: async () => {},
-                    stream: () => {
-                        throw new Error("the fixture publisher streams no replicas");
-                    },
-                    receive: () =>
-                        Promise.reject(new Error("the fixture publisher receives no changes")),
-                    call: () =>
-                        Promise.reject(new Error("the fixture publisher answers no queries")),
-                }),
-            },
-            start,
-            await MemoryBuild.write(new Map(), { role: "app", package: NOTES }, node.crypto),
-            (options) => startSilentTelemetry(options, world.environment("runner")),
-            (error) => {
-                throw error;
-            },
-        );
-        const response = await runner.fetch(
-            new Request(`http://runner.test${ROUTE_PATH}`, {
-                headers: {
-                    authorization: "Bearer forwarding",
-                    [CLIENT_HEAD_HEADER]: ClientHead.write(
-                        new Request("https://notes.acme.com/blog?page=2"),
-                    ),
-                },
-            }),
-        );
-
-        return [response.status, await response.text()];
-    };
-
-    // route to a workload serving its package and to one serving only another package
-    expect([await routed(notes), await routed(events)]).toEqual([
-        [200, `${ROUTE_PATH} https://notes.acme.com/blog?page=2`],
-        [
-            404,
-            JSON.stringify({
-                defined: true,
-                code: "NOT_FOUND",
-                status: 404,
-                message: "no package here has routes",
-                reason: "PACKAGE_ROUTES_MISSING",
-                domain: "@destack/object",
-            }),
-        ],
     ]);
 });

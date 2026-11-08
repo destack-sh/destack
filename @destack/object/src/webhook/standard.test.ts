@@ -14,6 +14,9 @@ const EXAMPLE = {
     signature: "v1,g0hM9SsE+OTPJTGt/tmIKtSyZlE3uFJELVlNIOLJ1OE=",
 };
 
+/** A second secret, as a rotation adds. */
+const SECOND = "whsec_c2Vjb25kIHNlY3JldA==";
+
 /** The example's sending time in epoch milliseconds. */
 const SENT_AT = EXAMPLE.message.timestamp * 1000;
 
@@ -29,7 +32,7 @@ test("sign the Standard Webhooks reference example exactly", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const webhook = await StandardWebhook.of(EXAMPLE.secret, world.crypto);
+    const webhook = await StandardWebhook.of([EXAMPLE.secret], world.crypto);
     expect([...(await webhook.sign(EXAMPLE.message)).entries()]).toEqual([
         ["webhook-id", EXAMPLE.message.id],
         ["webhook-signature", EXAMPLE.signature],
@@ -42,7 +45,7 @@ test("verify a signed message within the tolerance, among other signatures", asy
     const world = testSimulation().environment("test");
 
     // sign the example, then add an unknown version and a foreign signature before it
-    const webhook = await StandardWebhook.of(EXAMPLE.secret, world.crypto);
+    const webhook = await StandardWebhook.of([EXAMPLE.secret], world.crypto);
     const headers = await webhook.sign(EXAMPLE.message);
     headers.set(
         "webhook-signature",
@@ -62,9 +65,9 @@ test("refuse changed bodies, times outside the tolerance or not in seconds, miss
     const world = testSimulation().environment("test");
 
     // sign the example, and sign it again with another secret
-    const webhook = await StandardWebhook.of(EXAMPLE.secret, world.crypto);
+    const webhook = await StandardWebhook.of([EXAMPLE.secret], world.crypto);
     const headers = await webhook.sign(EXAMPLE.message);
-    const other = await StandardWebhook.of("whsec_c2Vjb25kIHNlY3JldA==", world.crypto);
+    const other = await StandardWebhook.of([SECOND], world.crypto);
     const forged = await other.sign(EXAMPLE.message);
     const { body } = EXAMPLE.message;
     const missing = new Headers(headers);
@@ -95,12 +98,38 @@ test("refuse changed bodies, times outside the tolerance or not in seconds, miss
     ]);
 });
 
+test("sign with every secret of a rotation, and verify a message any of them signed", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+
+    // sign with the new secret beside the old one, and with each alone
+    const rotating = await StandardWebhook.of([SECOND, EXAMPLE.secret], world.crypto);
+    const signed = await rotating.sign(EXAMPLE.message);
+    const old = await (
+        await StandardWebhook.of([EXAMPLE.secret], world.crypto)
+    ).sign(EXAMPLE.message);
+    const fresh = await (await StandardWebhook.of([SECOND], world.crypto)).sign(EXAMPLE.message);
+    const { body } = EXAMPLE.message;
+
+    // sign with both, the new one first, and verify a message either one signed
+    const freshSignature = fresh.get("webhook-signature");
+    expect({
+        signature: signed.get("webhook-signature"),
+        old: await rotating.verify(post(old, body), SENT_AT),
+        fresh: await rotating.verify(post(fresh, body), SENT_AT),
+    }).toEqual({
+        signature: `${freshSignature} ${EXAMPLE.signature}`,
+        old: EXAMPLE.message,
+        fresh: EXAMPLE.message,
+    });
+});
+
 test("verify the body's exact bytes, a byte order mark and invalid UTF-8 included", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
     // sign bytes that decoding as UTF-8 would change
-    const webhook = await StandardWebhook.of(EXAMPLE.secret, world.crypto);
+    const webhook = await StandardWebhook.of([EXAMPLE.secret], world.crypto);
     const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0x7b, 0xff, 0x7d]);
     const prefix = new TextEncoder().encode(`${EXAMPLE.message.id}.1614265330.`);
     const signed = new Uint8Array([...prefix, ...bytes]);
@@ -131,8 +160,8 @@ test("refuse a secret without the whsec_ prefix or with malformed base64", async
     const world = testSimulation().environment("test");
 
     expect([
-        await refusal(StandardWebhook.of("MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw", world.crypto)),
-        await refusal(StandardWebhook.of("whsec_!!", world.crypto)),
+        await refusal(StandardWebhook.of(["MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"], world.crypto)),
+        await refusal(StandardWebhook.of(["whsec_!!"], world.crypto)),
     ]).toEqual([
         ["PRECONDITION_FAILED", "SECRET_INVALID", "standard webhook secret must start with whsec_"],
         ["PRECONDITION_FAILED", "SECRET_INVALID", "standard webhook secret must be base64"],

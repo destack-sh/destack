@@ -12,7 +12,6 @@ import type {
     EphemeralHost,
     HookHandler,
     InstalledServerContext,
-    WebhookHandler,
     Workload,
     WorkloadContext,
 } from "./workload.ts";
@@ -174,11 +173,6 @@ export class WorkloadInstance implements AsyncDisposable {
         return this.#current.requireHookHandler();
     }
 
-    /** What the workload does with its webhook deliveries, refusing a workload receiving none. */
-    requireWebhookHandler(): WebhookHandler {
-        return this.#current.requireWebhookHandler();
-    }
-
     /** Request shutdown. */
     shutdown(): void {
         this.#controller.abort();
@@ -246,8 +240,6 @@ class WorkloadStart {
     #sockets: SocketHandler | undefined;
     /** What the start does with its store's hook requests, absent for a start serving none. */
     #hooks: HookHandler | undefined;
-    /** What the start does with its webhook deliveries, absent for a start receiving none. */
-    #webhooks: WebhookHandler | undefined;
     /** The shutdown. */
     #closing?: Promise<void>;
 
@@ -297,7 +289,6 @@ class WorkloadStart {
             }
             start.#sockets = implementation.sockets;
             start.#hooks = implementation.hooks;
-            start.#webhooks = implementation.webhooks;
 
             // reject a cancelled start
             start.#controller.signal.throwIfAborted();
@@ -428,15 +419,6 @@ class WorkloadStart {
         }
 
         return this.#hooks;
-    }
-
-    /** What the start does with its webhook deliveries, refusing a start receiving none. */
-    requireWebhookHandler(): WebhookHandler {
-        if (this.#webhooks === undefined) {
-            throw ObjectError.of("WEBHOOKS_MISSING", "the workload does not accept webhooks");
-        }
-
-        return this.#webhooks;
     }
 
     /** Abort the start's background work. */

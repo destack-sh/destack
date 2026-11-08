@@ -2,6 +2,7 @@ import type { Crypto } from "@destack/environment";
 import { ObjectError } from "../error/error.ts";
 import { RequestBody } from "../server/body.ts";
 import { HmacKey } from "./hmac.ts";
+import { nth } from "@destack/schema";
 
 /** How far a timestamp may lie from now: five minutes, as the reference libraries allow. */
 const TOLERANCE_MILLISECONDS = 5 * 60 * 1000;
@@ -22,18 +23,31 @@ export interface StandardMessage {
     readonly body: string;
 }
 
-/** A Standard Webhooks secret that signs and verifies messages over `id.timestamp.body`. */
+/** A webhook's Standard Webhooks secrets, several while one rotates, over `id.timestamp.body`. */
 export class StandardWebhook {
-    /** The secret's HMAC key. */
-    readonly #key: HmacKey;
+    /** The secrets' HMAC keys, the current one first. */
+    readonly #keys: readonly [HmacKey, ...HmacKey[]];
 
-    /** Wrap a secret's key. */
-    private constructor(key: HmacKey) {
-        this.#key = key;
+    /** Wrap the secrets' keys. */
+    private constructor(keys: readonly [HmacKey, ...HmacKey[]]) {
+        this.#keys = keys;
     }
 
-    /** Import a `whsec_` secret on an environment's WebCrypto, refusing a malformed one. */
-    static async of(secret: string, crypto: Crypto): Promise<StandardWebhook> {
+    /** Import `whsec_` secrets on an environment's WebCrypto, refusing a malformed one. */
+    static async of(
+        secrets: readonly [string, ...string[]],
+        crypto: Crypto,
+    ): Promise<StandardWebhook> {
+        // import each secret's key, the current one first
+        const keys = await Promise.all(
+            secrets.map(async (secret) => StandardWebhook.#key(secret, crypto)),
+        );
+
+        return new StandardWebhook([nth(keys, 0), ...keys.slice(1)]);
+    }
+
+    /** Import a `whsec_` secret's key, refusing a malformed one. */
+    static async #key(secret: string, crypto: Crypto): Promise<HmacKey> {
         // require the prefix and decode the key bytes
         if (!secret.startsWith(SECRET_PREFIX)) {
             throw ObjectError.of(
@@ -46,24 +60,25 @@ export class StandardWebhook {
             throw ObjectError.of("SECRET_INVALID", "standard webhook secret must be base64");
         }
 
-        return new StandardWebhook(await HmacKey.of(bytes, crypto));
+        return HmacKey.of(bytes, crypto);
     }
 
-    /** Sign a message, answering its three headers. */
+    /** Sign a message with every secret, answering its three headers. */
     async sign(message: StandardMessage): Promise<Headers> {
-        // sign the identifier, timestamp and body
+        // sign the identifier, timestamp and body with each key, space-separated
         const timestamp = String(message.timestamp);
-        const body = new TextEncoder().encode(message.body);
-        const digest = await this.#key.sign(content(message.id, timestamp, body));
+        const signed = content(message.id, timestamp, new TextEncoder().encode(message.body));
+        const digests = await Promise.all(this.#keys.map(async (key) => key.sign(signed)));
+        const signatures = digests.map((digest) => `${SIGNATURE_VERSION},${digest.toBase64()}`);
 
         return new Headers({
             "webhook-id": message.id,
             "webhook-timestamp": timestamp,
-            "webhook-signature": `${SIGNATURE_VERSION},${digest.toBase64()}`,
+            "webhook-signature": signatures.join(" "),
         });
     }
 
-    /** Verify a request's v1 signature within the tolerance of now, answering its message. */
+    /** Verify a request's v1 signature by any key within the tolerance, answering its message. */
     async verify(request: Request, now: number): Promise<StandardMessage> {
         // require the headers and a timestamp within the tolerance
         const id = request.headers.get("webhook-id");
@@ -80,14 +95,16 @@ export class StandardWebhook {
             );
         }
 
-        // match any v1 signature over the body's exact bytes among the space-separated ones
+        // match any v1 signature over the body's exact bytes among the space-separated ones, by any key
         const body = await RequestBody.bytes(request, "a webhook delivery");
         const signed = content(id, timestamp, body);
         let isSigned = false;
         for (const entry of signatures.split(" ")) {
             const [version, signature] = entry.split(",");
             const digest = version === SIGNATURE_VERSION ? decode(signature) : undefined;
-            isSigned ||= digest !== undefined && (await this.#key.verify(digest, signed));
+            for (const key of this.#keys) {
+                isSigned ||= digest !== undefined && (await key.verify(digest, signed));
+            }
         }
         if (!isSigned) {
             throw ObjectError.of("SIGNATURE_MISMATCH", "webhook signature does not match");

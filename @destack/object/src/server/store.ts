@@ -1,7 +1,7 @@
 import type { Health } from "./health.ts";
 import { Casing } from "../object/name.ts";
 import { RelationGraph } from "../query/query.ts";
-import { CLIENT_HEAD_HEADER, ROUTE_PATH } from "../workload/start.ts";
+import { CLIENT_HEAD_HEADER, ROUTE_HEADER } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
 import { CallError } from "../error/call.ts";
@@ -11,7 +11,7 @@ import type { EventStore } from "@destack/event";
 import {
     Authorizer,
     AccessContext,
-    type TupleReader,
+    type Reader,
     Policy,
     Access,
     type ChainOptions,
@@ -506,7 +506,7 @@ export class ObjectStore {
     /** The replicas the store follows into its database. */
     readonly sink: ObjectSink;
     /** The shared grant readers, by scope and page position. */
-    readonly #readers = new Map<string, TupleReader>();
+    readonly #readers = new Map<string, Reader>();
     /** Each row follow's keys by source row as last listed, with what each key read. */
     readonly #rowKeys = new Map<Follow, Map<string, RowKey>>();
     /** The options each catalog compiles with, apart from the servers and sandboxes. */
@@ -2332,7 +2332,7 @@ export class ObjectStore {
     }
 
     /** Share one grant reader per scope and page position. */
-    reader(access: Access, position: LogPosition): TupleReader {
+    reader(access: Access, position: LogPosition): Reader {
         // reuse a known reader
         const key = JSON.stringify([access.scope, position.epoch, position.sequence]);
         const known = this.#readers.get(key);
@@ -3742,16 +3742,11 @@ export class ObjectStore {
         }
 
         return async (request, context) => {
-            // find the adapter a route names, else the one whose path the request is at or below
+            // find the adapter whose path the request is at or below
             const url = new URL(request.url);
-            const routed = adapters.find(
-                ({ name }) => url.pathname === `${ROUTE_PATH}/${encodeURIComponent(name)}`,
+            const adapter = adapters.find(
+                ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
             );
-            const adapter =
-                routed ??
-                adapters.find(
-                    ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
-                );
             if (adapter === undefined) {
                 return undefined;
             }
@@ -3780,14 +3775,10 @@ export class ObjectStore {
                 );
             }
 
-            // answer below the route or the adapter's path, trusting a client's head from a route or the installation alone
-            const prefix =
-                routed === undefined
-                    ? adapter.path
-                    : `${ROUTE_PATH}/${encodeURIComponent(adapter.name)}`;
-            url.pathname = url.pathname.slice(prefix.length) || "/";
+            // answer below the adapter's path, trusting a client's head from a machine's route or the installation alone
+            url.pathname = url.pathname.slice(adapter.path.length) || "/";
             const headers = new Headers(request.headers);
-            if (routed === undefined && callers !== "self") {
+            if (!request.headers.has(ROUTE_HEADER) && callers !== "self") {
                 headers.delete(CLIENT_HEAD_HEADER);
             }
 

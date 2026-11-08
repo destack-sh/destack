@@ -18,7 +18,7 @@ import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { WorkloadInstance } from "./instance.ts";
-import { HOOK_PATH, ROUTE_PATH, WEBHOOK_PATH, type WorkloadStart } from "./start.ts";
+import { HOOK_PATH, type WorkloadStart } from "./start.ts";
 import {
     SocketDescription,
     Hibernation,
@@ -26,7 +26,6 @@ import {
     SOCKET_PATH,
     type SocketHost,
 } from "./socket.ts";
-import type { PackageId } from "@destack/package";
 import type { Alarm } from "@destack/db";
 import type { EphemeralHost, InstalledServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
@@ -69,8 +68,6 @@ export class WorkloadRunner implements AsyncDisposable {
     readonly instance: WorkloadInstance;
     /** The workload's served packages, by package id. */
     readonly #packages: ReadonlyMap<string, PackageHandle>;
-    /** The running package, which routed requests go to. */
-    readonly #packageId: PackageId;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
     /** The WebSockets the host hibernates for the instance. */
@@ -90,7 +87,6 @@ export class WorkloadRunner implements AsyncDisposable {
         instance: WorkloadInstance,
         packages: ReadonlyMap<string, PackageHandle>,
         running: RunnerTelemetry,
-        packageId: PackageId,
         connections: AsyncDisposableStack,
         hibernation: Hibernation,
         scheduler: Environment["scheduler"],
@@ -100,7 +96,6 @@ export class WorkloadRunner implements AsyncDisposable {
         this.start = start;
         this.instance = instance;
         this.#packages = packages;
-        this.#packageId = packageId;
         this.#telemetry = running;
         this.#connections = connections;
         this.#hibernation = hibernation;
@@ -168,7 +163,6 @@ export class WorkloadRunner implements AsyncDisposable {
                 instance,
                 packages,
                 running,
-                runner.workload.package.id,
                 connections,
                 hibernation,
                 runner.environment.scheduler,
@@ -275,28 +269,20 @@ export class WorkloadRunner implements AsyncDisposable {
             );
         }
 
-        // hand a webhook delivery to the workload
-        const { pathname } = new URL(request.url);
-        const routed = PackageMount.of(request);
-        const served = routed === undefined ? undefined : this.#packages.get(routed.packageId);
-        if (pathname.startsWith(`${WEBHOOK_PATH}/`) && request.method === "POST") {
-            return this.#receive(request, pathname.slice(WEBHOOK_PATH.length));
-        }
         // hand a hibernated socket's message or close to the workload
-        else if (pathname.startsWith(`${SOCKET_PATH}/`)) {
+        const { pathname } = new URL(request.url);
+        const mounted = PackageMount.of(request);
+        const served = mounted === undefined ? undefined : this.#packages.get(mounted.packageId);
+        if (pathname.startsWith(`${SOCKET_PATH}/`)) {
             return this.#socket(request);
         }
         // hand the store's request to run a hook to the workload
         else if (pathname === HOOK_PATH && request.method === "POST") {
             return this.#hook(request);
         }
-        // hand a routed request to the workload's package, an adapter's below the route path
-        else if (pathname === ROUTE_PATH || pathname.startsWith(`${ROUTE_PATH}/`)) {
-            return this.#route(request);
-        }
         // serve the package the mount refers to
-        else if (routed !== undefined && served !== undefined) {
-            return this.instance.fetch(served, routed.request);
+        else if (mounted !== undefined && served !== undefined) {
+            return this.instance.fetch(served, mounted.request);
         }
         // answer nothing for any other path
         else {
@@ -307,22 +293,6 @@ export class WorkloadRunner implements AsyncDisposable {
     /** Request shutdown. */
     shutdown(): void {
         this.instance.shutdown();
-    }
-
-    /** Hand a routed request to the workload's package at the route path. */
-    #route(request: Request): Promise<Response> {
-        // require the workload to serve its package
-        const served = this.#packages.get(this.#packageId);
-        if (served === undefined) {
-            return Promise.resolve(
-                refusal(
-                    ObjectError.of("PACKAGE_ROUTES_MISSING", "no package here has routes"),
-                    this.#telemetry,
-                ),
-            );
-        }
-
-        return this.instance.fetch(served, request);
     }
 
     /** Hand the workload a hibernated socket's message or close, as the host describes it. */
@@ -380,20 +350,6 @@ export class WorkloadRunner implements AsyncDisposable {
     async #hook(request: Request): Promise<Response> {
         try {
             return await this.instance.requireHookHandler().fetch(request);
-        } catch (error) {
-            return refusal(error, this.#telemetry);
-        }
-    }
-
-    /** Hand the workload a webhook delivery at its path below the webhook path. */
-    async #receive(request: Request, below: string): Promise<Response> {
-        try {
-            const url = new URL(request.url);
-            url.pathname = below;
-
-            return await this.instance
-                .requireWebhookHandler()
-                .fetch(new Request(url.href, request));
         } catch (error) {
             return refusal(error, this.#telemetry);
         }
