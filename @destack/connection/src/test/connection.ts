@@ -42,7 +42,7 @@ import { implementSecret, implementSecretVersion, implementVault } from "@destac
 import { vaultTables } from "@destack/vault/stack";
 import vaultPackage from "@destack/vault/package";
 import { ResourceContext } from "@destack/resource/context";
-import { RequestId, type ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
+import { RequestId, ObjectReference, Scope, Subject, Uplink } from "@destack/sync";
 import { expect, onTestFinished } from "@destack/test";
 import { createClient, type ClientOf } from "@destack/object/client";
 import {
@@ -565,6 +565,10 @@ export class TestConnection {
                 await transaction.insert(vault.table).values({
                     id,
                     scope: scope.id,
+                    ...ObjectReference.columns(
+                        "owner",
+                        principal.space.reference(Scope.universe.id, scope.id),
+                    ),
                     name: "credentials",
                     definitionPackageId: vault.package.id,
                     definitionVersion: vault.package.version,
