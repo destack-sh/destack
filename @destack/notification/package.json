@@ -60,6 +60,6 @@
         "@destack/environment": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.4"
     }
 }

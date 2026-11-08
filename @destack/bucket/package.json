@@ -35,7 +35,7 @@
         "@aws-sdk/s3-request-presigner": "3.1141.0",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16"
     },

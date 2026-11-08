@@ -68,7 +68,7 @@
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
         "@destack/template-stack": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16"
     }

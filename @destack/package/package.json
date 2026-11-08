@@ -53,7 +53,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "rolldown": "1.2.16",
         "vite": "8.3.0"
     }

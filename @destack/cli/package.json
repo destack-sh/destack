@@ -34,7 +34,7 @@
         "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.4"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

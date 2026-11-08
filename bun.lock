@@ -6,7 +6,7 @@
       "name": "@destack/workspace",
       "devDependencies": {
         "@destack/check": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "@types/node": "26.6.1",
         "typescript": "7.0.2",
         "vitest": "5.0.1",
@@ -26,7 +26,7 @@
       "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/account": {
@@ -81,7 +81,7 @@
         "@aws-sdk/s3-request-presigner": "3.1141.0",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",
       },
@@ -119,7 +119,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
       "peerDependencies": {
         "@destack/test": "workspace:*",
@@ -162,7 +162,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/cli": {
@@ -198,7 +198,7 @@
         "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/cli/tests/fixture/notebooks": {
@@ -232,7 +232,7 @@
         "@destack/resource": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
       "peerDependencies": {
         "@destack/event": "workspace:*",
@@ -263,7 +263,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",
       },
@@ -312,7 +312,7 @@
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@tauri-apps/cli": "2.12.0",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/environment": {
@@ -330,7 +330,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/error": {
@@ -362,7 +362,7 @@
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/finance": {
@@ -396,7 +396,7 @@
       "devDependencies": {
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
       "peerDependencies": {
         "@destack/environment": "workspace:*",
@@ -434,7 +434,7 @@
       "devDependencies": {
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "@types/semver": "7.8.0",
       },
     },
@@ -451,7 +451,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/home": {
@@ -496,7 +496,7 @@
         "@destack/view": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
         "@phosphor-icons/core": "2.1.1",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
@@ -520,7 +520,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/locale": {
@@ -535,7 +535,7 @@
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/machine": {
@@ -587,7 +587,7 @@
         "@destack/theme": "workspace:*",
         "@destack/universe": "workspace:*",
         "@destack/vault": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "@types/node": "26.6.1",
         "fake-indexeddb": "6.2.5",
         "happy-dom": "20.14.5",
@@ -673,7 +673,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/message": {
@@ -698,7 +698,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/notification": {
@@ -729,7 +729,7 @@
         "@destack/environment": "workspace:*",
         "@destack/resource": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
       "peerDependencies": {
         "@destack/environment": "workspace:*",
@@ -769,7 +769,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/observability": {
@@ -817,7 +817,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "rolldown": "1.2.16",
         "vite": "8.3.0",
       },
@@ -849,7 +849,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "@types/semver": "7.8.0",
       },
     },
@@ -876,7 +876,7 @@
       "devDependencies": {
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/resource": {
@@ -909,7 +909,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/schema": {
@@ -956,7 +956,7 @@
         "@destack/check": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/social": {
@@ -980,7 +980,7 @@
         "@destack/resource": "workspace:*",
         "@destack/setting": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/stack": {
@@ -1015,7 +1015,7 @@
         "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/universe": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",
       },
@@ -1168,7 +1168,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/ui": {
@@ -1218,7 +1218,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/update": {
@@ -1241,7 +1241,7 @@
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@destack/vault": {
@@ -1355,12 +1355,11 @@
         "@destack/schema": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/vault": "workspace:*",
         "cron-parser": "5.7.0",
       },
       "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@platform/brand": {
@@ -1381,13 +1380,14 @@
       },
       "devDependencies": {
         "@destack/environment": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
     "@platform/release": {
       "name": "@platform/release",
       "version": "2026.11.0",
       "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/bucket": "workspace:*",
         "@destack/build": "workspace:*",
@@ -1433,7 +1433,7 @@
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/sandbox": "workspace:*",
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
       },
     },
@@ -1501,7 +1501,7 @@
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
-        "@types/bun": "1.4.2",
+        "@types/bun": "1.4.4",
       },
     },
   },
@@ -2247,7 +2247,7 @@
 
     "@types/babel__traverse": ["@types/babel__traverse@7.28.0", "", { "dependencies": { "@babel/types": "^7.28.2" } }, "sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q=="],
 
-    "@types/bun": ["@types/bun@1.4.2", "", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
+    "@types/bun": ["@types/bun@1.4.4", "", { "dependencies": { "bun-types": "1.4.4" } }, "sha512-9wkRDXUXK124pEnAutE6n/l18j+i9GC5IAHK8TmX/2nlySETmky0OU6yL5U8pW1AoKh++AN9auDCr647BfurjQ=="],
 
     "@types/chai": ["@types/chai@5.2.3", "", { "dependencies": { "@types/deep-eql": "*", "assertion-error": "^2.0.1" } }, "sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA=="],
 
@@ -2429,7 +2429,7 @@
 
     "buffer-image-size": ["buffer-image-size@0.6.4", "", { "dependencies": { "@types/node": "*" } }, "sha512-nEh+kZOPY1w+gcCMobZ6ETUp9WfibndnosbpwB1iJk/8Gt5ZF2bhS6+B6bPYz424KtwsR6Rflc3tCz1/ghX2dQ=="],
 
-    "bun-types": ["bun-types@1.4.2", "", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
+    "bun-types": ["bun-types@1.4.4", "", { "dependencies": { "@types/node": "*", "undici-types": "*" } }, "sha512-yjrJh5oGX7mMPKGd19YXyIjmEuj4G4zNC30bs7PM9Az7NQ3ndF3j6hbeRdvJTRQEhJ/FYQwW0a2moweEi2hMxQ=="],
 
     "caniuse-lite": ["caniuse-lite@1.0.30001816", "", {}, "sha512-+8Yx7BXCoqk6IF8yTicjfUR6D/ldJzdlsodlEOiOSPmhK844WIgk67/zIQaGAOxNkZyyvBlrRFnLvqKIoqbAFw=="],
 

@@ -33,7 +33,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.4"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

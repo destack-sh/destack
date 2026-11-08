@@ -20,7 +20,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@types/bun": "1.4.2"
+        "@types/bun": "1.4.4"
     },
     "dependencies": {
         "@destack/error": "workspace:*",
