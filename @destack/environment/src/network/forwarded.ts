@@ -64,6 +64,29 @@ export const Forwarded = {
         return Forwarded.parse(request.headers.get(FORWARDED_HEADER))[0] ?? {};
     },
 
+    /** Read the host a request's client asked for: its first hop's, else the request's own. */
+    host(request: Request): string {
+        return Forwarded.first(request).host ?? new URL(request.url).host;
+    },
+
+    /** Copy a request at the host and protocol its client asked for, as its first hop has them. */
+    restore(request: Request): Request {
+        // keep a request no front door forwarded as it is
+        const { host, proto } = Forwarded.first(request);
+        if (host === undefined) {
+            return request;
+        }
+
+        // ask for the forwarded host, with the protocol and host header the client sent
+        const url = new URL(request.url);
+        url.host = host;
+        url.protocol = proto === undefined ? url.protocol : `${proto}:`;
+        const headers = new Headers(request.headers);
+        headers.set("host", host);
+
+        return copyRequest(request, { headers }, url.href);
+    },
+
     /** Copy a request as a front door receives it: a trusted peer's hop, else the peer alone. */
     receive(
         request: Request,

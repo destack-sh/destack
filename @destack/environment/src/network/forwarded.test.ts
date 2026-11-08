@@ -44,6 +44,32 @@ test("replace a client's own header with the one hop its front door writes", () 
     ]);
 });
 
+test("read and restore the host and protocol a forwarded request's client asked for, and keep a direct request as it is", () => {
+    // forward a client's request to a machine's own host, and send another directly
+    const forwarded = new Request(
+        "http://eu-central--platform.destack.computer/bucket-1?list-type=2",
+        {
+            headers: { forwarded: "for=192.0.2.43;host=s3--x.destack.space;proto=https" },
+        },
+    );
+    const direct = new Request("http://s3--x.localhost:4102/bucket-1");
+    const restored = Forwarded.restore(forwarded);
+
+    expect([
+        Forwarded.host(forwarded),
+        Forwarded.host(direct),
+        restored.url,
+        restored.headers.get("host"),
+        Forwarded.restore(direct) === direct,
+    ]).toEqual([
+        "s3--x.destack.space",
+        "s3--x.localhost:4102",
+        "https://s3--x.destack.space/bucket-1?list-type=2",
+        "s3--x.destack.space",
+        true,
+    ]);
+});
+
 test("keep the header a peer on this computer sent, and replace any other peer's with the peer itself", () => {
     // receive one forged header from each kind of peer
     const received = ["127.0.0.1", "::ffff:127.0.0.2", "::1", "192.0.2.43", "2001:db8::1"].map(
