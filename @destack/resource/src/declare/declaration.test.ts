@@ -1,6 +1,5 @@
 import { expect, test } from "@destack/test";
 import { Package } from "@destack/package";
-import { schema } from "@destack/schema";
 import { ResourceDeclaration } from "./declaration.ts";
 
 /** The package declaring the example resource. */

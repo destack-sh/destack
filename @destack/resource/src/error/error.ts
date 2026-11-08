@@ -26,6 +26,7 @@ export const ResourceError = defineErrorFamily(
     {
         // bad request
         BAD_DIGEST: { code: "BAD_REQUEST" },
+        TEXT_REQUIRED: { code: "BAD_REQUEST" },
 
         // not found
         BLOB_NOT_FOUND: { code: "NOT_FOUND" },

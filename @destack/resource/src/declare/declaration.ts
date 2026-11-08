@@ -1,4 +1,4 @@
-import { Duration, type Identifier, schema } from "@destack/schema";
+import { Duration, schema } from "@destack/schema";
 import { defineDeclarationKind, DeclarationName, Package } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { ResourceState } from "@destack/package/declare";
