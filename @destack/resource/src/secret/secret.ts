@@ -50,12 +50,16 @@ export type SecretReading = schema.Infer<typeof secretReading>;
 export interface Secret {
     /** Read the captured version's value. */
     readonly read: () => Promise<SecretReading>;
+    /** Read the captured version and the earlier versions still readable, newest first. */
+    readonly versions: () => Promise<readonly SecretReading[]>;
 }
 
 /** Secrets as code reads them. */
 export const Secret = {
     /** Read a text value, such as an operator's environment variable, as a secret's one version. */
     of(value: string): Secret {
-        return { read: async () => ({ version: 1, value: { encoding: "text", value } }) };
+        const reading: SecretReading = { version: 1, value: { encoding: "text", value } };
+
+        return { read: async () => reading, versions: async () => [reading] };
     },
 };
