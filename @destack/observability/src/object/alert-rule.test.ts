@@ -356,7 +356,10 @@ test("declare alert rules as code through the space's stack, checking each rule 
             noData: "ok",
         },
     ]);
-    expect(refused).toEqual(["ApplyFailed", "the space has no events type page-view"]);
+    expect(refused).toEqual([
+        "failed",
+        "@destack/observability EVENTS_TYPE_UNKNOWN: the space has no events type page-view",
+    ]);
 });
 
 test("refuse an events rule calling an installation its group names none of, and one over a type the space serves none of", async () => {
