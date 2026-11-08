@@ -31,6 +31,7 @@ import { space } from "../object/space.ts";
 import { user } from "../object/user.ts";
 import { StackRelease } from "../object/stack-release.ts";
 import { domain, Hostname, HostnamePattern } from "../object/domain.ts";
+import { trustedPublisher } from "../object/trusted-publisher.ts";
 import { hostname } from "../object/hostname.ts";
 import { Claim, Claimant, type ResultsOf } from "@destack/object";
 import type {} from "@destack/package/import-meta";
@@ -103,6 +104,10 @@ export const PlatformDefinition = schema.object({
     transfers: schema.record(AccountHandle, schema.identifier("account")),
     /** The handles the organization publishes under, each an account in its residency. */
     publishers: schema.array(AccountHandle),
+    /** The CI workflows publishing the platform's releases, by their OIDC issuer and subject. */
+    trustedPublishers: schema.array(
+        schema.object({ issuer: schema.url(), subject: schema.string().min(1) }),
+    ),
     /** The handle of the organization's account in the platform's residency. */
     handle: AccountHandle,
     /** The domains the platform's organization holds, which the universe declares verified. */
@@ -493,17 +498,9 @@ export class Platform {
             );
         }
 
-        // let the platform residency's machines publish under the organization's account and its publishers
-        const platform = await Residency.require(
-            Snapshot.live(this.store.database),
-            this.definition.residencyId,
-        );
-        const subject = {
-            ...residency.reference(Scope.universe.id, platform.id),
-            relation: "machine",
-        };
+        // trust the platform's publishing workflows in the organization's account
         const publishing = await this.store.database
-            .select({ id: account.table.id })
+            .select({ id: account.table.id, handle: account.table.handle })
             .from(account.table)
             .where(
                 inArray(account.table.handle, [
@@ -511,10 +508,77 @@ export class Platform {
                     ...this.definition.publishers,
                 ]),
             );
+        const own = publishing.find((row) => row.handle === this.definition.handle);
+        if (own === undefined) {
+            throw AccountError.of(
+                "ACCOUNT_NOT_FOUND",
+                `the organization has no account @${this.definition.handle}`,
+            );
+        }
+        if (this.definition.trustedPublishers.length > 0) {
+            await this.#mutate(
+                this.definition.trustedPublishers.map((workflow) =>
+                    trustedPublisher.call("declare", {
+                        ...trustedPublisher.in(own.id),
+                        ...workflow,
+                    }),
+                ),
+            );
+        }
+
+        // delete the trusted publishers the declaration leaves out, with their publishing
+        const stored = await this.store.database
+            .select({
+                id: trustedPublisher.table.id,
+                scope: trustedPublisher.table.scope,
+                issuer: trustedPublisher.table.issuer,
+                subject: trustedPublisher.table.subject,
+            })
+            .from(trustedPublisher.table)
+            .where(eq(trustedPublisher.table.scope, own.id));
+        const isListed = (row: { readonly issuer: string; readonly subject: string }) =>
+            this.definition.trustedPublishers.some(
+                (workflow) => workflow.issuer === row.issuer && workflow.subject === row.subject,
+            );
+        const unlisted = stored.filter((row) => !isListed(row));
+        if (unlisted.length > 0) {
+            await this.#mutate(
+                unlisted.map((row) =>
+                    trustedPublisher.call("delete", trustedPublisher.target(row)),
+                ),
+            );
+        }
+
+        // make each publishing account's workload publishers exactly the declared trusted publishers
+        const trusted = stored.filter((row) => isListed(row));
+        const declared = trusted.map((workflow) => trustedPublisher.reference(own.id, workflow.id));
         await this.#authorize(organizationId, now, async (authorization) => {
             for (const row of publishing) {
+                // revoke every workload publisher the declaration leaves out, keeping the people managers added
                 const object = account.reference(organizationId, row.id);
-                await Relationship.touch({ object, relation: "publisher", subject }, authorization);
+                const related = await Relationship.readOn(authorization.snapshot, object, {
+                    relation: "publisher",
+                });
+                for (const relationship of related) {
+                    const isPerson = relationship.subjectType === principal.user.name;
+                    const isDeclared = declared.some(
+                        (subject) =>
+                            relationship.subjectType === subject.type &&
+                            relationship.subjectId === subject.id &&
+                            relationship.subjectRelation === null,
+                    );
+                    if (!isPerson && !isDeclared) {
+                        await Relationship.revoke(object, relationship.id, authorization);
+                    }
+                }
+
+                // relate each declared one
+                for (const subject of declared) {
+                    await Relationship.touch(
+                        { object, relation: "publisher", subject },
+                        authorization,
+                    );
+                }
             }
         });
     }

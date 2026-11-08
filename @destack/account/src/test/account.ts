@@ -1178,6 +1178,7 @@ export class TestAccountStore implements AsyncDisposable {
             reserved: [],
             transfers: {},
             publishers: [],
+            trustedPublishers: [],
             handle: PLATFORM_HANDLE,
             domains: [],
             homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
@@ -1375,7 +1376,7 @@ export class TestAccountStore implements AsyncDisposable {
         if (principal.machine.is(subject)) {
             const identity = found(keys.machines, subject.id);
 
-            return identity.token(audience, { url: ISSUER }, keys.send);
+            return identity.token(audience, ISSUER, keys.send);
         }
 
         // sign a space or installation with its space's key, keeping its granted tokens

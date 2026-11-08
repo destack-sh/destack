@@ -19,6 +19,7 @@ import {
     hostname,
     key,
     machine,
+    trustedPublisher,
     organization,
     space,
 } from "../src/object/index.ts";
@@ -37,6 +38,12 @@ import {
 import { Directory } from "../src/address/index.ts";
 import type { Environment } from "@destack/environment";
 
+/** The OIDC issuer signing the platform's publishing workflow's tokens. */
+const ISSUER = "https://issuer.test";
+
+/** The platform's publishing workflow, as its issuer names it. */
+const WORKFLOW = "repo:destack/destack:environment:production";
+
 /** The platform organization of the fixture's universe, declaring no cloud machines. */
 const PLATFORM: PlatformDefinition = {
     name: "Destack",
@@ -45,6 +52,7 @@ const PLATFORM: PlatformDefinition = {
     reserved: ["admin", "security"],
     transfers: {},
     publishers: ["app"],
+    trustedPublishers: [{ issuer: ISSUER, subject: WORKFLOW }],
     handle: "destack",
     domains: [],
     homes: { eu: RESIDENCY_STACK, us: RESIDENCY_STACK },
@@ -299,7 +307,7 @@ test("move each residency home to its own newly declared stack once, giving each
     });
 });
 
-test("apply the declared cloud machines with their keys in the universe once, and the platform residency's machines as the platform accounts' publishers", async () => {
+test("apply the declared cloud machines with their keys in the universe once, and the declared trusted publisher alone as the platform accounts' publisher", async () => {
     // declare a cloud machine for each residency
     await using fixture = await TestAccountStore.open();
     const [europe, america] = [
@@ -330,13 +338,16 @@ test("apply the declared cloud machines with their keys in the universe once, an
         ],
     };
 
-    // apply the platform twice
-    const organizationId = await new Platform(fixture.store, definition).apply(
-        fixture.store.clock.now(),
-    );
+    // apply the platform with a workflow it then replaces, twice
+    const replaced = { issuer: ISSUER, subject: "repo:destack/destack:environment:old" };
+    const organizationId = await new Platform(fixture.store, {
+        ...definition,
+        trustedPublishers: [replaced],
+    }).apply(fixture.store.clock.now());
+    await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
     await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
 
-    // create each machine once with one key in the universe, its origin published as its endpoint, and relate the platform residency's machines as publishers once
+    // create each machine once with one key in the universe, its origin published as its endpoint, and the trusted publisher once, publishing for each account
     const { database } = fixture.storage;
     const declared = [europe.machineId, america.machineId];
     const machines = await database
@@ -384,7 +395,15 @@ test("apply the declared cloud machines with their keys in the universe once, an
         ]),
     );
     const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
-    expect([machines, keys.map((row) => row.parentId), urls, publishers]).toEqual([
+    const trusted = await database
+        .select({
+            id: trustedPublisher.table.id,
+            issuer: trustedPublisher.table.issuer,
+            subject: trustedPublisher.table.subject,
+        })
+        .from(trustedPublisher.table);
+    const workflow = nth(trusted, 0).id;
+    expect([machines, keys.map((row) => row.parentId), urls, trusted, publishers]).toEqual([
         [
             {
                 id: europe.machineId,
@@ -407,9 +426,10 @@ test("apply the declared cloud machines with their keys in the universe once, an
         ],
         declared.toSorted(),
         [{ url: "https://eu-west.machine.test/" }, { url: "https://us-west.machine.test/" }],
+        [{ id: workflow, issuer: ISSUER, subject: WORKFLOW }],
         [PLATFORM.handle, ...PLATFORM.publishers]
             .toSorted()
-            .map((handle) => [handle, [["residency", eu.id, "machine"]]]),
+            .map((handle) => [handle, [["trusted-publisher", workflow, null]]]),
     ]);
 });
 

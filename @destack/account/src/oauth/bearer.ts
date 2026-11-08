@@ -12,6 +12,8 @@ import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
 import { AccessToken, type TokenGrant } from "./token.ts";
 import { PackageResource } from "./resource.ts";
+import { FederatedVerifier } from "./federation.ts";
+import { trustedPublisher } from "../object/trusted-publisher.ts";
 import type { Crypto, Environment } from "@destack/environment";
 
 /** The grant type of a key-signed assertion exchanged for an access token (RFC 7523 2.1). */
@@ -52,6 +54,7 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
         crypto: options.environment.crypto,
         database,
     });
+    const federated = new FederatedVerifier(database, options.endpoint, options.environment);
 
     return async ({ body }) => {
         // read the request and the package it asks a token for
@@ -65,14 +68,17 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
             throw OAuthError.of("INVALID_TARGET", `${resource} names no package`);
         }
 
-        // verify the assertion, refusing it as an invalid grant
+        // verify a workflow's federated token or a machine's or space's assertion
         const now = options.environment.clock.now();
-        const { caller: asserted, credential } = await assertions.verify(assertion, now);
+        const { caller: asserted, credential } = FederatedVerifier.isFederated(assertion)
+            ? await federated.verify(assertion, audience, now)
+            : await assertions.verify(assertion, now);
 
-        // read the partitions the subject acts in: a machine its own and any space, a space any space, an installation its space
+        // read the partitions the subject acts in: a machine its own and any space, a space or a trusted publisher any space, an installation its space
         const { subject } = asserted;
         const isMachine = principal.machine.is(subject);
-        const isSpaceActor = isMachine || principal.space.is(subject);
+        const isSpaceActor =
+            isMachine || principal.space.is(subject) || trustedPublisher.is(subject);
         const isSpace = SPACE_IDENTIFIER.safeParse(partition).success;
         const isOwn = isMachine && partition === subject.id;
         const isInstallationSpace = !isSpaceActor && subject.scope === partition;

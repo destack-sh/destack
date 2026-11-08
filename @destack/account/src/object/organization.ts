@@ -35,12 +35,9 @@ export const organization = defineObject(
         },
         recoverable: { within: { days: 30 }, by: "delete" },
         relations: {
-            // add members by relation, at least one owner, and the machines publishing as the platform
+            // add members by relation, at least one owner
             owner: { ...MEMBERSHIP, grantedBy: "administer", isRequired: true },
-            admin: {
-                subjects: [principal.user, residency.members("machine")],
-                grantedBy: "manage",
-            },
+            admin: MEMBERSHIP,
             billing: MEMBERSHIP,
             member: MEMBERSHIP,
             guest: MEMBERSHIP,
