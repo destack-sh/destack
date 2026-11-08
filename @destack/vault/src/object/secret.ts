@@ -132,7 +132,7 @@ export const secret = defineObject(
         versions: method.query({
             permission: "read",
             input: SecretSelection,
-            output: schema.array(SecretReading),
+            output: schema.tuple([SecretReading], SecretReading),
         }),
         /** Write a generated first version of a secret without one. */
         generate: method.mutation({

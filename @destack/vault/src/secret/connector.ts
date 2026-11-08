@@ -55,7 +55,7 @@ export const secretConnector: Connector<Secret> = {
             read: async () => SecretReading.parse(await client.secret.read({ scope, id, version })),
             versions: async () =>
                 schema
-                    .array(SecretReading)
+                    .tuple([SecretReading], SecretReading)
                     .parse(await client.secret.versions({ scope, id, version })),
             [Symbol.asyncDispose]: async () => {},
         };

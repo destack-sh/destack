@@ -255,7 +255,8 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
 
         return {
             read: async () => SecretReading.parse(await query("read")),
-            versions: async () => schema.array(SecretReading).parse(await query("versions")),
+            versions: async () =>
+                schema.tuple([SecretReading], SecretReading).parse(await query("versions")),
         };
     },
     version: (target, pin) => pin ?? target.currentVersion,

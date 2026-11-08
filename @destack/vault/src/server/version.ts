@@ -61,7 +61,7 @@ export const SecretVersion = {
         target: RowImage<typeof secret.table>,
         version: number | undefined,
         context: MethodContext,
-    ): Promise<SecretReading[]> {
+    ): Promise<[SecretReading, ...SecretReading[]]> {
         // read the selected version as the caller may read it
         const selected = await SecretVersion.read(target, version, context);
 
