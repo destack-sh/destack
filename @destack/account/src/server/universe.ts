@@ -209,7 +209,7 @@ export class Platform {
             { name: "machines", apply: () => this.declareMachines() },
             { name: "organization", apply: (now) => this.upsertOrganization(now) },
             { name: "roles", apply: (now) => this.bindRoles(now) },
-            { name: "names", apply: () => this.reserveNames() },
+            { name: "names", apply: (now) => this.reserveNames(now) },
             { name: "domains", apply: () => this.declareDomains() },
             { name: "homes", apply: (now) => this.serveResidencies(now) },
             { name: "invitation", apply: (now) => this.inviteOperator(now) },
@@ -377,25 +377,10 @@ export class Platform {
                 { ...Scope.universe, relation: "signed-in" },
             ]);
         });
-
-        // relate the platform's residency's cloud machines as the organization's publishing administrators
-        const organizationId = await this.#organization();
-        const object = organization.reference(Scope.universe.id, organizationId);
-        const platform = await Residency.require(
-            Snapshot.live(this.store.database),
-            this.definition.residencyId,
-        );
-        const subject = {
-            ...residency.reference(Scope.universe.id, platform.id),
-            relation: "machine",
-        };
-        await this.#authorize(organizationId, now, (authorization) =>
-            Relationship.touch({ object, relation: "admin", subject }, authorization),
-        );
     }
 
     /** Claim the reserved handles, transfer the transferred ones, and create the publishers. */
-    async reserveNames(): Promise<void> {
+    async reserveNames(now: number): Promise<void> {
         // claim each reserved handle the organization keeps, which lives in the universe
         const organizationId = await this.#organization();
         const owner = Scope.universe.id;
@@ -507,6 +492,31 @@ export class Platform {
                 ),
             );
         }
+
+        // let the platform residency's machines publish under the organization's account and its publishers
+        const platform = await Residency.require(
+            Snapshot.live(this.store.database),
+            this.definition.residencyId,
+        );
+        const subject = {
+            ...residency.reference(Scope.universe.id, platform.id),
+            relation: "machine",
+        };
+        const publishing = await this.store.database
+            .select({ id: account.table.id })
+            .from(account.table)
+            .where(
+                inArray(account.table.handle, [
+                    this.definition.handle,
+                    ...this.definition.publishers,
+                ]),
+            );
+        await this.#authorize(organizationId, now, async (authorization) => {
+            for (const row of publishing) {
+                const object = account.reference(organizationId, row.id);
+                await Relationship.touch({ object, relation: "publisher", subject }, authorization);
+            }
+        });
     }
 
     /** Declare the organization's domains verified, keeping the ones it holds already. */

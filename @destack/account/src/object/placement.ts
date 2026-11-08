@@ -238,6 +238,9 @@ export const placement = defineObject(
             input: schema.object({}),
         }),
 
+        /** Read the account paying for the placed space's use, as the machine serving it. */
+        payer: method.query({ permission: "serve", output: schema.identifier("account") }),
+
         /** End a space's placement, as the machine serving it at its epoch. */
         withdraw: method.mutation({ permission: "move", input: Serving }),
 

@@ -38,10 +38,7 @@ async function entitle(
     const { allowances } = context.input;
     const allowed = new Map(allowances.map((each) => [Entitlement.key(each), each]));
     if (allowed.size !== allowances.length) {
-        throw AccountError.of(
-            "FEATURE_REPEATED",
-            "the account's allowances repeat a feature",
-        );
+        throw AccountError.of("FEATURE_REPEATED", "the account's allowances repeat a feature");
     }
 
     // compare each stored entitlement with its allowance

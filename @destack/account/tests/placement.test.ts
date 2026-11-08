@@ -308,6 +308,29 @@ test("place a created space again only as the machine serving it, and let the ac
     ]);
 });
 
+test("read who pays for a placed space only as the machine serving it", async () => {
+    // read the laptop space's payer as each machine
+    const opened = await openPlacement();
+    await using fixture = opened.fixture;
+    const { accountId, laptop, local, peer, outsider } = opened;
+    const payer = (caller: TestCaller) =>
+        caller.client(accountPackage).placement.payer({
+            accountId: schema.identifier("account").parse(accountId),
+            id: schema.identifier("space").parse(laptop),
+        });
+
+    // answer the personal account itself to its serving machine, refusing the account's other machine and another account's
+    expect([
+        await payer(local),
+        await refusal(payer(peer)),
+        await refusal(payer(outsider)),
+    ]).toEqual([
+        accountId,
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: serve"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: serve"],
+    ]);
+});
+
 test("reserve and confirm a space's names only as the machine serving it", async () => {
     // reserve the laptop space's name as the peer and as the laptop
     const opened = await openPlacement();

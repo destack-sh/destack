@@ -299,7 +299,7 @@ test("move each residency home to its own newly declared stack once, giving each
     });
 });
 
-test("apply the declared cloud machines with their keys in the universe once, and the platform residency's machines as administrators", async () => {
+test("apply the declared cloud machines with their keys in the universe once, and the platform residency's machines as the platform accounts' publishers", async () => {
     // declare a cloud machine for each residency
     await using fixture = await TestAccountStore.open();
     const [europe, america] = [
@@ -336,7 +336,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
     );
     await new Platform(fixture.store, definition).apply(fixture.store.clock.now());
 
-    // create each machine once with one key in the universe, its origin published as its endpoint, and relate the platform residency's machines as administrators once
+    // create each machine once with one key in the universe, its origin published as its endpoint, and relate the platform residency's machines as publishers once
     const { database } = fixture.storage;
     const declared = [europe.machineId, america.machineId];
     const machines = await database
@@ -362,20 +362,29 @@ test("apply the declared cloud machines with their keys in the universe once, an
         .from(endpoint.table)
         .where(inArray(endpoint.table.parentId, declared))
         .orderBy(endpoint.table.url);
-    const administrators = await Relationship.readOn(
-        Snapshot.live(database),
-        organization.reference(Scope.universe.id, organizationId),
-        { relation: "admin" },
+    const accounts = await database
+        .select({ id: account.table.id, handle: account.table.handle })
+        .from(account.table)
+        .where(inArray(account.table.handle, [PLATFORM.handle, ...PLATFORM.publishers]))
+        .orderBy(account.table.handle);
+    const publishers = await Promise.all(
+        accounts.map(async (row) => [
+            row.handle,
+            (
+                await Relationship.readOn(
+                    Snapshot.live(database),
+                    account.reference(organizationId, row.id),
+                    { relation: "publisher" },
+                )
+            ).map((relation) => [
+                relation.subjectType,
+                relation.subjectId,
+                relation.subjectRelation,
+            ]),
+        ]),
     );
     const [eu, us] = [await fixture.residency("eu"), await fixture.residency("us")];
-    expect([
-        machines,
-        keys.map((row) => row.parentId),
-        urls,
-        administrators
-            .filter((row) => row.subjectType === "residency")
-            .map((row) => [row.subjectId, row.subjectRelation]),
-    ]).toEqual([
+    expect([machines, keys.map((row) => row.parentId), urls, publishers]).toEqual([
         [
             {
                 id: europe.machineId,
@@ -398,7 +407,9 @@ test("apply the declared cloud machines with their keys in the universe once, an
         ],
         declared.toSorted(),
         [{ url: "https://eu-west.machine.test/" }, { url: "https://us-west.machine.test/" }],
-        [[eu.id, "machine"]],
+        [PLATFORM.handle, ...PLATFORM.publishers]
+            .toSorted()
+            .map((handle) => [handle, [["residency", eu.id, "machine"]]]),
     ]);
 });
 

@@ -9,7 +9,7 @@ import {
 } from "@destack/object";
 import { Change, type DatabaseConnection, type Select, Snapshot } from "@destack/db";
 import { canonicalize, type DigestCrypto, type Identifier, present, schema } from "@destack/schema";
-import { account } from "../object/account.ts";
+import { Account, account } from "../object/account.ts";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { assignment, Placement, placement, type Schedule } from "../object/placement.ts";
@@ -22,7 +22,15 @@ import { StoreRelationship } from "./relationship.ts";
 /** Implement placements. */
 export function implementPlacement(): typeof placement {
     return placement.implement({
-        methods: { place, move, decide, withdraw, assign, unassign },
+        methods: {
+            place,
+            move,
+            decide,
+            withdraw,
+            assign,
+            unassign,
+            payer: (context) => Account.payer(context, context.target.scope),
+        },
         projections: [
             {
                 // decide a placement again after each of its writes, which converges a decision a concurrent change outdated

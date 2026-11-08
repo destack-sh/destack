@@ -61,8 +61,11 @@ export const account = defineObject(
             installed: { subjects: [residency.members("installed")], grantedBy: "place" },
             // the account's home space, and the installations living in it
             home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
-            // the people the account's managers let publish packages under its name
-            publisher: { subjects: [principal.user], grantedBy: "manage" },
+            // the people and residency machines the account's managers let publish packages under its name
+            publisher: {
+                subjects: [principal.user, residency.members("machine")],
+                grantedBy: "manage",
+            },
         },
         permissions: {
             // inherit from the organization: its members view and its administrators manage
