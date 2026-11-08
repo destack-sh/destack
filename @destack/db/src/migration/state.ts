@@ -353,24 +353,35 @@ export async function readTables(database: DatabaseConnection): Promise<string[]
     return rows.map((row) => row.name);
 }
 
-/** List the tables among some that have no rows, in one statement. */
+/** List the tables among some that have no rows, a column each in statements the engine fits. */
 export async function readEmpty(
     database: DatabaseConnection,
     tables: readonly string[],
 ): Promise<Set<string>> {
-    // ask each table for its first row
-    if (tables.length === 0) {
-        return new Set();
-    }
-    const checks = tables.map(
-        (name) => `SELECT ${literal(name)} AS name WHERE NOT EXISTS (SELECT 1 FROM ${quote(name)})`,
-    );
-    const rows = await database.execute(
-        sql.raw(checks.join(" UNION ALL ")),
-        schema.object({ name: schema.string() }),
-    );
+    // ask as many tables per statement as the engine returns columns
+    const empty = new Set<string>();
+    const { columns } = database.driver.session.limits;
+    for (let start = 0; start < tables.length; start += columns) {
+        // ask each table of the chunk for its first row, a column each, as no compound select is needed
+        const chunk = tables.slice(start, start + columns);
+        const checks = chunk.map(
+            (name, index) => `NOT EXISTS (SELECT 1 FROM ${quote(name)}) AS ${quote(`t${index}`)}`,
+        );
+        const [row] = await database.execute(
+            sql.raw(`SELECT ${checks.join(", ")}`),
+            schema.record(schema.string(), schema.union([schema.boolean(), schema.number()])),
+        );
 
-    return new Set(rows.map((row) => row.name));
+        // keep the tables answering true, SQLite's 1 or PostgreSQL's true
+        for (const [index, name] of chunk.entries()) {
+            const answer = present(row, "the emptiness check's row")[`t${index}`];
+            if (answer === true || answer === 1) {
+                empty.add(name);
+            }
+        }
+    }
+
+    return empty;
 }
 
 /** The stamp of a database's last declaration: its digest, none before stamps, or none yet. */

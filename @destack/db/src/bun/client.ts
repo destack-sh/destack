@@ -3,6 +3,7 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import type * as bun from "bun:sqlite";
 import type { DriverValue } from "../table/column.ts";
 import {
+    SQLITE_LIMITS,
     SqliteSavepoint,
     SqliteWorkQueue,
     type SqliteConnectionClient,
@@ -28,6 +29,8 @@ declare module "bun:sqlite" {
 
 /** Statements on one SQLite database, prepared once per text. */
 export class BunQuery implements SqliteQueryClient {
+    /** The most values one statement binds, as SQLite binds by default. */
+    readonly limits = SQLITE_LIMITS;
     /** The database. */
     readonly database: bun.Database;
     /** The prepared statements. */

@@ -10,8 +10,8 @@ import {
     type LogDialect,
 } from "../log/schema.ts";
 
-/** The most arguments of one SQLite function call, SQLITE_MAX_FUNCTION_ARG since SQLite 3.48. */
-const FUNCTION_ARGUMENT_LIMIT = 1000;
+/** The most arguments of a SQLite function call before 3.48, as Bun and Durable Objects build. */
+const FUNCTION_ARGUMENT_LIMIT = 127;
 
 /** The most key and value pairs of one JSON function call. */
 const JSON_PAIR_LIMIT = Math.floor((FUNCTION_ARGUMENT_LIMIT - 1) / 2);

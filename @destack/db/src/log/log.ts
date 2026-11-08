@@ -427,17 +427,17 @@ export class Log {
         const inTables =
             tables === "every" ? sql`` : sql`AND "table" IN (${sql.join(names, sql`, `)})`;
         const seeks = scopes.map(
-            (scope) => sql`SELECT (SELECT sequence FROM ${sql.relation(LOG)} AS entry
+            (scope) => sql`((SELECT sequence FROM ${sql.relation(LOG)} AS entry
             WHERE scope = ${scope} ${inTables}
                 AND sequence IS NOT NULL AND ${committedEntry(this.database.dialect, sql`entry`)}
-            ORDER BY sequence DESC LIMIT 1) AS latest`,
+            ORDER BY sequence DESC LIMIT 1))`,
         );
 
-        // take the newest of them beside the head, in one statement
+        // take the newest of them beside the head, in one statement, a row of VALUES each, as SQLite counts no VALUES row against its compound limit
         const isEmpty = scopes.length === 0 || (tables !== "every" && tables.length === 0);
         const latest = isEmpty
             ? sql`NULL`
-            : sql`(SELECT max(latest) FROM (${sql.join(seeks, sql` UNION ALL `)}) AS seeks)`;
+            : sql`(SELECT max(column1) FROM (VALUES ${sql.join(seeks, sql`, `)}) AS seeks)`;
         const [row] = await this.database.all(sql`${this.#head()}, ${latest} AS changed`);
         const head = Log.#parseHead(row);
         const changed = LogColumn.nullableInteger(row?.["changed"]);

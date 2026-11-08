@@ -8,9 +8,6 @@ import {
 } from "../table/column.ts";
 import { type Alias, isSQLWrapper, Parameter, SQL, sql, type SQLWrapper } from "./sql.ts";
 
-/** Terms per chain: two levels cover 30,000 values at depth 600, SQLITE_MAX_EXPR_DEPTH 1,000. */
-export const CHAIN_TERMS = 300;
-
 /** A typed operand: a column reading the value, a fragment or a named fragment. */
 type Operand<Value> =
     | Column<ColumnDefinition & { readonly fromJson: (value: unknown) => Value }>
@@ -185,19 +182,22 @@ export function min<Value>(
     return extreme("min", value);
 }
 
-/** Join predicates with one operator in nested flat chains. */
+/** Join predicates with one operator in a balanced tree, as deep as their count's logarithm. */
 export function combine(predicates: readonly SQLWrapper[], operator: "AND" | "OR"): SQL<boolean> {
-    // join short lists flat and longer ones as chains of chains
+    // join two predicates flat
     const joiner = sql.raw(` ${operator} `);
-    if (predicates.length <= CHAIN_TERMS) {
+    if (predicates.length <= 2) {
         return sql<boolean>`(${sql.join(predicates, joiner)})`;
     }
-    const chains: SQL<boolean>[] = [];
-    for (let start = 0; start < predicates.length; start += CHAIN_TERMS) {
-        chains.push(combine(predicates.slice(start, start + CHAIN_TERMS), operator));
-    }
 
-    return combine(chains, operator);
+    // join more as the two halves
+    const middle = Math.ceil(predicates.length / 2);
+    const halves = [
+        combine(predicates.slice(0, middle), operator),
+        combine(predicates.slice(middle), operator),
+    ];
+
+    return sql<boolean>`(${sql.join(halves, joiner)})`;
 }
 
 /** Compare an operand with a value bound through its column, or with a fragment. */

@@ -2,12 +2,18 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { Scheduler } from "@destack/environment";
 import { DatabaseError } from "../error/error.ts";
 import type { DriverValue } from "../table/column.ts";
+import type { SqlLimits } from "../database/session.ts";
+
+/** SQLite's default limits: 32,766 values since 3.32, SQLITE_MAX_COLUMN 2,000. */
+export const SQLITE_LIMITS: SqlLimits = { variables: 32_766, columns: 2_000 };
 
 /** How long work waits behind earlier work before failing: 30 s, HikariCP's default. */
 const TURN_WAIT_MILLISECONDS = 30_000;
 
 /** The statements of a SQLite connection or one of its transactions. */
 export interface SqliteQueryClient {
+    /** The limits the engine sets on one statement. */
+    readonly limits: SqlLimits;
     /** Read every row as an array of values, integers exact where the engine stores them. */
     readonly values: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */

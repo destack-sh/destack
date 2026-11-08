@@ -1,6 +1,6 @@
 import { nth, canonicalize } from "@destack/schema";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { type Dialect, PARAMETER_BUDGET } from "../dialect/dialect.ts";
+import { type Dialect } from "../dialect/dialect.ts";
 import { elementValue, jsonElements, jsonOf, Statement } from "../query/statement.ts";
 import { ColumnCipher, SEALED_DIALECT } from "../database/cipher.ts";
 import { sql } from "../sql/index.ts";
@@ -361,14 +361,10 @@ export class ChangeSet {
         const { table } = first;
         const operation = ChangeSet.#operation(first, transaction.dialect);
 
-        // insert created rows, a batch within the parameter budget per statement
+        // insert created rows
         if (operation === "insert") {
             const rows = run.flatMap((change) => (change.after === null ? [] : [change.after]));
-            const size = Math.max(1, Math.floor(PARAMETER_BUDGET / table[TABLE].entries.length));
-            const batches = Array.from({ length: Math.ceil(rows.length / size) }, (_, index) =>
-                rows.slice(index * size, (index + 1) * size),
-            );
-            await Promise.all(batches.map((batch) => transaction.insert(table).values(batch)));
+            await transaction.insert(table).values(rows);
         }
         // delete removed rows by key
         else if (operation === "delete") {

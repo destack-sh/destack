@@ -45,7 +45,7 @@ import { LOG_TABLES, LOG_TOPIC } from "../log/schema.ts";
 import { ReadCache } from "../log/cache.ts";
 import { Commit, typedChannel, type Channel } from "../channel/channel.ts";
 import { Tracker, TRACKER_CHANNEL } from "../tracker/tracker.ts";
-import { PARAMETER_BUDGET, type Dialect } from "../dialect/dialect.ts";
+import { type Dialect } from "../dialect/dialect.ts";
 import { Key } from "../query/key.ts";
 import { elementValue, jsonElements } from "../query/statement.ts";
 import { qualify, relation } from "../table/namespace.ts";
@@ -219,7 +219,7 @@ export class DatabaseConnection<
         }
     }
 
-    /** Upsert rows that have the same columns, in batches within the parameter budget. */
+    /** Upsert rows that have the same columns, in one insert. */
     async #upsertAlike(table: Table, rows: readonly Row[]): Promise<void> {
         // update the written columns outside the key on conflict
         const definition = table[TABLE];
@@ -234,18 +234,14 @@ export class DatabaseConnection<
                 ]),
         );
 
-        // insert each batch
-        const size = Math.floor(PARAMETER_BUDGET / written.length);
-        for (let start = 0; start < rows.length; start += size) {
-            // leave the stored row when only the key or an unchanged append-only row is written
-            const insert = this.insert(table).values(rows.slice(start, start + size));
-            if (Object.keys(set).length === 0 || definition.isAppendOnly) {
-                await insert.onConflictDoNothing();
-            }
-            // update the other written columns otherwise
-            else {
-                await insert.onConflictDoUpdate({ target, set });
-            }
+        // leave the stored row when only the key or an unchanged append-only row is written
+        const insert = this.insert(table).values(rows);
+        if (Object.keys(set).length === 0 || definition.isAppendOnly) {
+            await insert.onConflictDoNothing();
+        }
+        // update the other written columns otherwise
+        else {
+            await insert.onConflictDoUpdate({ target, set });
         }
     }
 

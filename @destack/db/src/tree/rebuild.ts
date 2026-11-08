@@ -1,15 +1,11 @@
 import { schema } from "@destack/schema";
 import { sql, type SQL } from "../sql/index.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
-import { PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { TreeDescription } from "./description.ts";
 
 /** The bound parameters of one ancestor record. */
 const RECORD_PARAMETERS = 4;
-
-/** The most ancestor records one statement writes. */
-const BATCH_SIZE = Math.floor(PARAMETER_BUDGET / RECORD_PARAMETERS);
 
 /** The temporary staging table of a rebuild. */
 const STAGED = "destack_tree_rebuild";
@@ -115,6 +111,7 @@ async function stagePaths(
     // stage the paths in bounded batches
     await database.run(sql`CREATE TEMPORARY TABLE ${staged}
         (scope text NOT NULL, ancestor text NOT NULL, descendant text NOT NULL, depth integer NOT NULL)`);
+    const size = Math.floor(database.driver.session.limits.variables / RECORD_PARAMETERS);
     const flush = async (batch: readonly SQL[]) =>
         database.all(sql`INSERT INTO ${staged}
             (scope, ancestor, descendant, depth) VALUES ${sql.join([...batch], sql`, `)}`);
@@ -128,7 +125,7 @@ async function stagePaths(
                 batch.push(sql`(${scope}, ${ancestor}, ${descendant}, ${depth})`);
                 ancestor = parents.get(ancestor) ?? null;
                 depth++;
-                if (batch.length === BATCH_SIZE) {
+                if (batch.length === size) {
                     await flush(batch);
                     batch = [];
                 }

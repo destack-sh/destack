@@ -594,14 +594,14 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         if (digests.length === 0) {
             return [];
         }
-        const rows = await transaction.all(this.referenced(now, digests));
+        const rows = await BlobStore.#readAll(transaction, this.referenced(now, digests));
         const referenced = new Set(rows.map((row) => DigestRow.parse(row).digest));
 
         return digests.filter((digest) => !referenced.has(digest));
     }
 
-    /** Select the digests the partition's blob columns and live leases reference, as `digest`. */
-    referenced(now: number, among?: readonly Digest[]): SQL {
+    /** Select the digests the partition's blob columns and live leases reference, by statement. */
+    referenced(now: number, among?: readonly Digest[]): SQL[] {
         // select from each restricting blob column and the live leases, among the digests when given
         const within = (column: SQL | Column) =>
             among === undefined ? sql.empty() : sql`AND ${column} IN ${among}`;
@@ -636,14 +636,28 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         const leased = sql`SELECT ${BlobStore.table.digest} AS digest FROM ${BlobStore.table}
             WHERE ${BlobStore.table.leasedUntil} > ${now} ${within(BlobStore.table.digest)}`;
 
-        return sql.join([...references, leased], sql` UNION `);
+        return [...references, leased];
     }
 
     /** List the blobs the partition's rows or leases reference, each once. */
     async list(): Promise<Digest[]> {
-        const rows = await this.database.all(this.referenced(this.environment.clock.now()));
+        const selects = this.referenced(this.environment.clock.now());
+        const rows = await BlobStore.#readAll(this.database, selects);
 
         return [...new Set(rows.map((row) => DigestRow.parse(row).digest))];
+    }
+
+    /** Read the rows of selects in turn, as Durable Object SQLite joins five selects at most. */
+    static async #readAll(
+        database: Pick<DatabaseConnection, "all">,
+        selects: readonly SQL[],
+    ): Promise<Record<string, unknown>[]> {
+        const rows: Record<string, unknown>[] = [];
+        for (const select of selects) {
+            rows.push(...(await database.all(select)));
+        }
+
+        return rows;
     }
 
     /** List the blob columns doing one thing on delete, each with its table. */

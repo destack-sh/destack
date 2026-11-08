@@ -1,7 +1,9 @@
 import type { Environment } from "@destack/environment";
+import { present } from "@destack/schema";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { ModuleMetadata } from "@destack/package";
-import { and, eq, inArray } from "../../sql/index.ts";
+import { and, count, eq, inArray, or } from "../../sql/index.ts";
+import { readEmpty, readTables } from "../../migration/state.ts";
 import { Change } from "../../log/log.ts";
 import { defineDatabase } from "../../declare/database.ts";
 import { ResourceId, Plan } from "@destack/resource";
@@ -59,6 +61,24 @@ const entry = defineTable(
     MODULE,
 );
 
+/** Tables past the 100 result columns Durable Object SQLite answers, as emptiness checks read. */
+const MANY = Array.from({ length: 120 }, (_, index) =>
+    defineTable(`many${index}`, { id: text("id").primaryKey() }, {}, MODULE),
+);
+
+/** A logged table past the 127 function arguments its change triggers' JSON would take at once. */
+const WIDE = defineTable(
+    "wide",
+    {
+        id: text("id").primaryKey(),
+        ...Object.fromEntries(
+            Array.from({ length: 70 }, (_, index) => [`c${index}`, text(`c${index}`).notNull()]),
+        ),
+    },
+    { log: {} },
+    MODULE,
+);
+
 /** The database of entries a workload declares. */
 export const entries = defineDatabase({ name: "entries", tables: [entry] }, MODULE);
 
@@ -100,6 +120,8 @@ export class Notes {
             return await this.parameters();
         } else if (pathname === "/leaked") {
             return await this.leaked();
+        } else if (pathname === "/limits") {
+            return await this.limits();
         } else if (pathname === "/rows") {
             return await this.rows();
         } else if (pathname === "/reader") {
@@ -109,6 +131,56 @@ export class Notes {
         }
 
         return await this.notes();
+    }
+
+    /** Check emptiness past 100 tables, filter by 150 predicates, and log a 70-column row. */
+    async limits(): Promise<Response> {
+        // migrate 120 tables, a note and the wide logged table, writing one row of the first table
+        const database = this.databases.connect([note, WIDE, ...MANY]);
+        await database.log.create("space-1");
+        await database.migrate([note, WIDE, ...MANY]);
+        const [first] = MANY;
+        await database.transaction(async (transaction) => {
+            await transaction.insert(present(first, "the first table")).values({ id: "a" });
+        });
+
+        // read which of the 120 are empty, past the columns one statement answers
+        const stored = await readTables(database);
+        const many = stored.filter((name) => /many\d+$/u.test(name));
+        const empty = await readEmpty(database, many);
+
+        // read notes matching one of 150 predicates, past the expression depth of one chain
+        await database.transaction(async (transaction) => {
+            await transaction.insert(note).values({ id: "n149", title: "Last" });
+        });
+        const predicates = Array.from({ length: 150 }, (_, index) => eq(note.id, `n${index}`));
+        const [head, ...rest] = predicates;
+        const matched = await database
+            .select()
+            .from(note)
+            .where(or(present(head, "a predicate"), ...rest));
+
+        // log a row of the wide table, past the arguments one JSON call takes
+        const values = Object.fromEntries(
+            Array.from({ length: 70 }, (_, index) => [`c${index}`, `v${index}`]),
+        );
+        await database.transaction(async (transaction) => {
+            await transaction.insert(WIDE).values({ id: "w", ...values });
+        });
+        const { changes } = await database.log.read({ tables: [WIDE], after: 0 });
+        const logged = changes.map((change) => Object.keys(Change.image(change) ?? {}).length);
+
+        // insert 300 notes of a kilobyte each at once, past the 100 kilobytes one statement carries
+        const bulk = Array.from({ length: 300 }, (_, index) => ({
+            id: `b${index}`,
+            title: "x".repeat(1024),
+        }));
+        await database.transaction(async (transaction) => {
+            await transaction.insert(note).values(bulk);
+        });
+        const [counted] = await database.select({ count: count() }).from(note);
+
+        return Response.json({ empty: empty.size, matched, logged, notes: counted?.count });
     }
 
     /** Write in a transaction, then refuse its client used past it while another runs. */
@@ -141,7 +213,7 @@ export class Notes {
 
     /** Write rows binding more values or larger integers than the storage binds. */
     async parameters(): Promise<Response> {
-        // write 80 notes with a quote and a marker in their titles in one statement of 160 values
+        // write 80 notes with a quote and a marker in their titles in one insert of 160 values, split to bind within the limit
         const database = this.databases.connect([note, file]);
         await database.migrate([note, file]);
         const notes = Array.from({ length: 80 }, (_, index) => ({

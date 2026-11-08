@@ -4,6 +4,7 @@ import type { Table } from "../table/table.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
+import { DURABLE_OBJECT_LIMITS } from "./client.ts";
 import type { FamilyError } from "@destack/error";
 import { DatabaseError } from "../error/error.ts";
 import { SQLValue } from "../sql/json.ts";
@@ -30,6 +31,8 @@ const ObjectRows = schema.object({
 
 /** Reads of a database another Durable Object stores, one request per statement. */
 export class DurableObjectReader implements SqliteConnectionClient {
+    /** The limits Durable Object storage sets on one statement. */
+    readonly limits = DURABLE_OBJECT_LIMITS;
     /** The object that stores the database. */
     readonly #object: DurableObjectStub;
 

@@ -1,5 +1,6 @@
 import type { DriverValue } from "../table/column.ts";
 import { type SqliteConnectionClient, type SqliteQueryClient } from "../sqlite/client.ts";
+import type { SqlLimits } from "../database/session.ts";
 import { SqliteScript } from "../sqlite/script.ts";
 import type { DurableObjectDatabaseHost, StorageTransaction } from "./host.ts";
 
@@ -30,8 +31,8 @@ export interface DurableObjectStorage {
     readonly deleteAll: () => Promise<void>;
 }
 
-/** The most parameters Durable Object SQLite storage binds to a statement, as Cloudflare limits. */
-const MAX_PARAMETERS = 100;
+/** Durable Object SQLite's limits, as measured: 100 bound values, 100 result columns. */
+export const DURABLE_OBJECT_LIMITS: SqlLimits = { variables: 100, columns: 100 };
 
 /** The largest integer a number represents exactly, 2^53 - 1. */
 const MAX_EXACT = BigInt(Number.MAX_SAFE_INTEGER);
@@ -51,6 +52,8 @@ export type DurableObjectMode =
 
 /** Statements over a Durable Object's SQLite storage. */
 export class DurableObjectQuery implements SqliteQueryClient {
+    /** The most values one statement binds, as Durable Object storage binds. */
+    readonly limits = DURABLE_OBJECT_LIMITS;
     /** The object's one storage host, which the object's clients share. */
     readonly host: DurableObjectDatabaseHost;
     /** How the statements run. */
@@ -128,7 +131,8 @@ export class DurableObjectQuery implements SqliteQueryClient {
 
         // inline more values than the storage binds, or an integer past a number's exact range
         const isBound =
-            values.length <= MAX_PARAMETERS && values.every((value) => typeof value !== "bigint");
+            values.length <= this.limits.variables &&
+            values.every((value) => typeof value !== "bigint");
 
         return isBound
             ? this.storage.sql.exec(sql, ...values)

@@ -92,6 +92,17 @@ test("write and read rows in statements binding more values than a Durable Objec
     ]);
 });
 
+test("check emptiness past 100 tables, filter by 150 predicates, log a 70-column row and insert 300 kilobytes within Durable Object SQLite's limits", async () => {
+    const worker = await start();
+
+    // answer 119 empty tables, the one matching note, the logged row with its 71 fields, and 301 notes
+    const response = await worker.dispatchFetch("https://notes.test/limits");
+    expect([response.status, await response.json()]).toEqual([
+        200,
+        { empty: 119, matched: [{ id: "n149", title: "Last" }], logged: [71], notes: 301 },
+    ]);
+});
+
 test("refuse a transaction's client used past it, even while a later transaction is open", async () => {
     const worker = await start();
 

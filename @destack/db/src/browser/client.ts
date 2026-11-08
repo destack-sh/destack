@@ -2,6 +2,7 @@ import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { DriverValue } from "../table/column.ts";
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
 import {
+    SQLITE_LIMITS,
     SqliteSavepoint,
     SqliteWorkQueue,
     type SqliteConnectionClient,
@@ -10,6 +11,8 @@ import {
 
 /** Statements over one SQLite WebAssembly database. */
 export class WasmQuery implements SqliteQueryClient {
+    /** The most values one statement binds, as SQLite binds by default. */
+    readonly limits = SQLITE_LIMITS;
     /** The database. */
     readonly database: Database;
     /** The work queue and the environment each turn waits in, absent within a transaction. */

@@ -8,6 +8,7 @@ import type { Table } from "../table/table.ts";
 import { SqliteDatabase } from "../sqlite/database.ts";
 import { DatabaseError, errorCode } from "../error/error.ts";
 import {
+    SQLITE_LIMITS,
     SqliteSavepoint,
     type SqliteConnectionClient,
     type SqliteQueryClient,
@@ -317,6 +318,8 @@ export function connectShared<
 
 /** Statements the channel's owner runs. */
 export class SharedQuery implements SqliteQueryClient {
+    /** The most values one statement binds, as SQLite binds by default. */
+    readonly limits = SQLITE_LIMITS;
     /** The party asking the owner. */
     readonly party: Party;
     /** The owner's transaction. */

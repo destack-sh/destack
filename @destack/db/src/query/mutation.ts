@@ -78,8 +78,11 @@ interface MutationState<Definition extends Table, Result> {
     readonly conflict: Conflict<Definition> | undefined;
     /** The returned fields, absent to return nothing. */
     readonly returning: ReturningSelection | undefined;
-    /** Run the rendered mutation and read its result. */
-    readonly finish: (driver: DatabaseDriver, statement: DriverStatement) => Promise<Result>;
+    /** Run the rendered mutation's statements in order and read their result. */
+    readonly finish: (
+        driver: DatabaseDriver,
+        statements: readonly DriverStatement[],
+    ) => Promise<Result>;
 }
 
 /** A typed insertion, update or deletion, a new mutation for each step, awaited for its result. */
@@ -113,8 +116,10 @@ export class MutationQuery<
             where: undefined,
             conflict: undefined,
             returning: undefined,
-            finish: async (session, statement) => {
-                await session.execute(statement);
+            finish: async (session, statements) => {
+                for (const statement of statements) {
+                    await session.execute(statement);
+                }
             },
         });
     }
@@ -190,12 +195,16 @@ export class MutationQuery<
         return new MutationQuery({
             ...this.state,
             returning: returned,
-            finish: async (driver, statement) => {
-                // read the returned rows and decode them through the returned fields
-                const rows = await driver.write(
-                    (session) => session.values(statement.text, statement.parameters),
-                    statement,
-                );
+            finish: async (driver, statements) => {
+                // read each statement's returned rows in order and decode them through the returned fields
+                const rows: unknown[][] = [];
+                for (const statement of statements) {
+                    const read = await driver.write(
+                        (session) => session.values(statement.text, statement.parameters),
+                        statement,
+                    );
+                    rows.push(...read);
+                }
                 const projection = new Projection(unqualified(returned));
                 const decoded = projection.decode(
                     rows,
@@ -228,10 +237,45 @@ export class MutationQuery<
         const retired = retirement === undefined ? undefined : driver.execute(rendered(retirement));
         const [, result] = await Promise.all([
             retired,
-            state.finish(driver, rendered(this.#sql())),
+            state.finish(driver, this.#statements(rendered)),
         ]);
 
         return result;
+    }
+
+    /** Render the mutation's statements, an insert's rows split to bind within the limit. */
+    #statements(rendered: (statement: SQL) => DriverStatement): DriverStatement[] {
+        // render other mutations and short inserts whole
+        const { driver, records, table } = this.state;
+        if (this.state.operation !== "insert" || records.length < 2) {
+            return [rendered(this.#sql(records))];
+        }
+
+        // count the values one row binds and the ones the statement binds once, as rendered
+        const one = rendered(this.#sql(records.slice(0, 1))).parameters.length;
+        const two = rendered(this.#sql(records.slice(0, 2))).parameters.length;
+        const perRow = Math.max(two - one, 1);
+        const rows = Math.max(
+            Math.floor((driver.session.limits.variables - (one - perRow)) / perRow),
+            1,
+        );
+        if (records.length <= rows) {
+            return [rendered(this.#sql(records))];
+        }
+
+        // split the rows, which only a transaction keeps one write
+        if (driver.transaction === undefined) {
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `an insert of ${records.length} rows into ${table[TABLE].name} binds past ${driver.session.limits.variables} values, so it runs in a transaction`,
+            );
+        }
+        const statements: DriverStatement[] = [];
+        for (let start = 0; start < records.length; start += rows) {
+            statements.push(rendered(this.#sql(records.slice(start, start + rows))));
+        }
+
+        return statements;
     }
 
     /** Run the mutation and return the first changed row. */
@@ -286,21 +330,24 @@ export class MutationQuery<
                 WHERE ${column} IS NOT NULL ${filter}`;
         });
 
-        // retire them
+        // retire them, a membership test per column, as Durable Object SQLite joins five compound terms at most
+        const digest = sql.identifier("digest");
+        const retiring = selects.map((select) => sql`${digest} IN (${select})`);
+
         return sql`UPDATE ${BlobStore.table} SET ${sql.identifier("is_retired")} = ${true}
-            WHERE ${sql.identifier("digest")} IN (SELECT digest FROM (${sql.join(selects, sql` UNION `)}) AS retired)`;
+            WHERE ${sql.join(retiring, sql` OR `)}`;
     }
 
     /** Write the mutation as SQL. */
-    #sql(): SQL {
+    #sql(records: readonly WriteRecord[]): SQL {
         // write the statement in clauses
         const state = this.state;
         const table = state.table;
         const clauses: SQL[] = [];
 
-        // insert every written column, with defaults for the rest, refusing properties of no column
+        // insert every written column of the records, with defaults for the rest, refusing properties of no column
         if (state.operation === "insert") {
-            clauses.push(insertSQL(table, state.records));
+            clauses.push(insertSQL(table, records));
         }
         // update the matching rows
         else if (state.operation === "update") {

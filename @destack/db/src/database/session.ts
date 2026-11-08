@@ -8,6 +8,17 @@ import type { PostgresPool, PostgresReservation } from "../postgres/pool.ts";
 import type { DriverValue } from "../table/column.ts";
 import type { SqliteConnectionClient, SqliteQueryClient } from "../sqlite/client.ts";
 
+/** PostgreSQL's limits: 65,535 values its wire protocol counts in 16 bits, 1,664 target columns. */
+const POSTGRES_LIMITS: SqlLimits = { variables: 65_535, columns: 1_664 };
+
+/** The limits an engine sets on one statement, as SQLite's sqlite3_limit categories name them. */
+export interface SqlLimits {
+    /** The most values one statement binds, SQLITE_LIMIT_VARIABLE_NUMBER. */
+    readonly variables: number;
+    /** The most columns one select returns, SQLITE_LIMIT_COLUMN. */
+    readonly columns: number;
+}
+
 /** How a transaction isolates its reads and whether it writes. */
 export interface SessionTransaction {
     /** Whether the transaction only reads. */
@@ -20,6 +31,8 @@ export interface SessionTransaction {
 export interface Session {
     /** The SQL dialect. */
     readonly dialect: Dialect;
+    /** The limits the engine sets on one statement. */
+    readonly limits: SqlLimits;
     /** Read every row as an array of values, integers exact. */
     readonly values: (text: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */
@@ -42,6 +55,8 @@ export interface Session {
 export class SqliteSession implements Session {
     /** The SQL dialect. */
     readonly dialect = "sqlite";
+    /** The limits the client's engine sets on one statement. */
+    readonly limits: SqlLimits;
     /** The client running statements. */
     readonly client: SqliteQueryClient;
     /** The connection that starts transactions, absent inside one. */
@@ -57,6 +72,9 @@ export class SqliteSession implements Session {
         scheduler: Scheduler,
         depth?: number,
     ) {
+        // keep the engine's statement limits
+        this.limits = client.limits;
+
         // keep the client, the connection starting transactions outside one, the depth and the scheduler
         this.client = client;
         this.#connection = depth === undefined && "transactionAsync" in client ? client : undefined;
@@ -125,6 +143,8 @@ export type PostgresConnection =
 export class PostgresSession implements Session {
     /** The SQL dialect. */
     readonly dialect = "postgresql";
+    /** The limits PostgreSQL sets on one statement. */
+    readonly limits = POSTGRES_LIMITS;
     /** The pool, or the transaction's reserved connection and savepoint depth. */
     readonly connection: PostgresConnection;
     /** The schema every statement runs in. */
