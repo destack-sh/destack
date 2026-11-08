@@ -200,14 +200,15 @@ async function runRenderer(
     timeout: number,
     environment: Environment<"process">,
 ): Promise<void> {
-    // start the renderer without the host's environment
+    // start the renderer without the host's environment, keeping the user's path and home
     const { process } = environment;
     const renderer = fileURLToPath(import.meta.resolve("@destack/view/prerender"));
-    const path = process.variables["PATH"];
+    const { PATH: path, HOME: home } = process.variables;
     const child = process.spawn([process.executable, "run", "--no-env-file", renderer, directory], {
         workingDirectory: directory,
         variables: {
             ...(path === undefined ? {} : { PATH: path }),
+            ...(home === undefined ? {} : { HOME: home }),
             NO_COLOR: "1",
         },
         stdout: "pipe",
