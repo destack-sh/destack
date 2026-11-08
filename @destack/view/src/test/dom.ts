@@ -13,8 +13,8 @@ import { testBrowser, testWorld } from "./browser.ts";
 /** The class attributes StyleX writes, whose names hash the styles. */
 const CLASS_ATTRIBUTE = / class="[^"]*"/gu;
 
-/** The empty comments Solid places around conditional content. */
-const MARKER = /<!---->/gu;
+/** The comments Solid places around inserted content: empty, and hydration's open and close. */
+const MARKER = /<!--[$/]?-->/gu;
 
 /** The bodies of inline icons, which load on their own schedule. */
 const ICON_BODY = /(<svg[^>]*>).*?(<\/svg>)/gu;
@@ -184,13 +184,15 @@ export function focused(): string {
     return document.activeElement?.textContent ?? "";
 }
 
+/** Return a container's markup without the comments Solid places around inserted content. */
+export function unmarked(container: Element): string {
+    return container.innerHTML.replaceAll(MARKER, "");
+}
+
 /** Return a container's markup without classes, markers and icon bodies. */
 export function markup(container: Element): string {
-    // drop classes, markers and icon bodies
-    const html = container.innerHTML
-        .replaceAll(CLASS_ATTRIBUTE, "")
-        .replaceAll(MARKER, "")
-        .replaceAll(ICON_BODY, "$1$2");
+    // drop markers, classes and icon bodies
+    const html = unmarked(container).replaceAll(CLASS_ATTRIBUTE, "").replaceAll(ICON_BODY, "$1$2");
 
     // number each generated id by its first use
     const ids = new Map<string, string>();
