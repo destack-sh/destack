@@ -623,11 +623,8 @@ export class Deployment {
                 FORGE_INSTALLATION,
             );
             const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-            const client = createClient(registryPackage, { url, fetch }, environment);
 
             return {
-                client,
-                home,
                 accountId,
                 registry: new Registry(async () => ({ url, space: home, fetch }), environment),
             };
@@ -783,7 +780,7 @@ export class Deployment {
         await build.writeAssets(this.releases);
         print("release", `the Workers ship ${build.readers.length} releases`);
 
-        // deploy every script in order, the universe first and each tail before its machine
+        // deploy every script in order, the universe first and each machine before its tail
         const scripts = this.#scripts(outputs, outputsOf);
         const modules = await Deployment.#modules(build, declaration);
         for (const [script, configuration] of scripts) {
@@ -802,17 +799,6 @@ export class Deployment {
                 await script.smoke();
             }
         }
-
-        // publish the platform's releases into their accounts' forges under the stage's tag, which homes follow
-        await Publication.release(
-            build,
-            this.stage.tag,
-            this.#forges(custody, build),
-            async (reader) => {
-                const { name, version } = PackageManifest.package(reader.manifest);
-                print("publish", `${name}@${version}`);
-            },
-        );
     }
 
     /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */
@@ -965,13 +951,13 @@ export class Deployment {
         const script = new WorkerScript(this, { kind: "universe" });
         const scripts = [[script, script.universe(universe)] as const];
 
-        // configure each residency's tail before the cloud machine it reads the traces of
+        // configure each residency's cloud machine before the tail binding its objects
         for (const served of RESIDENCIES) {
             const tail = new WorkerScript(this, { kind: "tail", residency: served });
             const machine = new WorkerScript(this, { kind: "machine", residency: served });
             scripts.push(
-                [tail, tail.tail(served)],
                 [machine, machine.machine(residency(served), served)],
+                [tail, tail.tail(served)],
             );
         }
 

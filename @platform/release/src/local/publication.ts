@@ -9,8 +9,6 @@ import type { Machine } from "@destack/machine";
 import { PackageName } from "@destack/package";
 import { Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { InstallationMount, PackageMount } from "@destack/object";
-import { type ClientOf, createClient } from "@destack/object/client";
-import { RequestId } from "@destack/sync";
 import type { LocalBuild, PlatformBuild } from "../deployment/index.ts";
 
 /** The file in a state directory recording its published local releases. */
@@ -43,15 +41,11 @@ const Published = schema.object({
 /** The local releases a local universe published. */
 type Published = schema.Infer<typeof Published>;
 
-/** A forge a publication releases into, with the registry taking its builds. */
+/** A forge a publication releases into: its account and the registry calling it. */
 export interface ReleaseForge {
-    /** The forge's client. */
-    readonly client: ClientOf<typeof registryPackage>;
-    /** The publishing account's residency home, which serves the forge. */
-    readonly home: Identifier<"space">;
     /** The publishing account. */
     readonly accountId: Identifier<"account">;
-    /** The registry the forge receives builds at. */
+    /** The registry calling the account's forge. */
     readonly registry: Registry;
 }
 
@@ -152,54 +146,17 @@ export class Publication {
         const forges = new Map<string, Promise<ReleaseForge>>();
         for (const reader of build.readers) {
             // open the forge of the release's account once per handle
-            const { id, name, version } = PackageManifest.package(reader.manifest);
+            const { name } = PackageManifest.package(reader.manifest);
             const digest = await BuildStore.digest(reader.manifest, build.store.environment.crypto);
             const { handle } = PackageName.split(name);
             const opened = forges.get(handle) ?? open(handle);
             forges.set(handle, opened);
-            const { client, home, accountId, registry } = await opened;
-            const { environment } = build.store;
+            const { accountId, registry } = await opened;
 
-            // create the package once, and read the release the forge has at the version
-            await client.package.create({
-                spaceId: home,
-                requestId: RequestId.create(environment),
-                id,
-                accountId,
-                name: PackageName.split(name).local,
-            });
-            const listed = await client.release.list({
-                spaceId: home,
-                where: { parentId: id, version },
-                limit: 1,
-            });
-            const [published] = listed.items;
-
-            // push and release a version the forge lacks, under the tag
-            if (published === undefined) {
-                const manifest = await registry.push(build.store, digest);
-                await client.release.create({
-                    spaceId: home,
-                    requestId: RequestId.create(environment),
-                    parentId: id,
-                    manifest,
-                    tag,
-                });
+            // release the build under the tag, recording a version the forge lacked
+            const outcome = await registry.release(build.store, digest, accountId, tag);
+            if (outcome === "released") {
                 await released(reader, digest);
-            }
-            // refuse a version the forge has from another build
-            else if (published.manifest !== digest) {
-                throw new Error(`${name}@${version} is published from another build`);
-            }
-            // point the tag at a version the forge has from this build
-            else {
-                await client.package.point({
-                    spaceId: home,
-                    id,
-                    requestId: RequestId.create(environment),
-                    name: tag,
-                    version,
-                });
             }
         }
     }
@@ -240,11 +197,8 @@ export class Publication {
             const where = await directory.locate(home, environment.clock.now());
             const origin = InstallationMount.url(where.url, home, FORGE_INSTALLATION);
             const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-            const client = createClient(registryPackage, { url, fetch }, environment);
 
             return {
-                client,
-                home,
                 accountId,
                 registry: new Registry(async () => ({ url, space: home, fetch }), environment),
             };
