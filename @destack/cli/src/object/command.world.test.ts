@@ -158,8 +158,8 @@ test("offer every object type an installation lists as a noun, and refuse a word
         await refused(["card", "card-01996ab0-0000-7000-8000-0000000000d1"]),
         await refused(["archive:cards", "--json"]),
     ]).toEqual([
-        [2, "destack: cards is ambiguous: use one of work:cards, archive:cards"],
-        [2, "destack: card is ambiguous: use one of work:card, archive:card"],
+        [2, "destack: cards is ambiguous: use one of archive:cards, work:cards"],
+        [2, "destack: card is ambiguous: use one of archive:card, work:card"],
         [0, ""],
     ]);
 });

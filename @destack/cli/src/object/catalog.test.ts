@@ -102,7 +102,7 @@ test("find nouns by their words, qualifying the words several installations serv
     expect(await refusal(() => catalog.find("task"))).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "task is ambiguous: use one of work:task, home:task",
+        "task is ambiguous: use one of home:task, work:task",
     ]);
     expect(await refusal(() => catalog.find("machines"))).toEqual([
         "BAD_REQUEST",

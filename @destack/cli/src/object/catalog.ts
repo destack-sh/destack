@@ -390,13 +390,13 @@ export class Catalog {
 
     /** Find the noun of a word, plural or singular and qualified or alone. */
     find(word: string): Noun | undefined {
-        // refuse a word several nouns claim, listing their qualified words
+        // refuse a word several nouns claim, listing their qualified words in order
         const claimants = this.claimants(word);
         const [only, ...others] = claimants;
         if (others.length > 0) {
-            const qualified = claimants.map((noun) =>
-                noun.qualify(noun.lists(word) ? noun.plural : noun.name),
-            );
+            const qualified = claimants
+                .map((noun) => noun.qualify(noun.lists(word) ? noun.plural : noun.name))
+                .toSorted();
             throw CliError.of(
                 "USAGE_INVALID",
                 `${word} is ambiguous: use one of ${qualified.join(", ")}`,

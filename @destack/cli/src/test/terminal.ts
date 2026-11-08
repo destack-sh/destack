@@ -132,12 +132,13 @@ export class TerminalFixture {
         );
     }
 
-    /** Publish a fixture of the run into its account's forge from the home's machine. */
+    /** Publish a fixture of the run into its account's forge as the platform's operator. */
     async publish(fixture: string): Promise<void> {
         const build = await WorldDriver.fixture(fixture);
-        await this.computer.world.distribution.publish(
+        const { world } = this.computer;
+        await world.distribution.publish(
             build,
-            this.computer.machine,
+            await world.universe.operator(),
             this.computer.machine,
         );
     }
