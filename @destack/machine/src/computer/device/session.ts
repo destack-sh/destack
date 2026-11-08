@@ -5,7 +5,7 @@ import { setting, SettingValue } from "@destack/setting/object";
 import { spaceAliases } from "@destack/account/declare";
 import { HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
 import { GrantPermission, PermissionSet, principal } from "@destack/access";
-import { DOMAINS, InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
 import type { Login } from "@destack/account/native";
 import accountPackage from "@destack/account/package";
@@ -38,10 +38,6 @@ import { type Address, TARGET_PARAMETER, VIEW_KIND, ViewAddress } from "@destack
 import { MachineError } from "../../error/index.ts";
 import type { Device } from "./device.ts";
 import { Visit } from "./object/index.ts";
-import { HostAddress } from "@destack/environment";
-
-/** The domain of the installation origins a computer's machine serves on loopback. */
-export const LOOPBACK_DOMAIN = "localhost";
 
 /** The origin of a client before the machine it calls, never resolving (RFC 2606). */
 const UNRESOLVED_ORIGIN = "https://unresolved.invalid";
@@ -595,19 +591,12 @@ export class Session {
         return id.success ? id.data : SpaceAddress.parse(segment);
     }
 
-    /** Write an installation's origin: the loopback domain's on loopback, else the space's. */
+    /** Write an installation's origin wherever its space's machine answers. */
     static #origin(space: SpaceAddress, installation: string, endpoint: string): string {
-        // move a loopback endpoint's port below the loopback domain
-        const origin = { ...SpaceAddress.origin(space), name: installation };
-        const url = new URL(endpoint);
-        if (HostAddress.isLoopbackName(url.hostname)) {
-            url.hostname = InstallationOrigin.format(origin, LOOPBACK_DOMAIN);
-
-            return url.origin;
-        }
-
-        // name it one label below the space domain, wherever the space runs
-        return `https://${InstallationOrigin.format(origin, DOMAINS.space)}`;
+        return InstallationOrigin.url(
+            { ...SpaceAddress.origin(space), name: installation },
+            endpoint,
+        );
     }
 }
 

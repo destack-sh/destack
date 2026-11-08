@@ -56,7 +56,7 @@ import { DRAIN_TIMEOUT_MILLISECONDS, Machine, type MachineOptions } from "../mac
 import { Authenticator } from "./device/authentication/index.ts";
 import { Device } from "./device/device.ts";
 import { MachineError } from "../error/index.ts";
-import { LOOPBACK_DOMAIN } from "./device/session.ts";
+import { LOOPBACK_DOMAIN } from "@destack/account/address";
 import { ComputerServer } from "./server/index.ts";
 import { LocalSpaceStorage, S3_HOST } from "./storage.ts";
 import { computer, type MachineEnrollment, signIn, visit } from "./device/object/index.ts";
