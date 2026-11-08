@@ -1,5 +1,5 @@
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
-import { ScopeMove } from "@destack/object";
+import { RetryAfter, ScopeMove } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 
 /** The stack package's failures, each reason with the call error code it answers. */
@@ -107,7 +107,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
 
     // service unavailable
     CAPTURE_STOPPED: { code: "SERVICE_UNAVAILABLE" },
-    INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
+    INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE", data: RetryAfter },
     INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
     RESOURCE_UNPROVISIONED: { code: "SERVICE_UNAVAILABLE" },
     RESOURCE_UNBOUND: { code: "PRECONDITION_FAILED" },

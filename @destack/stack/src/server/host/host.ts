@@ -188,6 +188,11 @@ export interface SpaceServers {
     readonly servers: readonly PackageImplementation[];
     /** The sandboxes of the others' hooks. */
     readonly sandboxes: readonly HookSandbox[];
+    /** The revision of each installation the start serves, leaving out one that failed to load. */
+    readonly revisions: ReadonlyMap<
+        Identifier<"installation">,
+        Identifier<"installation-revision">
+    >;
 }
 
 /** An installation's server as one start serves it: its load, and its server or sandbox. */
@@ -497,6 +502,10 @@ export class SpaceHost {
         const entries = new Map<string, ServedEntry>();
         const servers: PackageImplementation[] = [];
         const sandboxes: HookSandbox[] = [];
+        const revisions = new Map<
+            Identifier<"installation">,
+            Identifier<"installation-revision">
+        >();
         for (const [index, entry] of installed.entries()) {
             const key = present(keys[index], "the installation's key");
             const load = present(
@@ -507,6 +516,11 @@ export class SpaceHost {
                 earlier.get(key)?.served ??
                 (await this.#serve(entry, load, { start, signal, trusted }));
             entries.set(key, { load, served });
+
+            // record the revision of each installation the start serves, in its store or its sandbox
+            if (served !== undefined) {
+                revisions.set(entry.rollout.installationId, entry.revisionId);
+            }
             if (served?.kind === "server") {
                 servers.push(served.server);
             } else if (served?.kind === "sandbox") {
@@ -515,7 +529,7 @@ export class SpaceHost {
         }
         this.#served = { signal, entries };
 
-        return { servers, sandboxes };
+        return { servers, sandboxes, revisions };
     }
 
     /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */

@@ -13,6 +13,7 @@ import {
     and,
     type DatabaseConnection,
     eq,
+    isNotNull,
     isNull,
     Snapshot,
     type Select,
@@ -44,6 +45,9 @@ import { Binding } from "./binding.ts";
 
 /** The name of the installation applying a space's stack from its creation. */
 export const STACK_INSTALLATION = "stack";
+
+/** The milliseconds a caller waits for an installation not served yet: a deploy takes seconds. */
+const NOT_SERVED_RETRY_MILLISECONDS = 1000;
 
 /** The revision namespace: the DNS namespace's UUIDv8 of installation-revision.destack.app. */
 const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
@@ -614,7 +618,7 @@ export const Rollout = {
         };
     },
 
-    /** Read an installation a machine serves now. */
+    /** Read an installation a machine serves now, at a revision its space records as served. */
     async findServed(
         database: DatabaseConnection,
         id: Identifier<"installation">,
@@ -624,7 +628,14 @@ export const Rollout = {
             .from(rollout.table)
             .innerJoin(installation.table, joinedInstallation())
             .innerJoin(space.table, eq(space.table.id, rollout.table.scope))
-            .where(and(eq(rollout.table.installationId, id), Space.served(), launchable()));
+            .where(
+                and(
+                    eq(rollout.table.installationId, id),
+                    isNotNull(rollout.table.servedRevisionId),
+                    Space.served(),
+                    launchable(),
+                ),
+            );
 
         return joined === undefined ? undefined : Rollout.join(joined.rollout, joined.installation);
     },
@@ -684,6 +695,7 @@ export const Rollout = {
             throw StackError.of(
                 "INSTALLATION_NOT_SERVED",
                 `installation ${installed.installation} in this space is not served yet`,
+                { data: { retryAfter: NOT_SERVED_RETRY_MILLISECONDS } },
             );
         }
         // refuse an installation this machine does not have
@@ -816,13 +828,13 @@ export const InstallationRevision = {
     },
 };
 
-/** Determine whether a space's stack is still in its pass, which creates its installations. */
+/** Determine whether a space's stack may still create installations, before or during a pass. */
 async function isStackPending(database: DatabaseConnection, spaceId: string): Promise<boolean> {
     const stack = await Snapshot.live(database)
         .read(installation.table)
         .findFirst({ where: { scope: spaceId, name: STACK_INSTALLATION } });
 
-    return stack !== undefined && Observation.progress(stack) !== "current";
+    return stack === undefined || Observation.progress(stack) === "waiting";
 }
 
 /** Match the installations a machine launches: enabled, and their rollouts not being deleted. */

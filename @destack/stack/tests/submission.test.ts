@@ -28,6 +28,9 @@ import { BuildStore } from "@destack/build/store";
 import stackPackage, { STACK_INSTALLATION } from "../src/package.ts";
 import { RolloutTarget } from "../src/server/installation/target.ts";
 
+/** A space whose stack this machine has not applied yet. */
+const UNAPPLIED_SPACE = "space-01996ab0-0000-7000-8000-0000000000f4";
+
 /** The checkout the stack follows. */
 const selection = {
     kind: "checkout" as const,
@@ -610,7 +613,7 @@ test("open the build each package's installation in a space follows, and none fo
 });
 
 test("serve the installation of a call at its mount by its identifier or its name, refusing a name no installation has, a suspended one, and one while the stack applies", async () => {
-    // install notes in the space
+    // install notes from its checkout's build, applied and served as the machine's start serves it
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const serving = await fixture.serve();
@@ -622,8 +625,23 @@ test("serve the installation of a call at its mount by its identifier or its nam
         selection,
         name: "notes",
     });
+    const recorded = await fixture.recordBuild(
+        await fixtureBuild(ids.package, "2026.9.0", fixture.environment.crypto),
+    );
+    await serving
+        .as(fixture.owner.subject)
+        .client(stackPackage)
+        .rollout.submit({
+            spaceId: ids.space,
+            id: notes.id,
+            requestId: RequestId.create(fixture.machine.environment),
+            selection,
+            build: recorded,
+        });
+    await reconcile(serving.store, "rollout", { installationId: notes.id });
+    await fixture.serveInstalled(serving.store, ids.space);
 
-    // read it by its identifier and its name, and refuse another name and a path naming no space
+    // read it by its identifier and its name, refuse another name, and answer a space before its first stack pass to wait
     const served = async (spaceId: string, named: string) =>
         refusal(
             Rollout.requireServed(database, { spaceId, installation: named }).then(
@@ -642,7 +660,7 @@ test("serve the installation of a call at its mount by its identifier or its nam
         byId.installationId,
         byName.installationId,
         await served(ids.space, "tasks"),
-        await served("nowhere", "notes"),
+        await served(UNAPPLIED_SPACE, "notes"),
     ]).toEqual([
         notes.id,
         notes.id,
@@ -652,9 +670,9 @@ test("serve the installation of a call at its mount by its identifier or its nam
             "this machine does not serve installation tasks in this space",
         ],
         [
-            "NOT_FOUND",
-            "INSTALLATION_NOT_HERE",
-            "this machine does not serve installation notes in this space",
+            "SERVICE_UNAVAILABLE",
+            "INSTALLATION_NOT_SERVED",
+            "installation notes in this space is not served yet",
         ],
     ]);
 
@@ -663,7 +681,7 @@ test("serve the installation of a call at its mount by its identifier or its nam
         scope: ids.space,
         id: notes.id,
         requestId: RequestId.create(fixture.machine.environment),
-        revision: notes.revision,
+        revision: (await readInstalled(database, notes.id)).installation.revision,
         status: "suspended",
     });
     expect(await served(ids.space, "notes")).toEqual([

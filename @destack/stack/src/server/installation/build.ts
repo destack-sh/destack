@@ -3,7 +3,7 @@ import { principal } from "@destack/access";
 import { and, eq, Projection, Snapshot } from "@destack/db";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "../../setting/index.ts";
-import { type BrowserClosure, type ManifestRead, BuildStore } from "@destack/build/store";
+import { type ImportClosure, type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
@@ -261,8 +261,8 @@ export class SpaceBuildStore {
     readonly space: BuildStore;
     /** The machine's cache of what it runs. */
     readonly cache: BuildCache;
-    /** The browser closure of each build served so far, by build and base path. */
-    readonly #browsers = new Map<string, Promise<BrowserClosure>>();
+    /** The closure of each build mapped so far, by build, runtime and base path. */
+    readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The builds opened so far, by manifest, each opened once as a build never changes. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
@@ -351,17 +351,17 @@ export class SpaceBuildStore {
         };
     }
 
-    /** Map a browser output's imports to files below a base path, builtins at their linked ones. */
-    browser(manifest: Digest, base: string): Promise<BrowserClosure> {
-        // map each build once, as builds never change
-        const key = `${manifest} ${base}`;
-        let found = this.#browsers.get(key);
+    /** Map a build's imports on a runtime below a base path, builtins at their linked releases. */
+    imports(manifest: Digest, runtime: Runtime, base: string): Promise<ImportClosure> {
+        // map each build once per runtime and base, as builds never change
+        const key = `${manifest} ${runtime} ${base}`;
+        let found = this.#closures.get(key);
         if (found === undefined) {
-            found = this.cache.store.browser(manifest, base, this.cache.linked, (digest) =>
+            found = this.cache.store.imports(manifest, runtime, base, this.cache.linked, (digest) =>
                 this.get(digest),
             );
-            this.#browsers.set(key, found);
-            found.catch(() => this.#browsers.delete(key));
+            this.#closures.set(key, found);
+            found.catch(() => this.#closures.delete(key));
         }
 
         return found;
