@@ -9,6 +9,13 @@ export const PLATFORM = {
     handle: "destack",
     residencyId: "eu",
     publishers: ["platform"],
+    // publish the platform's releases from the release workflow's production environment
+    trustedPublishers: [
+        {
+            issuer: "https://token.actions.githubusercontent.com",
+            subject: "repo:destack-sh/destack:environment:production",
+        },
+    ],
     reserved: [
         // platform nouns
         "universe",
@@ -133,5 +140,11 @@ export const PLATFORM = {
     transfers: {},
 } as const satisfies Pick<
     PlatformDefinition,
-    "name" | "handle" | "residencyId" | "publishers" | "reserved" | "transfers"
+    | "name"
+    | "handle"
+    | "residencyId"
+    | "publishers"
+    | "trustedPublishers"
+    | "reserved"
+    | "transfers"
 >;
