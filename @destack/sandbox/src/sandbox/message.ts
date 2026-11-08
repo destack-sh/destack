@@ -28,8 +28,8 @@ export type SandboxOptions = schema.Infer<typeof SandboxOptions>;
 export const SandboxExit = schema.object({
     /** Exit code, absent when a signal terminates the process. */
     code: schema.int().nullable(),
-    /** Terminating signal, absent after a normal exit. */
-    signal: schema.string().min(1).nullable(),
+    /** The signal that ended it, by name or by number if it has none, absent otherwise. */
+    signal: schema.union([schema.string().min(1), schema.int()]).nullable(),
 });
 /** Process termination reported after sandbox cleanup. */
 export type SandboxExit = schema.Infer<typeof SandboxExit>;
