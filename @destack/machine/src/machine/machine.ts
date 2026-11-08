@@ -1,6 +1,7 @@
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS } from "@destack/account/address";
-import type { Enrollment, MachineIdentity, TokenIssuer, TokenScope } from "@destack/account/client";
+import type { Enrollment, MachineIdentity } from "@destack/account/client";
+import type { TokenBinding } from "@destack/account/native";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
@@ -345,7 +346,7 @@ export class Machine {
     }
 
     /** Create a fetch calling a package as this machine, in a space when given. */
-    fetch(audience: PackageId, binding: TokenScope = {}): Fetch {
+    fetch(audience: PackageId, binding: Pick<TokenBinding, "partition"> = {}): Fetch {
         return async (request) => {
             const enrollment = await this.enrolled("calling packages");
 
@@ -997,7 +998,11 @@ export class Machine {
     }
 
     /** Wrap the machine's network to call a package as the machine. */
-    #fetchAs(enrollment: MachineEnrollment, audience: PackageId, binding: TokenScope = {}): Fetch {
+    #fetchAs(
+        enrollment: MachineEnrollment,
+        audience: PackageId,
+        binding: Pick<TokenBinding, "partition"> = {},
+    ): Fetch {
         return this.identity.fetch(
             (request) => this.send(request),
             audience,
@@ -1007,8 +1012,8 @@ export class Machine {
     }
 
     /** Read the issuer of this machine's tokens: its universe's account package oauth adapter. */
-    static #issuer(enrollment: MachineEnrollment): TokenIssuer {
-        return { url: `${PackageMount.url(enrollment.issuer, accountPackage.id)}${OAUTH_PATH}` };
+    static #issuer(enrollment: MachineEnrollment): string {
+        return `${PackageMount.url(enrollment.issuer, accountPackage.id)}${OAUTH_PATH}`;
     }
 
     /** Read this machine's valid enrollment, absent before it enrolls and after a revoke. */

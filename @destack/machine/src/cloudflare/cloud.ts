@@ -298,7 +298,7 @@ export class CloudMachine {
                 fetch: this.identity.fetch(
                     (request) => this.environment.network.fetch(request),
                     accountPackage.id,
-                    { url: this.issuer },
+                    this.issuer,
                 ),
             },
             this.environment,

@@ -764,9 +764,7 @@ test(
         ]).toEqual([computer.machine.id, [{ target: peer.machine.id }]]);
 
         // grant the peer tokens in the universe, the moving space and the other space it does not receive
-        const issuer = {
-            url: `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
-        };
+        const issuer = `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`;
         const grant = (binding: { readonly partition?: Identifier<"space"> }) =>
             peer.machine.identity.token(
                 stackPackage.id,
@@ -895,9 +893,7 @@ test(
                 fetch: machine.identity.fetch(
                     (request) => device.environment.network.fetch(request),
                     accountPackage.id,
-                    {
-                        url: `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
-                    },
+                    `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
                 ),
             },
             device.environment,
