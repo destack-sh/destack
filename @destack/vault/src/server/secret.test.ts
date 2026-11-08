@@ -227,6 +227,97 @@ test("refuse writing a version with a past expiry and reading an expired version
     ]);
 });
 
+test("rotate to a given value, keeping the rotated-out version live through its overlap and earlier history out of the live versions", async () => {
+    const fixture = await TestVault.open();
+    const caller = await fixture.elevated();
+    const client = caller.client(vaultPackage);
+    const { key, request } = await fixture.createSecret(caller);
+
+    // add a second version as history, then rotate to a third with a minute's overlap
+    const second = await client.version.create({
+        ...request,
+        requestId: RequestId.create(fixture.environment),
+    });
+    await fixture.point(caller, key, second.number);
+    const rotatedAt = fixture.clock.now();
+    const value = { encoding: "text" as const, value: "rotated" };
+    await client.secret.rotate({
+        ...key,
+        requestId: RequestId.create(fixture.environment),
+        value,
+        expiresIn: { minutes: 1 },
+    });
+    const during = await client.secret.versions(key);
+
+    // drop the rotated-out version once its overlap ends
+    await fixture.space.simulation.run(rotatedAt + Duration.milliseconds({ minutes: 1 }));
+    const after = await client.secret.versions(key);
+
+    // refuse rotating without a value a secret written as given, which has no algorithm
+    const refused = await refusal(
+        client.secret.rotate({ ...key, requestId: RequestId.create(fixture.environment) }),
+    );
+
+    expect({ during, after, refused }).toEqual({
+        during: [
+            { version: 3, value },
+            { version: 2, value: CREDENTIAL },
+        ],
+        after: [{ version: 3, value }],
+        refused: [
+            "BAD_REQUEST",
+            "VALUE_REQUIRED",
+            "a secret without an algorithm rotates to a given value",
+        ],
+    });
+});
+
+test("rotate a generated secret to a new value of its algorithm, a capture of it using the version retiring beside it", async () => {
+    // install the application with a key the space generates, then rotate it as the owner
+    const fixture = await TestVault.open({ secrets: [KEY] });
+    const { database } = fixture.served;
+    const row = single(await database.select().from(secret.table));
+    const key = { scope: ids.space, id: row.id };
+    const client = (await fixture.elevated()).client(vaultPackage);
+    const [first] = await client.secret.versions(key);
+    await client.secret.rotate({ ...key, requestId: RequestId.create(fixture.environment) });
+    const rotated = await client.secret.versions(key);
+
+    // read what a capture of the new version uses
+    const versions = await database
+        .select()
+        .from(secretVersion.table)
+        .orderBy(secretVersion.table.number);
+    const uses = await secretBindable.uses(
+        { scope: ids.space, target: row.id, version: 2 },
+        Snapshot.live(database),
+    );
+
+    // generate signing keys, keeping the first live for a day beside the new one
+    const texts = rotated.map((reading) => reading.value.value);
+    const Jwk = schema.looseObject({ alg: schema.string() });
+    expect({
+        algorithm: single(await database.select().from(secret.table)).algorithm,
+        versions: rotated.map((reading) => reading.version),
+        algorithms: texts.map((text) => Jwk.parse(JSON.parse(text)).alg),
+        kept: rotated[1]?.value.value === first?.value.value,
+        isNew: texts[0] !== texts[1],
+        uses,
+    }).toEqual({
+        algorithm: "ES256",
+        versions: [2, 1],
+        algorithms: ["ES256", "ES256"],
+        kept: true,
+        isNew: true,
+        uses: [
+            secret.reference(ids.space, row.id),
+            ...[versions[1], versions[0]].map((version) =>
+                secretVersion.reference(ids.space, String(version?.id)),
+            ),
+        ],
+    });
+});
+
 test("purge a deleted secret at once or when its window ends, destroying its values and keeping its records", async () => {
     const fixture = await TestVault.open();
     const client = fixture.owner.client(vaultPackage);
@@ -306,14 +397,14 @@ test("purge a deleted secret at once or when its window ends, destroying its val
     });
 });
 
-test("refuse deleting a secret while its installation binds it", async () => {
+test("refuse deleting a secret its installation's declaration manages", async () => {
     // install the application with a key generated in its vault, bound to the installation
     const fixture = await TestVault.open({ secrets: [KEY] });
     const client = fixture.owner.client(vaultPackage);
     const bound = single(await fixture.served.database.select().from(secret.table));
     const current = await client.secret.get({ scope: ids.space, id: bound.id });
 
-    // refuse the deletion while bound
+    // refuse the deletion, which the installation's declaration alone retires
     const refused = await refusal(
         client.secret.delete({
             scope: ids.space,
@@ -322,7 +413,11 @@ test("refuse deleting a secret while its installation binds it", async () => {
             requestId: RequestId.create(fixture.environment),
         }),
     );
-    expect(refused).toEqual(["CONFLICT", "BOUND", `${bound.id} is in use: bound by application`]);
+    expect(refused).toEqual([
+        "CONFLICT",
+        "MANAGED",
+        "secret is managed by its declaration: detach it before changing it",
+    ]);
 });
 
 test("refuse reading a version whose stored value was copied from another version", async () => {
@@ -538,20 +633,14 @@ test("read a bound secret in process as its installation, and refuse another ins
     });
 });
 
-test("fail installing a key generated in a vault the installation binds nowhere", async () => {
+test("fail installing a key generated in a vault the installation declares nowhere", async () => {
     // install the application declaring a key generated in a vault it lacks, and read the installation's failures
     const lost = defineSecret(
         { name: "key", generated: { vault: "mail", algorithm: "ES256" } },
         { package: APPLICATION },
     );
     const refused = await TestSpace.refusals(TestVault.open({ secrets: [lost] }));
-    expect(refused).toEqual([
-        [
-            "BAD_REQUEST",
-            "VAULT_UNBOUND",
-            "secret key is in vault mail, which the installation does not bind",
-        ],
-    ]);
+    expect(refused).toEqual([["BAD_REQUEST", "DECLARATION_INVALID", "unknown vault: mail"]]);
 });
 
 test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {

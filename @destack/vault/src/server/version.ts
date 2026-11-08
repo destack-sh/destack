@@ -56,6 +56,61 @@ export const SecretVersion = {
         };
     },
 
+    /** Read a secret's selected version and the earlier ones still retiring, newest first. */
+    async versions(
+        target: RowImage<typeof secret.table>,
+        version: number | undefined,
+        context: MethodContext,
+    ): Promise<SecretReading[]> {
+        // read the selected version as the caller may read it
+        const selected = await SecretVersion.read(target, version, context);
+
+        // read the earlier versions still retiring, which a caller reading the secret or each version reads
+        const earlier = await context.reveal(secretVersion).findMany({
+            where: { parentId: target.id, number: { lt: selected.version } },
+        });
+        const retiring = earlier.filter((row) => SecretVersion.isRetiring(row, context.now));
+        const isWhole = (
+            await context.check(
+                secret.permission("read"),
+                secret.reference(context.scope, target.id),
+            )
+        ).isAllowed;
+        const readable = isWhole
+            ? retiring.map((row) => [row])
+            : await Promise.all(
+                  retiring.map(async (row) => {
+                      const check = await context.check(
+                          secretVersion.permission("read"),
+                          secretVersion.reference(context.scope, row.id),
+                      );
+
+                      return check.isAllowed ? [row] : [];
+                  }),
+              );
+
+        // answer them newest first
+        const readings = readable
+            .flat()
+            .toSorted((left, right) => right.number - left.number)
+            .map((row) => ({
+                version: row.number,
+                value: SecretVersion.requireReadable(row, context.now),
+            }));
+
+        return [selected, ...readings];
+    },
+
+    /** Report whether a version is retiring: intact, enabled and readable until a later expiry. */
+    isRetiring(version: SecretVersion, now: number): boolean {
+        return (
+            version.content !== null &&
+            version.state === "enabled" &&
+            version.expiresAt !== null &&
+            version.expiresAt > now
+        );
+    },
+
     /** Refuse destroying a version already destroyed or one a live deployment runs with. */
     async requireReleased(reader: Pick<Snapshot, "read">, version: SecretVersion): Promise<void> {
         SecretVersion.requireIntact(version);

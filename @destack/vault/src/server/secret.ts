@@ -1,13 +1,13 @@
 import { SECRET_KIND } from "@destack/stack/declare";
 import { AccessContext, Caller, principal } from "@destack/access";
-import { schema } from "@destack/schema";
+import { Duration, nth, schema } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
 import type { ObjectBindable } from "@destack/stack/server";
 import { VAULT_PROVIDER } from "../declare/kind.ts";
 import { SecretDescription } from "../declare/secret.ts";
-import { secret, secretVersion } from "../object/index.ts";
+import { ROTATION_OVERLAP, secret, secretVersion } from "../object/index.ts";
 import { SecretVersion } from "./version.ts";
-import { type Secret, SecretReading } from "@destack/resource";
+import { type Secret, SecretReading, type SecretValue } from "@destack/resource";
 import { SecretGeneration } from "../secret/secret.ts";
 import { VAULT_REFERENCE } from "../provider/provider.ts";
 import { VaultError } from "../error/error.ts";
@@ -39,15 +39,53 @@ export function implementSecret(): typeof secret {
                 }
 
                 // store the generated value as its first version, and point the current alias at it
-                const value = await SecretGeneration.generate(
-                    call.input.algorithm,
-                    call.environment.crypto,
-                );
+                const { algorithm } = call.input;
+                const value = await SecretGeneration.generate(algorithm, call.environment.crypto);
                 const [created] = await call.mutate(call.caller, [
                     secretVersion.call("create", { parentId: target.id, value }),
                 ]);
 
-                return call.update({ currentVersion: created.number });
+                return call.update({ currentVersion: created.number, algorithm });
+            },
+            versions: (call) => SecretVersion.versions(call.target, call.input.version, call),
+            rotate: async (call) => {
+                // choose the new value
+                const { target } = call;
+                const { value, expiresIn = ROTATION_OVERLAP } = call.input;
+                let next: SecretValue;
+                // take the given value
+                if (value !== undefined) {
+                    next = value;
+                }
+                // generate one by the secret's algorithm
+                else if (target.algorithm !== null) {
+                    next = await SecretGeneration.generate(
+                        target.algorithm,
+                        call.environment.crypto,
+                    );
+                }
+                // refuse a secret without one
+                else {
+                    throw VaultError.of(
+                        "VALUE_REQUIRED",
+                        "a secret without an algorithm rotates to a given value",
+                    );
+                }
+
+                // retire the current version after the overlap, and make the new one current
+                const expiresAt = call.now + Duration.milliseconds(expiresIn);
+                const current =
+                    target.currentVersion === null
+                        ? undefined
+                        : await SecretVersion.find(call, target.id, target.currentVersion);
+                const written = await call.mutate(call.caller, [
+                    ...(current === undefined
+                        ? []
+                        : [secretVersion.call("expire", { id: current.id, expiresAt })]),
+                    secretVersion.call("create", { parentId: target.id, value: next }),
+                ]);
+
+                return call.update({ currentVersion: nth(written, -1).number });
             },
             update: async (call, next) => {
                 // refuse unsetting the current alias, and require the version it moves to to be readable
@@ -118,6 +156,16 @@ export function implementSecretVersion(): typeof secretVersion {
 
                 return next(call.with({ id, input: { ...call.input, content: bound } }));
             },
+            expire: async (call) => {
+                // refuse an expiry in the past, and a destroyed version
+                SecretVersion.requireIntact(call.target);
+                const { expiresAt } = call.input;
+                if (expiresAt <= call.now) {
+                    throw VaultError.of("EXPIRY_IN_PAST", "secret expiry must be in the future");
+                }
+
+                return call.update({ expiresAt });
+            },
             disable: async (call) => {
                 SecretVersion.requireIntact(call.target);
 
@@ -147,31 +195,22 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
     declaration: SECRET_KIND,
     provider: VAULT_PROVIDER,
     reference: VAULT_REFERENCE,
-    provision: async (call, declarer, _target, need, bindings) => {
+    declare: (need, bindings) => {
         // leave a secret without generation to the stack binding it
         const generated = SecretDescription.generation(need);
         if (generated === undefined) {
             return undefined;
         }
 
-        // require the installation's binding of the package's vault keeping it
+        // declare it in the vault the installation's stack binds, else in the vault it declares itself
         const holding = bindings.find(
             (entry) => entry.packageId === need.package.id && entry.name === generated.vault,
         );
-        if (holding === undefined) {
-            throw VaultError.of(
-                "VAULT_UNBOUND",
-                `secret ${need.name} is in vault ${generated.vault}, which the installation does not bind`,
-            );
-        }
 
-        // create the secret under the identifier its binding takes, stable across retries, as the declarer
-        const id = await call.generateId(secret);
-        await call.mutate(declarer, [
-            secret.call("provision", { id, parentId: holding.target, name: need.name }),
-        ]);
-
-        return id;
+        return {
+            name: need.name,
+            parent: holding === undefined ? generated.vault : { id: holding.target },
+        };
     },
     ready: async (call, bound, need) => {
         // read the bound secret and how its declaration generates it
@@ -197,23 +236,28 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
             ]);
         }
     },
-    connect: async (serving, row, bound) => ({
-        read: async () => {
-            // read the version the binding captured as the installation, once the store serves
+    connect: async (serving, row, bound) => {
+        // read the captured version, alone or with the retiring ones
+        const query = async (method: "read" | "versions") => {
+            // read as the installation, once the store serves
             const store = await serving;
             const id = secret.identifier(bound.target);
             const reader = principal.installation.reference(row.scope, row.installationId);
-            const read = await store.query(
+
+            return store.query(
                 AccessContext.of(Caller.of(reader), store.clock.now()),
-                secret.call("read", {
+                secret.call(method, {
                     ...secret.target({ scope: row.scope, id }),
                     ...(bound.version === null ? {} : { version: bound.version }),
                 }),
             );
+        };
 
-            return SecretReading.parse(read);
-        },
-    }),
+        return {
+            read: async () => SecretReading.parse(await query("read")),
+            versions: async () => schema.array(SecretReading).parse(await query("versions")),
+        };
+    },
     version: (target, pin) => pin ?? target.currentVersion,
     uses: async (captured, snapshot) => {
         // use only the secret before its first version
@@ -222,22 +266,27 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
             return [secret.reference(captured.scope, secretId)];
         }
 
-        // require the captured version
-        const [version] = await snapshot.read(secretVersion.table).findMany({
-            where: {
-                parentId: secretId,
-                number: captured.version,
-            },
+        // require the captured version, and use the earlier ones retiring with an expiry beside it
+        const number = captured.version;
+        const versions = await snapshot.read(secretVersion.table).findMany({
+            where: { parentId: secretId, number: { lte: number } },
         });
+        const version = versions.find((entry) => entry.number === number);
         if (version === undefined) {
             throw new TypeError(
-                `secret ${secretId} has no version ${captured.version}, which its capture references`,
+                `secret ${secretId} has no version ${number}, which its capture references`,
             );
         }
+        const retiring = versions.filter(
+            (entry) =>
+                entry.number < number && entry.state === "enabled" && entry.expiresAt !== null,
+        );
 
         return [
             secret.reference(captured.scope, secretId),
-            secretVersion.reference(captured.scope, version.id),
+            ...[version, ...retiring].map((entry) =>
+                secretVersion.reference(captured.scope, entry.id),
+            ),
         ];
     },
 };

@@ -53,6 +53,10 @@ export const secretConnector: Connector<Secret> = {
 
         return {
             read: async () => SecretReading.parse(await client.secret.read({ scope, id, version })),
+            versions: async () =>
+                schema
+                    .array(SecretReading)
+                    .parse(await client.secret.versions({ scope, id, version })),
             [Symbol.asyncDispose]: async () => {},
         };
     },

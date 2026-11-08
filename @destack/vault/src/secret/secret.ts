@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { SecretReading, type SecretValue } from "@destack/resource";
 
-/** The algorithms a space generates a secret's first version with. */
+/** The algorithms generating a secret's values: a signing key. */
 export const SECRET_ALGORITHMS = ["ES256"] as const;
 
 /** An algorithm a space generates a secret's first version with. */
@@ -22,7 +22,7 @@ export const SecretGeneration = Object.assign(
         algorithm: schema.enum(SECRET_ALGORITHMS),
     }),
     {
-        /** Generate a secret's first value with an algorithm: a private JSON Web Key. */
+        /** Generate a value with an algorithm: a private JSON Web Key. */
         async generate(algorithm: SecretAlgorithm, crypto: Crypto): Promise<SecretValue> {
             const keys = await crypto.generateKey(ES256, true, ["sign", "verify"]);
             const jwk = await crypto.exportKey("jwk", keys.privateKey);
