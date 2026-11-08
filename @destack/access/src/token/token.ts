@@ -26,6 +26,8 @@ export const MACHINE_KEY = "machine-key";
 export const INSTALLATION_KEY = "installation-key";
 /** The credential kind of a space's key. */
 export const SPACE_KEY = "space-key";
+/** The credential kind of a token an OIDC issuer signs for a workload an account trusts. */
+export const FEDERATED_TOKEN = "federated-token";
 /** A partition a token is bound to: a space, an account, a machine or a device. */
 export const PartitionId = schema.union([
     schema.identifier("space"),
