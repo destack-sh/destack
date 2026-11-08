@@ -36,7 +36,7 @@ export const RUNTIME_SUPPORT: Readonly<
 /** How an instance's workload ended unasked: its exit code, its signal or its runtime's failure. */
 export type InstanceExit =
     | { readonly code: number }
-    | { readonly signal: string }
+    | { readonly signal: string | number }
     | { readonly failure: string };
 
 /** Describe an instance's exit, as a condition states it. */
