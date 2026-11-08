@@ -1,4 +1,4 @@
-import { PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import { BuildStore } from "@destack/build/store";
@@ -7,16 +7,9 @@ import { FORGE_INSTALLATION } from "@destack/forge/package";
 import registryPackage from "@destack/registry/package";
 import type { Machine } from "@destack/machine";
 import { PackageName } from "@destack/package";
-import {
-    Digest,
-    type Identifier,
-    type UuidEnvironment,
-    present,
-    schema,
-    Version,
-} from "@destack/schema";
+import { Digest, type Identifier, present, schema, Version } from "@destack/schema";
 import { InstallationMount, PackageMount } from "@destack/object";
-import { createClient, type ClientOf } from "@destack/object/client";
+import { type ClientOf, createClient } from "@destack/object/client";
 import { RequestId } from "@destack/sync";
 import type { LocalBuild, PlatformBuild } from "../deployment/index.ts";
 
@@ -27,10 +20,10 @@ const FILE = "publication.json";
 const LOCAL_VERSION = /^(.+)-dev\.(\d+)$/u;
 
 /** How long a started machine's directory replica may take to sync: a minute. */
-const DIRECTORY_SYNC_MILLISECONDS = 60_000;
+export const DIRECTORY_SYNC_MILLISECONDS = 60_000;
 
 /** How long a fresh residency home may take to serve its forge from cached builds, in ms. */
-const HOME_SERVE_MILLISECONDS = 30_000;
+export const HOME_SERVE_MILLISECONDS = 30_000;
 
 /** The local releases a local universe published, as its state directory records them. */
 const Published = schema.object({
@@ -50,13 +43,20 @@ const Published = schema.object({
 /** The local releases a local universe published. */
 type Published = schema.Infer<typeof Published>;
 
-/** The forge of a residency home: its service, and its registry receiving builds. */
-interface Forge {
-    /** The forge service, as the publishing machine in the home. */
-    readonly service: ClientOf<typeof registryPackage>;
+/** A forge a publication releases into, with the registry taking its builds. */
+export interface ReleaseForge {
+    /** The forge's client. */
+    readonly client: ClientOf<typeof registryPackage>;
+    /** The publishing account's residency home, which serves the forge. */
+    readonly home: Identifier<"space">;
+    /** The publishing account. */
+    readonly accountId: Identifier<"account">;
     /** The registry the forge receives builds at. */
     readonly registry: Registry;
 }
+
+/** Open the forge of a handle's account, as a machine publishing in its residency's home. */
+export type ForgeOpen = (handle: string) => Promise<ReleaseForge>;
 
 /** The local releases a local universe's state directory published into its forges. */
 export class Publication {
@@ -125,59 +125,130 @@ export class Publication {
     async publish(
         build: PlatformBuild,
         tag: string,
-        machine: Machine,
+        open: ForgeOpen,
         print: (line: string) => void,
     ): Promise<Publication> {
-        // resolve handles in the machine's synced replica of the directory, and homes at the universe
-        await machine.synced(machine.environment.clock.timeout(DIRECTORY_SYNC_MILLISECONDS));
-        const { directory } = machine;
-        const residencies = (await machine.accounts()).residency;
-        const forges = new Map<string, Forge>();
-
-        // publish each release into the forge of its scope's account, once per manifest
+        // release each build, recording the local version it landed at, so a run failing midway goes on from it
         const packages = { ...this.#published.packages };
-        for (const reader of build.readers) {
-            // leave a release this universe published already
-            const { id, name, version } = PackageManifest.package(reader.manifest);
-            const digest = await BuildStore.digest(reader.manifest, machine.environment.crypto);
-            if (packages[name]?.manifest === digest) {
-                continue;
-            }
-
-            // find the account of the release's scope and the forge of its residency's home
-            const parsed = PackageName.split(name);
-            const accountId = present(await directory.account(parsed.handle), `@${parsed.handle}`);
-            const home = await residencies.locate({ account: accountId });
-            const forge =
-                forges.get(home) ??
-                (await Publication.#forge(machine, schema.identifier("space").parse(home), print));
-            forges.set(home, forge);
-
-            // create the package once, push its build and release it under the tag
-            await Publication.#createPackage(
-                forge.service,
-                home,
-                accountId,
-                { id, local: parsed.local },
-                machine.environment,
-            );
-            const manifest = await forge.registry.push(build.store, digest);
-            await forge.service.release.create({
-                spaceId: home,
-                requestId: RequestId.create(machine.environment),
-                parentId: id,
-                manifest,
-                tag,
-            });
+        await Publication.release(build, tag, open, async (reader, digest) => {
+            // print the release and record its local version
+            const { name, version } = PackageManifest.package(reader.manifest);
             print(`${name}@${version}`);
-
-            // record each release as it lands, so a run failing midway goes on from it
             const [, release = version, sequence = "1"] = LOCAL_VERSION.exec(version) ?? [];
             packages[name] = { release, sequence: Number(sequence), manifest: digest };
             await this.#record({ packages });
-        }
+        });
 
         return new Publication(this.#directory, { packages }, this.#files);
+    }
+
+    /** Release a build's releases under a tag into their accounts' forges, each the forge lacks. */
+    static async release(
+        build: PlatformBuild,
+        tag: string,
+        open: ForgeOpen,
+        released: (reader: BuildReader, digest: Digest) => Promise<void>,
+    ): Promise<void> {
+        const forges = new Map<string, Promise<ReleaseForge>>();
+        for (const reader of build.readers) {
+            // open the forge of the release's account once per handle
+            const { id, name, version } = PackageManifest.package(reader.manifest);
+            const digest = await BuildStore.digest(reader.manifest, build.store.environment.crypto);
+            const { handle } = PackageName.split(name);
+            const opened = forges.get(handle) ?? open(handle);
+            forges.set(handle, opened);
+            const { client, home, accountId, registry } = await opened;
+            const { environment } = build.store;
+
+            // create the package once, and read the release the forge has at the version
+            await client.package.create({
+                spaceId: home,
+                requestId: RequestId.create(environment),
+                id,
+                accountId,
+                name: PackageName.split(name).local,
+            });
+            const listed = await client.release.list({
+                spaceId: home,
+                where: { parentId: id, version },
+                limit: 1,
+            });
+            const [published] = listed.items;
+
+            // push and release a version the forge lacks, under the tag
+            if (published === undefined) {
+                const manifest = await registry.push(build.store, digest);
+                await client.release.create({
+                    spaceId: home,
+                    requestId: RequestId.create(environment),
+                    parentId: id,
+                    manifest,
+                    tag,
+                });
+                await released(reader, digest);
+            }
+            // refuse a version the forge has from another build
+            else if (published.manifest !== digest) {
+                throw new Error(`${name}@${version} is published from another build`);
+            }
+            // point the tag at a version the forge has from this build
+            else {
+                await client.package.point({
+                    spaceId: home,
+                    id,
+                    requestId: RequestId.create(environment),
+                    name: tag,
+                    version,
+                });
+            }
+        }
+    }
+
+    /** Open the forges a machine reaches, as a machine in each residency home it publishes in. */
+    static forges(machine: Machine, print: (line: string) => void): ForgeOpen {
+        return async (handle) => {
+            // resolve the handle in the machine's synced replica of the directory, and its home at the universe
+            await machine.synced(machine.environment.clock.timeout(DIRECTORY_SYNC_MILLISECONDS));
+            const { directory, environment } = machine;
+            const accountId = present(await directory.account(handle), `@${handle}`);
+            const located = await (
+                await machine.accounts()
+            ).residency.locate({
+                account: accountId,
+            });
+            const home = schema.identifier("space").parse(located);
+
+            // wait until the home serves its forge, printing the home's steps and refusing at the bound with the one it waits for
+            const space = await machine.space(home);
+            const waiting = new AbortController();
+            void (async () => {
+                for await (const { status, reason } of space.health.watch(waiting.signal)) {
+                    print(`${space.health.name} ${status}: ${reason}`);
+                }
+            })();
+            try {
+                await space.waitServed(
+                    FORGE_INSTALLATION,
+                    environment.clock.timeout(HOME_SERVE_MILLISECONDS),
+                );
+            } finally {
+                waiting.abort();
+            }
+
+            // call the forge below its installation in the home, with tokens bound to the home
+            const fetch = machine.fetch(registryPackage.id, { partition: home });
+            const where = await directory.locate(home, environment.clock.now());
+            const origin = InstallationMount.url(where.url, home, FORGE_INSTALLATION);
+            const url = `${origin}${PackageMount.path(registryPackage.id)}`;
+            const client = createClient(registryPackage, { url, fetch }, environment);
+
+            return {
+                client,
+                home,
+                accountId,
+                registry: new Registry(async () => ({ url, space: home, fetch }), environment),
+            };
+        };
     }
 
     /** Write the published releases into the state directory. */
@@ -186,58 +257,5 @@ export class Publication {
             join(this.#directory, FILE),
             `${JSON.stringify(published, null, 4)}\n`,
         );
-    }
-
-    /** Connect to a residency home's forge as a machine in the home, once the home serves it. */
-    static async #forge(
-        machine: Machine,
-        home: Identifier<"space">,
-        print: (line: string) => void,
-    ): Promise<Forge> {
-        // wait until the home serves its forge, printing the home's steps and refusing at the bound with the one it waits for
-        const { directory, environment } = machine;
-        const space = await machine.space(home);
-        const waiting = new AbortController();
-        void (async () => {
-            for await (const { status, reason } of space.health.watch(waiting.signal)) {
-                print(`${space.health.name} ${status}: ${reason}`);
-            }
-        })();
-        try {
-            await space.waitServed(
-                FORGE_INSTALLATION,
-                environment.clock.timeout(HOME_SERVE_MILLISECONDS),
-            );
-        } finally {
-            waiting.abort();
-        }
-
-        // call the forge below its installation in the home, with tokens bound to the home
-        const fetch = machine.fetch(registryPackage.id, { partition: home });
-        const located = await directory.locate(home, environment.clock.now());
-        const origin = InstallationMount.url(located.url, home, FORGE_INSTALLATION);
-        const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-
-        return {
-            service: createClient(registryPackage, { url, fetch }, environment),
-            registry: new Registry(async () => ({ url, space: home, fetch }), environment),
-        };
-    }
-
-    /** Create a package in its account's forge, answering the one it has at the identifier. */
-    static async #createPackage(
-        forge: ClientOf<typeof registryPackage>,
-        spaceId: string,
-        accountId: Identifier<"account">,
-        described: { readonly id: string; readonly local: string },
-        environment: UuidEnvironment,
-    ): Promise<void> {
-        await forge.package.create({
-            spaceId,
-            requestId: RequestId.create(environment),
-            id: described.id,
-            accountId,
-            name: described.local,
-        });
     }
 }

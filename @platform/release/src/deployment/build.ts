@@ -2,9 +2,13 @@ import { join } from "node:path";
 import type { StackRelease } from "@destack/account/object";
 import type { PlatformDefinition } from "@destack/account/server";
 import * as stacks from "@platform/stack";
+import { RESIDENCIES } from "@platform/stack";
+import { SERVER_EXPORT } from "@destack/object";
+import { InstallationDefinition } from "@destack/stack/declare";
 import { CompilerPool, LocalBuildStore, Workspace } from "@destack/build";
-import { type BuildBucket, BuildStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
 import { COMPUTER_RUNTIMES } from "@destack/machine/computer";
+import { CLOUD_RUNTIMES } from "@destack/machine/cloudflare";
 import type { Environment } from "@destack/environment";
 import {
     DISTRIBUTION_LAYER,
@@ -13,7 +17,7 @@ import {
     type Package,
 } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { type Digest, type JsonValue, present, type Version } from "@destack/schema";
+import { type Digest, type JsonValue, present, schema, type Version } from "@destack/schema";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
@@ -23,6 +27,15 @@ const EXPORTS = {
     home: "HOME_STACK",
     space: "SPACE_STACK",
 } as const satisfies Record<keyof PlatformDefinition["stacks"], keyof typeof stacks>;
+
+/** The exports declaring the residency homes' stacks: the local stage's, and each residency's. */
+const STACK_EXPORTS = [
+    "RESIDENCY_STACK",
+    ...RESIDENCIES.map((residency) => residency.stack),
+] as const satisfies readonly (keyof typeof stacks)[];
+
+/** A stack definition's installations, by name. */
+const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);
 
 /** The desktop machine's entry below the checkout, the runtime computers ship. */
 export const DESKTOP_ENTRY = "@destack/desktop/src/machine.ts";
@@ -126,14 +139,45 @@ export class PlatformBuild implements AsyncDisposable {
         return { releases };
     }
 
-    /** Write every release into a cloud machine's build bucket. */
-    async writeBucket(bucket: BuildBucket): Promise<void> {
-        for (const reader of this.readers) {
-            await bucket.write(
-                reader,
-                await BuildStore.digest(reader.manifest, this.store.environment.crypto),
+    /** Map each shipped package a machine runs in its process to its server's specifier. */
+    serverBundle(): Readonly<Record<string, string>> {
+        // take the packages the stacks install, each in process or as a builtin machines link
+        const declared = [...Object.values(EXPORTS), ...STACK_EXPORTS].map((name) => stacks[name]);
+        const installations = declared.flatMap((stack) =>
+            Object.values(INSTALLATIONS.parse(stack.definition["installations"] ?? {})),
+        );
+        const inProcess = new Set(
+            installations
+                .filter((each) => each.isolation === "process")
+                .map((each) => each.packageId),
+        );
+        const installed = new Set(installations.map((each) => each.packageId));
+
+        // map each such release exporting a server, refusing one installed in process without one
+        const bundled: Record<string, string> = {};
+        for (const { manifest } of this.readers) {
+            const { id, name } = PackageManifest.package(manifest);
+            const isServing = Object.values(manifest.outputs).some(
+                (output) => output.exports[SERVER_EXPORT] !== undefined,
             );
+            if (inProcess.has(id) && !isServing) {
+                throw new Error(`${name} is installed in process but exports no server`);
+            } else if (
+                isServing &&
+                (inProcess.has(id) || (installed.has(id) && manifest.role === "builtin"))
+            ) {
+                bundled[name] = `${name}${SERVER_EXPORT.slice(1)}`;
+            }
         }
+
+        return bundled;
+    }
+
+    /** Write the releases with what cloud Workers run as their assets, a layer by digest. */
+    async writeAssets(directory: string): Promise<void> {
+        const distribution = await this.distribution();
+        const manifests = distribution.releases.map((release) => release.manifest);
+        await this.store.writeLayer(manifests, CLOUD_RUNTIMES, directory, "addressed");
     }
 
     /** Write the distribution to a directory as computers ship it: its manifest and its layer. */

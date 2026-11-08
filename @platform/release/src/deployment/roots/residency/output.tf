@@ -19,17 +19,6 @@ output "account" {
   value       = var.account_id
 }
 
-output "r2_access_key_id" {
-  description = "The cloud machine's R2 access key id: its token's id."
-  value       = cloudflare_account_token.machine.id
-}
-
-output "r2_secret_access_key" {
-  description = "The cloud machine's R2 secret access key: the SHA-256 of its token's value."
-  value       = sha256(cloudflare_account_token.machine.value)
-  sensitive   = true
-}
-
 output "kms_key_arn" {
   description = "The KMS key sealing the cloud machine's keys."
   value       = module.kms.key_arn

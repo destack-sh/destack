@@ -209,8 +209,12 @@ export class LocalUniverse implements AsyncDisposable {
             clouds.get(PLATFORM.residencyId),
             "the platform residency's machine",
         );
-        await publication.publish(build, STAGE.tag, platform.machine, (line) =>
-            options.print("publish", line),
+        const print = (line: string) => options.print("publish", line);
+        await publication.publish(
+            build,
+            STAGE.tag,
+            Publication.forges(platform.machine, print),
+            print,
         );
 
         return new LocalUniverse(endpoints, local, options, stack.move());

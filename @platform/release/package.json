@@ -53,6 +53,7 @@
         "@tufjs/canonical-json": "2.0.0",
         "@tufjs/models": "5.0.0",
         "magic-string": "1.4.1",
+        "reflect-metadata": "0.2.2",
         "rolldown": "1.2.16",
         "tuf-js": "6.0.0",
         "wrangler": "4.134.0",

@@ -89,8 +89,8 @@ just @platform/release/rehearse production
 just @platform/release/e2e
 # seal the keys custody/production.json lacks under each root's KMS key, once per key, then commit the record
 just @platform/release/custody seal production
-# apply shared, universe, eu and us, migrate, store the shipped releases in each packages bucket,
-#  deploy each Worker with the record's sealed keys and its KMS access key, and smoke
+# apply shared, universe, eu and us, migrate, deploy each Worker with the shipped releases as its
+#  static assets, the record's sealed keys and its KMS access key, then publish the releases and smoke
 just @platform/release/deploy production
 ```
 

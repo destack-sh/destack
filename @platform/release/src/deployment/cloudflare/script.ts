@@ -1,4 +1,3 @@
-import { present } from "@destack/schema";
 import { DeclarationReference } from "@destack/package/declare";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
@@ -12,8 +11,6 @@ import { ModuleTransformer } from "@destack/package/transform";
 import { modulePlugin } from "@destack/package/vite";
 import { DURABLE_OBJECT_GIGABYTES } from "@platform/pricing/cloudflare";
 import { UNIT_SKUS } from "@platform/pricing";
-import { S3Client } from "@destack/bucket/s3";
-import { BuildBucket } from "@destack/build/store";
 import type { Custody } from "../custody.ts";
 import {
     Root,
@@ -31,20 +28,14 @@ import { CloudflareCredentials } from "./credential.ts";
 /** The package conditions selecting each dependency's workerd build. */
 const CONDITIONS = ["workerd", "worker", "browser"];
 
-/** The AWS region SES sends Destack's mail from, where the shared root verifies destack.app. */
-const MAIL_REGION = "eu-central-1";
-
-/** The mailbox Destack's mail comes from, on the domain SES verifies. */
-const MAIL_FROM = "Destack <notices@destack.app>";
-
 /** The universe's object, near its database in eu-central. */
 const UNIVERSE_LOCATION = "weur";
 
 /** The class of the universe's one object. */
 const UNIVERSE_CLASS = "DurableObjectUniverse";
 
-/** The region R2 signs S3 requests for. */
-const R2_REGION = "auto";
+/** The binding of the releases a Worker ships as its static assets. */
+const RELEASES_BINDING = "RELEASES";
 
 /** The module each kind of script runs, as its engine package ships it. */
 const SCRIPT_ENTRIES = {
@@ -63,8 +54,23 @@ const MACHINE_CLASSES = {
 /** A Worker's wrangler configuration, as `wrangler.json` takes it. */
 export type WranglerConfiguration = Readonly<Record<string, unknown>>;
 
-/** The data modules a deploy supplies to a script's bundle, each a JSON value by specifier. */
-export type SuppliedModules = Readonly<Record<string, unknown>>;
+/** A module a deploy supplies to a bundle: a JSON value, or a table of imported defaults. */
+export type SuppliedModule =
+    | {
+          /** A module exporting a JSON value. */
+          readonly kind: "data";
+          /** The value. */
+          readonly value: unknown;
+      }
+    | {
+          /** A module exporting the defaults of other modules, by key. */
+          readonly kind: "imports";
+          /** The specifier of each imported module, by key. */
+          readonly specifiers: Readonly<Record<string, string>>;
+      };
+
+/** The modules a deploy supplies to a script's bundle, by specifier. */
+export type SuppliedModules = Readonly<Record<string, SuppliedModule>>;
 
 /** The module the universe's bundle reads its declaration from, supplied by its deploy. */
 export const UNIVERSE_MODULE = "destack:universe";
@@ -176,31 +182,20 @@ export class WorkerScript {
             : this.deployment.machineOrigin(target.residency);
     }
 
-    /** Write the universe's configuration over its outputs and the platform residency's builds. */
-    universe(outputs: UniverseOutputs, platform: ResidencyOutputs): WranglerConfiguration {
-        // read the shipped releases from the platform residency's build bucket, in its jurisdiction
-        const residency = present(
-            RESIDENCIES.find((each) => each.code === PLATFORM.residencyId),
-            "the platform residency",
-        );
-        const kept = this.deployment.jurisdiction(residency);
-        const jurisdiction = kept === "local" ? {} : { jurisdiction: kept };
-
+    /** Write the universe's configuration over its outputs. */
+    universe(outputs: UniverseOutputs): WranglerConfiguration {
         return {
             ...this.#shared(),
+            assets: this.#releases(),
             durable_objects: { bindings: [{ name: "INSTANCE", class_name: UNIVERSE_CLASS }] },
             migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
-            r2_buckets: [
-                { binding: "EVENTS", bucket_name: outputs.history },
-                { binding: "BUILDS", bucket_name: platform.packages, ...jurisdiction },
-            ],
+            r2_buckets: [{ binding: "EVENTS", bucket_name: outputs.history }],
             routes: [{ pattern: new URL(this.origin).host, custom_domain: true }],
             vars: {
                 DESTACK_ISSUER: this.deployment.issuer,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
-                DESTACK_MAIL_REGION: MAIL_REGION,
-                DESTACK_MAIL_FROM: MAIL_FROM,
+                DESTACK_MAIL: JSON.stringify(this.deployment.mail),
             },
         };
     }
@@ -225,6 +220,7 @@ export class WorkerScript {
 
         return {
             ...this.#shared(),
+            assets: this.#releases(),
             durable_objects: {
                 bindings: [
                     { name: "PARTITION", class_name: MACHINE_CLASSES.partition },
@@ -267,8 +263,7 @@ export class WorkerScript {
                     ),
                     gigabytes: DURABLE_OBJECT_GIGABYTES,
                 }),
-                DESTACK_MAIL_REGION: MAIL_REGION,
-                DESTACK_MAIL_FROM: MAIL_FROM,
+                DESTACK_MAIL: JSON.stringify(this.deployment.mail),
                 DESTACK_PEERS: JSON.stringify(
                     Object.fromEntries(
                         peers.flatMap(({ binding, hosts }) => hosts.map((host) => [host, binding])),
@@ -296,23 +291,6 @@ export class WorkerScript {
             { pattern: `*.${DOMAINS.space}/*`, zone_name: DOMAINS.space },
             { pattern: `*.${DOMAINS.machine}/*`, zone_name: DOMAINS.machine },
         ];
-    }
-
-    /** Open a cloud machine's build bucket, signed with its R2 key. */
-    bucket(outputs: ResidencyOutputs, residency: PlatformResidency): BuildBucket {
-        // sign with the R2 key the residency root gives the machine
-        const credentials = outputs.r2;
-        const location = {
-            endpoint: this.#r2(outputs, residency),
-            bucket: outputs.packages,
-            region: R2_REGION,
-        };
-        const { environment } = this.deployment;
-
-        return new BuildBucket(
-            S3Client.of({ location, credentials }, environment),
-            environment.crypto,
-        );
     }
 
     /** Write a cloud machine's Tail Worker configuration over the machine's objects. */
@@ -432,6 +410,15 @@ export class WorkerScript {
         }
     }
 
+    /** Ship the releases as static assets, which the Worker reads through their binding. */
+    #releases(): WranglerConfiguration {
+        return {
+            directory: this.deployment.releases,
+            binding: RELEASES_BINDING,
+            run_worker_first: true,
+        };
+    }
+
     /** Write what every script shares: its name, bundled module, runtime and observability. */
     #shared(): WranglerConfiguration {
         return {
@@ -445,14 +432,6 @@ export class WorkerScript {
             observability: { enabled: true },
         };
     }
-
-    /** Address R2's S3 API in a residency's jurisdiction. */
-    #r2(outputs: ResidencyOutputs, residency: PlatformResidency): URL {
-        const kept = this.deployment.jurisdiction(residency);
-        const r2 = kept === "local" ? "r2" : `${kept}.r2`;
-
-        return new URL(`https://${outputs.account}.${r2}.cloudflarestorage.com`);
-    }
 }
 
 /** Resolve the specifiers a deploy supplies to their data, as modules exporting it. */
@@ -461,13 +440,22 @@ function supplyPlugin(modules: SuppliedModules): Plugin {
         name: "destack:supply",
         // mark a supplied specifier as a virtual module
         resolveId: (specifier) => (Object.hasOwn(modules, specifier) ? `\0${specifier}` : null),
-        // export the supplied value of a virtual module
+        // export the supplied value of a virtual module, or its imported defaults by key
         load: (id) => {
-            const specifier = id.slice(1);
+            // take a supplied virtual module, leaving every other one to the bundler
+            const supplied = id.startsWith("\0") ? modules[id.slice(1)] : undefined;
+            if (supplied === undefined) {
+                return null;
+            } else if (supplied.kind === "data") {
+                return `export default ${JSON.stringify(supplied.value)};`;
+            }
+            const entries = Object.entries(supplied.specifiers);
+            const imports = entries.map(
+                ([, specifier], index) => `import m${index} from ${JSON.stringify(specifier)};`,
+            );
+            const table = entries.map(([key], index) => `${JSON.stringify(key)}: m${index}`);
 
-            return id.startsWith("\0") && Object.hasOwn(modules, specifier)
-                ? `export default ${JSON.stringify(modules[specifier])};`
-                : null;
+            return `${imports.join("\n")}\nexport default { ${table.join(", ")} };`;
         },
     };
 }

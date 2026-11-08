@@ -3,12 +3,28 @@ import type { ResidencyCode } from "@destack/account/object";
 import { DOMAINS } from "@destack/account/address";
 import type { Jurisdiction } from "@destack/db/cloudflare";
 import { Stage } from "@destack/update/release";
-import { type JsonValue, present } from "@destack/schema";
+import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
+import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import { MachineIdentity } from "@destack/account/client";
+import { Envelope } from "@destack/identity/aws";
+import { MemoryKeychain } from "@destack/identity";
+import { createClient } from "@destack/object/client";
 import { provider, tag } from "@destack/finance/declare";
 import { github } from "@destack/forge/stack";
+import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
+import type { MailSender } from "@destack/mail/sender";
+import { Issuer } from "@destack/account/native";
+import { Account, account } from "@destack/account/object";
+import { Claim, SpaceMount } from "@destack/object";
+import registryPackage from "@destack/registry/package";
+import { Registry } from "@destack/registry/client";
+import { type ForgeOpen, Publication } from "../local/publication.ts";
+import { Bookmark } from "@destack/object/client";
+import { VERSION_HEADER } from "@destack/object";
+import type { Fetch } from "@destack/object";
 import * as relay from "@destack/relay/declare";
 import { UNIVERSE_SCHEMA, Universe } from "@destack/universe";
 import { resolve } from "node:path";
@@ -28,10 +44,15 @@ import {
     WRANGLER_VARIABLES,
 } from "./root.ts";
 import { LocalProcess } from "../local/process.ts";
-import { PlatformBuild } from "./build.ts";
+import { DIRECTORY_SYNC_MILLISECONDS, HOME_SERVE_MILLISECONDS } from "../local/publication.ts";
+import { type LocalBuild, PlatformBuild } from "./build.ts";
 import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { Custody, type CustodyEnvelopes } from "./custody.ts";
-import { DISTRIBUTION_MODULE } from "@destack/package";
+import { DISTRIBUTION_MODULE, PackageId } from "@destack/package";
+import { PackageManifest } from "@destack/package/manifest";
+import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
+import { InstallationMount, PackageMount } from "@destack/object";
+import { S3_HOST } from "@destack/machine/computer";
 import type { Environment, HostCapability } from "@destack/environment";
 
 /** The identifier a rehearsal binds where a deployment's state has a real one. */
@@ -45,6 +66,27 @@ const INSPECTOR_OFFSET = 5000;
 
 /** The configuration keys an end-to-end run leaves out: routes, tails and artifacts. */
 const DEPLOYED_KEYS = new Set(["routes", "tail_consumers", "artifacts"]);
+
+/** The directory below a stage's target an end-to-end run plans its local versions in. */
+const E2E_DIRECTORY = "e2e";
+
+/** How long a sign-up check waits for the universe to print its code: a sign-in mail's send. */
+const MAIL_PRINT_MILLISECONDS = 30_000;
+
+/** How often a check asks a space's readiness probe, as a probe is polled. */
+const READY_POLL_MILLISECONDS = 1000;
+
+/** How often a sign-up check looks for the printed code. */
+const MAIL_POLL_MILLISECONDS = 100;
+
+/** The line of a printed sign-in mail with its code, as `AccountMail.code` writes it. */
+const CODE_LINE = /Your Destack sign-in code is (\w+)\./u;
+
+/** A residency's cloud machine a check acts as: its sends toward packages, bound to a space. */
+interface MachineActor {
+    /** Send as the machine toward a package, bound to a space when given. */
+    readonly fetch: (audience: PackageId, partition?: Identifier<"space">) => Fetch;
+}
 
 /** The password local Hyperdrive requires, which the trusting local server ignores. */
 const HYPERDRIVE_PASSWORD = "local";
@@ -63,6 +105,12 @@ const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
 
 /** The shared root's outputs a rehearsal and a local run bind. */
 const PLACEHOLDER_SHARED: SharedOutputs = { mail: PLACEHOLDER_KEY };
+
+/** The AWS region SES sends Destack's mail from, where the shared root verifies destack.app. */
+const MAIL_REGION = "eu-central-1";
+
+/** The mailbox Destack's mail comes from, on the domain SES verifies. */
+const MAIL_FROM = "Destack <notices@destack.app>";
 
 /** The KMS outputs a rehearsal binds, whose local custody envelopes nothing. */
 const PLACEHOLDER_KMS = { envelope: { kind: "local" }, access: PLACEHOLDER_KEY } as const;
@@ -141,6 +189,11 @@ export class Deployment {
         return deployment;
     }
 
+    /** The directory of the releases the Workers ship as their static assets, a build layer. */
+    get releases(): string {
+        return resolve(REPOSITORY, "target", this.stage.name, "cloud");
+    }
+
     /** The account service the stage signs people in with, the universe's origin. */
     get issuer(): string {
         return this.stage.name === "local"
@@ -186,6 +239,13 @@ export class Deployment {
     /** The jurisdiction keeping a residency's objects and files: none locally, as in workerd. */
     jurisdiction(residency: PlatformResidency): Jurisdiction {
         return this.stage.name === "local" ? "local" : residency.jurisdiction;
+    }
+
+    /** Where the stage's Workers send mail: through SES in production, else to their own logs. */
+    get mail(): MailSender {
+        return this.stage.name === "production"
+            ? { kind: "ses", region: MAIL_REGION, from: MAIL_FROM }
+            : { kind: "print" };
     }
 
     /** The setting values the residency homes' platform stack places, by setting key. */
@@ -256,6 +316,9 @@ export class Deployment {
         const scripts = this.#scripts(this.#placeholderUniverse(REHEARSAL_DATABASE), (residency) =>
             this.#placeholderResidency(residency),
         );
+
+        // write the releases the Workers ship as their static assets
+        await build.writeAssets(this.releases);
         const modules = await Deployment.#modules(build, declaration);
 
         // build each upload as wrangler deploys it, with the secrets it reads
@@ -304,8 +367,14 @@ export class Deployment {
         const hyperdrive = new URL(url);
         hyperdrive.password ||= HYPERDRIVE_PASSWORD;
 
+        // build the checkout at local prerelease versions, as the local stage does, as its working tree may be uncommitted
+        const publication = await Publication.read(
+            resolve(REPOSITORY, "target", this.stage.name, E2E_DIRECTORY),
+            environment.files,
+        );
+        await using build = await this.#build(publication.build);
+
         // declare the universe over keys in the clear with the stacks built from the checkout
-        await using build = await this.#build();
         const custody = await Custody.local(this.#machineIds(), environment);
         const declaration = await this.universe(
             REHEARSAL_OPERATOR,
@@ -318,10 +387,14 @@ export class Deployment {
         const scripts = this.#scripts(this.#placeholderUniverse(url), (residency) =>
             this.#placeholderResidency(residency),
         ).filter(([script]) => script.target.kind !== "tail");
+
+        // write the releases the Workers ship as their static assets
+        await build.writeAssets(this.releases);
         const modules = await Deployment.#modules(build, declaration);
 
-        // serve each script on its own ports with placeholder secrets and its root key, and check it answers
+        // serve each script on its own ports with placeholder secrets and its root key, and check it answers, keeping the universe's lines
         await using children = new AsyncDisposableStack();
+        const mailed: string[] = [];
         for (const [script, configuration] of scripts) {
             // write the configuration without what only a deployment binds
             const local = Object.fromEntries(
@@ -364,6 +437,9 @@ export class Deployment {
                         },
                         print: (name, line) => {
                             print(name, line);
+                            if (script.target.kind === "universe") {
+                                mailed.push(line);
+                            }
                             if (line.includes(READY_LINE)) {
                                 ready.resolve();
                             }
@@ -384,6 +460,283 @@ export class Deployment {
             await script.smoke();
             print("e2e", `${script.name} answers at ${script.origin}`);
         }
+
+        // require each residency's home to serve its forge on the residency's cloud machine
+        for (const residency of RESIDENCIES) {
+            await this.#smokeForge(residency, custody, build);
+            print("e2e", `the home of ${residency.code} serves its forge`);
+        }
+
+        // publish the platform's releases under the stage's tag, as a release does
+        await Publication.release(
+            build,
+            this.stage.tag,
+            this.#forges(custody, build),
+            async () => {},
+        );
+        print("e2e", `the releases are published under ${this.stage.tag}`);
+
+        // sign a person up in the first residency, as the CLI does, and require their home to serve
+        const [first] = RESIDENCIES;
+        const residency = present(first, "a residency");
+        await this.#smokeSignUp(residency, custody, mailed);
+        print("e2e", `a person signed up in ${residency.code} and their home serves`);
+    }
+
+    /** Require a residency home's forge to serve on the residency's cloud machine. */
+    async #smokeForge(
+        residency: PlatformResidency,
+        custody: Custody,
+        build: PlatformBuild,
+    ): Promise<void> {
+        // read the residency's home at the universe as the machine, which may locate it
+        const machine = await this.#actAs(residency, custody);
+        const accounts = createClient(
+            accountPackage,
+            {
+                url: PackageMount.url(this.issuer, accountPackage.id),
+                fetch: machine.fetch(accountPackage.id),
+            },
+            this.environment,
+        );
+        const { space } = await accounts.residency.get({ id: residency.code });
+        const home = schema
+            .identifier("space")
+            .parse(present(space, `the home of ${residency.code}`));
+
+        // wait until its forge serves
+        const version = Deployment.#version(build, forgePackage.id);
+        await this.#waitServed(
+            residency,
+            machine,
+            home,
+            FORGE_INSTALLATION,
+            forgePackage.id,
+            version,
+        );
+    }
+
+    /** Sign a person up in a residency with a mailed code, as the CLI does, awaiting their home. */
+    async #smokeSignUp(
+        residency: PlatformResidency,
+        custody: Custody,
+        mailed: readonly string[],
+    ): Promise<void> {
+        // mail a code to a fresh address, and read it from the universe's printed mail
+        const { environment } = this;
+        const send = (request: Request) => environment.network.fetch(request);
+        const issuer = new Issuer(this.#issuerUrl, send, environment, new Bookmark());
+        const email = `e2e-${environment.random.bytes(4).toHex()}@example.com`;
+        const printed = mailed.length;
+        await issuer.sendCode(email);
+        const code = await this.#mailedCode(mailed, printed);
+
+        // redeem it on a new client, signing the person up in the residency
+        const { userId } = await issuer.redeemCode(
+            Identifier.create("client", environment),
+            email,
+            code,
+            {
+                name: "E2E",
+                handle: `e2e-${environment.random.bytes(4).toHex()}`,
+                residencyId: residency.code,
+                timeZone: "UTC",
+                locale: "en",
+            },
+        );
+
+        // wait until their home serves every installation of its stack, as its readiness says
+        await this.#waitReady(residency, Account.home(Account.personal(userId)));
+    }
+
+    /** Read the sign-in code the universe printed after a line, waiting until it prints one. */
+    async #mailedCode(mailed: readonly string[], after: number): Promise<string> {
+        // read each line printed since, until the code's line or the deadline
+        const { clock } = this.environment;
+        const deadline = clock.now() + MAIL_PRINT_MILLISECONDS;
+        let read = after;
+        for (;;) {
+            // take the code of a printed line
+            const code = mailed
+                .slice(read)
+                .map((line) => CODE_LINE.exec(line)?.[1])
+                .find((found) => found !== undefined);
+            read = mailed.length;
+            if (code !== undefined) {
+                return code;
+            }
+            // refuse once the deadline passed, else look again
+            else if (clock.now() >= deadline) {
+                throw new Error("the universe printed no sign-in code");
+            } else {
+                await clock.sleep(MAIL_POLL_MILLISECONDS);
+            }
+        }
+    }
+
+    /** Open the forges of the stage's residency homes, as the cloud machine serving each. */
+    #forges(custody: Custody, build: PlatformBuild): ForgeOpen {
+        return async (handle) => {
+            // find the handle's account and its residency's home at the universe, as a machine signed in
+            const { environment } = this;
+            const [first] = RESIDENCIES;
+            const signedIn = await this.#actAs(present(first, "a residency"), custody);
+            const accounts = createClient(
+                accountPackage,
+                {
+                    url: PackageMount.url(this.issuer, accountPackage.id),
+                    fetch: signedIn.fetch(accountPackage.id),
+                },
+                environment,
+            );
+            const owner = await accounts.claim.owner(Claim.key(account, "handle", [handle]));
+            const accountId = account.identifier(present(owner, `@${handle}`).objectId);
+            const located = await accounts.residency.locate({ account: accountId });
+            const home = schema.identifier("space").parse(located);
+
+            // find the residency whose home it is, and wait until its machine serves the forge there
+            const homes = await Promise.all(
+                RESIDENCIES.map(async (each) => ({
+                    residency: each,
+                    space: (await accounts.residency.get({ id: each.code })).space,
+                })),
+            );
+            const residency = present(
+                homes.find((each) => each.space === home),
+                `the residency of ${home}`,
+            ).residency;
+            const machine = await this.#actAs(residency, custody);
+            const version = Deployment.#version(build, forgePackage.id);
+            await this.#waitServed(
+                residency,
+                machine,
+                home,
+                FORGE_INSTALLATION,
+                forgePackage.id,
+                version,
+            );
+
+            // call the forge below its installation in the home, as the machine bound to the home
+            const fetch = machine.fetch(registryPackage.id, home);
+            const origin = InstallationMount.url(
+                this.machineOrigin(residency),
+                home,
+                FORGE_INSTALLATION,
+            );
+            const url = `${origin}${PackageMount.path(registryPackage.id)}`;
+            const client = createClient(registryPackage, { url, fetch }, environment);
+
+            return {
+                client,
+                home,
+                accountId,
+                registry: new Registry(async () => ({ url, space: home, fetch }), environment),
+            };
+        };
+    }
+
+    /** Act as a residency's cloud machine, with the key its custody keeps, as its Worker does. */
+    async #actAs(residency: PlatformResidency, custody: Custody): Promise<MachineActor> {
+        // open the machine's key from its envelope
+        const { environment } = this;
+        const { id } = residency.machine;
+        const keys = custody.machine(id);
+        const envelope = new Envelope(keys.envelope, Envelope.machine(id), undefined, environment);
+        const keychain = new MemoryKeychain();
+        await keychain.save(id, await envelope.open(keys.key));
+        const identity = new MachineIdentity(
+            schema.identifier("machine").parse(id),
+            keychain,
+            environment,
+        );
+        const issuer = { url: this.#issuerUrl };
+        const send = (request: Request) => environment.network.fetch(request);
+
+        // send as the machine toward a package, bound to a space when given
+        return {
+            fetch: (audience, partition) =>
+                identity.fetch(
+                    send,
+                    audience,
+                    issuer,
+                    partition === undefined ? {} : { partition },
+                ),
+        };
+    }
+
+    /** Wait until a space's installation serves on a residency's machine, as its readiness says. */
+    async #waitServed(
+        residency: PlatformResidency,
+        machine: MachineActor,
+        space: Identifier<"space">,
+        installation: string,
+        packageId: PackageId,
+        version: string,
+    ): Promise<void> {
+        // ask the installation's package for its readiness below its mount on the machine, speaking the release
+        const mount = InstallationMount.url(this.machineOrigin(residency), space, installation);
+        const request = new Request(`${mount}${PackageMount.path(packageId)}/readyz`, {
+            redirect: "manual",
+            headers: { [VERSION_HEADER]: version },
+        });
+        const fetch = machine.fetch(packageId, space);
+
+        // ask again as each answer's Retry-After says, while the directory syncs and the space serves
+        const { clock } = this.environment;
+        const deadline = clock.now() + DIRECTORY_SYNC_MILLISECONDS + HOME_SERVE_MILLISECONDS;
+        let response = await fetch(request.clone());
+        let asked = response.headers.get("retry-after");
+        while (response.status === 503 && asked !== null && clock.now() < deadline) {
+            await response.body?.cancel();
+            await clock.sleep(Number(asked) * 1000);
+            response = await fetch(request.clone());
+            asked = response.headers.get("retry-after");
+        }
+
+        // refuse an answer of a failure
+        if (response.status >= 400) {
+            const body = await response.text();
+            throw new Error(
+                `${installation} in ${space} on ${residency.code} answered ${response.status}: ${body}`,
+            );
+        }
+    }
+
+    /** Wait until a space on a residency's machine is ready, polling its readiness probe. */
+    async #waitReady(residency: PlatformResidency, space: Identifier<"space">): Promise<void> {
+        // ask the space's probe until it answers ready, or the deadline passes
+        const { clock, network } = this.environment;
+        const url = `${SpaceMount.url(this.machineOrigin(residency), space)}/readyz`;
+        const deadline = clock.now() + DIRECTORY_SYNC_MILLISECONDS + HOME_SERVE_MILLISECONDS;
+        for (;;) {
+            // take a ready answer, refuse at the deadline with the last reason, else ask again
+            const response = await network.fetch(new Request(url));
+            const body = await response.text();
+            if (response.ok) {
+                return;
+            } else if (clock.now() >= deadline) {
+                throw new Error(
+                    `${space} on ${residency.code} is not ready: ${response.status} ${body}`,
+                );
+            } else {
+                await clock.sleep(READY_POLL_MILLISECONDS);
+            }
+        }
+    }
+
+    /** Read the version of a package a build releases. */
+    static #version(build: PlatformBuild, packageId: PackageId): string {
+        const reader = build.readers.find(
+            (each) => PackageManifest.package(each.manifest).id === packageId,
+        );
+
+        return PackageManifest.package(present(reader, `the release of ${packageId}`).manifest)
+            .version;
+    }
+
+    /** The URL of the universe's issuer, the account package's OAuth adapter. */
+    get #issuerUrl(): string {
+        return `${PackageMount.url(this.issuer, accountPackage.id)}${OAUTH_PATH}`;
     }
 
     /** Apply the shared root, the universe's and the residencies', then release the Workers. */
@@ -427,12 +780,9 @@ export class Deployment {
         });
         await connection.migrate(Universe.database.tables);
 
-        // ship the releases to each cloud machine before it serves them
-        for (const residency of RESIDENCIES) {
-            const machine = new WorkerScript(this, { kind: "machine", residency });
-            await build.writeBucket(machine.bucket(outputsOf(residency), residency));
-            print("release", `${machine.name} ships ${build.readers.length} releases`);
-        }
+        // write the releases the Workers ship as their static assets
+        await build.writeAssets(this.releases);
+        print("release", `the Workers ship ${build.readers.length} releases`);
 
         // deploy every script in order, the universe first and each tail before its machine
         const scripts = this.#scripts(outputs, outputsOf);
@@ -453,6 +803,17 @@ export class Deployment {
                 await script.smoke();
             }
         }
+
+        // publish the platform's releases into their accounts' forges under the stage's tag, which homes follow
+        await Publication.release(
+            build,
+            this.stage.tag,
+            this.#forges(custody, build),
+            async (reader) => {
+                const { name, version } = PackageManifest.package(reader.manifest);
+                print("publish", `${name}@${version}`);
+            },
+        );
     }
 
     /** Seal the keys the stage's custody record lacks under each root's KMS key, for committing. */
@@ -551,11 +912,12 @@ export class Deployment {
     }
 
     /** Build the checkout's first-party releases into the stage's store. */
-    async #build(): Promise<PlatformBuild> {
+    async #build(local?: LocalBuild): Promise<PlatformBuild> {
         return await PlatformBuild.build(
             REPOSITORY,
             resolve(REPOSITORY, "target", this.stage.name, "releases"),
             this.environment,
+            local,
         );
     }
 
@@ -579,20 +941,24 @@ export class Deployment {
             files: `destack-${this.stage.name}-files-${residency.code}`,
             packages: `destack-${this.stage.name}-packages-${residency.code}`,
             host,
-            s3: `s3--${host}`,
-            r2: PLACEHOLDER_KEY,
+            // answer S3 below the machine's own name, locally below the loopback S3 name on its port
+            s3:
+                this.stage.name === "local"
+                    ? `${S3_HOST}:${new URL(this.machineOrigin(residency)).port}`
+                    : `s3--${host}`,
             kms: PLACEHOLDER_KMS,
         };
     }
 
-    /** Supply the scripts' bundles with the build's distribution and the universe's declaration. */
+    /** Supply the bundles with the distribution, the universe and the in-process servers. */
     static async #modules(
         build: PlatformBuild,
         declaration: UniverseDefinition,
     ): Promise<SuppliedModules> {
         return {
-            [DISTRIBUTION_MODULE]: await build.distribution(),
-            [UNIVERSE_MODULE]: declaration,
+            [DISTRIBUTION_MODULE]: { kind: "data", value: await build.distribution() },
+            [UNIVERSE_MODULE]: { kind: "data", value: declaration },
+            [SERVER_BUNDLE_MODULE]: { kind: "imports", specifiers: build.serverBundle() },
         };
     }
 
@@ -603,11 +969,7 @@ export class Deployment {
     ): (readonly [WorkerScript, WranglerConfiguration])[] {
         // configure the universe binding its declaration
         const script = new WorkerScript(this, { kind: "universe" });
-        const platform = present(
-            RESIDENCIES.find((each) => each.code === PLATFORM.residencyId),
-            "the platform residency",
-        );
-        const scripts = [[script, script.universe(universe, residency(platform))] as const];
+        const scripts = [[script, script.universe(universe)] as const];
 
         // configure each residency's tail before the cloud machine it reads the traces of
         for (const served of RESIDENCIES) {

@@ -57,8 +57,6 @@ const ResidencyOutputs = KmsOutputs.extend({
     packages: schema.object({ value: schema.string().min(1) }),
     host: schema.object({ value: schema.string().min(1) }),
     s3: schema.object({ value: schema.string().min(1) }),
-    r2_access_key_id: schema.object({ value: schema.string().min(1) }),
-    r2_secret_access_key: schema.object({ value: schema.string().min(1) }),
 });
 
 /** The outputs of the shared root, as `tofu output -json` prints them. */
@@ -115,8 +113,6 @@ export interface ResidencyOutputs {
     readonly host: string;
     /** The name below which the cloud machine answers its buckets over S3. */
     readonly s3: string;
-    /** The cloud machine's R2 key, limited to the residency's buckets. */
-    readonly r2: AccessKey;
     /** The KMS key sealing the cloud machine's keys, with the Worker's key decrypting them. */
     readonly kms: KmsOutputs;
 }
@@ -296,10 +292,6 @@ export class Root {
             packages: parsed.packages.value,
             host: parsed.host.value,
             s3: parsed.s3.value,
-            r2: {
-                accessKeyId: parsed.r2_access_key_id.value,
-                secretAccessKey: parsed.r2_secret_access_key.value,
-            },
             kms: kmsOf(parsed),
         };
     }
