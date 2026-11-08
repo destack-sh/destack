@@ -80,6 +80,7 @@
         "destack/no-partial-assertions": "error",
         "destack/no-system-environment": "error",
         "destack/padding-before-return": "error",
+        "destack/package-layout": "error",
         "destack/prevent-abbreviations": "error",
         "destack/require-block-comment": "error",
         "destack/require-jsdoc": "error",
@@ -107,6 +108,20 @@
             }
         }
     ],
-    "settings": { "destack": { "packages": ["."], "entrypoints": [] } },
+    "settings": {
+        "destack": {
+            "packages": [{ "directory": ".", "name": "@destack/template-blank" }],
+            "entrypoints": [],
+            "roles": {
+                "@destack/template-blank": "app",
+                "@destack/object": "builtin",
+                "@destack/package": "builtin",
+                "@destack/schema": "builtin",
+                "@destack/setting": "builtin",
+                "@destack/template-stack": "library",
+                "@destack/check": "library"
+            }
+        }
+    },
     "options": { "denyWarnings": true, "typeAware": true, "respectEslintDisableDirectives": false }
 }

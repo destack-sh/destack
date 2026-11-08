@@ -937,7 +937,12 @@ export class BuildStore<
     ): Promise<ImportClosure> {
         // read the builds its modules reach on the runtime
         const started = await read(start);
-        const reached = await this.closure(start, PackageManifest.package(started).id, runtime, read);
+        const reached = await this.closure(
+            start,
+            PackageManifest.package(started).id,
+            runtime,
+            read,
+        );
 
         // map each dependency's exports in its dependent's scope, visiting each build once
         const map: ImportMap = { imports: {}, scopes: {} };
