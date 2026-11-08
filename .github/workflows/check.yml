@@ -29,6 +29,17 @@ jobs:
                   fetch-depth: 0
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
+            - name: Install actionlint
+              env:
+                  # the pinned release and its archive's SHA-256 from the release's checksums
+                  VERSION: 1.7.12
+                  SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+              run: |
+                  archive="actionlint_${VERSION}_linux_amd64.tar.gz"
+                  curl -fsSLO "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${archive}"
+                  echo "${SHA256}  ${archive}" | sha256sum --check --strict
+                  tar -xzf "${archive}" actionlint
+                  sudo install actionlint /usr/local/bin/actionlint
             - name: Lint workflows
               run: actionlint
             - name: Check repository documents
