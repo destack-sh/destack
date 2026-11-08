@@ -1,5 +1,6 @@
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
 import { connectionVault } from "@destack/connection/stack";
+import { HOME_APPLICATION } from "@destack/account/object";
 import homePackage from "@destack/home/package";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
@@ -18,7 +19,7 @@ export const HOME_STACK = defineStack([vaultPackage], {
             { credentials: "credentials" },
             { isolation: "process", name: CONNECTION_INSTALLATION },
         ),
-        home: install(homePackage, {}, { name: "home" }),
+        home: install(homePackage, {}, { name: HOME_APPLICATION }),
         message: install(
             messagePackage,
             {},
