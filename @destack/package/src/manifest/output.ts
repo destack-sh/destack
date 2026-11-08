@@ -1,4 +1,6 @@
-import { schema } from "@destack/schema";
+import * as lexer from "es-module-lexer/js";
+import MagicString from "magic-string";
+import { present, schema } from "@destack/schema";
 import { DependencyName, DependencyRelease } from "../definition/index.ts";
 import { PackageFile, PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
@@ -78,6 +80,82 @@ export const ImportMap = Object.assign(importMap, {
     insert(html: string, map: ImportMap): string {
         return html.replace(/<head(?:\s[^>]*)?>/u, (head) => `${head}${ImportMap.script(map)}`);
     },
+
+    /** Resolve a specifier a module imports as browsers do, absent for one the map leaves. */
+    resolve(map: ImportMap, specifier: string, referrer: string): string | undefined {
+        return resolveAlong(chainOf(map, referrer), specifier);
+    },
+
+    /** Rewrite the specifiers a module imports to where the map resolves them, ahead of loading. */
+    async apply(map: ImportMap, code: string, referrer: string): Promise<string> {
+        // find each literal specifier of a static, re-exporting or dynamic import, the module's scopes read once
+        await lexer.init();
+        const [imports] = lexer.parse(code);
+        const chain = chainOf(map, referrer);
+        const rewritten = new MagicString(code);
+        for (const imported of imports) {
+            const { specifier } = imported;
+            const isLiteral =
+                typeof specifier === "string" && !("glob" in imported && imported.glob);
+            const resolved = isLiteral ? resolveAlong(chain, specifier) : undefined;
+
+            // replace a mapped one, keeping the quotes a dynamic import's span may include
+            if (resolved !== undefined) {
+                const isQuoted = /["'`]/u.test(code[imported.start] ?? "");
+                const text = isQuoted ? JSON.stringify(resolved) : resolved;
+                rewritten.overwrite(imported.start, imported.end, text);
+            }
+        }
+
+        return rewritten.toString();
+    },
 });
 /** An import map, as browsers read it: module specifiers to URLs, with scopes by URL prefix. */
 export type ImportMap = schema.Infer<typeof importMap>;
+
+/** List the maps a module resolves along: its scopes, most specific first, then the imports. */
+function chainOf(map: ImportMap, referrer: string): Readonly<Record<string, string>>[] {
+    const scopes = Object.keys(map.scopes)
+        .filter((prefix) => referrer.startsWith(prefix))
+        .toSorted((left, right) => right.length - left.length)
+        .map((prefix) => map.scopes[prefix] ?? {});
+
+    return [...scopes, map.imports];
+}
+
+/** Resolve a specifier along a chain of specifier maps, absent where none maps it. */
+function resolveAlong(
+    chain: readonly Readonly<Record<string, string>>[],
+    specifier: string,
+): string | undefined {
+    // take the first map resolving it
+    for (const specifiers of chain) {
+        const resolved = resolveIn(specifiers, specifier);
+        if (resolved !== undefined) {
+            return resolved;
+        }
+    }
+
+    return undefined;
+}
+
+/** Resolve a specifier in one specifier map: its exact entry, else its longest slash prefix. */
+function resolveIn(
+    specifiers: Readonly<Record<string, string>>,
+    specifier: string,
+): string | undefined {
+    // take the longest key ending in a slash that starts the specifier, unless one matches exactly
+    const exact = specifiers[specifier];
+    const prefix = Object.keys(specifiers)
+        .filter((key) => key.endsWith("/") && specifier.startsWith(key))
+        .toSorted((left, right) => right.length - left.length)[0];
+
+    // answer the exact entry, else the prefix's target with the rest of the specifier
+    if (exact !== undefined) {
+        return exact;
+    } else if (prefix !== undefined) {
+        return `${present(specifiers[prefix], prefix)}${specifier.slice(prefix.length)}`;
+    } else {
+        return undefined;
+    }
+}

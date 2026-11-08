@@ -38,6 +38,7 @@
         "@destack/error": "workspace:*",
         "@destack/schema": "workspace:*",
         "@jridgewell/trace-mapping": "0.3.31",
+        "es-module-lexer": "3.0.4",
         "lightningcss": "1.33.0",
         "magic-string": "1.4.1"
     },
