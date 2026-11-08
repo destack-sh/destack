@@ -1,5 +1,5 @@
 import { Failure } from "@destack/error";
-import { DOMAINS } from "@destack/account/address";
+import { DOMAINS, S3Origin } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { Snapshot } from "@destack/db";
 import { RequestId } from "@destack/sync";
@@ -38,7 +38,7 @@ function event(computer: TestTunnelMachine, name: string, reason?: string) {
     return [name, reason === undefined ? { machine } : { machine, reason }];
 }
 
-test("forward a request for a space's name through its machine's tunnel, preserving its name, method and body", async () => {
+test("forward a request for a space's name or S3 origin through its machine's tunnel, preserving its name, method and body", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
@@ -56,6 +56,12 @@ test("forward a request for a space's name through its machine's tunnel, preserv
         [`POST ${computer.notes}/notes/1`],
         [event(computer, "tunnel.open")],
     ]);
+
+    // call the space's buckets by its S3 origin
+    const s3 = S3Origin.format(computer.spaceId, DOMAINS.space);
+    expect(await computer.request(relay, s3, "/bucket-1/notes.txt")).toBe(
+        "hello GET /bucket-1/notes.txt",
+    );
 });
 
 test("end a forwarded request at its machine once the relay stops while the machine streams its answer", async () => {
@@ -386,15 +392,19 @@ test("route a branch to its space's machine under the branch's name", async () =
     ]);
 });
 
-test("forward a name a cloud machine serves to the machine's endpoint, preserving the host asked for", async () => {
+test("forward a name or an S3 origin a cloud machine serves to the machine's endpoint, preserving the host asked for", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     computer.cloud("eu", "cloud");
-    await computer.place("site");
+    const site = await computer.place("site");
     await computer.waitCaughtUp(relay);
 
     const name = "notes--site--acme.destack.space";
-    expect(await computer.request(relay, name, "/")).toBe(`cloud host=${name};proto=http`);
+    const s3 = S3Origin.format(site, DOMAINS.space);
+    expect([
+        await computer.request(relay, name, "/"),
+        await computer.request(relay, s3, "/bucket-1"),
+    ]).toEqual([`cloud host=${name};proto=http`, `cloud host=${s3};proto=http`]);
 });
 
 test("route the name of a space whose account lives in another residency through the directory", async () => {

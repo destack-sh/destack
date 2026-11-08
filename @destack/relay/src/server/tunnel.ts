@@ -229,10 +229,7 @@ export class Tunnel implements SocketHandler {
         await this.sweep();
         const newest = this.#sockets.at(-1);
         if (newest === undefined) {
-            throw RelayError.of(
-                "MACHINE_DISCONNECTED",
-                "the machine is disconnected",
-            );
+            throw RelayError.of("MACHINE_DISCONNECTED", "the machine is disconnected");
         } else if (newest.session.size >= MAX_STREAMS) {
             throw RelayError.of(
                 "STREAMS_EXHAUSTED",

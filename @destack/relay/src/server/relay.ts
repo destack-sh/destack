@@ -9,6 +9,7 @@ import {
     type Domains,
     InstallationOrigin,
     MachineAddress,
+    S3Origin,
     SpaceAddress,
 } from "@destack/account/address";
 import {
@@ -441,12 +442,18 @@ export class Relay {
 
     /** Find where a name's requests go through the replicas of the directory and the machines. */
     async #resolve(name: string): Promise<Destination> {
+        // read the name as a space's origin, a space's S3 origin or a machine's name
         const origin = InstallationOrigin.parse(name, this.domains.space);
+        const s3 = S3Origin.parse(name, this.domains.space);
         const computer = MachineAddress.parse(name, this.domains.machine);
 
         // route a space's name, and its branches', to its placement's machine
         if (origin !== undefined) {
             return this.#locateSpace(name, SpaceAddress.of(origin));
+        }
+        // route a space's S3 origin to its placement's machine
+        else if (s3 !== undefined) {
+            return this.#locatePlacement(name, s3);
         }
         // route a machine's name to its tunnel
         else if (computer !== undefined) {
@@ -460,9 +467,19 @@ export class Relay {
 
     /** Find the machine serving a space by its address through the directory's replica. */
     async #locateSpace(name: string, address: SpaceAddress): Promise<Destination> {
-        // find the space's placement through the replicated claims
+        // find the space through the replicated claims, then its placement
         const named = await this.#directory.find(space, address);
-        const [placed] = named === undefined ? [] : await Placement.find(this.#view, [named.id]);
+        if (named === undefined) {
+            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
+        }
+
+        return this.#locatePlacement(name, named.id);
+    }
+
+    /** Find the machine a space is placed at through the directory's replica. */
+    async #locatePlacement(name: string, spaceId: Identifier<"space">): Promise<Destination> {
+        // refuse a space placed nowhere
+        const [placed] = await Placement.find(this.#view, [spaceId]);
         if (placed === undefined) {
             throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
         }
