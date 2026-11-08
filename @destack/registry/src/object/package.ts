@@ -106,7 +106,6 @@ export const packageObject = defineObject(
         /** Point a distribution tag at a published version, creating the tag the first time. */
         point: method.mutation({
             permission: "publish",
-            visibility: "package",
             input: schema.object({
                 /** The distribution tag. */
                 name: TagName,
