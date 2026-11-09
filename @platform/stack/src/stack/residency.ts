@@ -12,7 +12,7 @@ import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
 import relayPackage from "@destack/relay/package";
-import { defineStack } from "@destack/stack";
+import { defineStack, type StackInput } from "@destack/stack";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
@@ -22,14 +22,14 @@ import { PLATFORM } from "../platform/platform.ts";
 export const platformVault = defineVault({ name: "platform", spec: {} });
 
 /** Route a hostname's every path to the relay's names. */
-function relayRoute(hostname: string) {
+function relayRoute(hostname: string): NonNullable<StackInput["routes"]>[string] {
     return {
         hostname,
         path: "/",
         match: "prefix",
         installation: "relay",
-        adapter: "names",
-    } as const;
+        rules: [{ entry: { kind: "adapter", adapter: "names" } }],
+    };
 }
 
 /** Declare a residency home's stack: the registry, billing, and its relay at some routes. */
