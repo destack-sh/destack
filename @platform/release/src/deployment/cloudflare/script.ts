@@ -256,7 +256,7 @@ export class WorkerScript {
                 DESTACK_RATES: JSON.stringify({
                     skus: Object.fromEntries(
                         UNIT_SKUS.map((sku) => [
-                            DeclarationReference.key(sku.definition.meter),
+                            sku.meterKey,
                             DeclarationReference.key(sku.reference),
                         ]),
                     ),
