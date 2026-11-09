@@ -6,7 +6,6 @@ import { Identifier, present, schema } from "@destack/schema";
 import * as object from "../../object/index.ts";
 import * as accountObject from "@destack/account/object";
 import { eq, Transaction } from "@destack/db";
-import { SpaceStore } from "../index.ts";
 import { ids, insertRollout, reconcile, TestSpace } from "../../test/index.ts";
 
 test("deploy an installation capturing each binding at its target's generation or its pinned version, and relate it to the captured resources", async () => {
@@ -71,9 +70,9 @@ test("deploy an installation capturing each binding at its target's generation o
 
     // follow the release, bind its declared targets, and deploy it once the space serves it, capturing the bindings
     await fixture.release(ids.package, "2026.9.1");
-    const store = new SpaceStore(await fixture.options()).store;
+    const store = (await fixture.spaceStore()).store;
     await reconcile(store, "rollout", { installationId: ids.notes });
-    await fixture.serveInstalled(store, ids.space);
+    await fixture.applyInstalled(store);
     await reconcile(store, "rollout", { installationId: ids.notes });
 
     // run the unpinned binding at the target's generation and the pinned one at its pinned generation

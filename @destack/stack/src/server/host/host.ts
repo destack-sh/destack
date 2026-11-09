@@ -12,6 +12,7 @@ import {
     and,
     Change,
     Condition,
+    type Controller,
     type DatabaseConnection,
     eq,
     inArray,
@@ -462,8 +463,8 @@ export class SpaceHost {
         // keep this start's servers of installations at the revision served before, by installation and revision
         const earlier: ReadonlyMap<string, ServedEntry> =
             this.#served?.signal === signal ? this.#served.entries : new Map();
-        const keys = installed.map(
-            ({ rollout: row, revisionId }) => `${row.installationId}@${revisionId}`,
+        const keys = installed.map(({ rollout: row, revisionId }) =>
+            SpaceHost.#key(row.installationId, revisionId),
         );
 
         // load the server of each other installation the store runs from its build
@@ -531,6 +532,56 @@ export class SpaceHost {
         this.#served = { signal, entries };
 
         return { servers, sandboxes, revisions };
+    }
+
+    /** Build the controller applying the space's installed set at each start and change of it. */
+    controller(reconcile: () => Promise<void>): Controller<typeof Scope.table> {
+        return {
+            name: "space",
+            table: Scope.table,
+            pending: { scope: this.id },
+            // apply again as the installed set, its rollouts or the main database's status move
+            watches: [installation.table, rollout.table, database.table].map((table) => ({
+                table,
+                isObserving: true,
+                keys: () => [{ scope: this.id }],
+            })),
+            reconcile,
+        };
+    }
+
+    /** Apply an installed set to a start: load its servers, hand a changed set over, record it. */
+    async apply(
+        installed: Awaited<ReturnType<typeof Database.installed>>,
+        start: SpaceStart,
+        signal: AbortSignal,
+        handover: (
+            servers: readonly PackageImplementation[],
+            sandboxes: readonly HookSandbox[],
+        ) => Promise<void> | void,
+    ): Promise<void> {
+        // load the set's servers, reusing this start's, and hand them over unless the start serves the set already
+        const served = this.#served?.signal === signal ? this.#served.entries : undefined;
+        const isServed =
+            served?.size === installed.length &&
+            installed.every(({ rollout: row, revisionId }) =>
+                served.has(SpaceHost.#key(row.installationId, revisionId)),
+            );
+        const { servers, sandboxes, revisions } = await this.servers(installed, start, signal);
+        if (!isServed) {
+            await handover(servers, sandboxes);
+        }
+
+        // record the revision of each installation the start serves
+        await Rollout.serve(await start.store, this.id, revisions);
+    }
+
+    /** Key an installation's server by the installation and the revision it serves. */
+    static #key(
+        installationId: Identifier<"installation">,
+        revisionId: Identifier<"installation-revision">,
+    ): string {
+        return `${installationId}@${revisionId}`;
     }
 
     /** Serve one installation: a loaded server in the store, else its hooks in a sandbox. */

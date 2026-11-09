@@ -58,7 +58,6 @@ import {
     implementInstallations,
     implementRollouts,
 } from "./installation/installation.ts";
-import { InstallationAssertion } from "./installation/token.ts";
 import { implementInstallationRevision } from "./installation/revision.ts";
 import { installationProvider, ProviderIndex, type SpaceProvider } from "./resource/resource.ts";
 import { implementSpace, type SpaceRole } from "./host/space.ts";
@@ -317,25 +316,6 @@ export class SpaceStore {
         });
     }
 
-    /** The packages the space serves, each verifying the installation assertions it receives. */
-    get packages(): readonly PackageHandler[] {
-        const { store } = this;
-
-        return store.packages.map((served) => {
-            const verifier = InstallationAssertion.verifier(store, served.package.id);
-
-            return {
-                ...served,
-                verify: (request: Request) =>
-                    InstallationAssertion.verify(
-                        verifier,
-                        request,
-                        this.#options.environment.clock.now(),
-                    ),
-            };
-        });
-    }
-
     /** Open a package's release the space runs, or a named version, absent for none. */
     async release(
         view: Snapshot,
@@ -375,9 +355,7 @@ export class SpaceStore {
         servers: readonly PackageImplementation[],
         sandboxes: readonly HookSandbox[],
     ): readonly PackageHandler[] {
-        this.store.apply(this.#servers(servers), sandboxes);
-
-        return this.packages;
+        return this.store.apply(this.#servers(servers), sandboxes);
     }
 
     /** List the space's servers: the stack's, access's and settings', then the installed ones. */

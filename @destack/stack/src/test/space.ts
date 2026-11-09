@@ -85,7 +85,7 @@ import {
 import objectPackage from "@destack/object/package";
 import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
-import { Database, Rollout } from "../object/index.ts";
+import { Database } from "../object/index.ts";
 import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
@@ -327,7 +327,10 @@ export class TestSpace implements AsyncDisposable {
     /** The waits failing at the space's servers' next reported failure. */
     readonly #reporting = new Set<(error: unknown) => void>();
     /** Load the installations main applied since into a served store, by the store. */
-    readonly #appliers = new WeakMap<TestObjectStore, () => Promise<void>>();
+    readonly #appliers = new WeakMap<
+        Pick<ObjectStore, "database" | "mutate" | "principal" | "clock" | "environment">,
+        () => Promise<void>
+    >();
     /** The closing of the machine's database, absent while open. */
     #closed: Promise<void> | undefined;
     /** The machine's bucket host. */
@@ -1205,35 +1208,75 @@ export class TestSpace implements AsyncDisposable {
         );
     }
 
-    /** Project a space as its machine does, serving its installed revisions at each change. */
-    projection(store: ObjectStore, spaceId: Identifier<"space">): Projection {
-        return new Projection(store.database, {
-            name: "host",
-            tables: [object.rollout.table, object.database.table],
-            keys: async () => [spaceId],
-            all: async () => [spaceId],
-            project: async () => this.serveInstalled(store, spaceId),
+    /** Build a store of the space over its options, applying its installed set in place. */
+    async spaceStore(overrides: FixtureOptions = {}): Promise<SpaceStore> {
+        // build the store, and a start whose calls the test makes itself
+        const spaceStore = new SpaceStore(await this.options(overrides));
+        const start = this.#start(
+            Promise.resolve(spaceStore.store),
+            async (packageId) => {
+                throw new TypeError(`the test's own space store serves no call of ${packageId}`);
+            },
+            [...this.#beside.providers, ...(overrides.providers ?? [])],
+        );
+
+        // apply the installations main applied in place, as the machine's space does
+        const signal = new AbortController().signal;
+        this.#appliers.set(spaceStore.store, async () => {
+            const current = await this.#installed();
+            await this.host.apply(current, start, signal, (servers, sandboxes) => {
+                spaceStore.apply(servers, sandboxes);
+            });
         });
+
+        return spaceStore;
     }
 
-    /** Serve a space's installed revisions through its store, as its machine's start does. */
-    async serveInstalled(
-        store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock" | "environment">,
-        spaceId: Identifier<"space">,
-    ): Promise<void> {
-        // read the revisions main applied, as the machine's start serves them
-        const builds = await this.builds();
-        const installed = await Database.installed(
-            Snapshot.live(this.database),
-            spaceId,
-            (packageId, manifest) => builds.pull(this.registry, packageId, manifest),
-        );
-        const revisions = new Map(
-            installed.map((entry) => [entry.rollout.installationId, entry.revisionId]),
-        );
+    /** Build a start of the space, loading the test's linked servers and running no hook. */
+    #start(
+        store: Promise<ObjectStore>,
+        call: SpaceStart["call"],
+        providers: SpaceStart["providers"],
+    ): SpaceStart {
+        return {
+            report: (error) => {
+                throw error;
+            },
+            server: async (manifest) =>
+                this.#servers.find(
+                    (server) => this.#linked.get(server.package.id)?.manifest === manifest,
+                ),
+            call,
+            store,
+            providers,
+            connectors: this.#connectors,
+            buckets: this.#buckets,
+            egress: (caller, request) => this.#egress(caller, request),
+            sandbox: (row, server, declarations) =>
+                new HookSandbox({
+                    server,
+                    declarations,
+                    send: async () => {
+                        throw new TypeError(
+                            `the test space runs no hook of ${row.installation.name}`,
+                        );
+                    },
+                }),
+        };
+    }
 
-        // record what the space serves
-        await Rollout.serve(store, spaceId, revisions);
+    /** Apply a space's changed installed set in its running store, as its machine does. */
+    async applyInstalled(
+        store: Pick<ObjectStore, "database" | "mutate" | "principal" | "clock" | "environment">,
+    ): Promise<void> {
+        await present(this.#appliers.get(store), `the running store of space ${this.id}`)();
+    }
+
+    /** Read the installed set main applied, each installation at its revision. */
+    #installed(): ReturnType<typeof Database.installed> {
+        return Database.installed(Snapshot.live(this.database), this.id, (packageId, manifest) =>
+            this.#builds.pull(this.registry, packageId, manifest),
+        );
     }
 
     /** Take the distinct refusals the space's servers reported since the last take. */
@@ -1600,24 +1643,10 @@ export class TestSpace implements AsyncDisposable {
         const serving = Promise.withResolvers<TestObjectStore>();
         const stopping = new AbortController();
         const role = given.role ?? (await this.host.options()).role;
-        const installed =
-            role === "primary"
-                ? await Database.installed(
-                      Snapshot.live(this.database),
-                      this.id,
-                      (packageId, manifest) =>
-                          this.#builds.pull(this.registry, packageId, manifest),
-                  )
-                : [];
-        const start: SpaceStart = {
-            report: (error) => {
-                throw error;
-            },
-            server: async (manifest) =>
-                this.#servers.find(
-                    (server) => this.#linked.get(server.package.id)?.manifest === manifest,
-                ),
-            call: async (packageId, request, authentication) => {
+        const installed = role === "primary" ? await this.#installed() : [];
+        const start = this.#start(
+            serving.promise.then((served) => served.store),
+            async (packageId, request, authentication) => {
                 const served = await serving.promise;
                 const handler = present(
                     served.store.packages.find((each) => each.package.id === packageId),
@@ -1626,37 +1655,38 @@ export class TestSpace implements AsyncDisposable {
 
                 return served.server(handler.package).fetch(request, authentication);
             },
-            store: serving.promise.then((served) => served.store),
             providers,
-            connectors: this.#connectors,
-            buckets: this.#buckets,
-            egress: (caller, request) => this.#egress(caller, request),
-            sandbox: (row, server, declarations) =>
-                new HookSandbox({
-                    server,
-                    declarations,
-                    send: async () => {
-                        throw new TypeError(
-                            `the test space runs no hook of ${row.installation.name}`,
-                        );
-                    },
-                }),
-        };
+        );
         const hosted = await this.host.servers(installed, start, stopping.signal);
 
         // serve the space's companions and the test's own packages at their base installations in the space
         const own = await this.#placed([...this.#beside.companions, ...(given.servers ?? [])]);
 
+        // apply a primary's installed set in place at each change of it, as the machine's space does
+        const applyInstalled = async () => {
+            if (role !== "primary") {
+                return;
+            }
+            const current = await this.#installed();
+            await this.host.apply(current, start, stopping.signal, async (servers, sandboxes) =>
+                (await serving.promise).serve(spaceStore.apply([...servers, ...own], sandboxes)),
+            );
+        };
+
         // serve as the machine's start does, once the space's replicas are ready and its birth settled
         const spaceStore = new SpaceStore(
             await this.options({
                 ...given,
+                controllers: [
+                    ...(given.controllers ?? []),
+                    () => this.host.controller(applyInstalled),
+                ],
                 servers: [...hosted.servers, ...own],
                 providers: providers.filter((each): each is SpaceProvider => !("connect" in each)),
                 sandboxes: hosted.sandboxes,
             }),
         );
-        const { store, packages } = spaceStore;
+        const { store } = spaceStore;
 
         // receive the space's and the test's own base installations on each start, with roles from the types they serve
         const born = [
@@ -1694,23 +1724,14 @@ export class TestSpace implements AsyncDisposable {
         // serve the store as its machine does, in the partitions the space serves
         const served = TestObjectStore.serve(store, {
             scopes: await this.host.partitions(),
-            packages: packages.map((handler) =>
+            packages: store.packages.map((handler) =>
                 isControlled ? handler : { ...handler, control: { controllers: [], cursors: [] } },
             ),
             credential: this.#credential(store),
             report: (error) => this.#report(error),
         });
         serving.resolve(served);
-        this.#appliers.set(served, async () => {
-            // load the installations main applied since, as the machine's space applies them in place
-            const current = await Database.installed(
-                Snapshot.live(this.database),
-                this.id,
-                (packageId, manifest) => this.#builds.pull(this.registry, packageId, manifest),
-            );
-            const loaded = await this.host.servers(current, start, stopping.signal);
-            spaceStore.apply([...loaded.servers, ...own], loaded.sandboxes);
-        });
+        this.#appliers.set(served.store, applyInstalled);
         const unserve = this.gateway.serve(this, served);
         this.#defer(async () => {
             // stop every served space's controllers in the world first, then stop serving this one
@@ -2011,9 +2032,8 @@ export class TestSpace implements AsyncDisposable {
         const { installations } = StackDefinition.collections(this.#stack);
         await this.apply(served, [], { installations: { ...installations, [name]: declared } });
 
-        // serve the revision the stack applied in place, then record it served, as the machine does on the change
-        await present(this.#appliers.get(served), "the served store's apply")();
-        await this.serveInstalled(served.store, this.id);
+        // serve the revision the stack applied in place, as the machine does on the change
+        await this.applyInstalled(served.store);
         await this.simulation.idle();
 
         // read the installation the stack applied, refusing one its rollout refuses to deploy

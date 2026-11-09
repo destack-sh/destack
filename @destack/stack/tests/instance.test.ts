@@ -351,30 +351,22 @@ async function serveControllers(
     const runtimes = options.runtimes ?? ["bun"];
 
     // run the chosen runtimes on the machine serving the space and record instances on the one test runtime
-    const served = new SpaceStore(
-        await fixture.options({
-            providers: [
-                databaseProvider(
-                    new BunSqliteDatabaseHost(root, fixture.environment),
-                    object.database,
-                ),
-                databaseProvider(
-                    new TestSpaceDatabaseHost(root, fixture.environment),
-                    object.database,
-                ),
-            ],
-            ...(options.accounts === undefined ? {} : { accounts: options.accounts }),
-            ...(options.destack === undefined ? {} : { destack: options.destack }),
-            ...(options.isEnforcingEntitlements === true
-                ? { isEnforcingEntitlements: true, publisherAt: () => TestEntitlement.publisher }
-                : {}),
-            runtimes: runtimes.map((name) =>
-                name === runtime.name
-                    ? runtime
-                    : new TestRuntime({ scheduler: fixture.environment.scheduler, name }),
-            ),
-        }),
-    );
+    const served = await fixture.spaceStore({
+        providers: [
+            databaseProvider(new BunSqliteDatabaseHost(root, fixture.environment), object.database),
+            databaseProvider(new TestSpaceDatabaseHost(root, fixture.environment), object.database),
+        ],
+        ...(options.accounts === undefined ? {} : { accounts: options.accounts }),
+        ...(options.destack === undefined ? {} : { destack: options.destack }),
+        ...(options.isEnforcingEntitlements === true
+            ? { isEnforcingEntitlements: true, publisherAt: () => TestEntitlement.publisher }
+            : {}),
+        runtimes: runtimes.map((name) =>
+            name === runtime.name
+                ? runtime
+                : new TestRuntime({ scheduler: fixture.environment.scheduler, name }),
+        ),
+    });
     const { store } = served;
 
     return {
@@ -385,18 +377,18 @@ async function serveControllers(
         deployments: {
             reconcile: async (id: string) => {
                 // attach, provision the space's resources, record the targets bound, and deploy once the space serves the bound revision
-                await fixture.serveInstalled(store, ids.space);
+                await fixture.applyInstalled(store);
                 await reconcile(store, "rollout", { installationId: id });
                 await reconcileResources(store, ids.space);
-                await fixture.serveInstalled(store, ids.space);
+                await fixture.applyInstalled(store);
                 await reconcile(store, "rollout", { installationId: id });
-                await fixture.serveInstalled(store, ids.space);
+                await fixture.applyInstalled(store);
 
                 return reconcile(store, "rollout", { installationId: id });
             },
             deploy: async (id: string) => {
                 // deploy once the space serves the bound revision
-                await fixture.serveInstalled(store, ids.space);
+                await fixture.applyInstalled(store);
 
                 return reconcile(store, "rollout", { installationId: id });
             },
@@ -407,17 +399,17 @@ async function serveControllers(
             settle: () => {
                 // run the store's and the stack package's control, each controller once, serving the installed revisions as the space's machine does
                 const own = store.control();
-                const stack = nth(served.packages, 0).control;
+                const stack = nth(store.packages, 0).control;
                 const names = new Set(own.controllers.map((each) => each.name));
                 const added = (stack?.controllers ?? []).filter((each) => !names.has(each.name));
 
                 return settle(database, {
-                    controllers: [...own.controllers, ...added],
-                    cursors: [
-                        ...own.cursors,
-                        ...(stack?.cursors ?? []),
-                        fixture.projection(store, ids.space),
+                    controllers: [
+                        ...own.controllers,
+                        ...added,
+                        fixture.host.controller(() => fixture.applyInstalled(store)),
                     ],
+                    cursors: [...own.cursors, ...(stack?.cursors ?? [])],
                 });
             },
         },
