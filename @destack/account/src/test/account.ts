@@ -54,7 +54,7 @@ import {
 } from "../better-auth/index.ts";
 import { MachineIdentity } from "../client/index.ts";
 import { Issuer } from "../native/index.ts";
-import { IdentityKeystore, IdentityRegistry, type TokenSource } from "../identity/index.ts";
+import { IdentityKeystore, IdentityRegistry, type WorkloadIdentity } from "../identity/index.ts";
 import {
     account,
     Account,
@@ -638,9 +638,9 @@ export class TestAccountStore implements AsyncDisposable {
         await keystore.generate(this.database, spaceId);
     }
 
-    /** Call out as a space or installation by its space's key, as the machine serving it does. */
-    source(subject: Subject): TokenSource {
-        return this.keystore.source(this.database, subject, {
+    /** Act as a space or installation by its space's key, as the machine serving it does. */
+    identityOf(subject: Subject): WorkloadIdentity {
+        return this.keystore.identityOf(this.database, subject, {
             environment: this.environment,
             issuer: ISSUER,
             send: (request) => this.fetch(request),
@@ -1287,14 +1287,14 @@ export class TestAccountStore implements AsyncDisposable {
         // serve each package to bearers, signing machines by their keys and spaces by their space's
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
         const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
-        const sources = new Map<string, TokenSource>();
+        const identities = new Map<string, WorkloadIdentity>();
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {
                 sign: async (request, signer) => {
                     // send the token the caller's key proves
                     const token = await TestAccountStore.#token(signer, {
                         machines,
-                        sources,
+                        identities,
                         keystore: authenticator.keystore,
                         database,
                         environment,
@@ -1354,8 +1354,8 @@ export class TestAccountStore implements AsyncDisposable {
         keys: {
             /** The machines tests act as, by machine. */
             readonly machines: ReadonlyMap<string, MachineIdentity>;
-            /** The token sources of the spaces and installations tests act as, by subject. */
-            readonly sources: Map<string, TokenSource>;
+            /** The identities of the spaces and installations tests act as, by subject. */
+            readonly identities: Map<string, WorkloadIdentity>;
             /** The keystore storing the spaces' keys. */
             readonly keystore: IdentityKeystore;
             /** The account database. */
@@ -1381,16 +1381,16 @@ export class TestAccountStore implements AsyncDisposable {
 
         // sign a space or installation with its space's key, keeping its granted tokens
         const key = Subject.key(subject);
-        const source =
-            keys.sources.get(key) ??
-            keys.keystore.source(keys.database, subject, {
+        const identity =
+            keys.identities.get(key) ??
+            keys.keystore.identityOf(keys.database, subject, {
                 environment: keys.environment,
                 issuer: ISSUER,
                 send: keys.send,
             });
-        keys.sources.set(key, source);
+        keys.identities.set(key, identity);
 
-        return source.grantedToken(audience);
+        return identity.grantedToken(audience);
     }
 
     /** Open the releases a test publishes, by package and version, refusing any other. */

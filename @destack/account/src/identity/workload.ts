@@ -7,17 +7,16 @@ import { PackageId } from "@destack/package";
 import { type Fetch, SpaceMount } from "@destack/object";
 import {
     ASSERTION_TYPE,
+    type PartitionId,
     SPACE_KEY,
     TOKEN_LIFETIME_MILLISECONDS,
-    TokenCache,
     TokenIssuer,
 } from "@destack/access/token";
+import { TokenSource } from "../client/bearer.ts";
 import { Issuer, type TokenBinding } from "../native/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
-import { TOKEN_PATH } from "../authentication/path.ts";
-import { TokenResponse, SECOND_MILLISECONDS } from "../authentication/token.ts";
-import { JWT_BEARER } from "../oauth/bearer.ts";
+import { SECOND_MILLISECONDS } from "../authentication/token.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
@@ -28,8 +27,8 @@ const ASSERTION_SECONDS = 60;
 /** The credential kind of a token the universe's key signs for the universe. */
 const UNIVERSE_KEY = "universe-key";
 
-/** The universe, a space or one of its installations calling out with tokens its identity signs. */
-export class TokenSource {
+/** The universe, a space or one of its installations calling out as its identity, by its keys. */
+export class WorkloadIdentity {
     /** The keystore that stores the identity's keys. */
     readonly keystore: IdentityKeystore;
     /** The connection reading the identity's keys. */
@@ -46,8 +45,8 @@ export class TokenSource {
     readonly environment: Environment;
     /** The issuer of the subject's tokens, signed with its identity's key. */
     readonly #signing: TokenIssuer;
-    /** The tokens the universe's issuer granted for the subject's assertions, by package. */
-    readonly #granted = new TokenCache();
+    /** The tokens the universe's issuer grants for the subject's assertions. */
+    readonly #granted: TokenSource;
 
     /** Call out as a subject whose identity's keys a keystore stores. */
     constructor(
@@ -64,7 +63,7 @@ export class TokenSource {
         this.keystore = keystore;
         this.database = database;
         this.subject = subject;
-        this.identity = TokenSource.#identity(subject);
+        this.identity = WorkloadIdentity.#identity(subject);
         this.issuer = network.issuer;
         this.send = network.send;
         this.environment = network.environment;
@@ -77,6 +76,12 @@ export class TokenSource {
                   sign: (claims, header) => keystore.sign(database, this.identity, claims, header),
               })
             : keystore.issuer(database, this.identity);
+
+        // get granted tokens by the assertions the identity signs
+        this.#granted = new TokenSource(
+            (endpoint) => this.assertion(endpoint),
+            network.environment,
+        );
     }
 
     /** Authenticate the subject calling a package in a space now, by its identity's key. */
@@ -97,7 +102,7 @@ export class TokenSource {
     }
 
     /** Create a fetch calling a package with tokens the subject signs. */
-    fetchSigned(audience: PackageId, partition?: string): Fetch {
+    fetchSigned(audience: PackageId, partition?: PartitionId): Fetch {
         return async (request) => {
             // bind the token to the partition, else to the space below the request's mount, refusing a request to no space
             const scope = partition ?? SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
@@ -115,24 +120,27 @@ export class TokenSource {
                 this.keystore.environment,
             );
 
-            return this.send(TokenSource.#bearer(request, accessToken));
+            return this.send(WorkloadIdentity.#bearer(request, accessToken));
         };
     }
 
     /** Create a fetch calling a package with the subject's granted tokens, bound to a partition. */
-    fetchGranted(audience: PackageId, partition?: string): Fetch {
-        return async (request) =>
-            this.send(TokenSource.#bearer(request, await this.grantedToken(audience, partition)));
+    fetchGranted(audience: PackageId, partition?: PartitionId): Fetch {
+        return this.#granted.fetch(
+            this.send,
+            audience,
+            this.issuer,
+            WorkloadIdentity.#bound(partition),
+        );
     }
 
     /** Read the subject's granted token of a package and partition, reused a while. */
-    grantedToken(audience: PackageId, partition?: string): Promise<string> {
-        const key = partition === undefined ? audience : `${audience} ${partition}`;
-
+    grantedToken(audience: PackageId, partition?: PartitionId): Promise<string> {
         return this.#granted.token(
-            key,
-            this.keystore.environment.clock.now(),
-            async () => (await this.#grant(audience, partition)).accessToken,
+            audience,
+            this.issuer,
+            this.send,
+            WorkloadIdentity.#bound(partition),
         );
     }
 
@@ -166,25 +174,9 @@ export class TokenSource {
         return this.keystore.sign(this.database, this.identity, claims, { typ: ASSERTION_TYPE });
     }
 
-    /** Ask the universe's issuer for the subject's token of a package with its assertion. */
-    async #grant(audience: PackageId, partition: string | undefined) {
-        // post the subject's assertion for the package and partition to the universe's issuer
-        const endpoint = `${this.issuer}${TOKEN_PATH}`;
-        const body = new URLSearchParams({
-            grant_type: JWT_BEARER,
-            assertion: await this.assertion(endpoint),
-            resource: PackageId.resource(audience),
-            ...(partition === undefined ? {} : { partition }),
-        });
-        const response = await this.send(new Request(endpoint, { method: "POST", body }));
-        if (!response.ok) {
-            throw await TokenResponse.refusal(response);
-        }
-
-        return TokenResponse.granted(
-            TokenResponse.parse(await response.json()),
-            this.environment.clock.now(),
-        );
+    /** Bind a token to a partition when given. */
+    static #bound(partition: PartitionId | undefined): Pick<TokenBinding, "partition"> {
+        return partition === undefined ? {} : { partition };
     }
 
     /** Copy a request with a bearer token. */

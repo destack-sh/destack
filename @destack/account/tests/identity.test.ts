@@ -521,7 +521,9 @@ test("grant a space a token in another space stating the people it is home to, a
     await place(accounts, owner, other, laptop.machineId);
     const personal = await accounts.personalHome(owner);
     await accounts.startIdentity(personal.spaceId, personal.machine);
-    const home = accounts.source(principal.space.reference(Scope.universe.id, personal.spaceId));
+    const home = accounts.identityOf(
+        principal.space.reference(Scope.universe.id, personal.spaceId),
+    );
 
     // grant a token in the other space, and ask for one in the machine's partition
     const granted = TestJwt.claims(await home.grantedToken(AUDIENCE, other));

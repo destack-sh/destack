@@ -91,7 +91,10 @@ test("read and write a space's S3 origin in one label, forwarded or not, and not
         host,
         S3Origin.parse(host, DOMAINS.space),
         S3Origin.of(forwarded, DOMAINS.space),
-        S3Origin.of(new Request(`http://${S3Origin.format(space, "localhost")}:4102/`), "localhost"),
+        S3Origin.of(
+            new Request(`http://${S3Origin.format(space, "localhost")}:4102/`),
+            "localhost",
+        ),
         S3Origin.parse("notes--work--ada.destack.space", DOMAINS.space),
         S3Origin.parse(`bucket.${host}`, DOMAINS.space),
         S3Origin.parse("s3--work--ada.destack.space", DOMAINS.space),

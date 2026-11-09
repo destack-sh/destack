@@ -185,7 +185,7 @@ test("sign an installation's request for the space it goes to by its space's key
     );
     let received: Request | undefined;
     const send = keystore
-        .source(database, installation, {
+        .identityOf(database, installation, {
             environment: accounts.environment,
             issuer: "https://universe.test/oauth",
             send: async (request) => {
@@ -291,7 +291,7 @@ test("send a request as the universe bound to the space it goes to, which a veri
     const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
     const received: Request[] = [];
     const universeFetch = keystore
-        .source(database, universe.reference(Scope.universe.id, Scope.universe.id), {
+        .identityOf(database, universe.reference(Scope.universe.id, Scope.universe.id), {
             environment: accounts.environment,
             issuer,
             send: async (request) => {

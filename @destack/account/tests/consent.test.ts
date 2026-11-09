@@ -52,7 +52,7 @@ test("let an installation act for a person under the grant the person created, u
 
     // exchange the installation's token for the owner's under a named or the only grant
     const exchange = async (grants?: readonly Identifier<"grant">[]) =>
-        fixture.source(inbox).exchange(accountPackage.id, {
+        fixture.identityOf(inbox).exchange(accountPackage.id, {
             subject: owner.subject,
             ...(grants === undefined ? {} : { grants }),
         });
@@ -131,7 +131,7 @@ test("stamp a token acting for a person under their grant with the universe's po
         .where(eq(session.table.userId, owner.id));
     const sessionId = present(signedIn, "the owner's session").id;
     const exchange = async () =>
-        fixture.source(inbox).exchange(accountPackage.id, {
+        fixture.identityOf(inbox).exchange(accountPackage.id, {
             subject: owner.subject,
             credential: sessionId,
         });
@@ -205,7 +205,7 @@ test("time an installation's granted token by its package's lifetime, past the o
         },
     });
     const { inbox } = await grantInbox(fixture);
-    const granted = await fixture.source(inbox).grantedToken(objectPackage.id);
+    const granted = await fixture.identityOf(inbox).grantedToken(objectPackage.id);
 
     // live the package's lifetime, in seconds
     const { iat, exp } = TestJwt.claims(granted);
@@ -222,7 +222,9 @@ test("live an exchanged token within the person's client, refusing a revoked cli
         await clientOf(fixture, stranger.id),
     ];
     const exchange = (credential: typeof owned) =>
-        fixture.source(inbox).exchange(accountPackage.id, { subject: owner.subject, credential });
+        fixture
+            .identityOf(inbox)
+            .exchange(accountPackage.id, { subject: owner.subject, credential });
     const within = await exchange(owned).then(() => "exchanged");
     const elsewhere = await refusal(exchange(foreign));
 

@@ -1,7 +1,7 @@
 import { ColumnCipher, eq, type DatabaseConnection, type Select } from "@destack/db";
 import type { IdentityRegistry } from "./registry.ts";
 import { identityKey, type SigningKey } from "./key.ts";
-import { TokenSource } from "./source.ts";
+import { WorkloadIdentity } from "./workload.ts";
 import {
     type Ciphertext,
     Derivation,
@@ -147,8 +147,8 @@ export class IdentityKeystore {
         this.#forgetSigners(subject);
     }
 
-    /** Call out as a subject whose identity's keys this process stores. */
-    source(
+    /** Act as a subject whose identity's keys this process stores, calling out as it. */
+    identityOf(
         database: DatabaseConnection,
         subject: Subject,
         network: {
@@ -156,8 +156,8 @@ export class IdentityKeystore {
             readonly send: Fetch;
             readonly environment: Environment;
         },
-    ): TokenSource {
-        return new TokenSource(this, database, subject, network);
+    ): WorkloadIdentity {
+        return new WorkloadIdentity(this, database, subject, network);
     }
 
     /** Issue tokens as a space this machine stores keys of, signed with its active signing key. */
