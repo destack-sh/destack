@@ -312,20 +312,10 @@ export class TestFinance {
 
     /** Install finance in the residency's home, and create Acme, the shop and their spaces. */
     static async #write(home: TestSpace): Promise<FinanceWorld> {
-        // install the vault, then the connections over their vault, then finance bound to the Stripe connection,
-        //  serving each stage's types before the next, as the machine's restarts do
-        const { vault, connection } = RESIDENCY_STACK.installations;
-        const stages = [
-            { installations: { vault } },
-            { vaults: RESIDENCY_STACK.vaults, installations: { vault, connection } },
-            RESIDENCY_STACK,
-        ];
-        for (const stage of stages) {
-            const installing = await home.serve();
-            await home.apply(installing, HOME_TYPES, stage);
-            await home.serveInstalled(installing.store, home.id);
-            await installing[Symbol.asyncDispose]();
-        }
+        // install finance bound to the Stripe connection, with the vault and connections it uses, in one apply
+        const installing = await home.serve();
+        await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
+        await installing[Symbol.asyncDispose]();
 
         // sign the people in, alice creating Acme paying with its billing account, and carol her shop
         const { universe } = home;
