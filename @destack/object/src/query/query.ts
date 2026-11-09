@@ -1,4 +1,4 @@
-import { type Condition, FindOptions, type Relation, Relations } from "@destack/db";
+import { type Condition, FindOptions, type Relation, Relations, TABLE } from "@destack/db";
 import { ObjectError } from "../error/error.ts";
 import { Scope, type Query } from "@destack/sync";
 
@@ -16,14 +16,40 @@ export class RelationGraph {
     readonly objects: readonly ObjectType[];
     /** The relations between the listed types. */
     readonly relations: Relations;
+    /** The served types queries list. */
+    readonly #listed: readonly ObjectType[];
+    /** The first listed type of each table, by table, as types sharing a table are the same. */
+    readonly #byTable = new Map<string, ObjectType>();
+    /** The listed types nested in or referring to each table's type, by table. */
+    readonly #near = new Map<string, Set<ObjectType>>();
 
     /** Derive served types' relations: references, parents, children, attachments, join types. */
     constructor(objects: readonly ObjectType[]) {
+        // index the listed types by table, keeping the first of each as `same` finds it
+        this.objects = objects;
+        this.#listed = objects.filter((object) => object.listing !== undefined);
+        for (const type of this.#listed) {
+            const table = RelationGraph.#table(type);
+            if (!this.#byTable.has(table)) {
+                this.#byTable.set(table, type);
+            }
+        }
+
+        // note each listed type under its parent's table and under each table it references
+        for (const type of this.#listed) {
+            const referenced = Object.values(type.fields).map((field) => field.target?.());
+            for (const near of [type.parent?.object, ...referenced]) {
+                if (near !== undefined && near !== "any") {
+                    const table = RelationGraph.#table(near);
+                    this.#near.set(table, (this.#near.get(table) ?? new Set()).add(type));
+                }
+            }
+        }
+
         // relate each listed type to the listed types it references, nests in or contains
-        const listed = objects.filter((object) => object.listing !== undefined);
         const tables = new Map<ObjectType["table"], Record<string, Relation>>();
-        for (const object of listed) {
-            tables.set(object.table, QueryDerivation.directRelations(object, listed));
+        for (const object of this.#listed) {
+            tables.set(object.table, this.#direct(object));
         }
 
         // relate through join types: a child type's reference to a third type
@@ -34,7 +60,6 @@ export class RelationGraph {
                 }
             }
         }
-        this.objects = objects;
         this.relations = new Relations(tables);
     }
 
@@ -120,6 +145,69 @@ export class RelationGraph {
         }
 
         return { object: target, relation };
+    }
+
+    /** Relate a type to its referenced types, parent, children, attachments and referrers. */
+    #direct(object: ObjectType): Record<string, Relation> {
+        // key each relation once, the first declaration winning
+        const named: Record<string, Relation> = {};
+        const relate = (name: string, relation: Relation) => {
+            named[name] ??= relation;
+        };
+
+        // relate the type a reference refers to, and the parent of a nested type
+        for (const [column, field] of Object.entries(object.fields)) {
+            const served = this.#of(field.target?.());
+            if (field.relation !== undefined && served !== undefined) {
+                relate(
+                    field.relation,
+                    QueryDerivation.one(served, { kind: "key", column: "id", parent: column }),
+                );
+            }
+        }
+        const parent = this.#of(object.parent?.object);
+        if (parent !== undefined && !parent.same(object)) {
+            relate(
+                "parent",
+                QueryDerivation.one(parent, { kind: "key", column: "id", parent: "parentId" }),
+            );
+        }
+
+        // relate the children nested in, attached to or referencing the type, in listed order
+        const near = this.#near.get(RelationGraph.#table(object)) ?? new Set();
+        for (const children of this.#listed) {
+            if (!near.has(children) && !object.attaches(children)) {
+                continue;
+            }
+            const isAttached = !children.same(object) && object.attaches(children);
+            const column = QueryDerivation.childColumn(children, object, isAttached);
+            if (column !== undefined) {
+                const where = isAttached
+                    ? {
+                          parentPackageId: object.policy.definition.packageId,
+                          parentType: object.name,
+                      }
+                    : undefined;
+                relate(
+                    children.plural,
+                    QueryDerivation.many(children, { kind: "key", column, parent: "id" }, where),
+                );
+            }
+        }
+
+        return named;
+    }
+
+    /** Find the listed type sharing a type's table, absent for none. */
+    #of(type: ObjectType | "any" | undefined): ObjectType | undefined {
+        return type === undefined || type === "any"
+            ? undefined
+            : this.#byTable.get(RelationGraph.#table(type));
+    }
+
+    /** Read a type's table name, which identifies it across copies. */
+    static #table(type: ObjectType): string {
+        return type.table[TABLE].sqlName;
     }
 }
 
@@ -258,53 +346,6 @@ const QueryDerivation = {
 
             return [[far, { table: second.table, cardinality: "many", on }]];
         });
-    },
-
-    /** Relate a type to its referenced types, parent, children, attachments and referrers. */
-    directRelations(object: ObjectType, listed: readonly ObjectType[]): Record<string, Relation> {
-        // key each relation once, the first declaration winning
-        const named: Record<string, Relation> = {};
-        const relate = (name: string, relation: Relation) => {
-            named[name] ??= relation;
-        };
-
-        // relate the type a reference refers to, and the parent of a nested type
-        for (const [column, field] of Object.entries(object.fields)) {
-            const served = listed.find((entry) => entry.same(field.target?.()));
-            if (field.relation !== undefined && served !== undefined) {
-                relate(
-                    field.relation,
-                    QueryDerivation.one(served, { kind: "key", column: "id", parent: column }),
-                );
-            }
-        }
-        const parent = listed.find((entry) => entry.same(object.parent?.object));
-        if (parent !== undefined && !parent.same(object)) {
-            relate(
-                "parent",
-                QueryDerivation.one(parent, { kind: "key", column: "id", parent: "parentId" }),
-            );
-        }
-
-        // relate the children nested in, attached to or referencing the type
-        for (const children of listed) {
-            const isAttached = !children.same(object) && object.attaches(children);
-            const column = QueryDerivation.childColumn(children, object, isAttached);
-            if (column !== undefined) {
-                const where = isAttached
-                    ? {
-                          parentPackageId: object.policy.definition.packageId,
-                          parentType: object.name,
-                      }
-                    : undefined;
-                relate(
-                    children.plural,
-                    QueryDerivation.many(children, { kind: "key", column, parent: "id" }, where),
-                );
-            }
-        }
-
-        return named;
     },
 
     /** Find the column relating children to a type: the parent column, or their one reference. */

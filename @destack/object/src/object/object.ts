@@ -175,6 +175,8 @@ interface Derived {
     declaredReferences?: Readonly<Record<string, DeclaredReference>>;
     /** The fields a declaration sets, which a managed record's manager owns. */
     declaredFields?: ReadonlySet<string>;
+    /** The object types of plain reference relations, read by the type's permissions. */
+    related?: readonly ObjectType[];
 }
 
 /** The scope and identifier of an object's row, read from a row of any object table. */
@@ -1421,12 +1423,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
     /** The object types of plain reference relations, read by the type's permissions. */
     get related(): readonly ObjectType[] {
-        return Object.entries(this.fields).flatMap(([property, field]) => {
+        this.derived.related ??= Object.entries(this.fields).flatMap(([property, field]) => {
             const name = Casing.kebab(field.relationAt(property));
             const isRelation = Object.hasOwn(this.policy.definition.relations, name);
 
             return isRelation && field.type === "reference" && field.target ? [field.target()] : [];
         });
+
+        return this.derived.related;
     }
 
     /** Replace the keys an input's references give with their targets' identifiers. */
