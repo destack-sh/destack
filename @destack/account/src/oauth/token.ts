@@ -37,8 +37,8 @@ export interface TokenRequest {
     readonly headers: Headers;
 }
 
-/** A grant: checks and spent codes once, then its issue, or a step writing it in a transaction. */
-export type TokenGrant = (
+/** A grant type the endpoint implements: its checks, then its issue or the step writing it. */
+export type GrantType = (
     request: TokenRequest,
 ) => Promise<Issue | ((transaction: Transaction) => Promise<Issue>)>;
 
@@ -81,17 +81,19 @@ export interface TokenEndpointOptions {
     readonly lifetime: TokenLifetime;
     /** Sign claims with the universe's active key. */
     readonly sign: (claims: JwtClaims, header: { readonly typ: string }) => Promise<string>;
+    /** Read the universe's current key set, which access tokens verify with. */
+    readonly keys: () => Promise<KeySet>;
 }
 
 /** The token endpoint: issue tokens to clients by their grants (RFC 6749 3.2). */
 export class TokenEndpoint {
     /** The grants, by grant type. */
-    readonly grants: ReadonlyMap<string, TokenGrant>;
+    readonly grants: ReadonlyMap<string, GrantType>;
     /** What the endpoint signs, stores and times tokens with. */
     readonly #options: TokenEndpointOptions;
 
     /** Issue tokens by grants. */
-    constructor(options: TokenEndpointOptions, grants: ReadonlyMap<string, TokenGrant>) {
+    constructor(options: TokenEndpointOptions, grants: ReadonlyMap<string, GrantType>) {
         this.#options = options;
         this.grants = grants;
     }
@@ -178,12 +180,9 @@ export class TokenEndpoint {
         // sign the access token, and the person's ID and refresh tokens as the scopes grant
         const issuedAt = Math.floor(now / SECOND_MILLISECONDS);
         const expiresAt = Math.floor(ends / SECOND_MILLISECONDS);
-        const accessToken = await AccessToken.sign(
-            { ...issue, audiences, issuedAt, expiresAt },
-            this.#options,
-        );
+        const accessToken = await this.#accessToken({ ...issue, audiences, issuedAt, expiresAt });
         const idToken = isOpenId
-            ? await IdToken.sign({ ...issue, consent, issuedAt, expiresAt }, this.#options)
+            ? await this.#idToken({ ...issue, consent, issuedAt, expiresAt })
             : undefined;
         const refreshToken = await this.#refresh(issue, transaction);
 
@@ -246,12 +245,9 @@ export class TokenEndpoint {
 
         return OAuthError.of("INVALID_GRANT", refused.message, { cause: error });
     }
-}
 
-/** The access tokens the token endpoint signs (RFC 9068), with the Destack claims. */
-export const AccessToken = {
     /** Sign an access token for a caller toward its audiences. */
-    sign(
+    #accessToken(
         terms: Pick<Issue, "authentication" | "clientId" | "scopes" | "consent"> & {
             /** The receivers: the package's resource and the userinfo endpoint. */
             readonly audiences: readonly string[];
@@ -260,9 +256,9 @@ export const AccessToken = {
             /** The expiry, in UTC epoch seconds. */
             readonly expiresAt: number;
         },
-        options: Pick<TokenEndpointOptions, "issuer" | "environment" | "sign">,
     ): Promise<string> {
         // write the Destack claims within the universe's authority
+        const options = this.#options;
         const { authentication } = terms;
         TokenIssuerAuthority.require({ kind: "universe" }, authentication);
         const [single] = terms.audiences;
@@ -286,62 +282,10 @@ export const AccessToken = {
             },
             { typ: ACCESS_TOKEN_TYPE },
         );
-    },
+    }
 
-    /** Verify an access token the issuer signed, for an audience when given. */
-    async verify(
-        token: string,
-        audience: string | undefined,
-        options: AccessTokenOptions,
-    ): Promise<JwtClaims> {
-        // verify the token by the universe's current keys, refusing any failure as an invalid token
-        const { crypto } = options.environment;
-        const keys = Jwks.local(await options.keys(), crypto);
-        const verified = await Jwt.verify(
-            token,
-            keys,
-            {
-                typ: ACCESS_TOKEN_TYPE,
-                issuer: options.issuer,
-                ...(audience === undefined ? {} : { audience }),
-                algorithms: ["ES256"],
-                now: options.environment.clock.now(),
-            },
-            crypto,
-        ).catch((error: unknown) => {
-            throw OAuthError.of("INVALID_TOKEN", "invalid access token", { cause: error });
-        });
-
-        return verified.claims;
-    },
-
-    /** Read the client a caller's token goes to: its client, else its sending key holder. */
-    client(authentication: Authentication): string {
-        // refuse a person's token without a client, as a person holds no keys
-        const { caller, credential } = authentication;
-        const sender = Caller.sender(caller);
-        if (credential.client === undefined && principal.user.is(sender)) {
-            throw OAuthError.of("INVALID_GRANT", "a user's token needs a client");
-        }
-
-        return credential.client ?? sender.id;
-    },
-};
-
-/** What access tokens verify with: the issuer and its keys at the clock's time. */
-export interface AccessTokenOptions {
-    /** The issuer's URL, which every token includes. */
-    readonly issuer: string;
-    /** Read the universe's current key set. */
-    readonly keys: () => Promise<KeySet>;
-    /** The clock tokens are verified at, and the WebCrypto verifying them. */
-    readonly environment: Pick<Environment, "clock" | "crypto">;
-}
-
-/** The ID tokens the token endpoint signs for a signed-in person (OIDC Core 2). */
-export const IdToken = {
-    /** Sign an ID token of a consenting person for the client. */
-    sign(
+    /** Sign an ID token of a consenting person for the client (OIDC Core 2). */
+    #idToken(
         terms: Pick<Issue, "authentication" | "clientId"> & {
             /** The person's consent, the session they signed in with and the client's nonce. */
             readonly consent: NonNullable<Issue["consent"]>;
@@ -350,9 +294,9 @@ export const IdToken = {
             /** The expiry, in UTC epoch seconds. */
             readonly expiresAt: number;
         },
-        options: Pick<TokenEndpointOptions, "issuer" | "sign">,
     ): Promise<string> {
         // state when the person authenticated, as their session's assurance says
+        const options = this.#options;
         const { consent } = terms;
         const authenticatedAt = terms.authentication.credential.assurance?.authenticatedAt;
 
@@ -373,8 +317,44 @@ export const IdToken = {
             },
             { typ: ID_TOKEN_TYPE },
         );
-    },
-};
+    }
+
+    /** Verify an access token the endpoint signed, for an audience when given. */
+    async verify(token: string, audience: string | undefined): Promise<JwtClaims> {
+        // verify the token by the universe's current keys, refusing any failure as an invalid token
+        const options = this.#options;
+        const { crypto } = options.environment;
+        const keys = Jwks.local(await options.keys(), crypto);
+        const verified = await Jwt.verify(
+            token,
+            keys,
+            {
+                typ: ACCESS_TOKEN_TYPE,
+                issuer: options.issuer,
+                ...(audience === undefined ? {} : { audience }),
+                algorithms: ["ES256"],
+                now: options.environment.clock.now(),
+            },
+            crypto,
+        ).catch((error: unknown) => {
+            throw OAuthError.of("INVALID_TOKEN", "invalid access token", { cause: error });
+        });
+
+        return verified.claims;
+    }
+
+    /** Read the client a caller's token goes to: its client, else its sending key holder. */
+    static client(authentication: Authentication): string {
+        // refuse a person's token without a client, as a person holds no keys
+        const { caller, credential } = authentication;
+        const sender = Caller.sender(caller);
+        if (credential.client === undefined && principal.user.is(sender)) {
+            throw OAuthError.of("INVALID_GRANT", "a user's token needs a client");
+        }
+
+        return credential.client ?? sender.id;
+    }
+}
 
 /** Split a space-separated parameter into its values, such as scopes (RFC 6749 3.3). */
 export function spaceSeparated(value: string | undefined): string[] {

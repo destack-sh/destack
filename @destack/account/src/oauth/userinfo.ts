@@ -5,7 +5,7 @@ import { OAuthError } from "../authentication/token.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
 import { account } from "../object/account.ts";
 import { user, User } from "../object/user.ts";
-import { AccessToken, type AccessTokenOptions, spaceSeparated } from "./token.ts";
+import { type TokenEndpoint, spaceSeparated } from "./token.ts";
 
 /** The claims of a userinfo request's token: the person and the granted scopes. */
 const UserInfoClaims = schema.looseObject({
@@ -16,7 +16,9 @@ const UserInfoClaims = schema.looseObject({
 });
 
 /** What the userinfo endpoint verifies tokens and reads people with. */
-export interface UserInfoOptions extends AccessTokenOptions {
+export interface UserInfoOptions {
+    /** The issuer's URL, below which the userinfo endpoint answers. */
+    readonly issuer: string;
     /** The account database with the people. */
     readonly database: DatabaseConnection;
 }
@@ -25,10 +27,13 @@ export interface UserInfoOptions extends AccessTokenOptions {
 export class UserInfoEndpoint {
     /** What the endpoint verifies tokens and reads people with. */
     readonly #options: UserInfoOptions;
+    /** The token endpoint, which verifies the access tokens it signed. */
+    readonly #tokens: TokenEndpoint;
 
-    /** Answer userinfo requests. */
-    constructor(options: UserInfoOptions) {
+    /** Answer userinfo requests with the access tokens a token endpoint signed. */
+    constructor(options: UserInfoOptions, tokens: TokenEndpoint) {
         this.#options = options;
+        this.#tokens = tokens;
     }
 
     /** Answer the claims of the person a request's access token is for, as its scopes allow. */
@@ -40,11 +45,7 @@ export class UserInfoEndpoint {
         if (token === undefined) {
             throw OAuthError.of("INVALID_TOKEN", "the request has no bearer token");
         }
-        const verified = await AccessToken.verify(
-            token,
-            `${issuer}${USER_INFO_PATH}`,
-            this.#options,
-        );
+        const verified = await this.#tokens.verify(token, `${issuer}${USER_INFO_PATH}`);
         const claims = UserInfoClaims.safeParse(verified);
         if (!claims.success) {
             throw OAuthError.of("INVALID_TOKEN", "the token has no person");

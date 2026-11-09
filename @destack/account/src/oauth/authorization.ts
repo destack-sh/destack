@@ -20,7 +20,7 @@ import { Client } from "../object/client.ts";
 import { OAuthConsent, oauthConsent } from "../object/oauth-consent.ts";
 import { ClientAuthentication, OAuthClient } from "./party.ts";
 import { PackageResource } from "./resource.ts";
-import { spaceSeparated, type TokenGrant } from "./token.ts";
+import { spaceSeparated, type GrantType } from "./token.ts";
 import { Credential } from "../credential/credential.ts";
 
 /** The prefix of a stored request's reference (RFC 9126 2.2). */
@@ -481,7 +481,7 @@ export class AuthorizationEndpoint {
 /** Redeem an authorization code for the person's tokens, with its verifier (RFC 6749 4.1.3). */
 export function codeGrant(
     options: Pick<AuthorizationOptions, "database" | "objects" | "environment">,
-): TokenGrant {
+): GrantType {
     return async ({ body, headers }) => {
         // authenticate the client and read the request
         const { database, environment } = options;

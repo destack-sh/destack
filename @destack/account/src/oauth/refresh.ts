@@ -8,7 +8,7 @@ import { RefreshToken } from "../object/refresh-token.ts";
 import { User } from "../object/user.ts";
 import { ClientAuthentication } from "./party.ts";
 import { PackageResource } from "./resource.ts";
-import { spaceSeparated, type TokenGrant } from "./token.ts";
+import { spaceSeparated, type GrantType } from "./token.ts";
 
 /** A refresh request: the token, and narrower scopes or the package (RFC 6749 6). */
 const RefreshRequest = schema.looseObject({
@@ -31,7 +31,7 @@ export interface RefreshOptions {
 }
 
 /** Renew a client's tokens with its refresh token, rotating it (RFC 6749 6). */
-export function refreshGrant(options: RefreshOptions): TokenGrant {
+export function refreshGrant(options: RefreshOptions): GrantType {
     return async ({ body, headers }) => {
         // authenticate the client and read the request
         const { database, objects, environment } = options;

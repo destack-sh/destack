@@ -17,7 +17,7 @@ import {
 import { OAuthConsent, oauthConsent } from "../object/oauth-consent.ts";
 import { ClientAuthentication, DEVICE_CODE, OAuthClient } from "./party.ts";
 import { PackageResource } from "./resource.ts";
-import { spaceSeparated, type TokenGrant, TokenEndpoint } from "./token.ts";
+import { spaceSeparated, type GrantType, TokenEndpoint } from "./token.ts";
 import { Credential } from "../credential/credential.ts";
 import type { Decision } from "./authorization.ts";
 
@@ -210,7 +210,7 @@ export class DeviceAuthorizationEndpoint {
 }
 
 /** Redeem a device code for the person's tokens once they approved it (RFC 8628 3.4). */
-export function deviceGrant(options: Omit<DeviceOptions, "verification" | "session">): TokenGrant {
+export function deviceGrant(options: Omit<DeviceOptions, "verification" | "session">): GrantType {
     return async ({ body, headers }) => {
         // authenticate the client and read its device code
         const { database, objects, environment } = options;

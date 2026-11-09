@@ -8,14 +8,16 @@ import { client } from "../object/client.ts";
 import { User, user } from "../object/user.ts";
 import { ActiveSession } from "../better-auth/active-session.ts";
 import { AccountError } from "../error/error.ts";
-import { AccessToken, type AccessTokenOptions, TokenEndpoint } from "./token.ts";
+import { TokenEndpoint } from "./token.ts";
 import { ClientAuthentication, type OAuthClient } from "./party.ts";
 
 /** The dot-separated segments of a signed JWT: header, payload and signature (RFC 7519 3). */
 const JWT_SEGMENTS = 3;
 
 /** What revocation and introspection read tokens with. */
-export interface TokenReadOptions extends AccessTokenOptions {
+export interface TokenReadOptions {
+    /** The issuer's URL, which every token includes. */
+    readonly issuer: string;
     /** The account database with the refresh tokens and consents. */
     readonly database: DatabaseConnection;
     /** The account objects, which revoke refresh tokens. */
@@ -69,10 +71,13 @@ export class RevocationEndpoint {
 export class IntrospectionEndpoint {
     /** What the endpoint reads tokens with. */
     readonly #options: TokenReadOptions;
+    /** The token endpoint, which verifies the access tokens it signed. */
+    readonly #tokens: TokenEndpoint;
 
-    /** Answer introspection requests. */
-    constructor(options: TokenReadOptions) {
+    /** Answer introspection requests with the access tokens a token endpoint signed. */
+    constructor(options: TokenReadOptions, tokens: TokenEndpoint) {
         this.#options = options;
+        this.#tokens = tokens;
     }
 
     /** Describe a token: a refresh token of the client, or an access token the issuer signed. */
@@ -93,16 +98,14 @@ export class IntrospectionEndpoint {
 
         // describe a live access token by its claims
         if (token.split(".").length === JWT_SEGMENTS) {
-            const claims = await AccessToken.verify(token, undefined, this.#options).catch(
-                (error: unknown) => {
-                    // pass on a failure other than an invalid token
-                    if (!OAuthError.is(error, "INVALID_TOKEN")) {
-                        throw error;
-                    }
+            const claims = await this.#tokens.verify(token, undefined).catch((error: unknown) => {
+                // pass on a failure other than an invalid token
+                if (!OAuthError.is(error, "INVALID_TOKEN")) {
+                    throw error;
+                }
 
-                    return undefined;
-                },
-            );
+                return undefined;
+            });
 
             // describe the asking client's own token alone, while what it rests on stands (RFC 7662 2.2, 4)
             const isOwn = claims !== undefined && claims["client_id"] === party.clientId;

@@ -28,7 +28,7 @@ import { machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
 import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
-import { AccessToken, type TokenGrant } from "./token.ts";
+import { TokenEndpoint, type GrantType } from "./token.ts";
 import { PackageResource } from "./resource.ts";
 import type { Environment } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
@@ -97,7 +97,7 @@ export interface ExchangeOptions {
 }
 
 /** Exchange a person's, machine's or installation's token for a token of a package (RFC 8693). */
-export function exchangeGrant(options: ExchangeOptions): TokenGrant {
+export function exchangeGrant(options: ExchangeOptions): GrantType {
     return async ({ body }) => {
         // read the request and the package it asks a token for
         const request = ExchangeRequest.safeParse(body);
@@ -132,7 +132,7 @@ export function exchangeGrant(options: ExchangeOptions): TokenGrant {
 
         return {
             authentication: stamped,
-            clientId: AccessToken.client(stamped),
+            clientId: TokenEndpoint.client(stamped),
             scopes: [],
             resource: asked.resource,
         };

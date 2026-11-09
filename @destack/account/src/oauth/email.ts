@@ -15,7 +15,7 @@ import { session } from "../object/session.ts";
 import { user } from "../object/user.ts";
 import { ClientAuthentication, EMAIL_CODE } from "./party.ts";
 import { PackageResource } from "./resource.ts";
-import { OFFLINE_ACCESS, OPENID, type TokenGrant } from "./token.ts";
+import { OFFLINE_ACCESS, OPENID, type GrantType } from "./token.ts";
 
 /** The scopes an email code grants: the person's ID token and profile, and a refresh token. */
 const CODE_SCOPES = [OPENID, "profile", OFFLINE_ACCESS];
@@ -58,7 +58,7 @@ export interface EmailOptions {
 }
 
 /** Exchange a mailed sign-in code for a person's tokens on a device's new client. */
-export function emailGrant(options: EmailOptions): TokenGrant {
+export function emailGrant(options: EmailOptions): GrantType {
     return async ({ body, headers }) => {
         // identify the device's client and read the request
         const { database, environment } = options;

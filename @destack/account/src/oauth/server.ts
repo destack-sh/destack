@@ -131,8 +131,8 @@ export class AuthorizationServer {
             [TOKEN_PATH, this.token],
             [DEVICE_AUTHORIZATION_PATH, this.device],
             [REVOCATION_PATH, new RevocationEndpoint(options)],
-            [INTROSPECTION_PATH, new IntrospectionEndpoint(options)],
-            [USER_INFO_PATH, new UserInfoEndpoint(options)],
+            [INTROSPECTION_PATH, new IntrospectionEndpoint(options, this.token)],
+            [USER_INFO_PATH, new UserInfoEndpoint(options, this.token)],
         ]);
     }
 

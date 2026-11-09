@@ -10,7 +10,7 @@ import { account } from "../object/account.ts";
 import { user } from "../object/user.ts";
 import accountPackage from "../package.ts";
 import { OAuthError } from "../authentication/token.ts";
-import { AccessToken, type TokenGrant } from "./token.ts";
+import { TokenEndpoint, type GrantType } from "./token.ts";
 import { PackageResource } from "./resource.ts";
 import { FederatedVerifier } from "./federation.ts";
 import { trustedPublisher } from "../object/trusted-publisher.ts";
@@ -43,7 +43,7 @@ export interface BearerOptions {
 }
 
 /** Exchange a machine's or installation's assertion for a package's access token (RFC 7523). */
-export function bearerGrant(options: BearerOptions): TokenGrant {
+export function bearerGrant(options: BearerOptions): GrantType {
     // verify assertions by the machines' keys that authenticate, spending each once
     const { database } = options;
     const assertions = new AssertionVerifier({
@@ -114,7 +114,7 @@ export function bearerGrant(options: BearerOptions): TokenGrant {
 
         return {
             authentication,
-            clientId: AccessToken.client(authentication),
+            clientId: TokenEndpoint.client(authentication),
             scopes: [],
             resource,
         };
