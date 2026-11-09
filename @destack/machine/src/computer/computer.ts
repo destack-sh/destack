@@ -30,7 +30,7 @@ import type { SqliteDatabase } from "@destack/db/sqlite";
 import { DatabasePersonalKeyring, type EventKind, EventStore } from "@destack/event";
 import type { Registry } from "@destack/stack/server";
 import { type Deriver, type Keychain, type Keyring, LocalKeyring } from "@destack/identity";
-import { BunKeychain } from "@destack/identity/bun";
+import { BunKeychain, type KeychainStore } from "@destack/identity/bun";
 import { mailConnector } from "@destack/mail/transport";
 import { PrintTransport } from "@destack/mail/print";
 import type { ObjectType } from "@destack/object";
@@ -38,7 +38,7 @@ import type { ObjectStore } from "@destack/object/server";
 import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
-import { DISTRIBUTION_LAYER, DistributionManifest } from "@destack/package";
+import { DistributionManifest } from "@destack/package";
 import { serveProcess } from "@destack/object/bun";
 import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
@@ -81,6 +81,9 @@ export const MACHINE_PORT = 7470;
 
 /** The package identity of the machine's authentication and telemetry. */
 const MACHINE_PACKAGE = import.meta.destack.package;
+
+/** The directory below the machine's with its keys, where it stores them in files. */
+const KEYCHAIN_DIRECTORY = "keychain";
 
 /** The file of the machine's own database, within its directory. */
 const MACHINE_FILE = "machine.db";
@@ -967,6 +970,21 @@ export class Computer implements AsyncDisposable {
         };
     }
 
+    /** Choose where the machine stores its keys: the keychain, else files on a headless Linux. */
+    static keychainStore(
+        directory: string,
+        environment: Pick<ComputerOptions["environment"], "host" | "process">,
+    ): KeychainStore {
+        // store the keys in files on a Linux computer without a session bus, such as a server
+        const isHeadless =
+            environment.host.os === "linux" &&
+            environment.process.variables["DBUS_SESSION_BUS_ADDRESS"] === undefined;
+
+        return isHeadless
+            ? { kind: "file", directory: join(directory, KEYCHAIN_DIRECTORY) }
+            : { kind: "system" };
+    }
+
     /** Serve this computer until shutdown, with its device's local objects. */
     static async run(
         bundle: Pick<ComputerOptions, "localObjects" | "registry">,
@@ -986,6 +1004,10 @@ export class Computer implements AsyncDisposable {
         }
         cleanup.defer(() => lock.close());
 
+        // choose the keys' store, and report it in the machine's log
+        const store = Computer.keychainStore(directory, environment);
+        environment.process.stderr.writeSync(`keychain: ${store.kind}\n`);
+
         // record the process's telemetry from its start: in its own log, and in its owner's home once enrolled
         let running: Computer | undefined;
         const telemetry = await Computer.#startTelemetry(environment, () => running?.machine);
@@ -1004,11 +1026,9 @@ export class Computer implements AsyncDisposable {
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,
             shipped: await BunDistribution.read(configuration.shipped, files),
-            layer: await BuildLayer.open(
-                join(configuration.shipped, DISTRIBUTION_LAYER),
-                environment,
-            ),
-            keychain: (service) => new BunKeychain(service, files),
+            // ship no releases: the cache pulls each from its forge on first use
+            layer: BuildLayer.empty(),
+            keychain: (service) => new BunKeychain(service, files, store),
             process: {
                 version: MACHINE_PACKAGE.version,
                 pid: environment.process.id,
@@ -1199,7 +1219,7 @@ export class Computer implements AsyncDisposable {
             (error) => environment.process.stderr.writeSync(`telemetry: ${inspect(error)}\n`),
         );
 
-        // keep every record in the machine's own log too, beside its owner's home
+        // write every record to the machine's own log too, beside its owner's home
         const options = exporter.options(MACHINE_PACKAGE);
         const local = new LineExporter((line) => environment.process.stderr.writeSync(line));
 
