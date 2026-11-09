@@ -77,7 +77,7 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     /** The secret of the access key decrypting the machine's sealed keys under a KMS envelope. */
     readonly DESTACK_KMS_SECRET_ACCESS_KEY?: string;
     /** The universe's origin, serving the account package. */
-    readonly DESTACK_ISSUER: string;
+    readonly DESTACK_UNIVERSE: string;
     /** The objects of the builds' graph indexes, one per manifest. */
     readonly GRAPH: DurableObjectNamespace;
     /** The jurisdiction of the machine's objects, empty for none. */
@@ -189,7 +189,7 @@ export class CloudMachine {
                 fetch: (request: Request, options?: FetchOptions) => {
                     // call the universe, and a peer machine or its relay, through their bindings
                     const peer = peers.get(new URL(request.url).host);
-                    if (UniverseOrigin.of(request.url, bindings.DESTACK_ISSUER) !== undefined) {
+                    if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined) {
                         return bindings.UNIVERSE.fetch(request);
                     } else if (peer !== undefined) {
                         return peer.fetch(internal(request));
@@ -231,7 +231,7 @@ export class CloudMachine {
             identity,
             environment,
             replica,
-            issuer: UniverseOrigin.issuer(bindings.DESTACK_ISSUER),
+            issuer: UniverseOrigin.issuer(bindings.DESTACK_UNIVERSE),
         });
     }
 
@@ -253,7 +253,7 @@ export class CloudMachine {
         return {
             kind: "cloud",
             residencyId: row.residencyId,
-            issuer: this.bindings.DESTACK_ISSUER,
+            universe: this.bindings.DESTACK_UNIVERSE,
             status: "enrolled",
         };
     }
@@ -294,7 +294,7 @@ export class CloudMachine {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(this.bindings.DESTACK_ISSUER, accountPackage.id),
+                url: PackageMount.url(this.bindings.DESTACK_UNIVERSE, accountPackage.id),
                 fetch: this.identity.fetch(
                     (request) => this.environment.network.fetch(request),
                     accountPackage.id,

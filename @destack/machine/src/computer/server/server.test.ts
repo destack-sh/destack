@@ -397,7 +397,7 @@ test("authenticate a signed-in person's own client by its key's proof, reading n
     });
 });
 
-test("enroll as the signed-in person, serve spaces only while enrolled, and revoke at the issuer", async () => {
+test("enroll as the signed-in person, serve spaces only while enrolled, and revoke at the universe", async () => {
     const opened = await TestComputer.open();
     const { machine } = opened;
     const { owner, universe } = opened.world;
@@ -456,7 +456,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
         isEnrolled: [false, true, false],
         enrolled: {
             kind: "personal",
-            issuer: universe.origin,
+            universe: universe.origin,
             accountId: owner.account,
             status: "enrolled",
         },

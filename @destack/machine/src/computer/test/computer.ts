@@ -452,7 +452,7 @@ export class TestComputer implements AsyncDisposable {
                 : {
                       kind: "cloud",
                       residencyId: options.residency,
-                      issuer: universe.origin,
+                      universe: universe.origin,
                       status: "enrolled",
                   };
         const computer = await Computer.start({
@@ -461,7 +461,7 @@ export class TestComputer implements AsyncDisposable {
             registry: FORGE_INSTALLATION,
             environment,
             directory,
-            issuer: universe.origin,
+            universe: universe.origin,
             port,
             ...(declared === undefined ? {} : { endpoint: declared }),
             ...(options.relay === undefined ? {} : { relay: { kind: "url", url: options.relay } }),

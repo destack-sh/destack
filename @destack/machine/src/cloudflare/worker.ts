@@ -430,7 +430,7 @@ export class MachineWorker {
         const request = client === null ? given : Forwarded.replace(given, { for: client });
 
         // hand the universe its issuer and package mounts at its origin, which it serves behind the machines
-        if (UniverseOrigin.of(request.url, bindings.DESTACK_ISSUER) !== undefined) {
+        if (UniverseOrigin.of(request.url, bindings.DESTACK_UNIVERSE) !== undefined) {
             return bindings.UNIVERSE.fetch(request);
         }
 

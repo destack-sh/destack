@@ -106,8 +106,8 @@ export interface ComputerOptions {
     readonly directory: string;
     /** The host the machine runs on: its clock, network, files, processes, platform and server. */
     readonly environment: Environment<"files" | "process" | "host" | "server">;
-    /** The account service people sign in with. */
-    readonly issuer: string;
+    /** The origin of the universe people sign in at. */
+    readonly universe: string;
     /** The port the machine's listener answers at. */
     readonly port: number;
     /** The origin peers call the machine at, its loopback listener's by default. */
@@ -510,7 +510,7 @@ export class Computer implements AsyncDisposable {
             {
                 home: options.directory,
                 environment: options.environment,
-                issuer: options.issuer,
+                universe: options.universe,
             },
             { ...options.localObjects, login, deviceSetting, visit, signIn },
             options.keychain,
@@ -914,19 +914,19 @@ export class Computer implements AsyncDisposable {
     /** Read the machine's configuration from its release channel and environment. */
     static configure(host: Environment<"process" | "host">): Pick<
         ComputerOptions,
-        "directory" | "issuer" | "port" | "relay"
+        "directory" | "universe" | "port" | "relay"
     > & {
         /** The directory of the distribution the computer ships: its manifest and its layer. */
         readonly shipped: string;
     } {
-        // take the issuer the environment names, else the channel's
+        // take the universe the environment names, else the stage's
         const environment = host.process.variables;
         const home = StageHome.current(host);
-        const { issuer } = home;
-        if (!URL.canParse(issuer)) {
+        const { universe } = home;
+        if (!URL.canParse(universe)) {
             throw MachineError.of(
                 "CONFIGURATION_INVALID",
-                `DESTACK_ISSUER is not a URL: ${issuer}`,
+                `DESTACK_UNIVERSE is not a URL: ${universe}`,
             );
         }
 
@@ -963,7 +963,7 @@ export class Computer implements AsyncDisposable {
 
         return {
             directory: home.directory,
-            issuer,
+            universe,
             port,
             ...(relay === undefined ? {} : { relay }),
             shipped,
@@ -1021,7 +1021,7 @@ export class Computer implements AsyncDisposable {
             isolation: "sandbox",
             directory,
             environment: recorded,
-            issuer: configuration.issuer,
+            universe: configuration.universe,
             port,
             ...(configuration.relay === undefined ? {} : { relay: configuration.relay }),
             ...bundle,

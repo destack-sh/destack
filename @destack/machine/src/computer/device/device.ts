@@ -74,7 +74,7 @@ export interface DeviceOptions {
     /** The clock, network, files, platform and server the device runs on. */
     readonly environment: Environment<"files" | "host" | "server">;
     /** The origin of the universe people sign in at. */
-    readonly issuer: string;
+    readonly universe: string;
 }
 
 /** This computer's device: its identity, local objects, people's credentials and client verbs. */
@@ -125,7 +125,7 @@ export class Device<
         this.#fetch = (request) => options.environment.network.fetch(request);
         this.environment = options.environment;
         this.issuer = new Issuer(
-            UniverseOrigin.issuer(options.issuer),
+            UniverseOrigin.issuer(options.universe),
             this.#fetch,
             options.environment,
             this.bookmark,
@@ -141,7 +141,7 @@ export class Device<
     ): Promise<Device<MachineCredential>> {
         const home = StageHome.current(environment);
 
-        return Device.open({ home: home.directory, environment, issuer: home.issuer });
+        return Device.open({ home: home.directory, environment, universe: home.universe });
     }
 
     /** Create the device and its local objects at the machine's first start, with the keychain. */

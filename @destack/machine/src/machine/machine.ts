@@ -316,9 +316,9 @@ export class Machine {
     /** Read the account package's URL and the issuer of the universe this machine enrolled at. */
     async universe(): Promise<{ readonly accounts: string; readonly issuer: string }> {
         const enrollment = await this.enrolled("serving spaces");
-        const accounts = PackageMount.url(enrollment.issuer, accountPackage.id);
+        const accounts = PackageMount.url(enrollment.universe, accountPackage.id);
 
-        return { accounts, issuer: UniverseOrigin.issuer(enrollment.issuer) };
+        return { accounts, issuer: UniverseOrigin.issuer(enrollment.universe) };
     }
 
     /** Wait until the directory replica is a complete snapshot, as informers sync caches. */
@@ -338,7 +338,7 @@ export class Machine {
         return createClient(
             accountPackage,
             {
-                url: PackageMount.url(enrollment.issuer, accountPackage.id),
+                url: PackageMount.url(enrollment.universe, accountPackage.id),
                 fetch: this.#fetchAs(enrollment, accountPackage.id),
             },
             this.environment,
@@ -399,7 +399,7 @@ export class Machine {
     /** Enroll this machine under an account as a personal machine with a new key. */
     async enroll(
         accounts: ClientOf<typeof accountPackage>,
-        issuer: string,
+        universe: string,
         input: Omit<PersonalEnrollment, "scope" | "requestId" | "kind"> & {
             readonly accountId: Identifier<"account">;
         },
@@ -413,15 +413,15 @@ export class Machine {
             kind: "personal",
         });
 
-        return { kind: "personal", issuer, accountId, status: "enrolled" };
+        return { kind: "personal", universe, accountId, status: "enrolled" };
     }
 
-    /** Revoke an enrollment of this machine at its issuer as itself and forget its key. */
+    /** Revoke an enrollment of this machine at its universe as itself and forget its key. */
     async revoke(enrollment: MachineEnrollment): Promise<void> {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(enrollment.issuer, accountPackage.id),
+                url: PackageMount.url(enrollment.universe, accountPackage.id),
                 fetch: this.#fetchAs(enrollment, accountPackage.id),
             },
             this.environment,
@@ -1021,7 +1021,7 @@ export class Machine {
 
     /** Read the issuer of this machine's tokens: its universe's. */
     static #issuer(enrollment: MachineEnrollment): string {
-        return UniverseOrigin.issuer(enrollment.issuer);
+        return UniverseOrigin.issuer(enrollment.universe);
     }
 
     /** Read this machine's valid enrollment, absent before it enrolls and after a revoke. */

@@ -24,7 +24,7 @@ const ENVIRONMENT = [
     "LANG",
     "LC_ALL",
     "DESTACK_STAGE",
-    "DESTACK_ISSUER",
+    "DESTACK_UNIVERSE",
     "DESTACK_PORT",
 ];
 

@@ -11,26 +11,26 @@ export class StageHome {
     readonly stage: Stage;
     /** The device directory, the stage's own in the user's home unless one is set. */
     readonly directory: string;
-    /** The issuer people sign in at, the stage's unless one is set. */
-    readonly issuer: string;
+    /** The origin of the universe people sign in at, the stage's unless one is set. */
+    readonly universe: string;
     /** The user's home directory, with the stage's own directory and applications. */
     readonly #user: string;
 
-    /** Place a stage in a user's home, in its own device directory at its issuer unless given. */
+    /** Place a stage in a user's home, in its own device directory at its universe unless given. */
     constructor(
         stage: Stage,
         user: string,
         directory: string = join(user, stage.directory),
-        issuer: string = stage.issuer,
+        universe: string = stage.universe,
     ) {
-        // take the stage, the device directory, the issuer and the user's home
+        // take the stage, the device directory, the universe and the user's home
         this.stage = stage;
         this.directory = directory;
-        this.issuer = issuer;
+        this.universe = universe;
         this.#user = user;
     }
 
-    /** Read the home of the stage the build selected, with the device directory and issuer set. */
+    /** Read the home of the stage the build selected, with its directory and universe set. */
     static current(environment: Environment<"process" | "host">): StageHome {
         const stage = Stage.current(environment);
         const { variables } = environment.process;
@@ -39,7 +39,7 @@ export class StageHome {
             stage,
             environment.host.home,
             variables["DESTACK_DIRECTORY"],
-            variables["DESTACK_ISSUER"],
+            variables["DESTACK_UNIVERSE"],
         );
     }
 
