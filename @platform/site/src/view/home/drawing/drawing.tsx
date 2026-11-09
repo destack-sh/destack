@@ -1,7 +1,8 @@
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
-import { createEffect, createSignal, type JSX, useEnvironment } from "@destack/view";
+import { createEffect, createSignal, type JSX, onSettled, useEnvironment } from "@destack/view";
 import { createReducedMotion } from "@destack/view/motion";
+import { createEventListener } from "@destack/view/primitives/event-listener";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { loopFrames } from "@destack/view/primitives/raf";
 
@@ -129,16 +130,59 @@ export function createClock(host: () => Element | undefined): () => number {
     return seconds;
 }
 
-/** Hold a drawing behind a section's entry and caption, on the right, in the ink of the page. */
+/** Hold a drawing in the entry's word column, the middle of its lines on the column's middle. */
 export function DrawingFrame(properties: {
     box: Box;
     reference?: (element: HTMLElement) => void;
     children: JSX.Element;
 }) {
+    // match the height of the entry the drawing sits beside, which grows with a wrapped title
+    let drawing: HTMLDivElement | undefined;
+    let stage: HTMLDivElement | undefined;
+    const [height, setHeight] = createSignal<number | undefined>(undefined);
+    const measure = () => {
+        const entry = drawing?.parentElement?.querySelector("header");
+        setHeight(entry === null || entry === undefined ? undefined : entry.offsetHeight);
+    };
+    createEventListener(() => window, "resize", measure, { passive: true });
+
+    // shift the drawing by how far the middle of its lines sits from its box's, once drawn
+    const [shift, setShift] = createSignal({ x: 0, y: 0 });
+    onSettled(() => {
+        // size the frame to its entry first
+        measure();
+
+        // measure the lines of the drawing as first drawn, at the stage's scale
+        const sketch = stage?.querySelector("svg");
+        if (sketch === null || sketch === undefined) {
+            throw new TypeError("a drawing frame holds no sketch");
+        }
+        const lines = sketch.getBBox();
+        const scale =
+            stage === undefined ? 1 : stage.getBoundingClientRect().width / properties.box.width;
+        setShift({
+            x: -(lines.x + lines.width / 2) * scale,
+            y: -(lines.y + lines.height / 2) * scale,
+        });
+    });
+
     return (
-        <div ref={properties.reference} aria-hidden="true" {...style.attrs(styles.drawing)}>
+        <div
+            ref={(element) => {
+                drawing = element;
+                properties.reference?.(element);
+            }}
+            aria-hidden="true"
+            style={height() === undefined ? undefined : { height: `${height()}px` }}
+            {...style.attrs(styles.drawing)}
+        >
             <div
-                style={{ height: `${properties.box.height}px`, width: `${properties.box.width}px` }}
+                ref={stage}
+                style={{
+                    height: `${properties.box.height}px`,
+                    width: `${properties.box.width}px`,
+                    translate: `${shift().x}px ${shift().y}px`,
+                }}
                 {...style.attrs(styles.stage)}
             >
                 {properties.children}
@@ -262,17 +306,20 @@ export function RingedPlanet(properties: { id: string; radius: number; spacing: 
 export const styles = style.create({
     drawing: {
         display: { default: "grid", [screen.belowDesktop]: "none" },
-        height: `calc(${frame.entry} + ${frame.label})`,
-        insetInlineEnd: 0,
-        overflow: "clip",
+        gridTemplateColumns: "minmax(0, 1fr)",
+        gridTemplateRows: "minmax(0, 1fr)",
+        height: frame.entry,
+        insetInlineStart: 0,
+        overflow: "visible",
         placeItems: "center",
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        width: "40%",
+        width: `calc(${frame.inset} + clamp(2rem, 3.3vw, 3rem) * 6.8 + 1rem)`,
     },
     stage: {
         position: "relative",
+        scale: 0.75,
     },
     sketch: {
         color: color.foreground,
