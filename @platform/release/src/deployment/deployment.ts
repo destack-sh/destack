@@ -1,13 +1,13 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type { ResidencyCode } from "@destack/account/object";
-import { DOMAINS } from "@destack/account/address";
+import { DOMAINS, UniverseOrigin } from "@destack/account/address";
 import type { Jurisdiction } from "@destack/db/cloudflare";
 import { Stage } from "@destack/update/release";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
 import type { UniverseDefinition } from "@destack/universe";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
 import { TokenSource, MachineIdentity } from "@destack/account/client";
 import { Envelope } from "@destack/identity/aws";
 import { MemoryKeychain } from "@destack/identity";
@@ -699,9 +699,9 @@ export class Deployment {
             .version;
     }
 
-    /** The URL of the universe's issuer, the account package's OAuth adapter. */
+    /** The URL of the universe's issuer. */
     get issuerUrl(): string {
-        return `${PackageMount.url(this.issuer, accountPackage.id)}${OAUTH_PATH}`;
+        return UniverseOrigin.issuer(this.issuer);
     }
 
     /** Apply the global root, the universe's and the residencies', then release the Workers. */

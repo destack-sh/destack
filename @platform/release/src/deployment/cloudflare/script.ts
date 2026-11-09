@@ -4,9 +4,7 @@ import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { type Plugin, rolldown } from "rolldown";
-import { DOMAINS } from "@destack/account/address";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { PackageMount } from "@destack/object";
+import { DOMAINS, UniverseOrigin } from "@destack/account/address";
 import { ModuleTransformer } from "@destack/package/transform";
 import { modulePlugin } from "@destack/package/vite";
 import { DURABLE_OBJECT_GIGABYTES } from "@platform/pricing/cloudflare";
@@ -191,7 +189,6 @@ export class WorkerScript {
             migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
             r2_buckets: [{ binding: "EVENTS", bucket_name: outputs.history }],
-            routes: [{ pattern: new URL(this.origin).host, custom_domain: true }],
             vars: {
                 DESTACK_ISSUER: this.deployment.issuer,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
@@ -284,11 +281,12 @@ export class WorkerScript {
             return own;
         }
 
-        // take every other space and machine name at the platform residency's machine
+        // take every other space and machine name, and the universe's, at the platform residency's machine
         return [
             ...own,
             { pattern: `*.${DOMAINS.space}/*`, zone_name: DOMAINS.space },
             { pattern: `*.${DOMAINS.machine}/*`, zone_name: DOMAINS.machine },
+            { pattern: `${DOMAINS.universe}/*`, zone_name: DOMAINS.universe },
         ];
     }
 
@@ -366,7 +364,7 @@ export class WorkerScript {
     async smoke(): Promise<void> {
         // request the issuer's discovery document from the universe, and the origin from a cloud machine
         const isUniverse = this.target.kind === "universe";
-        const issuer = `${PackageMount.url(this.origin, accountPackage.id)}${OAUTH_PATH}`;
+        const issuer = UniverseOrigin.issuer(this.origin);
         const url = isUniverse
             ? new URL(`${issuer}/.well-known/openid-configuration`)
             : new URL("/", this.origin);
