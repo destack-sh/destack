@@ -8,6 +8,7 @@ import { ParentReference } from "../trait/nested.ts";
 import type {
     CallerField,
     GuardedField,
+    GuardedColumn,
     ObjectType,
     SensitiveField,
     TextFieldName,
@@ -566,7 +567,7 @@ export type CustomSchema<Fields extends Readonly<Record<string, schema.Schema>>,
 export type RowSchema<Object extends ObjectType> = schema.Object<
     RowFields<
         JsonFields<Omit<Select<Object["table"]>, SensitiveField<Object["fields"]>>>,
-        GuardedField<Object["fields"]>
+        GuardedField<Object["fields"]> | GuardedColumn<Object>
     > & { [Name in TextFieldName<Object["fields"]>]: schema.Schema<string> }
 >;
 

@@ -22,7 +22,7 @@ import { schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { testEvents, serversOf, TestObjectStore } from "../src/test/index.ts";
 import { RequestId, ObjectReference, type Subject, Scope } from "@destack/sync";
-import { defineObject, ObjectPolicy, relationship, role } from "../src/index.ts";
+import { defineObject, field, ObjectPolicy, relationship, role } from "../src/index.ts";
 import { space, spacePrincipal } from "./fixture/space.ts";
 import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
@@ -219,6 +219,64 @@ test("nest objects over a foreign table only through its mapping's parent relati
         }),
     ).toThrow(
         new TypeError("object role over a foreign table has no parent relation to nest through"),
+    );
+});
+
+test("guard every column but the identifier, the scope and the shown ones, each field keeping its own guard", () => {
+    // declare cards showing their title alone to callers without read, a note guarded apart
+    const card = defineObject({
+        name: "card",
+        plural: "cards",
+        scope: space,
+        fields: {
+            title: field.string(),
+            note: field.string().optional().guard({ read: "manage" }),
+        },
+        permissions: ["read", "manage"],
+        guard: { read: "read", except: ["title"] },
+    });
+
+    expect(card.guards).toEqual({
+        createdAt: "read",
+        createdById: "read",
+        createdByPackageId: "read",
+        createdByScope: "read",
+        createdByType: "read",
+        detachedAt: "read",
+        managerInstallationId: "read",
+        managerName: "read",
+        managerPackageId: "read",
+        note: "manage",
+        revision: "read",
+        tags: "read",
+        updatedAt: "read",
+        updatedById: "read",
+        updatedByPackageId: "read",
+        updatedByScope: "read",
+        updatedByType: "read",
+    });
+});
+
+/** Declare cards with a guard and validate them, as serving them does. */
+function validateCard(guard: { readonly read: string; readonly except: readonly string[] }): void {
+    defineObject({
+        name: "card",
+        plural: "cards",
+        scope: space,
+        fields: { title: field.string() },
+        permissions: ["read"],
+        guard,
+    }).requireValid();
+}
+
+test("refuse a type's guard showing a column the type lacks, or guarded by a permission it lacks", () => {
+    // validate, as serving a type does, a guard showing an unknown column, then one reading through an unknown permission
+
+    expect(() => validateCard({ read: "read", except: ["subtitle"] })).toThrow(
+        new TypeError("object card guard shows no column subtitle"),
+    );
+    expect(() => validateCard({ read: "inspect", except: ["title"] })).toThrow(
+        new TypeError("object card guard has no permission inspect"),
     );
 });
 

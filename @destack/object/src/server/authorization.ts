@@ -809,11 +809,8 @@ export class Authorization extends access.Authorization {
         // group the guarded fields by read permission
         const hidden = rows.map((): string[] => []);
         const permissions = new Map<string, string[]>();
-        for (const [name, field] of Object.entries(object.fields)) {
-            const permission = field.access?.read;
-            if (permission !== undefined) {
-                permissions.set(permission, [...(permissions.get(permission) ?? []), name]);
-            }
+        for (const [name, permission] of Object.entries(object.guards)) {
+            permissions.set(permission, [...(permissions.get(permission) ?? []), name]);
         }
 
         // decide the rows of the scopes below in their chains
@@ -845,8 +842,8 @@ export class Authorization extends access.Authorization {
         }
         const until = earliest(moments);
 
-        // list each row's hidden fields in declaration order
-        const order = Object.keys(object.fields);
+        // list each row's hidden columns in the table's order
+        const order = Object.keys(object.table[TABLE].columns);
         const ordered = hidden.map((fields) => order.filter((name) => fields.includes(name)));
 
         return { hidden: ordered, ...(until === undefined ? {} : { until }) };

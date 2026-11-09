@@ -416,6 +416,8 @@ export interface ObjectDefinition<
     readonly reserved?: readonly NoInfer<Granted>[];
     /** Sensitive permissions that apply only after the authentication each requires. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Granted>, Elevation>>>;
+    /** The permission every column but the identity and the shown columns needs. */
+    readonly guard?: ObjectGuard<NoInfer<Granted>>;
     /** Permissions available while the object's scope is suspended. */
     readonly administration?: readonly NoInfer<Granted>[];
     /** Permissions available while the object's scope moves to another machine. */
@@ -516,7 +518,7 @@ type ObjectTypeDefinition<Configuration extends ObjectConfiguration> = ObjectDef
     readonly plural: Configuration["plural"];
     readonly table: Configuration["table"];
     readonly methods: Configuration["methods"];
-    readonly guarded: readonly string[];
+    readonly guards: Readonly<Record<string, string>>;
     readonly written: readonly string[];
     readonly updated: readonly string[];
     readonly sensitive: readonly string[];
@@ -582,11 +584,15 @@ export interface MethodDescription {
 /** An object as readers see it: logged fields and texts, without guarded fields they lack. */
 export type InstanceOf<Type extends ObjectType> =
     Type extends ObjectType<infer Configuration>
-        ? Omit<RowImage<Configuration["table"]>, GuardedField<Configuration["fields"]>> &
+        ? Omit<
+              RowImage<Configuration["table"]>,
+              GuardedField<Configuration["fields"]> | GuardedColumn<Type>
+          > &
               Partial<
                   Pick<
                       RowImage<Configuration["table"]>,
-                      GuardedField<Configuration["fields"]> & keyof RowImage<Configuration["table"]>
+                      (GuardedField<Configuration["fields"]> | GuardedColumn<Type>) &
+                          keyof RowImage<Configuration["table"]>
                   >
               > & {
                   readonly [Name in TextFieldName<Configuration["fields"]>]: string;
@@ -619,6 +625,8 @@ export interface ObjectConfiguration {
     readonly events: EventKind | undefined;
     /** The fields, by name, whose signatures say which are guarded, written, sensitive or text. */
     readonly fields: Readonly<Record<string, Field>>;
+    /** The columns the type's guard conceals from callers without its permission. */
+    readonly guardedColumns: string;
     /** The parent type's identity, "self" for a tree, "any" for attachments, undefined for none. */
     readonly parent: string | undefined;
     /** The reference field to the objects' owner, undefined for objects without an owner. */
@@ -823,9 +831,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return this.definition.fields;
     }
 
-    /** The fields needing a separate read permission. */
+    /** The columns needing a separate read permission. */
     get guarded(): readonly string[] {
-        return this.definition.guarded;
+        return Object.keys(this.definition.guards);
+    }
+
+    /** The read permission each guarded column needs, by column. */
+    get guards(): Readonly<Record<string, string>> {
+        return this.definition.guards;
     }
 
     /** Report whether rows show a reader a guarded field with personal values, unconcealed. */
@@ -2009,9 +2022,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 `object ${definition.name} updates an immutable field in method ${changing[0]}`,
             );
         }
-        const guarded = fields
-            .filter(([, declared]) => declared.access?.read !== undefined)
-            .map(([name]) => name);
+        const guards = ObjectType.#guards(definition, fields);
         const texts = fields
             .filter(([, declared]) => declared.type === "text")
             .map(([name]) => name);
@@ -2026,7 +2037,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             identity: definition.identity ?? definition.name,
             written,
             updated,
-            guarded,
+            guards,
             sensitive,
             text: texts,
             events: ObjectType.#eventKind(owner, definition),
@@ -2218,6 +2229,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             declared.validate?.(this);
         }
 
+        // require the permission of the type's guard
+        const guard = this.definition.guard;
+        if (guard !== undefined && !this.permissions.includes(guard.read)) {
+            throw new TypeError(`object ${this.name} guard has no permission ${guard.read}`);
+        }
+
         // require the permissions guarding fields
         for (const [name, declared] of Object.entries(this.fields)) {
             for (const permission of [declared.access?.read, declared.access?.write]) {
@@ -2336,6 +2353,40 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Read the kind of a written storage, durable when absent. */
     static storageKind(written: ObjectDefinition["storage"]): ObjectStorage {
         return typeof written === "object" ? written.kind : (written ?? "durable");
+    }
+
+    /** Map each guarded column to its read permission: the fields' own, then the type's. */
+    static #guards(
+        definition: Pick<ObjectDefinition, "name" | "guard"> & { readonly table: Table },
+        fields: readonly (readonly [string, Field])[],
+    ): Readonly<Record<string, string>> {
+        // take each field's own read guard
+        const guards: Record<string, string> = Object.fromEntries(
+            fields.flatMap(([name, declared]) =>
+                declared.access?.read === undefined ? [] : [[name, declared.access.read]],
+            ),
+        );
+        const guard = definition.guard;
+        if (guard === undefined) {
+            return guards;
+        }
+
+        // refuse showing a column the type lacks
+        const columns = definition.table[TABLE].columns;
+        const unknown = guard.except.find((name) => !Object.hasOwn(columns, name));
+        if (unknown !== undefined) {
+            throw new TypeError(`object ${definition.name} guard shows no column ${unknown}`);
+        }
+
+        // guard every other column but the identifier and the scope
+        const shown = new Set(["id", "scope", ...guard.except]);
+        for (const column of Object.keys(columns)) {
+            if (!shown.has(column) && guards[column] === undefined) {
+                guards[column] = guard.read;
+            }
+        }
+
+        return guards;
     }
 
     /** Build the event log's kind of an events type, none for another storage. */
@@ -2836,6 +2887,7 @@ export type ForeignType<Definition extends ObjectDefinition, Methods> = ObjectTy
     readonly events: undefined;
     readonly references: Option<Definition, "references", {}>;
     readonly supplied: Option<Definition, "supplied", readonly never[]>[number];
+    readonly guardedColumns: never;
 }>;
 
 /** Read a definition's option, or a default where it sets none. */
@@ -3050,7 +3102,15 @@ export type DefinedType<Definition extends ObjectDefinition, Methods> = ObjectTy
         : undefined;
     readonly references: Option<Definition, "references", {}>;
     readonly supplied: Option<Definition, "supplied", readonly never[]>[number];
+    readonly guardedColumns: DeclaredGuardedColumn<Definition, DefinedTable<Definition>>;
 }>;
+
+/** The columns a definition's guard conceals: all but the identity and the shown columns. */
+type DeclaredGuardedColumn<Definition, Defined extends Table> = Definition extends {
+    readonly guard: { readonly except: readonly (infer Shown extends string)[] };
+}
+    ? Exclude<keyof RowImage<Defined> & string, "id" | "scope" | Shown>
+    : never;
 
 /** The traits as a derived table reads them, a nested parent by its identity and its key. */
 export type TableTraitsOf<Traits> = {
@@ -3142,6 +3202,22 @@ type ObjectInput = Omit<ObjectDefinition, "methods"> & {
 export type GuardedField<Fields extends Readonly<Record<string, Field>>> = {
     [Name in keyof Fields & string]: Fields[Name] extends { readonly guarded: true } ? Name : never;
 }[keyof Fields & string];
+
+/** The name of a column a type's guard conceals, none without a guard. */
+export type GuardedColumn<Type extends ObjectType> =
+    Type extends ObjectType<infer Configuration>
+        ? string extends Configuration["guardedColumns"]
+            ? never
+            : Configuration["guardedColumns"]
+        : never;
+
+/** A type's guard: the read permission of every column but the identity and the shown columns. */
+export interface ObjectGuard<Granted extends string = string> {
+    /** The permission a caller reads the guarded columns with. */
+    readonly read: Granted;
+    /** The columns shown without it, beside the identifier and the scope. */
+    readonly except: readonly string[];
+}
 
 /** The name of a text field. */
 export type TextFieldName<Fields extends Readonly<Record<string, Field>>> = {
