@@ -49,7 +49,7 @@ export interface Runtime {
 export interface ModuleLoader {
     /** Resolve a specifier from a directory to the file the process loads for it. */
     readonly resolve: (specifier: string, directory: string) => string;
-    /** Define the module the process answers a specifier with, from its exports. */
+    /** Define the module answering a specifier with its exports, once per exports. */
     readonly define: (specifier: string, exports: Readonly<Record<string, unknown>>) => void;
 }
 

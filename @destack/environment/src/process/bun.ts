@@ -32,6 +32,10 @@ const MICROSECONDS_PER_SECOND = 1_000_000;
 /** The process events reporting a failure nothing caught. */
 type FailureEvent = "uncaughtException" | "unhandledRejection";
 
+// NOTE #Architecture: process-wide state, mirroring Bun's plugin registry, which is process-wide
+/** The exports each specifier is defined with in this process, as Bun's plugins answer it. */
+const DEFINED_MODULES = new Map<string, Readonly<Record<string, unknown>>>();
+
 /** The process Bun runs, through Node's `process` and `Bun.spawn`. */
 export class BunProcess implements Process {
     /** The standard output. */
@@ -90,10 +94,15 @@ export class BunProcess implements Process {
     readonly loader: ModuleLoader = {
         resolve: (specifier, directory) => Bun.resolveSync(specifier, directory),
         define: (specifier, exports) => {
+            // define a specifier once per module instance, as Bun's plugins live for the whole process
+            if (DEFINED_MODULES.get(specifier) === exports) {
+                return;
+            }
+            DEFINED_MODULES.set(specifier, exports);
             Bun.plugin({
                 name: `destack-module ${specifier}`,
                 setup(build) {
-                    build.module(specifier, () => ({ exports, loader: "object" }));
+                    build.module(specifier, () => ({ exports: { ...exports }, loader: "object" }));
                 },
             });
         },
