@@ -73,7 +73,8 @@ import {
     type ResidencyDefinition,
     StackRelease,
 } from "../object/index.ts";
-import accountPackage, { OAUTH_PATH } from "../package.ts";
+import accountPackage from "../package.ts";
+import { UniverseOrigin } from "../address/address.ts";
 import { accountServer, Platform, PlatformDefinition } from "../server/index.ts";
 import { defineDatabase } from "@destack/db";
 import { tablesOf } from "@destack/object";
@@ -112,11 +113,8 @@ const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage];
 /** The button a person presses on each page a step-up passes. */
 const STEP_UP_ACTIONS = [["/consent", "approve"]] as const;
 
-/** The URL the fixture's users, machines and installations call the account package at. */
-const ACCOUNTS_URL = PackageMount.url(ORIGIN, accountPackage.id);
-
-/** The universe's issuer: the account package's oauth adapter. */
-export const ISSUER = `${ACCOUNTS_URL}${OAUTH_PATH}`;
+/** The universe's issuer. */
+export const ISSUER = UniverseOrigin.issuer(ORIGIN);
 
 /** The email of the person operating the fixture's universe. */
 export const OPERATOR_EMAIL = "operator@example.com";
@@ -1335,6 +1333,11 @@ export class TestAccountStore implements AsyncDisposable {
         served: TestObjectStore,
         request: Request,
     ): Promise<Response> {
+        // answer the issuer through the account package, as the universe does
+        if (new URL(request.url).pathname.startsWith(new URL(ISSUER).pathname)) {
+            return served.server(accountPackage).fetch(request);
+        }
+
         // find the mounted package, refusing a path of none served
         const mount = PackageMount.of(request);
         const handler = store.packages.find(

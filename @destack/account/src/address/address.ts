@@ -2,7 +2,7 @@ import { Forwarded, HostAddress } from "@destack/environment";
 import { type Identifier, present, schema } from "@destack/schema";
 import { AccountHandle, HANDLE_LENGTH } from "./handle.ts";
 import { MachineName } from "../object/machine.ts";
-import { InstallationName } from "@destack/object";
+import { InstallationName, PackageMount } from "@destack/object";
 import { Label } from "./label.ts";
 
 /** The longest DNS label, which one wildcard certificate covers (RFC 1035 2.3.4). */
@@ -66,6 +66,36 @@ export const DOMAINS = {
 
 /** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
 export const LOOPBACK_DOMAIN = "localhost";
+
+/** The path of the universe's issuer below its origin, the account's oauth adapter. */
+export const OAUTH_PATH = "/oauth";
+
+/** The universe's origin: its issuer below its path, and its packages below their mounts. */
+export const UniverseOrigin = {
+    /** Build the issuer URL of the universe at an origin, such as `https://destack.app/oauth`. */
+    issuer(origin: string): string {
+        return `${new URL(origin).origin}${OAUTH_PATH}`;
+    },
+
+    /** Read what a URL addresses at the universe's origin: its issuer or a package. */
+    of(url: string, origin: string): "issuer" | "package" | undefined {
+        const { origin: requested, pathname } = new URL(url);
+
+        return requested === new URL(origin).origin ? UniverseOrigin.path(pathname) : undefined;
+    },
+
+    /** Read what a path addresses below the universe's origin: its issuer or a package. */
+    path(pathname: string): "issuer" | "package" | undefined {
+        // read the issuer's path, else a package's mount
+        if (pathname === OAUTH_PATH || pathname.startsWith(`${OAUTH_PATH}/`)) {
+            return "issuer";
+        } else if (PackageMount.parse(pathname) !== undefined) {
+            return "package";
+        }
+
+        return undefined;
+    },
+};
 
 /** A machine of an account: `<machine>--<handle>.destack.computer`. */
 export interface MachineAddress {

@@ -36,9 +36,7 @@ import {
 } from "./object/index.ts";
 import { rateLimit, verification } from "./authentication/table.ts";
 import { identityKey } from "./identity/key.ts";
-
-/** The path the oauth adapter answers below the account package's mount. */
-export const OAUTH_PATH = "/oauth";
+import { OAUTH_PATH } from "./address/address.ts";
 
 /** The path of the sign-in page below the issuer, where a browser without a session starts. */
 export const SIGN_IN_PATH = "/sign-in";
