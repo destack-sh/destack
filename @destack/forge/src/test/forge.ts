@@ -113,7 +113,7 @@ export const FORGE: TestPackage = {
 const HOME_STACK = {
     vaults: { credentials: connectionVault.declare() },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
             { credentials: "credentials" },
@@ -138,7 +138,7 @@ const RESIDENCY_STACK = {
         "github-private-key": { parent: "platform", name: "github-private-key" },
     },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         forge: install(
             forgePackage,
             {
