@@ -1,11 +1,11 @@
 import { waitAborted } from "@destack/environment";
-import { present } from "@destack/schema";
+import { present, Uuid } from "@destack/schema";
 import { ObjectError } from "../error/error.ts";
 import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { Server, type ServerOptions, type PackageHandler } from "../server/index.ts";
 import type { PackageHandle } from "../declare/package.ts";
-import { type Alarm, AlarmClock } from "@destack/db";
+import { type Alarm, AlarmClock, AlarmStorage } from "@destack/db";
 import { Health } from "../server/health.ts";
 
 import type {
@@ -64,7 +64,10 @@ export class WorkloadInstance implements AsyncDisposable {
         options: WorkloadInstanceOptions,
     ): Promise<WorkloadInstance> {
         // start the workload once, reloading through the instance once it exists
-        const clock = options.alarm === undefined ? undefined : new AlarmClock(options.alarm);
+        const clock =
+            options.alarm === undefined
+                ? undefined
+                : new AlarmClock(options.alarm, AlarmStorage.memory());
         const controller = new AbortController();
         let instance: WorkloadInstance | undefined;
         const first = await WorkloadStart.start(
@@ -178,10 +181,13 @@ export class WorkloadInstance implements AsyncDisposable {
         this.#controller.abort();
     }
 
-    /** Run the controllers at the host's wake-up. */
+    /** Run every server's due controllers at the host's wake-up, which set their next wake-ups. */
     async alarm(deadline: number): Promise<void> {
-        await this.#clock?.rang();
-        await this.#current.alarm(deadline);
+        // run them without a clock, else as the clock fires, since its wake-ups live in memory
+        const run = () => this.#current.alarm(deadline);
+        await (this.#clock === undefined
+            ? run()
+            : this.#clock.fire(this.#options.environment.clock.now(), run));
     }
 
     /** Dispatch a request to a package the current start serves. */
@@ -325,7 +331,10 @@ class WorkloadStart {
             resources: options.resources,
             environment: options.environment,
             report: (error) => options.report(error),
-            ...(clock === undefined ? {} : { alarm: clock.alarm() }),
+            // name each server's alarm uniquely, as a reload serves a package beside its draining server
+            ...(clock === undefined
+                ? {}
+                : { alarm: clock.alarm(`${handle.id}/${Uuid.v4(options.environment.random)}`) }),
             activation: async (signal) => {
                 // wait for this start's turn and the replaced controllers' stop, then the package's own activation
                 await Promise.race([Promise.all([activation, handover]), waitAborted(signal)]);
