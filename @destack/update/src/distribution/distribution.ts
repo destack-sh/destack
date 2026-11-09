@@ -540,14 +540,14 @@ export class Distribution {
     }
 
     /** Download and stage the latest release when it is newer than the installed one. */
-    async stage(archive?: string): Promise<StagedRelease | undefined> {
+    async stage(source?: string): Promise<StagedRelease | undefined> {
         // keep a release staged earlier until a newer one arrives
         await using updater = await this.open();
         const available = await updater.check();
         if (available === undefined) {
             return updater.staged();
         }
-        const download = await available.download(archive === undefined ? {} : { archive });
+        const download = await available.download(source === undefined ? {} : { source });
 
         return updater.stage(download);
     }

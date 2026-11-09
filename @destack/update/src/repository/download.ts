@@ -1,20 +1,14 @@
 import { join } from "node:path";
-import { UpdateError } from "../error/error.ts";
 import { BaseFetcher } from "tuf-js";
 // NOTE #Robustness: tuf-js matches these errors by class without exporting them, so they come from its internal path
 import { DownloadHTTPError, DownloadLengthMismatchError } from "tuf-js/dist/error";
 import type { Environment } from "@destack/environment";
 
-/** Maximum duration of an archive request, in milliseconds: 5 minutes. */
-const DOWNLOAD_TIMEOUT_MILLISECONDS = 300_000;
-
-/** Maximum duration of a metadata request, in milliseconds: 30 seconds, as TUF's default. */
+/** The longest a metadata or target request takes, in milliseconds: TUF's default 30 seconds. */
 const METADATA_TIMEOUT_MILLISECONDS = 30_000;
 
-/** A download: signed metadata, or a target archive of a signed length. */
-export type Download =
-    | { readonly kind: "metadata" }
-    | { readonly kind: "archive"; readonly total: number; readonly options: DownloadOptions };
+/** A download: signed metadata, or a signed target. */
+export type Download = { readonly kind: "metadata" } | { readonly kind: "target" };
 
 /** A TUF fetcher downloading through the environment's network into its files. */
 export class Fetcher extends BaseFetcher {
@@ -23,7 +17,7 @@ export class Fetcher extends BaseFetcher {
     /** The clock, network and files a download runs on. */
     readonly #environment: Environment<"files">;
 
-    /** Download metadata or an archive in an environment. */
+    /** Download metadata or a target in an environment. */
     constructor(download: Download, environment: Environment<"files">) {
         super();
         this.#download = download;
@@ -61,58 +55,37 @@ export class Fetcher extends BaseFetcher {
         }
     }
 
-    /** Fetch a file within its timeout, reporting an archive's received bytes. */
+    /** Fetch a file within its timeout. */
     async fetch(url: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
-        // fetch within the file's timeout or the caller's cancellation, the deadline ending with the body
-        const download = this.#download;
-        const deadline =
-            download.kind === "metadata"
-                ? new Deadline(this.#environment, METADATA_TIMEOUT_MILLISECONDS, undefined)
-                : new Deadline(
-                      this.#environment,
-                      DOWNLOAD_TIMEOUT_MILLISECONDS,
-                      download.options.signal,
-                  );
+        // fetch within the timeout, the deadline ending with the body
+        const deadline = new Deadline(this.#environment, METADATA_TIMEOUT_MILLISECONDS, undefined);
         const response = await deadline.fetch(url);
 
         // refuse a failed request with its status, as TUF reads a missing next root
         if (!response.ok || !response.body) {
             await response.body?.cancel();
             deadline.end();
-            throw download.kind === "metadata"
-                ? new DownloadHTTPError(
-                      `metadata request failed: HTTP ${response.status}`,
-                      response.status,
-                  )
-                : UpdateError.of(
-                      "DOWNLOAD_FAILED",
-                      `archive request failed: HTTP ${response.status}`,
-                  );
+            throw new DownloadHTTPError(
+                `${this.#download.kind} request failed: HTTP ${response.status}`,
+                response.status,
+            );
         }
 
-        // report the signed length rather than trusting the HTTP content length
-        let received = 0;
-
-        return deadline.watch(response.body, (chunk) => {
-            received += chunk.byteLength;
-            if (download.kind === "archive") {
-                download.options.onProgress?.({ received, total: download.total });
-            }
-        });
+        return deadline.watch(response.body, () => undefined);
     }
 }
 
 /** Download inputs shared by CLI and native desktop callers. */
 export interface DownloadOptions {
-    /** Authenticate an installer archive already present on disk. */
-    archive?: string;
+    /** The directory with a copy of the release's files, such as the running application's. */
+    source?: string;
     /** Cancel an in-progress download. */
     signal?: AbortSignal;
     /** Report received bytes, the completion still requiring signature and digest verification. */
     onProgress?: (progress: DownloadProgress) => void;
 }
 
-/** Byte counts for the selected archive. */
+/** Byte counts of the selected release's files. */
 export interface DownloadProgress {
     /** Bytes received so far. */
     received: number;

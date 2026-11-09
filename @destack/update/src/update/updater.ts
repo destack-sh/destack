@@ -133,7 +133,7 @@ export class Updater implements AsyncDisposable {
 
         return current && latest.compare(current) === 0
             ? undefined
-            : new Update(latest, this.repository, () => this.begin());
+            : new Update(latest, this.repository, installed?.directory, () => this.begin());
     }
 
     /** Verify and stage a downloaded distribution while the current release remains active. */
@@ -153,8 +153,8 @@ export class Updater implements AsyncDisposable {
             );
         }
 
-        // authenticate the archive again before extracting or executing its contents
-        const verified = await this.repository.download(download.release, download.archive);
+        // authenticate the manifest again before checking out or executing its files
+        const verified = await this.repository.download(download.release, [download.directory]);
         const previous = await this.installer.current();
         const installed = await this.installer.stage(verified, (directory) =>
             verifyRelease(directory, verified.release, this.options.environment),
@@ -164,6 +164,9 @@ export class Updater implements AsyncDisposable {
             ...(previous === undefined ? {} : { previous: previous.sha256 }),
         };
         await this.installer.remember(staged);
+
+        // discard the downloaded copy, which the staged release now has
+        await this.repository.discard(verified);
 
         return staged;
     }
@@ -196,8 +199,9 @@ export class Updater implements AsyncDisposable {
             throw UpdateError.of("INSTALLATION_CHANGED", "installation changed after staging");
         }
 
-        // reuse the authenticated cache and derive paths from the installation directory
-        const download = await this.repository.download(latest);
+        // check the staged release out again from the installed and staged files, verified
+        const sources = [current?.directory, staged.directory].filter((each) => each !== undefined);
+        const download = await this.repository.download(latest, sources);
         const installed = await this.installer.stage(download, (directory) =>
             verifyRelease(directory, latest, this.options.environment),
         );

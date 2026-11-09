@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { join } from "node:path";
-import type { Clock, Environment } from "@destack/environment";
+import { type Clock, type Environment, Pipe } from "@destack/environment";
 import {
     Metadata,
     MetadataKind,
@@ -17,6 +17,7 @@ import { parseObject } from "./json.ts";
 import { TrustedRoot } from "./root.ts";
 import { TargetCustom } from "../release/release.ts";
 import { UpdateError } from "../error/index.ts";
+import { Manifest } from "../manifest/manifest.ts";
 
 /** The milliseconds in a day. */
 const DAY_MILLISECONDS = 24 * 60 * 60 * 1000;
@@ -38,19 +39,30 @@ export interface RenewalKeys {
     timestamp: SigningKey;
 }
 
-/** One distribution to publish in the update repository. */
-export interface Distribution {
-    /** Operating system and architecture. */
+/** One distribution to publish: a release's files, which updates check out, or an installer. */
+export type Distribution = {
+    /** Operating system and architecture, or the installer's name. */
     target: string;
     /** Calendar version reported by the executable. */
     version: string;
     /** Git commit the distribution was built from. */
     commit: string;
-    /** Local archive containing the CLI and desktop. */
-    archive: string;
-    /** The download format, tar.gz for update archives. */
-    format?: "dmg" | "exe";
-}
+} & (
+    | {
+          /** A release, published as its signed manifest and its files' blobs. */
+          kind: "release";
+          /** The directory with the release's files, as an installation keeps them. */
+          directory: string;
+      }
+    | {
+          /** An installer people download. */
+          kind: "installer";
+          /** The installer's file. */
+          archive: string;
+          /** The installer's format. */
+          format: "tar.gz" | "dmg" | "exe";
+      }
+);
 
 /** A signed release repository on disk, as clients download it. */
 export const SignedRepository = {
@@ -164,7 +176,7 @@ async function createRepository(
     await files.mkdir(archives, { recursive: true });
     await files.writeFile(join(metadata, `${root.signed.version}.root.json`), encode(root));
 
-    // address every archive by its digest and describe its release in signed target metadata
+    // sign one target per distribution
     const targets = new Metadata(
         new Targets({
             version: revision,
@@ -173,17 +185,25 @@ async function createRepository(
         }),
     );
     for (const distribution of distributions) {
-        const path = `${distribution.target}.${distribution.format ?? "tar.gz"}`;
+        // publish a release's manifest and blobs, else the installer itself
+        const format = distribution.kind === "release" ? "json" : distribution.format;
+        const path = `${distribution.target}.${format}`;
         if (Object.hasOwn(targets.signed.targets, path)) {
             throw UpdateError.of("METADATA_INVALID", `duplicate target: ${path}`);
         }
+        const source =
+            distribution.kind === "release"
+                ? await writeRelease(distribution.directory, archives, path, environment)
+                : distribution.archive;
+
+        // address the target by its digest and describe its release in signed metadata
         const hash = createHash("sha256");
-        await using archive = await files.open(distribution.archive, { read: true });
+        await using archive = await files.open(source, { read: true });
         for await (const bytes of archive.readable()) {
             hash.update(bytes);
         }
         const sha256 = hash.digest("hex");
-        const file = await files.stat(distribution.archive);
+        const file = await files.stat(source);
         const custom = TargetCustom.parse({
             version: distribution.version,
             commit: distribution.commit,
@@ -196,10 +216,54 @@ async function createRepository(
                 unrecognizedFields: { custom },
             }),
         );
-        await files.copyFile(distribution.archive, join(archives, `${sha256}.${path}`));
+
+        // move a release's manifest to its address, and copy an installer
+        const destination = join(archives, `${sha256}.${path}`);
+        if (distribution.kind === "release") {
+            await files.rename(source, destination);
+        } else {
+            await files.copyFile(source, destination);
+        }
     }
 
     return await writeMetadata(directory, revision, root, keys, targets, environment);
+}
+
+/** Write a release's blobs, each file gzip-compressed at its digest, and its manifest's file. */
+async function writeRelease(
+    directory: string,
+    targets: string,
+    name: string,
+    environment: Environment<"files">,
+): Promise<string> {
+    // write each file's blob once, compressed beside its address and renamed in when complete
+    const { files } = environment;
+    const manifest = await Manifest.read(directory, environment);
+    const blobs = join(targets, "blobs");
+    await files.mkdir(blobs, { recursive: true });
+    for (const file of manifest.files) {
+        const blob = join(blobs, file.digest);
+        if (!(await files.exists(blob))) {
+            const staging = `${blob}.partial`;
+            await files.remove(staging, { force: true });
+            {
+                await using source = await files.open(join(directory, file.path), { read: true });
+                await using written = await files.open(staging, { write: true, createNew: true });
+                const compressed = Pipe.through(
+                    source.readable(),
+                    environment.compression.compress("gzip"),
+                );
+                await Pipe.to(compressed, written.writable());
+            }
+            await files.rename(staging, blob);
+        }
+    }
+
+    // write the manifest under its name, until the target's digest addresses it
+    const path = join(targets, name);
+    await files.writeTextFile(path, manifest.encode());
+
+    return path;
 }
 
 /** Authorize targets, write the matching snapshot and timestamp, and return the signed targets. */

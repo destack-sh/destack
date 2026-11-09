@@ -21,6 +21,7 @@ test("register the terminal command once in the user's shell file, keeping their
             id: 1,
             userId: 1000,
             executable: "/usr/local/bin/destack",
+            script: "/usr/local/lib/destack/program/destack.js",
             runtime: { revision: "0".repeat(40), isStandalone: false },
         },
     });

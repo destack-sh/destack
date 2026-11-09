@@ -1,6 +1,6 @@
 # @destack/update
 
-`Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` identifies targets by Rust's target triples.
+`Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, each release a signed `Manifest` of files fetched by digest, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` identifies targets by Rust's target triples.
 
 ```ts
 // tuf-js's Updater
@@ -16,6 +16,8 @@ const update = await updater.check(); // refreshes root, timestamp, snapshot and
 const staged = await updater.stage(await update.download({ signal, onProgress }));
 await SignedRepository.create(directory, revision, root, keys, releases); // a TUF repository
 Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
+const manifest = await Manifest.read(directory, environment); // { files: [{ path, digest, size, mode }], links }
+await manifest.checkout(staging, { blobs, sources: [installed] }, environment); // copies what installed has
 ```
 
 ## Distributions

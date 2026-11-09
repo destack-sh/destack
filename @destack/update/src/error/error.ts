@@ -42,7 +42,7 @@ export const UpdateError = defineErrorFamily(import.meta.destack.package, {
     // bad gateway
     DOWNLOAD_FAILED: { code: "BAD_GATEWAY" },
     RELEASE_INVALID: { code: "BAD_GATEWAY" },
-    UNSAFE_ARCHIVE: { code: "BAD_GATEWAY" },
+    UNSAFE_MANIFEST: { code: "BAD_GATEWAY" },
     VERIFICATION_FAILED: { code: "BAD_GATEWAY" },
 
     // service unavailable

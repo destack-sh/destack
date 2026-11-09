@@ -47,10 +47,12 @@ test("renew freshness while preserving exact targets authorization", async () =>
             keys,
             [
                 {
+                    kind: "installer",
                     target: "aarch64-apple-darwin",
                     version: "2026.9.1",
                     commit: COMMIT,
                     archive,
+                    format: "tar.gz",
                 },
             ],
             world,

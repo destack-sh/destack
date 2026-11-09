@@ -28,6 +28,7 @@ test("link and unlink independent Linux desktop entries and link handlers for pr
             id: 1,
             userId: 1000,
             executable: join(directory, "destack"),
+            script: join(directory, "destack.js"),
             runtime: { revision: "0".repeat(40), isStandalone: false },
         },
     });

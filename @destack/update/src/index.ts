@@ -11,3 +11,4 @@ export {
     type StagedRelease,
 } from "./install/installer.ts";
 export { ShellPath } from "./install/path.ts";
+export * from "./manifest/manifest.ts";

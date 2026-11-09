@@ -1,37 +1,31 @@
 import { testSimulation } from "@destack/object/test";
 import { expect, test, refusal } from "@destack/test";
 import { join } from "node:path";
-import { create, Header, type HeaderData } from "tar";
-import { createHash } from "node:crypto";
+import type { Environment } from "@destack/environment";
 import { Installer } from "./installer.ts";
+import { Manifest } from "../manifest/manifest.ts";
+import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
+import { Digest } from "@destack/schema";
 
 test("recover interrupted activation and retain both distributions", async () => {
     const world = testSimulation().environment("test");
     const directory = await world.files.makeTemporaryDirectory("destack-activation-");
     try {
-        // build two archived distributions
+        // lay out two distributions
         const source = join(directory, "source");
         await world.files.mkdir(source);
         const installer = new Installer(join(directory, "installation"), world);
         const installed = [];
         for (const version of ["2026.9.0", "2026.9.1"]) {
-            await world.files.writeTextFile(join(source, "version"), version);
-            const archive = join(directory, `${version}.tar.gz`);
-            await create({ file: archive, gzip: true, cwd: source }, ["version"]);
-            const bytes = await world.files.readFile(archive);
-            const sha256 = createHash("sha256").update(bytes).digest("hex");
+            const files = join(source, version);
+            await world.files.mkdir(files);
+            await world.files.writeTextFile(join(files, "version"), version);
+            const release = new Release(version, "x86_64-unknown-linux-gnu");
             installed.push(
-                await installer.stage(
-                    {
-                        release: new Release(version, "x86_64-unknown-linux-gnu"),
-                        archive,
-                        sha256,
-                    },
-                    async (path) => {
-                        expect(await world.files.readTextFile(join(path, "version"))).toBe(version);
-                    },
-                ),
+                await installer.stage(await downloaded(release, files, world), async (path) => {
+                    expect(await world.files.readTextFile(join(path, "version"))).toBe(version);
+                }),
             );
         }
 
@@ -90,14 +84,12 @@ test("refuse a Mac activation without its application's absolute destination and
     try {
         const source = join(directory, "source");
         await world.files.mkdir(join(source, "Destack.app"), { recursive: true });
-        const archive = join(directory, "release.tar.gz");
-        await create({ file: archive, gzip: true, cwd: source }, ["Destack.app"]);
-        const sha256 = createHash("sha256")
-            .update(await world.files.readFile(archive))
-            .digest("hex");
+        await world.files.writeTextFile(join(source, "Destack.app", "Info.plist"), "plist");
         const installer = new Installer(join(directory, "installation"), world);
         const release = new Release("2026.9.1", "aarch64-apple-darwin");
-        const staged = await installer.stage({ release, archive, sha256 }, async () => {});
+        const download = await downloaded(release, source, world);
+        const { sha256 } = download;
+        const staged = await installer.stage(download, async () => {});
 
         // refuse activating it without a destination or an identifier
         const refused = [
@@ -134,73 +126,14 @@ test("refuse a Mac activation without its application's absolute destination and
     }
 });
 
-test.each([
-    {
-        name: "parent path",
-        entry: { path: "../outside", type: "File" },
-        message: "unsafe archive path: ../outside",
-    },
-    {
-        name: "absolute path",
-        entry: { path: "/outside", type: "File" },
-        message: "unsafe archive path: /outside",
-    },
-    {
-        name: "relative symlink",
-        entry: { path: "escape", type: "SymbolicLink", linkpath: "../../outside" },
-        message: "archive link escapes the distribution: escape",
-    },
-    {
-        name: "absolute symlink",
-        entry: { path: "escape", type: "SymbolicLink", linkpath: "/outside" },
-        message: "archive link escapes the distribution: escape",
-    },
-    {
-        name: "hard link",
-        entry: { path: "escape", type: "Link", linkpath: "../outside" },
-        message: "unsupported archive entry: escape (Link)",
-    },
-    {
-        name: "device",
-        entry: { path: "device", type: "CharacterDevice" },
-        message: "unsupported archive entry: device (CharacterDevice)",
-    },
-] satisfies { name: string; entry: HeaderData; message: string }[])(
-    "reject $name without extracting or activating files",
-    async ({ entry, message }) => {
-        const world = testSimulation().environment("test");
-        const directory = await world.files.makeTemporaryDirectory("destack-archive-");
-        try {
-            // encode the unmodified unsafe entry, which archive creators otherwise normalize
-            const bytes = Buffer.alloc(512 * 3);
-            const header = new Header({ ...entry, size: 0, mode: 0o644 });
-            header.encode(bytes);
-            const archive = join(directory, "release.tar");
-            await world.files.writeFile(archive, bytes);
+/** Describe a directory's files as a release's download, named by its manifest's digest. */
+async function downloaded(
+    release: Release,
+    directory: string,
+    environment: Environment<"files">,
+): Promise<Download> {
+    const manifest = await Manifest.read(directory, environment);
+    const sha256 = await Digest.of(manifest.encode(), environment.crypto);
 
-            const installer = new Installer(join(directory, "installation"), world);
-            expect(
-                await refusal(
-                    installer.stage(
-                        {
-                            release: new Release("2026.9.1", "x86_64-unknown-linux-gnu"),
-                            archive,
-                            sha256: "a".repeat(64),
-                        },
-                        async () => {
-                            throw new Error("unsafe archive reached executable verification");
-                        },
-                    ),
-                ),
-            ).toEqual(["BAD_GATEWAY", "UNSAFE_ARCHIVE", message]);
-            expect(await installer.current()).toBeUndefined();
-            expect(
-                (await world.files.readDirectory(join(installer.directory, "versions"))).map(
-                    (version) => version.name,
-                ),
-            ).toEqual([]);
-        } finally {
-            await world.files.remove(directory, { recursive: true });
-        }
-    },
-);
+    return { release, manifest, blobs: new URL("http://127.0.0.1/blobs/"), directory, sha256 };
+}

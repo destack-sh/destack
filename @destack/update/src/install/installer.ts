@@ -1,14 +1,7 @@
-import {
-    type Environment,
-    type FileLock,
-    type FileSystem,
-    FileSystemError,
-} from "@destack/environment";
-import type { FamilyError } from "@destack/error";
-import { Digest, present, schema, Uuid } from "@destack/schema";
-import { UpdateError, type UpdateReason } from "../error/error.ts";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { Parser, type ReadEntry } from "tar";
+import { type Environment, type FileLock, FileSystemError } from "@destack/environment";
+import { Digest, schema, Uuid } from "@destack/schema";
+import { UpdateError } from "../error/error.ts";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import type { Download } from "../repository/repository.ts";
 import { Release } from "../release/release.ts";
 import { installApplication } from "../apple/install.ts";
@@ -18,9 +11,6 @@ export const PRIVATE_DIRECTORY_MODE = 0o700;
 
 /** The mode of a device's private files: the owner's alone. */
 const PRIVATE_FILE_MODE = 0o600;
-
-/** The permission bits of a mode, without its file type. */
-const PERMISSION_BITS = 0o777;
 
 /** The persisted record of the current release. */
 const CurrentRecord = schema.object({
@@ -149,7 +139,7 @@ export class Installer {
         return { release, sha256: record.data.sha256, directory: this.path(release) };
     }
 
-    /** Extract a verified distribution and check its executables before activation. */
+    /** Check a downloaded distribution out and check its executables before activation. */
     async stage(
         download: Download,
         check: (directory: string) => Promise<void>,
@@ -170,15 +160,18 @@ export class Installer {
             return current;
         }
 
-        // extract into a fresh sibling directory without touching the active distribution
+        // check out into a fresh sibling directory without touching the active distribution
         const { files, random } = this.environment;
         const versions = join(this.directory, "versions");
         await files.mkdir(versions, { recursive: true, mode: PRIVATE_DIRECTORY_MODE });
         const staging = join(versions, `.install-${Uuid.v4(random)}`);
         await files.mkdir(staging, { mode: PRIVATE_DIRECTORY_MODE });
         try {
-            await extractArchive(this.environment, download.archive, staging);
-            await verifyLinks(files, staging, staging);
+            await download.manifest.checkout(
+                staging,
+                { blobs: download.blobs, sources: [download.directory] },
+                this.environment,
+            );
             await check(staging);
 
             // retain verified releases after interrupted activation without overwriting them
@@ -351,144 +344,4 @@ export class Installer {
             throw UpdateError.of("RELEASE_CHANGED", "published release changed");
         }
     }
-}
-
-/** Extract an archive's safe entries under a directory, refusing an unsafe one. */
-async function extractArchive(
-    environment: Environment<"files">,
-    archive: string,
-    root: string,
-): Promise<void> {
-    // write each safe entry in turn, draining every entry after the first refusal or failed write
-    const { scheduler, files } = environment;
-    let rejected: FamilyError<UpdateReason> | undefined;
-    let written = Promise.resolve();
-    const parser = new Parser({
-        strict: true,
-        onReadEntry: (entry) => {
-            rejected ??= rejectEntry(entry.path, entry, root);
-            const drain = (error: unknown): never => {
-                entry.resume();
-                throw error;
-            };
-            written = written.then(async () => {
-                if (rejected === undefined) {
-                    await writeEntry(files, root, entry).catch(drain);
-                } else {
-                    entry.resume();
-                }
-            }, drain);
-        },
-    });
-    const parsed = new Promise<void>((finish, fail) => {
-        parser.on("end", finish);
-        parser.on("error", fail);
-    });
-
-    // stream the archive into the parser with backpressure, its drain waiting on the world's writes
-    await using handle = await files.open(archive, { read: true });
-    for await (const chunk of handle.readable()) {
-        const bytes = Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength);
-        if (!parser.write(bytes)) {
-            await scheduler.waitUntil(
-                new Promise<void>((drained) => {
-                    parser.once("drain", drained);
-                }),
-            );
-        }
-    }
-    parser.end();
-    await scheduler.waitUntil(parsed);
-    await written;
-
-    // refuse the first unsafe entry once the archive drained
-    if (rejected !== undefined) {
-        throw rejected;
-    }
-}
-
-/** Write one safe archive entry under a directory, streaming a file's bytes as they arrive. */
-async function writeEntry(files: FileSystem, root: string, entry: ReadEntry): Promise<void> {
-    // create the entry's parent, then the entry by its type, draining a link's or directory's empty body
-    const path = join(root, entry.path);
-    await files.mkdir(dirname(path), { recursive: true });
-    if (entry.type === "SymbolicLink") {
-        entry.resume();
-        await files.symlink(present(entry.linkpath, `the link target of ${entry.path}`), path);
-    } else if (entry.type === "Directory") {
-        entry.resume();
-        const mode = present(entry.mode, `the mode of ${entry.path}`) & PERMISSION_BITS;
-        await files.mkdir(path, { recursive: true, mode });
-    } else {
-        const mode = present(entry.mode, `the mode of ${entry.path}`) & PERMISSION_BITS;
-        await using handle = await files.open(path, { write: true, createNew: true, mode });
-        const writer = handle.writable().getWriter();
-        for await (const chunk of entry) {
-            await writer.write(new Uint8Array(chunk));
-        }
-        await writer.close();
-    }
-}
-
-/** Reject symlinks that escape the extracted distribution. */
-async function verifyLinks(files: FileSystem, root: string, directory: string): Promise<void> {
-    for (const { name } of await files.readDirectory(directory)) {
-        const path = join(directory, name);
-        const stat = await files.lstat(path);
-        if (stat.kind === "symlink") {
-            const link = await files.readLink(path);
-            const destination = resolve(directory, link);
-            const relation = relative(root, destination);
-            if (isAbsolute(link) || relation === ".." || relation.startsWith(`..${sep}`)) {
-                throw UpdateError.of(
-                    "UNSAFE_ARCHIVE",
-                    `archive link escapes the distribution: ${path}`,
-                );
-            }
-        } else if (stat.kind === "directory") {
-            await verifyLinks(files, root, path);
-        }
-    }
-}
-
-/** Find why an archive entry could write outside the staged distribution, if it could. */
-function rejectEntry(
-    path: string,
-    entry: ReadEntry,
-    root: string,
-): FamilyError<UpdateReason> | undefined {
-    // split the path on both separators
-    const components = path.replaceAll("\\", "/").split("/");
-
-    // require a relative path inside the distribution
-    if (isAbsolute(path) || components.includes("..") || /^[A-Za-z]:/u.test(path)) {
-        return UpdateError.of("UNSAFE_ARCHIVE", `unsafe archive path: ${path}`);
-    }
-    // require a mode, which the extracted files and directories keep
-    else if (entry.mode === undefined && entry.type !== "SymbolicLink") {
-        return UpdateError.of("UNSAFE_ARCHIVE", `archive entry has no mode: ${path}`);
-    }
-    // require a supported entry type
-    else if (!["File", "Directory", "SymbolicLink"].includes(entry.type)) {
-        return UpdateError.of(
-            "UNSAFE_ARCHIVE",
-            `unsupported archive entry: ${path} (${entry.type})`,
-        );
-    }
-    // accept files and directories
-    else if (entry.type !== "SymbolicLink") {
-        return undefined;
-    }
-
-    // require a link target inside the distribution
-    if (entry.linkpath === undefined || entry.linkpath === "") {
-        return UpdateError.of("UNSAFE_ARCHIVE", `missing archive link target: ${path}`);
-    }
-    const target = resolve(root, path, "..", entry.linkpath);
-    const relation = relative(root, target);
-    if (isAbsolute(entry.linkpath) || relation === ".." || relation.startsWith(`..${sep}`)) {
-        return UpdateError.of("UNSAFE_ARCHIVE", `archive link escapes the distribution: ${path}`);
-    }
-
-    return undefined;
 }

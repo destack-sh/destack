@@ -6,14 +6,22 @@ import { type TargetFile, Updater, type UpdaterOptions } from "tuf-js";
 import { Release, type Target, TargetCustom } from "../release/release.ts";
 import { type Environment, FileSystemError, type FileSystem } from "@destack/environment";
 import { type DownloadOptions, Fetcher } from "./download.ts";
+import { Manifest } from "../manifest/manifest.ts";
 
-/** An authenticated release and its downloaded archive. */
+/** The largest manifest the feed signs, in bytes: 16 MiB, far above a release's 2,000 files. */
+const MANIFEST_MAX_BYTES = 16 * 1024 ** 2;
+
+/** An authenticated release, its manifest and its files checked out in the download cache. */
 export interface Download {
     /** Release described by signed target metadata. */
     release: Release;
-    /** Verified local archive. */
-    archive: string;
-    /** Digest used to distinguish immutable distributions. */
+    /** The release's signed manifest. */
+    manifest: Manifest;
+    /** The feed's blobs the manifest's files are fetched from. */
+    blobs: URL;
+    /** The directory with the release's files, verified against the manifest. */
+    directory: string;
+    /** The digest of the signed manifest, which identifies the release's files. */
     sha256: string;
 }
 
@@ -27,15 +35,22 @@ export class UpdateRepository {
         "metadataDir" | "targetDir" | "metadataBaseUrl" | "targetBaseUrl"
     >;
 
-    /** The clock, network and files metadata requests and archive downloads run on. */
+    /** The clock, network and files metadata requests and downloads run on. */
     private readonly environment: Environment<"files">;
+    /** The feed's blobs, each file's gzip bytes at its digest. */
+    private readonly blobs: URL;
+    /** The directory with the downloaded manifests and each release's checked-out files. */
+    private readonly downloads: string;
 
     /** Configure a repository after initializing its trusted root. */
     private constructor(directory: string, url: URL, environment: Environment<"files">) {
+        // locate the feed's blobs and metadata, and this cache's downloads
         this.environment = environment;
+        this.blobs = new URL("targets/blobs/", url);
+        this.downloads = join(directory, "downloads");
         this.locations = {
             metadataDir: join(directory, "metadata"),
-            targetDir: join(directory, "downloads"),
+            targetDir: this.downloads,
             metadataBaseUrl: new URL("metadata/", url).href,
             targetBaseUrl: new URL("targets/", url).href,
         };
@@ -111,7 +126,7 @@ export class UpdateRepository {
         await updater.refresh().catch((error: unknown) => {
             throw UpdateRepository.#refused(error);
         });
-        const artifact = await updater.getTargetInfo(`${target}.tar.gz`);
+        const artifact = await updater.getTargetInfo(`${target}.json`);
         if (!artifact) {
             throw UpdateError.of("RELEASE_NOT_FOUND", `no published release for ${target}`);
         }
@@ -147,16 +162,16 @@ export class UpdateRepository {
         const artifact = this.selected.get(release.directory);
         const digest = Digest.safeParse(artifact?.hashes["sha256"]);
         if (!digest.success) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release archive digest");
+            throw UpdateError.of("RELEASE_INVALID", "invalid release manifest digest");
         }
 
         return digest.data;
     }
 
-    /** Download an archive and verify its signed size and digest before returning it. */
+    /** Download a release's signed manifest, then check its files out into the download cache. */
     async download(
         release: Release,
-        candidate?: string,
+        sources: readonly string[],
         options: DownloadOptions = {},
     ): Promise<Download> {
         // require the selected release and its signed size and digest
@@ -165,30 +180,42 @@ export class UpdateRepository {
         if (!artifact || artifact.custom["version"] !== release.version) {
             throw UpdateError.of("RELEASE_CHANGED", "release changed after selection");
         }
-        if (
-            artifact.length > 2 * 1024 ** 3 ||
-            artifact.hashes["sha256"] === undefined ||
-            !Digest.safeParse(artifact.hashes["sha256"]).success
-        ) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release archive metadata");
+        const sha256 = Digest.safeParse(artifact.hashes["sha256"]);
+        if (artifact.length > MANIFEST_MAX_BYTES || !sha256.success) {
+            throw UpdateError.of("RELEASE_INVALID", "invalid release manifest metadata");
         }
 
-        // authenticate an installer archive by its signed length and hashes
-        const { scheduler } = this.environment;
-        const downloader = this.#updater(
-            new Fetcher({ kind: "archive", total: artifact.length, options }, this.environment),
-        );
-        const cached = await scheduler.run(() => downloader.findCachedTarget(artifact, candidate));
-        if (candidate !== undefined && candidate !== "" && cached === undefined) {
-            throw UpdateError.of("VERIFICATION_FAILED", "installer archive failed verification");
-        }
-        const archive = cached ?? (await downloader.downloadTarget(artifact));
-        options.signal?.throwIfAborted();
-        if (cached !== undefined) {
-            options.onProgress?.({ received: artifact.length, total: artifact.length });
+        // authenticate the manifest by its signed length and hashes, reading a cached copy first
+        const { scheduler, files } = this.environment;
+        const downloader = this.#updater(new Fetcher({ kind: "target" }, this.environment));
+        const cached = await scheduler.run(() => downloader.findCachedTarget(artifact));
+        const path = cached ?? (await downloader.downloadTarget(artifact));
+        const manifest = Manifest.parse(await files.readTextFile(path));
+
+        // check the files out beside the cache once, from the sources and the feed's blobs
+        const directory = join(this.downloads, sha256.data);
+        if (!(await files.exists(directory))) {
+            const staging = await files.makeTemporaryDirectory(".download-", {
+                directory: this.downloads,
+            });
+            try {
+                await manifest.checkout(
+                    staging,
+                    { blobs: this.blobs, sources, ...options },
+                    this.environment,
+                );
+                await files.rename(staging, directory);
+            } finally {
+                await files.remove(staging, { recursive: true, force: true });
+            }
         }
 
-        return { release, archive, sha256: artifact.hashes["sha256"] };
+        return { release, manifest, blobs: this.blobs, directory, sha256: sha256.data };
+    }
+
+    /** Remove a download's checked-out files once a staged release has them. */
+    async discard(download: Download): Promise<void> {
+        await this.environment.files.remove(download.directory, { recursive: true, force: true });
     }
 }
 

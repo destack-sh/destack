@@ -1,6 +1,5 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { create } from "tar";
 import {
     type Crypto,
     type Environment,
@@ -16,7 +15,7 @@ import { type ReleaseKeys, SignedRepository, SigningKey, TrustedRoot } from "../
 /** The host the fixture command is built on and runs on, as the updater starts it. */
 const HOST = testHost();
 
-/** The command a fixture distribution's archive contains, by the host's file name. */
+/** The command a fixture distribution contains, by the host's file name. */
 const COMMAND = HOST.host.os === "win32" ? "destack.exe" : "destack";
 
 /** The version report the fixture command prints, as the compiled command does. */
@@ -46,13 +45,11 @@ export class TestUpdate implements AsyncDisposable {
     readonly simulation: Simulation;
     /** Temporary files owned by this scenario. */
     readonly directory: string;
-    /** Published metadata and archives. */
+    /** Published metadata, manifests and blobs. */
     readonly path: string;
-    /** Source files used when publishing changed contents. */
+    /** The release's files this scenario publishes. */
     readonly source: string;
-    /** Distribution archive for this scenario. */
-    readonly archive: string;
-    /** Archive layout, with native macOS replacement covered by the bundle scenarios. */
+    /** The release's target, with native macOS replacement covered by the bundle scenarios. */
     readonly target =
         HOST.host.os === "win32" ? "x86_64-pc-windows-msvc" : "x86_64-unknown-linux-gnu";
     /** Online metadata signers. */
@@ -81,7 +78,6 @@ export class TestUpdate implements AsyncDisposable {
         this.directory = directory;
         this.path = join(directory, "repository");
         this.source = join(directory, "source");
-        this.archive = join(directory, "release.tar.gz");
         this.rootKeys = rootKeys;
         this.keys = keys;
         this.root = root;
@@ -117,7 +113,7 @@ export class TestUpdate implements AsyncDisposable {
         );
     }
 
-    /** Write the fixture command that reports version 2026.9.1 and archive it as a distribution. */
+    /** Write the fixture command that reports version 2026.9.1 into a distribution's files. */
     static async compile(): Promise<string> {
         // write the command into a fresh directory: a shell script where one runs, else a compiled executable
         const { files } = HOST;
@@ -130,15 +126,12 @@ export class TestUpdate implements AsyncDisposable {
             await TestUpdate.#build(outfile);
         }
 
-        // archive it with an empty desktop as a distribution
+        // lay it out with a desktop as a distribution
         const source = join(directory, "source");
         await files.mkdir(join(source, "bin"), { recursive: true });
         await files.mkdir(join(source, "Destack"));
+        await files.writeTextFile(join(source, "Destack", "desktop"), "desktop");
         await files.copyFile(join(directory, COMMAND), join(source, "bin", COMMAND));
-        await create({ file: join(directory, "release.tar.gz"), gzip: { level: 1 }, cwd: source }, [
-            "bin",
-            "Destack",
-        ]);
 
         return directory;
     }
@@ -181,7 +174,6 @@ export class TestUpdate implements AsyncDisposable {
         const repository = await TestUpdate.create(directory, rootKeys, simulation);
         try {
             await files.copy(join(fixture, "source"), repository.source);
-            await files.copyFile(join(fixture, "release.tar.gz"), repository.archive);
             await SignedRepository.create(
                 repository.path,
                 1,
@@ -189,10 +181,11 @@ export class TestUpdate implements AsyncDisposable {
                 repository.keys,
                 [
                     {
+                        kind: "release",
                         target: repository.target,
                         version,
                         commit: COMMIT,
-                        archive: repository.archive,
+                        directory: repository.source,
                     },
                 ],
                 repository.environment,

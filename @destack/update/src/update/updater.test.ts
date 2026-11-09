@@ -1,7 +1,8 @@
 import { testHost } from "@destack/test/host";
 import { afterAll, beforeAll, expect, test, refusal } from "@destack/test";
 import { join } from "node:path";
-import { create } from "tar";
+import { Digest } from "@destack/schema";
+import { Pipe } from "@destack/environment";
 import { Metadata, MetadataKind, Timestamp } from "@tufjs/models";
 import { COMMIT, TestUpdate, createRootKey } from "../test/index.ts";
 import { Updater } from "./updater.ts";
@@ -11,12 +12,12 @@ import { parseObject } from "../publish/json.ts";
 import { Release } from "../release/release.ts";
 import { SignedRepository, SigningKey, TrustedRoot } from "../publish/index.ts";
 
-/** Native executable filename expected by the selected archive format. */
+/** Native executable filename the fixture release contains. */
 const COMMAND = testHost().host.os === "win32" ? "destack.exe" : "destack";
 
 /** Offline signers shared as immutable key material. */
 let rootKeys: SigningKey[];
-/** Compiled executable used by the signed archive scenarios. */
+/** Compiled executable used by the signed release scenarios. */
 let fixture: string;
 
 beforeAll(async () => {
@@ -71,7 +72,7 @@ test("retain staging across sessions and reject concurrent or stale activation",
     );
     const { options, target } = repository;
 
-    // stage the complete archive under an exclusive updater session
+    // stage the complete release under an exclusive updater session
     {
         await using updater = await Updater.open(options);
         expect(await refusal(Updater.open(options))).toEqual([
@@ -130,7 +131,7 @@ test("retain staging across sessions and reject concurrent or stale activation",
     }
 });
 
-test("retry cancelled downloads and reject tampered archives before staging", async () => {
+test("retry cancelled downloads, refuse a tampered blob, and fetch a tampered download's file again before staging", async () => {
     // open an independent signed repository and installation
     await using repository = await TestUpdate.open(
         fixture,
@@ -138,7 +139,7 @@ test("retry cancelled downloads and reject tampered archives before staging", as
         "2026.9.1",
         TestUpdate.world(),
     );
-    const { options, directory, archive } = repository;
+    const { options, environment } = repository;
 
     // reject cancellation before the download starts
     await using updater = await Updater.open(options);
@@ -160,28 +161,45 @@ test("retry cancelled downloads and reject tampered archives before staging", as
     expect(await updater.current()).toBeUndefined();
     expect(await updater.staged()).toBeUndefined();
 
+    // refuse a blob whose bytes differ from the signed digest, then restore it
+    const desktop = await environment.files.readTextFile(
+        join(repository.source, "Destack/desktop"),
+    );
+    const blob = join(
+        repository.path,
+        "targets/blobs",
+        await Digest.of("desktop", environment.crypto),
+    );
+    const original = await environment.files.readFile(blob);
+    await environment.files.writeFile(blob, await gzip("Desktop"));
+    const tampered = await refusal(update.download());
+    await environment.files.writeFile(blob, original);
+
     // retry successfully and compare the complete download progress
     const progress: { received: number; total: number }[] = [];
     const download = await update.download({
         onProgress: (value) => progress.push(value),
     });
-    const length = (await repository.environment.files.readFile(archive)).length;
-    expect(progress.at(-1)).toEqual({ received: length, total: length });
-    expect(await updater.current()).toBeUndefined();
+    const length = download.manifest.files.reduce((sum, file) => sum + file.size, 0);
 
-    // reject changed archive bytes before extracting or running them
-    const modified = join(directory, "modified.tar.gz");
-    await repository.environment.files.writeTextFile(modified, "tampered");
-    expect(await refusal(updater.stage({ ...download, archive: modified }))).toEqual([
-        "BAD_GATEWAY",
-        "VERIFICATION_FAILED",
-        "installer archive failed verification",
-    ]);
-
-    // retain a verified archive after the rejected attempt
+    // fetch a downloaded file changed on disk again by its digest, staging the signed bytes
+    await environment.files.writeTextFile(join(download.directory, "Destack/desktop"), "changed");
     const staged = await updater.stage(download);
-    expect(await updater.staged()).toEqual(staged);
-    expect(await updater.current()).toBeUndefined();
+    expect({
+        tampered,
+        progress: progress.at(-1),
+        desktop: await environment.files.readTextFile(join(staged.directory, "Destack/desktop")),
+        staged: await updater.staged(),
+        current: await updater.current(),
+        isDownloadKept: await environment.files.exists(download.directory),
+    }).toEqual({
+        tampered: ["BAD_GATEWAY", "VERIFICATION_FAILED", "blob digest mismatch: Destack/desktop"],
+        progress: { received: length, total: length },
+        desktop,
+        staged,
+        current: undefined,
+        isDownloadKept: false,
+    });
 });
 
 test("retain rotated trust across sessions and reject expired or rolled-back metadata", async () => {
@@ -192,7 +210,7 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         "2026.9.1",
         TestUpdate.world(),
     );
-    const { options, target, archive } = repository;
+    const { options, target, source } = repository;
 
     const firstTimestamp = await repository.environment.files.readTextFile(
         join(repository.path, "metadata/timestamp.json"),
@@ -236,10 +254,11 @@ test("retain rotated trust across sessions and reject expired or rolled-back met
         repository.keys,
         [
             {
+                kind: "release",
                 target,
                 version: "2026.9.1",
                 commit: COMMIT,
-                archive,
+                directory: source,
             },
         ],
         repository.environment,
@@ -295,7 +314,7 @@ test("preserve the installed release when signed replacements contradict its ide
         "2026.9.1",
         TestUpdate.world(),
     );
-    const { options, target, source, archive } = repository;
+    const { options, target, source } = repository;
     let installed: Awaited<ReturnType<Updater["activate"]>>;
 
     // establish an active release before publishing inconsistent replacements
@@ -305,7 +324,7 @@ test("preserve the installed release when signed replacements contradict its ide
         installed = await updater.activate(await updater.stage(await update.download()));
     }
 
-    // a signed archive with the wrong executable version must leave the installation unchanged
+    // a signed release with the wrong executable version must leave the installation unchanged
     await SignedRepository.create(
         repository.path,
         3,
@@ -313,10 +332,11 @@ test("preserve the installed release when signed replacements contradict its ide
         repository.keys,
         [
             {
+                kind: "release",
                 target,
                 version: "2026.9.2",
                 commit: COMMIT,
-                archive,
+                directory: source,
             },
         ],
         repository.environment,
@@ -339,7 +359,6 @@ test("preserve the installed release when signed replacements contradict its ide
         join(source, "Destack/changed"),
         "changed release contents",
     );
-    await create({ file: archive, gzip: { level: 1 }, cwd: source }, ["bin", "Destack"]);
     await SignedRepository.create(
         repository.path,
         4,
@@ -347,10 +366,11 @@ test("preserve the installed release when signed replacements contradict its ide
         repository.keys,
         [
             {
+                kind: "release",
                 target,
                 version: "2026.9.1",
                 commit: COMMIT,
-                archive,
+                directory: source,
             },
         ],
         repository.environment,
@@ -372,7 +392,7 @@ test("preserve the installed release when signed replacements contradict its ide
         5,
         repository.root,
         repository.keys,
-        [{ target, version: "2026.9.2-dev.1", commit: COMMIT, archive }],
+        [{ kind: "release", target, version: "2026.9.2-dev.1", commit: COMMIT, directory: source }],
         repository.environment,
     );
     {
@@ -386,3 +406,11 @@ test("preserve the installed release when signed replacements contradict its ide
         expect(await updater.staged()).toBeUndefined();
     }
 });
+
+/** Compress a text with gzip, as the feed stores a blob. */
+async function gzip(text: string): Promise<Uint8Array<ArrayBuffer>> {
+    const { compression } = testHost();
+    const stream = Pipe.through(new Blob([text]).stream(), compression.compress("gzip"));
+
+    return await new Response(stream).bytes();
+}
