@@ -5,7 +5,7 @@ import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import { type PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { type Identifier, present, schema, type VersionRange } from "@destack/schema";
+import { type Digest, type Identifier, present, schema, type VersionRange } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, Provisioned } from "@destack/object";
 import type { ObjectPackage } from "@destack/object/server";
@@ -146,6 +146,8 @@ export interface SpaceOptions {
     readonly registry: Registry;
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    readonly trusted: ReadonlySet<Digest>;
     /** The platform's declaration of every space's main database, with the platform's tables. */
     readonly main: Database;
     /** The host of the spaces' buckets. */
@@ -501,6 +503,7 @@ function installationOptions(
         isEnforcingEntitlements: options.isEnforcingEntitlements,
         database: options.database,
         linked: options.linked,
+        trusted: options.trusted,
     };
 }
 

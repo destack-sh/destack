@@ -108,6 +108,8 @@ export interface ApplicationOptions {
     readonly database: DatabaseConnection;
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    readonly trusted: ReadonlySet<Digest>;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
@@ -660,6 +662,15 @@ export class ApplicationInstallation {
 
             return StackError.of("RELEASE_TOO_OLD", message);
         }
+        // refuse a host installation of a build the machine neither ships nor links
+        else if (
+            this.#target.installation.isolation === "host" &&
+            !this.#options.trusted.has(manifest)
+        ) {
+            const message = `${name} runs on the host, which only releases the machine ships or links may`;
+
+            return StackError.of("PROCESS_ISOLATION_UNTRUSTED", message);
+        }
         // refuse a build with an unrunnable workload
         else if (stranded.length > 0) {
             const runtimes = this.#options.runtimes.map((runtime) => runtime.name).join(", ");
@@ -672,9 +683,7 @@ export class ApplicationInstallation {
         const isHooked = Object.values(description?.objects ?? {}).some(
             (routed) => Object.keys(routed.hooks).length > 0,
         );
-        const isHosted =
-            this.#options.linked.get(PackageManifest.package(build.manifest).id)?.manifest ===
-                manifest || this.#target.installation.isolation === "process";
+        const isHosted = this.#isStored(manifest);
         const isServed =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
@@ -1066,6 +1075,16 @@ export class ApplicationInstallation {
         return await this.#options.builds.pull(this.#options.registry, packageId, release.manifest);
     }
 
+    /** Decide whether a build runs in the store's process: linked, or a host installation's. */
+    #isStored(manifest: Digest): boolean {
+        const { installation: installed } = this.#target;
+
+        return (
+            this.#options.linked.get(installed.packageId)?.manifest === manifest ||
+            installed.isolation === "host"
+        );
+    }
+
     /** Describe the workload of a server the store runs in the machine's process. */
     #processWorkload(description: PackageDescription | undefined): BuildWorkload {
         return {
@@ -1094,12 +1113,8 @@ export class ApplicationInstallation {
         readonly workloads: BuildWorkload[];
         readonly stranded: string[];
     } {
-        // serve a linked release or a process installation's build in the store
-        const { installation: installed } = this.#target;
-        const isStored =
-            this.#options.linked.get(installed.packageId)?.manifest === manifest ||
-            installed.isolation === "process";
-        if (isStored) {
+        // serve a linked release or a host installation's build in the store
+        if (this.#isStored(manifest)) {
             return { workloads: [this.#processWorkload(description)], stranded: [] };
         }
 

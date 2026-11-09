@@ -152,6 +152,8 @@ export interface SpaceMachine {
     readonly builds: Pick<SpaceBuildStore, "contents">;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    readonly trusted: ReadonlySet<Digest>;
 }
 
 /** What a hosted space's start lends its installations' servers, as its host decides. */
@@ -201,7 +203,7 @@ export interface SpaceServers {
 interface ServedEntry {
     /** Its build's load: a trusted server, absent for a build without one, a sandbox, or none. */
     readonly load:
-        | { readonly kind: "process"; readonly server: PackageImplementation | undefined }
+        | { readonly kind: "host"; readonly server: PackageImplementation | undefined }
         | { readonly kind: "sandbox" }
         | { readonly kind: "unserved" };
     /** The server or sandbox serving it, absent for one that failed to load. */
@@ -412,6 +414,7 @@ export class SpaceHost {
             | "publisherAt"
             | "keystore"
             | "linked"
+            | "trusted"
         >
     > {
         // call the universe as the machine, and claim names at the universe through it
@@ -448,6 +451,7 @@ export class SpaceHost {
             },
             environment: this.machine.environment,
             linked: this.machine.linked,
+            trusted: this.machine.trusted,
             publisher: this.uplink(),
             publisherAt: (home, partition) => this.publisherAt(home, partition),
             keystore: this.keystore,
@@ -476,11 +480,11 @@ export class SpaceHost {
                     this.machine.linked.get(row.installation.packageId)?.manifest === manifest;
                 if (kept !== undefined) {
                     return kept.load;
-                } else if (row.installation.isolation !== "process" && !isLinked) {
+                } else if (row.installation.isolation !== "host" && !isLinked) {
                     return { kind: "sandbox" } as const;
                 }
                 try {
-                    return { kind: "process", server: await start.server(manifest) } as const;
+                    return { kind: "host", server: await start.server(manifest) } as const;
                 } catch (error) {
                     const name = row.installation.name ?? row.installationId;
                     start.report(
@@ -497,7 +501,7 @@ export class SpaceHost {
             }),
         );
         const trusted = loaded.flatMap((each) =>
-            each.kind === "process" && each.server !== undefined ? [each.server] : [],
+            each.kind === "host" && each.server !== undefined ? [each.server] : [],
         );
 
         // serve each installation in the store or in its sandbox, keeping the earlier ones
@@ -600,7 +604,7 @@ export class SpaceHost {
     ): Promise<ServedEntry["served"]> {
         // serve a loaded server in the store, activated once its revision and any lent grant exist
         const { start, signal, trusted } = run;
-        const stored = load.kind === "process" ? load.server : undefined;
+        const stored = load.kind === "host" ? load.server : undefined;
         if (load.kind === "unserved") {
             return undefined;
         }

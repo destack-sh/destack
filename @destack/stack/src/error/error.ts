@@ -22,6 +22,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     HOOKS_MISSING: { code: "FORBIDDEN" },
     SPACE_ONLY: { code: "FORBIDDEN" },
     NETWORK_UNDECLARED: { code: "FORBIDDEN" },
+    PROCESS_ISOLATION_UNTRUSTED: { code: "FORBIDDEN" },
 
     // not found
     BLOB_NOT_FOUND: { code: "NOT_FOUND" },

@@ -349,6 +349,8 @@ export class TestSpace implements AsyncDisposable {
     readonly #beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
     /** The release the machine links of each server's package, as the test installs it. */
     readonly #linked: Map<PackageId, PackageRelease>;
+    /** The manifests the kit's machine runs in its process: the releases it links. */
+    readonly #trusted: Set<Digest>;
     /** The servers the test runs in the store, by the linked releases of their packages. */
     readonly #servers: readonly PackageImplementation[];
     /** The releases the machine links with the space. */
@@ -393,6 +395,7 @@ export class TestSpace implements AsyncDisposable {
         readonly connectors: readonly Connector[];
         readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
         readonly linked: Map<PackageId, PackageRelease>;
+        readonly trusted: Set<Digest>;
         readonly servers: readonly PackageImplementation[];
         readonly releases: StackReleases;
         readonly defer: Defer;
@@ -405,6 +408,7 @@ export class TestSpace implements AsyncDisposable {
         this.#connectors = fields.connectors;
         this.#beside = fields.beside;
         this.#linked = fields.linked;
+        this.#trusted = fields.trusted;
         this.#servers = fields.servers;
         this.releases = fields.releases;
         this.#buckets = fields.buckets;
@@ -822,6 +826,7 @@ export class TestSpace implements AsyncDisposable {
             const server = (options.servers ?? []).find((each) => each.package.id === packageId);
             if (server !== undefined) {
                 this.#linked.set(packageId, { package: Package.of(server.package), manifest });
+                this.#trusted.add(manifest);
             }
         }
     }
@@ -1040,6 +1045,7 @@ export class TestSpace implements AsyncDisposable {
         const linked = new Map<PackageId, PackageRelease>([
             [stackPackage.id, { package: Package.of(stackPackage), manifest: releases.manifest }],
         ]);
+        const trusted = new Set<Digest>([releases.manifest]);
 
         // lend the machine to the space's host, answering where the test serves it or where it published
         const lent: SpaceMachine = {
@@ -1056,6 +1062,7 @@ export class TestSpace implements AsyncDisposable {
             send: (request) => simulation.network.of(machine.id).fetch(request),
             builds,
             linked,
+            trusted,
         };
 
         // store the machine's own resources below its files, such as Git storage
@@ -1088,6 +1095,7 @@ export class TestSpace implements AsyncDisposable {
                 providers: [...(options.providers ?? []), ...(local?.providers ?? [])],
             },
             linked,
+            trusted,
             servers,
             releases,
             defer,
@@ -1103,6 +1111,7 @@ export class TestSpace implements AsyncDisposable {
             const released = PackageManifest.package(build.manifest);
             const manifest = await fixture.registry.find(released.id, released.version);
             linked.set(released.id, { package: released, manifest });
+            trusted.add(manifest);
         }
 
         return fixture;

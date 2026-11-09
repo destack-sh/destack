@@ -130,7 +130,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         // run in the store each dependency of an installation in the store, whose build runs its code there already
         const stored = new Set(
             closures.flatMap((releases, index) =>
-                declaredInstallations[index]?.installed.isolation === "process"
+                declaredInstallations[index]?.installed.isolation === "host"
                     ? releases.map((release) => release.package.id)
                     : [],
             ),
@@ -139,7 +139,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         // install each once as any package, bound to nothing, at the release its dependents resolved
         const transitive: Record<string, InstallationDefinition> = {};
         for (const release of oneReleaseEach(closures.flat(), name).values()) {
-            const isolation = stored.has(release.package.id) ? "process" : "sandbox";
+            const isolation = stored.has(release.package.id) ? "host" : "sandbox";
             const installed = install(
                 { ...release.package, resources: {}, secrets: {} },
                 {},

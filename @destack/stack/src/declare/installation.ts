@@ -43,8 +43,8 @@ export const InstallationDefinition = schema.object({
     capabilities: schema.array(DeclarationName),
     /** The directories granted to the package's `files` capability, each with its access. */
     directories: schema.array(DirectoryGrant),
-    /** How its server is isolated: a sandbox, or the store's process once trusted. */
-    isolation: schema.enum(["sandbox", "process"]),
+    /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
+    isolation: schema.enum(["sandbox", "host"]),
     /** User-defined labels. */
     tags: schema.record(schema.string().min(1), schema.string()),
 });
