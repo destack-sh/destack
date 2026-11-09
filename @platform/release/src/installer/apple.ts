@@ -1,12 +1,10 @@
 import { CHECKOUT } from "../distribution/distribution.ts";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { COMMANDS, type Installer, releaseVersion } from "../distribution/index.ts";
+import { COMMANDS, type Installer, RUNTIME, releaseVersion } from "../distribution/index.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
-import { selectedStage } from "../distribution/identity.ts";
+import { Stage } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
-import { Toolchain } from "@destack/check/toolchain";
 
 /** One architecture's signed application unpacked from its archive. */
 interface Slice {
@@ -32,7 +30,7 @@ export async function buildMacInstaller(
     const output = join(CHECKOUT, "dist", version);
     const staging = await files.makeTemporaryDirectory("destack-macos-");
     const image = join(staging, "image");
-    const title = selectedStage(environment).title;
+    const title = new Stage("production").title;
     const application = join(image, `${title}.app`);
     const signing = new MacSigning(environment);
     try {
@@ -43,12 +41,16 @@ export async function buildMacInstaller(
         await run("ditto", [primary.application, application], environment);
         const contents = join(application, "Contents");
 
-        // merge the executables and helpers of both slices
-        await mergeDesktop(contents, slices, environment);
-        for (const name of [...COMMANDS, "destack-desktop-host"]) {
-            await mergeCommand(name, contents, staging, slices, environment);
+        // merge each executable of both slices, then their resources
+        for (const name of [
+            "MacOS/Destack",
+            `Helpers/${RUNTIME}`,
+            "Helpers/destack-desktop-host",
+            ...COMMANDS.map((command) => `Helpers/${command}`),
+        ]) {
+            await mergeExecutable(name, contents, slices, environment);
         }
-        await mergeToolchains(contents, slices, environment);
+        await mergeResources(contents, slices, environment);
         await signing.sign(application);
         await signing.verify(application);
         await signing.notarize(application);
@@ -98,84 +100,32 @@ async function unpackSlices(
     return slices;
 }
 
-/** Merge the native Tauri desktop executable of each slice into one universal executable. */
-async function mergeDesktop(
+/** Merge an executable of each slice into one universal executable. */
+async function mergeExecutable(
+    name: string,
     contents: string,
     slices: Slice[],
     environment: Environment<"process">,
 ): Promise<void> {
     // merge and verify both architectures
-    const destination = join(contents, "MacOS", "Destack");
-    const executables = slices.map((slice) => join(slice.application, "Contents/MacOS/Destack"));
+    const destination = join(contents, name);
+    const executables = slices.map((slice) => join(slice.application, "Contents", name));
     const architectures = slices.map((slice) => slice.architecture);
     await run("lipo", ["-create", ...executables, "-output", destination], environment);
     await run("lipo", [destination, "-verify_arch", ...architectures], environment);
 }
 
-/** Dispatch the universal command to a complete architecture-specific compiled CLI. */
-async function mergeCommand(
-    name: string,
-    contents: string,
-    staging: string,
-    slices: Slice[],
-    environment: Environment<"files" | "process">,
-): Promise<void> {
-    // copy each architecture's CLI and compile its dispatcher
-    const commands = [];
-    for (const { architecture, application: source } of slices) {
-        const directory = join(contents, "Helpers", architecture);
-        await environment.files.mkdir(directory, { recursive: true });
-        await environment.files.copyFile(
-            join(source, "Contents/Helpers", name),
-            join(directory, name),
-        );
-        commands.push(await compileDispatcher(name, architecture, staging, environment));
-    }
-
-    // merge the dispatchers into the universal command
-    const destination = join(contents, "Helpers", name);
-    await run("lipo", ["-create", ...commands, "-output", destination], environment);
-}
-
-/** Compile the dispatcher of one command for one architecture and return its path. */
-async function compileDispatcher(
-    name: string,
-    architecture: string,
-    staging: string,
-    environment: Environment<"process">,
-): Promise<string> {
-    // build command.c with the command name defined
-    const command = join(staging, `${name}-${architecture}`);
-    await run(
-        "xcrun",
-        [
-            "clang",
-            "-Os",
-            "-arch",
-            architecture,
-            "-mmacosx-version-min=11.0",
-            `-DDESTACK_COMMAND="${name}"`,
-            fileURLToPath(new URL("./command.c", import.meta.url)),
-            "-o",
-            command,
-        ],
-        environment,
-    );
-
-    return command;
-}
-
-/** Merge each architecture's toolchain into the application's, native packages side by side. */
-async function mergeToolchains(
+/** Merge each slice's resources into the application's, native packages side by side. */
+async function mergeResources(
     contents: string,
     slices: Slice[],
     environment: Environment<"files">,
 ): Promise<void> {
     // copy each slice's files with their modes, refusing a shared file whose bytes differ between the slices
     const { files } = environment;
-    const merged = Toolchain.of(join(contents, "Helpers/destack"));
+    const merged = join(contents, "Resources");
     for (const { application } of slices) {
-        const source = Toolchain.of(join(application, "Contents/Helpers/destack"));
+        const source = join(application, "Contents/Resources");
         const entries = await files.readDirectory(source, { recursive: true });
         for (const entry of entries.filter((each) => each.kind === "file")) {
             const from = join(source, entry.name);
@@ -186,7 +136,7 @@ async function mergeToolchains(
             } else {
                 const [copied, kept] = [await files.readFile(from), await files.readFile(target)];
                 if (!Buffer.from(copied).equals(Buffer.from(kept))) {
-                    throw new Error(`the slices' toolchains differ at ${entry.name}`);
+                    throw new Error(`the slices' resources differ at ${entry.name}`);
                 }
             }
         }

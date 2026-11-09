@@ -23,7 +23,7 @@ just @platform/release/release
 
 ```text
 release       prepare | record                           src/release
-distribution  build | pack | icon | develop | open | verify | install-check   src/distribution
+distribution  build | pack | icon | develop | open | install-check   src/distribution
 installer     build                                      src/installer
 signing       sign | credential                          src/signing
 update        sign | publish | renew | verify | expiry   src/repository

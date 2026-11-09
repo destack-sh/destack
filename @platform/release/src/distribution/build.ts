@@ -1,7 +1,8 @@
 import { CHECKOUT } from "./distribution.ts";
-import { type Stage } from "@destack/update/release";
+import { Stage } from "@destack/update/release";
+import { checkDistribution } from "./check.ts";
 import { DESKTOP_ENTRY, PlatformBuild } from "../deployment/index.ts";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Release } from "@destack/update/release";
 import { Version } from "@destack/schema";
@@ -11,6 +12,9 @@ import {
     buildExecutable,
     buildToolchain,
     COMMANDS,
+    CONFIGURATION_FILE,
+    PROGRAM_DIRECTORY,
+    RUNTIME,
     compilerOptions,
     toolchainOptions,
     type ExecutableOptions,
@@ -21,9 +25,11 @@ import {
 import { read, run } from "./command.ts";
 import { print } from "./output.ts";
 import { configureApplication } from "./application.ts";
-import { selectedStage } from "./identity.ts";
 import { Signer } from "../signing/signer.ts";
 import { Toolchain } from "@destack/check/toolchain";
+
+/** The directory beside a built distribution with its bundles' source maps, outside archives. */
+const MAPS_DIRECTORY = "maps";
 
 /** The Linux script that installs the extracted application's commands and desktop entry. */
 const LINUX_INSTALLER =
@@ -49,16 +55,14 @@ export async function buildDistribution(
     const release = new Release(version, selected ?? Release.target(os, architecture));
     const target = release.target;
     const platform = Platform.of(target);
-    const stage = selectedStage(environment);
+    const stage = new Stage("production");
     if (os !== platform.system) {
         throw new Error("build desktop distributions on their target operating system");
     }
 
-    // refuse the published identity on a dev build's version
-    if (stage.name === "production" && Version.isPrerelease(release.version)) {
-        throw new Error(
-            `a production distribution requires a release version, not ${release.version}`,
-        );
+    // refuse a dev build's version, which the feed never publishes
+    if (Version.isPrerelease(release.version)) {
+        throw new Error(`a distribution requires a release version, not ${release.version}`);
     }
 
     // stage the distribution while the previous build stays in place
@@ -74,8 +78,10 @@ export async function buildDistribution(
     // sign distributions of signed platforms before they replace the previous build
     const signer = Signer.of(platform, environment);
     if (signer !== undefined) {
-        await Signer.certify(directory, platform, signer, environment);
+        await Signer.certify(directory, platform, signer);
     }
+    // run the built distribution before it replaces the previous build
+    await checkDistribution(directory, target, release.version, environment);
     const destination = join(CHECKOUT, "dist", release.version, target);
     await replace(directory, destination, environment);
     print(destination, environment);
@@ -94,14 +100,14 @@ async function compileExecutables(
     const executables: readonly {
         readonly name: string;
         readonly entrypoint: string;
-        readonly options: Pick<ExecutableOptions, "external" | "loading" | "plugins">;
+        readonly options: Pick<ExecutableOptions, "external" | "plugins">;
     }[] = [
-        { name: "destack", entrypoint: "@destack/cli/src/main.ts", options: { loading: "bundle" } },
+        { name: "destack", entrypoint: "@destack/cli/src/main.ts", options: {} },
         { name: "destack-machine", entrypoint: DESKTOP_ENTRY, options: toolchainOptions(files) },
         {
             name: "destack-sandbox",
             entrypoint: "@destack/sandbox/src/main.ts",
-            options: { loading: "bundle" },
+            options: {},
         },
         {
             name: "destack-build",
@@ -111,7 +117,7 @@ async function compileExecutables(
         {
             name: "destack-desktop-host",
             entrypoint: "@destack/desktop/src/main.ts",
-            options: { loading: "bundle" },
+            options: {},
         },
     ];
 
@@ -139,7 +145,7 @@ async function compileExecutables(
         environment,
     );
 
-    // ship the first-party releases built from the checkout in the toolchain, keeping their store across builds
+    // build the first-party releases from the checkout, reusing their store across builds
     await using releases = await PlatformBuild.build(
         CHECKOUT,
         join(CHECKOUT, "dist/.releases"),
@@ -213,23 +219,45 @@ async function bundleDesktop(
     return application;
 }
 
-/** Copy the commands into the application's helpers with the desktop host, and its toolchain. */
+/** Move the runtime, the launchers and their resources into the application, linked from `bin`. */
 async function placeCommands(
     directory: string,
     helpers: string,
     environment: Environment<"files">,
 ): Promise<void> {
-    // create the platform's helper directory
+    // create the platform's helper directory and its resources
     const { files } = environment;
     const bin = join(directory, "bin");
+    const resources = dirname(Toolchain.of(join(helpers, "destack")));
     await files.mkdir(helpers, { recursive: true });
+    await files.mkdir(resources, { recursive: true });
 
-    // copy the standalone commands the native desktop starts
-    for (const name of COMMANDS) {
-        await files.copyFile(join(bin, name), join(helpers, name));
+    // move the bundles' source maps beside the distribution, for observability
+    const programs = join(bin, PROGRAM_DIRECTORY);
+    await files.mkdir(join(directory, MAPS_DIRECTORY));
+    for (const entry of await files.readDirectory(programs)) {
+        if (entry.name.endsWith(".map")) {
+            await files.rename(
+                join(programs, entry.name),
+                join(directory, MAPS_DIRECTORY, entry.name),
+            );
+        }
     }
-    await files.copy(Toolchain.of(join(bin, "destack")), Toolchain.of(join(helpers, "destack")));
-    await files.rename(join(bin, "destack-desktop-host"), join(helpers, "destack-desktop-host"));
+
+    // move the bundles, their configuration and the toolchain into the resources
+    for (const name of [PROGRAM_DIRECTORY, CONFIGURATION_FILE, "toolchain"]) {
+        await files.rename(join(bin, name), join(resources, name));
+    }
+
+    // move the runtime and the launchers the desktop starts into the helpers
+    for (const name of [RUNTIME, "destack-desktop-host", ...COMMANDS]) {
+        await files.rename(join(bin, name), join(helpers, name));
+    }
+
+    // link each command from bin, which resolves the launcher through the link
+    for (const name of COMMANDS) {
+        await files.symlink(relative(bin, join(helpers, name)), join(bin, name));
+    }
 }
 
 /** Move a staged distribution to its destination, moving the previous build aside. */

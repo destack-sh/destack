@@ -5,6 +5,7 @@ import { Platform, releaseVersion } from "../distribution/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
 import { Signer } from "./signer.ts";
 import { run } from "../distribution/command.ts";
+import { checkDistribution } from "../distribution/check.ts";
 
 /** Unpack a built distribution, or sign it on its target operating system. */
 export async function signPlatform(
@@ -46,7 +47,10 @@ export async function signPlatform(
         if (signer === undefined) {
             throw new Error(`${release.target} has no platform signer`);
         }
-        await Signer.certify(directory, platform, signer, environment);
+        await Signer.certify(directory, platform, signer);
+
+        // run the signed distribution, as signing and the hardened runtime can stop it from starting
+        await checkDistribution(directory, release.target, release.version, environment);
     }
     // refuse every other operation
     else {

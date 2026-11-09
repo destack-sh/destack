@@ -8,7 +8,6 @@ import { buildIcons } from "./distribution/icon.ts";
 import { verifyInstallation } from "./distribution/install.ts";
 import { openDistribution } from "./distribution/open.ts";
 import { packDistribution } from "./distribution/pack.ts";
-import { verifyDistribution } from "./distribution/verify.ts";
 import { provisionGithubCredential } from "./github/credential.ts";
 import { prepareRelease } from "./release/prepare.ts";
 import { recordRelease } from "./release/record.ts";
@@ -51,7 +50,6 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "distribution icon": buildIcons,
     "distribution develop": developDistribution,
     "distribution open": openDistribution,
-    "distribution verify": verifyDistribution,
     "distribution install-check": verifyInstallation,
 
     "installer build": buildInstaller,

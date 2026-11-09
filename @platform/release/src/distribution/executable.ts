@@ -1,5 +1,6 @@
 import type { Stage } from "@destack/update/release";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import type { Target } from "@destack/update/release";
@@ -10,8 +11,17 @@ import { modulePlugin } from "./module.ts";
 import { toolchainPlugin } from "./toolchain.ts";
 import { Platform } from "./platform.ts";
 
-/** The directory below the checkout keeping each compiled executable by its inputs' digest. */
-const EXECUTABLE_CACHE = "dist/.executables";
+/** The directory beside a distribution's launchers with its programs' bundles. */
+export const PROGRAM_DIRECTORY = "program";
+
+/** The runtime beside a distribution's launchers, which runs every program's bundle. */
+export const RUNTIME = "bun";
+
+/** The empty Bun configuration every program starts with, so a project's never applies. */
+export const CONFIGURATION_FILE = "bunfig.toml";
+
+/** The oldest macOS the launcher runs on, the application's own minimum. */
+const MACOS_MINIMUM = "11.0";
 
 /** The module whose table of shared modules a compiled program's build generates. */
 const SHARED_MODULE = /[\\/]@destack[\\/]package[\\/]src[\\/]bun[\\/]shared\.ts$/u;
@@ -64,8 +74,6 @@ export interface ExecutableOptions {
     plugins?: Bun.BunPlugin[];
     /** Packages the executable never loads, left out of its bundle. */
     external?: string[];
-    /** What the executable loads from disk: its bundle, packages by their manifests, or sources. */
-    loading: "bundle" | "packages" | "sources";
     /** Distribution version injected into executable package metadata. */
     version?: string;
     /** The stage of the executable: its identity, issuer and device directory. */
@@ -73,77 +81,89 @@ export interface ExecutableOptions {
 }
 
 /** Write the options of a program loading native tools, such as rolldown, from its toolchain. */
-export function toolchainOptions(
-    files: FileSystem,
-): Required<Pick<ExecutableOptions, "loading" | "plugins">> {
-    return { loading: "packages", plugins: [toolchainPlugin(files)] };
+export function toolchainOptions(files: FileSystem): Required<Pick<ExecutableOptions, "plugins">> {
+    return { plugins: [toolchainPlugin(files)] };
 }
 
-/** Write the compiler's options: sources from disk, native tools from its toolchain. */
+/** Write the compiler's options: native tools from its toolchain, the formatter loaded apart. */
 export function compilerOptions(
     files: FileSystem,
-): Pick<ExecutableOptions, "external" | "loading" | "plugins"> {
-    return { ...toolchainOptions(files), external: ["oxfmt"], loading: "sources" };
+): Pick<ExecutableOptions, "external" | "plugins"> {
+    return { ...toolchainOptions(files), external: ["oxfmt"] };
 }
 
-/** Embed bundled modules and their directory assets in one executable. */
+/** Build a program as a launcher at `outfile`, with its bundle and the runtime beside it. */
 export async function buildExecutable(
     options: ExecutableOptions,
-    environment: Environment<"files" | "process">,
+    environment: Environment<"files" | "process" | "host">,
 ): Promise<void> {
-    // isolate generated modules beside the destination until compilation finishes
-    const { files } = environment;
+    // refuse a target the building runtime cannot run, as the runtime ships as itself
+    const { files, process, host } = environment;
+    if (options.runtime !== `bun-${host.os}-${host.architecture}`) {
+        throw new Error(`build ${options.target} on a computer of its own architecture`);
+    }
+
+    // bundle the program beside the launcher, its directory assets below the bundles
     const parent = dirname(options.outfile);
-    await files.mkdir(parent, { recursive: true });
-    const directory = await files.makeTemporaryDirectory(".executable-", { directory: parent });
+    const name = basename(options.outfile);
+    const programs = join(parent, PROGRAM_DIRECTORY);
+    await files.mkdir(programs, { recursive: true });
     const assets = new Set<string>();
     const peers = await optionalPeers(options.root, environment);
     const external = [...peers, ...(options.external ?? [])];
-    try {
-        // generate the table of modules the program shares, then bundle the program with it
-        const shared = await sharedPlugin(options, external, environment);
-        const plugins = [...(shared === undefined ? [] : [shared]), ...(options.plugins ?? [])];
-        await bundleProgram({ ...options, plugins }, directory, external, assets, environment);
-        const embedded = join(directory, "asset");
-        await copyAssets(options.root, assets, embedded, environment);
-        const embeddings = assets.size ? [embedded] : [];
+    const shared = await sharedPlugin(options, external, environment);
+    const plugins = [...(shared === undefined ? [] : [shared]), ...(options.plugins ?? [])];
+    await bundleProgram(
+        { ...options, plugins },
+        programs,
+        `${name}.js`,
+        external,
+        assets,
+        environment,
+    );
+    await copyAssets(options.root, assets, join(programs, "asset"), environment);
 
-        // take the executable compiled from the same bundle, assets and options, else compile and keep it
-        const digest = await programDigest(options, directory, external, embeddings, environment);
-        const name = basename(options.outfile);
-        const cached = join(options.root, EXECUTABLE_CACHE, digest);
-        if (!(await files.exists(join(cached, name)))) {
-            const staging = await files.makeTemporaryDirectory(".compiling-", {
-                directory: parent,
-            });
-            const outfile = join(staging, name);
-            await compileProgram({ ...options, outfile }, directory, external, embeddings);
-            await files.mkdir(dirname(cached), { recursive: true });
-            await files.rename(staging, cached).catch(async (error: unknown) => {
-                // keep the copy another build kept first
-                await files.remove(staging, { recursive: true, force: true });
-                if (!(await files.exists(join(cached, name)))) {
-                    throw error;
-                }
-            });
-        }
-        await files.copyFile(join(cached, name), options.outfile);
-        await files.copyFile(join(cached, `${name}.map`), `${options.outfile}.map`);
-    } finally {
-        await files.remove(directory, { recursive: true, force: true });
+    // place the runtime and the empty configuration once, then the launcher named after the program
+    const runtime = join(parent, RUNTIME);
+    if (!(await files.exists(runtime))) {
+        await files.copyFile(await files.realPath(process.executable), runtime);
+        await files.chmod(runtime, 0o755);
+        await files.writeTextFile(join(parent, CONFIGURATION_FILE), "");
+    }
+    await compileLauncher(options.outfile, environment);
+}
+
+/** Compile the launcher, which runs the bundle named after it on the runtime beside it. */
+async function compileLauncher(
+    outfile: string,
+    environment: Environment<"process" | "host">,
+): Promise<void> {
+    // build launcher.c for this computer, the oldest supported macOS on macOS
+    const source = fileURLToPath(new URL("./launcher.c", import.meta.url));
+    const minimum =
+        environment.host.os === "darwin" ? [`-mmacosx-version-min=${MACOS_MINIMUM}`] : [];
+    const child = environment.process.spawn(["cc", "-Os", ...minimum, source, "-o", outfile], {
+        stdin: "ignore",
+        stdout: "pipe",
+        stderr: "pipe",
+    });
+    const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
+    if (code !== 0) {
+        throw new Error(`the launcher did not compile: ${errors.trim()}`);
     }
 }
 
-/** Bundle the entrypoint into `program.js`, collecting the directory assets its modules read. */
+/** Bundle the entrypoint into a file, collecting the directory assets its modules read. */
 async function bundleProgram(
     options: ExecutableOptions,
     directory: string,
+    naming: string,
     external: string[],
     assets: Set<string>,
     environment: Environment<"files">,
 ): Promise<void> {
-    // define the target platform for the bundled module graph
-    const { system, architecture } = Platform.of(options.target);
+    // define the target's operating system for the bundled module graph, its architecture read at runtime
+    const { system } = Platform.of(options.target);
 
     // let source transforms discover assets from the actual bundled module graph
     const bundle = await Bun.build({
@@ -151,7 +171,9 @@ async function bundleProgram(
         target: "bun",
         minify: true,
         outdir: directory,
-        naming: "program.js",
+        naming,
+        // write each map apart from its bundle, which names none, as observability reads them and nobody installs them
+        sourcemap: "external",
         external,
         ...(options.stage !== undefined && { banner: channelBanner(options.stage) }),
         // let the caller's plugins load their modules first, as the module plugin answers every other
@@ -162,7 +184,6 @@ async function bundleProgram(
         define: {
             "Bun.isStandaloneExecutable": "true",
             "process.platform": JSON.stringify(system),
-            "process.arch": JSON.stringify(architecture),
         },
     });
     if (!bundle.success) {
@@ -192,7 +213,7 @@ async function sharedPlugin(
         return undefined;
     }
 
-    // keep the file each specifier of a shared package resolved to, which the graph imports
+    // record the file each specifier of a shared package resolved to in the graph
     const locator = new PackageLocator(environment.files);
     const shared = await locator.shared(dirname(options.entrypoint));
     const { workingDirectory } = environment.process;
@@ -256,65 +277,6 @@ async function copyAssets(
         // copy the asset with everything inside it
         await files.copy(asset, join(embedded, relative(root, asset)));
     }
-}
-
-/** Compile the bundled program and its embedded assets into the destination executable. */
-async function compileProgram(
-    options: ExecutableOptions,
-    directory: string,
-    external: string[],
-    assets: string[],
-): Promise<void> {
-    // compile without ambient runtime configuration, resolving packages and sources from disk as the executable loads them
-    const compiled = await Bun.build({
-        entrypoints: [join(directory, "program.js")],
-        root: options.root,
-        minify: true,
-        sourcemap: "linked",
-        external,
-        compile: {
-            target: options.runtime,
-            outfile: options.outfile,
-            assets,
-            autoloadDotenv: false,
-            autoloadBunfig: false,
-            autoloadPackageJson: options.loading !== "bundle",
-            autoloadTsconfig: options.loading === "sources",
-        },
-    });
-    if (!compiled.success) {
-        throw new AggregateError(compiled.logs, "executable compilation failed");
-    }
-}
-
-/** Digest what an executable compiles from: its bundle, assets, options and Bun. */
-async function programDigest(
-    options: ExecutableOptions,
-    directory: string,
-    external: readonly string[],
-    embeddings: readonly string[],
-    environment: Environment<"files">,
-): Promise<string> {
-    // hash the options and Bun's revision, then the bundle
-    const { files } = environment;
-    const hasher = new Bun.CryptoHasher("sha256");
-    const { target, runtime, loading, version } = options;
-    hasher.update(
-        JSON.stringify({ target, runtime, loading, version, external, bun: Bun.revision }),
-    );
-    hasher.update(await files.readFile(join(directory, "program.js")));
-
-    // hash each embedded asset by its path and contents, in path order
-    for (const embedded of embeddings) {
-        const entries = await files.readDirectory(embedded, { recursive: true });
-        const paths = entries.filter((entry) => entry.kind === "file").map((entry) => entry.name);
-        for (const path of paths.toSorted()) {
-            hasher.update(path);
-            hasher.update(await files.readFile(join(embedded, path)));
-        }
-    }
-
-    return hasher.digest("hex");
 }
 
 /** List vite's optional peers and their subpaths. */

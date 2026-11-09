@@ -112,9 +112,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
                     runtime: "bun-darwin-arm64",
                     version: machinePackage.version,
                     stage: Stage.of("local"),
-                    ...(name === "destack-machine"
-                        ? toolchainOptions(files)
-                        : { loading: "bundle" as const }),
+                    ...(name === "destack-machine" ? toolchainOptions(files) : {}),
                 },
                 HOST,
             );
