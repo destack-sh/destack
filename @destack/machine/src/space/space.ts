@@ -5,14 +5,7 @@ import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/client";
 import type { ConnectionLease } from "@destack/connection/object";
-import {
-    BlobStore,
-    type DatabaseConnection,
-    type Controller,
-    Snapshot,
-    TABLE,
-    type Table,
-} from "@destack/db";
+import { BlobStore, type DatabaseConnection, type Controller, Snapshot, TABLE } from "@destack/db";
 import { BuildStore } from "@destack/build/store";
 import * as stackObject from "@destack/stack/object";
 import type { Volume } from "./storage.ts";
@@ -87,11 +80,7 @@ export interface SpaceRun {
     readonly gateway: PromiseWithResolvers<Gateway>;
     /** The space's role on the machine this start serves. */
     readonly role: SpaceRole;
-    /** The installed set this start applied, each installation at its revision. */
-    installed: Awaited<ReturnType<typeof Database.installed>>;
-    /** The revision this start serves each installation at, leaving out one that failed to load. */
-    revisions: ReadonlyMap<Identifier<"installation">, Identifier<"installation-revision">>;
-    /** Serve a changed installed set in this start, keeping the unchanged installations served. */
+    /** Apply a changed installed set in this start, keeping the unchanged installations served. */
     readonly apply: (installed: Awaited<ReturnType<typeof Database.installed>>) => Promise<void>;
     /** Start the workload again, once the space's role here changed. */
     readonly restart: () => void;
@@ -99,12 +88,6 @@ export interface SpaceRun {
 
 /** A space a machine serves: its database, events, traffic, workload and outbound calls. */
 export class Space {
-    /** The installations, rollouts and main, which decide what a primary serves. */
-    readonly watches: readonly Table[] = [
-        installation.table,
-        rollout.table,
-        stackObject.database.table,
-    ];
     /** The machine serving the space. */
     readonly machine: Machine;
     /** The space's volume on its machine: its database, events, blobs, buckets and sockets. */
@@ -301,8 +284,6 @@ export class Space {
             store: Promise.withResolvers(),
             gateway: Promise.withResolvers(),
             role,
-            installed,
-            revisions: new Map(),
             apply: (changed) => this.#apply(changed, start, context),
             restart: () => {
                 context.reload().catch((error: unknown) => context.report(error));
@@ -333,12 +314,11 @@ export class Space {
         // fail the store and gateway waits of a start that fails, which its calls await
         const serving = this.#serving;
         try {
-            const { servers, sandboxes, revisions } = await this.host.servers(
+            const { servers, sandboxes } = await this.host.servers(
                 installed,
                 start,
                 context.signal,
             );
-            serving.revisions = revisions;
 
             // serve the space with the host's own jobs: what it serves, and a rated primary's metering
             const { skus } = machine;
@@ -379,7 +359,7 @@ export class Space {
             // route the installations' calls through the space's gateway
             this.#serving.gateway.resolve(new Gateway(this, this.#serving, served.store));
 
-            return { packages: served.packages };
+            return { packages: served.store.packages };
         }
         // reject the waits, each handled here as well as by its callers
         catch (error) {
@@ -391,25 +371,14 @@ export class Space {
         }
     }
 
-    /** Build the controller serving the space's installed set at each start and change of it. */
+    /** Build the controller applying the space's installed set at each start and change of it. */
     controller(): Controller<typeof Scope.table> {
-        return {
-            name: "space",
-            table: Scope.table,
-            pending: { scope: this.id },
-            // serve again as the installed set or its installations' and resources' status moves
-            watches: this.watches.map((table) => ({
-                table,
-                isObserving: true,
-                keys: () => [{ scope: this.id }],
-            })),
-            reconcile: () => this.serveInstalled(),
-        };
+        return this.host.controller(() => this.#reconcile());
     }
 
-    /** Serve a primary's changed installed set in place, then record the revisions it serves. */
-    async serveInstalled(): Promise<void> {
-        // apply a primary's changed installed set, then record its served revisions
+    /** Apply a primary's installed set in place, then report whether it serves each revision. */
+    async #reconcile(): Promise<void> {
+        // apply a primary's installed set in this start, recording its served revisions
         const serving = present(this.#serving, `the serving of ${this.id}`);
         if (serving.role === "primary") {
             const installed = await Database.installed(
@@ -418,10 +387,7 @@ export class Space {
                 (packageId, manifest) =>
                     this.builds.pull(this.machine.releases, packageId, manifest),
             );
-            if (Space.#key(installed) !== Space.#key(serving.installed)) {
-                await serving.apply(installed);
-            }
-            await Rollout.serve(await serving.store.promise, this.id, serving.revisions);
+            await serving.apply(installed);
         }
 
         // report whether every installation serves its revision
@@ -502,26 +468,20 @@ export class Space {
         }
     }
 
-    /** Serve a changed installed set in this start: load the changed servers, then apply them. */
+    /** Serve an installed set in this start: load, apply and record its changed servers. */
     async #apply(
         installed: Awaited<ReturnType<typeof Database.installed>>,
         start: SpaceStart,
         context: WorkloadContext,
     ): Promise<void> {
-        // load the changed installations' servers, apply them to the store and serve their packages
-        const serving = present(this.#serving, `the serving of ${this.id}`);
-        const { servers, sandboxes, revisions } = await this.host.servers(
-            installed,
-            start,
-            context.signal,
+        // apply the changed installations' servers to the store and serve their packages
+        const store = present(this.#store, `the store of ${this.id}`);
+        await this.host.apply(installed, start, context.signal, (servers, sandboxes) =>
+            context.serve(store.apply(servers, sandboxes)),
         );
-        const packages = present(this.#store, `the store of ${this.id}`).apply(servers, sandboxes);
-        context.serve(packages);
 
-        // record what the start applied and serves now
-        serving.installed = installed;
-        serving.revisions = revisions;
-        serving.adapters = Space.#adapters(installed);
+        // read the adapters the set declares
+        present(this.#serving, `the serving of ${this.id}`).adapters = Space.#adapters(installed);
     }
 
     /** Read the adapters the installed set's packages declare. */
@@ -544,14 +504,6 @@ export class Space {
     /** List the adapters an installation the space serves declares. */
     adapters(installationId: Identifier<"installation">): readonly SpaceAdapter[] {
         return this.#current().adapters.filter((each) => each.installationId === installationId);
-    }
-
-    /** Key an installed set as one sorted string of its installations at their revisions. */
-    static #key(installed: Awaited<ReturnType<typeof Database.installed>>): string {
-        return installed
-            .map((entry) => `${entry.rollout.installationId}@${entry.revisionId}`)
-            .toSorted()
-            .join(",");
     }
 
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
