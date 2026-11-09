@@ -26,7 +26,7 @@ const pricing: Form = {
         definition: "own the software, rent the hardware",
         highlight: ["own", "rent"],
         sentence:
-            "All your software in one place. Pay only for the hardware it runs on, or bring your own. Leave anytime.",
+            "The software costs nothing. Pay only for the hardware it runs on, or bring your own, and leave with everything.",
     },
 };
 
@@ -38,7 +38,8 @@ const rate: Form = {
     sense: {
         definition: "a boring price for everything",
         highlight: ["boring price"],
-        sentence: "Compute, storage, and requests are billed as your apps run. Egress is free.",
+        sentence:
+            "Compute, storage and requests are billed as your apps run. Data in and out is free.",
     },
 };
 
@@ -102,7 +103,7 @@ export function Pricing() {
                 />
                 <Plans audience={audience()} currency={currency()} />
                 <ComparisonLabel />
-                <Comparison audience={audience()} currency={currency()} />
+                <Comparison currency={currency()} />
             </section>
             <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
@@ -139,7 +140,7 @@ const styles = style.create({
     // the entry, the label, the plan rows, then the comparison's label and table
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(9, auto) minmax(auto, 1fr) auto auto",
+            default: "auto auto repeat(4, auto) minmax(auto, 1fr) auto auto",
             [screen.belowDesktop]: "auto",
         },
         height: "auto",

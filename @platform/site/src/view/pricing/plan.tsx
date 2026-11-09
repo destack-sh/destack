@@ -11,9 +11,10 @@ import { Toggle } from "../home/entry/switch";
 import { Glyph, type GlyphName } from "../home/figure/glyph";
 import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
+import { screen } from "../layout/screen.stylex";
 import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
-import { type Currency, money } from "./money";
+import { convert, type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { press } from "../layout/press";
 
@@ -59,34 +60,27 @@ export type Plan = (typeof plans)[number];
 /** Who a plan is shown to: a person, or an organisation. */
 export type Audience = "personal" | "organisation";
 
-/** The specs every card lists on the same rows, under its usage. */
-const SPECS = [
+/** What a card can list, in the order it lists it: the software, then what plans add. */
+const TOPICS = [
     "apps",
     "selfHosting",
     "cloudHosting",
+    "residency",
     "ownAi",
     "managedAi",
     "history",
-    "support",
-] as const;
-
-/** What a plan unlocks, listed where it first appears and stacking from there. */
-const EXTRAS = [
     "caps",
     "early",
     "domains",
     "machines",
-    "uptime",
-    "engineer",
-    "invoice",
-    "agreement",
+    "support",
 ] as const;
 
-/** The rows of a card: head, price, action, one per spec, and the extras taking the rest. */
-const CARD_ROWS = 3 + SPECS.length + 1;
+/** The rows of a card: head, price, action, the line leading its list, and the list. */
+const CARD_ROWS = 5;
 
 /** What a benefit is about. */
-type Topic = (typeof SPECS)[number] | (typeof EXTRAS)[number];
+type Topic = (typeof TOPICS)[number];
 
 /** One benefit a card lists: its icon and its feature. */
 type Benefit = { icon: GlyphName; feature: Feature };
@@ -94,17 +88,20 @@ type Benefit = { icon: GlyphName; feature: Feature };
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
     free: "For your first apps",
-    go: "For your personal stack",
+    go: "For your everyday stack",
     plus: "For your daily work",
     pro: "For your critical software",
     enterprise: "For your whole organisation",
 };
 
-/** The plans each audience is shown. */
-export const audiencePlans: Readonly<Record<Audience, readonly Plan["key"][]>> = {
-    personal: ["free", "go", "plus", "pro"],
-    organisation: ["free", "plus", "pro", "enterprise"],
-};
+/** What Enterprise adds past Pro, each in the words its sentence lists it with. */
+const ENTERPRISE_FEATURES: readonly { phrase: string; feature: Feature }[] = [
+    { phrase: "SLA support", feature: features.slaSupport },
+    { phrase: "an uptime SLA", feature: features.uptime },
+    { phrase: "a dedicated engineer", feature: features.engineer },
+    { phrase: "invoice billing", feature: features.invoice },
+    { phrase: "a data processing agreement", feature: features.agreement },
+];
 
 /** The support each level gives, as a benefit. */
 const supportBenefits: Readonly<Record<Plan["support"], Benefit>> = {
@@ -173,21 +170,28 @@ export function PlansLabel(properties: {
     );
 }
 
-/** Set an audience's plans side by side, each listing what it adds on rows shared by all. */
+/** Set the plans side by side, Pro leading on to Enterprise for organisations. */
 export function Plans(properties: { audience: Audience; currency: Currency }) {
-    // show the plans the audience is offered
-    const shown = () =>
-        plans.filter((plan) => audiencePlans[properties.audience].includes(plan.key));
+    // show every plan beside the one below it, the enterprise contract offered past Pro
+    const shown = plans.filter((plan) => !plan.isContract);
 
     return (
         <>
-            <For each={shown()}>
-                {(plan) => (
+            <For each={shown}>
+                {(plan, index) => (
                     <PlanCard
                         plan={plan}
+                        below={shown[index() - 1]}
                         tagline={taglines[plan.key]}
-                        count={shown().length}
+                        count={shown.length}
                         currency={properties.currency}
+                        enterprise={
+                            plan.key !== "pro"
+                                ? "absent"
+                                : properties.audience === "organisation"
+                                  ? "shown"
+                                  : "kept"
+                        }
                     />
                 )}
             </For>
@@ -196,20 +200,24 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
 }
 
 /** Draw one plan's card: its name, tagline, fee, action and, on its topic's row, what it adds. */
-function PlanCard(properties: { plan: Plan; tagline: string; count: number; currency: Currency }) {
+function PlanCard(properties: {
+    plan: Plan;
+    below: Plan | undefined;
+    tagline: string;
+    count: number;
+    currency: Currency;
+    enterprise: "shown" | "kept" | "absent";
+}) {
     // read the plan's fee, and whether it is the free plan, a contract, or the one most people pick
     const plan = properties.plan;
     const fee = () => plan.fees[properties.currency];
     const isFree = plan.fees.USD === 0;
     const isPicked = plan.key === "plus";
 
-    // list every extra the plan unlocks
-    const extras = () =>
-        EXTRAS.flatMap((topic) => {
-            const benefit = benefitOf(plan, topic);
-
-            return benefit === undefined ? [] : [benefit];
-        });
+    // list what the plan adds over the plan below it, or everything on the first plan
+    const below = properties.below;
+    const shown = below === undefined ? [] : benefitsOf(below).map((each) => each.feature);
+    const added = benefitsOf(plan).filter((benefit) => !shown.includes(benefit.feature));
 
     return (
         <article
@@ -229,82 +237,130 @@ function PlanCard(properties: { plan: Plan; tagline: string; count: number; curr
             {/* fee, and the usage it includes */}
             <div {...style.attrs(styles.price)}>
                 <p {...style.attrs(styles.fee)}>
-                    <span {...style.attrs(styles.amount)}>
-                        {money(fee(), properties.currency)}
-                        {plan.isContract && "+"}
+                    <span {...style.attrs(styles.amount)}>{money(fee(), properties.currency)}</span>
+                    <span {...style.attrs(styles.period)}>
+                        {isFree ? "/ month" : "/ person / month"}
                     </span>
-                    {!plan.isContract && <span {...style.attrs(styles.period)}>/ month</span>}
                 </p>
                 <Usage plan={plan} fee={fee()} currency={properties.currency} />
             </div>
 
             {/* start for free, subscribe, or write to us */}
             <a
-                href={isFree ? "/#present-participle" : plan.isContract ? CONTACT : PRODUCT}
+                href={isFree ? "/#present-participle" : PRODUCT}
                 {...style.attrs(
                     buttonVariants({ variant: isPicked ? "default" : "outline", size: "lg" }),
                     press.key,
                     styles.action,
                 )}
             >
-                {isFree ? "Start for free" : plan.isContract ? "Talk to us" : `Get ${plan.name}`}
+                {isFree ? "Start for free" : `Get ${plan.name}`}
             </a>
 
-            {/* apps, hosting, both kinds of AI, history and support, on the same rows on every card */}
-            {SPECS.map((topic, index) => (
-                <BenefitRow
-                    benefit={present(benefitOf(plan, topic), "spec")}
-                    isFirst={index === 0}
-                />
-            ))}
-
-            {/* what the plan unlocks */}
+            {/* what the plan adds over the plan below it, then Enterprise past Pro for organisations */}
+            <p {...style.attrs(styles.lead)}>
+                {below === undefined ? "All of Destack:" : `Everything in ${below.name}, plus:`}
+            </p>
             <div {...style.attrs(styles.extras)}>
-                {extras().map((benefit) => (
-                    <BenefitRow benefit={benefit} isFirst={false} />
+                {added.map((benefit) => (
+                    <BenefitRow benefit={benefit} />
                 ))}
+                {properties.enterprise === "absent" ? undefined : (
+                    <Enterprise
+                        currency={properties.currency}
+                        isShown={properties.enterprise === "shown"}
+                    />
+                )}
             </div>
         </article>
     );
 }
 
+/** Draw Enterprise past Pro, or keep its space hidden so the audiences share one height. */
+function Enterprise(properties: { currency: Currency; isShown: boolean }) {
+    // read the contract's least monthly usage
+    const contract = present(
+        plans.find((plan) => plan.isContract),
+        "the enterprise contract",
+    );
+
+    return (
+        <section
+            aria-hidden={properties.isShown ? undefined : "true"}
+            inert={!properties.isShown}
+            {...style.attrs(styles.enterprise, !properties.isShown && styles.kept)}
+        >
+            {/* the spending it starts at, on a rule */}
+            <p {...style.attrs(styles.threshold)}>
+                {money(contract.fees[properties.currency], properties.currency)} a month and up
+            </p>
+
+            {/* name, what it adds and the action */}
+            <h3 {...style.attrs(styles.name)}>{contract.name}</h3>
+            <p {...style.attrs(styles.usage)}>
+                {ENTERPRISE_FEATURES.map(({ phrase, feature }, index) => (
+                    <>
+                        {index === 0
+                            ? ""
+                            : index === ENTERPRISE_FEATURES.length - 1
+                              ? " and "
+                              : ", "}
+                        <Hint text={phrase} detail={feature.detail} />
+                    </>
+                ))}
+            </p>
+            <a
+                href={CONTACT}
+                {...style.attrs(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                    press.key,
+                    styles.action,
+                )}
+            >
+                Talk to us
+            </a>
+        </section>
+    );
+}
+
 /** Set the usage a plan includes each month under its fee. */
 function Usage(properties: { plan: Plan; fee: number; currency: Currency }) {
-    // state a contract's least monthly usage, the usage a fee includes, or the free allowance
-    return properties.plan.isContract ? (
+    // state the usage a fee includes and what happens past it, or the free plan's
+    const included = () => `${money(properties.fee, properties.currency)} of usage included`;
+    return properties.plan.isUncapped ? (
         <p {...style.attrs(styles.usage)}>
             <Hint
-                text="a month in usage"
-                detail="Your contract commits to at least this much usage a month, billed at the prices below."
+                text={included()}
+                detail="Each member's fee is usage, pooled across your organisation. Past it, usage is billed at the prices below, up to a monthly limit you set."
             />
             <br />
             then pay as you go
         </p>
-    ) : properties.plan.isUncapped ? (
+    ) : properties.fee > 0 ? (
         <p {...style.attrs(styles.usage)}>
             <Hint
-                text={`${money(properties.fee, properties.currency)} of usage included`}
-                detail="Past the included amount, usage is billed at the prices below, up to a monthly limit you set."
+                text={included()}
+                detail="Each member's fee is usage, pooled across your organisation. Past it your spaces slow down and stop taking writes, and nothing more is billed."
             />
             <br />
-            then pay as you go
+            then capped
         </p>
     ) : (
         <p {...style.attrs(styles.usage)}>
             <Hint
-                text={`${allowance.database} GB database, ${allowance.files} GB files`}
-                detail={`Includes ${allowance.egress} GB of egress. Past the allowance your spaces slow down, and nothing is billed.`}
+                text={`${money(convert(allowance.usage, properties.currency), properties.currency, true)} of usage included`}
+                detail={`Enough for ${allowance.database} GB of database, ${allowance.files} GB of files, ${allowance.compute} GB-hours of compute and a million requests a month, for each member up to 5. Past it your spaces slow down and stop taking writes, and nothing is billed.`}
             />
             <br />
-            {allowance.compute} GB-hours of compute
+            per person, then capped
         </p>
     );
 }
 
-/** Draw one benefit: its icon and its words, the first spec set apart from the action above. */
-function BenefitRow(properties: { benefit: Benefit; isFirst: boolean }) {
+/** Draw one benefit: its icon and its words. */
+function BenefitRow(properties: { benefit: Benefit }) {
     return (
-        <p {...style.attrs(styles.benefit, properties.isFirst && styles.first)}>
+        <p {...style.attrs(styles.benefit)}>
             <span aria-hidden="true" {...style.attrs(styles.icon)}>
                 <Glyph name={properties.benefit.icon} size={16} weight={1.75} />
             </span>
@@ -316,6 +372,15 @@ function BenefitRow(properties: { benefit: Benefit; isFirst: boolean }) {
     );
 }
 
+/** Return what a plan gives, topic by topic. */
+function benefitsOf(plan: Plan): Benefit[] {
+    return TOPICS.flatMap((topic) => {
+        const benefit = benefitOf(plan, topic);
+
+        return benefit === undefined ? [] : [benefit];
+    });
+}
+
 /** Return what a plan gives on a topic, or nothing where it gives nothing there. */
 function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
     // read which apps, where the plan runs and which AI it uses, the same on every plan
@@ -325,6 +390,8 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
         return { icon: "monitor", feature: features.selfHosting };
     } else if (topic === "cloudHosting") {
         return { icon: "server", feature: features.cloudHosting };
+    } else if (topic === "residency") {
+        return { icon: "globe", feature: features.residency };
     } else if (topic === "ownAi") {
         return { icon: "plug", feature: features.ownAi };
     } else if (topic === "managedAi") {
@@ -339,21 +406,13 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
     }
     // read what the plan unlocks
     else if (topic === "domains") {
-        return plan.isCustomDomains ? { icon: "globe", feature: features.domains } : undefined;
+        return plan.isCustomDomains ? { icon: "link", feature: features.domains } : undefined;
     } else if (topic === "caps") {
         return plan.isUncapped ? { icon: "up", feature: features.uncapped } : undefined;
     } else if (topic === "early") {
         return plan.isEarlyAccess ? { icon: "star", feature: features.early } : undefined;
     } else if (topic === "machines") {
         return plan.isDedicated ? { icon: "chip", feature: features.dedicated } : undefined;
-    } else if (topic === "uptime") {
-        return plan.isContract ? { icon: "check", feature: features.uptime } : undefined;
-    } else if (topic === "engineer") {
-        return plan.isContract ? { icon: "person", feature: features.engineer } : undefined;
-    } else if (topic === "invoice") {
-        return plan.isContract ? { icon: "file", feature: features.invoice } : undefined;
-    } else if (topic === "agreement") {
-        return plan.isContract ? { icon: "lock", feature: features.agreement } : undefined;
     }
     // read who helps
     else {
@@ -487,13 +546,45 @@ const styles = style.create({
         lineHeight: 1.6,
         margin: 0,
     },
+    enterprise: {
+        display: "grid",
+        marginBlockStart: "1.25rem",
+        rowGap: "0.75rem",
+    },
+    kept: {
+        display: { default: "grid", [screen.belowDesktop]: "none" },
+        visibility: "hidden",
+    },
+    threshold: {
+        alignItems: "center",
+        color: color.mutedForeground,
+        columnGap: "0.75rem",
+        display: "flex",
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
+        margin: 0,
+        marginBlockEnd: "0.5rem",
+        textTransform: "uppercase",
+        whiteSpace: "nowrap",
+        "::after": {
+            borderBlockStartColor: color.border,
+            borderBlockStartStyle: "solid",
+            borderBlockStartWidth: stroke.border,
+            content: "''",
+            flexGrow: 1,
+        },
+    },
     action: {
         justifyContent: "center",
         marginBlock: "0.5rem",
         textDecorationLine: "none",
         width: "100%",
     },
-    first: {
+    lead: {
+        color: color.mutedForeground,
+        fontSize: typeScale.small,
+        margin: 0,
         paddingBlockStart: "1rem",
     },
     benefit: {

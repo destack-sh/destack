@@ -9,6 +9,7 @@ export const rates = {
     rowsWritten: 2,
     fileReads: 0.72,
     fileWrites: 9,
+    inference: 1.25,
 } as const;
 
 /** The currencies Destack bills in. */
@@ -36,7 +37,7 @@ export const plans = [
         name: "Go",
         fees: { USD: 8, CAD: 11, EUR: 8, CHF: 8, GBP: 8, AUD: 13 },
         support: "community",
-        isUncapped: true,
+        isUncapped: false,
         isCustomDomains: false,
         isCustomRetention: true,
         isEarlyAccess: true,
@@ -58,7 +59,7 @@ export const plans = [
     {
         key: "pro",
         name: "Pro",
-        fees: { USD: 100, CAD: 140, EUR: 100, CHF: 100, GBP: 100, AUD: 160 },
+        fees: { USD: 50, CAD: 70, EUR: 50, CHF: 50, GBP: 50, AUD: 80 },
         support: "priority",
         isUncapped: true,
         isCustomDomains: true,
@@ -81,8 +82,8 @@ export const plans = [
     },
 ] as const;
 
-/** The free plan's monthly allowance, in GB and GB-hours. */
-export const allowance = { database: 1, files: 10, compute: 12.5, egress: 100 } as const;
+/** The free plan's usage per member a month in US dollars, and a month it covers. */
+export const allowance = { usage: 2.5, database: 1, files: 10, compute: 10, requests: 1 } as const;
 
 /** The dedicated machines, smallest first, priced in US dollars. */
 export const machines = [

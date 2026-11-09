@@ -14,7 +14,7 @@ const CPU_HOUR_MILLIONS = 3.6;
 /** A meter: what it measures and per which unit, and its price in US dollars. */
 type Meter = { name: string; price: number };
 
-/** The meters at their generated rates, grouped by apps, database, files and network. */
+/** The meters at their generated rates, grouped by resource. */
 const meterGroups: readonly { name: string; meters: readonly Meter[] }[] = [
     {
         name: "Compute",
@@ -40,7 +40,17 @@ const meterGroups: readonly { name: string; meters: readonly Meter[] }[] = [
             { name: "Reads, per million", price: rates.fileReads },
         ],
     },
-    { name: "Network", meters: [{ name: "Egress", price: 0 }] },
+    {
+        name: "Network",
+        meters: [
+            { name: "Ingress", price: 0 },
+            { name: "Egress", price: 0 },
+        ],
+    },
+    {
+        name: "Inference",
+        meters: [{ name: "Model calls, per US dollar at list price", price: rates.inference }],
+    },
 ];
 
 /** The name each machine size is shown under. */
@@ -95,9 +105,9 @@ export function Rates(properties: { currency: Currency }) {
                     ))}
                 </table>
                 <p {...style.attrs(styles.note)}>
-                    The Free plan includes {allowance.compute} GB-hours of compute,{" "}
-                    {allowance.database} GB of database, {allowance.files} GB of files and{" "}
-                    {allowance.egress} GB of egress each month.
+                    The Free plan includes {fee(allowance.usage)} of usage per person each month,
+                    enough for {allowance.database} GB of database, {allowance.files} GB of files,{" "}
+                    {allowance.compute} GB-hours of compute and a million requests.
                 </p>
             </section>
 

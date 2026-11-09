@@ -7,11 +7,11 @@ import { Glyph } from "../home/figure/glyph";
 import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
-import { plans } from "../content/generated/pricing";
+import { allowance, plans } from "../content/generated/pricing";
 import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
-import { type Currency, money } from "./money";
-import { type Audience, type Plan, audiencePlans } from "./plan";
+import { convert, type Currency, money } from "./money";
+import { type Plan } from "./plan";
 
 /** What a plan gives on a row: included or not, or a short value. */
 type Cell = boolean | string;
@@ -32,7 +32,12 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
     {
         name: "Software",
         rows: [
-            { feature: features.members, cell: () => true },
+            {
+                feature: features.members,
+                cell: (plan) => (plan.fees.USD === 0 ? "Up to 5" : "Any number"),
+            },
+            { feature: features.pooled, cell: () => true },
+            { feature: features.guests, cell: () => true },
             { feature: features.agents, cell: () => true },
             { feature: features.apps, cell: () => true },
             { feature: features.integrations, cell: () => true },
@@ -48,6 +53,7 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
         rows: [
             { feature: features.selfHosting, cell: () => true },
             { feature: features.cloudHosting, cell: () => true },
+            { feature: features.residency, cell: () => true },
             { feature: features.tunnels, cell: () => true },
             { feature: features.domains, cell: (plan) => plan.isCustomDomains },
             { feature: features.dedicated, cell: (plan) => plan.isDedicated },
@@ -66,11 +72,9 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
             {
                 feature: features.included,
                 cell: (plan, currency) =>
-                    !plan.isUncapped
-                        ? "Free allowance"
-                        : plan.isContract
-                          ? `${money(plan.fees[currency], currency)}+`
-                          : money(plan.fees[currency], currency),
+                    plan.fees.USD === 0
+                        ? money(convert(allowance.usage, currency), currency, true)
+                        : money(plan.fees[currency], currency),
             },
             {
                 feature: features.retention,
@@ -84,15 +88,6 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
         rows: [
             { feature: features.support, cell: (plan) => supportNames[plan.support] },
             { feature: features.early, cell: (plan) => plan.isEarlyAccess },
-            { feature: features.engineer, cell: (plan) => plan.isContract },
-        ],
-    },
-    {
-        name: "Contract",
-        rows: [
-            { feature: features.uptime, cell: (plan) => plan.isContract },
-            { feature: features.invoice, cell: (plan) => plan.isContract },
-            { feature: features.agreement, cell: (plan) => plan.isContract },
         ],
     },
 ];
@@ -104,17 +99,16 @@ export function ComparisonLabel() {
     );
 }
 
-/** Compare an audience's plans row by row, grouped by what the rows are about. */
-export function Comparison(properties: { audience: Audience; currency: Currency }) {
-    // show the plans the audience is offered
-    const shown = () =>
-        plans.filter((plan) => audiencePlans[properties.audience].includes(plan.key));
+/** The plans the comparison lists, the enterprise contract offered apart from them. */
+const offered = plans.filter((plan) => !plan.isContract);
 
+/** Compare the plans row by row, grouped by what the rows are about. */
+export function Comparison(properties: { currency: Currency }) {
     // list each group's rows some shown plan has, leaving out groups without any
     const listed = () =>
         groups.flatMap((group) => {
             const rows = group.rows.filter((row) =>
-                shown().some((plan) => row.cell(plan, properties.currency) !== false),
+                offered.some((plan) => row.cell(plan, properties.currency) !== false),
             );
 
             return rows.length === 0 ? [] : [{ name: group.name, rows }];
@@ -129,7 +123,7 @@ export function Comparison(properties: { audience: Audience; currency: Currency 
                         <th {...style.attrs(styles.name, styles.corner)}>
                             <span {...style.attrs(styles.hidden)}>Feature</span>
                         </th>
-                        {shown().map((plan) => (
+                        {offered.map((plan) => (
                             <th {...style.attrs(styles.plan, styles.head)}>{plan.name}</th>
                         ))}
                     </tr>
@@ -140,7 +134,7 @@ export function Comparison(properties: { audience: Audience; currency: Currency 
                     <tbody {...style.attrs(styles.section)}>
                         <tr {...style.attrs(styles.section)}>
                             <th
-                                colspan={shown().length + 1}
+                                colspan={offered.length + 1}
                                 scope="colgroup"
                                 {...style.attrs(styles.group)}
                             >
@@ -152,7 +146,7 @@ export function Comparison(properties: { audience: Audience; currency: Currency 
                                 <th scope="row" {...style.attrs(styles.name)}>
                                     <Hint text={row.feature.name} detail={row.feature.detail} />
                                 </th>
-                                {shown().map((plan) => (
+                                {offered.map((plan) => (
                                     <td {...style.attrs(styles.plan)}>
                                         <CellValue cell={row.cell(plan, properties.currency)} />
                                     </td>

@@ -1,23 +1,24 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
+import { BunEnvironment } from "@destack/environment/bun";
 import { present } from "@destack/schema";
 import {
-    cpuUnit,
+    bucketReadUnit,
+    bucketUsageUnit,
+    bucketWriteUnit,
+    computeOperationUnit,
+    computeTimeUnit,
+    computeUsageUnit,
     CREDIT_PRICES,
     CURRENCIES,
-    databaseBytesUnit,
+    databaseReadUnit,
+    databaseUsageUnit,
+    databaseWriteUnit,
     ENTERPRISE,
+    inferenceCostUnit,
     MACHINES,
-    memoryUnit,
     PLANS,
-    requestsUnit,
-    rowsReadUnit,
-    rowsWrittenUnit,
-    storageBytesUnit,
-    storageReadsUnit,
-    storageWritesUnit,
 } from "@platform/pricing";
 
 /** The GB-seconds in a GB-hour. */
@@ -32,6 +33,9 @@ const MINOR_UNITS = 100;
 /** The bytes in a gigabyte. */
 const GIGABYTE = 1_000_000_000;
 
+/** A month the free plan's included usage covers, in GB, GB-hours and millions of requests. */
+const FREE_MONTH = { database: 1, files: 10, compute: 10, requests: 1 } as const;
+
 /** The repository root. */
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 /** The generated pricing module. */
@@ -39,21 +43,24 @@ const generatedFile = join(
     repositoryDirectory,
     "@platform/site/src/view/content/generated/pricing.ts",
 );
+/** The machine the generator runs on. */
+const environment = BunEnvironment.system;
 /** Whether this run checks the generated file instead of writing it. */
-const isCheck = process.argv.includes("--check");
+const isCheck = environment.process.arguments.includes("--check");
 
 // price usage at Destack's own unit prices, in US dollars
 /** The site's usage rates in US dollars, per GB-month, GB-hour or million. */
 const rates = {
-    database: rateOf(databaseBytesUnit, GIGABYTE),
-    files: rateOf(storageBytesUnit, GIGABYTE),
-    memory: rateOf(memoryUnit, SECONDS_PER_HOUR),
-    cpu: rateOf(cpuUnit, MILLION),
-    requests: rateOf(requestsUnit, MILLION),
-    rowsRead: rateOf(rowsReadUnit, MILLION),
-    rowsWritten: rateOf(rowsWrittenUnit, MILLION),
-    fileReads: rateOf(storageReadsUnit, MILLION),
-    fileWrites: rateOf(storageWritesUnit, MILLION),
+    database: rateOf(databaseUsageUnit, GIGABYTE),
+    files: rateOf(bucketUsageUnit, GIGABYTE),
+    memory: rateOf(computeUsageUnit, SECONDS_PER_HOUR),
+    cpu: rateOf(computeTimeUnit, MILLION),
+    requests: rateOf(computeOperationUnit, MILLION),
+    rowsRead: rateOf(databaseReadUnit, MILLION),
+    rowsWritten: rateOf(databaseWriteUnit, MILLION),
+    fileReads: rateOf(bucketReadUnit, MILLION),
+    fileWrites: rateOf(bucketWriteUnit, MILLION),
+    inference: rateOf(inferenceCostUnit, 1),
 };
 
 // read each plan's name, fee in each currency, support and gates
@@ -78,7 +85,7 @@ const catalogPlans = Object.entries(PLANS).map(([key, plan]) => {
             ]),
         ),
         support: plan.productFeatures.support.value,
-        isUncapped: plan.productFeatures.database.value === null,
+        isUncapped: !("overage" in plan && plan.overage === "capped"),
         isCustomDomains: "custom-domains" in plan.productFeatures,
         isCustomRetention: "custom-retention" in plan.productFeatures,
         isEarlyAccess: "early-access" in plan.productFeatures,
@@ -112,14 +119,19 @@ const creditPrices = Object.fromEntries(
     ]),
 );
 
-// read the free plan's allowance in GB and GB-hours
-/** The free plan's monthly allowance. */
-const allowance = {
-    database: limitOf(PLANS.free.productFeatures.database.value, "database") / GIGABYTE,
-    files: limitOf(PLANS.free.productFeatures.storage.value, "storage") / GIGABYTE,
-    compute: limitOf(PLANS.free.productFeatures.compute.value, "compute") / SECONDS_PER_HOUR,
-    egress: limitOf(PLANS.free.productFeatures.network.value, "network") / GIGABYTE,
-};
+// read the free plan's included usage per member, and require the month it covers to cost exactly that
+/** The free plan's monthly usage per member, and a month it covers. */
+const allowance = { usage: dollarsOf(PLANS.free.includedUsage), ...FREE_MONTH };
+/** What the month the free plan covers costs at the unit prices, in US dollars. */
+const covered = roundOf(
+    FREE_MONTH.database * rates.database +
+        FREE_MONTH.files * rates.files +
+        FREE_MONTH.compute * rates.memory +
+        FREE_MONTH.requests * rates.requests,
+);
+if (covered !== allowance.usage) {
+    throw new Error(`the free month costs ${covered}, not the plan's ${allowance.usage}`);
+}
 
 // read each machine size's vCPUs, memory, disk, hourly price and monthly cap in US dollars
 /** The dedicated machines, smallest first. */
@@ -144,23 +156,14 @@ const generatedSource = await formatSource(
         `export const creditPrices = ${JSON.stringify(creditPrices)} as const;\n\n` +
         `/** The plans, cheapest first, then the enterprise contract, each fee a month in each currency. */\n` +
         `export const plans = ${JSON.stringify(plans)} as const;\n\n` +
-        `/** The free plan's monthly allowance, in GB and GB-hours. */\n` +
+        `/** The free plan's usage per member a month in US dollars, and a month it covers. */\n` +
         `export const allowance = ${JSON.stringify(allowance)} as const;\n\n` +
         `/** The dedicated machines, smallest first, priced in US dollars. */\n` +
         `export const machines = ${JSON.stringify(machines)} as const;\n`,
 );
 
-/** Return the limit a free plan grant sets, refusing a grant without one. */
-function limitOf(value: unknown, feature: string): number {
-    if (typeof value !== "number") {
-        throw new TypeError(`the free plan sets no ${feature} limit`);
-    }
-
-    return value;
-}
-
 /** Return a unit's price in US dollars for a quantity of its meter, such as a gigabyte of bytes. */
-function rateOf(unit: typeof memoryUnit, quantity: number): number {
+function rateOf(unit: typeof computeUsageUnit, quantity: number): number {
     const credits = Number(unit.definition.unitAmount) / MINOR_UNITS;
 
     return roundOf(credits * (quantity / unit.definition.unitSize) * Number(CREDIT_PRICES.USD));
@@ -177,13 +180,18 @@ function roundOf(amount: number): number {
 }
 
 // check or replace the module
+/** The file system the module is written to. */
+const { files } = environment;
 if (isCheck) {
-    if (!existsSync(generatedFile) || readFileSync(generatedFile, "utf8") !== generatedSource) {
+    const isCurrent =
+        (await files.exists(generatedFile)) &&
+        (await files.readTextFile(generatedFile)) === generatedSource;
+    if (!isCurrent) {
         throw new Error("generated pricing is out of date, run `just @platform/site/generate`");
     }
 } else {
-    mkdirSync(dirname(generatedFile), { recursive: true });
-    const temporaryFile = `${generatedFile}.${process.pid}.tmp`;
-    writeFileSync(temporaryFile, generatedSource);
-    renameSync(temporaryFile, generatedFile);
+    await files.mkdir(dirname(generatedFile), { recursive: true });
+    const temporaryFile = `${generatedFile}.${environment.process.id}.tmp`;
+    await files.writeTextFile(temporaryFile, generatedSource);
+    await files.rename(temporaryFile, generatedFile);
 }

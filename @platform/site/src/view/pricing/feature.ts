@@ -5,8 +5,16 @@ export type Feature = { name: string; detail: string };
 export const features = {
     // software
     members: {
-        name: "Unlimited members",
-        detail: "Invite as many people and guests as you like, with no per-seat fee.",
+        name: "Members",
+        detail: "The people in your organisation, each on the plan's price; up to 5 on Free.",
+    },
+    pooled: {
+        name: "Pooled usage",
+        detail: "Every member's fee is usage, and an organisation's members share one pool.",
+    },
+    guests: {
+        name: "Free guests",
+        detail: "Invite guests into your spaces at no charge; only members pay.",
     },
     agents: {
         name: "Unlimited agents",
@@ -41,6 +49,10 @@ export const features = {
         name: "Cloud hosting",
         detail: "Run your spaces on our cloud, on machines shared with other accounts.",
     },
+    residency: {
+        name: "Data residency",
+        detail: "Choose whether your data stays in the European Union or the United States.",
+    },
     tunnels: { name: "Tunnels", detail: "Reach your machines from anywhere." },
     domains: {
         name: "Custom domains",
@@ -64,8 +76,8 @@ export const features = {
     // usage
     included: { name: "Included usage", detail: "Usage is billed at the unit prices below." },
     uncapped: {
-        name: "No usage caps",
-        detail: "Your apps never slow down: past the included usage, you pay as you go.",
+        name: "Pay as you go",
+        detail: "Past the included usage, usage bills at the unit prices, up to a monthly limit you set.",
     },
     retention: {
         name: "Retention",
@@ -96,15 +108,15 @@ export const features = {
         detail: "Guaranteed response times from engineers who know your stack.",
     },
     early: { name: "Early access", detail: "Try new apps and features before everyone else." },
-    engineer: {
-        name: "Dedicated engineer",
-        detail: "An engineer of ours moves your data and tools over and helps build your apps.",
-    },
 
-    // contract
+    // enterprise
     uptime: {
         name: "Uptime SLA",
         detail: "An uptime we promise in your contract, with credits when we miss it.",
+    },
+    engineer: {
+        name: "Dedicated engineer",
+        detail: "An engineer of ours moves your data and tools over and helps build your apps.",
     },
     invoice: {
         name: "Invoice billing",
