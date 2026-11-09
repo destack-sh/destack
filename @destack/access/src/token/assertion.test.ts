@@ -98,37 +98,6 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
     });
 });
 
-test("authenticate an installation within its space", async () => {
-    // publish an installation's key and verify its assertion
-    await using simulation = testSimulation();
-    const world = simulation.environment("test");
-    const pair = await generate(world.crypto);
-    const key: AssertionKey = {
-        id: "key-1",
-        subject: principal.installation.reference("space-1", "installation-1"),
-        publicKey: await PublicKey.of(pair.publicKey, world.crypto),
-    };
-    const verifier = new AssertionVerifier({
-        crypto: world.crypto,
-        endpoint,
-        audience,
-        keys: async () => key,
-        database: await spending(world),
-    });
-    const now = TEST_START;
-    const installation = await verifier.verify(
-        await Assertion.sign(pair.privateKey, key, endpoint, now, world),
-        now,
-    );
-
-    // bind the installation's credential to its space
-    expect([
-        installation.caller.subject,
-        installation.credential.kind,
-        installation.credential.scope,
-    ]).toEqual([key.subject, "installation-key", "space-1"]);
-});
-
 test("authenticate a space and its installation by the space's key, refusing a subject the key cannot assert", async () => {
     // publish a space's key, found under the issuer its assertions claim
     await using simulation = testSimulation();
