@@ -14,6 +14,9 @@ import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
 import { Comparison, ComparisonLabel } from "../pricing/comparison";
 import { type Audience, Plans, PlansLabel } from "../pricing/plan";
+import { Gauge } from "../pricing/gauge";
+import { Hosts } from "../pricing/hosts";
+import { Silos } from "../pricing/silos";
 import { Rates } from "../pricing/rate";
 import "../home/figure/figure.css";
 
@@ -93,8 +96,17 @@ export function Pricing() {
             />
 
             {/* the plans */}
-            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.plans)}>
+            <section
+                {...style.attrs(
+                    lattice.frame,
+                    lattice.ruled,
+                    lattice.section,
+                    styles.plans,
+                    styles.drawn,
+                )}
+            >
                 <Entry form={pricing} isTitle />
+                <Hosts />
                 <PlansLabel
                     audience={audience()}
                     currency={currency()}
@@ -108,15 +120,25 @@ export function Pricing() {
             <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
             {/* the rate card */}
-            <section {...style.attrs(lattice.frame, lattice.ruled)}>
+            <section {...style.attrs(lattice.frame, lattice.ruled, styles.drawn)}>
                 <Entry form={rate} />
+                <Gauge />
                 <Rates currency={currency()} />
             </section>
             <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
             {/* the bill: your tools at seat prices, or your apps at usage prices */}
-            <section {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.figure)}>
+            <section
+                {...style.attrs(
+                    lattice.frame,
+                    lattice.ruled,
+                    lattice.section,
+                    styles.figure,
+                    styles.drawn,
+                )}
+            >
                 <Entry form={bill} />
+                <Silos isOpen={isOpen()} />
                 <Tally
                     number={4}
                     stacked="your tools at seat prices"
@@ -133,6 +155,10 @@ export function Pricing() {
 
 /** The pricing page styles. */
 const styles = style.create({
+    // hold each section's drawing in its entry's word column
+    drawn: {
+        position: "relative",
+    },
     // the entry, the figure's label, then the figure taking the rest
     figure: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
