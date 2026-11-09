@@ -59,11 +59,11 @@ function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayR
                 "github-private-key": { parent: "platform", name: "github-private-key" },
             },
             installations: {
-                vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+                vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
                 connection: install(
                     connectionPackage,
                     { credentials: "connections" },
-                    { isolation: "process", name: CONNECTION_INSTALLATION },
+                    { isolation: "host", name: CONNECTION_INSTALLATION },
                 ),
                 forge: install(
                     forgePackage,
@@ -73,24 +73,24 @@ function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayR
                         "github-webhook": "github-webhook",
                         "github-private-key": "github-private-key",
                     },
-                    { isolation: "process", name: FORGE_INSTALLATION },
+                    { isolation: "host", name: FORGE_INSTALLATION },
                 ),
                 finance: install(
                     financePackage,
                     { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
-                    { isolation: "process", name: FINANCE_INSTALLATION },
+                    { isolation: "host", name: FINANCE_INSTALLATION },
                 ),
-                message: install(messagePackage, {}, { isolation: "process", name: "message" }),
+                message: install(messagePackage, {}, { isolation: "host", name: "message" }),
                 notification: install(
                     notificationPackage,
                     {},
-                    { isolation: "process", name: "notification" },
+                    { isolation: "host", name: "notification" },
                 ),
                 relay: install(relayPackage, {}, { name: "relay" }),
                 observability: install(
                     observabilityPackage,
                     {},
-                    { isolation: "process", name: "observability" },
+                    { isolation: "host", name: "observability" },
                 ),
             },
             routes,

@@ -8,13 +8,13 @@ import { defineStack } from "@destack/stack";
 /** The stack of every other space: observability, with the comments, messages and inbox it uses. */
 export const SPACE_STACK = defineStack([], {
     installations: {
-        social: install(socialPackage, {}, { isolation: "process", name: "social" }),
-        message: install(messagePackage, {}, { isolation: "process", name: "message" }),
-        inbox: install(notificationPackage, {}, { isolation: "process", name: "inbox" }),
+        social: install(socialPackage, {}, { isolation: "host", name: "social" }),
+        message: install(messagePackage, {}, { isolation: "host", name: "message" }),
+        inbox: install(notificationPackage, {}, { isolation: "host", name: "inbox" }),
         observability: install(
             observabilityPackage,
             {},
-            { isolation: "process", name: "observability" },
+            { isolation: "host", name: "observability" },
         ),
     },
 });

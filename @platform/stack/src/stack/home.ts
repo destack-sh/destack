@@ -13,27 +13,27 @@ import vaultPackage from "@destack/vault/package";
 export const HOME_STACK = defineStack([vaultPackage], {
     vaults: { credentials: connectionVault.declare() },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
             { credentials: "credentials" },
-            { isolation: "process", name: CONNECTION_INSTALLATION },
+            { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
         home: install(homePackage, {}, { name: HOME_APPLICATION }),
         message: install(
             messagePackage,
             {},
-            { isolation: "process", name: "message", capabilities: ["deliver"] },
+            { isolation: "host", name: "message", capabilities: ["deliver"] },
         ),
         inbox: install(
             notificationPackage,
             {},
-            { isolation: "process", name: "inbox", capabilities: ["deliver"] },
+            { isolation: "host", name: "inbox", capabilities: ["deliver"] },
         ),
         observability: install(
             observabilityPackage,
             {},
-            { isolation: "process", name: "observability" },
+            { isolation: "host", name: "observability" },
         ),
     },
 });
