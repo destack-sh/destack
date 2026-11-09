@@ -79,12 +79,12 @@ export const networkTransfer = defineMeter({
     attributes: { direction: FLOW },
 });
 
-/** The hours a dedicated machine stays awake, billed per machine at its size's price. */
+/** The seconds a dedicated machine stays awake, billed per machine at its size's price. */
 export const machineTime = defineMeter({
     name: "machine.time",
-    description: "Hours a dedicated machine stays awake.",
+    description: "Seconds a dedicated machine stays awake.",
     aggregation: "sum",
-    unit: "hour",
+    unit: "second",
     attributes: {},
 });
 
