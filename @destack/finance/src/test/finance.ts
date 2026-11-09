@@ -168,11 +168,11 @@ const RESIDENCY_STACK = {
     },
     secrets: { "stripe-webhook": { parent: "connections", name: "stripe-webhook" } },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
             { credentials: "connections" },
-            { isolation: "process", name: CONNECTION_INSTALLATION },
+            { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
         message: install(messagePackage, {}, { name: "message" }),
         notification: install(notificationPackage, {}, { name: "notification" }),
