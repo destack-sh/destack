@@ -13,8 +13,8 @@ import { anchorOf, type Form } from "./entry";
 /** The windows wide enough for the index in the margin beside the page. */
 const WIDE = "@media (min-width: 1400px)";
 
-/** The windows whose margin holds a tab slid out to its whole form: a 1280px page and 9.5rem. */
-const ROOMY = "@media (min-width: 1584px)";
+/** The windows whose margin holds a tab slid out to its whole form: a 1280px page and 11rem. */
+const ROOMY = "@media (min-width: 1632px)";
 
 /** A tab's height and the gap under it, in CSS pixels: 2.75rem and 3px. */
 const TAB = 44;
@@ -129,13 +129,13 @@ const styles = style.create({
         alignItems: "center",
         backgroundColor: palette.space,
         color: {
-            default: `color-mix(in srgb, ${palette.cream} 60%, transparent)`,
+            default: `color-mix(in srgb, ${palette.cream} 80%, transparent)`,
             ":hover": { default: null, [media.hover]: palette.cream },
         },
-        columnGap: "1.5rem",
+        columnGap: "0.875rem",
         display: "flex",
         fontFamily: font.code,
-        fontSize: "0.6875rem",
+        fontSize: "0.8125rem",
         fontWeight: 600,
         height: "2.75rem",
         letterSpacing: "0.1em",
@@ -149,17 +149,19 @@ const styles = style.create({
         whiteSpace: "nowrap",
         width: {
             default: "2.75rem",
-            ":hover": { default: null, [media.hover]: { default: "3.25rem", [ROOMY]: "9.5rem" } },
+            ":hover": { default: null, [media.hover]: { default: "3.25rem", [ROOMY]: "11rem" } },
         },
     },
     current: {
         backgroundColor: color.primary,
         color: palette.space,
-        width: { default: "3.25rem", [ROOMY]: "9.5rem" },
+        width: { default: "3.25rem", [ROOMY]: "11rem" },
     },
     form: {
-        fontWeight: 500,
-        letterSpacing: "0.02em",
+        fontFamily: font.text,
+        fontSize: "0.9375rem",
+        fontWeight: 600,
+        letterSpacing: 0,
     },
     menu: {
         position: "relative",
