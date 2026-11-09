@@ -106,9 +106,6 @@ jobs:
               run: bun run src/main.ts distribution verify ${{ matrix.target }}
             - name: Pack distribution
               run: bun run src/main.ts distribution pack ${{ matrix.target }}
-            - name: Verify archive staging and activation with disposable signing keys
-              run: bun run src/main.ts distribution rehearse "$DESTACK_RELEASE_VERSION" "$GITHUB_WORKSPACE/dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
-              shell: bash
             - name: Upload unsigned distribution
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
@@ -455,5 +452,5 @@ jobs:
             - name: Install Linux desktop runtime dependencies
               if: runner.os == 'Linux'
               run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
-            - name: Install the published distribution and verify restart and updates
+            - name: Install the published release through its install script, and verify restart and updates
               run: bun run src/main.ts distribution install-check

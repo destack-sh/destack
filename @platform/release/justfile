@@ -50,10 +50,6 @@ icon *args:
 installer name="universal-apple-darwin":
     {{bun}} run src/main.ts installer build {{name}}
 
-# verify a native archive with disposable signing keys
-rehearse-update version archive:
-    {{bun}} run src/main.ts distribution rehearse "{{version}}" "{{archive}}"
-
 # sign
 sign +targets:
     {{bun}} run src/main.ts update sign {{targets}}

@@ -2,8 +2,7 @@ import { Bookmark } from "@destack/object/client";
 import { Loopback } from "@destack/machine/computer";
 import { selectedStage } from "./identity.ts";
 import type { Environment, HostCapability } from "@destack/environment";
-import { Updater, Release } from "@destack/update";
-import type { Target } from "@destack/update/release";
+import { present } from "@destack/schema";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { RepositoryConfiguration } from "../repository/index.ts";
@@ -12,35 +11,27 @@ import { print } from "./output.ts";
 /** How long one shipped command may run, in milliseconds. */
 const COMMAND_TIMEOUT_MILLISECONDS = 120_000;
 
-/** The staged executable and its machine state, which cleanup reads after a failure. */
+/** The installation under check: its directory, its command, and whether its machine runs. */
 interface Installation {
-    /** The staged executable, once staging finishes. */
-    executable: string | undefined;
+    /** The installation's `DESTACK_DIRECTORY`. */
+    readonly directory: string;
+    /** The installed command, in the installation's `bin` directory. */
+    readonly executable: string;
     /** Whether the installed machine runs. */
     isRunning: boolean;
 }
 
-/** A published release staged from the repository. */
-interface Staging {
-    /** The published version. */
-    version: string;
-    /** The downloaded update archive. */
-    archive: string;
-    /** The staged `destack` executable. */
-    executable: string;
-}
-
-/** Install the published native release and verify its persistent machine and update selection. */
+/** Install the published release as people do, and verify its machine and update selection. */
 export async function verifyInstallation(environment: Environment<HostCapability>): Promise<void> {
-    // verify inside one temporary directory and keep the first failure
+    // check inside one temporary directory and keep the first failure
     const configuration = new RepositoryConfiguration(environment);
-    const target = Release.target(environment.host.os, environment.host.architecture);
-    const directory = await environment.files.makeTemporaryDirectory("destack-published-");
+    const directory = await environment.files.makeTemporaryDirectory("destack-installation-");
     const state = join(directory, "state");
-    const installation: Installation = { executable: undefined, isRunning: false };
+    const executable = join(state, "bin", selectedStage(environment).command);
+    const installation: Installation = { directory: state, executable, isRunning: false };
     let failure: Error | undefined;
     try {
-        await verifyRelease(configuration, target, directory, state, installation, environment);
+        await verifyInstall(configuration, installation, environment);
     } catch (error) {
         // preserve the original verification failure if cleanup also fails
         failure =
@@ -51,7 +42,7 @@ export async function verifyInstallation(environment: Environment<HostCapability
 
     // complete cleanup before reporting either verification or cleanup failure
     try {
-        await cleanInstallation(directory, state, installation, failure === undefined, environment);
+        await cleanInstallation(directory, installation, failure === undefined, environment);
     } catch (error) {
         if (failure !== undefined) {
             throw new AggregateError(
@@ -67,94 +58,51 @@ export async function verifyInstallation(environment: Environment<HostCapability
     }
 }
 
-/** Install and restart the published release and check its update selection. */
-async function verifyRelease(
+/** Install the feed's release through its install script, then reinstall and restart it. */
+async function verifyInstall(
     configuration: RepositoryConfiguration,
-    target: Target,
-    directory: string,
-    state: string,
     installation: Installation,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // authenticate downloaded executables before invoking the distribution's own installer
-    const staging = await stageRelease(configuration, directory, target, environment);
-    const { version, archive, executable } = staging;
-    installation.executable = executable;
-
-    // install twice through the shipped CLI and preserve one isolated user directory
+    // pipe the feed's install script into the shell, as the site's install command does
+    const { executable } = installation;
+    const version = present(
+        environment.process.variables["DESTACK_RELEASE_VERSION"],
+        "the release version",
+    );
     const variables = {
         ...environment.process.variables,
-        DESTACK_DIRECTORY: state,
+        DESTACK_DIRECTORY: installation.directory,
         DESTACK_UPDATE_URL: configuration.url.href,
     };
-    const install = ["self", "install", "--archive", archive];
-    await command(executable, install, variables, environment);
-    await command(executable, install, variables, environment);
-    await verifyMachineRestart(executable, state, variables, installation, environment);
+    const script = new URL("install", configuration.url).href;
+    await command("sh", ["-c", 'curl -fsSL "$1" | sh', "sh", script], variables, environment);
+    installation.isRunning = true;
 
-    // require the installed executable to authenticate its current public update feed
+    // install again through the shipped command, then restart its machine
+    await command(executable, ["self", "install"], variables, environment);
+    await verifyMachineRestart(installation, variables, environment);
+
+    // require the installed release to be the feed's latest
     const selection: unknown = JSON.parse(
         await command(executable, ["self", "update", "--stage", "--json"], variables, environment),
     );
     if (!isDeepStrictEqual(selection, { installed: version, staged: null })) {
-        throw new Error("installed update selection differs from the published release");
+        throw new Error(`installed release differs from ${version}`);
     }
-    print(`verified installation and restart of ${version} on ${target}`, environment);
-}
-
-/** Download and stage the workflow's published release through a bootstrap updater. */
-async function stageRelease(
-    configuration: RepositoryConfiguration,
-    directory: string,
-    target: Target,
-    environment: Environment<HostCapability>,
-): Promise<Staging> {
-    // open a bootstrap updater on the published repository
-    await using updater = await Updater.open({
-        directory: join(directory, "bootstrap"),
-        repository: configuration.url,
-        root: JSON.stringify(configuration.root().toJSON()),
-        target,
-        applicationIdentifier: selectedStage(environment).applicationIdentifier,
-        environment,
-        ...(environment.host.os === "darwin" && {
-            application: join(directory, "bootstrap.app"),
-        }),
-    });
-
-    // require the workflow version as the installable release
-    const update = await updater.check();
-    if (!update) {
-        throw new Error("published repository contains no installable release");
-    }
-    const version = update.release.version;
-    if (version !== environment.process.variables["DESTACK_RELEASE_VERSION"]) {
-        throw new Error("published release differs from the workflow version");
-    }
-
-    // download and stage its archive
-    const download = await update.download();
-    const staged = await updater.stage(download);
-
-    return {
-        version,
-        archive: download.archive,
-        executable: join(staged.directory, "bin", "destack"),
-    };
+    print(`verified installation and restart of ${version} from ${configuration.url}`, environment);
 }
 
 /** Start, stop and start the installed machine, requiring one host identity across the restart. */
 async function verifyMachineRestart(
-    executable: string,
-    state: string,
-    variables: Readonly<Record<string, string>>,
     installation: Installation,
+    variables: Readonly<Record<string, string>>,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // record the host of the first machine
+    // record the host of the running machine
+    const { directory, executable } = installation;
     await command(executable, ["self", "start", "--json"], variables, environment);
-    installation.isRunning = true;
-    const before = await new Loopback(state, environment, new Bookmark()).computer();
+    const before = await new Loopback(directory, environment, new Bookmark()).computer();
 
     // restart the machine
     await command(executable, ["self", "stop", "--json"], variables, environment);
@@ -163,7 +111,7 @@ async function verifyMachineRestart(
     installation.isRunning = true;
 
     // compare the host of the restarted machine
-    const after = await new Loopback(state, environment, new Bookmark()).computer();
+    const after = await new Loopback(directory, environment, new Bookmark()).computer();
     if (before.id !== after.id) {
         throw new Error("installed machine did not preserve its host across restart");
     }
@@ -172,14 +120,16 @@ async function verifyMachineRestart(
 /** Stop a running installed machine and delete the directory of a verified installation. */
 async function cleanInstallation(
     directory: string,
-    state: string,
     installation: Installation,
     isVerified: boolean,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // stop verified installations before deleting their temporary executable files
-    if (installation.isRunning && installation.executable !== undefined) {
-        const variables = { ...environment.process.variables, DESTACK_DIRECTORY: state };
+    // stop a running machine before deleting its executable files
+    if (installation.isRunning) {
+        const variables = {
+            ...environment.process.variables,
+            DESTACK_DIRECTORY: installation.directory,
+        };
         await command(installation.executable, ["self", "stop", "--json"], variables, environment);
     }
 

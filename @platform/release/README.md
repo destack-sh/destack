@@ -4,7 +4,7 @@ Ship Destack: build, sign and publish the desktop, the CLI and the machine as on
 
 ## Recipes
 
-The `just` recipes check, build and pack a distribution, `rehearse-update` downloads, stages and activates a packed archive with throwaway signing keys, and `release` releases main now.
+The `just` recipes check, build and pack a distribution, and `release` releases main now.
 
 ```sh
 just @platform/release/check
@@ -14,7 +14,6 @@ just @platform/release/test
 just @platform/release/build
 just @platform/release/pack
 just @platform/release/installer
-just @platform/release/rehearse-update VERSION ARCHIVE
 just @platform/release/release
 ```
 
@@ -24,7 +23,7 @@ just @platform/release/release
 
 ```text
 release       prepare | record                           src/release
-distribution  build | pack | icon | develop | open | verify | install-check | rehearse   src/distribution
+distribution  build | pack | icon | develop | open | verify | install-check   src/distribution
 installer     build                                      src/installer
 signing       sign | credential                          src/signing
 update        sign | publish | renew | verify | expiry   src/repository
