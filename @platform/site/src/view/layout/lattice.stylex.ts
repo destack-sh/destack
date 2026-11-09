@@ -22,9 +22,6 @@ const DOT_GRID = "16px";
 /** The spacing of the margins' dot grid: every other dot of the page's, so the two stay aligned. */
 const MARGIN_DOT_GRID = "32px";
 
-/** The length of each dash of a rule inside a section, and of the gap after it. */
-const DASH = "4px";
-
 /** The ink of a ruler's ticks along a running head's top rule. */
 const TICK_INK = `color-mix(in srgb, ${color.foreground} 32%, ${color.background})`;
 
@@ -132,7 +129,7 @@ export const lattice = style.create({
         gap: stroke.border,
     },
 
-    /** A cell of a ruled band in the page colour, its top rule dashed across the window. */
+    /** A cell of a ruled band in the page colour, its top rule run across the window. */
     cell: {
         backgroundColor: surface.cell,
         backgroundImage: GRAIN,
@@ -140,7 +137,7 @@ export const lattice = style.create({
         borderImageOutset: `${stroke.border} 100vw 0`,
         borderImageSlice: "1 0 0 0",
         borderImageSource: {
-            default: `repeating-linear-gradient(to right, ${RULE} 0 ${DASH}, ${surface.cell} 0 calc(2 * ${DASH}))`,
+            default: `linear-gradient(${RULE}, ${RULE})`,
             ":first-child": "none",
         },
         borderImageWidth: `${stroke.border} 0 0 0`,
