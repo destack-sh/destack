@@ -120,14 +120,11 @@ export const Invitation = {
         return schema.identifier("invitation").parse(id);
     },
 
-    /** Read a pending invitation on an object in a transaction, refusing one no longer pending. */
-    async read(transaction: Transaction, object: ObjectReference, id: string): Promise<Invitation> {
-        // read the invitation on the object
+    /** Read a pending invitation by its identifier, refusing one no longer pending. */
+    async read(transaction: Transaction, id: string): Promise<Invitation> {
+        // read the invitation
         const row = await transaction.read(accessInvitation).findFirst({
-            where: {
-                ...Relationship.objectColumns(object),
-                id: Invitation.id(id),
-            },
+            where: { id: Invitation.id(id) },
         });
         if (!row) {
             throw AccessError.of("INVITATION_NOT_FOUND", "invitation not found");
@@ -305,16 +302,12 @@ export const Invitation = {
         });
     },
 
-    /** Accept an invitation on an object so its relationship applies. */
-    async accept(
-        object: ObjectReference,
-        id: string,
-        authorization: Authorization,
-    ): Promise<Relationship> {
+    /** Accept an invitation so its relationship applies. */
+    async accept(id: string, authorization: Authorization): Promise<Relationship> {
         return authorization.transaction.savepoint(async () => {
             // read the pending invitation
             const context = authorization.context();
-            const invitation = await Invitation.read(authorization.transaction, object, id);
+            const invitation = await Invitation.read(authorization.transaction, id);
             if (invitation.expiresAt <= context.now) {
                 throw AccessError.of("INVITATION_LAPSED", "invitation expired");
             }
@@ -363,15 +356,11 @@ export const Invitation = {
     },
 
     /** Withdraw an invitation on an object as its inviter, addressee, or a revoking grantor. */
-    async withdraw(
-        object: ObjectReference,
-        id: string,
-        authorization: Authorization,
-    ): Promise<Invitation> {
+    async withdraw(id: string, authorization: Authorization): Promise<Invitation> {
         return authorization.transaction.savepoint(async () => {
             // let the inviting principal and the addressee withdraw without grant authority
             const context = authorization.context();
-            const invitation = await Invitation.read(authorization.transaction, object, id);
+            const invitation = await Invitation.read(authorization.transaction, id);
             const acting = Caller.principal(context);
             const isInviter =
                 acting !== undefined &&

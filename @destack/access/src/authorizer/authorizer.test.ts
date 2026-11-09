@@ -438,8 +438,7 @@ databaseTest(
                     database,
                     () => carol,
                     environment,
-                    (authorization) =>
-                        Invitation.accept(asked.relationship.object, asked.id, authorization),
+                    (authorization) => Invitation.accept(asked.id, authorization),
                 ),
             ),
         ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
@@ -464,8 +463,7 @@ databaseTest(
             database,
             () => alice,
             environment,
-            (authorization) =>
-                Invitation.accept(asked.relationship.object, asked.id, authorization),
+            (authorization) => Invitation.accept(asked.id, authorization),
         );
         await expectEditable(database, authorizer, node, carol, ["c"]);
 
@@ -515,8 +513,7 @@ databaseTest(
                     database,
                     () => dave,
                     environment,
-                    (authorization) =>
-                        Invitation.accept(offered.relationship.object, offered.id, authorization),
+                    (authorization) => Invitation.accept(offered.id, authorization),
                 ),
             ),
         ).toEqual([
@@ -543,8 +540,7 @@ databaseTest(
                         ],
                     }),
                     environment,
-                    (authorization) =>
-                        Invitation.accept(offered.relationship.object, offered.id, authorization),
+                    (authorization) => Invitation.accept(offered.id, authorization),
                 ),
             ),
         ).toEqual([
@@ -557,8 +553,7 @@ databaseTest(
             database,
             () => carol,
             environment,
-            (authorization) =>
-                Invitation.accept(offered.relationship.object, offered.id, authorization),
+            (authorization) => Invitation.accept(offered.id, authorization),
         );
         await expectEditable(database, authorizer, node, carol, ["a", "c"]);
 
@@ -585,8 +580,7 @@ databaseTest(
             database,
             () => bob,
             environment,
-            (authorization) =>
-                Invitation.withdraw(refused.relationship.object, refused.id, authorization),
+            (authorization) => Invitation.withdraw(refused.id, authorization),
         );
         const rejected = await Authorization.run(
             authorizer,
@@ -612,12 +606,7 @@ databaseTest(
                     database,
                     () => carol,
                     environment,
-                    (authorization) =>
-                        Invitation.withdraw(
-                            rejected.relationship.object,
-                            rejected.id,
-                            authorization,
-                        ),
+                    (authorization) => Invitation.withdraw(rejected.id, authorization),
                 ),
             ),
         ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
@@ -626,8 +615,7 @@ databaseTest(
             database,
             () => alice,
             environment,
-            (authorization) =>
-                Invitation.withdraw(rejected.relationship.object, rejected.id, authorization),
+            (authorization) => Invitation.withdraw(rejected.id, authorization),
         );
         await expectEditable(database, authorizer, node, dave, []);
         expect(

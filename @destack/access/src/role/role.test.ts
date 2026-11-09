@@ -829,8 +829,7 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
                 database,
                 () => dave,
                 environment,
-                (authorization) =>
-                    Invitation.accept(offer.relationship.object, offer.id, authorization),
+                (authorization) => Invitation.accept(offer.id, authorization),
             ),
         ),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
