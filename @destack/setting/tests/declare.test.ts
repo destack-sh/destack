@@ -8,7 +8,7 @@ import { nth, schema, type JsonObject } from "@destack/schema";
 import { defineSetting } from "../src/declare/index.ts";
 import { setting } from "../src/object/index.ts";
 import type { PackageId } from "@destack/package";
-import { editor, notes, release } from "./fixture/setting/index.ts";
+import { editor, notes } from "./fixture/setting/index.ts";
 import { openSettings } from "./fixture/store.ts";
 
 /** A space-wide template the space's stack selects. */
