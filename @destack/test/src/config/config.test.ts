@@ -18,6 +18,7 @@ function cachedSimulation() {
             id: 1,
             userId: host.process.userId,
             executable: host.process.executable,
+            script: host.process.script,
             runtime: host.process.runtime,
         },
     });
