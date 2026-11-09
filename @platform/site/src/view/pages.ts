@@ -1,17 +1,18 @@
 import type { Endpoint } from "@destack/view/declare";
 import { siteEndpoints } from "@destack/view/static";
-import { documents, pageSources, posts, searchEntries } from "./content/collection.ts";
+import { documents, policies, pageSources, posts, searchEntries } from "./content/collection.ts";
 import { release } from "./content/generated/release.ts";
 import { plainTextFor } from "./content/markdown/text.ts";
 import { metadata } from "./metadata.ts";
 
-/** Every page: the home, pricing, the blog and each post, and each documentation page. */
+/** Every page: the home, pricing, the blog and each post, each documentation page and policy. */
 export const paths = [
     "/",
     "/pricing/",
     "/blog/",
     ...posts.map((post) => post.route),
     ...documents.map((each) => each.document.route),
+    ...policies.map((page) => page.route),
 ];
 
 /** The path rendering the not-found page. */

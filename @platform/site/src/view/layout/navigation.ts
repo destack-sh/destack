@@ -69,6 +69,12 @@ export const socialDestinations: readonly Destination[] = [
     discord,
 ];
 
+/** The legal pages, which the footer links. */
+export const legalDestinations: readonly Pick<Destination, "href" | "label">[] = [
+    { href: "/legal/privacy/", label: "Privacy" },
+    { href: "/legal/terms/", label: "Terms" },
+];
+
 /** Every site destination with a key combination. */
 export const destinations: readonly Destination[] = [
     home,
@@ -77,7 +83,9 @@ export const destinations: readonly Destination[] = [
 ];
 
 /** Report whether a menu destination is live, with an address to open. */
-export function isLive(destination: Destination | PendingDestination): destination is Destination {
+export function isLive<Live extends Pick<Destination, "href" | "label">>(
+    destination: Live | PendingDestination,
+): destination is Live {
     return "href" in destination;
 }
 

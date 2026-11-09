@@ -14,6 +14,7 @@ import {
     type Destination,
     isExternal,
     isLive,
+    legalDestinations,
     menu,
     type PendingDestination,
     socialDestinations,
@@ -41,7 +42,7 @@ export function Footer() {
                         <p {...style.attrs(styles.definition)}>to program the universe</p>
                     </div>
 
-                    {/* the site's menu, the community off the site, and the install command */}
+                    {/* the link columns and the install command */}
                     {columns.map(([title, destinations], index) => (
                         <nav
                             aria-label={title}
@@ -49,6 +50,7 @@ export function Footer() {
                                 styles.cell,
                                 styles.column,
                                 index === 0 && styles.firstColumn,
+                                index === columns.length - 1 && styles.lastColumn,
                             )}
                         >
                             <h2 {...style.attrs(styles.heading)}>{title}</h2>
@@ -83,17 +85,20 @@ export function Footer() {
     );
 }
 
-/** The footer's columns of links: the site's menu, and the community off the site. */
+/** The footer's columns of links: the site's menu, the community and the legal pages. */
 const columns: readonly (readonly [
     title: string,
-    destinations: readonly (Destination | PendingDestination)[],
+    destinations: readonly (Pick<Destination, "href" | "label"> | PendingDestination)[],
 ])[] = [
     ["Site", menu],
     ["Community", socialDestinations],
+    ["Legal", legalDestinations],
 ];
 
 /** Draw one footer destination: a link on or off the site, or its name while it is pending. */
-function FooterLink(properties: { destination: Destination | PendingDestination }) {
+function FooterLink(properties: {
+    destination: Pick<Destination, "href" | "label"> | PendingDestination;
+}) {
     const destination = properties.destination;
 
     // show a pending destination without a link
@@ -173,12 +178,16 @@ const styles = style.create({
     },
     column: {
         borderTopWidth: stroke.border,
-        gridColumn: { default: "span 3", [media.maxMd]: "span 2" },
+        gridColumn: "span 2",
         justifyItems: "start",
         paddingBlock: { default: "2.5rem 3.5rem", [media.maxMd]: "2rem" },
     },
     firstColumn: {
         borderInlineStartWidth: 0,
+    },
+    lastColumn: {
+        borderInlineStartWidth: { default: stroke.border, [media.maxMd]: 0 },
+        gridColumn: { default: "span 2", [media.maxMd]: "1 / -1" },
     },
     install: {
         gridColumn: { default: "span 6", [media.maxMd]: "1 / -1" },

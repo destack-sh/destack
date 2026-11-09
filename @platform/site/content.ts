@@ -24,6 +24,11 @@ export const collections: readonly Collection[] = [
         route: "/blog/",
         sources: [{ directory: "@platform/site/content/blog", path: "", hierarchy: [] }],
     },
+    {
+        title: "Legal",
+        route: "/legal/",
+        sources: [{ directory: "@platform/site/content/legal", path: "", hierarchy: [] }],
+    },
 ];
 
 /** Find the most specific collection containing a route. */

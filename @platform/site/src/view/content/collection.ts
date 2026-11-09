@@ -69,6 +69,26 @@ export type Post = {
     tokens: number;
 };
 
+/** One of the site's policies, such as the privacy policy. */
+export type Policy = {
+    /** The line below the title. */
+    description: string;
+    /** The authored Markdown route. */
+    markdownRoute: string;
+    /** The canonical browser route. */
+    route: string;
+    /** The policy's slug, such as privacy. */
+    slug: string;
+    /** The rendered heading tree. */
+    tableOfContents: readonly TableOfContentsEntry[];
+    /** The plain text route. */
+    textRoute: string;
+    /** The title. */
+    title: string;
+    /** The approximate token count. */
+    tokens: number;
+};
+
 /** A page's portable sources: its Markdown and its plain text, by route. */
 export type PageSource = {
     /** The Markdown route. */
@@ -130,7 +150,10 @@ const files = new Set([...Object.keys(SOURCES), ...Object.keys(ASSETS)]);
 const documentPages = renderDocuments(readDocumentSources());
 
 /** The blog posts, rendered once as the module loads on the server. */
-const postPages = renderPosts(readPostSources());
+const postPages: PostPage[] = renderArticles(readPostSources(), "blog");
+
+/** The policies, rendered once as the module loads on the server. */
+const policyPages = renderArticles(readPolicySources(), "legal");
 
 /** The blog directory page. */
 const blogPage = renderBlogIndex(postPages);
@@ -180,6 +203,23 @@ export const postContent: ReadonlyMap<string, RenderedContent> = new Map(
     postPages.map((page) => [page.slug, { tree: publish(page) }]),
 );
 
+/** The policies, in path order. */
+export const policies: readonly Policy[] = policyPages.map((page) => ({
+    description: page.description,
+    markdownRoute: page.markdownRoute,
+    route: page.route,
+    slug: page.slug,
+    tableOfContents: page.tableOfContents,
+    textRoute: page.textRoute,
+    title: page.title,
+    tokens: page.tokens,
+}));
+
+/** The policies' rendered bodies, by slug. */
+export const policyContent: ReadonlyMap<string, RenderedContent> = new Map(
+    policyPages.map((page) => [page.slug, { tree: publish(page) }]),
+);
+
 /** The blog directory's portable sources and size. */
 export const blogIndex = {
     markdownRoute: blogPage.markdownRoute,
@@ -188,13 +228,16 @@ export const blogIndex = {
 };
 
 /** The Markdown and text sources of every page. */
-export const pageSources: readonly PageSource[] = [...documentPages, ...postPages, blogPage].map(
-    (page) => ({
-        markdownRoute: page.markdownRoute,
-        textRoute: page.textRoute,
-        markdown: page.markdown,
-    }),
-);
+export const pageSources: readonly PageSource[] = [
+    ...documentPages,
+    ...postPages,
+    ...policyPages,
+    blogPage,
+].map((page) => ({
+    markdownRoute: page.markdownRoute,
+    textRoute: page.textRoute,
+    markdown: page.markdown,
+}));
 
 /** The full-text search index of the documentation and the blog. */
 export const searchEntries: readonly SearchEntry[] = [
@@ -545,8 +588,50 @@ function readPostSources() {
         );
 }
 
-/** Render the blog's posts against all posts' routes and headings. */
-function renderPosts(sources: ReturnType<typeof readPostSources>): PostPage[] {
+/** Read the policies, one Markdown file each, in path order. */
+function readPolicySources() {
+    // read each policy below the legal collection's directory
+    const legal = collections.find((collection) => collection.route === "/legal/")?.sources[0];
+    if (legal === undefined) {
+        throw new Error("missing legal collection source");
+    }
+    const directory = `/${legal.directory.replace(/^@platform\/site\//u, "")}`;
+    const entries = Object.keys(SOURCES)
+        .filter((path) => path.startsWith(`${directory}/`))
+        .toSorted();
+
+    return entries.map((file) => {
+        // require the policy's metadata, its slug the file's name
+        const slug = file.slice(directory.length + 1, -".md".length);
+        const { markdown, metadata } = parseFrontmatter(present(SOURCES[file], file), file);
+        requireString(metadata, "title", file);
+        requireString(metadata, "description", file);
+
+        return {
+            description: metadata.description,
+            file,
+            headings: headingsFor(markdown),
+            markdown,
+            markdownRoute: `/legal/${slug}.md`,
+            route: `/legal/${slug}/`,
+            slug,
+            textRoute: `/legal/${slug}.txt`,
+            title: metadata.title,
+            tokens: tokenEstimateFor(plainTextFor(markdown)),
+        };
+    });
+}
+
+/** Render a collection's articles against all its articles' routes and headings. */
+function renderArticles<
+    Source extends {
+        readonly file: string;
+        readonly route: string;
+        readonly slug: string;
+        readonly markdown: string;
+        readonly headings: ReturnType<typeof headingsFor>;
+    },
+>(sources: readonly Source[], kind: "blog" | "legal") {
     const sourceRoutes = routesOf(sources);
 
     return sources.map((source) => {
@@ -554,7 +639,7 @@ function renderPosts(sources: ReturnType<typeof readPostSources>): PostPage[] {
             assets: [],
             collectionDirectory: directoryOf(source.file),
             files,
-            kind: "blog",
+            kind,
             markdownDirectory: directoryOf(source.file),
             ownHeadings: new Set(source.headings.map((heading) => heading.id)),
             route: source.route,
