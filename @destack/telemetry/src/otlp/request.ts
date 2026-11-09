@@ -92,78 +92,99 @@ const FramesEntry = schema.looseObject({
 
 /** An OTLP/JSON logs export request. */
 export const OtlpLogsRequest = schema.looseObject({
-    resourceLogs: schema.array(
-        schema.looseObject({
-            resource: Resource,
-            scopeLogs: schema.array(
-                schema.looseObject({
-                    scope: Scope,
-                    logRecords: schema.array(
+    resourceLogs: schema
+        .array(
+            schema.looseObject({
+                resource: Resource,
+                scopeLogs: schema
+                    .array(
                         schema.looseObject({
-                            timeUnixNano: Integer.exactOptional(),
-                            observedTimeUnixNano: Integer.exactOptional(),
-                            severityNumber: schema.number().int().min(0).max(24).exactOptional(),
-                            eventName: schema.string().exactOptional(),
-                            body: OtlpValue.exactOptional(),
-                            attributes: OtlpAttributes,
-                            traceId: OptionalTrace,
-                            spanId: OptionalSpan,
+                            scope: Scope,
+                            logRecords: schema
+                                .array(
+                                    schema.looseObject({
+                                        timeUnixNano: Integer.exactOptional(),
+                                        observedTimeUnixNano: Integer.exactOptional(),
+                                        severityNumber: schema
+                                            .number()
+                                            .int()
+                                            .min(0)
+                                            .max(24)
+                                            .exactOptional(),
+                                        eventName: schema.string().exactOptional(),
+                                        body: OtlpValue.exactOptional(),
+                                        attributes: OtlpAttributes,
+                                        traceId: OptionalTrace,
+                                        spanId: OptionalSpan,
+                                    }),
+                                )
+                                .default([]),
                         }),
-                    ),
-                }),
-            ),
-        }),
-    ),
+                    )
+                    .default([]),
+            }),
+        )
+        .default([]),
 });
 /** An OTLP/JSON logs export request. */
 export type OtlpLogsRequest = schema.Infer<typeof OtlpLogsRequest>;
 
 /** An OTLP/JSON traces export request. */
 export const OtlpTracesRequest = schema.looseObject({
-    resourceSpans: schema.array(
-        schema.looseObject({
-            resource: Resource,
-            scopeSpans: schema.array(
-                schema.looseObject({
-                    scope: Scope,
-                    spans: schema.array(
+    resourceSpans: schema
+        .array(
+            schema.looseObject({
+                resource: Resource,
+                scopeSpans: schema
+                    .array(
                         schema.looseObject({
-                            traceId: schema.string().regex(/^[0-9a-f]{32}$/u),
-                            spanId: schema.string().regex(/^[0-9a-f]{16}$/u),
-                            parentSpanId: OptionalSpan,
-                            name: schema.string().min(1),
-                            kind: schema.number().int().exactOptional(),
-                            startTimeUnixNano: Integer,
-                            endTimeUnixNano: Integer,
-                            attributes: OtlpAttributes,
-                            events: schema
-                                .array(
-                                    schema.looseObject({
-                                        timeUnixNano: Integer,
-                                        name: schema.string(),
-                                        attributes: OtlpAttributes,
-                                    }),
-                                )
-                                .default([]),
-                            links: schema
+                            scope: Scope,
+                            spans: schema
                                 .array(
                                     schema.looseObject({
                                         traceId: schema.string().regex(/^[0-9a-f]{32}$/u),
                                         spanId: schema.string().regex(/^[0-9a-f]{16}$/u),
+                                        parentSpanId: OptionalSpan,
+                                        name: schema.string().min(1),
+                                        kind: schema.number().int().exactOptional(),
+                                        startTimeUnixNano: Integer,
+                                        endTimeUnixNano: Integer,
+                                        attributes: OtlpAttributes,
+                                        events: schema
+                                            .array(
+                                                schema.looseObject({
+                                                    timeUnixNano: Integer,
+                                                    name: schema.string(),
+                                                    attributes: OtlpAttributes,
+                                                }),
+                                            )
+                                            .default([]),
+                                        links: schema
+                                            .array(
+                                                schema.looseObject({
+                                                    traceId: schema
+                                                        .string()
+                                                        .regex(/^[0-9a-f]{32}$/u),
+                                                    spanId: schema
+                                                        .string()
+                                                        .regex(/^[0-9a-f]{16}$/u),
+                                                }),
+                                            )
+                                            .default([]),
+                                        status: schema
+                                            .looseObject({
+                                                code: schema.literal([0, 1, 2]).default(0),
+                                            })
+                                            .default({ code: 0 }),
                                     }),
                                 )
                                 .default([]),
-                            status: schema
-                                .looseObject({
-                                    code: schema.literal([0, 1, 2]).default(0),
-                                })
-                                .default({ code: 0 }),
                         }),
-                    ),
-                }),
-            ),
-        }),
-    ),
+                    )
+                    .default([]),
+            }),
+        )
+        .default([]),
 });
 /** An OTLP/JSON traces export request. */
 export type OtlpTracesRequest = schema.Infer<typeof OtlpTracesRequest>;
@@ -187,52 +208,63 @@ const OtlpBuckets = schema
 
 /** An OTLP/JSON metrics export request, of delta sums, gauges and exponential histograms. */
 export const OtlpMetricsRequest = schema.looseObject({
-    resourceMetrics: schema.array(
-        schema.looseObject({
-            resource: Resource,
-            scopeMetrics: schema.array(
-                schema.looseObject({
-                    scope: Scope,
-                    metrics: schema.array(
+    resourceMetrics: schema
+        .array(
+            schema.looseObject({
+                resource: Resource,
+                scopeMetrics: schema
+                    .array(
                         schema.looseObject({
-                            name: schema.string().min(1),
-                            unit: schema.string().default(""),
-                            sum: schema
-                                .looseObject({
-                                    dataPoints: schema.array(NumberPoint),
-                                    aggregationTemporality: schema.number().int(),
-                                })
-                                .exactOptional(),
-                            gauge: schema
-                                .looseObject({ dataPoints: schema.array(NumberPoint) })
-                                .exactOptional(),
-                            histogram: schema.looseObject({}).exactOptional(),
-                            exponentialHistogram: schema
-                                .looseObject({
-                                    aggregationTemporality: schema.number().int(),
-                                    dataPoints: schema.array(
-                                        schema.looseObject({
-                                            attributes: OtlpAttributes,
-                                            startTimeUnixNano: Integer.exactOptional(),
-                                            timeUnixNano: Integer,
-                                            count: Integer,
-                                            sum: schema.number().default(0),
-                                            min: schema.number().exactOptional(),
-                                            max: schema.number().exactOptional(),
-                                            scale: schema.number().int(),
-                                            zeroCount: Integer.default(0),
-                                            positive: OtlpBuckets,
-                                            negative: OtlpBuckets,
-                                        }),
-                                    ),
-                                })
-                                .exactOptional(),
+                            scope: Scope,
+                            metrics: schema
+                                .array(
+                                    schema.looseObject({
+                                        name: schema.string().min(1),
+                                        unit: schema.string().default(""),
+                                        sum: schema
+                                            .looseObject({
+                                                dataPoints: schema.array(NumberPoint).default([]),
+                                                aggregationTemporality: schema.number().int(),
+                                            })
+                                            .exactOptional(),
+                                        gauge: schema
+                                            .looseObject({
+                                                dataPoints: schema.array(NumberPoint).default([]),
+                                            })
+                                            .exactOptional(),
+                                        histogram: schema.looseObject({}).exactOptional(),
+                                        exponentialHistogram: schema
+                                            .looseObject({
+                                                aggregationTemporality: schema.number().int(),
+                                                dataPoints: schema
+                                                    .array(
+                                                        schema.looseObject({
+                                                            attributes: OtlpAttributes,
+                                                            startTimeUnixNano:
+                                                                Integer.exactOptional(),
+                                                            timeUnixNano: Integer,
+                                                            count: Integer,
+                                                            sum: schema.number().default(0),
+                                                            min: schema.number().exactOptional(),
+                                                            max: schema.number().exactOptional(),
+                                                            scale: schema.number().int(),
+                                                            zeroCount: Integer.default(0),
+                                                            positive: OtlpBuckets,
+                                                            negative: OtlpBuckets,
+                                                        }),
+                                                    )
+                                                    .default([]),
+                                            })
+                                            .exactOptional(),
+                                    }),
+                                )
+                                .default([]),
                         }),
-                    ),
-                }),
-            ),
-        }),
-    ),
+                    )
+                    .default([]),
+            }),
+        )
+        .default([]),
 });
 /** An OTLP/JSON metrics export request. */
 export type OtlpMetricsRequest = schema.Infer<typeof OtlpMetricsRequest>;
@@ -250,13 +282,32 @@ export class OtlpExport {
         this.body = body;
     }
 
+    /** Read the request by a schema of its signal, refusing a body it does not match. */
+    #read<Request>(shape: schema.Schema<Request>): Request {
+        // refuse it naming each mismatch at its path
+        const parsed = shape.safeParse(this.body);
+        if (!parsed.success) {
+            const issues = parsed.error.issues.map(
+                (issue) => `${issue.path.join(".")}: ${issue.message}`,
+            );
+            throw TelemetryError.of(
+                "EXPORT_INVALID",
+                `the ${this.signal} export is invalid at ${issues.join("; ")}`,
+            );
+        }
+
+        return parsed.data;
+    }
+
     /** Set the emitter a forwarding machine knows on each resource, refusing a claimed emitter. */
     stamp(emitter: Readonly<Partial<Record<keyof typeof EMITTER_ATTRIBUTES, string>>>): OtlpExport {
         // refuse resources claiming the forwarder's emitter attribute
         const groups = RESOURCE_GROUPS[this.signal];
-        const request = schema
-            .looseObject({ [groups]: schema.array(schema.looseObject({ resource: Resource })) })
-            .parse(this.body);
+        const request = this.#read(
+            schema.looseObject({
+                [groups]: schema.array(schema.looseObject({ resource: Resource })).default([]),
+            }),
+        );
         const resources = request[groups] ?? [];
         const reserved = new Set<string>(Object.values(EMITTER_ATTRIBUTES));
         const claimed = new Set(
@@ -293,7 +344,7 @@ export class OtlpExport {
     ): Promise<OtlpExport> {
         // rewrite the frames of each log record
         if (this.signal === "logs") {
-            const request = OtlpLogsRequest.parse(this.body);
+            const request = this.#read(OtlpLogsRequest);
             for (const group of request.resourceLogs) {
                 for (const scoped of group.scopeLogs) {
                     for (const record of scoped.logRecords) {
@@ -306,7 +357,7 @@ export class OtlpExport {
         }
         // rewrite the frames of each span's events
         else if (this.signal === "traces") {
-            const request = OtlpTracesRequest.parse(this.body);
+            const request = this.#read(OtlpTracesRequest);
             for (const group of request.resourceSpans) {
                 for (const scoped of group.scopeSpans) {
                     for (const event of scoped.spans.flatMap((span) => span.events)) {

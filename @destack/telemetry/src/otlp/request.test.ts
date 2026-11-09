@@ -41,3 +41,20 @@ test("stamp each resource of an export with its forwarder's emitter, refusing an
         "only the receiver can record an export's emitter, found destack.build.manifest, destack.installation.id",
     ]);
 });
+
+test("read an empty export as one of no resources, refusing a malformed one", async () => {
+    // stamp an export omitting its empty resources, as OTLP/JSON omits empty lists
+    const empty = new OtlpExport("traces", {}).stamp({ installation: INSTALLATION }).body;
+
+    // refuse an export whose resources are no list
+    const malformed = () =>
+        new OtlpExport("traces", { resourceSpans: "spans" }).stamp({ installation: INSTALLATION });
+
+    // keep the empty export, and refuse the malformed one as a bad request
+    expect(empty).toEqual({ resourceSpans: [] });
+    expect(await refusal(Promise.resolve().then(malformed))).toEqual([
+        "BAD_REQUEST",
+        "EXPORT_INVALID",
+        "the traces export is invalid at resourceSpans: Invalid input: expected array, received string",
+    ]);
+});
