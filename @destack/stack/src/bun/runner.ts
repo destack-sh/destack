@@ -1,3 +1,4 @@
+import { SERVER_SOCKET_VARIABLE } from "@destack/sandbox/workload";
 import type { ResourceDeclaration } from "@destack/resource";
 import { present } from "@destack/schema";
 import { runWorkload, startWorkload } from "@destack/object/bun";
@@ -56,10 +57,13 @@ export class BunWorkload {
 
     /** Run the workload as the process its machine starts, until it drains. */
     async run(): Promise<void> {
-        // serve on the socket its machine gives, reading its start from standard input
+        // serve on the socket its sandbox gives, reading its start from standard input
         const environment = BunEnvironment.system;
         const { process: host } = environment;
-        const socket = present(host.arguments[0], "the socket the machine passes the runner");
+        const socket = present(
+            host.variables[SERVER_SOCKET_VARIABLE],
+            "the socket the sandbox gives the runner",
+        );
         await runWorkload(
             { ...this.runner(environment), environment },
             console[Symbol.asyncIterator](),
