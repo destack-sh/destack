@@ -3,7 +3,7 @@ import { TestBuildStore } from "@destack/build/test";
 import { testSimulation } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { Commit, type Digest } from "@destack/schema";
+import { Commit, type Digest, schema } from "@destack/schema";
 import { expect, test, vi } from "@destack/test";
 import { fixtureOutputs, TestRegistry, workload } from "../../test/build.ts";
 import { BuildCache, SpaceBuildStore } from "./build.ts";
@@ -286,4 +286,26 @@ test("load a builtin's linked build whatever build a release recorded, pulling n
         located,
         read: await BuildStore.digest(read.manifest, crypto),
     }).toEqual({ located: [APPLICATION.id], read: linked });
+});
+
+test("retain a space's builds through a collection until the machine prunes the space", async () => {
+    // pull a library's build into the machine's cache, rooted by one space and leased by none
+    const environment = testSimulation().environment("test");
+    await using pulled = await TestBuildStore.create(environment);
+    const manifest = await pulled.put(await MemoryBuild.of(LIBRARY, [], environment.crypto));
+    const cache = new BuildCache(pulled, ["bun"], new Map());
+    const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000b5");
+    await cache.root(space, [manifest]);
+
+    // end the pull's lease and collect, then prune the space and collect again
+    await pulled.evict(0);
+    const isRetained = await pulled.contains(manifest);
+    await cache.prune([]);
+    await pulled.blobs.collect(0);
+
+    // keep the build while the space roots it, and drop it with the space
+    expect({ isRetained, isPruned: !(await pulled.contains(manifest)) }).toEqual({
+        isRetained: true,
+        isPruned: true,
+    });
 });

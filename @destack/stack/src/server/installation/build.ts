@@ -23,6 +23,9 @@ import {
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
+/** The prefix of the root retaining a space's installed builds in a machine's cache. */
+const SPACE_ROOT_PREFIX = "space:";
+
 /** A checkout source of a build. */
 export type CheckoutSource = Extract<BuildSource, { readonly kind: "checkout" }>;
 
@@ -63,7 +66,7 @@ export interface BuildOptions {
 
 /** A machine's cache of the builds it runs: pulled releases and copies of its spaces' builds. */
 export class BuildCache {
-    /** The store keeping the cached builds. */
+    /** The store with the cached builds. */
     readonly store: BuildStore;
     /** The runtimes the machine serves: its instances' server runtime and its views' browser. */
     readonly runtimes: readonly Runtime[];
@@ -83,6 +86,22 @@ export class BuildCache {
         this.store = store;
         this.runtimes = runtimes;
         this.linked = linked;
+    }
+
+    /** Retain the builds a space runs and what they reference, replacing its earlier set. */
+    async root(space: Identifier<"space">, manifests: Iterable<Digest>): Promise<void> {
+        await this.store.root(`${SPACE_ROOT_PREFIX}${space}`, new Set(manifests));
+    }
+
+    /** Forget the builds of every space but those the machine still stores. */
+    async prune(spaces: readonly Identifier<"space">[]): Promise<void> {
+        // forget each space root of a space no longer stored
+        const kept = new Set(spaces.map((space) => `${SPACE_ROOT_PREFIX}${space}`));
+        for (const name of (await this.store.roots()).keys()) {
+            if (name.startsWith(SPACE_ROOT_PREFIX) && !kept.has(name)) {
+                await this.store.forget(name);
+            }
+        }
     }
 
     /** Resolve a release to the build the machine loads: a builtin's linked build, else its own. */
@@ -257,7 +276,7 @@ interface Pulling {
 
 /** A space's build store: its runners' pushes, read through to its machine's cache and registry. */
 export class SpaceBuildStore {
-    /** The space's own builds, kept while its build rows reference them. */
+    /** The space's own builds, retained while its build rows reference them. */
     readonly space: BuildStore;
     /** The machine's cache of what it runs. */
     readonly cache: BuildCache;
@@ -266,7 +285,7 @@ export class SpaceBuildStore {
     /** The builds opened so far, by manifest, each opened once as a build never changes. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
-    /** Keep a space's builds in its blobs, read through to the machine's cache. */
+    /** Store a space's builds in its blobs, read through to the machine's cache. */
     constructor(space: BuildStore, cache: BuildCache) {
         this.space = space;
         this.cache = cache;
