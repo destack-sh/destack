@@ -86,7 +86,7 @@ export class TerminalFixture {
         const native = await Device.open({
             home: home.directory,
             environment: world.simulation.environment(TERMINAL_NODE),
-            issuer: world.universe.origin,
+            universe: world.universe.origin,
         });
         onTestFinished(() => native[Symbol.asyncDispose]());
 
