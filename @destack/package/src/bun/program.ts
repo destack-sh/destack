@@ -102,8 +102,7 @@ export class Program {
     /** Define a specifier as a module answering the program's own instance. */
     async #define(specifier: string): Promise<void> {
         // read the instance before defining, as a defined specifier answers itself
-        const exports = await this.module(specifier);
-        this.#loader.define(specifier, { ...exports });
+        this.#loader.define(specifier, await this.module(specifier));
     }
 }
 
