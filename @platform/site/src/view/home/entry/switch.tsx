@@ -26,8 +26,8 @@ const destacked = ["de", "stacked"];
 /** Where a stack switch sits: in a figure's label, or in the phones' bottom bar. */
 export type SwitchPlace = "label" | "bar";
 
-/** The milliseconds a hinted switch rests before a countdown: time to read its figure. */
-const HINT_DELAY = 10_000;
+/** The milliseconds a hinted switch rests before it leans over: time to read the stacked figure. */
+const HINT_DELAY = 8000;
 
 /** Switch the whole page and every figure between the stack as it is and destacked. */
 export function StackSwitch(properties: {
@@ -67,7 +67,7 @@ export function Toggle(properties: {
     title: string;
     onToggle: () => void;
 }) {
-    // count down to flipping itself while it shows untouched: rest, then fill the other cell, then flip
+    // flip itself once while it shows untouched and stacked: rest, then lean toward the other side, then flip
     const [button, setButton] = createSignal<HTMLElement>();
     const isShown = createVisibilityObserver(button, { initialValue: false });
     const [isCounting, setIsCounting] = createSignal(false);
@@ -75,11 +75,11 @@ export function Toggle(properties: {
     const rest = new Timeout();
     createEffect(
         () => ({
-            isDue: properties.isHinted === true && isShown() && !isTouched(),
+            isDue: properties.isHinted === true && isShown() && !isTouched() && !properties.isOn,
             isOn: properties.isOn,
         }),
         ({ isDue }) => {
-            // rest before each countdown, and give up once it is touched or leaves
+            // rest before the lean, and give up once it is touched, leaves, or has flipped
             setIsCounting(false);
             if (isDue) {
                 rest.set(() => setIsCounting(true), HINT_DELAY);
@@ -104,7 +104,7 @@ export function Toggle(properties: {
         },
     );
 
-    // flip once a countdown's fill completes
+    // flip once the lean completes
     const flip = () => {
         flipping = !properties.isOn;
         properties.onToggle();
@@ -126,25 +126,22 @@ export function Toggle(properties: {
                 }}
                 {...style.attrs(press.key, styles.switch)}
             >
-                <b
+                {/* the thumb, on the current side, leaning toward the other while it counts down */}
+                <span
+                    aria-hidden="true"
                     onAnimationEnd={flip}
                     {...style.attrs(
-                        styles.word,
-                        properties.isOn ? styles.idle : styles.active,
-                        properties.isOn && isCounting() && styles.hint,
+                        styles.thumb,
+                        properties.isOn && styles.thumbOn,
+                        isCounting() && styles.lean,
                     )}
-                >
+                />
+
+                {/* the two sides, the current one dark on the thumb */}
+                <b {...style.attrs(styles.word, !properties.isOn && styles.current)}>
                     <Syllables syllables={properties.off} />
                 </b>
-                <b
-                    onAnimationEnd={flip}
-                    {...style.attrs(
-                        styles.word,
-                        styles.second,
-                        properties.isOn ? styles.active : styles.idle,
-                        !properties.isOn && isCounting() && styles.hint,
-                    )}
-                >
+                <b {...style.attrs(styles.word, properties.isOn && styles.current)}>
                     <Syllables syllables={properties.on} />
                 </b>
             </button>
@@ -203,10 +200,10 @@ export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] 
     );
 }
 
-/** A fill sweeping across a cell, as a countdown to switching to it. */
-const sweep = style.keyframes({
-    "0%": { backgroundSize: "0% 100%" },
-    "100%": { backgroundSize: "100% 100%" },
+/** A thumb stretching toward the other side, slowly at first, before it snaps across. */
+const stretch = style.keyframes({
+    "0%": { scale: "1 1" },
+    "100%": { scale: "1.14 1" },
 });
 
 /** Decide whether an element has risen into view or past the screen's top, from its entry. */
@@ -223,54 +220,60 @@ const styles = style.create({
         display: { default: "contents", [media.maxMd]: "none" },
     },
     switch: {
-        alignItems: "stretch",
         backgroundColor: color.background,
         borderColor: color.foreground,
         borderStyle: "solid",
         borderWidth: "1px",
         color: "inherit",
         cursor: "pointer",
-        display: "inline-flex",
+        display: "inline-grid",
         fontFamily: font.code,
+        gridTemplateColumns: "1fr 1fr",
         padding: 0,
         position: "relative",
         zIndex: 1,
     },
+    thumb: {
+        backgroundColor: color.primary,
+        insetBlock: 0,
+        insetInlineStart: 0,
+        position: "absolute",
+        transformOrigin: "left",
+        transitionDuration: motion.durationMedium,
+        transitionProperty: "translate",
+        transitionTimingFunction: motion.easingEmphasised,
+        translate: "0 0",
+        width: "50%",
+    },
+    thumbOn: {
+        transformOrigin: "right",
+        translate: "100% 0",
+    },
+    lean: {
+        animationDuration: "1.6s",
+        animationFillMode: "forwards",
+        animationName: { default: stretch, [media.motionReduce]: "none" },
+        animationTimingFunction: "cubic-bezier(0.5, 0, 0.9, 0.6)",
+    },
     word: {
-        backgroundImage: `linear-gradient(color-mix(in srgb, ${color.primary} 38%, transparent), color-mix(in srgb, ${color.primary} 38%, transparent))`,
-        backgroundPosition: "left",
-        backgroundRepeat: "no-repeat",
-        backgroundSize: "0% 100%",
-        color: color.mutedForeground,
+        color: {
+            default: color.mutedForeground,
+            ":hover": { default: null, [media.hover]: color.foreground },
+        },
         fontSize: typeScale.label,
         fontWeight: 600,
         letterSpacing: "0.1em",
         paddingBlock: "0.4375rem",
         paddingInline: "0.75rem",
+        position: "relative",
+        textAlign: "center",
         textTransform: "uppercase",
-        transitionDuration: motion.durationShort,
-        transitionProperty: "background-color, background-size, color",
+        transitionDuration: motion.durationMedium,
+        transitionProperty: "color",
         transitionTimingFunction: motion.easingStandard,
     },
-    second: {
-        borderInlineStartColor: color.foreground,
-        borderInlineStartStyle: "solid",
-        borderInlineStartWidth: "1px",
-    },
-    active: {
-        backgroundColor: color.primary,
+    current: {
         color: palette.space,
-    },
-    idle: {
-        backgroundSize: {
-            default: "0% 100%",
-            ":hover": { default: null, [media.hover]: "50% 100%" },
-        },
-    },
-    hint: {
-        animationDuration: "4s",
-        animationName: { default: sweep, [media.motionReduce]: "none" },
-        animationTimingFunction: "linear",
     },
     bar: {
         alignItems: "center",
@@ -282,7 +285,7 @@ const styles = style.create({
         bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
         boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
         boxSizing: "border-box",
-        display: { default: "none", "@media (max-width: 1319px)": "grid" },
+        display: { default: "none", "@media (max-width: 1399px)": "grid" },
         gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
         height: "3.5rem",
         insetInline: "1rem",
