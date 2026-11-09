@@ -1,7 +1,7 @@
 import { SpaceAddress } from "@destack/account/address";
 import type { Login } from "@destack/account/native";
 import { Device, type MachineCredential } from "@destack/machine/device";
-import { TestComputer, WorldDriver } from "@destack/machine/test";
+import { type TestInstall, TestComputer, TestDistribution } from "@destack/machine/test";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { ObjectType } from "@destack/object";
 import { type InstallationRollout, Rollout, rollout } from "@destack/stack/object";
@@ -72,10 +72,16 @@ export class TerminalFixture {
         this.#variables = variables;
     }
 
-    /** Open a terminal on the owner's home computer, with the command lines' variables. */
-    static async open(variables: Readonly<Record<string, string>> = {}): Promise<TerminalFixture> {
+    /** Open a terminal on the owner's home computer, with variables and installed fixtures. */
+    static async open(
+        variables: Readonly<Record<string, string>> = {},
+        installs: readonly TestInstall[] = [],
+    ): Promise<TerminalFixture> {
         // start the owner's home with the desktop's local objects, then open its device as command lines do
-        const { home, login } = await TestComputer.home({ localObjects: DESKTOP_OBJECTS });
+        const { home, login } = await TestComputer.home({
+            localObjects: DESKTOP_OBJECTS,
+            installs,
+        });
         const { world } = home;
         const native = await Device.open({
             home: home.directory,
@@ -134,13 +140,7 @@ export class TerminalFixture {
 
     /** Publish a fixture of the run into its account's forge as the platform's operator. */
     async publish(fixture: string): Promise<void> {
-        const build = await WorldDriver.fixture(fixture);
-        const { world } = this.computer;
-        await world.distribution.publish(
-            build,
-            await world.universe.operator(),
-            this.computer.machine,
-        );
+        await this.computer.publish(await TestDistribution.fixture(fixture));
     }
 
     /** Install a published fixture under a name in a space, the owner's home by default. */
@@ -149,7 +149,7 @@ export class TerminalFixture {
         name: string,
         space: Identifier<"space"> = this.computer.world.owner.home,
     ): Promise<void> {
-        const build = await WorldDriver.fixture(fixture);
+        const build = await TestDistribution.fixture(fixture);
         await this.computer.install(this.login.id, space, build, name);
     }
 
