@@ -105,7 +105,7 @@ export type GatewaySpace = Pick<
         "pull" | "contents" | "referrer" | "file" | "imports" | "get"
     >;
     /** The space's identity and its link to the universe, which the gateway signs with. */
-    readonly host: Pick<SpaceHost, "source" | "contain" | "database"> & {
+    readonly host: Pick<SpaceHost, "identityOf" | "contain" | "database"> & {
         /** The keystore signing as the space and deriving its secrets. */
         readonly keystore: Pick<IdentityKeystore, "issuer" | "deriver">;
         /** The machine's directory replica, the universe's endpoints and the machine's world. */
@@ -248,7 +248,7 @@ export class Gateway {
         return {
             exchange: (acting, asked, target) =>
                 exchanged.token(canonicalize({ acting, asked, target }), clock.now(), () =>
-                    space.host.source(acting).exchange(target.audience, {
+                    space.host.identityOf(acting).exchange(target.audience, {
                         subject: asked.subject,
                         ...(target.scope === undefined ? {} : { partition: target.scope }),
                         ...(asked.grants.length === 0

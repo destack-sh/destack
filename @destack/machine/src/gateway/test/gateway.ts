@@ -67,7 +67,7 @@ export function openGateway(
             instance: { implements: () => false },
             host: {
                 database,
-                source: () => {
+                identityOf: () => {
                     throw new Error("the fixture cannot sign as a space");
                 },
                 contain: refuse("contain callers"),

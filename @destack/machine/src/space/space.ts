@@ -514,7 +514,7 @@ export class Space {
         const forges = Registry.of(
             this.machine.directory,
             (account) => this.#residencyHome(account),
-            () => this.host.source(self).fetchSigned(stackPackage.id),
+            () => this.host.identityOf(self).fetchSigned(stackPackage.id),
             this.machine.environment,
             this.machine.registry,
         );
@@ -541,7 +541,7 @@ export class Space {
                 body: JSON.stringify(body),
             });
             const authentication = this.host
-                .source(self)
+                .identityOf(self)
                 .authentication(receiver.packageId, this.id);
             const response = await this.call(receiver.packageId, request, authentication);
             const answer = await response.text();
@@ -562,12 +562,12 @@ export class Space {
         // call the connections' primary in the home of the scope's account as the consumer
         const { environment } = this.machine;
         const home = await accountObject.Account.homeOf(Snapshot.live(this.database), lent.scope);
-        const source = this.host.source(consumer);
+        const identity = this.host.identityOf(consumer);
         const primary = this.machine.directory.client(
             connectionPackage,
             home,
             CONNECTION_INSTALLATION,
-            source.fetchSigned(connectionPackage.id),
+            identity.fetchSigned(connectionPackage.id),
             environment,
         );
 
