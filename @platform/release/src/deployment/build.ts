@@ -141,19 +141,17 @@ export class PlatformBuild implements AsyncDisposable {
 
     /** Map each shipped package a machine runs in its process to its server's specifier. */
     serverBundle(): Readonly<Record<string, string>> {
-        // take the packages the stacks install, each in process or as a builtin machines link
+        // take the packages the stacks install, each on the host or as a builtin machines link
         const declared = [...Object.values(EXPORTS), ...STACK_EXPORTS].map((name) => stacks[name]);
         const installations = declared.flatMap((stack) =>
             Object.values(INSTALLATIONS.parse(stack.definition["installations"] ?? {})),
         );
         const inProcess = new Set(
-            installations
-                .filter((each) => each.isolation === "process")
-                .map((each) => each.packageId),
+            installations.filter((each) => each.isolation === "host").map((each) => each.packageId),
         );
         const installed = new Set(installations.map((each) => each.packageId));
 
-        // map each such release exporting a server, refusing one installed in process without one
+        // map each such release exporting a server, refusing one installed on the host without one
         const bundled: Record<string, string> = {};
         for (const { manifest } of this.readers) {
             const { id, name } = PackageManifest.package(manifest);
@@ -161,7 +159,7 @@ export class PlatformBuild implements AsyncDisposable {
                 (output) => output.exports[SERVER_EXPORT] !== undefined,
             );
             if (inProcess.has(id) && !isServing) {
-                throw new Error(`${name} is installed in process but exports no server`);
+                throw new Error(`${name} is installed on the host but exports no server`);
             } else if (
                 isServing &&
                 (inProcess.has(id) || (installed.has(id) && manifest.role === "builtin"))
