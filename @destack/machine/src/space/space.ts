@@ -80,7 +80,7 @@ export interface SpaceRun {
     readonly gateway: PromiseWithResolvers<Gateway>;
     /** The space's role on the machine this start serves. */
     readonly role: SpaceRole;
-    /** Apply a changed installed set in this start, keeping the unchanged installations served. */
+    /** Apply a changed installed set in this start, the unchanged installations served on. */
     readonly apply: (installed: Awaited<ReturnType<typeof Database.installed>>) => Promise<void>;
     /** Start the workload again, once the space's role here changed. */
     readonly restart: () => void;
@@ -278,6 +278,7 @@ export class Space {
                           this.builds.pull(machine.releases, packageId, manifest),
                   )
                 : [];
+        await this.#root(installed);
         this.#serving = {
             adapters: Space.#adapters(installed),
             buckets,
@@ -377,6 +378,15 @@ export class Space {
         return this.host.controller(() => this.#reconcile());
     }
 
+    /** Retain the builds the space runs in the machine's cache while the machine stores it. */
+    async #root(installed: Awaited<ReturnType<typeof Database.installed>>): Promise<void> {
+        const { cache } = this.machine;
+        const manifests = installed.map((each) =>
+            cache.resolve(each.rollout.installation.packageId, each.manifest),
+        );
+        await cache.root(this.id, manifests);
+    }
+
     /** Apply a primary's installed set in place, then report whether it serves each revision. */
     async #reconcile(): Promise<void> {
         // apply a primary's installed set in this start, recording its served revisions
@@ -388,6 +398,7 @@ export class Space {
                 (packageId, manifest) =>
                     this.builds.pull(this.machine.releases, packageId, manifest),
             );
+            await this.#root(installed);
             await serving.apply(installed);
         }
 

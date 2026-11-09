@@ -3,7 +3,7 @@ import registryPackage from "@destack/registry/package";
 import { PackageManifest } from "@destack/package/manifest";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
-import { type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import type { Session } from "./device/session.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
@@ -221,7 +221,7 @@ async function writeSite(directory: string, files: FileSystem): Promise<string> 
     return worktree;
 }
 
-/** Read the build of a space an installation follows, absent before it follows one. */
+/** Read the build an installation follows once the space serves it, absent before. */
 async function followed(database: DatabaseConnection, id: Identifier<"installation">) {
     const [row] = await database
         .select({ buildId: installationRevision.table.buildId })
@@ -229,6 +229,13 @@ async function followed(database: DatabaseConnection, id: Identifier<"installati
         .innerJoin(
             installationRevision.table,
             eq(installationRevision.table.id, installation.table.revisionId),
+        )
+        .innerJoin(
+            stackObject.rollout.table,
+            and(
+                eq(stackObject.rollout.table.installationId, installation.table.id),
+                eq(stackObject.rollout.table.servedRevisionId, installation.table.revisionId),
+            ),
         )
         .where(eq(installation.table.id, id));
 
@@ -308,10 +315,18 @@ test(
                 return PackageManifest.package(reader.manifest).id;
             }),
         );
+
+        // root the second build alone in the machine's cache, as the space no longer runs the first
+        const root = present(
+            (await machine.cache.store.roots()).get(`space:${space}`),
+            "the space's root",
+        );
+        const rooted = builds.map((row) => root.has(present(row.manifest, "the manifest")));
         expect([
             builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
             packages,
             await followed(served, installed.id),
+            rooted,
         ]).toEqual([
             [first, second].map((commit) => [
                 { kind: "commit", repository: site.repository.id, commit, directory: "." },
@@ -321,6 +336,7 @@ test(
             ]),
             [SITE, SITE],
             builds[1]?.id,
+            [false, true],
         ]);
     },
     SCENARIO_MILLISECONDS,

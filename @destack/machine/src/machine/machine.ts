@@ -875,6 +875,9 @@ export class Machine {
         if (this.health.status !== "up") {
             this.health.set("up", "its account enables it");
             stored.push(...(await this.spaces.list()));
+
+            // let the cache collect the builds of spaces this machine no longer stores
+            await this.cache.prune(stored);
         }
 
         // start each stored space and each space placed or moving here, reporting a failed start apart from the others
