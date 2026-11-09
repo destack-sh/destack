@@ -22,7 +22,7 @@ import {
 } from "../object/connection.ts";
 import { Pkce } from "@destack/access/token";
 import { DEVICE_CODE } from "../oauth/server.ts";
-import { PERSON_KINDS, Runner, TokenSource } from "./token.ts";
+import { PERSON_KINDS, Runner, ConnectionCredential } from "./token.ts";
 
 /** The random bytes of a state, 256 bits. */
 const STATE_BYTES = 32;
@@ -33,10 +33,10 @@ const SLOW_DOWN_SECONDS = 5;
 /** The authorization of connections: browser pages, installations and device flows. */
 export class ConnectionAuthorization {
     /** The tokens the authorizations obtain and store. */
-    readonly #tokens: TokenSource;
+    readonly #tokens: ConnectionCredential;
 
     /** Authorize connections through a token source. */
-    constructor(tokens: TokenSource) {
+    constructor(tokens: ConnectionCredential) {
         this.#tokens = tokens;
     }
 
@@ -239,7 +239,7 @@ export class ConnectionAuthorization {
         const { crypto, random } = context.environment;
         const state = random.bytes(STATE_BYTES).toHex();
         if (target.protocol.kind === "installation") {
-            const installed = await TokenSource.find(context, target.integration);
+            const installed = await ConnectionCredential.find(context, target.integration);
             requireRedirect(installed, redirectUri);
             const url = installationPage(installed, state).href;
 

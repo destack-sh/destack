@@ -58,7 +58,7 @@ import {
     implementIntegration,
     implementConnection,
     Runner,
-    TokenSource,
+    ConnectionCredential,
 } from "../server/index.ts";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { ConnectionRequest } from "../credential/request.ts";
@@ -402,7 +402,7 @@ export class TestConnection {
     /** The store of the serving space's issuing installation, absent without an issuer. */
     readonly issuing: ObjectStore | undefined;
     /** The connections' tokens. */
-    readonly tokens: TokenSource;
+    readonly tokens: ConnectionCredential;
     /** The authorization server. */
     readonly server: TestAuthorizationServer;
     /** The scope the connections live in. */
@@ -498,7 +498,7 @@ export class TestConnection {
         const consumer = TestConnection.#installation(scope);
         const issuer = Egress.address(ISSUER_NAME, consumer.scope);
         const vaultReference = await TestConnection.#vault(database, scope, environment);
-        const tokens = new TokenSource({
+        const tokens = new ConnectionCredential({
             environment,
             consumer,
             vault: vaultReference,
@@ -614,7 +614,7 @@ export class TestConnection {
     /** Serve connections and vaults, and integrations at their primary, else their replicas. */
     static async #objects(
         database: DatabaseConnection,
-        tokens: TokenSource,
+        tokens: ConnectionCredential,
         options: ConnectionFixtureOptions,
         scope: ObjectReference,
         events: EventStore,

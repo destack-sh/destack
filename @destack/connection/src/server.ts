@@ -6,14 +6,14 @@ import connectionPackage from "./package.ts";
 import { implementConnection } from "./server/connection.ts";
 import { implementIntegration } from "./server/integration.ts";
 import { integrationFollow } from "./server/replica.ts";
-import { TokenSource } from "./server/token.ts";
+import { ConnectionCredential } from "./server/token.ts";
 
 export * from "./server/index.ts";
 
 /** The connection package's server: connections, integrations and other primaries' integrations. */
 export default implementPackage(connectionPackage, (context) => {
     // source tokens as the installation into its bound vault, through the host's network and egress
-    const tokens = new TokenSource({
+    const tokens = new ConnectionCredential({
         consumer: principal.installation.reference(context.scope, context.installation),
         vault: context.resources.get(connectionVault).reference,
         fetch: (request) => context.fetch(request),

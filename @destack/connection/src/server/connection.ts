@@ -21,7 +21,13 @@ import {
     READY,
 } from "../object/connection.ts";
 import { EGRESS_PROVIDER } from "@destack/resource";
-import { PERSON_KINDS, REFRESH_MARGIN, SUPPLIED_KINDS, TokenSource, Runner } from "./token.ts";
+import {
+    PERSON_KINDS,
+    REFRESH_MARGIN,
+    SUPPLIED_KINDS,
+    ConnectionCredential,
+    Runner,
+} from "./token.ts";
 import { ConnectionAuthorization } from "./authorization.ts";
 import type { Material } from "../credential/credential.ts";
 
@@ -33,7 +39,7 @@ const RETRY = RetryPolicy.of({
 });
 
 /** Implement connections. */
-export function implementConnection(tokens: TokenSource): typeof connection {
+export function implementConnection(tokens: ConnectionCredential): typeof connection {
     const authorization = new ConnectionAuthorization(tokens);
 
     return connection.implement({
@@ -133,7 +139,7 @@ function requireMaterial(protocol: ConnectionProtocol, material: Material): void
 /** Lease an authorized connection's protocol and current credential. */
 async function lease(
     row: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     runner: Runner,
 ): Promise<ConnectionLease> {
     // require an authorized connection
@@ -168,7 +174,11 @@ async function disconnect(
 }
 
 /** Revoke a connection's tokens at their server or uninstall its integration, then destroy them. */
-async function withdraw(runner: Runner, withdrawn: Connection, tokens: TokenSource): Promise<void> {
+async function withdraw(
+    runner: Runner,
+    withdrawn: Connection,
+    tokens: ConnectionCredential,
+): Promise<void> {
     // read the credential the vault stores, none before the first was stored
     const isRetained = withdrawn.storedAt !== null;
     const token = isRetained ? (await tokens.read(runner, withdrawn)).token : undefined;
@@ -193,7 +203,7 @@ async function withdraw(runner: Runner, withdrawn: Connection, tokens: TokenSour
 /** Reconcile a connection's credential, then record when it is next due. */
 async function reconcile(
     reconciliation: ObjectReconciliation<typeof connection>,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     authorization: ConnectionAuthorization,
 ): Promise<void> {
     // read the key's one connection at its current revision
@@ -225,7 +235,7 @@ async function reconcile(
 async function advance(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     authorization: ConnectionAuthorization,
 ): Promise<number | null> {
     // read the connection's authorization
@@ -303,7 +313,7 @@ async function schedule(
 async function finalize(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
 ): Promise<void> {
     await withdraw(Runner.of(reconciliation.store), current, tokens);
     await reconciliation.mutate([connection.call("finalize", connection.target(current))]);
@@ -313,7 +323,7 @@ async function finalize(
 async function awaitPerson(
     reconciliation: ObjectReconciliation<typeof connection>,
     current: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     authorization: ConnectionAuthorization,
 ): Promise<number | null> {
     // poll a pending device authorization once its poll is due
@@ -346,7 +356,7 @@ async function awaitPerson(
 async function renewToken(
     runner: Runner,
     current: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     time: number,
 ): Promise<number | null> {
     // leave a stored token that never expires as it is
@@ -374,7 +384,7 @@ async function renewToken(
 async function refresh(
     runner: Runner,
     row: Connection,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     time: number,
 ): Promise<number | null> {
     try {
@@ -388,7 +398,7 @@ async function refresh(
             throw error;
         }
         // retry a failure besides a refused grant, keeping a token that has not lapsed leasable
-        else if (!TokenSource.isGrantExpired(error)) {
+        else if (!ConnectionCredential.isGrantExpired(error)) {
             const failures = row.failures + 1;
             const isLive = row.storedAt !== null && row.expiresAt !== null && row.expiresAt > time;
             const status = isLive ? "true" : "false";
@@ -415,7 +425,7 @@ function isAwaitingPerson(reason: AuthorizedReason | undefined): boolean {
 function requireInstallable(
     kind: ConnectionProtocolKind,
     chain: readonly string[],
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
 ): void {
     if (kind === "installation" && !tokens.isPrimary(chain)) {
         throw ConnectionError.of(

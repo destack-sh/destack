@@ -49,8 +49,8 @@ export const PERSON_KINDS: ReadonlySet<ConnectionProtocolKind> = new Set([
     "device-code",
 ]);
 
-/** What a token source works with. */
-export interface TokenSourceOptions {
+/** What connections' tokens are obtained, kept and read with. */
+export interface ConnectionCredentialOptions {
     /** Connection's own installation, the consumer of its vault. */
     readonly consumer: Subject;
     /** The vault bound as the installation's credentials, keeping every credential and secret. */
@@ -110,13 +110,13 @@ const SecretOwner = schema.union([
     schema.identifier("integration"),
 ]);
 
-/** The tokens of connections: obtained and refreshed by the controller, read by leases. */
-export class TokenSource {
+/** Connections' tokens: refreshed by the controller, kept in the vault, read by leases. */
+export class ConnectionCredential {
     /** The consumer, fetch and primary the tokens come through. */
-    readonly options: TokenSourceOptions;
+    readonly options: ConnectionCredentialOptions;
 
-    /** Source tokens with the consumer, fetch and primary. */
-    constructor(options: TokenSourceOptions) {
+    /** Keep connections' tokens with the consumer, fetch and primary. */
+    constructor(options: ConnectionCredentialOptions) {
         this.options = options;
     }
 
@@ -132,7 +132,7 @@ export class TokenSource {
         await runner.mutate(this.#consumer(runner), [
             vault.call("put", {
                 ...this.#vault,
-                secret: TokenSource.secret(id),
+                secret: ConnectionCredential.secret(id),
                 name: id,
                 value: { encoding: "text", value },
             }),
@@ -144,7 +144,7 @@ export class TokenSource {
         // read the secret's current version through the vault as the consumer
         const target = secret.target({
             scope: this.options.vault.scope,
-            id: TokenSource.secret(id),
+            id: ConnectionCredential.secret(id),
         });
         const reading = SecretReading.parse(
             await runner.query(this.#consumer(runner), secret.call("read", target)),
@@ -158,7 +158,7 @@ export class TokenSource {
         await runner.mutate(this.#consumer(runner), [
             vault.call("remove", {
                 ...this.#vault,
-                secret: TokenSource.secret(id),
+                secret: ConnectionCredential.secret(id),
             }),
         ]);
     }
@@ -209,7 +209,7 @@ export class TokenSource {
         reference: ObjectReference | null,
     ): Promise<IntegrationClient> {
         // request a replica's tokens through its primary, which alone reads its secret
-        const row = await TokenSource.find(runner, reference);
+        const row = await ConnectionCredential.find(runner, reference);
         if (await Replica.isReplicated(runner, row.scope, integration.table)) {
             const primary = await this.#primary(runner, row.scope);
             return {
@@ -232,7 +232,7 @@ export class TokenSource {
     /** Call the issuer of an integration an installation issues the tokens of. */
     async issuer(runner: Runner, reference: ObjectReference | null) {
         // require an installation issuing the integration's tokens
-        const row = await TokenSource.find(runner, reference);
+        const row = await ConnectionCredential.find(runner, reference);
         const issued = row.issuer;
         if (issued.kind !== "installation") {
             throw ConnectionError.of(
@@ -444,7 +444,7 @@ export class TokenSource {
         try {
             token = await this.#obtain(runner, row, credential, now);
         } catch (error) {
-            if (TokenSource.isGrantExpired(error)) {
+            if (ConnectionCredential.isGrantExpired(error)) {
                 const message = "the authorization server refused the grant; authorize again";
                 await this.observe(
                     runner,

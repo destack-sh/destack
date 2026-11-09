@@ -7,7 +7,7 @@ import { Package } from "@destack/package";
 import { InstallationName } from "@destack/object";
 import { ConnectionError } from "../error/error.ts";
 import { Token } from "../credential/credential.ts";
-import { DeviceRequest, TokenGrant, TokenRevocation } from "../oauth/grant.ts";
+import { DeviceRequest, AuthorizationGrant, TokenRevocation } from "../oauth/grant.ts";
 import { DeviceAuthorization } from "../oauth/server.ts";
 
 /** How a client authenticates at a token endpoint, with the method names of RFC 7591. */
@@ -173,7 +173,7 @@ export const integration = defineObject(
             permission: "request",
             input: schema.object({
                 /** The grant proving possession of the connection's authorization. */
-                grant: schema.sensitive(TokenGrant),
+                grant: schema.sensitive(AuthorizationGrant),
             }),
             output: schema.sensitive(Token),
             prepared: schema.sensitive(Token),

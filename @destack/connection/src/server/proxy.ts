@@ -3,7 +3,7 @@ import type { ClientOf } from "@destack/object/client";
 import type { Token } from "../credential/credential.ts";
 import { ConnectionError } from "../error/error.ts";
 import { type Integration, IntegrationIssuer } from "../object/integration.ts";
-import { TokenGrant } from "../oauth/grant.ts";
+import { AuthorizationGrant } from "../oauth/grant.ts";
 import {
     type AuthorizationClient,
     type AuthorizationPage,
@@ -61,7 +61,7 @@ export class AuthorizationProxy implements AuthorizationClient {
 
     /** Request a token through the primary, refusing grants without possession. */
     async token(grant: Readonly<Record<string, string>>): Promise<Token> {
-        const parsed = TokenGrant.safeParse(grant);
+        const parsed = AuthorizationGrant.safeParse(grant);
         if (!parsed.success) {
             throw ConnectionError.of(
                 "PRIMARY_REQUIRED",

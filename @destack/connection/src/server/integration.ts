@@ -3,12 +3,12 @@ import type { MethodContextOf, ResultOf } from "@destack/object";
 import { present } from "@destack/schema";
 import { ConnectionError } from "../error/error.ts";
 import { integration, type Registration } from "../object/integration.ts";
-import { TokenGrant } from "../oauth/grant.ts";
+import { AuthorizationGrant } from "../oauth/grant.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
-import { Runner, TokenSource } from "./token.ts";
+import { Runner, ConnectionCredential } from "./token.ts";
 
 /** Implement integrations. */
-export function implementIntegration(tokens: TokenSource): typeof integration {
+export function implementIntegration(tokens: ConnectionCredential): typeof integration {
     return integration.implement({
         methods: {
             create: {
@@ -46,7 +46,9 @@ export function implementIntegration(tokens: TokenSource): typeof integration {
             },
             requestToken: {
                 prepare: async (context) =>
-                    (await client(context, tokens)).token(TokenGrant.form(context.input.grant)),
+                    (await client(context, tokens)).token(
+                        AuthorizationGrant.form(context.input.grant),
+                    ),
                 handle: async (context) => context.prepared,
             },
             revokeToken: {
@@ -119,7 +121,7 @@ function requireSecret(context: MethodContextOf<typeof integration, "create", un
 /** Store a created integration's secret. */
 async function keepSecret(
     context: MethodContextOf<typeof integration, "create", unknown>,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
 ): Promise<{}> {
     // write the secret of a confidential client
     const { secret } = context.input;
@@ -135,7 +137,7 @@ async function keepSecret(
 async function register(
     id: string,
     request: { readonly resource: string; readonly redirectUri: string },
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
     runner: Runner,
 ): Promise<Registration> {
     // find the resource's authorization server and its registration endpoint
@@ -175,7 +177,7 @@ async function register(
 async function destroy(
     context: MethodContextOf<typeof integration, "delete">,
     next: () => Promise<ResultOf<typeof integration, "delete">>,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
 ): Promise<ResultOf<typeof integration, "delete">> {
     // delete the integration, then its secret
     const target = context.target;
@@ -194,7 +196,7 @@ async function client(
         "requestToken" | "revokeToken" | "authorizeDevice",
         unknown
     >,
-    tokens: TokenSource,
+    tokens: ConnectionCredential,
 ): Promise<AuthorizationServer> {
     const target = context.target;
 

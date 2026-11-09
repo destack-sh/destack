@@ -7,7 +7,7 @@ const NARROWING = {
     resource: schema.url({ protocol: /^https$/u }).exactOptional(),
 };
 
-/** A token request's grant that proves possession of the account's authorization. */
+/** The authorization grant a token request presents (RFC 6749 1.3). */
 const grant = schema.discriminatedUnion("grant_type", [
     schema.object({
         /** An authorization code exchanged with its PKCE verifier (RFC 7636 4.5). */
@@ -51,13 +51,13 @@ const grant = schema.discriminatedUnion("grant_type", [
         ...NARROWING,
     }),
 ]);
-/** A token request's grant that proves possession of the account's authorization. */
-export type TokenGrant = schema.Infer<typeof grant>;
+/** The authorization grant a token request presents (RFC 6749 1.3). */
+export type AuthorizationGrant = schema.Infer<typeof grant>;
 
 /** A token request's grant that proves possession, and its form parameters. */
-export const TokenGrant = Object.assign(grant, {
+export const AuthorizationGrant = Object.assign(grant, {
     /** Write a grant as the token request's form parameters, leaving out the absent ones. */
-    form(granted: TokenGrant): Readonly<Record<string, string>> {
+    form(granted: AuthorizationGrant): Readonly<Record<string, string>> {
         return Object.fromEntries(
             Object.entries(granted).filter(
                 (entry): entry is [string, string] => typeof entry[1] === "string",
