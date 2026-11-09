@@ -79,7 +79,8 @@ export const CompilerCommand = {
         return {
             executable: compiler,
             arguments: [],
-            read: [compiler, toolchain],
+            // read the launchers' and the resources' directories
+            read: [dirname(compiler), dirname(toolchain)],
             variables: {
                 NAPI_RS_NATIVE_LIBRARY_PATH: join(binding, `rolldown-binding.${platform}.node`),
             },
