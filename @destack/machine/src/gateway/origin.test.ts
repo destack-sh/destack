@@ -363,7 +363,7 @@ async function openShared(
     const { computer, spaceId } = opened;
     const member = await computer.signIn(MEMBER_EMAIL);
 
-    // invite them to own the space with the owner, and accept as them
+    // invite them to own the space with the owner, and accept as them from their own listing
     const object = space.reference(computer.world.owner.account, spaceId);
     const inviting = (await computer.device.session(opened.login)).login;
     const invitation = await inviting.objects().invitation.create({
@@ -376,11 +376,12 @@ async function openShared(
         },
     });
     const accepting = (await computer.device.session(member.id)).login;
+    const { items } = await accepting.accounts().user.invited({ id: member.subjectId });
+    expect(items.map((each) => each.id)).toEqual([invitation.id]);
     await accepting.objects().invitation.accept({
         scope: computer.world.owner.account,
         requestId: RequestId.create(computer.environment),
-        object,
-        invitationId: invitation.id,
+        id: invitation.id,
     });
 
     return { ...opened, member: member.id };
