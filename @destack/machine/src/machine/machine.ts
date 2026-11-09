@@ -188,7 +188,7 @@ export class Machine {
     readonly trusted: ReadonlySet<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
-    /** The key of the SKU rating each meter of the spaces, by the meter's key, absent unbilled. */
+    /** The SKU key rating each meter at its attribute values, by `Meter.key`, absent unbilled. */
     readonly skus: ReadonlyMap<string, string> | undefined;
     /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
     readonly endpoint: string;

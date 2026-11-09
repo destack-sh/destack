@@ -10,7 +10,6 @@ import { RequestId } from "@destack/sync";
 import { MachineError } from "../error/index.ts";
 import type { DigestCrypto, Identifier } from "@destack/schema";
 import type { Reading } from "./reading.ts";
-import type { Meter } from "@destack/telemetry/meter";
 
 /** How long an active space's use gathers before a reading: a minute, the most a restart loses. */
 const READING_MILLISECONDS = 60_000;
@@ -27,7 +26,7 @@ export interface MeterOptions {
     readonly space: Identifier<"space">;
     /** Read what the space used over an interval. */
     readonly measure: (from: number, to: number) => Promise<readonly Reading[]>;
-    /** The key of the SKU rating each meter on the space's machine, by the meter's key. */
+    /** The key of the SKU rating each meter at its attribute values, by their `Meter.key`. */
     readonly skus: ReadonlyMap<string, string>;
     /** Read the account the space belongs to. */
     readonly account: () => Promise<Identifier<"account">>;
@@ -97,7 +96,7 @@ export class SpaceMeter {
                         each,
                         from,
                         now,
-                        SpaceMeter.#skuOf(skus, each.meter),
+                        SpaceMeter.#skuOf(skus, each),
                         account,
                         this.#store.environment.crypto,
                     ),
@@ -197,14 +196,13 @@ export class SpaceMeter {
         return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1);
     }
 
-    /** Find the SKU rating a meter, refusing a meter the machine rates with none. */
-    static #skuOf(skus: ReadonlyMap<string, string>, meter: Meter): string {
-        const sku = skus.get(DeclarationReference.key(meter.reference));
+    /** Find the SKU rating a reading's meter and attributes, refusing one rated by none. */
+    static #skuOf(skus: ReadonlyMap<string, string>, measured: Reading): string {
+        // look the SKU up by the meter's key with the reading's attributes
+        const key = measured.meter.key(measured.attributes);
+        const sku = skus.get(key);
         if (sku === undefined) {
-            throw MachineError.of(
-                "CONFIGURATION_INVALID",
-                `the machine rates meter ${meter.name} with no sku`,
-            );
+            throw MachineError.of("CONFIGURATION_INVALID", `the machine rates ${key} with no sku`);
         }
 
         return sku;

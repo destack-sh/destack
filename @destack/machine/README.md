@@ -117,10 +117,10 @@ await space.fetch(request);
 
 ## Metering
 
-Every machine reads its spaces' `Traffic` on the `requests`, `cpu` and `egress` meters, and a cloud machine's Tail Worker posts each space's CPU milliseconds from the `Attribution` its invocations publish.
+Every machine reads its spaces' `Traffic` on the `compute.operation`, `compute.time` and `network.transfer` meters, the transfer in each direction, and a cloud machine's Tail Worker posts each space's CPU milliseconds from the `Attribution` its invocations publish.
 
 ```ts
 Attribution.publish({ scope, installation }); // diagnostics channel destack.attribution
 traffic.countTrace(scope, { installation, cpuMilliseconds: 5 });
-Traffic.readings(traffic.take()); // compute.requests, compute.cpu, network.egress
+Traffic.readings(traffic.take()); // compute.operation, compute.time, network.transfer {direction}
 ```

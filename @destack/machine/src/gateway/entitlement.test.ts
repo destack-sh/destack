@@ -117,17 +117,17 @@ test("limit a space's request rate while its compute entitlement is exceeded, an
     ]);
 });
 
-test("limit a space's request rate while its network is exceeded, and leave it alone while its storage alone is", async () => {
-    // block storage alone and pass more than a burst
+test("limit a space's request rate while its network is exceeded, and leave it alone while its bucket alone is", async () => {
+    // block the bucket alone and pass more than a burst
     const { fixture, entitlement } = await open();
-    await entitlement("storage", "blocked");
+    await entitlement("bucket", "blocked");
     const call = await route(fixture);
     for (let request = 0; request < 30; request++) {
         await call();
     }
 
     // block the network and call a burst
-    await entitlement("storage", "within");
+    await entitlement("bucket", "within");
     await entitlement("network", "blocked");
     const refused = await exhaust(call);
 

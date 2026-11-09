@@ -1,5 +1,5 @@
 import { subscribe, unsubscribe } from "node:diagnostics_channel";
-import { cpu } from "@destack/telemetry/meter";
+import { computeTime } from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Traffic } from "../gateway/index.ts";
@@ -62,8 +62,14 @@ test("attribute traced CPU time to the space and installation each invocation pu
         published: [{ scope: SPACE }, { scope: SPACE, installation: INSTALLATION }],
         spaces: [SPACE],
         readings: [
-            { meter: cpu, scope: SPACE, value: 5 },
-            { meter: cpu, scope: SPACE, installation: INSTALLATION, value: 6 },
+            { meter: computeTime, attributes: {}, scope: SPACE, value: 5 },
+            {
+                meter: computeTime,
+                attributes: {},
+                scope: SPACE,
+                installation: INSTALLATION,
+                value: 6,
+            },
         ],
     });
 });

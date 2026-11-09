@@ -1,7 +1,7 @@
-import type { Meter } from "@destack/telemetry/meter";
-import { Pipe } from "@destack/environment";
+import type { Meter, MeterAttributes } from "@destack/telemetry/meter";
+import { copyRequest, Pipe } from "@destack/environment";
 import { OtlpMetricsRequest } from "@destack/telemetry/otlp";
-import { cpu, egress, requests } from "@destack/telemetry/meter";
+import { computeOperation, computeTime, networkTransfer } from "@destack/telemetry/meter";
 import { Reading } from "../meter/index.ts";
 import { Duration, type Identifier, schema } from "@destack/schema";
 import { PROCESS_CPU_TIME } from "@destack/telemetry/metric";
@@ -19,8 +19,10 @@ export interface TrafficCount {
     readonly installation?: Identifier<"installation">;
     /** The requests it served. */
     readonly requests: number;
+    /** The bytes its requests brought into the machine. */
+    readonly ingress: number;
     /** The bytes its responses sent out of the machine. */
-    readonly bytes: number;
+    readonly egress: number;
     /** The CPU milliseconds its provider's traces or its process measured. */
     readonly cpuMilliseconds: number;
 }
@@ -38,17 +40,18 @@ export type TraceCount = schema.Infer<typeof TraceCount>;
 /** A number in a traffic count, such as its requests or its bytes. */
 type TrafficMeasure = Exclude<keyof TrafficCount, "scope" | "installation">;
 
-/** The meter each number of a traffic count reads on. */
-const METERS: readonly (readonly [TrafficMeasure, Meter])[] = [
-    ["requests", requests],
-    ["cpuMilliseconds", cpu],
-    ["bytes", egress],
+/** The meter and attributes each number of a traffic count reads on. */
+const METERS: readonly (readonly [TrafficMeasure, Meter, MeterAttributes])[] = [
+    ["requests", computeOperation, {}],
+    ["cpuMilliseconds", computeTime, {}],
+    ["ingress", networkTransfer, { direction: "ingress" }],
+    ["egress", networkTransfer, { direction: "egress" }],
 ];
 
 /** A count whose numbers grow in place. */
 type Mutable<Counted> = { -readonly [Field in keyof Counted]: Counted[Field] };
 
-/** The requests a machine's installations serve, the bytes they send out and their CPU time. */
+/** The requests a machine's installations serve, the bytes they move and their CPU time. */
 export class Traffic {
     /** The counts since the last take, by installation or by space, added to in place. */
     readonly #counts = new Map<string, Mutable<TrafficCount>>();
@@ -78,24 +81,32 @@ export class Traffic {
         this.#count(scope, installation).requests += 1;
     }
 
+    /** Count the bytes of an installation's request as its body streams in. */
+    countIngress(
+        scope: Identifier<"space">,
+        installation: Identifier<"installation">,
+        request: Request,
+    ): Request {
+        // pass a request without a body as it is, and count each chunk of one that has one
+        if (request.body === null) {
+            return request;
+        }
+        const counting = this.#counting(scope, installation, "ingress");
+
+        return copyRequest(request, { body: Pipe.through(request.body, counting) });
+    }
+
     /** Count the bytes of an installation's response as its body streams out. */
-    countResponse(
+    countEgress(
         scope: Identifier<"space">,
         installation: Identifier<"installation">,
         response: Response,
     ): Response {
-        // pass a response without a body as it is
+        // pass a response without a body as it is, and count each chunk of one that has one
         if (response.body === null) {
             return response;
         }
-
-        // add each chunk's bytes as it streams
-        const counting = new TransformStream<Uint8Array, Uint8Array>({
-            transform: (chunk, controller) => {
-                this.#count(scope, installation).bytes += chunk.byteLength;
-                controller.enqueue(chunk);
-            },
-        });
+        const counting = this.#counting(scope, installation, "egress");
 
         return new Response(Pipe.through(response.body, counting), {
             status: response.status,
@@ -157,11 +168,12 @@ export class Traffic {
         return taken;
     }
 
-    /** Read the taken counts on the requests, CPU and egress meters, leaving out zeros. */
+    /** Read the taken counts on the request, CPU and transfer meters, leaving out zeros. */
     static readings(taken: readonly TrafficCount[]): Reading[] {
-        return METERS.flatMap(([measure, meter]) =>
+        return METERS.flatMap(([measure, meter, attributes]) =>
             Reading.counted(
                 meter,
+                attributes,
                 taken
                     .filter((count) => count[measure] > 0)
                     .map((count) => ({
@@ -173,6 +185,20 @@ export class Traffic {
                     })),
             ),
         );
+    }
+
+    /** Build a stream adding each chunk's bytes to a direction of an installation's count. */
+    #counting(
+        scope: Identifier<"space">,
+        installation: Identifier<"installation">,
+        direction: "ingress" | "egress",
+    ): TransformStream<Uint8Array, Uint8Array> {
+        return new TransformStream<Uint8Array, Uint8Array>({
+            transform: (chunk, controller) => {
+                this.#count(scope, installation)[direction] += chunk.byteLength;
+                controller.enqueue(chunk);
+            },
+        });
     }
 
     /** Read an installation's or the space's count since the last take, starting it at zero. */
@@ -193,7 +219,8 @@ export class Traffic {
                 scope,
                 ...(installation === undefined ? {} : { installation }),
                 requests: 0,
-                bytes: 0,
+                ingress: 0,
+                egress: 0,
                 cpuMilliseconds: 0,
             };
             this.#counts.set(key, counted);

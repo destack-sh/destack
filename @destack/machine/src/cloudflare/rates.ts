@@ -2,7 +2,7 @@ import { schema } from "@destack/schema";
 
 /** What a cloud machine's Worker rates its spaces' use by, as the deployment binds it. */
 export const RateCard = schema.object({
-    /** The key of the SKU rating each meter on the machine, by the meter's key. */
+    /** The key of the SKU rating each meter at its attribute values, by their `Meter.key`. */
     skus: schema
         .record(schema.string(), schema.string())
         .transform((skus) => new Map(Object.entries(skus))),

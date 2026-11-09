@@ -475,16 +475,21 @@ export class Gateway {
 
     /** Deliver an adapter's request, a routed request or a call to an installation. */
     async #installation(
-        installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
+        mounted: NonNullable<ReturnType<typeof InstallationMount.of>>,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        // hand an installation the space's store serves to its package there
+        // count the request's bytes as they stream in, once the installation serving it is known
         const { database, traffic } = this.#space;
-        const served = await Rollout.requireServed(database, installed);
+        const served = await Rollout.requireServed(database, mounted);
+        const { scope, installationId } = served;
+        const request = traffic.countIngress(scope, installationId, mounted.request);
+        const installed = { ...mounted, request };
+
+        // hand an installation the space's store serves to its package there
         if (this.#packages().some((handle) => handle.id === served.installation.packageId)) {
             const answered = await this.#store(served, installed, authentication);
 
-            return traffic.countResponse(served.scope, served.installationId, answered);
+            return traffic.countEgress(scope, installationId, answered);
         }
 
         // hand a request at an adapter its package declares to the newest deployment, as it speaks no release
@@ -499,7 +504,7 @@ export class Gateway {
                 called.authentication,
             );
 
-            return traffic.countResponse(served.scope, served.installationId, answered);
+            return traffic.countEgress(scope, installationId, answered);
         }
 
         // verify the caller for the installation's package and route the call to the deployment serving its release
@@ -511,7 +516,7 @@ export class Gateway {
             called.authentication,
         );
 
-        return traffic.countResponse(called.rollout.scope, called.rollout.installationId, answered);
+        return traffic.countEgress(called.rollout.scope, called.rollout.installationId, answered);
     }
 
     /** Hand a request below an installation's mount to its package in the store. */

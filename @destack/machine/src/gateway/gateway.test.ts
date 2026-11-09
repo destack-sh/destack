@@ -336,8 +336,8 @@ test("count each request an installation serves and the bytes its responses stre
             new Request("http://notes.test/", { headers: { [VERSION_HEADER]: "2026.9.0" } }),
             personAt(space.machine.clock.now()),
         );
-    const read = traffic.countResponse(ids.space, ids.notes, await call());
-    const unread = traffic.countResponse(ids.space, ids.notes, await call());
+    const read = traffic.countEgress(ids.space, ids.notes, await call());
+    const unread = traffic.countEgress(ids.space, ids.notes, await call());
     const body = await read.text();
     const first = traffic.take();
     const rest = await unread.text();
@@ -346,10 +346,10 @@ test("count each request an installation serves and the bytes its responses stre
 
     // count the requests and each response's bytes, tracing no work
     const bytes = new TextEncoder().encode(body).byteLength;
-    const counted = { scope: ids.space, installation: ids.notes, cpuMilliseconds: 0 };
+    const counted = { scope: ids.space, installation: ids.notes, cpuMilliseconds: 0, ingress: 0 };
     expect({ first, second, third, isSame: rest === body }).toEqual({
-        first: [{ ...counted, requests: 2, bytes }],
-        second: [{ ...counted, requests: 0, bytes }],
+        first: [{ ...counted, requests: 2, egress: bytes }],
+        second: [{ ...counted, requests: 0, egress: bytes }],
         third: [],
         isSame: true,
     });

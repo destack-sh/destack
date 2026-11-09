@@ -1,4 +1,4 @@
-import { cpu, egress, requests } from "@destack/telemetry/meter";
+import { computeOperation, computeTime, networkTransfer } from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { Traffic } from "./traffic.ts";
@@ -11,19 +11,23 @@ const INSTALLATION = schema
     .identifier("installation")
     .parse("installation-01996ab0-0000-7000-8000-0000000000b2");
 
-test("read a take's requests, CPU time and egress on the compute and network meters, leaving out zeros", async () => {
-    // serve two requests streaming three bytes, and trace the space's own work
+test("read a take's requests, CPU time and transfer each way on the compute and network meters, leaving out zeros", async () => {
+    // serve two requests, one sending five bytes in and one streaming three bytes out, and trace the space's own work
     const traffic = new Traffic();
     traffic.countRequest(SPACE, INSTALLATION);
     traffic.countRequest(SPACE, INSTALLATION);
-    await traffic.countResponse(SPACE, INSTALLATION, new Response("abc")).text();
+    const sent = new Request("https://space.test/notes", { method: "POST", body: "hello" });
+    await traffic.countIngress(SPACE, INSTALLATION, sent).text();
+    await traffic.countEgress(SPACE, INSTALLATION, new Response("abc")).text();
     traffic.countTrace(SPACE, { cpuMilliseconds: 4 });
 
-    // read each number on its meter, by installation or by space
+    // read each number on its meter and attributes, by installation or by space
+    const by = { scope: SPACE, installation: INSTALLATION };
     expect(Traffic.readings(traffic.take())).toEqual([
-        { meter: requests, scope: SPACE, installation: INSTALLATION, value: 2 },
-        { meter: cpu, scope: SPACE, value: 4 },
-        { meter: egress, scope: SPACE, installation: INSTALLATION, value: 3 },
+        { meter: computeOperation, attributes: {}, ...by, value: 2 },
+        { meter: computeTime, attributes: {}, scope: SPACE, value: 4 },
+        { meter: networkTransfer, attributes: { direction: "ingress" }, ...by, value: 5 },
+        { meter: networkTransfer, attributes: { direction: "egress" }, ...by, value: 3 },
     ]);
 });
 
@@ -50,7 +54,13 @@ test("count the process CPU time of an instance's delta metrics export on the co
         ["BAD_REQUEST", "POINT_WITHOUT_VALUE", "a point of process.cpu.time has no value"],
     ]);
     expect(Traffic.readings(traffic.take())).toEqual([
-        { meter: cpu, scope: SPACE, installation: INSTALLATION, value: 4.5 },
+        {
+            meter: computeTime,
+            attributes: {},
+            scope: SPACE,
+            installation: INSTALLATION,
+            value: 4.5,
+        },
     ]);
 });
 

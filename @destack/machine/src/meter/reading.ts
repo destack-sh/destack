@@ -10,18 +10,20 @@ import {
     or,
     Snapshot,
 } from "@destack/db";
-import type { Meter } from "@destack/telemetry/meter";
+import type { Meter, MeterAttributes } from "@destack/telemetry/meter";
 import { Duration, type Identifier, present, schema } from "@destack/schema";
 import { bucket, database, deployment, instance, reading, usage } from "@destack/stack/object";
 import { EventTime } from "@destack/event";
 import type { Crypto } from "@destack/environment";
 import { RequestId } from "@destack/sync";
-import { databaseBytes, memory, storageBytes } from "@destack/telemetry/meter";
+import { bucketUsage, computeUsage, databaseUsage } from "@destack/telemetry/meter";
 
 /** A machine's reading of one meter in a space. */
 export interface Reading {
     /** The meter read. */
     readonly meter: Meter;
+    /** The value of each of the meter's attributes, such as direction read. */
+    readonly attributes: MeterAttributes;
     /** The space measured. */
     readonly scope: Identifier<"space">;
     /** The installation using the resource. */
@@ -31,7 +33,7 @@ export interface Reading {
 }
 
 /** A machine's count of some work in a space since it last measured. */
-export type Count = Omit<Reading, "meter">;
+export type Count = Omit<Reading, "meter" | "attributes">;
 
 /** The readings a machine takes from its spaces' records. */
 export const Reading = {
@@ -75,7 +77,7 @@ export const Reading = {
             );
             const value = Duration.seconds({ milliseconds }) * gigabytes;
 
-            return { meter: memory, scope, installation, value };
+            return { meter: computeUsage, attributes: {}, scope, installation, value };
         });
     },
 
@@ -96,7 +98,8 @@ export const Reading = {
 
         return Promise.all(
             rows.map(async (row) => ({
-                meter: databaseBytes,
+                meter: databaseUsage,
+                attributes: {},
                 scope: row.scope,
                 ...applicationOf(row, applications),
                 value: await bytes(present(row.reference, "a provisioned database's reference")),
@@ -106,7 +109,7 @@ export const Reading = {
 
     /** Read the bytes of the object a machine stores a space in, as the space's own databases. */
     async space(scope: Identifier<"space">, bytes: () => Promise<number>): Promise<Reading[]> {
-        return [{ meter: databaseBytes, scope, value: await bytes() }];
+        return [{ meter: databaseUsage, attributes: {}, scope, value: await bytes() }];
     },
 
     /** Read the bytes of each installation's databases, by installation. */
@@ -133,7 +136,8 @@ export const Reading = {
         // read each installation's bytes
         return Promise.all(
             owners.map(async ({ scope, installation }) => ({
-                meter: databaseBytes,
+                meter: databaseUsage,
+                attributes: {},
                 scope,
                 installation,
                 value: await bytes({ scope, installationId: installation }),
@@ -141,9 +145,9 @@ export const Reading = {
         );
     },
 
-    /** Read a machine's counts on a meter, such as rows read or CPU milliseconds. */
-    counted(meter: Meter, counts: readonly Count[]): Reading[] {
-        return counts.map((count) => ({ ...count, meter }));
+    /** Read a machine's counts on a meter at some attribute values, such as rows read. */
+    counted(meter: Meter, attributes: MeterAttributes, counts: readonly Count[]): Reading[] {
+        return counts.map((count) => ({ ...count, meter, attributes }));
     },
 
     /** Read the bytes of each space's provisioned buckets, by bucket. */
@@ -163,7 +167,8 @@ export const Reading = {
 
         return Promise.all(
             rows.map(async (row) => ({
-                meter: storageBytes,
+                meter: bucketUsage,
+                attributes: {},
                 scope: row.scope,
                 ...applicationOf(row, applications),
                 value: await bytes(row.id),

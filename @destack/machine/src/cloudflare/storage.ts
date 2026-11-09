@@ -7,7 +7,7 @@ import type * as Cloudflare from "@cloudflare/workers-types";
 import { Entitlement } from "@destack/account/object";
 import { SettingValue } from "@destack/setting/object";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
-import { rowsRead, rowsWritten, storageReads, storageWrites } from "@destack/telemetry/meter";
+import { bucketOperation, databaseOperation } from "@destack/telemetry/meter";
 import {
     DurableObjectCatalogueStore,
     R2BlobStorage,
@@ -379,10 +379,14 @@ export class DurableObjectVolume implements Volume {
 
         return [
             ...readings,
-            ...Reading.counted(rowsRead, reads),
-            ...Reading.counted(rowsWritten, writes),
-            ...Reading.counted(storageWrites, [{ scope: space, value: operations.classA }]),
-            ...Reading.counted(storageReads, [{ scope: space, value: operations.classB }]),
+            ...Reading.counted(databaseOperation, { direction: "read" }, reads),
+            ...Reading.counted(databaseOperation, { direction: "write" }, writes),
+            ...Reading.counted(bucketOperation, { direction: "write" }, [
+                { scope: space, value: operations.classA },
+            ]),
+            ...Reading.counted(bucketOperation, { direction: "read" }, [
+                { scope: space, value: operations.classB },
+            ]),
             ...Traffic.readings(taken),
         ];
     }

@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import { EventTime } from "@destack/event";
 import { reading } from "@destack/stack/object";
-import { databaseBytes, memory } from "@destack/telemetry/meter";
+import { computeUsage, databaseUsage } from "@destack/telemetry/meter";
 import { Identifier, Text } from "@destack/schema";
 import { TestSpace } from "@destack/stack/test";
 import { expect, test } from "@destack/test";
@@ -47,8 +47,8 @@ const MEMORY_SKU = "package-019f5530-8000-7000-8000-000000000402/test.memory";
 
 /** The SKU rating each meter on the test's machine, by the meter's key. */
 const SKUS = new Map([
-    [DeclarationReference.key(databaseBytes.reference), DATABASE_SKU],
-    [DeclarationReference.key(memory.reference), MEMORY_SKU],
+    [databaseUsage.key({}), DATABASE_SKU],
+    [computeUsage.key({}), MEMORY_SKU],
 ]);
 
 test("append a space's use as readings each round, measuring a failed round in the next and resuming after a restart from the latest reading", async () => {
@@ -65,13 +65,19 @@ test("append a space's use as readings each round, measuring a failed round in t
     // measure, fail once, measure again, then measure after a restart
     const rounds: (readonly Reading[] | Error)[] = [
         [
-            { meter: databaseBytes, scope: spaceId, value: 2_000_000_000 },
-            { meter: memory, scope: spaceId, installation: notes, value: 100 },
+            { meter: databaseUsage, attributes: {}, scope: spaceId, value: 2_000_000_000 },
+            {
+                meter: computeUsage,
+                attributes: {},
+                scope: spaceId,
+                installation: notes,
+                value: 100,
+            },
         ],
         [],
         new Error("the machine's records are unreachable"),
-        [{ meter: memory, scope: spaceId, installation: notes, value: 50 }],
-        [{ meter: databaseBytes, scope: spaceId, value: 1_000_000_000 }],
+        [{ meter: computeUsage, attributes: {}, scope: spaceId, installation: notes, value: 50 }],
+        [{ meter: databaseUsage, attributes: {}, scope: spaceId, value: 1_000_000_000 }],
     ];
     const measured: [number, number][] = [];
     const options = {
@@ -107,7 +113,7 @@ test("append a space's use as readings each round, measuring a failed round in t
 
     // record each reading once, a level as constant over its interval
     const read = async (
-        meter: typeof memory,
+        meter: typeof computeUsage,
         sku: string,
         installation: string | null,
         to: number,
@@ -154,11 +160,11 @@ test("append a space's use as readings each round, measuring a failed round in t
         ],
         failed: "the machine's records are unreachable",
         logged: [
-            await read(databaseBytes, DATABASE_SKU, null, METER_START, 0, 2e9),
-            await read(memory, MEMORY_SKU, notes, METER_START, 100, null),
-            await read(memory, MEMORY_SKU, notes, METER_START + 4 * MINUTE, 50, null),
+            await read(databaseUsage, DATABASE_SKU, null, METER_START, 0, 2e9),
+            await read(computeUsage, MEMORY_SKU, notes, METER_START, 100, null),
+            await read(computeUsage, MEMORY_SKU, notes, METER_START + 4 * MINUTE, 50, null),
             await read(
-                databaseBytes,
+                databaseUsage,
                 DATABASE_SKU,
                 null,
                 METER_START + 5 * MINUTE,
@@ -186,7 +192,7 @@ test("read nothing while a space idles, then its use a minute into its next traf
         measure: async (from, to) => {
             measured.push([from, to]);
 
-            return [{ meter: databaseBytes, scope: spaceId, value: 1_000_000_000 }];
+            return [{ meter: databaseUsage, attributes: {}, scope: spaceId, value: 1_000_000_000 }];
         },
     });
     await meters.read();
