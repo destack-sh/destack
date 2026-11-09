@@ -58,6 +58,6 @@
         "reflect-metadata": "0.2.2",
         "rolldown": "1.2.16",
         "tuf-js": "6.0.0",
-        "wrangler": "4.134.0"
+        "wrangler": "4.158.0"
     }
 }
