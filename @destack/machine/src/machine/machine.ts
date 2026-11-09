@@ -184,6 +184,8 @@ export class Machine {
     readonly alarm: Alarm | undefined;
     /** Load the server a build exports into the machine's process, absent for none. */
     readonly server: (manifest: Digest) => Promise<PackageImplementation | undefined>;
+    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    readonly trusted: ReadonlySet<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The key of the SKU rating each meter of the spaces, by the meter's key, absent unbilled. */
@@ -244,6 +246,9 @@ export class Machine {
         this.alarm = options.alarm;
         this.server = options.server;
         this.linked = options.linked;
+        this.trusted = new Set(
+            [...options.shipped, ...options.linked.values()].map((release) => release.manifest),
+        );
         this.skus = options.skus;
 
         // set where peers call the machine and how it verifies and reports

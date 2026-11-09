@@ -1,3 +1,4 @@
+import { Observation } from "@destack/object";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { type Environment, type FileSystem, FileSystemError } from "@destack/environment";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -443,7 +444,7 @@ export class TestComputer implements AsyncDisposable {
                   };
         const computer = await Computer.start({
             // run instances in this process on the world's clock and network, deterministic under simulation
-            isolation: "process",
+            isolation: "host",
             registry: FORGE_INSTALLATION,
             environment,
             directory,
@@ -738,6 +739,7 @@ export class TestComputer implements AsyncDisposable {
         spaceId: Identifier<"space">,
         build: BuildReader,
         name: string,
+        options: { readonly isolation?: "sandbox" | "host" } = {},
     ): Promise<Installation> {
         // install the build's release as the person
         const released = PackageManifest.package(build.manifest);
@@ -758,6 +760,7 @@ export class TestComputer implements AsyncDisposable {
             packageId: released.id,
             selection: { kind: "release", version: released.version },
             name,
+            ...options,
         });
 
         // wait until the space applies it, naming its conditions when it does not
@@ -773,17 +776,30 @@ export class TestComputer implements AsyncDisposable {
 
             return row;
         };
-        const applied = async () => {
+        const settled = async () => {
             const row = await read();
+            const isApplied =
+                row?.appliedRevisionId !== null && row?.appliedRevisionId !== undefined;
 
-            return row?.appliedRevisionId !== null && row?.appliedRevisionId !== undefined;
+            return (
+                isApplied ||
+                (row !== undefined && Observation.progress(row.installation) === "failed")
+            );
         };
-        await this.waitUntil(database, applied, INSTALL_MILLISECONDS).catch(
+        await this.waitUntil(database, settled, INSTALL_MILLISECONDS).catch(
             async (error: unknown) => {
                 const conditions = JSON.stringify((await read())?.installation.conditions);
                 throw this.#failure(`${name} did not apply: ${conditions}`, error);
             },
         );
+
+        // refuse an installation whose rollout failed for good, with its conditions
+        const row = await read();
+        if (row !== undefined && Observation.progress(row.installation) === "failed") {
+            throw new TypeError(
+                `${name} failed to apply: ${Observation.message(row.installation)}`,
+            );
+        }
 
         return await service.installation.get({ scope: spaceId, id: created.id });
     }

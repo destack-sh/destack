@@ -933,3 +933,31 @@ test(
         expect(served.computer.reports).toEqual([]);
     },
 );
+
+test(
+    "refuse a package the machine neither ships nor links in its process, its installation serving nothing",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // publish the board, which no machine ships, and install it in process on a computer
+        const { home, organizations } = await TestComputer.home({ organizations: [PUBLISHER] });
+        const { world } = home;
+        const served = await openComputer(world, found(organizations, PUBLISHER.handle), "board");
+        const { computer, login, space } = served;
+        const build = await WorldDriver.fixture("board");
+        await world.distribution.publish(build, await world.universe.operator(), home.machine);
+        const refused = await computer
+            .install(login.id, space, build, "board", { isolation: "host" })
+            .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
+
+        // fail the rollout for good, reporting why once, and serve nothing of the board in the machine's process
+        const message =
+            "@destack/machine-board-fixture runs on the host, which only releases the machine ships or links may";
+        expect({
+            refused,
+            captured: world.telemetry.take().map((captured) => captured.message),
+        }).toEqual({
+            refused: `board failed to apply: @destack/stack PROCESS_ISOLATION_UNTRUSTED: ${message}`,
+            captured: [message],
+        });
+    },
+);

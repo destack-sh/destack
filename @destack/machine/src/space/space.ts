@@ -158,6 +158,7 @@ export class Space {
                 send: (request) => machine.send(request),
                 builds,
                 linked: machine.linked,
+                trusted: machine.trusted,
             };
             const space = new Space({
                 machine,

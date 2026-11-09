@@ -56,7 +56,7 @@ process.stdout.write(JSON.stringify((await exported(...input)) ?? null));
 type HostedWorkload = Pick<BunWorkload, "start">;
 
 /** How a runtime isolates its runners: in sandboxed processes, or in this process. */
-export type BunIsolation = "sandbox" | "process";
+export type BunIsolation = "sandbox" | "host";
 
 /** A runner of one instance. */
 interface Runner {

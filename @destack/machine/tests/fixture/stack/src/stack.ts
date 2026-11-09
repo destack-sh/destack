@@ -19,27 +19,27 @@ export const platformVault = defineVault({ name: "platform", spec: {} });
 export const HOME_STACK = defineStack([vaultPackage], {
     vaults: { credentials: connectionVault.declare() },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
             connectionPackage,
             { credentials: "credentials" },
-            { isolation: "process", name: CONNECTION_INSTALLATION },
+            { isolation: "host", name: CONNECTION_INSTALLATION },
         ),
         start: install(startPackage, {}, { name: "start" }),
         message: install(
             messagePackage,
             {},
-            { isolation: "process", name: "message", capabilities: ["deliver"] },
+            { isolation: "host", name: "message", capabilities: ["deliver"] },
         ),
         inbox: install(
             notificationPackage,
             {},
-            { isolation: "process", name: "inbox", capabilities: ["deliver"] },
+            { isolation: "host", name: "inbox", capabilities: ["deliver"] },
         ),
         observability: install(
             observabilityPackage,
             {},
-            { isolation: "process", name: "observability" },
+            { isolation: "host", name: "observability" },
         ),
     },
 });
@@ -50,7 +50,7 @@ export const SPACE_STACK = defineStack([], {
         observability: install(
             observabilityPackage,
             {},
-            { isolation: "process", name: "observability" },
+            { isolation: "host", name: "observability" },
         ),
     },
 });
@@ -65,7 +65,7 @@ export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStora
         "github-private-key": { parent: "platform", name: "github-private-key" },
     },
     installations: {
-        vault: install(vaultPackage, {}, { isolation: "process", name: "vault" }),
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         forge: install(
             forgePackage,
             {
@@ -74,7 +74,7 @@ export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStora
                 "github-webhook": "github-webhook",
                 "github-private-key": "github-private-key",
             },
-            { isolation: "process", name: "forge" },
+            { isolation: "host", name: "forge" },
         ),
     },
 });
