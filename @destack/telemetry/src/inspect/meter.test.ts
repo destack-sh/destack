@@ -13,7 +13,13 @@ const storage = Package.parse({
 
 /** The requests the storage package serves. */
 const requests = defineMeter(
-    { name: "api.requests", description: "API requests.", aggregation: "sum", unit: "request" },
+    {
+        name: "api.requests",
+        description: "API requests.",
+        aggregation: "sum",
+        unit: "request",
+        attributes: {},
+    },
     { package: storage },
 );
 
