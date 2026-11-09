@@ -2,6 +2,7 @@ import { join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Environment, FileSystem } from "@destack/environment";
 import { writeIgnore } from "./format.ts";
+import { selectFiles } from "./selection.ts";
 import { readExpectations, applyExpectations } from "./expectation.ts";
 import {
     checkConfiguration,
@@ -55,7 +56,7 @@ async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckRe
     await checkConfiguration(directory, files, options.plugins);
 
     // require every selected path
-    const selection = options.files ?? ["src"];
+    const selection = await selectFiles(options);
     for (const entry of selection) {
         if (!(await files.exists(resolve(directory, entry)))) {
             throw CheckError.of("CONFIGURATION_INVALID", `selected path does not exist: ${entry}`);
@@ -193,7 +194,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
                 "json",
                 ...(fix ? ["--fix"] : []),
                 "--",
-                ...(options.files ?? ["src"]).map((file) => resolve(options.directory, file)),
+                ...(await selectFiles(options)).map((file) => resolve(options.directory, file)),
             ],
             options.directory,
             options.environment,

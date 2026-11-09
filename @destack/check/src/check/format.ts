@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { checkConfiguration, formatConfiguration } from "./configuration.ts";
 import type { CheckOptions } from "./index.ts";
 import { runTool, type ToolResult } from "./tool.ts";
+import { selectFiles } from "./selection.ts";
 import { Toolchain } from "../toolchain/index.ts";
 import { CheckError } from "../error/index.ts";
 
@@ -61,7 +62,7 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
                 ignore,
                 write ? "--write" : "--check",
                 "--",
-                ...(options.files ?? ["src"]).map((file) => resolve(options.directory, file)),
+                ...(await selectFiles(options)).map((file) => resolve(options.directory, file)),
             ],
             resolve(options.directory),
             options.environment,
