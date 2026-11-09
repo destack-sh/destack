@@ -614,6 +614,7 @@ test("refuse an empty cache directory the environment sets for the person's stor
             id: 1,
             userId: host.process.userId,
             executable: host.process.executable,
+            script: host.process.script,
             runtime: host.process.runtime,
         },
     });

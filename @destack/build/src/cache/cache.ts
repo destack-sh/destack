@@ -81,7 +81,7 @@ export class Toolchain {
 
     /** Identify the npm conversion by its executable, else Bun, its modules and their releases. */
     async #identifyConversion(): Promise<Digest> {
-        // identify a standalone executable by its bytes, as its toolchain
+        // identify a release's conversion as its toolchain
         if (this.environment.process.runtime.isStandalone) {
             return await this.digest();
         }
@@ -107,15 +107,13 @@ export class Toolchain {
         );
     }
 
-    /** Identify the toolchain by its executable, else Bun, TypeScript and the compiler. */
+    /** Identify the toolchain by its runtime and bundle, else Bun, TypeScript and the compiler. */
     async #identifyToolchain(): Promise<Digest> {
-        // identify a standalone executable by its bytes
-        if (this.environment.process.runtime.isStandalone) {
+        // identify a release's compiler by its runtime's build and its program's bundle
+        const { runtime, script } = this.environment.process;
+        if (runtime.isStandalone) {
             return await Digest.json(
-                {
-                    layout: KEY_LAYOUT,
-                    executable: await this.#file(this.environment.process.executable),
-                },
+                { layout: KEY_LAYOUT, bun: runtime.revision, program: await this.#file(script) },
                 this.environment.crypto,
             );
         }
