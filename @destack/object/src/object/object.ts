@@ -200,19 +200,12 @@ const FOREIGN_REFUSED = [
 const DERIVED_NAMESPACE: Uuid = "9b6e4f12-7a3c-8d51-b2e8-4c0f6a9d3e57";
 
 /** The kinds of the methods that write only an object's access rows. */
-export const ACCESS_KINDS: ReadonlySet<MethodKind> = new Set([
-    "grant",
-    "revoke",
-    "invite",
-    "accept",
-    "withdraw",
-]);
+export const ACCESS_KINDS: ReadonlySet<MethodKind> = new Set(["grant", "revoke"]);
 
-/** The kinds of the methods sharing an object's row through its relationships and invitations. */
+/** The kinds of the methods sharing an object's row through its relationships. */
 const SHARING_KINDS: ReadonlySet<MethodKind> = new Set([
     ...ACCESS_KINDS,
     "relationships",
-    "invitations",
     "explain",
 ]);
 

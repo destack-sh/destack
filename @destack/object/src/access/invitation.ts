@@ -1,8 +1,8 @@
 import * as access from "@destack/access";
 import { accessInvitation, Invitation, INVITATION_PAGE } from "@destack/access";
-import { InvitationFields, InviteInput, InviteFields } from "../trait/shareable.ts";
+import { InviteInput, InviteFields } from "../trait/shareable.ts";
 import { Page } from "../method/page.ts";
-import { ListPage, PageFields } from "../method/procedure.ts";
+import { Empty, ListPage, PageFields } from "../method/procedure.ts";
 import { ObjectReference } from "@destack/sync";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
@@ -14,9 +14,6 @@ import { ObjectPolicy } from "../object/access.ts";
 /** An invitation to create: its object, the relationship it offers, and why. */
 const InvitationInput = schema.object({ object: ObjectReference, ...InviteFields });
 
-/** One invitation to an object, by its identifier. */
-const InvitationKey = schema.object({ object: ObjectReference, ...InvitationFields });
-
 /** A page of an object's pending invitations, at most access's page. */
 const InvitationListing = schema.object({
     object: ObjectReference,
@@ -24,7 +21,7 @@ const InvitationListing = schema.object({
     limit: schema.number().int().min(1).max(INVITATION_PAGE).exactOptional(),
 });
 
-/** The invitations of a scope, answered through sharing methods. */
+/** The invitations to a scope's objects: created, listed, accepted and withdrawn by identifier. */
 export const invitation = defineObject(
     {
         name: "invitation",
@@ -63,6 +60,7 @@ export const invitation = defineObject(
                 const relationship = { ...offered, object };
                 const store = Execution.store(execution, context);
                 await ObjectPolicy.requireScope(context, relationship, store);
+                await ObjectPolicy.requireObject(object, { deleted: "exclude" }, store);
 
                 return Invitation.create({ ...details, relationship }, store.authorization);
             },
@@ -70,67 +68,77 @@ export const invitation = defineObject(
         accept: defineMethod<{
             kind: "custom";
             permission: "read";
-            input: typeof InvitationKey;
+            input: typeof Empty;
             output: typeof access.Relationship.schema;
             mutates: true;
-            target: "scope";
+            target: "object";
             table: typeof accessInvitation;
         }>({
             kind: "custom",
             permission: "read",
-            input: InvitationKey,
+            input: Empty,
             output: access.Relationship.schema,
             mutates: true,
-            target: "scope",
+            target: "object",
             result: "value",
             isPredicted: false,
             procedure: (_name, schemas) => ({
-                route: { method: "POST", path: "/{invitationId}/accept" },
-                input: schemas.scope.extend({ ...schemas.replay, ...InvitationKey.shape }),
+                route: { method: "POST", path: "/{id}/accept" },
+                input: schemas.target.extend(schemas.replay),
                 output: access.Relationship.schema,
             }),
-            handler: (context, execution) => {
-                // accept as the caller
-                const { object, invitationId } = InvitationKey.parse(context.input);
-
-                return Invitation.accept(
-                    object,
-                    invitationId,
-                    Execution.store(execution, context).authorization,
+            handler: async (context, execution) => {
+                // accept as the caller, on an object outside the trash
+                const store = Execution.store(execution, context);
+                const { relationship } = await Invitation.read(
+                    store.transaction,
+                    context.target.id,
                 );
+                await ObjectPolicy.requireObject(
+                    relationship.object,
+                    { deleted: "exclude" },
+                    store,
+                );
+
+                return Invitation.accept(context.target.id, store.authorization);
             },
         }),
         delete: defineMethod<{
             kind: "custom";
             permission: "read";
-            input: typeof InvitationKey;
+            input: typeof Empty;
             output: typeof access.Invitation.schema;
             mutates: true;
-            target: "scope";
+            target: "object";
             table: typeof accessInvitation;
         }>({
             kind: "custom",
             permission: "read",
-            input: InvitationKey,
+            input: Empty,
             output: access.Invitation.schema,
             mutates: true,
-            target: "scope",
+            target: "object",
             result: "value",
             isPredicted: false,
             procedure: (_name, schemas) => ({
-                route: { method: "DELETE", path: "/{invitationId}" },
-                input: schemas.scope.extend({ ...schemas.replay, ...InvitationKey.shape }),
+                route: { method: "DELETE", path: "/{id}" },
+                input: schemas.target.extend(schemas.replay),
                 output: access.Invitation.schema,
             }),
-            handler: (context, execution) => {
-                // withdraw as its inviter, its addressee or a granter
-                const { object, invitationId } = InvitationKey.parse(context.input);
-
-                return Invitation.withdraw(
-                    object,
-                    invitationId,
-                    Execution.store(execution, context).authorization,
+            handler: async (context, execution) => {
+                // withdraw as its inviter, its addressee or a granter, on any object that exists
+                const store = Execution.store(execution, context);
+                const { relationship } = await Invitation.read(
+                    store.transaction,
+                    context.target.id,
                 );
+                await ObjectPolicy.requireObject(
+                    relationship.object,
+                    { deleted: "include" },
+                    store,
+                );
+
+                return Invitation.withdraw(context.target.id, store.authorization);
             },
         }),
         list: defineMethod<{

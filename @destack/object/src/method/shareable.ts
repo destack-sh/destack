@@ -1,7 +1,6 @@
 import type { InputObject } from "./input.ts";
 import { ObjectError } from "../error/error.ts";
-import { AccessContext, Caller, Explanation, Invitation, Relationship } from "@destack/access";
-import { type Row } from "@destack/db";
+import { AccessContext, Caller, Explanation, Relationship } from "@destack/access";
 import { schema } from "@destack/schema";
 import { CallError } from "../error/call.ts";
 import { Page } from "./page.ts";
@@ -18,17 +17,10 @@ import {
     ListPage,
 } from "./procedure.ts";
 import { type ObjectType } from "../object/object.ts";
+import { ObjectPolicy } from "../object/access.ts";
 import type { SharingGate } from "../trait/shareable.ts";
 
-import {
-    GrantFields,
-    readGrant,
-    InviteFields,
-    InviteInput,
-    RelationshipFields,
-    ExplainFields,
-    InvitationFields,
-} from "../trait/shareable.ts";
+import { GrantFields, readGrant, RelationshipFields, ExplainFields } from "../trait/shareable.ts";
 import { Execution, type StoreExecution } from "./execution.ts";
 
 import type {} from "@destack/package/import-meta";
@@ -76,16 +68,20 @@ export const ShareableMethod = {
                 { method: "POST", path: "/{id}/relationships" },
                 (schemas) => schemas.target.extend({ ...schemas.replay, ...GrantFields }),
                 Relationship.schema,
-                async (call, { authorization }) => {
+                async (call, execution) => {
                     // grant only on an object outside the trash
-                    await ShareableMethod.requirePresent(call, "live");
+                    await ObjectPolicy.requireObject(
+                        call.reference(),
+                        { deleted: "exclude" },
+                        execution,
+                    );
 
                     return Relationship.grant(
                         {
                             ...readGrant(call.input),
                             object: call.reference(),
                         },
-                        authorization,
+                        execution.authorization,
                     );
                 },
                 (step) => {
@@ -108,74 +104,20 @@ export const ShareableMethod = {
                 { method: "DELETE", path: "/{id}/relationships/{relationshipId}" },
                 (schemas) => schemas.target.extend({ ...schemas.replay, ...RelationshipFields }),
                 Empty,
-                async (call, { authorization }) => {
+                async (call, execution) => {
                     // revoke on any object that exists, in the trash too
-                    await ShareableMethod.requirePresent(call, "stored");
+                    await ObjectPolicy.requireObject(
+                        call.reference(),
+                        { deleted: "include" },
+                        execution,
+                    );
                     await Relationship.revoke(
                         call.reference(),
                         schema.object(RelationshipFields).parse(call.input).relationshipId,
-                        authorization,
+                        execution.authorization,
                     );
 
                     return {};
-                },
-            ),
-            invitations: ShareableMethod.sharingMethod(
-                "invitations",
-                { permission: grant, mutates: false },
-                { method: "GET", path: "/{id}/invitations" },
-                (schemas) => schemas.target.extend(PageFields),
-                ListPage.schema(Invitation.schema),
-                async (call, { authorization }) => {
-                    // page the object's invitations by identifier
-                    const listing = ShareableMethod.sharingPage(call, "invitations");
-                    const invitations = await Invitation.list(
-                        { object: call.reference() },
-                        {
-                            ...(listing.after === undefined ? {} : { after: listing.after }),
-                            limit: listing.limit,
-                        },
-                        authorization,
-                    );
-
-                    return listing.result(invitations, (invitation) => invitation.id);
-                },
-            ),
-            invite: ShareableMethod.sharingMethod(
-                "invite",
-                { permission: grant, mutates: true },
-                { method: "POST", path: "/{id}/invitations" },
-                (schemas) => schemas.target.extend({ ...schemas.replay, ...InviteFields }),
-                Invitation.schema,
-                async (call, { authorization }) => {
-                    // invite to the relationship on an object outside the trash
-                    await ShareableMethod.requirePresent(call, "live");
-                    const { relationship, ...invitation } = InviteInput.parse(call.input);
-
-                    return Invitation.create(
-                        {
-                            ...invitation,
-                            relationship: { ...relationship, object: call.reference() },
-                        },
-                        authorization,
-                    );
-                },
-            ),
-            accept: ShareableMethod.sharingMethod(
-                "accept",
-                { permission: read, mutates: true },
-                { method: "POST", path: "/{id}/invitations/{invitationId}/accept" },
-                (schemas) => schemas.target.extend({ ...schemas.replay, ...InvitationFields }),
-                Relationship.schema,
-                async (call, { authorization }) => {
-                    // accept only on an object outside the trash
-                    await ShareableMethod.requirePresent(call, "live");
-
-                    return Invitation.accept(
-                        call.reference(),
-                        schema.object(InvitationFields).parse(call.input).invitationId,
-                        authorization,
-                    );
                 },
             ),
             explain: defineMethod<SharingConfiguration>({
@@ -193,24 +135,6 @@ export const ShareableMethod = {
                 handler: (context, execution) =>
                     ShareableMethod.explain(context, Execution.store(execution, context)),
             }),
-            withdraw: ShareableMethod.sharingMethod(
-                "withdraw",
-                { permission: grant, mutates: true },
-                { method: "DELETE", path: "/{id}/invitations/{invitationId}" },
-                (schemas) => schemas.target.extend({ ...schemas.replay, ...InvitationFields }),
-                Empty,
-                async (call, { authorization }) => {
-                    // withdraw on any object that exists, in the trash too
-                    await ShareableMethod.requirePresent(call, "stored");
-                    await Invitation.withdraw(
-                        call.reference(),
-                        schema.object(InvitationFields).parse(call.input).invitationId,
-                        authorization,
-                    );
-
-                    return {};
-                },
-            ),
         };
     },
 
@@ -298,27 +222,6 @@ export const ShareableMethod = {
         }
 
         return object.reading;
-    },
-
-    /** Require the given object to exist, outside the trash when live. */
-    async requirePresent(context: SharingContext, state: "live" | "stored"): Promise<void> {
-        // read the object
-        const [row]: readonly Row[] = await context
-            .read(context.object.table)
-            .findMany({ where: { id: context.id, scope: context.scope } });
-
-        // refuse a missing or trashed object
-        if (row === undefined) {
-            throw CallError.http("NOT_FOUND", {
-                message: `${context.object.name} ${context.id} not found`,
-            });
-        } else if (
-            state === "live" &&
-            row["deletedAt"] !== undefined &&
-            row["deletedAt"] !== null
-        ) {
-            throw ObjectError.of("OBJECT_TRASHED", `${context.object.name} is in the trash`);
-        }
     },
 
     /** Read the page a sharing listing asks for, bound to its object. */

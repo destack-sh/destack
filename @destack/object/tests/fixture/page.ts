@@ -1,5 +1,6 @@
 import { schema } from "@destack/schema";
 import { defineDatabase } from "@destack/db";
+import { invitation } from "../../src/access/index.ts";
 import { definePackage } from "@destack/object";
 import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
@@ -27,7 +28,7 @@ export const page = defineObject({
 });
 
 /** The package of pages, their trees, sharing, links, trash and sync. */
-export const pagesPackage = definePackage({ objects: { page } });
+export const pagesPackage = definePackage({ objects: { page, invitation } });
 
 /** The database of one space's pages. */
 export const pageDatabase = defineDatabase({

@@ -8,11 +8,9 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
     const access = "package-01a0c80b-614e-739e-a21a-66fd749e17ca";
     const user = { packageId: access, type: "user" };
     const methods = {
-        accept: "accept",
         archive: "custom",
         complete: "transition",
         create: "create",
-        withdraw: "withdraw",
         export: "custom",
         archiveAll: "custom",
         attach: "custom",
@@ -22,8 +20,6 @@ test("list the terms a task fixes in stored data: its type, relations, permissio
         get: "get",
         grant: "grant",
         list: "list",
-        invitations: "invitations",
-        invite: "invite",
         purge: "purge",
         relationships: "relationships",
         reopen: "transition",

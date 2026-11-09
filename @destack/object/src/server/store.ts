@@ -151,7 +151,6 @@ const TRASH_METHODS: ReadonlySet<MethodKind> = new Set([
     "restore",
     "purge",
     "relationships",
-    "invitations",
 ]);
 
 /** How long a request waits for its caller's watermarks: 5 s, above sub-second replica lag. */

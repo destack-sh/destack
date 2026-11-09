@@ -16,7 +16,9 @@ import {
     relation,
     through,
     none,
-    union, Caller } from "@destack/access";
+    union,
+    Caller,
+} from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
 import { defineResourceKind } from "@destack/resource";
@@ -414,11 +416,7 @@ test("refuse declarations that depend on themselves, also next to one depending 
                     store,
                 }),
         ),
-    ).toEqual([
-        "BAD_REQUEST",
-        "DECLARATION_CYCLIC",
-        "declarations of labels depend on themselves",
-    ]);
+    ).toEqual(["BAD_REQUEST", "DECLARATION_CYCLIC", "declarations of labels depend on themselves"]);
 });
 
 test("adopt a direct record into a declaration once, rewriting it, release it once, and refuse records another declaration manages, undeclared adoptions and declared releases", async () => {
@@ -540,11 +538,7 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
         adopted: ["welcome", null, "Welcome"],
         again: 0,
         refusals: [
-            [
-                "BAD_REQUEST",
-                "DECLARATION_INVALID",
-                "card welcome already declares another record",
-            ],
+            ["BAD_REQUEST", "DECLARATION_INVALID", "card welcome already declares another record"],
             [
                 "BAD_REQUEST",
                 "DECLARATION_INVALID",
@@ -555,11 +549,7 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
                 "DECLARATION_INVALID",
                 `card other adopts ${second.id} but does not declare other`,
             ],
-            [
-                "BAD_REQUEST",
-                "DECLARATION_INVALID",
-                "card welcome is both declared and released",
-            ],
+            ["BAD_REQUEST", "DECLARATION_INVALID", "card welcome is both declared and released"],
         ],
         released: [null, true, "Welcome"],
         releasedRevisions: [1, 0],

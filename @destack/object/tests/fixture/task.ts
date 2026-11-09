@@ -7,6 +7,7 @@ import { user } from "../schema.ts";
 import { space } from "./space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
+import { invitation } from "../../src/access/index.ts";
 
 /** A body of work in a space, planned by its members and followed by its viewers. */
 export const project = defineObject(
@@ -100,7 +101,7 @@ export const comment = defineObject(
 );
 
 /** Projects, tasks and comments, with their sharing and sync. */
-export const tasksPackage = definePackage({ objects: { project, task, comment } });
+export const tasksPackage = definePackage({ objects: { project, task, comment, invitation } });
 
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({

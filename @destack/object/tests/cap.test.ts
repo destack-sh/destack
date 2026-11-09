@@ -51,7 +51,11 @@ async function serveInstalledNotes(world: Environment) {
             .parse("installation-01996ab0-0000-7000-8000-000000000003"),
         name: "notes",
         scope: spaceId,
-        build: await MemoryBuild.write(new Map(), { role: "app", package: note.package }, world.crypto),
+        build: await MemoryBuild.write(
+            new Map(),
+            { role: "app", package: note.package },
+            world.crypto,
+        ),
         environment: world,
         resources: new ResourceContext(),
         fetch: (sent) => Promise.reject(new Error(`the notes reach no ${sent.url}`)),

@@ -299,7 +299,7 @@ test("derive the roles of a shared partition without sharing methods on its row,
     expect({
         relations: Object.keys(shared.policy.definition.relations).toSorted(),
         sharing: Object.keys(shared.methods).filter((name) =>
-            ["relationships", "grant", "revoke", "invite", "accept", "withdraw"].includes(name),
+            ["relationships", "grant", "revoke", "explain"].includes(name),
         ),
     }).toEqual({
         relations: ["commenter", "editor", "owner", "viewer"],

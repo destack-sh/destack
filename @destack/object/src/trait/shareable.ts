@@ -4,7 +4,6 @@ import {
     Explanation,
     permission,
     principal,
-    Invitation,
     relation,
     Relationship,
     through,
@@ -108,12 +107,6 @@ export const ExplainFields = {
     subject: Subject.exactOptional(),
 };
 
-/** The field selecting one invitation. */
-export const InvitationFields = {
-    /** The invitation's identifier. */
-    invitationId: schema.string().min(1),
-};
-
 /** The methods sharing derives from an object's grant permission. */
 export type ShareableMethodMap<Grant> = [Grant] extends [string]
     ? {
@@ -124,10 +117,6 @@ export type ShareableMethodMap<Grant> = [Grant] extends [string]
           }>;
           readonly grant: Method<{ kind: "grant"; permission: string; mutates: true }>;
           readonly revoke: Method<{ kind: "revoke"; permission: string; mutates: true }>;
-          readonly invitations: Method<{ kind: "invitations"; permission: Grant; mutates: false }>;
-          readonly invite: Method<{ kind: "invite"; permission: string; mutates: true }>;
-          readonly accept: Method<{ kind: "accept"; permission: string; mutates: true }>;
-          readonly withdraw: Method<{ kind: "withdraw"; permission: string; mutates: true }>;
           readonly explain: Method<{ kind: "explain"; permission: string; mutates: false }>;
       }
     : {};
@@ -355,22 +344,6 @@ export type ShareableProcedures<Object extends ObjectType> = {
     >;
     revoke: Procedure<
         schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof RelationshipFields>,
-        schema.Object<{}>
-    >;
-    invitations: Procedure<
-        schema.Object<TargetFields<Object> & typeof PageFields>,
-        ReturnType<typeof ListPage.schema<typeof Invitation.schema>>
-    >;
-    invite: Procedure<
-        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InviteFields>,
-        typeof Invitation.schema
-    >;
-    accept: Procedure<
-        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InvitationFields>,
-        typeof Relationship.schema
-    >;
-    withdraw: Procedure<
-        schema.Object<TargetFields<Object> & ReplayFields<Object> & typeof InvitationFields>,
         schema.Object<{}>
     >;
 };

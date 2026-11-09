@@ -96,23 +96,23 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     ]);
 
     // let a user ask to join, and plan once the owner accepts
-    const asked = await carol.project.invite({
-        spaceId,
-        id: launch.id,
+    const launched = project.reference(spaceId, launch.id);
+    const asked = await carol.invitation.create({
+        scope: spaceId,
         requestId: RequestId.create(world),
+        object: launched,
         relationship: { relation: "member", subject: person(users.carol) },
         purpose: "help with the launch",
     });
     expect(
-        (await alice.project.invitations({ spaceId, id: launch.id })).items.map(
+        (await alice.invitation.list({ scope: spaceId, object: launched })).items.map(
             (invitation) => invitation.purpose,
         ),
     ).toEqual(["help with the launch"]);
-    await alice.project.accept({
-        spaceId,
-        id: launch.id,
+    await alice.invitation.accept({
+        scope: spaceId,
+        id: asked.id,
         requestId: RequestId.create(world),
-        invitationId: asked.id,
     });
     const listed = await carol.task.list({
         spaceId,

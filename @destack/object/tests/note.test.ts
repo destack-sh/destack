@@ -143,14 +143,11 @@ test("store notes private until shared, move them between notebooks and sync the
         ),
     ).toEqual(["CONFLICT", "OBJECT_TRASHED", "note is in the trash"]);
 
-    // list and withdraw the trashed note's relationships and invitations
-    expect([
-        await alice.note.relationships({ spaceId, id: loose.id }),
-        await alice.note.invitations({ spaceId, id: loose.id }),
-    ]).toEqual([
-        { items: [], cursor: null },
-        { items: [], cursor: null },
-    ]);
+    // list the trashed note's relationships
+    expect(await alice.note.relationships({ spaceId, id: loose.id })).toEqual({
+        items: [],
+        cursor: null,
+    });
     await alice.note.restore({
         spaceId,
         id: loose.id,

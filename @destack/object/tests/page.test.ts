@@ -268,20 +268,19 @@ test("share page trees with members and links, and move pages within them", asyn
     ]);
 
     // let a reader ask for editing, and edit once the owner accepts
-    const request = await carol.page.invite({
-        spaceId,
-        id: handbook.id,
+    const request = await carol.invitation.create({
+        scope: spaceId,
         requestId: RequestId.create(world),
+        object: page.reference(spaceId, handbook.id),
         relationship: {
             relation: "editor",
             subject: principal.user.reference("universe", users.carol),
         },
     });
-    await alice.page.accept({
-        spaceId,
-        id: handbook.id,
+    await alice.invitation.accept({
+        scope: spaceId,
+        id: request.id,
         requestId: RequestId.create(world),
-        invitationId: request.id,
     });
     const renamed = await carol.page.update({
         spaceId,

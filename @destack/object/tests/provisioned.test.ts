@@ -20,12 +20,7 @@ import { unreachablePlan } from "@destack/resource/error";
 import { Digest, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 
-import {
-    CONSUMER,
-    defineObject,
-    type ObjectType,
-    type Resource,
-} from "../src/index.ts";
+import { CONSUMER, defineObject, type ObjectType, type Resource } from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";

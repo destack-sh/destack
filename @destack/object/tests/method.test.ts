@@ -31,6 +31,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions, settleControl } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
+import { invitation } from "../src/access/index.ts";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -73,10 +74,6 @@ test("derive routes and describe each method with its permission, input and audi
         relationships: "GET /spaces/{spaceId}/tasks/{id}/relationships",
         grant: "POST /spaces/{spaceId}/tasks/{id}/relationships",
         revoke: "DELETE /spaces/{spaceId}/tasks/{id}/relationships/{relationshipId}",
-        invitations: "GET /spaces/{spaceId}/tasks/{id}/invitations",
-        invite: "POST /spaces/{spaceId}/tasks/{id}/invitations",
-        accept: "POST /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}/accept",
-        withdraw: "DELETE /spaces/{spaceId}/tasks/{id}/invitations/{invitationId}",
         explain: "GET /spaces/{spaceId}/tasks/{id}/access",
         detach: "POST /spaces/{spaceId}/tasks/{id}/detach",
         attach: "POST /spaces/{spaceId}/tasks/{id}/attach",
@@ -151,6 +148,7 @@ test("route every served object, create once per request identifier and take cho
         "comment",
         "taskVersion",
         "folder",
+        "invitation",
     ]);
 
     // create once per request identifier, replaying the original result
@@ -269,11 +267,13 @@ test("share an object, accept invitations and narrow agents to their grants", as
     // run in a world of its own
     const simulation = testSimulation();
 
-    const { clock, execute, events, act, delegate, environment } = await serveTasks(simulation);
+    const { clock, execute, invite, events, act, delegate, environment } =
+        await serveTasks(simulation);
     const created = await execute("create", {
         requestId: RequestId.create(environment),
         title: "Ship the plan",
     });
+    const object = task.reference(spaceId, created.id);
 
     // share the task with another user as a viewer, list it, and revoke it again
     const viewer = principal.user.reference("universe", users.grace);
@@ -329,9 +329,9 @@ test("share an object, accept invitations and narrow agents to their grants", as
 
     // let a user without access ask for it, and apply it once the owner accepts
     act(users.heidi);
-    const asked = await execute("invite", {
-        id: created.id,
+    const asked = await invite("create", {
         requestId: RequestId.create(environment),
+        object,
         relationship: { relation: "viewer", subject: { ...viewer, id: users.heidi } },
         purpose: "follow the plan",
     });
@@ -341,16 +341,10 @@ test("share an object, accept invitations and narrow agents to their grants", as
         `task ${created.id} not found`,
     ]);
     expect(
-        await refusal(
-            execute("accept", {
-                id: created.id,
-                requestId: RequestId.create(environment),
-                invitationId: asked.id,
-            }),
-        ),
+        await refusal(invite("accept", { id: asked.id, requestId: RequestId.create(environment) })),
     ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
     act(users.frank);
-    expect(await execute("invitations", { id: created.id })).toEqual({
+    expect(await invite("list", { object })).toEqual({
         items: [
             {
                 id: asked.id,
@@ -374,11 +368,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
         ],
         cursor: null,
     });
-    await execute("accept", {
-        id: created.id,
-        requestId: RequestId.create(environment),
-        invitationId: asked.id,
-    });
+    await invite("accept", { id: asked.id, requestId: RequestId.create(environment) });
     act(users.heidi);
     expect((await execute("get", { id: created.id })).title).toBe("Ship the plan");
     act(users.frank);
@@ -414,8 +404,8 @@ test("share an object, accept invitations and narrow agents to their grants", as
         "task.create",
         "task.grant",
         "task.revoke",
-        "task.invite",
-        "task.accept",
+        "invitation.create",
+        "invitation.accept",
     ]);
 });
 
@@ -676,7 +666,7 @@ test("page an object's invitations a full hundred at a time", async () => {
     const simulation = testSimulation();
 
     // create 101 pending invitations to view a task, in creation order
-    const { database, execute, environment } = await serveTasks(simulation);
+    const { database, execute, invite, environment } = await serveTasks(simulation);
     const created = await execute("create", {
         requestId: RequestId.create(environment),
         title: "Ship the plan",
@@ -715,10 +705,10 @@ test("page an object's invitations a full hundred at a time", async () => {
         ),
         cursor: schema.string().nullable(),
     });
-    const first = Listed.parse(await execute("invitations", { id: created.id, limit: 100 }));
+    const first = Listed.parse(await invite("list", { object, limit: 100 }));
     const last = Listed.parse(
-        await execute("invitations", {
-            id: created.id,
+        await invite("list", {
+            object,
             limit: 100,
             cursor: present(first.cursor, "the next page's cursor"),
         }),
@@ -733,6 +723,47 @@ test("page an object's invitations a full hundred at a time", async () => {
         last: invited.slice(100),
         cursor: null,
     });
+});
+
+test("refuse inviting to and accepting an invitation on an object in the trash, and withdraw one there", async () => {
+    // invite a user to a task, then move the task to the trash
+    const simulation = testSimulation();
+    const { database, execute, invite, environment } = await serveTasks(simulation);
+    const created = await execute("create", {
+        requestId: RequestId.create(environment),
+        title: "Ship the plan",
+    });
+    const object = task.reference(spaceId, created.id);
+    const relationship = {
+        relation: "viewer",
+        subject: principal.user.reference("universe", users.heidi),
+    };
+    const asked = await invite("create", {
+        requestId: RequestId.create(environment),
+        object,
+        relationship,
+    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(task.table)
+                .set({ deletedAt: simulation.clock.now() })
+                .where(eq(task.table.id, created.id)),
+    );
+
+    // refuse a new invitation and the pending one's acceptance, and withdraw the pending one
+    const trashed = ["CONFLICT", "OBJECT_TRASHED", "task is in the trash"];
+    expect({
+        invited: await refusal(
+            invite("create", { requestId: RequestId.create(environment), object, relationship }),
+        ),
+        accepted: await refusal(
+            invite("accept", { id: asked.id, requestId: RequestId.create(environment) }),
+        ),
+        withdrawn: (
+            await invite("delete", { id: asked.id, requestId: RequestId.create(environment) })
+        ).status,
+    }).toEqual({ invited: trashed, accepted: trashed, withdrawn: "revoked" });
 });
 
 test("prepare external work after the access check, settle it after commit, compensate on failure and skip it on replay", async () => {
@@ -1365,7 +1396,7 @@ async function serveTasks(simulation: Simulation) {
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
-        servers: serversOf([handled, comment, taskVersion, handleDraw()]),
+        servers: serversOf([handled, comment, taskVersion, handleDraw(), invitation]),
         database,
         callKey: testCallKey,
         events: await testEvents(database, world),
@@ -1390,6 +1421,11 @@ async function serveTasks(simulation: Simulation) {
             name: Name,
             input: NoInfer<RequestInput<typeof handled, Name>>,
         ) => request(store, handled, name, spaceId, input, context),
+        /** Execute an invitation method as the current caller. */
+        invite: <Name extends CallableName<typeof invitation>>(
+            name: Name,
+            input: NoInfer<RequestInput<typeof invitation, Name>>,
+        ) => request(store, invitation, name, spaceId, input, context),
         /** Act as a user. */
         act: (user: Identifier<"user">) => {
             current = user;

@@ -1,5 +1,6 @@
 import * as access from "@destack/access";
 import { ObjectError } from "../error/error.ts";
+import { CallError } from "../error/call.ts";
 
 import {
     ACCESS_MAPPINGS,
@@ -294,6 +295,33 @@ export const ObjectPolicy = {
                 "SCOPE_MISMATCH",
                 `the relationship on ${request.object.type} ${request.object.id} is in ${scope}, not ${context.scope}`,
             );
+        }
+    },
+
+    /** Require an object to exist in the store, including or excluding the trash. */
+    async requireObject(
+        object: ObjectReference,
+        { deleted }: { readonly deleted: "exclude" | "include" },
+        { store, view }: StoreExecution,
+    ): Promise<void> {
+        // read the object through its type's table, refusing a type the store does not serve
+        const key = ObjectTypeReference.key(object);
+        const type = store.objects.find(
+            (served) => ObjectTypeReference.key(served.typeReference) === key,
+        );
+        const [row] =
+            type === undefined
+                ? []
+                : await view
+                      .read(type.table)
+                      .findMany({ where: { id: object.id, scope: object.scope } });
+
+        // refuse a missing or trashed object
+        const deletedAt: unknown = row?.["deletedAt"];
+        if (row === undefined) {
+            throw CallError.http("NOT_FOUND", { message: `${object.type} ${object.id} not found` });
+        } else if (deleted === "exclude" && deletedAt !== undefined && deletedAt !== null) {
+            throw ObjectError.of("OBJECT_TRASHED", `${object.type} is in the trash`);
         }
     },
 
