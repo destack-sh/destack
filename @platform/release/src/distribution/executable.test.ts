@@ -79,7 +79,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             PATH: "/usr/bin:/bin",
             HOME: directory,
             DESTACK_DIRECTORY: join(directory, "state"),
-            DESTACK_ISSUER: development.deployment.issuer,
+            DESTACK_UNIVERSE: development.deployment.universeOrigin,
             DESTACK_PORT: String(await freePort()),
         };
         const cli = join(directory, "destack");

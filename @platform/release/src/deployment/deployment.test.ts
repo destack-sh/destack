@@ -111,21 +111,21 @@ test("pin each residency home's stack with its relay's origin, residency and iss
 
     expect({ local: await read("local"), production: await read("production") }).toEqual({
         local: {
-            eu: ["RESIDENCY_STACK", "http://127.0.0.1:4102", "eu", "http://127.0.0.1:4100"],
-            us: ["RESIDENCY_STACK", "http://127.0.0.1:4103", "us", "http://127.0.0.1:4100"],
+            eu: ["RESIDENCY_STACK", "http://127.0.0.1:4102", "eu", "http://127.0.0.1:4100/oauth"],
+            us: ["RESIDENCY_STACK", "http://127.0.0.1:4103", "us", "http://127.0.0.1:4100/oauth"],
         },
         production: {
             eu: [
                 "RESIDENCY_STACK_EU",
                 "https://relay-eu.destack.computer",
                 "eu",
-                "https://destack.app",
+                "https://destack.app/oauth",
             ],
             us: [
                 "RESIDENCY_STACK_US",
                 "https://relay-us.destack.computer",
                 "us",
-                "https://destack.app",
+                "https://destack.app/oauth",
             ],
         },
     });

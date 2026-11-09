@@ -114,8 +114,8 @@ const MACHINE_DOMAIN = "destack.computer";
 /** The provider running the cloud machines. */
 const PROVIDER = "cloudflare";
 
-/** The local universe's loopback port, its issuer's, which the stage's other ports follow. */
-const UNIVERSE_PORT = Number(new URL(Stage.of("local").issuer).port);
+/** The local universe's loopback port, which the stage's other ports follow. */
+const UNIVERSE_PORT = Number(new URL(Stage.of("local").universe).port);
 
 /** The loopback port each service of the local stage listens on. */
 export interface LoopbackLayout {
@@ -184,11 +184,11 @@ export class Deployment {
         return resolve(REPOSITORY, "target", this.stage.name, "cloud");
     }
 
-    /** The account service the stage signs people in with, the universe's origin. */
-    get issuer(): string {
+    /** The origin of the universe the stage signs people in at. */
+    get universeOrigin(): string {
         return this.stage.name === "local"
             ? `http://${LOOPBACK}:${this.layout.universe}`
-            : this.stage.issuer;
+            : this.stage.universe;
     }
 
     /** The origin the cloud machine serving a residency answers at. */
@@ -459,7 +459,7 @@ export class Deployment {
 
         // sign the operator in, and publish the platform's releases under the stage's tag as its owner
         const send = (request: Request) => this.environment.network.fetch(request);
-        const issuer = new Issuer(this.issuerUrl, send, this.environment, new Bookmark());
+        const issuer = new Issuer(this.issuer, send, this.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, this.environment);
         await Publication.release(
             build,
@@ -487,7 +487,7 @@ export class Deployment {
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(this.issuer, accountPackage.id),
+                url: PackageMount.url(this.universeOrigin, accountPackage.id),
                 fetch: machine.fetch(accountPackage.id),
             },
             this.environment,
@@ -518,7 +518,7 @@ export class Deployment {
         // mail a code to a fresh address, and read it from the universe's printed mail
         const { environment } = this;
         const send = (request: Request) => environment.network.fetch(request);
-        const issuer = new Issuer(this.issuerUrl, send, environment, new Bookmark());
+        const issuer = new Issuer(this.issuer, send, environment, new Bookmark());
         const email = `e2e-${environment.random.bytes(4).toHex()}@example.com`;
         const printed = mail.lines.length;
         await issuer.sendCode(email);
@@ -552,7 +552,7 @@ export class Deployment {
             const accounts = createClient(
                 accountPackage,
                 {
-                    url: PackageMount.url(this.issuer, accountPackage.id),
+                    url: PackageMount.url(this.universeOrigin, accountPackage.id),
                     fetch: signedIn.fetch(accountPackage.id),
                 },
                 environment,
@@ -614,7 +614,7 @@ export class Deployment {
             keychain,
             environment,
         );
-        const issuer = this.issuerUrl;
+        const issuer = this.issuer;
         const send = (request: Request) => environment.network.fetch(request);
 
         // send as the machine toward a package, bound to a space when given
@@ -700,8 +700,8 @@ export class Deployment {
     }
 
     /** The URL of the universe's issuer. */
-    get issuerUrl(): string {
-        return UniverseOrigin.issuer(this.issuer);
+    get issuer(): string {
+        return UniverseOrigin.issuer(this.universeOrigin);
     }
 
     /** Apply the global root, the universe's and the residencies', then release the Workers. */
@@ -778,12 +778,12 @@ export class Deployment {
             (endpoint) => ActionsToken.request(endpoint, environment),
             environment,
         );
-        const issuer = this.issuerUrl;
+        const issuer = this.issuer;
         const send = (request: Request) => environment.network.fetch(request);
         const accounts = createClient(
             accountPackage,
             {
-                url: PackageMount.url(this.issuer, accountPackage.id),
+                url: PackageMount.url(this.universeOrigin, accountPackage.id),
                 fetch: tokens.fetch(send, accountPackage.id, issuer),
             },
             environment,

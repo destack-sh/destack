@@ -29,7 +29,7 @@ export async function developDistribution(environment: Environment<HostCapabilit
                 ...process.variables,
                 TAURI_CONFIG: configuration,
                 DESTACK_STAGE: identity.name,
-                DESTACK_ISSUER: process.variables["DESTACK_ISSUER"] ?? identity.issuer,
+                DESTACK_UNIVERSE: process.variables["DESTACK_UNIVERSE"] ?? identity.universe,
                 CARGO_TARGET_DIR: join(CHECKOUT, "dist/.native"),
             },
             stdin: "inherit",

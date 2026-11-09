@@ -176,7 +176,7 @@ export class WorkerScript {
         }
 
         return target.kind === "universe"
-            ? this.deployment.issuer
+            ? this.deployment.universeOrigin
             : this.deployment.machineOrigin(target.residency);
     }
 
@@ -190,7 +190,7 @@ export class WorkerScript {
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
             r2_buckets: [{ binding: "EVENTS", bucket_name: outputs.history }],
             vars: {
-                DESTACK_ISSUER: this.deployment.issuer,
+                DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
                 DESTACK_MAIL: JSON.stringify(this.deployment.mail),
             },
@@ -244,7 +244,7 @@ export class WorkerScript {
             routes: this.#routes(outputs, residency),
             vars: {
                 DESTACK_MACHINE_ID: residency.machine.id,
-                DESTACK_ISSUER: this.deployment.issuer,
+                DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_JURISDICTION: kept,
                 DESTACK_SPACE_DOMAIN: DOMAINS.space,
                 DESTACK_HOST: outputs.host,

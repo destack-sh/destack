@@ -296,6 +296,6 @@ async function optionalPeers(root: string, environment: Environment<"files">): P
 function channelBanner(stage: Stage): string {
     return `import { homedir as destackHome } from "node:os"; import { join as destackPath } from "node:path";
     process.env.DESTACK_STAGE = ${JSON.stringify(stage.name)};
-    process.env.DESTACK_ISSUER ??= ${JSON.stringify(stage.issuer)};
+    process.env.DESTACK_UNIVERSE ??= ${JSON.stringify(stage.universe)};
     process.env.DESTACK_DIRECTORY ??= destackPath(destackHome(), ${JSON.stringify(stage.directory)});`;
 }

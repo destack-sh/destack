@@ -157,7 +157,7 @@ export class LocalUniverse implements AsyncDisposable {
             await BunUniverse.start({
                 environment: options.environment,
                 definition: declaration,
-                origin: local.issuer,
+                origin: local.universeOrigin,
                 database: url,
                 rootKey: UNIVERSE_ROOT_KEY,
                 mail: new PrintTransport((text) => {
@@ -216,7 +216,7 @@ export class LocalUniverse implements AsyncDisposable {
             throw new Error(`no cloud machine serves residency ${PLATFORM.residencyId}`);
         }
         const send = (request: Request) => options.environment.network.fetch(request);
-        const issuer = new Issuer(local.issuerUrl, send, options.environment, new Bookmark());
+        const issuer = new Issuer(local.issuer, send, options.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, options.environment);
         const print = (line: string) => options.print("publish", line);
         await publication.publish(
@@ -368,7 +368,7 @@ export class LocalUniverse implements AsyncDisposable {
     static #enrollment(residency: PlatformResidency, local: Deployment): MachineEnrollment {
         return {
             kind: "cloud",
-            issuer: local.issuer,
+            universe: local.universeOrigin,
             residencyId: residency.code,
             status: "enrolled",
         };
@@ -411,7 +411,7 @@ export class LocalUniverse implements AsyncDisposable {
                 isolation: "sandbox",
                 registry: FORGE_INSTALLATION,
                 directory: await environment.files.realPath(directory),
-                issuer: local.issuer,
+                universe: local.universeOrigin,
                 port: Number(origin.port),
                 environment,
                 localObjects: DESKTOP_OBJECTS,
@@ -463,7 +463,7 @@ export class LocalUniverse implements AsyncDisposable {
                     ...Object.fromEntries(inherited),
                     DESTACK_STAGE: home.stage.name,
                     DESTACK_DIRECTORY: home.directory,
-                    DESTACK_ISSUER: this.deployment.issuer,
+                    DESTACK_UNIVERSE: this.deployment.universeOrigin,
                     DESTACK_PORT: String(port),
                     DESTACK_DISTRIBUTION: LocalUniverse.#distribution(options),
                 },

@@ -36,7 +36,7 @@ export interface UniverseBindings {
     /** The releases the Worker version ships, a build layer in its static assets. */
     readonly RELEASES: LayerAssets;
     /** The universe's issuer, its origin, such as https://destack.app. */
-    readonly DESTACK_ISSUER: string;
+    readonly DESTACK_UNIVERSE: string;
     /** The location hint starting the object near its database, such as weur. */
     readonly DESTACK_LOCATION: string;
     /** How the universe's root keys are sealed, as `EnvelopeConfiguration` JSON. */
@@ -106,7 +106,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
                 present(releases.build(manifest), `the shipped release ${manifest}`),
         }),
         definition: UniverseDefinition.parse(declared.default),
-        origin: bindings.DESTACK_ISSUER,
+        origin: bindings.DESTACK_UNIVERSE,
         database,
         keyring,
         callKey: () => key,
