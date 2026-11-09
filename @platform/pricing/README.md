@@ -44,13 +44,13 @@ Fee.conversion("x-credits"); // "1"
 
 ## Machines
 
-`MACHINES` sizes the dedicated machines, each billed per awake hour through `MACHINE_SKUS` and capped each month at about twice its share of a Hetzner server.
+`MACHINES` sizes the dedicated machines, each billed per awake second through `MACHINE_SKUS` at an hourly price that makes 500 awake hours about twice its share of a Hetzner server.
 
 ```ts
 import { MACHINE_HOST, MACHINE_SKUS, MACHINES } from "@platform/pricing";
 
-MACHINES.small; // { vcpus: 2, memory: 4, disk: 80, hourly: 8, monthly: 4000 } credit cents
-MACHINE_SKUS.small.definition.unitAmount; // "8" per hour
+MACHINES.small; // { vcpus: 2, memory: 4, disk: 80, hourly: 8 } credit cents
+MACHINE_SKUS.small.definition.unitAmount; // "8" per hour of 3600 seconds
 MACHINE_HOST.quote(MACHINES.small); // { name: "AX42-1", monthly: 1906.51, … }
 ```
 
