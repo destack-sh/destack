@@ -432,14 +432,14 @@ export interface DurableObjectStub {
     readonly fetch: (request: Request) => Promise<Response>;
 }
 
-/** Where a residency's objects and storage stay. */
-export type Jurisdiction = "eu" | "us" | "local";
+/** Where a residency's objects and storage stay: a Cloudflare jurisdiction, or none in workerd. */
+export type Jurisdiction = "eu" | "us" | "none";
 
 /** The jurisdictions a namespace narrows to. */
 export const Jurisdiction = {
-    /** Narrow a namespace to a jurisdiction's objects, the whole namespace locally. */
+    /** Narrow a namespace to a jurisdiction's objects, the whole namespace for none. */
     narrow(namespace: DurableObjectNamespace, jurisdiction: Jurisdiction): DurableObjectNamespace {
-        return jurisdiction === "local" ? namespace : namespace.jurisdiction(jurisdiction);
+        return jurisdiction === "none" ? namespace : namespace.jurisdiction(jurisdiction);
     },
 };
 
@@ -450,7 +450,7 @@ export interface DurableObjectNamespace {
     /** Get an object's stub, hinting where a new one starts. */
     readonly get: (id: unknown, options?: { readonly locationHint?: string }) => DurableObjectStub;
     /** Narrow the namespace to the objects in a jurisdiction. */
-    readonly jurisdiction: (name: Exclude<Jurisdiction, "local">) => DurableObjectNamespace;
+    readonly jurisdiction: (name: Exclude<Jurisdiction, "none">) => DurableObjectNamespace;
 }
 
 /** The bindings of a database's object: the partition objects that store its copies' content. */
