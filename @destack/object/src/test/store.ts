@@ -15,7 +15,7 @@ import { TestAccess } from "@destack/access/test";
 import { ServerContext } from "../workload/workload.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
-import { Clock, type Environment } from "@destack/environment";
+import { Clock, type Environment, waitAborted } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
 import { Package, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
@@ -119,6 +119,8 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     readonly #servers = new Map<PackageId, Server>();
     /** The handler each server serves. */
     readonly #handlers = new WeakMap<Server, PackageHandler>();
+    /** The replaced servers still draining. */
+    readonly #draining = new Set<Promise<void>>();
     /** How its callers prove who they are. */
     readonly #credential: TestCredential;
     /** What disposal closes: the servers, and the databases the test store opened. */
@@ -156,35 +158,54 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         this.#scopes = run.scopes;
         this.#report = run.report;
 
-        // close the servers first on disposal
+        // close the servers first on disposal, and wait for the replaced ones to drain
         this.#disposables.defer(async () => {
             await Promise.all([...this.#servers.values()].map((server) => server.close()));
+            await Promise.all(this.#draining);
         });
     }
 
     /** Serve installed package servers as a host applies them, closing the dropped ones. */
-    async apply(servers: readonly PackageImplementation[]): Promise<void> {
-        // apply the servers to the store, keeping the servers of the handlers it keeps
-        const handlers = this.store.apply(servers, this.store.sandboxes);
-        const dropped = [...this.#servers].filter(
-            ([, server]) => !handlers.some((handler) => this.#handlers.get(server) === handler),
+    apply(servers: readonly PackageImplementation[]): void {
+        this.serve(this.store.apply(servers, this.store.sandboxes));
+    }
+
+    /** Serve another set of a store's handlers, draining the replaced servers. */
+    serve(handlers: readonly PackageHandler[]): void {
+        // take out the servers of packages no longer served or served by another handler
+        const replaced = [...this.#servers].filter(
+            ([, server]) => !handlers.includes(present(this.#handlers.get(server), "a handler")),
         );
-        for (const [packageId] of dropped) {
+        for (const [packageId] of replaced) {
             this.#servers.delete(packageId);
         }
 
-        // serve the added packages, then close the dropped ones
+        // serve the added and changed packages once the replaced controllers stopped, as one key has one writer
+        const handover = Promise.all(replaced.map(([, server]) => server.stopControllers()));
         for (const handler of handlers.filter((each) => !this.#servers.has(each.package.id))) {
-            this.#start(handler);
+            this.#start(handler, handover);
         }
-        await Promise.all(dropped.map(([, server]) => server.close()));
+
+        // drain the replaced servers beside the call, which may run the caller's own controller
+        for (const [, server] of replaced) {
+            const draining = server.close().catch((error: unknown) => this.#report(error));
+            this.#draining.add(draining);
+            void draining.then(() => this.#draining.delete(draining));
+        }
     }
 
-    /** Start the server of a package's handler. */
-    #start(handler: PackageHandler): void {
+    /** Start the server of a package's handler, its controllers once a handover ends. */
+    #start(handler: PackageHandler, handover: Promise<unknown> = Promise.resolve()): void {
         const server = Server.start({
             environment: this.store.environment,
             ...handler,
+            activation: async (signal) => {
+                // wait for the replaced controllers' stop, then the package's own activation
+                await Promise.race([handover, waitAborted(signal)]);
+                if (!signal.aborted) {
+                    await handler.activation?.(signal);
+                }
+            },
             // serve the store's scopes, or every scope as the universe's store does
             ...(this.#scopes === undefined ? {} : { scopes: this.#scopes }),
             resources: new ResourceContext(),

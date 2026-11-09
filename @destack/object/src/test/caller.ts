@@ -68,8 +68,6 @@ export class TestCaller {
     endpoint(handle: PackageHandle): ClientOptions & {
         readonly fetch: (request: Request) => Promise<Response>;
     } {
-        const server = this.#served.server(handle);
-
         return {
             url: TEST_ORIGIN,
             fetch: async (request: Request) => {
@@ -79,8 +77,9 @@ export class TestCaller {
                     isSteppedUp: this.#isSteppedUp,
                 };
 
-                // wait on the world to sign and answer, moving its time as the call needs
-                const answer = async () => server.fetch(await this.#served.sign(request, signer));
+                // wait on the world to sign and answer through the package's current server, moving its time as the call needs
+                const answer = async () =>
+                    this.#served.server(handle).fetch(await this.#served.sign(request, signer));
 
                 return this.#served.simulation.wait(answer());
             },
