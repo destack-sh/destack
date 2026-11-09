@@ -7,7 +7,7 @@ import {
     Role,
     self,
 } from "@destack/access";
-import { type Select, type Snapshot, Table } from "@destack/db";
+import { Expression, type Select, type Snapshot, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { type DigestCrypto, type Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
@@ -78,6 +78,16 @@ export const installation = defineObject(
         reserved: ["replicate", "run"],
         // bind roles on an installation directly
         shareable: { by: "update" },
+        convert: {
+            // read the process isolation that releases before 2026.11.0 stored as host
+            "2026.11.0": {
+                isolation: Expression.case(
+                    Expression.column("isolation"),
+                    [{ when: "process", then: Expression.literal("host") }],
+                    Expression.column("isolation"),
+                ),
+            },
+        },
         constraints: {
             managerInstallation: {
                 kind: "foreignKey",
