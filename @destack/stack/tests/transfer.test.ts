@@ -1,7 +1,6 @@
 import { RetryPolicy } from "@destack/environment";
 import { MAIN_DATABASE } from "@destack/stack/declare";
-import { PackageId } from "@destack/package";
-import { JWS_ALGORITHMS, Jwk, Jwks, Jwt, PublicKey, Recipient } from "@destack/identity";
+import { JWS_ALGORITHMS, Jwks, Jwt, Recipient } from "@destack/identity";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, refusal, test } from "@destack/test";
@@ -25,7 +24,6 @@ import { SqliteDatabase } from "@destack/db/sqlite";
 import { Plan, ResourceId } from "@destack/resource";
 import { nth, Digest, Identifier, schema, present } from "@destack/schema";
 import { RequestId, Scope, type Uplink, ObjectReference } from "@destack/sync";
-import { Assertion } from "@destack/access/token";
 import { ProviderIndex, SpaceTransfer, type Handoff } from "../src/server/index.ts";
 import {
     fixtureBuild,
@@ -41,7 +39,6 @@ import { installation } from "@destack/object";
 import { Package } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { RESOURCE_KIND } from "@destack/resource";
-import objectPackage from "@destack/object/package";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
 import { principal } from "@destack/access";
@@ -570,7 +567,6 @@ test("move every table of the space database with rows in spaces, leaving out th
         "destack__object__change_request",
         "destack__stack__rollout",
         "destack__stack__installation_revision",
-        "destack__stack__installation_key",
         "destack__stack__deployment",
         "destack__stack__instance",
         "destack__stack__build",
@@ -796,23 +792,13 @@ test(
             now,
         );
 
-        // register a key of the installation as the owner once the source serves the space
+        // serve the space on the source as its owner
         const serving = await source.serve();
         const owner = createClient(
             stackPackage,
             serving.as(source.owner.subject).stepUp().endpoint(stackPackage),
             source.machine.environment,
         );
-        const { crypto } = source.machine.environment;
-        const pair = await crypto.generateKey({ name: "Ed25519" }, true, ["sign", "verify"]);
-        const { kty, crv, x } = await Jwk.export(pair.publicKey, crypto);
-        const key = await owner.installationKey.create({
-            spaceId: ids.space,
-            parentId: ids.notes,
-            requestId: RequestId.create(source.machine.environment),
-            name: "ci",
-            publicKey: PublicKey.parse({ kty, crv, x }),
-        });
 
         // move the space to the target, which the owner cancels once the target took it over and before it places it
         const created = await owner.transfer.create({
@@ -844,46 +830,16 @@ test(
             (placed) => placed?.machine === source.machine.id && placed.epoch === 2,
         );
 
-        // ask a store of the target for a token as the installation, and the abandoned target for the installation as the owner
-        const grant = async (served: TestObjectStore) => {
-            // ask as the installation by an assertion its key signs
-            const subject = principal.installation.reference(ids.space, ids.notes);
-            const signing = { id: key.id, subject, publicKey: key.publicKey };
-            const assertion = await Assertion.sign(
-                pair.privateKey,
-                signing,
-                PackageId.resource(objectPackage.id),
-                source.machine.clock.now(),
+        // read the installation as the owner on a store of the target, refused on the abandoned target
+        const read = (served: TestObjectStore) =>
+            createClient(
+                stackPackage,
+                served.as(source.owner.id).endpoint(stackPackage),
                 source.machine.environment,
-            );
+            ).rollout.get({ spaceId: ids.space, id: ids.notes });
+        const abandoned = await refusal(read(receiving));
 
-            return createClient(
-                objectPackage,
-                {
-                    url: "http://space.test",
-                    headers: { authorization: `Bearer ${assertion}` },
-                    fetch: (request) => served.server(objectPackage).fetch(request),
-                },
-                source.machine.environment,
-            ).installation.token({
-                scope: ids.space,
-                id: ids.notes,
-                requestId: RequestId.create(source.machine.environment),
-                audience: ids.package,
-            });
-        };
-        const abandoned = [
-            await refusal(grant(receiving)),
-            await refusal(
-                createClient(
-                    stackPackage,
-                    receiving.as(source.owner.id).endpoint(stackPackage),
-                    source.machine.environment,
-                ).rollout.get({ spaceId: ids.space, id: ids.notes }),
-            ),
-        ];
-
-        // move the space afresh to the same target as the owner, and grant tokens as the target serves it placed there
+        // move the space afresh to the same target as the owner, and read the installation as the target serves it placed there
         await owner.transfer.create({
             spaceId: ids.space,
             id: Identifier.create("transfer", source.machine.environment),
@@ -904,27 +860,24 @@ test(
             .from(object.transfer.table)
             .orderBy(object.transfer.table.sourceEpoch);
         await receiving[Symbol.asyncDispose]();
-        const token = await grant(await target.serve());
+        const served = await read(await target.serve());
         expect({
             cancelled,
             abandoned,
             moved,
             placement: await placementOf(universe),
             transfers: received,
-            granted: token.tokenType,
+            served: served.installationId,
         }).toEqual({
             cancelled: [],
-            abandoned: [
-                ["UNAUTHORIZED", "ASSERTION_KEY_UNKNOWN", "assertion has no standing key"],
-                ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.space} not found`],
-            ],
+            abandoned: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.space} not found`],
             moved: [],
             placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
             transfers: [
                 { sourceEpoch: 1, outcome: "cancelled" },
                 { sourceEpoch: 2, outcome: "succeeded" },
             ],
-            granted: "Bearer",
+            served: ids.notes,
         });
     },
     SCENARIO_MILLISECONDS,

@@ -5,7 +5,6 @@ import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     build,
     deployment,
-    installationKey,
     installationRevision,
     instance,
     restore,
@@ -35,7 +34,6 @@ export default definePackage({
     objects: {
         rollout,
         installationRevision,
-        installationKey,
         deployment,
         instance,
         transfer,

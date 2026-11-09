@@ -38,7 +38,6 @@ import { CommitBuild, type Forge } from "./follow.ts";
 import type { SpaceAccounts } from "../server.ts";
 import { StackInstallation } from "./stack.ts";
 import type { TokenIssuer } from "@destack/access/token";
-import { InstallationAssertion } from "./token.ts";
 import { StackError } from "../../error/index.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
 import { RolloutTarget, type RevisionOptions } from "./target.ts";
@@ -116,7 +115,6 @@ export function implementInstallations(options: InstallationOptions) {
 
                 return next(call);
             },
-            token: (call) => InstallationAssertion.token(call, options.issuer),
             target: async (call) => {
                 // refuse a revision of another installation, then target it
                 const { revisionId } = call.input;

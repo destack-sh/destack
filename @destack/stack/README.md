@@ -20,8 +20,6 @@ await client.rollout.submit({
 const digest = await Plan.digest(waiting, crypto);
 await client.rollout.approve({ spaceId, id, requestId, plan: digest });
 await client.rollout.rollBack({ spaceId, id, requestId }); // the release applied before
-// a token of the installation, asked by an assertion its key signs (RFC 7523), as Kubernetes' TokenRequest
-await asserted.installation.token({ scope: spaceId, id, requestId, audience });
 // the revision the space serves each rollout at, the status its host records as Kubernetes' Pod.status
 await Rollout.serve(store, spaceId, revisions); // rollout.servedRevision
 // the stack targets the revisions of every installation it manages in one transaction, as a Deployment its ReplicaSets

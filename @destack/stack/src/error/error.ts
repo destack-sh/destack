@@ -15,7 +15,6 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     VERSION_MISMATCH: { code: "BAD_REQUEST" },
 
     // unauthorized
-    FOREIGN_ASSERTION: { code: "UNAUTHORIZED" },
     SPACE_NOT_PLACED: { code: "UNAUTHORIZED" },
 
     // forbidden
