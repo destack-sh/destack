@@ -77,8 +77,7 @@ export class Operator {
             await objects.invitation.accept({
                 scope: object.scope,
                 requestId: RequestId.create(environment),
-                object,
-                invitationId: invitation.id,
+                id: invitation.id,
             });
         }
 
