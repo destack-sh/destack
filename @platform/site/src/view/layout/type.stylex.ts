@@ -11,6 +11,9 @@ export const typeScale = style.defineConsts({
     /** The size of running text, captions and navigation. */
     body: "0.9375rem",
 
+    /** The size of an entry's headword, leading the line above its definition. */
+    headword: "clamp(1.375rem, 2vw, 1.75rem)",
+
     /** The size of the sentence under a definition, and of page descriptions. */
     lead: "clamp(1rem, 1.3vw, 1.1875rem)",
 

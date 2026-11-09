@@ -62,7 +62,6 @@ export const verb: Form = {
         highlight: ["own"],
         sentence:
             "Build real custom software, integrate every app and agent, and control your whole stack.",
-        gloss: "to unify a thousand silos into your own superapp",
     },
 };
 

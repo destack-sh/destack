@@ -46,7 +46,6 @@ export const destacker: Form = {
         highlight: ["fluent"],
         sentence:
             "Put your agents to work across your whole space, with the same API your apps use.",
-        gloss: "anyone, or any agent, who destacks",
     },
 };
 

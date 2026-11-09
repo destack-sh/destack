@@ -24,7 +24,6 @@ export const destackable: Form = {
         definition: "open, transparent, and hackable",
         highlight: ["transparent", "hackable"],
         sentence: "See everything your apps and agents do, and control all of it.",
-        gloss: "see-through as glass, down to the core",
     },
 };
 

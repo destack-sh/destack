@@ -13,6 +13,9 @@ import { typeScale, tracking } from "../../layout/type.stylex";
 /** A page whose scripts run, which draws each underline in once its entry shows. */
 const SCRIPTED = "@media (scripting: enabled)";
 
+/** The headword column's width: the longest headword, de·stack·a·ble, at the definition's size. */
+const WORD_WIDTH = `calc(${typeScale.display} * 6.8)`;
+
 /** The bottom band of the screen an entry rises past before its underline draws. */
 const SEEN_MARGIN = "0px 0px -20% 0px";
 
@@ -24,8 +27,6 @@ type Sense = {
     highlight: readonly string[];
     /** The plain phrase under the definition that says what it means. */
     sentence: JSX.Element;
-    /** A short note in the form's own part of speech, set in brackets after it. */
-    gloss?: string;
 };
 
 /** One dictionary form of the word: its syllables, pronunciation, part of speech and sense. */
@@ -96,16 +97,18 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
             id={anchorOf(properties.form)}
             {...style.attrs(lattice.cell, styles.entry)}
         >
-            <p {...style.attrs(styles.kicker)}>
+            {/* the rule between the word and its meaning, from the section's top to its bottom */}
+            <span aria-hidden="true" {...style.attrs(styles.rule)} />
+
+            {/* the word: its headword at the definition's size, its pronunciation under it */}
+            <p {...style.attrs(styles.word)}>
                 <b {...style.attrs(styles.headword)}>
                     <Syllables syllables={properties.form.syllables} />
                 </b>
-                <span>{properties.form.pronunciation}</span>
-                <PartOfSpeech>{properties.form.partOfSpeech}</PartOfSpeech>
-                {properties.form.sense.gloss === undefined ? undefined : (
-                    <span>[{properties.form.sense.gloss}]</span>
-                )}
+                <span {...style.attrs(styles.meta)}>{properties.form.pronunciation}</span>
             </p>
+
+            {/* the meaning: its definition and the sentence under it */}
             {properties.isTitle === true ? (
                 <h1 {...style.attrs(styles.definition)}>
                     <Definition sense={properties.form.sense} isDrawn={isSeen()} />
@@ -218,7 +221,18 @@ const styles = style.create({
         paddingBlockStart: { default: "2.75rem", [media.maxMd]: "2.25rem" },
         paddingBlockEnd: { default: "1.75rem", [media.maxMd]: "1.5rem" },
         paddingInline: frame.inset,
-        rowGap: "0.75rem",
+        position: "relative",
+        alignItems: "baseline",
+        columnGap: { default: "2rem", [screen.belowDesktop]: "0.75rem" },
+        gridTemplateAreas: {
+            default: `"word title" "word sentence"`,
+            [screen.belowDesktop]: `"word" "title" "sentence"`,
+        },
+        gridTemplateColumns: {
+            default: `${WORD_WIDTH} minmax(0, 1fr)`,
+            [screen.belowDesktop]: "minmax(0, 1fr)",
+        },
+        rowGap: { default: "0.875rem", [screen.belowDesktop]: "0.5rem" },
         scrollMarginTop: frame.bar,
     },
     title: {
@@ -253,16 +267,29 @@ const styles = style.create({
         letterSpacing: tracking.label,
         textTransform: "uppercase",
     },
-    kicker: {
+    rule: {
+        backgroundImage: `repeating-linear-gradient(to bottom, ${color.border} 0 4px, transparent 0 8px)`,
+        bottom: 0,
+        display: { default: "block", [screen.belowDesktop]: "none" },
+        insetInlineStart: `calc(${frame.inset} + ${WORD_WIDTH} + 1rem)`,
+        position: "absolute",
+        top: 0,
+        width: "1px",
+    },
+    word: {
         alignItems: "baseline",
-        color: color.mutedForeground,
-        display: "flex",
+        columnGap: "0.75rem",
+        display: { default: "grid", [screen.belowDesktop]: "flex" },
         flexWrap: "wrap",
-        fontFamily: font.text,
-        fontSize: typeScale.body,
-        rowGap: "0.25rem",
-        columnGap: "0.625rem",
+        gridArea: "word",
+        justifyItems: "start",
         margin: 0,
+        rowGap: "0.5rem",
+    },
+    meta: {
+        color: color.mutedForeground,
+        fontSize: { default: typeScale.lead, [screen.belowDesktop]: typeScale.body },
+        lineHeight: 1.45,
     },
     partOfSpeech: {
         fontFamily: font.code,
@@ -273,8 +300,11 @@ const styles = style.create({
     },
     headword: {
         color: color.primary,
-        fontSize: typeScale.body,
-        fontWeight: 600,
+        fontSize: { default: typeScale.display, [screen.belowDesktop]: typeScale.headword },
+        fontWeight: { default: 500, [screen.belowDesktop]: 600 },
+        letterSpacing: tracking.display,
+        lineHeight: 1.15,
+        whiteSpace: "nowrap",
     },
     interpunct: {
         marginInline: "0.05em",
@@ -283,6 +313,7 @@ const styles = style.create({
         fontSize: typeScale.display,
         fontWeight: 500,
         letterSpacing: tracking.display,
+        gridArea: "title",
         lineHeight: 1.15,
         margin: 0,
         textWrap: "balance",
@@ -290,6 +321,7 @@ const styles = style.create({
     sentence: {
         color: color.mutedForeground,
         fontSize: typeScale.lead,
+        gridArea: "sentence",
         lineHeight: 1.45,
         margin: 0,
         maxWidth: "64rem",
