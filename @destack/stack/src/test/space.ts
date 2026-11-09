@@ -1361,7 +1361,7 @@ export class TestSpace implements AsyncDisposable {
         );
         const mounted = InstallationMount.url(located.url, peer.spaceId, peer.name);
         const signer = principal.installation.reference(caller.scope, caller.installationId);
-        const send = this.host.source(signer).fetchSigned(stackPackage.id);
+        const send = this.host.identityOf(signer).fetchSigned(stackPackage.id);
 
         return send(
             copyRequest(

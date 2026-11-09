@@ -1,10 +1,10 @@
 import { type Authentication, CONTAINED, Grant, principal } from "@destack/access";
-import { Exchange } from "@destack/access/token";
+import { Exchange, PartitionId } from "@destack/access/token";
 import type { Directory } from "@destack/account/address";
 import {
     IdentityKeystore,
     type IdentityRegistry,
-    type TokenSource,
+    type WorkloadIdentity,
 } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -223,8 +223,8 @@ export class SpaceHost {
     readonly database: DatabaseConnection;
     /** The keystore of the space's keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
-    /** The token sources of the space and its installations, reusing their tokens, by subject. */
-    readonly #sources = new Map<string, TokenSource>();
+    /** The identities of the space and its installations, reusing their tokens, by subject. */
+    readonly #identities = new Map<string, WorkloadIdentity>();
     /** The current start's servers, by installation and revision, kept while they stay served. */
     #served:
         | { readonly signal: AbortSignal; readonly entries: ReadonlyMap<string, ServedEntry> }
@@ -261,7 +261,7 @@ export class SpaceHost {
         if (await keystore.hasKeys(this.database, this.id)) {
             await keystore.key(this.database, this.id);
         }
-        this.#sources.clear();
+        this.#identities.clear();
     }
 
     /** Read the space's identity, refusing a space without keys on this machine. */
@@ -298,22 +298,22 @@ export class SpaceHost {
             .parse(present(placed, `the placement of ${this.id}`).scope);
     }
 
-    /** Read the token source of the space or an installation, reusing its tokens. */
-    source(subject: Subject): TokenSource {
-        // reuse the subject's source and its tokens
+    /** Act as the space or one of its installations, calling out as it, reusing its tokens. */
+    identityOf(subject: Subject): WorkloadIdentity {
+        // reuse the subject's identity and its tokens
         const key = Subject.key(subject);
-        const existing = this.#sources.get(key);
+        const existing = this.#identities.get(key);
         if (existing !== undefined) {
             return existing;
         }
 
         // open it with the space's keys toward the universe's issuer
-        const opened = this.keystore.source(this.database, subject, {
+        const opened = this.keystore.identityOf(this.database, subject, {
             issuer: this.machine.universe.issuer,
             send: (request) => this.machine.send(request),
             environment: this.machine.environment,
         });
-        this.#sources.set(key, opened);
+        this.#identities.set(key, opened);
 
         return opened;
     }
@@ -327,7 +327,7 @@ export class SpaceHost {
                 fetch:
                     subject === undefined
                         ? this.machine.fetch(accountPackage.id)
-                        : this.source(subject).fetchGranted(accountPackage.id),
+                        : this.identityOf(subject).fetchGranted(accountPackage.id),
             },
             this.machine.environment,
         );
@@ -378,10 +378,11 @@ export class SpaceHost {
     /** Follow a partition at its home, where the directory locates it, as each follow's subject. */
     publisherAt(home: string, partition: string): Publisher {
         // sign as the installation a follow is decided for, else as the space with a universe grant
+        const bound = PartitionId.parse(partition);
         const fetchOf = (subject: Subject | undefined) =>
             subject !== undefined && principal.installation.is(subject)
-                ? this.source(subject).fetchSigned(objectPackage.id, partition)
-                : this.source(this.principal).fetchGranted(objectPackage.id, partition);
+                ? this.identityOf(subject).fetchSigned(objectPackage.id, bound)
+                : this.identityOf(this.principal).fetchGranted(objectPackage.id, bound);
         const at = (subscription: Subscription) =>
             this.machine.directory.publisher(
                 home,
@@ -983,7 +984,7 @@ export class SpaceHost {
                     start.call(
                         stackPackage.id,
                         request,
-                        this.source(signer).authentication(stackPackage.id, scope),
+                        this.identityOf(signer).authentication(stackPackage.id, scope),
                     ),
             },
             machine.environment,
