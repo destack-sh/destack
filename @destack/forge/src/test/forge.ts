@@ -347,24 +347,9 @@ export class TestForge {
 
     /** Write the world: the forge, its GitHub App, the publishing account and the tenants. */
     static async write(home: TestSpace): Promise<ForgeWorld> {
-        // install the vault, then serve its types, as the machine's restart does
-        const { issuers: _issuers, ...declared } = RESIDENCY_STACK;
-        const vaulted = { installations: { vault: declared.installations.vault } };
-        const installingVault = await home.serve();
-        await home.apply(installingVault, HOME_TYPES, vaulted);
-        await home.serveInstalled(installingVault.store, home.id);
-        await installingVault[Symbol.asyncDispose]();
-
-        // install the forge with its vaults, Git storage and secrets, as the residency's stack declares it
-        const reloaded = await home.serve();
-        await home.apply(reloaded, HOME_TYPES, declared);
-        await home.serveInstalled(reloaded.store, home.id);
-        await reloaded[Symbol.asyncDispose]();
-
-        // declare the GitHub App's issuer once the home serves the forge's types, as the machine's restart does
+        // install the forge with its vaults, Git storage, secrets and the GitHub App's issuer, as the residency's stack declares it
         const installing = await home.serve();
         await home.apply(installing, HOME_TYPES, RESIDENCY_STACK);
-        await installing.simulation.idle();
 
         // create the publishing account as its owner, then stop serving
         const owner = await home.universe.signIn(OWNER_EMAIL);
@@ -586,19 +571,10 @@ export class TestForge {
             id: Account.home(tenant.accountId),
             ...TestPackage.options([VAULT, CONNECTION]),
         });
-        // install the vault, then its vault and the connections once the store serves the vault's types
-        const vaulted = { installations: { vault: HOME_STACK.installations.vault } };
-        const installingVault = await home.serve();
-        await home.apply(installingVault, [vaultPackage], vaulted);
-        await home.serveInstalled(installingVault.store, home.id);
-        await installingVault[Symbol.asyncDispose]();
-        const reloaded = await home.serve();
-        await home.apply(reloaded, [vaultPackage], HOME_STACK);
-        await home.serveInstalled(reloaded.store, home.id);
-        await reloaded[Symbol.asyncDispose]();
-
-        // serve it again with the connections installed, as the machine's restart does
+        // apply the home's stack, serving its installations in place
         const served = await home.serve();
+        await home.apply(served, [vaultPackage], HOME_STACK);
+        await home.applyInstalled(served.store);
 
         // register the forge's App and create the installation's connection as the owner
         const scope = tenant.accountId;
