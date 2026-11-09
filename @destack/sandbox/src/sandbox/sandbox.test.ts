@@ -1,3 +1,4 @@
+import { Uuid } from "@destack/schema";
 import { TEST_START } from "@destack/test/world";
 import { join } from "node:path";
 import type { OperatingSystem } from "@destack/environment";
@@ -116,7 +117,7 @@ test("start the workload without the launcher's parent connection on file descri
     await using sandbox = await Sandbox.start(
         {
             executable: "/bin/sh",
-            arguments: ["-c", "if { : >&3; } 2>/dev/null; then echo open; else echo closed; fi"],
+            arguments: ["-c", "if { true >&3; } 2>/dev/null; then echo open; else echo closed; fi"],
             directory,
             environment: {},
             read: [],
@@ -370,7 +371,8 @@ test("stop the workload when its supervising client disconnects", async () => {
     const output = split(launcher.stdout);
     const errors = text(launcher.stderr);
 
-    // disconnect only after the restricted application has started
+    // disconnect only after the restricted application has started, marked in its command line
+    const marker = `destack-sandbox-orphan-${Uuid.v4(environment.random)}`;
     launcher.channel.send({
         type: "start",
         options: {
@@ -378,7 +380,7 @@ test("stop the workload when its supervising client disconnects", async () => {
             arguments: [
                 "--no-env-file",
                 "-e",
-                "console.log(process.pid); setInterval(() => {}, 1000)",
+                `console.log("started"); setInterval(() => {}, 1000); // ${marker}`,
             ],
             directory,
             environment: {},
@@ -389,7 +391,7 @@ test("stop the workload when its supervising client disconnects", async () => {
             listening: "denied",
         },
     });
-    const id = Number((await output.first).trim());
+    await output.first;
     launcher.channel.disconnect();
 
     // wait for the launcher to reap its workload and release the proxies
@@ -398,13 +400,13 @@ test("stop the workload when its supervising client disconnects", async () => {
         signal: undefined,
     });
 
-    // find no process under the workload's id
-    const listing = process.spawn(["/bin/ps", "-p", String(id)], { stdout: "ignore" });
+    // find no process running the marked application, whatever process namespace it ran in
+    const listing = process.spawn(["/usr/bin/pgrep", "-f", marker], { stdout: "ignore" });
     expect(await listing.exited).toBe(1);
 });
 
-test("pass input to a workload and let it serve its host on a loopback port when allowed", async () => {
-    // start a workload that reads its greeting and serves it on a loopback port it reports
+test("pass input to a workload and let it serve its host on its socket", async () => {
+    // start a workload that reads its greeting and serves it on the socket the sandbox names
     const { simulation, environment, directory } = await world("destack-sandbox-");
     await using _simulation = simulation;
     await using sandbox = await Sandbox.start(
@@ -415,8 +417,55 @@ test("pass input to a workload and let it serve its host on a loopback port when
                 "-e",
                 `
                 const greeting = (await new Response(Bun.stdin.stream()).text()).trim();
-                const server = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => new Response(greeting) });
-                console.log(server.port);
+                Bun.serve({ unix: process.env.DESTACK_SERVER_SOCKET, fetch: () => new Response(greeting) });
+                console.log("serving");
+            `,
+            ],
+            directory,
+            environment: {},
+            read: [],
+            write: [],
+            network: [],
+            sockets: [],
+            listening: "denied",
+        },
+        environment,
+    );
+    const writer = sandbox.stdin.getWriter();
+    await writer.write(new TextEncoder().encode("hello\n"));
+    await writer.close();
+
+    // fetch the greeting through the workload's socket once it serves
+    await sandbox.stdout.getReader().read();
+    const answer = await testHost().network.fetch(new Request("http://workload/"), {
+        unix: sandbox.socket,
+    });
+    expect(await answer.text()).toBe("hello");
+});
+
+test("let a workload bind a loopback port for its own processes when allowed", async () => {
+    // listen on a loopback port inside the sandbox, and connect to it from there
+    const { simulation, environment, directory } = await world("destack-sandbox-loopback-");
+    await using _simulation = simulation;
+    await using sandbox = await Sandbox.start(
+        {
+            executable: environment.process.executable,
+            arguments: [
+                "--no-env-file",
+                "-e",
+                `
+                const { createServer, connect } = await import("node:net");
+                const server = createServer((peer) => peer.end("own"));
+                await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+                const answer = await new Promise((resolve, reject) => {
+                    const socket = connect(server.address().port, "127.0.0.1");
+                    let text = "";
+                    socket.on("data", (chunk) => (text += chunk));
+                    socket.once("end", () => resolve(text));
+                    socket.once("error", reject);
+                });
+                server.close();
+                console.log(answer);
             `,
             ],
             directory,
@@ -429,15 +478,10 @@ test("pass input to a workload and let it serve its host on a loopback port when
         },
         environment,
     );
-    const writer = sandbox.stdin.getWriter();
-    await writer.write(new TextEncoder().encode("hello\n"));
-    await writer.close();
-
-    // read the port from the first chunk and fetch the greeting from it
-    const { value } = await sandbox.stdout.getReader().read();
-    const port = new TextDecoder().decode(value).trim();
-    const answer = await testHost().network.fetch(new Request(`http://127.0.0.1:${port}/`));
-    expect(await answer.text()).toBe("hello");
+    const output = text(sandbox.stdout);
+    const errors = text(sandbox.stderr);
+    expect(await sandbox.exited, await errors).toEqual({ code: 0, signal: null });
+    expect(await output).toBe("own\n");
 });
 
 test("let a workload serve and reach a Unix socket in its temporary folder", async () => {

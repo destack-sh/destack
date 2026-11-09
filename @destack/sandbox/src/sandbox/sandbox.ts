@@ -1,9 +1,10 @@
 import type { FamilyError } from "@destack/error";
 import type { Environment, ProcessChannel, Scheduler, Subprocess } from "@destack/environment";
-import { isAbsolute } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { launcherCommand } from "../bun/command.ts";
 import { SandboxError, type SandboxReason } from "../error/index.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
+import { SERVER_SOCKET_VARIABLE } from "../workload/index.ts";
 
 /** Maximum time to prepare OS restrictions and launch a process, in milliseconds. */
 const START_TIMEOUT_MILLISECONDS = 10000;
@@ -13,6 +14,9 @@ const CLEANUP_TIMEOUT_MILLISECONDS = 1000;
 const STOP_TIMEOUT_MILLISECONDS = 5000;
 /** The longest graceful shutdown a caller may request, five minutes, in milliseconds. */
 const MAX_STOP_TIMEOUT_MILLISECONDS = 300000;
+
+/** The socket a workload serves its host on, in its temporary folder. */
+const SERVER_SOCKET = "server.sock";
 
 /** The search path of the launcher, with the system's tools only. */
 const LAUNCHER_PATH = "/usr/bin:/bin:/usr/sbin:/sbin";
@@ -30,6 +34,8 @@ export class Sandbox implements AsyncDisposable {
     readonly stderr: ReadableStream<Uint8Array>;
     /** The workload's exit after manager cleanup, rejecting on a launcher or cleanup failure. */
     readonly exited: Promise<SandboxExit>;
+    /** The socket the workload serves its host on, in its temporary folder. */
+    readonly socket: string;
     /** The launcher process outside the workload sandbox. */
     readonly #launcher: Launcher;
     /** The launcher's watched channel and termination. */
@@ -45,6 +51,7 @@ export class Sandbox implements AsyncDisposable {
         watched: WatchedLauncher,
         exited: Promise<SandboxExit>,
         scheduler: Scheduler,
+        socket: string,
     ) {
         // retain the launcher, its watched channel, the streams it passes through and the scheduler
         this.#launcher = launcher;
@@ -54,6 +61,7 @@ export class Sandbox implements AsyncDisposable {
         this.stdout = launcher.stdout;
         this.stderr = launcher.stderr;
         this.exited = exited;
+        this.socket = socket;
     }
 
     /** Spawn a restricted command, whose application reports its own readiness. */
@@ -70,6 +78,14 @@ export class Sandbox implements AsyncDisposable {
         const temporary = await files.realPath(
             await files.makeTemporaryDirectory("destack-sandbox-"),
         );
+        // name the socket the workload serves its host on, in its temporary folder
+        const socket = join(temporary, SERVER_SOCKET);
+        const launched = {
+            ...options,
+            environment: { ...options.environment, [SERVER_SOCKET_VARIABLE]: socket },
+        };
+
+        // remove the temporary directory once the launcher closes
         const launcher = spawnLauncher(options.directory, temporary, environment);
         const watched = watchLauncher(launcher);
         const closed = watched.closed.then(() =>
@@ -87,7 +103,7 @@ export class Sandbox implements AsyncDisposable {
             () => undefined,
         );
         try {
-            configure(launcher, options, watched.ready);
+            configure(launcher, launched, watched.ready);
             await environment.scheduler.run(() => watched.ready.promise);
 
             // expose failures after startup through the public completion promise
@@ -96,6 +112,7 @@ export class Sandbox implements AsyncDisposable {
                 watched,
                 closed.then(watched.outcome),
                 environment.scheduler,
+                socket,
             );
         } catch (error) {
             // release the launcher, then fail with the errors it wrote

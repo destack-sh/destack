@@ -9,7 +9,8 @@
     },
     "exports": {
         ".": "./src/index.ts",
-        "./error": "./src/error/index.ts"
+        "./error": "./src/error/index.ts",
+        "./workload": "./src/workload/index.ts"
     },
     "scripts": {
         "typecheck": "tsc --project tsconfig.json",

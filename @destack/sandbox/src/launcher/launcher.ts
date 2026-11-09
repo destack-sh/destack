@@ -4,6 +4,7 @@ import {
     type Environment,
     type OperatingSystem,
     type Process,
+    FileSystemError,
     ProcessError,
     type Signal,
     type Subprocess,
@@ -34,7 +35,9 @@ export const RUNTIME_PATHS: Partial<Record<OperatingSystem, readonly string[]>> 
 };
 
 /** Run one sandbox manager under a private parent connection. */
-export async function runLauncher(environment: Environment<"process" | "host">): Promise<void> {
+export async function runLauncher(
+    environment: Environment<"process" | "host" | "files">,
+): Promise<void> {
     // reject direct invocation without the supervising process and its temporary directory
     const { host, process } = environment;
     const { parent } = process;
@@ -95,6 +98,8 @@ export async function runLauncher(environment: Environment<"process" | "host">):
                         ...options.write,
                         temporary,
                     ],
+                    // TODO #Cleanup: drop patches/@anthropic-ai%2Fsandbox-runtime@0.0.77.patch once upstream keeps
+                    //  writes below read grants on Linux, which it mounts read-only over them
                     allowWrite: [...options.write, temporary],
                     denyWrite: getDefaultWritePaths().filter((path) => !path.startsWith("/dev/")),
                 },
@@ -102,6 +107,9 @@ export async function runLauncher(environment: Environment<"process" | "host">):
                     allowedDomains: options.network,
                     deniedDomains: [],
                     allowUnixSockets: [...options.sockets, temporary],
+                    // allow Unix sockets on Linux, bounded by the sandbox's mounts and network namespace
+                    allowAllUnixSockets: host.os === "linux",
+                    // bind loopback ports for the workload's own processes when it may serve
                     allowLocalBinding: options.listening === "loopback",
                 },
             },
@@ -136,10 +144,12 @@ export async function runLauncher(environment: Environment<"process" | "host">):
         });
         parent.send({ type: "ready" });
 
-        // terminate the process group when the parent stops or disconnects
+        // ask the workload to stop when the parent stops or disconnects, then kill its process group
         const grace = new AbortController();
         const stop = () => {
-            signalGroup(workload, isExited, "SIGTERM", process);
+            void terminate(workload, isExited, options.executable, environment).catch(
+                (error: unknown) => parent.send({ type: "error", message: String(error) }),
+            );
             void environment.clock.sleep(gracePeriod, grace.signal).then(
                 () => signalGroup(workload, isExited, "SIGKILL", process),
                 () => undefined,
@@ -178,21 +188,69 @@ export async function runLauncher(environment: Environment<"process" | "host">):
     }
 }
 
+/** Ask the workload itself to stop: its process group on macOS, its processes on Linux. */
+async function terminate(
+    child: Subprocess,
+    isExited: boolean,
+    executable: string,
+    environment: Environment<"process" | "host" | "files">,
+): Promise<void> {
+    // leave an exited workload, and signal its process group on macOS, where it runs in place
+    const { process, files, host } = environment;
+    if (isExited) {
+        return;
+    } else if (host.os !== "linux") {
+        signalGroup(child, isExited, "SIGTERM", process);
+
+        return;
+    }
+
+    // signal each process below bubblewrap running the workload's executable, as bubblewrap forwards no signal
+    // TODO #Cleanup: signal the workload alone once sandbox-runtime forwards signals through bubblewrap
+    const target = await files.realPath(executable);
+    for (const id of await descendants(child.id, environment)) {
+        const running = await files.realPath(`/proc/${id}/exe`).catch(FileSystemError.absent);
+        if (running === target) {
+            signalProcess(id, "SIGTERM", process);
+        }
+    }
+}
+
+/** List the processes below a process, as Linux lists each one's children in procfs. */
+async function descendants(id: number, environment: Environment<"files">): Promise<number[]> {
+    // read the process's children, none once it exited
+    const listed = await environment.files
+        .readTextFile(`/proc/${id}/task/${id}/children`)
+        .catch(FileSystemError.absent);
+    const children = (listed ?? "")
+        .split(" ")
+        .filter((each) => each !== "")
+        .map(Number);
+
+    // add each child's own descendants
+    const below = await Promise.all(children.map((child) => descendants(child, environment)));
+
+    return [...children, ...below.flat()];
+}
+
 /** Preserve one literal shell argument. */
 function quote(value: string): string {
     return `'${value.replaceAll("'", "'\\''")}'`;
 }
 
-/** Signal the workload process group, accepting an already terminated group. */
+/** Signal the workload's process group, leaving an exited one, whose group id may be reused. */
 function signalGroup(child: Subprocess, isExited: boolean, signal: Signal, process: Process): void {
-    // leave exited workloads alone, since their process group id may already be reused
-    if (isExited) {
-        return;
+    if (!isExited) {
+        signalProcess(-child.id, signal, process);
     }
+}
+
+/** Signal a process, or a group by its negated id, accepting one already gone. */
+function signalProcess(id: number, signal: Signal, process: Process): void {
     try {
-        process.kill(-child.id, signal);
+        process.kill(id, signal);
     } catch (error) {
-        // accept gone groups, which macOS reports as not permitted for exited, unreaped workloads
+        // accept gone processes, which macOS reports as not permitted for exited, unreaped ones
         const isGone =
             ProcessError.is(error, "NOT_FOUND") || ProcessError.is(error, "PERMISSION_DENIED");
         if (!isGone) {
