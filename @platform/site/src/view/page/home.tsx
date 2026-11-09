@@ -12,7 +12,7 @@ import { Metadata } from "@destack/view/document";
 import { Noun, noun } from "../home/noun/noun";
 import { BottomBar } from "../home/entry/switch";
 import { Adjective, destackable } from "../home/adjective/adjective";
-import { Command, command } from "../home/command/command";
+import { Command, destacker } from "../home/command/command";
 import { Participle, participle } from "../home/participle/participle";
 import { anchorOf, type Form } from "../home/entry/entry";
 import { ThumbIndex } from "../home/entry/thumb";
@@ -25,7 +25,7 @@ import "../home/figure/figure.css";
 import { requestIdle } from "@destack/view/primitives/scheduled";
 
 /** The sections' dictionary forms in page order. */
-const FORMS: readonly Form[] = [verb, noun, destacked, destackable, command, participle];
+const FORMS: readonly Form[] = [verb, noun, destacked, destackable, destacker, participle];
 
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = FORMS.map(anchorOf);
@@ -130,7 +130,7 @@ export function Home() {
             <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
             <Interval number={4} form={destackable} />
             <Adjective isOpen={isOpenAt(3)} />
-            <Interval number={5} form={command} />
+            <Interval number={5} form={destacker} />
             <Command isOpen={isOpenAt(4)} />
             <Interval number={6} form={participle} />
             <Participle
@@ -139,7 +139,7 @@ export function Home() {
                 onPick={pick}
                 prompt={promptOf(picks())}
             />
-            <BottomBar isOpen={isOpen()} />
+            <BottomBar isOpen={isOpen()} forms={FORMS} />
             <Interval />
             <ThumbIndex forms={FORMS} />
         </>

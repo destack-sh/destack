@@ -1,57 +1,20 @@
 import * as style from "@destack/style";
 import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
 
-import { allowance, machines, rates } from "../content/generated/pricing";
+import { allowance, machines, units } from "../content/generated/pricing";
 import { FigureLabel } from "../home/entry/entry";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { convert, type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
 
-/** The millions of CPU milliseconds in a CPU-hour, which CPU time is shown per. */
-const CPU_HOUR_MILLIONS = 3.6;
+/** A unit the page lists, with its price and what it costs Destack to run. */
+type Unit = (typeof units)[number];
 
-/** A meter: what it measures and per which unit, and its price in US dollars. */
-type Meter = { name: string; price: number };
-
-/** The meters at their generated rates, grouped by resource. */
-const meterGroups: readonly { name: string; meters: readonly Meter[] }[] = [
-    {
-        name: "Compute",
-        meters: [
-            { name: "Memory, per GB-hour", price: rates.memory },
-            { name: "CPU time, per CPU-hour", price: rates.cpu * CPU_HOUR_MILLIONS },
-            { name: "Requests, per million", price: rates.requests },
-        ],
-    },
-    {
-        name: "Database",
-        meters: [
-            { name: "Storage, per GB-month", price: rates.database },
-            { name: "Writes, per million rows", price: rates.rowsWritten },
-            { name: "Reads, per million rows", price: rates.rowsRead },
-        ],
-    },
-    {
-        name: "Files",
-        meters: [
-            { name: "Storage, per GB-month", price: rates.files },
-            { name: "Writes, per million", price: rates.fileWrites },
-            { name: "Reads, per million", price: rates.fileReads },
-        ],
-    },
-    {
-        name: "Network",
-        meters: [
-            { name: "Ingress", price: 0 },
-            { name: "Egress", price: 0 },
-        ],
-    },
-    {
-        name: "Inference",
-        meters: [{ name: "Model calls, per US dollar at list price", price: rates.inference }],
-    },
-];
+/** The units by resource, in the order the generator lists them. */
+const resources: readonly { name: string; units: readonly Unit[] }[] = [
+    ...Map.groupBy(units, (unit) => unit.resource),
+].map(([name, grouped]) => ({ name, units: grouped }));
 
 /** The name each machine size is shown under. */
 const sizeNames: Readonly<Record<(typeof machines)[number]["size"], string>> = {
@@ -79,31 +42,24 @@ export function Rates(properties: { currency: Currency }) {
             <section {...style.attrs(lattice.cell, styles.panel, styles.usage)}>
                 <h3 {...style.attrs(styles.title)}>Usage</h3>
                 <p {...style.attrs(styles.lede)}>The same prices on every plan.</p>
-                <table {...style.attrs(styles.table)}>
-                    <thead>
-                        <tr>
-                            <th {...style.attrs(styles.head)}>Item</th>
-                            <th {...style.attrs(styles.head, styles.end)}>Price</th>
-                        </tr>
-                    </thead>
-                    {meterGroups.map((group) => (
-                        <tbody>
-                            <tr>
-                                <th colspan={2} scope="colgroup" {...style.attrs(styles.group)}>
-                                    {group.name}
-                                </th>
-                            </tr>
-                            {group.meters.map((meter) => (
-                                <tr>
-                                    <td {...style.attrs(styles.cell)}>{meter.name}</td>
-                                    <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
-                                        {rate(meter.price)}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    ))}
-                </table>
+
+                {/* each resource's units and their prices */}
+                {resources.map((resource) => (
+                    <section {...style.attrs(styles.resource)}>
+                        <h4 {...style.attrs(styles.group)}>{resource.name}</h4>
+                        {resource.units.map((unit) => (
+                            <div {...style.attrs(styles.unit)}>
+                                <span>
+                                    {unit.name}
+                                    <span {...style.attrs(styles.specs)}> · per {unit.per}</span>
+                                </span>
+                                <span {...style.attrs(styles.figure, styles.end)}>
+                                    {rate(unit.price)}
+                                </span>
+                            </div>
+                        ))}
+                    </section>
+                ))}
                 <p {...style.attrs(styles.note)}>
                     The Free plan includes {fee(allowance.usage)} of usage per person each month,
                     enough for {allowance.database} GB of database, {allowance.files} GB of files,{" "}
@@ -219,10 +175,25 @@ const styles = style.create({
         fontSize: typeScale.label,
         fontWeight: weight.regular,
         letterSpacing: tracking.label,
-        paddingBlockStart: "1.5rem",
+        margin: 0,
         paddingBlockEnd: "0.5rem",
+        paddingBlockStart: "1.25rem",
         textAlign: "start",
         textTransform: "uppercase",
+    },
+    resource: {
+        display: "grid",
+    },
+    unit: {
+        alignItems: "center",
+        borderBottomColor: color.border,
+        borderBottomStyle: "solid",
+        borderBottomWidth: stroke.border,
+        columnGap: "1rem",
+        display: "grid",
+        fontSize: typeScale.body,
+        gridTemplateColumns: "minmax(0, 1fr) auto",
+        paddingBlock: "0.75rem",
     },
     cell: {
         borderBottomColor: color.border,

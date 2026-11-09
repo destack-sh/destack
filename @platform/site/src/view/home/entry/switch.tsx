@@ -12,7 +12,8 @@ import { createEventListener } from "@destack/view/primitives/event-listener";
 import { palette } from "../../palette.stylex";
 
 import { commandEvents } from "../../layout/command";
-import { Syllables } from "./entry";
+import { type Form, Syllables } from "./entry";
+import { ThumbMenu } from "./thumb";
 import { media } from "@destack/style/media.stylex";
 import { typeScale } from "../../layout/type.stylex";
 import { press } from "../../layout/press";
@@ -131,8 +132,8 @@ export function Toggle(properties: {
     );
 }
 
-/** Hold the phone's bottom bar from the first figure to the footer. */
-export function BottomBar(properties: { isOpen: boolean }) {
+/** Hold the bottom bar below the thumb index's widths, from the first figure to the footer. */
+export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] }) {
     // show the bar from the first figure label until the footer comes into view
     let bar: HTMLDivElement | undefined;
     const [isShown, setIsShown] = createSignal(false);
@@ -170,6 +171,7 @@ export function BottomBar(properties: { isOpen: boolean }) {
                 <Icon icon={arrowUp} xstyle={styles.barIcon} />
             </Button>
             <StackSwitch isOpen={properties.isOpen} place="bar" />
+            <ThumbMenu forms={properties.forms} />
             <Button
                 variant="ghost"
                 size="icon"
@@ -257,8 +259,8 @@ const styles = style.create({
         bottom: "calc(0.75rem + env(safe-area-inset-bottom))",
         boxShadow: `0 6px 24px color-mix(in srgb, ${color.foreground} 14%, transparent)`,
         boxSizing: "border-box",
-        display: { default: "none", [media.maxMd]: "grid" },
-        gridTemplateColumns: "auto minmax(0, 1fr) auto",
+        display: { default: "none", "@media (max-width: 1319px)": "grid" },
+        gridTemplateColumns: "auto minmax(0, 1fr) auto auto",
         height: "3.5rem",
         insetInline: "1rem",
         justifyItems: "center",

@@ -27,69 +27,56 @@ const supportNames: Readonly<Record<Plan["support"], string>> = {
     sla: "SLA",
 };
 
-/** The rows of the comparison by group: the software, hosting, AI, usage, support and contract. */
-const groups: readonly { name: string; rows: readonly Row[] }[] = [
+/** The rows of the comparison, by what they are about: usage, software, hosting, AI and support. */
+const rows: readonly Row[] = [
+    // usage
     {
-        name: "Software",
-        rows: [
-            {
-                feature: features.members,
-                cell: (plan) => (plan.fees.USD === 0 ? "Up to 5" : "Any number"),
-            },
-            { feature: features.pooled, cell: () => true },
-            { feature: features.guests, cell: () => true },
-            { feature: features.agents, cell: () => true },
-            { feature: features.apps, cell: () => true },
-            { feature: features.integrations, cell: () => true },
-            { feature: features.branches, cell: () => true },
-            { feature: features.access, cell: () => true },
-            { feature: features.secrets, cell: () => true },
-            { feature: features.audit, cell: () => true },
-            { feature: features.observability, cell: () => true },
-        ],
+        feature: features.included,
+        cell: (plan, currency) =>
+            plan.fees.USD === 0
+                ? money(convert(allowance.usage, currency), currency, true)
+                : money(plan.fees[currency], currency),
     },
     {
-        name: "Hosting",
-        rows: [
-            { feature: features.selfHosting, cell: () => true },
-            { feature: features.cloudHosting, cell: () => true },
-            { feature: features.residency, cell: () => true },
-            { feature: features.tunnels, cell: () => true },
-            { feature: features.domains, cell: (plan) => plan.isCustomDomains },
-            { feature: features.dedicated, cell: (plan) => plan.isDedicated },
-        ],
+        feature: features.retention,
+        cell: (plan) => (plan.isCustomRetention ? "Custom" : "Default"),
     },
     {
-        name: "AI",
-        rows: [
-            { feature: features.ownAi, cell: () => true },
-            { feature: features.managedAi, cell: () => true },
-        ],
+        feature: features.overage,
+        cell: (plan) => (plan.isUncapped ? "Pay as you go" : "Capped"),
     },
+
+    // software
     {
-        name: "Usage",
-        rows: [
-            {
-                feature: features.included,
-                cell: (plan, currency) =>
-                    plan.fees.USD === 0
-                        ? money(convert(allowance.usage, currency), currency, true)
-                        : money(plan.fees[currency], currency),
-            },
-            {
-                feature: features.retention,
-                cell: (plan) => (plan.isCustomRetention ? "Custom" : "Default"),
-            },
-            { feature: features.uncapped, cell: (plan) => plan.isUncapped },
-        ],
+        feature: features.members,
+        cell: (plan) => (plan.fees.USD === 0 ? "Up to 5" : "Any number"),
     },
-    {
-        name: "Support",
-        rows: [
-            { feature: features.support, cell: (plan) => supportNames[plan.support] },
-            { feature: features.early, cell: (plan) => plan.isEarlyAccess },
-        ],
-    },
+    { feature: features.pooled, cell: () => true },
+    { feature: features.guests, cell: () => true },
+    { feature: features.agents, cell: () => true },
+    { feature: features.apps, cell: () => true },
+    { feature: features.integrations, cell: () => true },
+    { feature: features.branches, cell: () => true },
+    { feature: features.access, cell: () => true },
+    { feature: features.secrets, cell: () => true },
+    { feature: features.audit, cell: () => true },
+    { feature: features.observability, cell: () => true },
+
+    // hosting
+    { feature: features.selfHosting, cell: () => true },
+    { feature: features.cloudHosting, cell: () => true },
+    { feature: features.residency, cell: () => true },
+    { feature: features.tunnels, cell: () => true },
+    { feature: features.domains, cell: (plan) => plan.isCustomDomains },
+    { feature: features.dedicated, cell: (plan) => plan.isDedicated },
+
+    // ai
+    { feature: features.ownAi, cell: () => true },
+    { feature: features.managedAi, cell: () => true },
+
+    // support
+    { feature: features.support, cell: (plan) => supportNames[plan.support] },
+    { feature: features.early, cell: (plan) => plan.isEarlyAccess },
 ];
 
 /** Label the comparison as the second figure. */
@@ -102,23 +89,32 @@ export function ComparisonLabel() {
 /** The plans the comparison lists, the enterprise contract offered apart from them. */
 const offered = plans.filter((plan) => !plan.isContract);
 
-/** Compare the plans row by row, grouped by what the rows are about. */
+/** Compare the plans: what every plan includes as one strip, then the rows where they differ. */
 export function Comparison(properties: { currency: Currency }) {
-    // list each group's rows some shown plan has, leaving out groups without any
-    const listed = () =>
-        groups.flatMap((group) => {
-            const rows = group.rows.filter((row) =>
-                offered.some((plan) => row.cell(plan, properties.currency) !== false),
-            );
-
-            return rows.length === 0 ? [] : [{ name: group.name, rows }];
-        });
+    // split the rows into those every plan includes and those that tell the plans apart
+    const shared = rows.filter((row) =>
+        offered.every((plan) => row.cell(plan, properties.currency) === true),
+    );
+    const differing = () => rows.filter((row) => !shared.includes(row));
 
     return (
         <div {...style.attrs(lattice.cell, styles.frame)}>
+            {/* what every plan includes */}
+            <p {...style.attrs(styles.lead)}>In every plan</p>
+            <ul {...style.attrs(styles.shared)}>
+                {shared.map((row) => (
+                    <li {...style.attrs(styles.feature)}>
+                        <span aria-hidden="true" {...style.attrs(styles.icon)}>
+                            <Glyph name={row.feature.icon} size={16} weight={1.75} />
+                        </span>
+                        <Hint text={row.feature.name} detail={row.feature.detail} />
+                    </li>
+                ))}
+            </ul>
+
             <table {...style.attrs(styles.table)}>
-                {/* one column per plan */}
-                <thead {...style.attrs(styles.section)}>
+                {/* one column per plan, pinned while the rows scroll past */}
+                <thead {...style.attrs(styles.section, styles.sticky)}>
                     <tr {...style.attrs(styles.row)}>
                         <th {...style.attrs(styles.name, styles.corner)}>
                             <span {...style.attrs(styles.hidden)}>Feature</span>
@@ -129,32 +125,21 @@ export function Comparison(properties: { currency: Currency }) {
                     </tr>
                 </thead>
 
-                {/* each group, its title, then its rows, a row's name above its cells on phones */}
-                {listed().map((group) => (
-                    <tbody {...style.attrs(styles.section)}>
-                        <tr {...style.attrs(styles.section)}>
-                            <th
-                                colspan={offered.length + 1}
-                                scope="colgroup"
-                                {...style.attrs(styles.group)}
-                            >
-                                {group.name}
+                {/* the rows that tell the plans apart, a row's name above its cells on phones */}
+                <tbody {...style.attrs(styles.section)}>
+                    {differing().map((row) => (
+                        <tr {...style.attrs(styles.row)}>
+                            <th scope="row" {...style.attrs(styles.name)}>
+                                <Hint text={row.feature.name} detail={row.feature.detail} />
                             </th>
+                            {offered.map((plan) => (
+                                <td {...style.attrs(styles.plan)}>
+                                    <CellValue cell={row.cell(plan, properties.currency)} />
+                                </td>
+                            ))}
                         </tr>
-                        {group.rows.map((row) => (
-                            <tr {...style.attrs(styles.row)}>
-                                <th scope="row" {...style.attrs(styles.name)}>
-                                    <Hint text={row.feature.name} detail={row.feature.detail} />
-                                </th>
-                                {offered.map((plan) => (
-                                    <td {...style.attrs(styles.plan)}>
-                                        <CellValue cell={row.cell(plan, properties.currency)} />
-                                    </td>
-                                ))}
-                            </tr>
-                        ))}
-                    </tbody>
-                ))}
+                    ))}
+                </tbody>
             </table>
         </div>
     );
@@ -196,6 +181,46 @@ const styles = style.create({
     section: {
         display: "block",
     },
+    sticky: {
+        backgroundColor: color.background,
+        position: "sticky",
+        top: 0,
+        zIndex: 1,
+    },
+    lead: {
+        color: color.mutedForeground,
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
+        margin: 0,
+        textTransform: "uppercase",
+    },
+    shared: {
+        columnGap: "1.5rem",
+        display: "grid",
+        gridTemplateColumns: {
+            default: "repeat(4, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
+        },
+        listStyle: "none",
+        margin: 0,
+        marginBlockEnd: "2.5rem",
+        marginBlockStart: "1.25rem",
+        padding: 0,
+        rowGap: "0.875rem",
+    },
+    feature: {
+        alignItems: "center",
+        display: "flex",
+        fontSize: typeScale.body,
+        gap: "0.75rem",
+        minWidth: 0,
+    },
+    icon: {
+        color: color.mutedForeground,
+        display: "flex",
+        flexShrink: 0,
+    },
     row: {
         alignItems: "center",
         borderBottomColor: color.border,
@@ -233,18 +258,6 @@ const styles = style.create({
         position: "absolute",
         whiteSpace: "nowrap",
         width: "1px",
-    },
-    group: {
-        color: color.mutedForeground,
-        display: "block",
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        fontWeight: weight.regular,
-        letterSpacing: tracking.label,
-        paddingBlockEnd: "0.75rem",
-        paddingBlockStart: "2rem",
-        textAlign: "start",
-        textTransform: "uppercase",
     },
     check: {
         color: color.primary,

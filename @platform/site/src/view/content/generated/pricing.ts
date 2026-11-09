@@ -9,8 +9,23 @@ export const rates = {
     rowsWritten: 2,
     fileReads: 0.72,
     fileWrites: 9,
-    inference: 1.25,
 } as const;
+
+/** Each unit by resource, with its price in US dollars. */
+export const units = [
+    { resource: "Compute", name: "Memory", per: "GB-hour", price: 0.09 },
+    { resource: "Compute", name: "CPU time", per: "CPU-hour", price: 0.144 },
+    { resource: "Compute", name: "Requests", per: "million", price: 0.9 },
+    { resource: "Database", name: "Storage", per: "GB-month", price: 0.4 },
+    { resource: "Database", name: "Writes", per: "million rows", price: 2 },
+    { resource: "Database", name: "Reads", per: "million rows", price: 0.002 },
+    { resource: "Files", name: "Storage", per: "GB-month", price: 0.03 },
+    { resource: "Files", name: "Writes", per: "million", price: 9 },
+    { resource: "Files", name: "Reads", per: "million", price: 0.72 },
+    { resource: "Network", name: "Ingress", per: "GB", price: 0 },
+    { resource: "Network", name: "Egress", per: "GB", price: 0 },
+    { resource: "Inference", name: "Model calls", per: "US dollar at list price", price: 1.25 },
+] as const;
 
 /** The currencies Destack bills in. */
 export const currencies = ["USD", "CAD", "EUR", "CHF", "GBP", "AUD"] as const;

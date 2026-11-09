@@ -1,4 +1,3 @@
-import { present } from "@destack/schema";
 import { createEffect, createSignal, useEnvironment } from "@destack/view";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { requestFrame } from "@destack/view/primitives/raf";
@@ -9,8 +8,6 @@ export type Folio = {
     index: number;
     /** The number of entries on the page. */
     total: number;
-    /** Whether the page's footer has come into view, past every entry. */
-    isFooterShown: boolean;
 };
 
 /** Follow which dictionary entry the reader has scrolled to, while the page is followed. */
@@ -35,12 +32,7 @@ export function createFolio(isFollowed: () => boolean): () => Folio | undefined 
             cancel = undefined;
             const middle = window.innerHeight / 2;
             const passed = entries.filter((entry) => entry.getBoundingClientRect().top < middle);
-            const footer = present(
-                document.querySelector("[data-component=SiteFooter]"),
-                "the page footer",
-            );
-            const isFooterShown = footer.getBoundingClientRect().top < window.innerHeight;
-            setFolio({ index: passed.length, total: entries.length, isFooterShown });
+            setFolio({ index: passed.length, total: entries.length });
         };
 
         // measure now, then once a frame while the page scrolls or resizes

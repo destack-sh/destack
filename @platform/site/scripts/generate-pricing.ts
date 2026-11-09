@@ -17,9 +17,17 @@ import {
     databaseWriteUnit,
     ENTERPRISE,
     inferenceCostUnit,
+    networkEgressUnit,
+    networkIngressUnit,
     MACHINES,
     PLANS,
 } from "@platform/pricing";
+
+/** A unit SKU of Destack's price list. */
+type Unit = typeof computeUsageUnit;
+
+/** The CPU milliseconds in a CPU-hour, which CPU time is shown per. */
+const CPU_HOUR_MILLISECONDS = 3_600_000;
 
 /** The minutes in an hour, which machines are also shown per. */
 const MINUTES_PER_HOUR = 60;
@@ -63,8 +71,24 @@ const rates = {
     rowsWritten: rateOf(databaseWriteUnit, MILLION),
     fileReads: rateOf(bucketReadUnit, MILLION),
     fileWrites: rateOf(bucketWriteUnit, MILLION),
-    inference: rateOf(inferenceCostUnit, 1),
 };
+
+// price each unit as the page lists it, in US dollars
+/** Each unit by resource: what it is, per what, and its price. */
+const units = [
+    unitOf("Compute", "Memory", "GB-hour", computeUsageUnit, SECONDS_PER_HOUR),
+    unitOf("Compute", "CPU time", "CPU-hour", computeTimeUnit, CPU_HOUR_MILLISECONDS),
+    unitOf("Compute", "Requests", "million", computeOperationUnit, MILLION),
+    unitOf("Database", "Storage", "GB-month", databaseUsageUnit, GIGABYTE),
+    unitOf("Database", "Writes", "million rows", databaseWriteUnit, MILLION),
+    unitOf("Database", "Reads", "million rows", databaseReadUnit, MILLION),
+    unitOf("Files", "Storage", "GB-month", bucketUsageUnit, GIGABYTE),
+    unitOf("Files", "Writes", "million", bucketWriteUnit, MILLION),
+    unitOf("Files", "Reads", "million", bucketReadUnit, MILLION),
+    unitOf("Network", "Ingress", "GB", networkIngressUnit, GIGABYTE),
+    unitOf("Network", "Egress", "GB", networkEgressUnit, GIGABYTE),
+    unitOf("Inference", "Model calls", "US dollar at list price", inferenceCostUnit, 1),
+];
 
 // read each plan's name, fee in each currency, support and gates
 /** The plans, cheapest first. */
@@ -153,6 +177,8 @@ const generatedSource = await formatSource(
     generatedFile,
     `/** The usage rates in US dollars, per GB-month, GB-hour or million. */\n` +
         `export const rates = ${JSON.stringify(rates)} as const;\n\n` +
+        `/** Each unit by resource, with its price in US dollars. */\n` +
+        `export const units = ${JSON.stringify(units)} as const;\n\n` +
         `/** The currencies Destack bills in. */\n` +
         `export const currencies = ${JSON.stringify(CURRENCIES)} as const;\n\n` +
         `/** A US dollar of rate in each currency. */\n` +
@@ -166,10 +192,15 @@ const generatedSource = await formatSource(
 );
 
 /** Return a unit's price in US dollars for a quantity of its meter, such as a gigabyte of bytes. */
-function rateOf(unit: typeof computeUsageUnit, quantity: number): number {
+function rateOf(unit: Unit, quantity: number): number {
     const credits = Number(unit.definition.unitAmount) / MINOR_UNITS;
 
     return roundOf(credits * (quantity / unit.definition.unitSize) * Number(CREDIT_PRICES.USD));
+}
+
+/** Return a unit as the page lists it, priced for a quantity of its meter. */
+function unitOf(resource: string, name: string, per: string, unit: Unit, quantity: number) {
+    return { resource, name, per, price: rateOf(unit, quantity) };
 }
 
 /** Return credit cents in US dollars. */

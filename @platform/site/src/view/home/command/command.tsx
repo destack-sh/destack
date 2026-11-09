@@ -36,21 +36,21 @@ const lineup: Lineup = (category) =>
           }
         : lineupAt(0)(category);
 
-/** The command every app answers to, as an imperative. */
-export const command: Form = {
-    syllables: ["de", "stack!"],
-    pronunciation: "/diːˈstak/",
-    partOfSpeech: "imperative",
+/** The agent noun: whoever destacks, your agents among them. */
+export const destacker: Form = {
+    syllables: ["de", "stack", "er"],
+    pronunciation: "/diːˈstakə/",
+    partOfSpeech: "agent noun",
     sense: {
-        definition: "every app, programmable by your agents",
-        highlight: ["programmable"],
+        definition: "your agents, fluent in every app",
+        highlight: ["fluent"],
         sentence:
             "Put your agents to work across your whole space, with the same API your apps use.",
-        gloss: "as programmable as a humble spreadsheet",
+        gloss: "anyone, or any agent, who destacks",
     },
 };
 
-/** Show the imperative at work: an app beside a chat with your agent, a turn per app. */
+/** Show the destacker at work: an app beside a chat with your agent, a turn per app. */
 export function Command(properties: { isOpen: boolean }) {
     // hold the section, the motion it may show, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
@@ -103,7 +103,7 @@ export function Command(properties: { isOpen: boolean }) {
             ref={setSection}
             {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
-            <Entry form={command} />
+            <Entry form={destacker} />
             <FigureLabel
                 number={5}
                 isOpen={properties.isOpen}

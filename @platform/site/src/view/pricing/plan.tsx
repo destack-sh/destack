@@ -8,7 +8,7 @@ import { For } from "@destack/view";
 import { allowance, currencies, plans } from "../content/generated/pricing";
 import { FigureLabel } from "../home/entry/entry";
 import { Toggle } from "../home/entry/switch";
-import { Glyph, type GlyphName } from "../home/figure/glyph";
+import { Glyph } from "../home/figure/glyph";
 import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
@@ -79,11 +79,8 @@ const TOPICS = [
 /** The rows of a card: head, price, action, the line leading its list, and the list. */
 const CARD_ROWS = 5;
 
-/** What a benefit is about. */
+/** What a listed feature is about. */
 type Topic = (typeof TOPICS)[number];
-
-/** One benefit a card lists: its icon and its feature. */
-type Benefit = { icon: GlyphName; feature: Feature };
 
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
@@ -103,12 +100,12 @@ const ENTERPRISE_FEATURES: readonly { phrase: string; feature: Feature }[] = [
     { phrase: "a data processing agreement", feature: features.agreement },
 ];
 
-/** The support each level gives, as a benefit. */
-const supportBenefits: Readonly<Record<Plan["support"], Benefit>> = {
-    community: { icon: "people", feature: features.communitySupport },
-    email: { icon: "mail", feature: features.emailSupport },
-    priority: { icon: "bolt", feature: features.prioritySupport },
-    sla: { icon: "help", feature: features.slaSupport },
+/** The support each level gives, as a feature. */
+const supportFeatures: Readonly<Record<Plan["support"], Feature>> = {
+    community: features.communitySupport,
+    email: features.emailSupport,
+    priority: features.prioritySupport,
+    sla: features.slaSupport,
 };
 
 /** Label the plans as the first figure, with the currency and audience the reader switches. */
@@ -185,6 +182,7 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
                         tagline={taglines[plan.key]}
                         count={shown.length}
                         currency={properties.currency}
+                        isPooled={properties.audience === "organisation"}
                         enterprise={
                             plan.key !== "pro"
                                 ? "absent"
@@ -206,6 +204,7 @@ function PlanCard(properties: {
     tagline: string;
     count: number;
     currency: Currency;
+    isPooled: boolean;
     enterprise: "shown" | "kept" | "absent";
 }) {
     // read the plan's fee, and whether it is the free plan, a contract, or the one most people pick
@@ -216,8 +215,8 @@ function PlanCard(properties: {
 
     // list what the plan adds over the plan below it, or everything on the first plan
     const below = properties.below;
-    const shown = below === undefined ? [] : benefitsOf(below).map((each) => each.feature);
-    const added = benefitsOf(plan).filter((benefit) => !shown.includes(benefit.feature));
+    const shown = below === undefined ? [] : featuresOf(below);
+    const added = featuresOf(plan).filter((feature) => !shown.includes(feature));
 
     return (
         <article
@@ -239,10 +238,15 @@ function PlanCard(properties: {
                 <p {...style.attrs(styles.fee)}>
                     <span {...style.attrs(styles.amount)}>{money(fee(), properties.currency)}</span>
                     <span {...style.attrs(styles.period)}>
-                        {isFree ? "/ month" : "/ person / month"}
+                        {isFree || !properties.isPooled ? "/ month" : "/ person / month"}
                     </span>
                 </p>
-                <Usage plan={plan} fee={fee()} currency={properties.currency} />
+                <Usage
+                    plan={plan}
+                    fee={fee()}
+                    currency={properties.currency}
+                    isPooled={properties.isPooled}
+                />
             </div>
 
             {/* start for free, subscribe, or write to us */}
@@ -262,8 +266,8 @@ function PlanCard(properties: {
                 {below === undefined ? "All of Destack:" : `Everything in ${below.name}, plus:`}
             </p>
             <div {...style.attrs(styles.extras)}>
-                {added.map((benefit) => (
-                    <BenefitRow benefit={benefit} />
+                {added.map((feature) => (
+                    <FeatureRow feature={feature} />
                 ))}
                 {properties.enterprise === "absent" ? undefined : (
                     <Enterprise
@@ -323,100 +327,95 @@ function Enterprise(properties: { currency: Currency; isShown: boolean }) {
     );
 }
 
-/** Set the usage a plan includes each month under its fee. */
-function Usage(properties: { plan: Plan; fee: number; currency: Currency }) {
-    // state the usage a fee includes and what happens past it, or the free plan's
-    const included = () => `${money(properties.fee, properties.currency)} of usage included`;
-    return properties.plan.isUncapped ? (
+/** Set the usage a plan includes each month under its fee, pooled across an organisation. */
+function Usage(properties: { plan: Plan; fee: number; currency: Currency; isPooled: boolean }) {
+    // name the usage the fee includes, or the free plan's, pooled for an organisation
+    const isFree = () => properties.fee === 0;
+    const amount = () =>
+        isFree()
+            ? money(convert(allowance.usage, properties.currency), properties.currency, true)
+            : money(properties.fee, properties.currency);
+    const included = () => `${amount()} of ${properties.isPooled ? "pooled " : ""}usage included`;
+
+    // explain the pool for an organisation, then what happens past the included usage
+    const pool = () =>
+        properties.isPooled ? "Each member's fee is usage, pooled across your organisation. " : "";
+    const detail = () =>
+        isFree()
+            ? `Enough for ${allowance.database} GB of database, ${allowance.files} GB of files, ${allowance.compute} GB-hours of compute and a million requests a month${properties.isPooled ? " for each member, up to 5" : ""}. Past it your spaces slow down and stop taking writes, and nothing is billed.`
+            : properties.plan.isUncapped
+              ? `${pool()}Past it, usage is billed at the prices below, up to a monthly limit you set.`
+              : `${pool()}Past it your spaces slow down and stop taking writes, and nothing more is billed.`;
+    const past = () =>
+        properties.plan.isUncapped
+            ? "then pay as you go"
+            : isFree() && properties.isPooled
+              ? "per person, then capped"
+              : "then capped";
+
+    return (
         <p {...style.attrs(styles.usage)}>
-            <Hint
-                text={included()}
-                detail="Each member's fee is usage, pooled across your organisation. Past it, usage is billed at the prices below, up to a monthly limit you set."
-            />
+            <Hint text={included()} detail={detail()} />
             <br />
-            then pay as you go
-        </p>
-    ) : properties.fee > 0 ? (
-        <p {...style.attrs(styles.usage)}>
-            <Hint
-                text={included()}
-                detail="Each member's fee is usage, pooled across your organisation. Past it your spaces slow down and stop taking writes, and nothing more is billed."
-            />
-            <br />
-            then capped
-        </p>
-    ) : (
-        <p {...style.attrs(styles.usage)}>
-            <Hint
-                text={`${money(convert(allowance.usage, properties.currency), properties.currency, true)} of usage included`}
-                detail={`Enough for ${allowance.database} GB of database, ${allowance.files} GB of files, ${allowance.compute} GB-hours of compute and a million requests a month, for each member up to 5. Past it your spaces slow down and stop taking writes, and nothing is billed.`}
-            />
-            <br />
-            per person, then capped
+            {past()}
         </p>
     );
 }
 
-/** Draw one benefit: its icon and its words. */
-function BenefitRow(properties: { benefit: Benefit }) {
+/** Draw one feature: its icon and its name. */
+function FeatureRow(properties: { feature: Feature }) {
     return (
         <p {...style.attrs(styles.benefit)}>
             <span aria-hidden="true" {...style.attrs(styles.icon)}>
-                <Glyph name={properties.benefit.icon} size={16} weight={1.75} />
+                <Glyph name={properties.feature.icon} size={16} weight={1.75} />
             </span>
-            <Hint
-                text={properties.benefit.feature.name}
-                detail={properties.benefit.feature.detail}
-            />
+            <Hint text={properties.feature.name} detail={properties.feature.detail} />
         </p>
     );
 }
 
 /** Return what a plan gives, topic by topic. */
-function benefitsOf(plan: Plan): Benefit[] {
+function featuresOf(plan: Plan): Feature[] {
     return TOPICS.flatMap((topic) => {
-        const benefit = benefitOf(plan, topic);
+        const feature = featureOf(plan, topic);
 
-        return benefit === undefined ? [] : [benefit];
+        return feature === undefined ? [] : [feature];
     });
 }
 
 /** Return what a plan gives on a topic, or nothing where it gives nothing there. */
-function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
+function featureOf(plan: Plan, topic: Topic): Feature | undefined {
     // read which apps, where the plan runs and which AI it uses, the same on every plan
     if (topic === "apps") {
-        return { icon: "grid", feature: features.apps };
+        return features.apps;
     } else if (topic === "selfHosting") {
-        return { icon: "monitor", feature: features.selfHosting };
+        return features.selfHosting;
     } else if (topic === "cloudHosting") {
-        return { icon: "server", feature: features.cloudHosting };
+        return features.cloudHosting;
     } else if (topic === "residency") {
-        return { icon: "globe", feature: features.residency };
+        return features.residency;
     } else if (topic === "ownAi") {
-        return { icon: "plug", feature: features.ownAi };
+        return features.ownAi;
     } else if (topic === "managedAi") {
-        return { icon: "cloud", feature: features.managedAi };
+        return features.managedAi;
     }
     // keep events for their default spans, or as long as each space chooses
     else if (topic === "history") {
-        return {
-            icon: "clock",
-            feature: plan.isCustomRetention ? features.customRetention : features.defaultRetention,
-        };
+        return plan.isCustomRetention ? features.customRetention : features.defaultRetention;
     }
     // read what the plan unlocks
     else if (topic === "domains") {
-        return plan.isCustomDomains ? { icon: "link", feature: features.domains } : undefined;
+        return plan.isCustomDomains ? features.domains : undefined;
     } else if (topic === "caps") {
-        return plan.isUncapped ? { icon: "up", feature: features.uncapped } : undefined;
+        return plan.isUncapped ? features.uncapped : undefined;
     } else if (topic === "early") {
-        return plan.isEarlyAccess ? { icon: "star", feature: features.early } : undefined;
+        return plan.isEarlyAccess ? features.early : undefined;
     } else if (topic === "machines") {
-        return plan.isDedicated ? { icon: "chip", feature: features.dedicated } : undefined;
+        return plan.isDedicated ? features.dedicated : undefined;
     }
     // read who helps
     else {
-        return supportBenefits[plan.support];
+        return supportFeatures[plan.support];
     }
 }
 
