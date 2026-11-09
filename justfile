@@ -82,20 +82,23 @@ affected base="":
         fi
     done
 
-# run each package's gates: formatting, types, lints, and tests on 4 workers
+# run each package's gates: formatting, types, lints, and tests on a worker per two cores, four at most
 gate +directories:
     #!/usr/bin/env bash
     set -euo pipefail
+    # give each test worker two cores, as a scenario test runs its workloads beside it
+    cores="$(getconf _NPROCESSORS_ONLN)"
+    workers=$(( cores / 2 > 4 ? 4 : (cores / 2 < 1 ? 1 : cores / 2) ))
     for directory in {{directories}}; do
         echo "gate $directory"
         cd "{{justfile_directory()}}/$directory"
         bun run destack-check format-check
         bunx tsc --noEmit -p .
         bun run destack-check check
-        # run vitest suites on 4 workers, and other test scripts as written
+        # run vitest suites on the workers, and other test scripts as written
         test="$(jq -r '.scripts.test // ""' package.json)"
         if [[ "$test" == *vitest* ]]; then
-            bun run test --maxWorkers=4
+            bun run test --maxWorkers="$workers"
         elif [ -n "$test" ]; then
             bun run test
         fi
