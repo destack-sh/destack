@@ -1,6 +1,5 @@
+import { UniverseOrigin } from "@destack/account/address";
 import { accessInvitation, INVITATION_LIFETIME_MILLISECONDS } from "@destack/access";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
-import { PackageMount } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -9,28 +8,30 @@ import { expect, onTestFinished, test } from "@destack/test";
 import { TestUniverse, type TestUniverseOptions, UNIVERSE_NODE } from "../src/test/index.ts";
 import { apply, Universe } from "../src/universe/index.ts";
 
-test("start a universe over its definition, answering the account package below its mount, sending its root to sign in, and nothing elsewhere", async () => {
+test("start a universe over its definition, serving its issuer at the issuer's path and nothing at its root or elsewhere", async () => {
     // start the universe with a cloud machine serving its residency
     await using started = await TestUniverse.open();
     const { universe, origin } = started;
 
-    // answer the issuer's discovery below the account package's mount, and refuse other paths
-    const issuer = `${PackageMount.url(origin, accountPackage.id)}${OAUTH_PATH}`;
+    // read the issuer's discovery at its path
+    const issuer = UniverseOrigin.issuer(origin);
     const discovery = await universe.fetch(
         new Request(`${issuer}/.well-known/openid-configuration`),
     );
     const { issuer: discovered } = schema
         .looseObject({ issuer: schema.string() })
         .parse(await discovery.json());
-    const outside = await universe.fetch(new Request(`${origin}/auth/sign-in`));
+
+    // refuse the root and any other path, which the routes of the universe's hostname serve
+    const outside = await universe.fetch(new Request(`${origin}/sign-in`));
     const root = await universe.fetch(new Request(`${origin}/`));
     await started.simulation.idle();
-    expect([
-        discovery.status,
-        discovered,
-        outside.status,
-        [root.status, root.headers.get("location")],
-    ]).toEqual([200, issuer, 404, [303, `${issuer}/sign-in`]]);
+    expect([discovery.status, discovered, outside.status, root.status]).toEqual([
+        200,
+        issuer,
+        404,
+        404,
+    ]);
 });
 
 test("apply a definition once across starts, again once the operator's invitation lapses, and again once it changes", async () => {

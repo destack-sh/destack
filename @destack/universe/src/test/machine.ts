@@ -2,11 +2,11 @@ import type { Simulation } from "@destack/environment/simulation";
 import { principal } from "@destack/access";
 import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
-import { Directory } from "@destack/account/address";
+import { Directory, UniverseOrigin } from "@destack/account/address";
 import { MachineIdentity } from "@destack/account/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import { directoryShape, identityShape, machineShape } from "@destack/account/object";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
 import { TestDatabase } from "@destack/db/test";
 import type { Clock, Environment } from "@destack/environment";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
@@ -88,7 +88,7 @@ export class TestMachine implements AsyncDisposable {
         this.id = fields.identity.machineId;
         this.environment = fields.environment;
         this.keyring = fields.keyring;
-        this.universe = { accounts, issuer: `${accounts}${OAUTH_PATH}` };
+        this.universe = { accounts, issuer: UniverseOrigin.issuer(fields.origin) };
         this.#identity = fields.identity;
         this.#send = fields.send;
         this.#replica = fields.replica;
@@ -141,7 +141,7 @@ export class TestMachine implements AsyncDisposable {
         const kept = new MemoryKeychain(options.world?.secrets);
         const keyring = await LocalKeyring.open(kept, id, environment);
         const accounts = PackageMount.url(origin, accountPackage.id);
-        const issuer = `${accounts}${OAUTH_PATH}`;
+        const issuer = UniverseOrigin.issuer(origin);
         const store = createClient(
             accountPackage,
             {

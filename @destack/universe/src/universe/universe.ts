@@ -1,4 +1,4 @@
-import { Directory } from "@destack/account/address";
+import { Directory, UniverseOrigin } from "@destack/account/address";
 import { type Alarm, type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import type { BlobStorage } from "@destack/resource";
 import {
@@ -9,7 +9,7 @@ import {
 import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { claim, Residency } from "@destack/account/object";
-import accountPackage, { OAUTH_PATH, SIGN_IN_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
 import {
     accountServer,
@@ -53,9 +53,6 @@ export const UNIVERSE_SCHEMA = "public";
 
 /** The longest drain on shutdown, in milliseconds. */
 const DRAIN_MILLISECONDS = 5000;
-
-/** The status sending a browser on with a GET to another page (RFC 9110 15.4.4). */
-const SEE_OTHER = 303;
 
 /** What a host runs a universe with. */
 export interface UniverseOptions {
@@ -117,21 +114,21 @@ export class Universe implements AsyncDisposable {
     readonly servers: ReadonlyMap<string, Server>;
     /** The store serving the universe's packages, which runs their internal methods in process. */
     readonly store: ObjectStore;
-    /** The sign-in page, where the universe's origin sends a browser at its root. */
-    readonly signIn: string;
+    /** The account package's server, which answers as the universe's issuer. */
+    readonly issuer: Server;
 
     /** Create a started universe. */
     private constructor(
         definition: UniverseDefinition,
         servers: ReadonlyMap<string, Server>,
         store: ObjectStore,
-        signIn: string,
+        issuer: Server,
     ) {
-        // keep the definition, the servers, the store and the sign-in page
+        // keep the definition, the servers, the store and the issuer
         this.definition = definition;
         this.servers = servers;
         this.store = store;
-        this.signIn = signIn;
+        this.issuer = issuer;
     }
 
     /** Start the universe's packages over its database. */
@@ -266,7 +263,7 @@ export class Universe implements AsyncDisposable {
 
         // key the universe's sensitive columns with its identity's column key
         await keystore.key(database, Scope.universe.id);
-        const issuer = `${PackageMount.url(origin, accountPackage.id)}${OAUTH_PATH}`;
+        const issuer = UniverseOrigin.issuer(origin);
         signIn.resolve(
             await BetterAuthAuthenticator.create({
                 keystore,
@@ -331,18 +328,23 @@ export class Universe implements AsyncDisposable {
                 }),
             ]),
         );
-        const universe = new Universe(definition, servers, store, `${issuer}${SIGN_IN_PATH}`);
+
+        // serve the issuer through the account package's server, which every universe serves
+        const accounts = servers.get(accountPackage.id);
+        if (accounts === undefined) {
+            throw UniverseError.of("ISSUER_MISSING", "the universe serves no account package");
+        }
+        const universe = new Universe(definition, servers, store, accounts);
         serving.resolve(universe);
 
         return universe;
     }
 
-    /** Answer a request at the universe's origin: the sign-in page at its root, else a package. */
+    /** Serve a request at the universe's origin: the issuer, else a package's mount. */
     fetch(request: Request): Promise<Response> {
-        // send a browser at the root to sign in, which continues to its Home
-        const url = new URL(request.url);
-        if (url.pathname === "/") {
-            return Promise.resolve(Response.redirect(this.signIn, SEE_OTHER));
+        // serve the issuer through the account package's oauth adapter
+        if (UniverseOrigin.path(new URL(request.url).pathname) === "issuer") {
+            return this.issuer.fetch(request);
         }
 
         // answer the package mounted at the path, nothing elsewhere

@@ -1,7 +1,8 @@
+import { UniverseOrigin } from "@destack/account/address";
 import { Bookmark } from "@destack/object/client";
 import { Issuer } from "@destack/account/native";
 import { MemoryBlobStorage } from "@destack/resource";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
 import { sudo } from "@destack/account/authentication";
 import {
     authenticatorCode,
@@ -39,13 +40,7 @@ import {
 } from "@destack/account/object";
 import { AccessContext, Caller, InstallationId, principal } from "@destack/access";
 import { Snapshot } from "@destack/db";
-import {
-    CallKey,
-    type FeatureReference,
-    ObjectType,
-    PackageMount,
-    type ProcedureRouter,
-} from "@destack/object";
+import { CallKey, type FeatureReference, ObjectType, type ProcedureRouter } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
@@ -236,7 +231,7 @@ export class TestUniverse implements AsyncDisposable {
 
         // reach the issuer over the network, and index the object types it serves
         this.#issuer = new Issuer(
-            `${PackageMount.url(TEST_ORIGIN, accountPackage.id)}${OAUTH_PATH}`,
+            UniverseOrigin.issuer(TEST_ORIGIN),
             (request) => simulation.network.of(CLIENT_NODE).fetch(request),
             environment,
             new Bookmark(),
@@ -668,7 +663,7 @@ export class TestUniverse implements AsyncDisposable {
     /** Open a browser on the issuer's pages, reaching the universe over the network. */
     #browser(): TestBrowser {
         return new TestBrowser(
-            `${PackageMount.url(TEST_ORIGIN, accountPackage.id)}${OAUTH_PATH}`,
+            UniverseOrigin.issuer(TEST_ORIGIN),
             (request) => this.simulation.network.of(CLIENT_NODE).fetch(request),
             BROWSER_LANGUAGE,
         );
