@@ -11,7 +11,7 @@ import {
     TestComputer,
     type TestComputerOptions,
     type TestWorld,
-    WorldDriver,
+    TestDistribution,
 } from "@destack/machine/test";
 import { activity } from "@destack/notification/object";
 import notificationPackage from "@destack/notification/package";
@@ -110,8 +110,8 @@ async function openBoard(
             .findFirst({ where: { scope: space, packageId } });
         // publish a missing one as the platform's operator, and install it
         if (installed === undefined) {
-            const build = await WorldDriver.fixture(fixture);
-            await world.distribution.publish(build, await world.universe.operator(), home.machine);
+            const build = await TestDistribution.fixture(fixture);
+            await home.publish(build);
             await computer.install(login.id, space, build, name);
         }
     }

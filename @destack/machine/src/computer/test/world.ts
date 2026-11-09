@@ -1,10 +1,9 @@
 import { principal } from "@destack/access";
 import type { Login } from "@destack/account/native";
 import type { CompilerPool } from "@destack/build";
-import { testStore } from "@destack/build/test";
 import type { DatabaseConnection } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
-import { type Clock, type Environment, World, type WorldStep } from "@destack/environment";
+import { type Clock, World, type WorldStep } from "@destack/environment";
 import { ObjectType, role } from "@destack/object";
 import {
     DynamicObjectClient,
@@ -17,7 +16,6 @@ import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { SetStep } from "@destack/package/declare";
 import {
-    Digest,
     type Identifier,
     type JsonObject,
     type JsonValue,
@@ -27,7 +25,7 @@ import {
 } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
 import { replica, Scope } from "@destack/sync";
-import { type Counters, type Driver, onTestFinished } from "@destack/test";
+import { type Counters, type Driver } from "@destack/test";
 import {
     type MachineStep,
     worldInteraction,
@@ -188,7 +186,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         }
         // build a fixture package outside the world's time, then install it in the owner's home
         else if (step.action === "install") {
-            const build = await WorldDriver.fixture(
+            const build = await TestDistribution.fixture(
                 step.fixture,
                 this.home.world.simulation.environment(FILES_NODE),
             );
@@ -255,22 +253,6 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         return this.home.world.simulation.telemetry.counts();
     }
 
-    /** Open a fixture package's build in the run's store, which stays open until the test ends. */
-    static async fixture(
-        fixture: string,
-        environment?: Environment<"files" | "process" | "host">,
-    ): Promise<BuildReader> {
-        // open the store for as long as the test reads the build
-        const built = present(
-            { ...TestDistribution.built(), ...TestDistribution.scenarios() }[fixture],
-            `the run's build of ${fixture}`,
-        );
-        const store = await testStore(environment);
-        onTestFinished(() => store[Symbol.asyncDispose]());
-
-        return await store.contents(Digest.parse(built));
-    }
-
     /** Build a fixture package's outputs, the published fixtures at their dev versions. */
     static build(
         fixture: string,
@@ -284,8 +266,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
     async #install(fixture: string, build: BuildReader): Promise<void> {
         // publish the build as the platform's operator, and install it as the owner
         const { world } = this.home;
-        const operator = await world.universe.operator();
-        await world.distribution.publish(build, operator, this.home.machine);
+        await this.home.publish(build);
         await this.home.install(this.login, world.owner.home, build, fixture);
 
         // record its object types by name

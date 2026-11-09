@@ -44,7 +44,7 @@ import {
     type TestComputerOptions,
     type TestWorld,
     SCENARIO_MILLISECONDS,
-    WorldDriver,
+    TestDistribution,
 } from "./test/index.ts";
 
 /** The step-up a move of a space asks for: a second factor within the last 15 minutes. */
@@ -395,8 +395,8 @@ async function openBoard(
     // publish the board as the platform's operator, and install it
     const { computer, login, space } = served;
     const database = (await computer.machine.space(space)).database;
-    const build = await WorldDriver.fixture("board");
-    await world.distribution.publish(build, await world.universe.operator(), home.machine);
+    const build = await TestDistribution.fixture("board");
+    await home.publish(build);
     await computer.install(login.id, space, build, "board");
     await storing(served, boardPackage.id);
 
@@ -503,7 +503,7 @@ async function openComputers() {
     const echoRelease = await echoBuild(crypto);
     const visitorRelease = await visitorBuild(echoRelease, crypto);
     for (const release of [echoRelease, visitorRelease]) {
-        await world.distribution.publish(release, world.owner, home.machine);
+        await home.publish(release, world.owner);
     }
 
     // run the echo package in the source and the visitor in the caller
@@ -943,8 +943,8 @@ test(
         const { world } = home;
         const served = await openComputer(world, found(organizations, PUBLISHER.handle), "board");
         const { computer, login, space } = served;
-        const build = await WorldDriver.fixture("board");
-        await world.distribution.publish(build, await world.universe.operator(), home.machine);
+        const build = await TestDistribution.fixture("board");
+        await home.publish(build);
         const refused = await computer
             .install(login.id, space, build, "board", { isolation: "host" })
             .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));

@@ -30,7 +30,7 @@ import type { MachineEnrollment } from "../device/object/index.ts";
 import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
 import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index.ts";
-import { TestDistribution } from "./distribution.ts";
+import { TestDistribution, type TestPublisher } from "./distribution.ts";
 
 /** How long a scenario of machines in a universe takes at most. */
 export const SCENARIO_MILLISECONDS = 30_000;
@@ -43,6 +43,9 @@ const SEED = 1;
 
 /** The email the computers' owner signs up with. */
 export const OWNER_EMAIL = "owner@example.test";
+
+/** The board fixture installed as `work` in the owner's home. */
+export const WORK_BOARD: readonly TestInstall[] = [{ fixture: "board", name: "work" }];
 
 /** The node the owner's browser runs as in the simulated network. */
 const BROWSER_NODE = "browser";
@@ -122,6 +125,16 @@ export interface TestHomeOptions extends Omit<
 > {
     /** The organizations the owner created, each serving its home, none by default. */
     readonly organizations?: readonly TestOrganization[];
+    /** The fixtures installed in the owner's home under their names, none by default. */
+    readonly installs?: readonly TestInstall[];
+}
+
+/** A fixture a home template publishes and installs in the owner's home under a name. */
+export interface TestInstall {
+    /** The fixture's directory name below `tests/fixture`, such as `board`. */
+    readonly fixture: string;
+    /** The installation's name, such as `work`. */
+    readonly name: string;
 }
 
 /** A test universe on a simulation's network, with what its computers ship and its owner. */
@@ -518,8 +531,8 @@ export class TestComputer implements AsyncDisposable {
         readonly organizations: ReadonlyMap<string, Identifier<"account">>;
     }> {
         // fork the template of the owner's organizations with its universe
-        const { organizations = [], ...started } = options;
-        const template = TestComputer.homeTemplate(organizations);
+        const { organizations = [], installs = [], ...started } = options;
+        const template = TestComputer.homeTemplate(organizations, installs);
         const { simulation, databases, value } = await TestDatabase.copy(template, {
             label: "copy",
         });
@@ -558,11 +571,13 @@ export class TestComputer implements AsyncDisposable {
     /** Describe the world of the owner's home and organizations, which the run writes once. */
     static homeTemplate(
         organizations: readonly TestOrganization[],
+        installs: readonly TestInstall[] = [],
     ): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
         const handles = organizations.map((organization) => organization.handle);
+        const installed = installs.map((install) => `${install.fixture}@${install.name}`);
 
         return new TestTemplate({
-            name: ["machine.home", ...handles].join("."),
+            name: ["machine.home", ...handles, ...installed].join("."),
             databases: { universe: Universe.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
@@ -605,6 +620,21 @@ export class TestComputer implements AsyncDisposable {
                     const accountId = await owner.organize(handle, name);
                     created[handle] = accountId;
                     await home.ready(Account.home(accountId));
+                }
+
+                // publish each fixture once and install it in the owner's home under its name
+                const published = new Set<string>();
+                for (const { fixture, name } of installs) {
+                    const build = await TestDistribution.fixture(
+                        fixture,
+                        simulation.environment(FILES_NODE),
+                        defer,
+                    );
+                    if (!published.has(fixture)) {
+                        published.add(fixture);
+                        await home.publish(build);
+                    }
+                    await home.install(login.id, owner.home, build, name);
                 }
                 await home.close();
 
@@ -731,6 +761,12 @@ export class TestComputer implements AsyncDisposable {
         await this.ready(created.id);
 
         return created.id;
+    }
+
+    /** Publish a build onto the computer's machine, as the operator by default. */
+    async publish(build: BuildReader, publisher?: TestPublisher): Promise<void> {
+        const by = publisher ?? (await this.world.universe.operator());
+        await this.world.distribution.publish(build, by, this.machine);
     }
 
     /** Install a build's shipped or published release in a space as a person, until applied. */

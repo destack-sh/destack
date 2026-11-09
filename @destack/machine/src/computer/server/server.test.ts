@@ -27,7 +27,12 @@ import stackPackage from "@destack/stack/package";
 import machinePackage from "../../package.ts";
 import { ComputerServer } from "./computer.ts";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
-import { OWNER_EMAIL, TestComputer, SCENARIO_MILLISECONDS, WorldDriver } from "../test/index.ts";
+import {
+    OWNER_EMAIL,
+    TestComputer,
+    SCENARIO_MILLISECONDS,
+    TestDistribution,
+} from "../test/index.ts";
 
 /** The template stack package, used as a registered checkout. */
 const templateStack = dirname(
@@ -609,7 +614,7 @@ test("let the machine's local client and its account's owner work its checkouts 
 
 test("register a working tree's directory, build its stack in a space as the person, and refuse a directory outside it", async () => {
     // release the stack package with the board's closure, which the working tree installs
-    const world = await TestComputer.world({ bundled: [await WorldDriver.fixture("board")] });
+    const world = await TestComputer.world({ bundled: [await TestDistribution.fixture("board")] });
     const opened = await TestComputer.open({ world });
     const { machine } = opened;
     const { owner } = opened.world;

@@ -19,7 +19,7 @@ import { Registry } from "@destack/registry/client";
 import registryPackage from "@destack/registry/package";
 import { Digest, present, schema, type Version } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { inject } from "@destack/test";
+import { inject, onTestFinished } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { COMPUTER_RUNTIMES } from "../computer.ts";
 import type { Machine } from "../../machine/index.ts";
@@ -161,6 +161,23 @@ export class TestDistribution implements ReleaseRegistry, AsyncDisposable {
         opened.move();
 
         return new TestDistribution(stacks, residencyHome, builds, { releases }, layer, store);
+    }
+
+    /** Open a fixture package's build in the run's store for a lifetime, the test's by default. */
+    static async fixture(
+        fixture: string,
+        environment?: Environment<"files" | "process" | "host">,
+        defer: (cleanup: () => Promise<void>) => void = onTestFinished,
+    ): Promise<BuildReader> {
+        // open the store for as long as the lifetime reads the build
+        const built = present(
+            TestDistribution.built()[fixture] ?? TestDistribution.scenarios()[fixture],
+            `the run's build of ${fixture}`,
+        );
+        const store = await testStore(environment);
+        defer(() => store[Symbol.asyncDispose]());
+
+        return await store.contents(Digest.parse(built));
     }
 
     /** Read the digests of the run's builds by name: the platform, the stacks and the fixtures. */

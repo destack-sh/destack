@@ -391,7 +391,7 @@ async function openShared(
 async function install(served: Served, build: BuildReader, name: string) {
     // publish the build into its organization's forge as the owner, then install it
     const { world } = served.computer;
-    await world.distribution.publish(build, world.owner, served.cloud.machine);
+    await served.cloud.publish(build, world.owner);
 
     return served.computer.install(served.login, served.spaceId, build, name);
 }
@@ -1464,7 +1464,7 @@ test(
         );
         const opened = await openHome();
         const { world } = opened.computer;
-        await world.distribution.publish(widgets, world.owner, opened.cloud.machine);
+        await opened.cloud.publish(widgets, world.owner);
         await install(opened, greeting, "greeting");
 
         // open the greeting view and read its own and the library's German catalogs at its origin
