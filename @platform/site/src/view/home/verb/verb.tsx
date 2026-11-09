@@ -61,7 +61,7 @@ export const verb: Form = {
         definition: "to own your stack",
         highlight: ["own"],
         sentence:
-            "Build custom software, integrate every app and agent, and control your whole stack.",
+            "Build real custom software, integrate every app and agent, and control your whole stack.",
         gloss: "to unify a thousand silos into your own superapp",
     },
 };
