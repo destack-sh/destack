@@ -3,7 +3,7 @@ import { space } from "@destack/theme/tokens.stylex";
 import { type JSX, merge, omit } from "@destack/view";
 import { type ElementPartProperties, renderPart } from "../part/index.ts";
 
-/** The least height of a cover and the space between and around its elements unless set: the viewport's height. */
+/** A cover's least height unless set, the viewport's, and its space between and around elements. */
 const DEFAULTS = { minHeight: "100svh", space: "4", noPad: false } as const;
 
 /** The styles of a cover and its centered element. */
@@ -27,7 +27,7 @@ export interface CoverProperties
     extends Omit<JSX.HTMLAttributes<HTMLDivElement>, "class" | "style">, ElementPartProperties {
     /** The least height of the cover, any CSS length. */
     readonly minHeight?: string;
-    /** The space between the centered element and those above and below it, and inside the cover's edges, a spacing step. */
+    /** The spacing step between the elements and inside the cover's edges. */
     readonly space?: keyof typeof space;
     /** Whether the cover leaves out the space inside its edges. */
     readonly noPad?: boolean;

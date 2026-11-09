@@ -6,7 +6,9 @@ test("fill a cover's least height and center the element a caller marks", () => 
     const { container } = render(() => (
         <Cover minHeight="32rem" space="6">
             <p>Destack</p>
-            <CoverCenter render={(attributes) => <h1 {...attributes} />}>Take back your software</CoverCenter>
+            <CoverCenter render={(attributes) => <h1 {...attributes} />}>
+                Take back your software
+            </CoverCenter>
         </Cover>
     ));
     const cover = container.querySelector("[data-slot=cover]");
