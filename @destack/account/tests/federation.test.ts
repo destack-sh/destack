@@ -103,11 +103,6 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
 
         return response.ok ? TokenResponse.parse(body).token_type : [response.status, body];
     };
-    const refused = (description: string) => [
-        400,
-        { error: "invalid_grant", error_description: description },
-    ];
-
     // grant the trusted workflow's token once, refuse the rest, and relate it as a publisher of its account
     const trustedToken = await sign(signing.privateKey, WORKFLOW, ENDPOINT);
     const answers = [
@@ -135,5 +130,10 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
         ],
         [["trusted-publisher", trusted.id]],
     ]);
-    server.stop(true);
+    await server.stop(true);
 });
+
+/** Describe the token endpoint's refusal of a grant, as the test reads it. */
+function refused(description: string): unknown[] {
+    return [400, { error: "invalid_grant", error_description: description }];
+}
