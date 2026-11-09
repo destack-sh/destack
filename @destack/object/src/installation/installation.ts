@@ -56,8 +56,8 @@ export const installation = defineObject(
             allowed: field.json(schema.array(DeclarationName)).default([]),
             /** The directories granted to the package's `files` ability, each with its access. */
             directories: field.json(schema.array(DirectoryGrant)).default([]),
-            /** How its server is isolated: a sandbox, or the store's process once trusted. */
-            isolation: field.enum(["sandbox", "process"]).default("sandbox"),
+            /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
+            isolation: field.enum(["sandbox", "host"]).default("sandbox"),
         },
         // let permissions read the scope an installation lives in
         attributes: { scope: "string" },
