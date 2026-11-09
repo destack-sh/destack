@@ -134,10 +134,6 @@ test("release a stored build under a tag once, point another tag at the release,
     const { crypto } = forge.environment;
     const committed = (await fixtureBuild("answer", "2026.9.1")).reader;
     const uncommitted = (await uncommittedBuild()).reader;
-    const stored = (reader: BuildReader) => ({
-        contents: async () => reader,
-        units: async () => [],
-    });
     const manifest = await BuildStore.digest(committed.manifest, crypto);
     const other = await BuildStore.digest(uncommitted.manifest, crypto);
     const { id, name } = PackageManifest.package(committed.manifest);
@@ -594,3 +590,8 @@ test("publish a builtin under the platform's organization, which owns the forge'
         ],
     });
 });
+
+/** Store a build as the registry reads one: its contents, and no units. */
+function stored(reader: BuildReader) {
+    return { contents: async () => reader, units: async () => [] };
+}
