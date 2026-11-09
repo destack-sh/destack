@@ -242,11 +242,7 @@ Usage: destack card <command>
   <id> relationships  Call card.relationships
   <id> grant          Call card.grant
   <id> revoke         Call card.revoke
-  <id> invitations    Call card.invitations
-  <id> invite         Call card.invite
-  <id> accept         Call card.accept
   <id> explain        Call card.explain
-  <id> withdraw       Call card.withdraw
   <id> detach         Call card.detach
   <id> attach         Call card.attach
   <id> retitle-ideas  Retitle to Ideas
