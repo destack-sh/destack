@@ -5,13 +5,14 @@ import { readReleaseKeys } from "../key/key.ts";
 import { RootHistory } from "./renewal.ts";
 import { Release } from "@destack/update/release";
 import { Installer, readCommit, releaseVersion } from "../distribution/index.ts";
+import { run } from "../distribution/command.ts";
 import { RepositoryConfiguration } from "./index.ts";
 import { writeBootstrap } from "./bootstrap.ts";
 import { type Distribution, SignedRepository } from "@destack/update/publish";
 import { print } from "../distribution/output.ts";
 import { Version } from "@destack/schema";
 
-/** Sign the selected targets' archives and their installers into `dist/update`. */
+/** Sign the selected targets' releases, archives and installers into `dist/update`. */
 export async function signUpdate(
     environment: Environment<HostCapability>,
     arguments_: readonly string[],
@@ -36,27 +37,31 @@ export async function signUpdate(
         throw new Error(`the feed publishes no dev build: ${version}`);
     }
 
-    // sign the explicitly selected complete archives
+    // sign each selected target's release from its signed archive, and the archive for install.sh
     if (selected.length === 0) {
         throw new Error("select the targets to publish");
     }
     const directory = join(CHECKOUT, "dist", version);
     const commit = await readCommit(CHECKOUT, environment);
-    const distributions: Distribution[] = selected.map((target) => {
+    const unpacked = await environment.files.makeTemporaryDirectory("destack-release-");
+    const distributions: Distribution[] = [];
+    for (const target of selected) {
         const release = new Release(version, target);
-
-        return {
-            target,
-            version: release.version,
-            commit,
-            archive: join(directory, `destack-${release.directory}.tar.gz`),
-        };
-    });
+        const archive = join(directory, `destack-${release.directory}.tar.gz`);
+        const files = join(unpacked, target);
+        await environment.files.mkdir(files);
+        await run("tar", ["-xzf", archive, "-C", files], environment);
+        distributions.push(
+            { kind: "release", target, version, commit, directory: files },
+            { kind: "installer", target, version, commit, archive, format: "tar.gz" },
+        );
+    }
 
     // sign each installer whose applications are all selected
     for (const { installer, platforms } of Installer.list()) {
         if (platforms.every(({ target }) => selected.includes(target))) {
             distributions.push({
+                kind: "installer",
                 target: installer.name,
                 version,
                 commit,
@@ -69,15 +74,22 @@ export async function signUpdate(
         }
     }
 
-    // write the signed repository and the download catalog of its targets
-    const targets = await SignedRepository.create(
-        join(CHECKOUT, "dist/update"),
-        environment.clock.now(),
-        root,
-        keys,
-        distributions,
-        environment,
-    );
+    // write the signed repository, then remove the unpacked releases
+    let targets: Awaited<ReturnType<typeof SignedRepository.create>>;
+    try {
+        targets = await SignedRepository.create(
+            join(CHECKOUT, "dist/update"),
+            environment.clock.now(),
+            root,
+            keys,
+            distributions,
+            environment,
+        );
+    } finally {
+        await environment.files.remove(unpacked, { recursive: true, force: true });
+    }
+
+    // write the download catalog of its targets
     await writeBootstrap(
         join(CHECKOUT, "dist/update"),
         targets,

@@ -62,7 +62,16 @@ test("recover expired freshness through signed metadata without accepting change
             1,
             root,
             keys,
-            [{ target: "x86_64-unknown-linux-gnu", version: "2026.9.1", commit: COMMIT, archive }],
+            [
+                {
+                    kind: "installer",
+                    target: "x86_64-unknown-linux-gnu",
+                    version: "2026.9.1",
+                    commit: COMMIT,
+                    archive,
+                    format: "tar.gz",
+                },
+            ],
             HOST,
         );
         const targets = Buffer.from(

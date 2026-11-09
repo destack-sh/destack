@@ -14,6 +14,7 @@ import { RepositoryConfiguration } from "./index.ts";
 import { RepositoryRenewal } from "./renewal.ts";
 import { R2ReleaseBucket } from "./bucket.ts";
 import { SignedRepository } from "@destack/update/publish";
+import { Manifest } from "@destack/update";
 import { MetadataDocument } from "./document.ts";
 import { PUBLIC_PATH } from "./layout.ts";
 
@@ -22,6 +23,12 @@ const TIMESTAMP = "metadata/timestamp.json";
 
 /** The files a publication replaces in place, the timestamp first. */
 const MUTABLE_FILES = [TIMESTAMP, "downloads.json", "install"];
+
+/** The directory of the blobs a release's manifest lists, each at its digest. */
+const BLOBS = "targets/blobs/";
+
+/** The uploads a publication runs at once. */
+const UPLOAD_CONCURRENCY = 16;
 
 /** The media type of each publication file suffix. */
 const CONTENT_TYPES: Readonly<Record<string, string>> = {
@@ -47,7 +54,7 @@ export async function publish(
         throw new Error("missing signed timestamp");
     }
 
-    // authenticate the signed repository and each archive it lists
+    // authenticate the signed repository, each target it lists and each manifest's blobs
     const verified = await SignedRepository.read(directory, configuration.root(), environment);
     const referenced = new Set([
         `metadata/${verified.snapshot.signed.version}.snapshot.json`,
@@ -59,6 +66,16 @@ export async function publish(
         if (files.includes(path)) {
             await using file = await environment.files.open(join(directory, path), { read: true });
             await target.verify(Readable.from(file.readable()));
+        }
+
+        // reference the blobs of a release's manifest
+        if (target.path.endsWith(".json") && files.includes(path)) {
+            const manifest = Manifest.parse(
+                await environment.files.readTextFile(join(directory, path)),
+            );
+            for (const file of manifest.files) {
+                referenced.add(`${BLOBS}${file.digest}`);
+            }
         }
     }
 
@@ -123,10 +140,17 @@ async function upload(
         revisions.set(path, await bucket.revision(path));
     }
 
-    // upload immutable objects
-    for (const path of files.filter((file) => isImmutable(file, referenced))) {
-        await bucket.put(path, join(directory, path), contentType(path), true);
-    }
+    // upload immutable objects a few at a time, skipping blobs the feed has at their digest
+    const pending = files.filter((file) => isImmutable(file, referenced));
+    const uploader = async (): Promise<void> => {
+        for (let path = pending.shift(); path !== undefined; path = pending.shift()) {
+            const isStored = path.startsWith(BLOBS) && (await bucket.revision(path)) !== undefined;
+            if (!isStored) {
+                await bucket.put(path, join(directory, path), contentType(path), true);
+            }
+        }
+    };
+    await Promise.all(Array.from({ length: UPLOAD_CONCURRENCY }, uploader));
 
     // replace the mutable files at their read revisions
     for (const path of MUTABLE_FILES.filter((file) => files.includes(file))) {
@@ -257,7 +281,12 @@ function targetPath(target: TargetFile): string {
 
 /** Select the media type of an explicitly supported publication file. */
 function contentType(path: string): string {
-    // keep installer downloads distinct from compressed updater archives
+    // serve blobs as their gzip bytes, which updaters decompress
+    if (path.startsWith(BLOBS)) {
+        return "application/gzip";
+    }
+
+    // keep installer downloads distinct from compressed archives
     const match = Object.entries(CONTENT_TYPES).find(([suffix]) => path.endsWith(suffix));
     if (match !== undefined) {
         return match[1];

@@ -43,5 +43,5 @@ if [ "$system" = Darwin ]; then
     spctl --assess --type execute "$temporary/Destack.app"
 fi
 
-# let the compiled verifier authenticate and install the complete signed release
-"$temporary/bin/destack" self install --archive "$temporary/destack.tar.gz"
+# let the compiled verifier check the files against the signed manifest and install them
+"$temporary/bin/destack" self install --source "$temporary"

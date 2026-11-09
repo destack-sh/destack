@@ -165,7 +165,16 @@ async function writeArtifact(
     await environment.files.writeFile(archive, content);
     const commit = await readCommit(import.meta.dirname, environment);
 
-    return [{ target: "aarch64-apple-darwin", version: "2026.9.1", commit, archive }];
+    return [
+        {
+            kind: "installer",
+            target: "aarch64-apple-darwin",
+            version: "2026.9.1",
+            commit,
+            archive,
+            format: "tar.gz",
+        },
+    ];
 }
 
 /** Trust a root in a fresh client metadata directory, answering the server's client options. */

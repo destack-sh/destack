@@ -7,7 +7,10 @@ import type { Catalog, CatalogDistribution } from "../distribution/catalog.ts";
 import { INSTALLER_FORMATS, InstallerFormat } from "../distribution/catalog.ts";
 
 /** A signed target path of a target or installer name with its archive or installer extension. */
-const TARGET_PATH = new RegExp(`^([a-z0-9_-]+)\\.(tar\\.gz|${INSTALLER_FORMATS.join("|")})$`, "u");
+const TARGET_PATH = new RegExp(
+    `^([a-z0-9_-]+)\\.(json|tar\\.gz|${INSTALLER_FORMATS.join("|")})$`,
+    "u",
+);
 
 /** Generate download links and bootstrap installers from signed target metadata. */
 export async function writeBootstrap(
@@ -26,6 +29,14 @@ export async function writeBootstrap(
         if (!match || target === undefined) {
             throw new Error(`invalid target path: ${path}`);
         }
+
+        // leave out a release's manifest, which updaters read and people never download
+        const format = match[2];
+        if (format === "json") {
+            continue;
+        }
+
+        // address the download by its digest
         const sha256 = file.hashes["sha256"];
         if (sha256 === undefined || !/^[a-f0-9]{64}$/u.test(sha256)) {
             throw new Error("invalid distribution digest");
@@ -36,8 +47,7 @@ export async function writeBootstrap(
         const entry = { version, url: download, sha256, size: file.length };
         versions.add(version);
 
-        // list an updater archive and its installer case
-        const format = match[2];
+        // list an archive and its installer case
         if (format === "tar.gz") {
             distribution.archive = entry;
             cases.push(`    ${target}/${format}) url='${download}'; sha256='${sha256}' ;;`);

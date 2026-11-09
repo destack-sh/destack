@@ -32,6 +32,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
             id: 1,
             userId: host.process.userId,
             executable: host.process.executable,
+            script: host.process.script,
             runtime: host.process.runtime,
         },
     });
@@ -141,10 +142,12 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
         keys,
         [
             {
+                kind: "installer",
                 target: "aarch64-apple-darwin",
                 version: "2026.9.1",
                 commit: COMMIT,
                 archive: first,
+                format: "tar.gz",
             },
         ],
         environment,
@@ -179,10 +182,12 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
             keys,
             [
                 {
+                    kind: "installer",
                     target: "aarch64-apple-darwin",
                     version: "2026.9.2",
                     commit: COMMIT,
                     archive: second,
+                    format: "tar.gz",
                 },
             ],
             environment,

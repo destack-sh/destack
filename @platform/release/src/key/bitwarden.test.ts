@@ -43,6 +43,7 @@ test("persist and verify hardware credentials through private CLI input", async 
             id: 1,
             userId: process.userId,
             executable: process.executable,
+            script: process.script,
             runtime: process.runtime,
         },
     });

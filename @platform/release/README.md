@@ -193,7 +193,8 @@ Downloads are the release bucket's objects served at `download.destack.sh` by an
 download.destack.sh/install          the bootstrap script
 download.destack.sh/downloads.json   the bootstrap index
 download.destack.sh/metadata/…       the feed's TUF metadata
-download.destack.sh/targets/…        the feed's content-addressed archives and installers
+download.destack.sh/targets/…        the feed's signed release manifests, archives and installers by digest
+download.destack.sh/targets/blobs/…  every release file once, gzip, at its digest
 ```
 
 ## Renewal
