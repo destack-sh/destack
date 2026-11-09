@@ -10,8 +10,8 @@ const PRODUCTION_TAG = "latest";
 /** The update feed every published release comes from: the download origin's root. */
 const FEED = "https://download.destack.sh/";
 
-/** The account service each stage signs people in with. */
-const ISSUERS = {
+/** The origin of the universe each stage signs people in at. */
+const UNIVERSES = {
     production: "https://destack.app",
     local: "http://127.0.0.1:4100",
 } as const satisfies Readonly<Record<(typeof NAMES)[number], string>>;
@@ -44,9 +44,9 @@ export class Stage {
         return Stage.of(environment.process.variables["DESTACK_STAGE"]);
     }
 
-    /** The account service the stage signs people in with. */
-    get issuer(): string {
-        return ISSUERS[this.name];
+    /** The origin of the universe the stage signs people in at. */
+    get universe(): string {
+        return UNIVERSES[this.name];
     }
 
     /** The distribution tag of the first-party releases the stage installs. */
