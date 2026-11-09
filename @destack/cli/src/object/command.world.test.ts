@@ -320,7 +320,7 @@ Usage: destack installation create
       --selection-checkout <id>                           The selection checkout
       --export <string>                                   The export
       --status <enabled|suspended>                        The status: enabled, suspended
-      --isolation <sandbox|process>                       The isolation: sandbox, process
+      --isolation <sandbox|host>                          The isolation: sandbox, host
       --input <json>                                      The method's input as a JSON object, - for stdin, @path for a file
 `,
         error: "",
