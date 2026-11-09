@@ -6,6 +6,7 @@ import { buttonVariants } from "@destack/ui/button";
 import { For } from "@destack/view";
 
 import { allowance, currencies, plans } from "../content/generated/pricing";
+import { product } from "../content/site";
 import { FigureLabel } from "../home/entry/entry";
 import { Toggle } from "../home/entry/switch";
 import { Glyph } from "../home/figure/glyph";
@@ -17,9 +18,6 @@ import { Hint } from "./hint";
 import { convert, type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { press } from "../layout/press";
-
-/** The product, where accounts subscribe to a plan. */
-const PRODUCT = "https://destack.app/";
 
 /** Where organisations write to ask for the enterprise contract. */
 const CONTACT = "mailto:florian@symbol.industries?subject=Destack%20Enterprise";
@@ -251,7 +249,7 @@ function PlanCard(properties: {
 
             {/* start for free, subscribe, or write to us */}
             <a
-                href={isFree ? "/#present-participle" : PRODUCT}
+                href={isFree ? "/#present-participle" : product}
                 {...style.attrs(
                     buttonVariants({ variant: isPicked ? "default" : "outline", size: "lg" }),
                     press.key,

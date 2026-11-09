@@ -7,6 +7,9 @@ export const tagline =
 /** The site's origin, which absolute links and metadata start from. */
 export const origin = "https://destack.sh";
 
+/** The product's origin, where people sign in and open their Destack. */
+export const product = "https://destack.app/";
+
 /** The address that serves a coding agent the setup guide as Markdown. */
 export const setupGuide = "https://destack.me";
 

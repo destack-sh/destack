@@ -12,7 +12,7 @@ import { Sheet, SheetClose, SheetContent, SheetTrigger } from "@destack/ui/sheet
 import { createEffect, createMemo, createSignal } from "@destack/view";
 import { createAppearance } from "@destack/view/document";
 
-import { agentPrompt } from "../content/site";
+import { agentPrompt, product } from "../content/site";
 import { InstallList } from "../install/install";
 import { CommandPalette } from "./palette";
 import { frame } from "./frame.stylex";
@@ -90,18 +90,14 @@ export function TopBar(properties: { readonly path: string }) {
                                 ))}
                             </nav>
 
-                            {/* keep search, the repository, appearance, sign in and the install at the row's end */}
-                            {/* TODO #Incomplete: sign in with the Destack account, then open your space, once accounts are live */}
+                            {/* keep search, the repository, appearance, the product and the install at the row's end */}
                             <div {...style.attrs(styles.tools)}>
                                 <CommandPalette appearance={appearance} />
                                 <SocialLink destination={github} />
                                 <AppearanceToggle appearance={appearance} />
-                                <span
-                                    title="Soon"
-                                    {...style.attrs(styles.link, styles.pending, styles.signIn)}
-                                >
-                                    Sign in
-                                </span>
+                                <a href={product} {...style.attrs(styles.link, styles.product)}>
+                                    Open Destack
+                                </a>
                                 <Popover>
                                     <PopoverTrigger size="sm" xstyle={[press.key, styles.get]}>
                                         Get Destack
@@ -190,14 +186,11 @@ export function TopBar(properties: { readonly path: string }) {
                             </a>
                         ))}
 
-                        {/* sign in here on phones, where the bar gives its cell to the menu */}
-                        <span
-                            aria-disabled="true"
-                            {...style.attrs(styles.menuLink, styles.menuPending)}
-                        >
-                            Sign in
-                            <span {...style.attrs(styles.soon)}>Soon</span>
-                        </span>
+                        {/* open the product here on phones, where the bar gives its cell to the menu */}
+                        <a href={product} {...style.attrs(styles.menuLink)}>
+                            Open Destack
+                            <Icon icon={arrowUpRight} />
+                        </a>
                     </nav>
                 </SheetContent>
             </Sheet>
@@ -350,7 +343,7 @@ const styles = style.create({
         color: color.foreground,
         display: { default: "inline-flex", [media.maxMd]: "none" },
     },
-    signIn: {
+    product: {
         display: { default: "inline", [media.maxMd]: "none" },
         paddingInline: "0.625rem",
     },
