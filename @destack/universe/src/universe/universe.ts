@@ -284,7 +284,7 @@ export class Universe implements AsyncDisposable {
         );
 
         // call packages in spaces as the universe, with tokens its identity signs, its own origin on loopback
-        const source = keystore.source(database, Scope.universe, {
+        const identity = keystore.identityOf(database, Scope.universe, {
             issuer,
             environment: options.environment,
             send: async (request) =>
@@ -292,7 +292,7 @@ export class Universe implements AsyncDisposable {
                     ? await (await serving.promise).fetch(request)
                     : await network.fetch(request),
         });
-        connected.resolve((audience) => source.fetchSigned(audience));
+        connected.resolve((audience) => identity.fetchSigned(audience));
 
         // serve once the run applied the definition, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {
