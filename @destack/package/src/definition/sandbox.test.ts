@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { Sandbox } from "./sandbox.ts";
+import { DirectoryGrant, Sandbox } from "./sandbox.ts";
 
 test("merge sandboxes into every ability of each, uniting host and command lists and taking writing over reading", () => {
     // join an indexer's base sandbox with what two of its capabilities unlock
@@ -64,3 +64,34 @@ test("match the hosts a sandbox's network ability lists, by name, by wildcard an
         undefined,
     ]);
 });
+
+test("find the directory grants reaching the host's service sockets, and none beside them", () => {
+    // grant runtime folders, their contents and ancestors, all of /tmp, and folders beside them
+    const refused = [
+        "/run",
+        "/var/run/docker.sock",
+        "/run/user/1000",
+        "/var",
+        "/",
+        "/tmp",
+        "/private",
+        "/srv/../run",
+    ];
+    const accepted = [
+        "/Users/ada/notes",
+        "/tmp/project",
+        "/var/lib/notes",
+        "/srv/runner",
+        "C:\\Users\\ada",
+    ];
+
+    expect({
+        refused: refused.filter((path) => !isReaching(path)),
+        accepted: accepted.filter(isReaching),
+    }).toEqual({ refused: [], accepted: [] });
+});
+
+/** Report whether a read grant of a path reaches the host's sockets. */
+function isReaching(path: string): boolean {
+    return DirectoryGrant.isReachingSockets({ path, access: "read" });
+}

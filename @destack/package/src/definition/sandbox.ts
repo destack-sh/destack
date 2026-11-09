@@ -9,6 +9,12 @@ const HostPattern = schema
 /** Access to a directory: reading it, or reading and writing it. */
 const Access = schema.enum(["read", "write"]);
 
+/** The host's runtime folders, holding sockets such as Docker's, which no grant overlaps. */
+const RUNTIME_FOLDERS = ["/run", "/var/run", "/private/var/run"];
+
+/** The shared temporary folders, holding sockets such as X11's, which no grant covers whole. */
+const TEMPORARY_FOLDERS = ["/tmp", "/private/tmp"];
+
 /** The directory accesses from the widest, which a merge takes first. */
 const ACCESS_ORDER = ["write", "read"] as const;
 
@@ -176,15 +182,42 @@ export const Sandbox = Object.assign(sandboxSchema, {
 /** What a package's workloads and views may use beyond the bare sandbox. */
 export type Sandbox = schema.Infer<typeof sandboxSchema>;
 
-/** A directory a person grants an installation's `files` ability, by absolute path. */
-export const DirectoryGrant = schema.object({
+/** A directory a person grants an installation's `files` ability. */
+const directoryGrant = schema.object({
     /** The directory's absolute path on the host: POSIX, a Windows drive or a UNC share. */
     path: schema.string().regex(/^(?:\/|[A-Za-z]:[\\/]|\\\\)[^\0]*$/u),
     /** Whether the installation reads it, or reads and writes it. */
     access: Access,
 });
+
+/** A directory a person grants an installation, and whether it reaches the host's sockets. */
+export const DirectoryGrant = Object.assign(directoryGrant, {
+    /** Report whether a grant overlaps a runtime folder or covers a temporary folder. */
+    isReachingSockets(grant: DirectoryGrant): boolean {
+        // resolve the path's dot segments and doubled slashes, as the host does
+        const segments: string[] = [];
+        for (const segment of grant.path.split("/")) {
+            if (segment === "..") {
+                segments.pop();
+            } else if (segment !== "" && segment !== ".") {
+                segments.push(segment);
+            }
+        }
+        const resolved = `/${segments.join("/")}`;
+
+        // match a folder by itself, its ancestors and, for runtime folders, its descendants
+        const covers = (folder: string) =>
+            resolved === "/" || `${folder}/`.startsWith(`${resolved}/`);
+        const within = (folder: string) => resolved.startsWith(`${folder}/`);
+
+        return (
+            RUNTIME_FOLDERS.some((folder) => covers(folder) || within(folder)) ||
+            TEMPORARY_FOLDERS.some((folder) => covers(folder))
+        );
+    },
+});
 /** A directory a person grants an installation's `files` ability. */
-export type DirectoryGrant = schema.Infer<typeof DirectoryGrant>;
+export type DirectoryGrant = schema.Infer<typeof directoryGrant>;
 
 /** Unite lists, each value once, in first-seen order. */
 function unite(lists: readonly (readonly string[] | undefined)[]): string[] {
