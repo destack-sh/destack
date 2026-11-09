@@ -8,7 +8,7 @@ export interface PlatformResidency {
     readonly code: ResidencyCode;
     /** The display name. */
     readonly name: string;
-    /** The jurisdiction keeping its objects and files, local for none. */
+    /** The jurisdiction keeping its objects and files. */
     readonly jurisdiction: Jurisdiction;
     /** The Durable Object location hint near its data, such as weur. */
     readonly location: string;
@@ -37,7 +37,7 @@ export const RESIDENCIES: readonly PlatformResidency[] = [
     {
         code: "us",
         name: "United States",
-        jurisdiction: "local",
+        jurisdiction: "us",
         location: "enam",
         machine: {
             id: schema.identifier("machine").parse("machine-01a11e60-7834-77f0-ad65-3a267795a630"),
