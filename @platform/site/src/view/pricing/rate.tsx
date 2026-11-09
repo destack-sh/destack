@@ -115,14 +115,14 @@ export function Rates(properties: { currency: Currency }) {
             <section {...style.attrs(lattice.cell, styles.panel, styles.machines)}>
                 <h3 {...style.attrs(styles.title)}>Dedicated machines</h3>
                 <p {...style.attrs(styles.lede)}>
-                    A machine of your own on Pro and Enterprise, billed by the hour it runs.
+                    A machine of your own on Pro and Enterprise, billed by the second it runs.
                 </p>
                 <table {...style.attrs(styles.table)}>
                     <thead>
                         <tr>
                             <th {...style.attrs(styles.head)}>Machine</th>
+                            <th {...style.attrs(styles.head, styles.end)}>Per minute</th>
                             <th {...style.attrs(styles.head, styles.end)}>Per hour</th>
-                            <th {...style.attrs(styles.head, styles.end)}>Per month</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -137,10 +137,10 @@ export function Rates(properties: { currency: Currency }) {
                                     </span>
                                 </td>
                                 <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
-                                    {rate(machine.hourly)}
+                                    {rate(machine.minutely)}
                                 </td>
                                 <td {...style.attrs(styles.cell, styles.end, styles.figure)}>
-                                    {fee(machine.monthly)}
+                                    {rate(machine.hourly)}
                                 </td>
                             </tr>
                         ))}
@@ -157,8 +157,8 @@ export function Rates(properties: { currency: Currency }) {
                     </tbody>
                 </table>
                 <p {...style.attrs(styles.note)}>
-                    The monthly price is a cap: a machine running all month costs no more. On your
-                    own machine, you pay only your provider.
+                    A machine bills only the seconds it is awake. On your own machine, you pay only
+                    your provider.
                 </p>
             </section>
         </>

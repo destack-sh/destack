@@ -87,8 +87,8 @@ export const allowance = { usage: 2.5, database: 1, files: 10, compute: 10, requ
 
 /** The dedicated machines, smallest first, priced in US dollars. */
 export const machines = [
-    { size: "small", vcpus: 2, memory: 4, disk: 80, hourly: 0.08, monthly: 40 },
-    { size: "medium", vcpus: 4, memory: 8, disk: 160, hourly: 0.16, monthly: 80 },
-    { size: "large", vcpus: 8, memory: 16, disk: 320, hourly: 0.32, monthly: 160 },
-    { size: "xlarge", vcpus: 16, memory: 32, disk: 640, hourly: 0.64, monthly: 320 },
+    { size: "small", vcpus: 2, memory: 4, disk: 80, hourly: 0.08, minutely: 0.00133 },
+    { size: "medium", vcpus: 4, memory: 8, disk: 160, hourly: 0.16, minutely: 0.00267 },
+    { size: "large", vcpus: 8, memory: 16, disk: 320, hourly: 0.32, minutely: 0.00533 },
+    { size: "xlarge", vcpus: 16, memory: 32, disk: 640, hourly: 0.64, minutely: 0.01067 },
 ] as const;

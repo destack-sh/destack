@@ -21,6 +21,9 @@ import {
     PLANS,
 } from "@platform/pricing";
 
+/** The minutes in an hour, which machines are also shown per. */
+const MINUTES_PER_HOUR = 60;
+
 /** The GB-seconds in a GB-hour. */
 const SECONDS_PER_HOUR = 3600;
 
@@ -133,7 +136,7 @@ if (covered !== allowance.usage) {
     throw new Error(`the free month costs ${covered}, not the plan's ${allowance.usage}`);
 }
 
-// read each machine size's vCPUs, memory, disk, hourly price and monthly cap in US dollars
+// read each machine size's vCPUs, memory, disk, and price per minute and hour in US dollars
 /** The dedicated machines, smallest first. */
 const machines = Object.entries(MACHINES).map(([size, machine]) => ({
     size,
@@ -141,7 +144,7 @@ const machines = Object.entries(MACHINES).map(([size, machine]) => ({
     memory: machine.memory,
     disk: machine.disk,
     hourly: dollarsOf(machine.hourly),
-    monthly: dollarsOf(machine.monthly),
+    minutely: dollarsOf(machine.hourly / MINUTES_PER_HOUR),
 }));
 
 // render the generated module
