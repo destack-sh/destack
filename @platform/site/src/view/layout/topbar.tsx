@@ -1,5 +1,6 @@
 import { Icon } from "@destack/icon";
 import arrowRight from "@destack/icon/phosphor/arrow-right";
+import arrowDown from "@destack/icon/phosphor/arrow-down";
 import arrowUpRight from "@destack/icon/phosphor/arrow-up-right";
 import list from "@destack/icon/phosphor/list";
 import xIcon from "@destack/icon/phosphor/x";
@@ -95,17 +96,27 @@ export function TopBar(properties: { readonly path: string }) {
                                 <CommandPalette appearance={appearance} />
                                 <SocialLink destination={github} />
                                 <AppearanceToggle appearance={appearance} />
-                                <a href={product} {...style.attrs(styles.link, styles.product)}>
-                                    Open Destack
+                                <a
+                                    href={product}
+                                    aria-label="Open Destack"
+                                    {...style.attrs(styles.link, styles.product)}
+                                >
+                                    Open
+                                    <Icon icon={arrowUpRight} />
                                 </a>
                                 <Popover>
-                                    <PopoverTrigger size="sm" xstyle={[press.key, styles.get]}>
-                                        Get Destack
+                                    <PopoverTrigger
+                                        size="sm"
+                                        aria-label="Install Destack"
+                                        xstyle={[press.key, styles.install]}
+                                    >
+                                        Install
+                                        <Icon icon={arrowDown} />
                                     </PopoverTrigger>
                                     <PopoverContent
                                         side="bottom"
                                         align="end"
-                                        xstyle={styles.install}
+                                        xstyle={styles.installList}
                                     >
                                         <InstallList prompt={agentPrompt} />
                                     </PopoverContent>
@@ -188,7 +199,7 @@ export function TopBar(properties: { readonly path: string }) {
 
                         {/* open the product here on phones, where the bar gives its cell to the menu */}
                         <a href={product} {...style.attrs(styles.menuLink)}>
-                            Open Destack
+                            Open
                             <Icon icon={arrowUpRight} />
                         </a>
                     </nav>
@@ -326,7 +337,7 @@ const styles = style.create({
         display: "flex",
         marginInlineStart: "auto",
     },
-    get: {
+    install: {
         boxShadow: { default: `2px 2px 0 ${color.primary}`, ":active": "none" },
         backgroundColor: {
             default: color.foreground,
@@ -336,7 +347,7 @@ const styles = style.create({
         marginInlineStart: { default: "0.625rem", [media.maxMd]: "0.25rem" },
         whiteSpace: "nowrap",
     },
-    install: {
+    installList: {
         width: "auto",
     },
     social: {
@@ -344,7 +355,9 @@ const styles = style.create({
         display: { default: "inline-flex", [media.maxMd]: "none" },
     },
     product: {
-        display: { default: "inline", [media.maxMd]: "none" },
+        alignItems: "center",
+        display: { default: "inline-flex", [media.maxMd]: "none" },
+        gap: "0.25rem",
         paddingInline: "0.625rem",
     },
     menuButton: {
