@@ -58,6 +58,7 @@ test("spawn a child with the node's variables in a directory, its lifetime track
             id: 1,
             userId: 501,
             executable: "/usr/local/bin/bun",
+            script: "/Users/ada/main.ts",
             runtime: { revision: "0".repeat(40), isStandalone: false },
         },
     });
@@ -134,6 +135,7 @@ test("read the process and machine a simulation gives", async () => {
             id: 42,
             userId: 501,
             executable: "/usr/local/bin/destack",
+            script: "/Applications/Destack.app/Contents/Resources/program/destack.js",
             runtime: { revision: "a".repeat(40), isStandalone: true },
         },
         host,
@@ -148,6 +150,7 @@ test("read the process and machine a simulation gives", async () => {
         id: node.process.id,
         userId: node.process.userId,
         executable: node.process.executable,
+        script: node.process.script,
         missing: [
             node.process.which("destack-missing-command"),
             await node.process.hasLibrary("libdestack-missing.so"),
@@ -161,6 +164,7 @@ test("read the process and machine a simulation gives", async () => {
         id: 42,
         userId: 501,
         executable: "/usr/local/bin/destack",
+        script: "/Applications/Destack.app/Contents/Resources/program/destack.js",
         missing: [undefined, false],
         runtime: { revision: "a".repeat(40), isStandalone: true },
     });

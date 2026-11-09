@@ -90,6 +90,11 @@ export class BunProcess implements Process {
         return process.execPath;
     }
 
+    /** The path of the script the runtime runs, a release program's bundle. */
+    get script(): string {
+        return Bun.main;
+    }
+
     /** The module loader, resolving as Bun does and defining modules through its plugins. */
     readonly loader: ModuleLoader = {
         resolve: (specifier, directory) => Bun.resolveSync(specifier, directory),

@@ -164,6 +164,8 @@ export interface Process {
     readonly userId: number | undefined;
     /** The path of the running executable. */
     readonly executable: string;
+    /** The path of the script the runtime runs, a release program's bundle. */
+    readonly script: string;
     /** The runtime running the process. */
     readonly runtime: Runtime;
     /** The module loader, which resolves specifiers and defines modules. */

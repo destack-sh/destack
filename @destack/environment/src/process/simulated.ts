@@ -30,6 +30,8 @@ export interface ProcessOptions {
     readonly userId: number | undefined;
     /** The path of the running executable. */
     readonly executable: string;
+    /** The path of the script the runtime runs, a release program's bundle. */
+    readonly script: string;
     /** The runtime running the process. */
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
@@ -54,6 +56,8 @@ export class SimulatedProcess implements Process {
     readonly userId: number | undefined;
     /** The path of the running executable. */
     readonly executable: string;
+    /** The path of the script the runtime runs, a release program's bundle. */
+    readonly script: string;
     /** The runtime running the process. */
     readonly runtime: Runtime;
     /** The channel to the parent process, absent when no parent connected it. */
@@ -91,6 +95,7 @@ export class SimulatedProcess implements Process {
         this.id = options.id;
         this.userId = options.userId;
         this.executable = options.executable;
+        this.script = options.script;
         this.runtime = options.runtime;
         this.parent = options.parent;
         this.#scheduler = scheduler;

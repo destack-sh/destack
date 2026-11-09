@@ -805,6 +805,7 @@ export class Simulation {
             id: 1,
             userId: host.userId,
             executable: host.executable,
+            script: host.script,
             runtime: RUNTIME,
         };
     }
