@@ -6,7 +6,7 @@
     </picture>
   </a>
 </p>
-<p align="center">Build custom software, integrate every app and agent, control your whole stack.</p>
+<p align="center">Build real custom software, integrate every app and agent, control your whole stack.</p>
 <p align="center">
   <a href="https://discord.gg/xUFQ45TWYd"><img alt="Discord" src="https://img.shields.io/badge/discord-join-5865f2?style=flat-square&logo=discord&logoColor=white" /></a>
   <a href="https://github.com/destack-sh/destack/actions/workflows/check.yml"><img alt="Check" src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/check.yml?style=flat-square&branch=main&label=check" /></a>
@@ -24,7 +24,7 @@ Destack is an **open-source software engine** for building and deploying general
 Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, services, multiplayer, workflows, telemetry, testing, and hosting.
 
 Destack **standardises software production and deployment**:
- 1. **Build custom software** with your own AI, in a standardised pipeline.
+ 1. **Build real custom software** with your own AI, in a standardised pipeline.
  2. **Integrate every app and agent**: one account, one database, no walls.
  3. **Control your whole stack**: your data, context and code, on any machine you choose.
 
