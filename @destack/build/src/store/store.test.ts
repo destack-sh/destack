@@ -170,6 +170,7 @@ function browserOutputs(
                       sandbox: {},
                       presents: [],
                       categories: [],
+                      audience: "person" as const,
                       packages: [],
                       render: { mode: "client" as const },
                   },
@@ -1144,6 +1145,78 @@ test("map a view's browser modules and its dependencies' below a prefix, each bu
             },
         },
         builds: [application, middle, deep],
+    });
+});
+
+test("map a build a view reaches again once a builtin imports it, with the dependencies its other exports import", async () => {
+    // store a library whose stack export imports an extra library, and a builtin importing that export
+    await using simulation = testSimulation();
+    const environment = simulation.environment("test");
+    await using opened = await openStore(await temporary(environment.files), environment);
+    const { store } = opened;
+    const { crypto } = environment;
+    const extra = await store.put(
+        await written({ "src/extra.ts": "export {};\n" }, crypto, browserOutputs({ ".": [] }, {})),
+    );
+    const shared = await store.put(
+        await written(
+            { "src/shared.ts": "export {};\n" },
+            crypto,
+            browserOutputs(
+                { ".": [], "./stack": ["@example/extra"] },
+                { "@example/extra": library("@example/extra", extra) },
+            ),
+        ),
+    );
+    const view = {
+        id: PackageId.parse("package-00000000-0000-7000-8000-00000000a005"),
+        name: "@example/view",
+        version: "2026.11.0",
+    };
+    const linked = await store.put(
+        await written(
+            { "src/view.ts": "export {};\n" },
+            crypto,
+            browserOutputs(
+                { ".": ["@example/shared/stack"] },
+                { "@example/shared": library("@example/shared", shared) },
+            ),
+            view,
+        ),
+    );
+
+    // reach the library's root from the application's view before the builtin
+    const application = await store.put(
+        await written(
+            SOURCES,
+            crypto,
+            browserOutputs(
+                { "./view": ["@example/shared", "@example/view"] },
+                {
+                    "@example/shared": library("@example/shared", shared),
+                    "@example/view": { kind: "builtin", package: view },
+                },
+                "./view",
+            ),
+        ),
+    );
+    const closure = await store.imports(
+        application,
+        "browser",
+        "/.destack/build/",
+        new Map([[view.id, { package: view, manifest: linked }]]),
+    );
+
+    // map the extra library in the shared library's scope, which the builtin's import needs
+    expect(closure.map.scopes).toEqual({
+        [`/.destack/build/${shared}/`]: {
+            "@example/extra": `/.destack/build/${extra}/browser/index.js`,
+        },
+        [`/.destack/build/${linked}/`]: {
+            "@example/shared": `/.destack/build/${shared}/browser/index.js`,
+            "@example/shared/stack": `/.destack/build/${shared}/browser/stack.js`,
+        },
+        [`/.destack/build/${extra}/`]: {},
     });
 });
 

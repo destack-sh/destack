@@ -947,6 +947,7 @@ export class BuildStore<
         // map each dependency's exports in its dependent's scope, visiting each build once
         const map: ImportMap = { imports: {}, scopes: {} };
         const builds = new Set<Digest>([start]);
+        const linkedBuilds = new Set<Digest>();
         const pending = [{ digest: start, scope: map.imports, isLinked: false }];
         for (const { digest, scope, isLinked } of pending) {
             for (const output of outputsOn(await read(digest), runtime)) {
@@ -983,13 +984,18 @@ export class BuildStore<
                         }
                     }
 
-                    // map the dependency's own imports in its scope
-                    if (!builds.has(manifest)) {
-                        builds.add(manifest);
-                        map.scopes[prefix] = {};
+                    // map the dependency's imports in its scope, and again once a builtin imports it
+                    const isFirst = !builds.has(manifest);
+                    const isNewlyLinked = dependency.isLinked && !linkedBuilds.has(manifest);
+                    const own = (map.scopes[prefix] ??= {});
+                    builds.add(manifest);
+                    if (dependency.isLinked) {
+                        linkedBuilds.add(manifest);
+                    }
+                    if (isFirst || isNewlyLinked) {
                         pending.push({
                             digest: manifest,
-                            scope: map.scopes[prefix],
+                            scope: own,
                             isLinked: dependency.isLinked,
                         });
                     }
