@@ -7,6 +7,7 @@ import { present } from "@destack/schema";
 import { createMemo } from "@destack/view";
 import { createFolio, folioNumber } from "../../layout/folio";
 import { palette } from "../../palette.stylex";
+import { typeScale } from "../../layout/type.stylex";
 import { anchorOf, type Form } from "./entry";
 
 /** The windows wide enough for the index in the margin beside the page. */
@@ -15,19 +16,58 @@ const WIDE = "@media (min-width: 1320px)";
 /** The windows whose margin holds a tab slid out to its whole form: a 1200px page and 9.5rem. */
 const ROOMY = "@media (min-width: 1504px)";
 
-/** Tab the page's sections down the right margin as a dictionary's thumb index. */
+/** A tab's height and the gap under it, in CSS pixels: 2.75rem and 3px. */
+const TAB = 44;
+
+/** How far apart two tabs' middles sit, in CSS pixels. */
+const STEP = TAB + 3;
+
+/** The line a section's top rests on once scrolled to: the top bar, 56px as `frame.bar` sets. */
+const LINE = 56;
+
+/** Tab the page's sections down the left margin, the current tab level with its headword. */
 export function ThumbIndex(properties: { forms: readonly Form[] }) {
-    // follow the section the reader is in
+    // follow how far the reader has scrolled through the sections, as a fraction of a section
     const folio = createFolio(() => true);
-    const current = createMemo(() => folio()?.index ?? 0);
+    const place = createMemo(() => {
+        // wait for the page to be measured
+        const placed = folio();
+        if (placed === undefined) {
+            return undefined;
+        }
+
+        // before the first section rests on the line, follow its headword down the page
+        const { tops, lead } = placed;
+        const first = present(tops[0], "the first section's top");
+        if (first > LINE) {
+            return { section: 0, top: first + lead - TAB / 2 };
+        }
+
+        // past it, slide one tab per section between the sections resting on the line
+        const rested = tops.findLastIndex((top) => top <= LINE);
+        const top = present(tops[rested], "the rested section's top");
+        const next = tops[rested + 1];
+        const section = rested + (next === undefined ? 0 : (LINE - top) / (next - top));
+
+        return { section, top: LINE + lead - TAB / 2 - section * STEP };
+    });
+    const current = createMemo(() => Math.round(place()?.section ?? -1));
 
     return (
-        <nav aria-label="Sections" {...style.attrs(styles.index)}>
+        <nav
+            aria-label="Sections"
+            style={
+                place() === undefined
+                    ? undefined
+                    : { top: "0px", transform: `translateY(${place()?.top ?? 0}px)` }
+            }
+            {...style.attrs(styles.index)}
+        >
             {properties.forms.map((form, index) => (
                 <a
                     href={`#${anchorOf(form)}`}
                     title={form.partOfSpeech}
-                    {...style.attrs(styles.tab, current() === index + 1 && styles.current)}
+                    {...style.attrs(styles.tab, current() === index && styles.current)}
                 >
                     {/* the number, and the form it slides out to show */}
                     <span>{folioNumber(index + 1)}</span>
@@ -76,11 +116,13 @@ export function ThumbMenu(properties: { forms: readonly Form[] }) {
 const styles = style.create({
     index: {
         display: { default: "none", [WIDE]: "grid" },
-        left: `calc(50% + ${frame.width} / 2)`,
+        justifyItems: "end",
         position: "fixed",
+        right: `calc(50% + ${frame.width} / 2)`,
         rowGap: "3px",
-        top: "50%",
-        transform: "translateY(-50%)",
+        // rest tab 01 level with the first headword before the page is measured: the top bar,
+        //  the entry's padding and half the headword's line, less half a tab
+        top: `calc(${LINE}px + 2.75rem + ${typeScale.display} * 0.575 - ${TAB / 2}px)`,
         zIndex: 2,
     },
     tab: {
@@ -97,8 +139,9 @@ const styles = style.create({
         fontWeight: 600,
         height: "2.75rem",
         letterSpacing: "0.1em",
+        flexDirection: "row-reverse",
         overflow: "hidden",
-        paddingInlineStart: "0.875rem",
+        paddingInlineEnd: "0.875rem",
         textDecorationLine: "none",
         transitionDuration: motion.durationShort,
         transitionProperty: "width, background-color, color",

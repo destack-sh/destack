@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import { createEffect, createSignal, useEnvironment } from "@destack/view";
 import { makeEventListener } from "@destack/view/primitives/event-listener";
 import { requestFrame } from "@destack/view/primitives/raf";
@@ -8,6 +9,10 @@ export type Folio = {
     index: number;
     /** The number of entries on the page. */
     total: number;
+    /** Each entry's top edge below the screen's top, in CSS pixels. */
+    tops: readonly number[];
+    /** How far below an entry's top its headword's middle sits, in CSS pixels. */
+    lead: number;
 };
 
 /** Follow which dictionary entry the reader has scrolled to, while the page is followed. */
@@ -31,8 +36,17 @@ export function createFolio(isFollowed: () => boolean): () => Folio | undefined 
             // clear the pending frame, then count
             cancel = undefined;
             const middle = window.innerHeight / 2;
-            const passed = entries.filter((entry) => entry.getBoundingClientRect().top < middle);
-            setFolio({ index: passed.length, total: entries.length });
+            const tops = entries.map((entry) => entry.getBoundingClientRect().top);
+            const passed = tops.filter((top) => top < middle);
+
+            // measure how far the first entry's headword sits below its top
+            const first = present(entries[0], "the page's first entry");
+            const word = present(
+                first.querySelector("b"),
+                "the first entry's headword",
+            ).getBoundingClientRect();
+            const lead = word.top + word.height / 2 - first.getBoundingClientRect().top;
+            setFolio({ index: passed.length, total: entries.length, tops, lead });
         };
 
         // measure now, then once a frame while the page scrolls or resizes
