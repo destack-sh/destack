@@ -32,7 +32,7 @@ import {
     HOST_SANDBOX,
     Sandbox,
     DeclarationName,
-    type DirectoryGrant,
+    DirectoryGrant,
     graph,
     PackageDefinition,
     type PackageId,
@@ -1177,6 +1177,9 @@ export class ApplicationInstallation {
             }),
         );
         const written = target.installation.directories.filter((grant) => grant.access === "write");
+        const reaching = target.installation.directories.filter((grant) =>
+            DirectoryGrant.isReachingSockets(grant),
+        );
         // refuse granting directories without fs
         if (target.installation.directories.length > 0 && access.length === 0) {
             return `${release} enables no fs ability to grant directories ${joinPaths(target.installation.directories)}`;
@@ -1184,6 +1187,10 @@ export class ApplicationInstallation {
         // refuse writing directories fs declares for reading
         else if (written.length > 0 && !access.includes("write")) {
             return `${release} enables fs for reading only, refusing to grant writing ${joinPaths(written)}`;
+        }
+        // refuse directories reaching the host's service sockets, which a Linux sandbox lets connect
+        else if (reaching.length > 0) {
+            return `${release} may not be granted directories reaching the host's service sockets in /run, /var/run or all of /tmp: ${joinPaths(reaching)}`;
         }
 
         return undefined;

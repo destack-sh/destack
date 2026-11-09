@@ -1283,13 +1283,16 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
                 .orderBy(object.deployment.table.createdAt, object.deployment.table.id)
         ).map((entry) => [entry.status, entry.description.sandbox, entry.directories]);
 
-    // refuse allowing an undeclared capability, a directory without fs, and writing a directory fs reads
+    // refuse allowing an undeclared capability, a directory without fs, writing a directory fs reads,
+    //  and a directory reaching the host's service sockets
     await refusal(grant(["microphone"]));
     const undeclared = await readiness(database, notes.installationId);
     await refusal(grant([], [notesDirectory]));
     const unreadable = await readiness(database, notes.installationId);
     await refusal(grant(["index"], [{ ...notesDirectory, access: "write" }]));
     const overreaching = await readiness(database, notes.installationId);
+    await refusal(grant(["index"], [{ path: "/var/run", access: "read" }]));
+    const socketed = await readiness(database, notes.installationId);
     const refusedDeployments = await deployed();
 
     // deploy with the build's sandbox alone
@@ -1309,6 +1312,7 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
         undeclared,
         unreadable,
         overreaching,
+        socketed,
         refusedDeployments,
         started: runtime.started.map((started) => [started.sandbox, started.directories]),
         unallowed,
@@ -1325,6 +1329,10 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
         overreaching: [
             "failed",
             "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
+        ],
+        socketed: [
+            "failed",
+            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 may not be granted directories reaching the host's service sockets in /run, /var/run or all of /tmp: /var/run",
         ],
         refusedDeployments: [],
         started: [[base, []]],
