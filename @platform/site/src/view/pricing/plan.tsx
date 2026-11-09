@@ -60,7 +60,15 @@ export type Plan = (typeof plans)[number];
 export type Audience = "personal" | "organisation";
 
 /** The specs every card lists on the same rows, under its usage. */
-const SPECS = ["apps", "hosting", "ai", "managed", "history", "support"] as const;
+const SPECS = [
+    "apps",
+    "selfHosting",
+    "cloudHosting",
+    "ownAi",
+    "managedAi",
+    "history",
+    "support",
+] as const;
 
 /** What a plan unlocks, listed where it first appears and stacking from there. */
 const EXTRAS = [
@@ -313,11 +321,13 @@ function benefitOf(plan: Plan, topic: Topic): Benefit | undefined {
     // read which apps, where the plan runs and which AI it uses, the same on every plan
     if (topic === "apps") {
         return { icon: "grid", feature: features.apps };
-    } else if (topic === "hosting") {
+    } else if (topic === "selfHosting") {
         return { icon: "monitor", feature: features.selfHosting };
-    } else if (topic === "ai") {
+    } else if (topic === "cloudHosting") {
+        return { icon: "server", feature: features.cloudHosting };
+    } else if (topic === "ownAi") {
         return { icon: "plug", feature: features.ownAi };
-    } else if (topic === "managed") {
+    } else if (topic === "managedAi") {
         return { icon: "cloud", feature: features.managedAi };
     }
     // keep events for their default spans, or as long as each space chooses

@@ -27,7 +27,7 @@ const supportNames: Readonly<Record<Plan["support"], string>> = {
     sla: "SLA",
 };
 
-/** The rows of the comparison by group: the software, usage, hosting, support and contract. */
+/** The rows of the comparison by group: the software, hosting, AI, usage, support and contract. */
 const groups: readonly { name: string; rows: readonly Row[] }[] = [
     {
         name: "Software",
@@ -41,6 +41,21 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
             { feature: features.secrets, cell: () => true },
             { feature: features.audit, cell: () => true },
             { feature: features.observability, cell: () => true },
+        ],
+    },
+    {
+        name: "Hosting",
+        rows: [
+            { feature: features.selfHosting, cell: () => true },
+            { feature: features.cloudHosting, cell: () => true },
+            { feature: features.tunnels, cell: () => true },
+            { feature: features.domains, cell: (plan) => plan.isCustomDomains },
+            { feature: features.dedicated, cell: (plan) => plan.isDedicated },
+        ],
+    },
+    {
+        name: "AI",
+        rows: [
             { feature: features.ownAi, cell: () => true },
             { feature: features.managedAi, cell: () => true },
         ],
@@ -57,21 +72,11 @@ const groups: readonly { name: string; rows: readonly Row[] }[] = [
                           ? `${money(plan.fees[currency], currency)}+`
                           : money(plan.fees[currency], currency),
             },
-            { feature: features.uncapped, cell: (plan) => plan.isUncapped },
             {
                 feature: features.retention,
                 cell: (plan) => (plan.isCustomRetention ? "Custom" : "Default"),
             },
-        ],
-    },
-    {
-        name: "Hosting",
-        rows: [
-            { feature: features.shared, cell: () => true },
-            { feature: features.selfHosting, cell: () => true },
-            { feature: features.tunnels, cell: () => true },
-            { feature: features.dedicated, cell: (plan) => plan.isDedicated },
-            { feature: features.domains, cell: (plan) => plan.isCustomDomains },
+            { feature: features.uncapped, cell: (plan) => plan.isUncapped },
         ],
     },
     {

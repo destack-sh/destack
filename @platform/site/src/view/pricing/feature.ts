@@ -31,6 +31,27 @@ export const features = {
     secrets: { name: "Secrets", detail: "Keys and passwords, encrypted and shared." },
     audit: { name: "Audit log", detail: "Every change, by whom and when." },
     observability: { name: "Observability", detail: "Logs, traces and alerts." },
+
+    // hosting
+    selfHosting: {
+        name: "Self-hosting",
+        detail: "Run your spaces on your own machines, with no fee for the software.",
+    },
+    cloudHosting: {
+        name: "Cloud hosting",
+        detail: "Run your spaces on our cloud, on machines shared with other accounts.",
+    },
+    tunnels: { name: "Tunnels", detail: "Reach your machines from anywhere." },
+    domains: {
+        name: "Custom domains",
+        detail: "Serve your spaces and your profile under your own domain names.",
+    },
+    dedicated: {
+        name: "Dedicated machines",
+        detail: "A machine of your own, billed by the hour up to a monthly cap.",
+    },
+
+    // ai
     ownAi: {
         name: "Bring your own AI",
         detail: "Use your subscriptions, your API keys or local models.",
@@ -57,25 +78,6 @@ export const features = {
     customRetention: {
         name: "Custom retention",
         detail: "Keep logs, traces and activity as long as you like. They count as storage.",
-    },
-
-    // hosting
-    shared: {
-        name: "Shared machines",
-        detail: "Your spaces run on machines shared with other accounts.",
-    },
-    selfHosting: {
-        name: "Self-hosting",
-        detail: "Run your spaces on your own machines, with no fee for the software.",
-    },
-    tunnels: { name: "Tunnels", detail: "Reach your machines from anywhere." },
-    dedicated: {
-        name: "Dedicated machines",
-        detail: "A machine of your own, billed by the hour up to a monthly cap.",
-    },
-    domains: {
-        name: "Custom domains",
-        detail: "Serve your spaces and your profile under your own domain names.",
     },
 
     // support
