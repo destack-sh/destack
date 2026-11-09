@@ -5,7 +5,7 @@ import type { Sku } from "../sku/sku.ts";
 import { SkuDescription } from "../sku/sku.ts";
 
 /** The fields charges rated under a SKU depend on, which its prices do not change. */
-const RATED = ["provider", "meter", "pricingUnit", "unitSize", "currency"] as const;
+const RATED = ["provider", "meter", "attributes", "pricingUnit", "unitSize", "currency"] as const;
 
 /** Describe a SKU with its provider, meter, unit and prices. */
 export function describeSku(sku: Sku): SkuDescription {

@@ -741,8 +741,8 @@ test("derive the account's storage entitlement from the capacity its plan grants
     });
 
     expect({ within, blocked: await resources(finance) }).toEqual({
-        within: [["storage", CAPACITY, 0, "within"]],
-        blocked: [["storage", CAPACITY, 1200, "blocked"]],
+        within: [["bucket", CAPACITY, 0, "within"]],
+        blocked: [["bucket", CAPACITY, 1200, "blocked"]],
     });
 });
 

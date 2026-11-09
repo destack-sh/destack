@@ -18,6 +18,7 @@ export const requests = defineMeter(
         description: "Requests to the storage API.",
         aggregation: "sum",
         unit: "request",
+        attributes: {},
     },
     { package: storage },
 );
@@ -29,6 +30,7 @@ export const stored = defineMeter(
         description: "Bytes stored.",
         aggregation: "last",
         unit: "byte",
+        attributes: {},
     },
     { package: storage },
 );
@@ -40,6 +42,7 @@ export const archived = defineMeter(
         description: "Bytes archived.",
         aggregation: "last",
         unit: "byte",
+        attributes: {},
     },
     { package: storage },
 );
@@ -51,6 +54,7 @@ export const disk = defineMeter(
         description: "Bytes on disk, averaged over the month.",
         aggregation: "average",
         unit: "byte",
+        attributes: {},
     },
     { package: storage },
 );
@@ -62,6 +66,7 @@ export const uptime = defineMeter(
         description: "Hours a machine stays awake.",
         aggregation: "sum",
         unit: "hour",
+        attributes: {},
     },
     { package: storage },
 );
@@ -124,7 +129,7 @@ export const capacity = defineFeature(
         name: "capacity",
         description: "Bytes stored and archived together.",
         kind: "metered",
-        resource: "storage",
+        resource: "bucket",
         meters: [stored.reference, archived.reference],
         reset: "never",
     },
@@ -152,6 +157,7 @@ export const diskSku = defineSku(
         service: "R2",
         category: "Storage",
         meter: disk.reference,
+        attributes: {},
         pricingUnit: "GB-month",
         unitSize: 1_000_000_000,
         currency: CREDITS,
@@ -172,6 +178,7 @@ export const machineSku = defineSku(
         category: "Compute",
         tenancy: "dedicated",
         meter: uptime.reference,
+        attributes: {},
         pricingUnit: "hour",
         unitSize: 1,
         currency: CREDITS,

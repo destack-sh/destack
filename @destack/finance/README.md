@@ -47,7 +47,7 @@ export const shop = defineStack({
 
 ## SKUs
 
-`defineSku` declares a provider's list price per pricing unit of what a meter measures, optionally capped per billing period with `maximumQuantity`.
+`defineSku` declares a provider's list price per pricing unit of what a meter measures at some of its attribute values, optionally capped per billing period with `maximumQuantity`.
 
 ```ts
 export const storage = defineSku({
@@ -56,7 +56,8 @@ export const storage = defineSku({
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
-    meter: storageBytes.reference,
+    meter: bucketUsage.reference,
+    attributes: {},
     pricingUnit: "GB-month",
     unitSize: 1_000_000_000,
     currency: "USD",

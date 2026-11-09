@@ -25,6 +25,10 @@ export const product = defineObject(
             active: field.boolean().default(true),
             /** Whether accounts without a subscription get its grants, valid without prices. */
             isDefault: field.boolean().default(false),
+            /** A default product's usage per member a month, in credit minor units. */
+            includedUsage: field.integer().optional(),
+            /** Whether usage past the included usage blocks, or bills up to the spending limit. */
+            overage: field.enum(["capped", "billed"]).default("billed"),
             /** The payment provider's identifier of the product, mirrored at its first sale. */
             providerId: field.string().optional(),
         },
@@ -36,16 +40,25 @@ export const product = defineObject(
         },
         constraints: {
             default: { kind: "index", on: ["accountId"], unique: true, where: { isDefault: true } },
+            includedUsage: { kind: "check", condition: { includedUsage: { gte: 0 } } },
         },
     },
     (method) => ({
         create: method.create("sell", {
-            fields: ["accountId", "name", "description", "active", "isDefault"],
+            fields: [
+                "accountId",
+                "name",
+                "description",
+                "active",
+                "isDefault",
+                "includedUsage",
+                "overage",
+            ],
         }),
         /** Record the provider's identifier of the product. */
         record: method.update("provide", { visibility: "package", fields: ["providerId"] }),
         update: method.update("sell", {
-            fields: ["name", "description", "active", "isDefault"],
+            fields: ["name", "description", "active", "isDefault", "includedUsage", "overage"],
         }),
     }),
 );

@@ -5,10 +5,17 @@ import { Package, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
+import { Meter, MeterAttributes } from "@destack/telemetry/meter";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
 
 /** The FOCUS ServiceCategories of the services SKUs price. */
-export const SERVICE_CATEGORIES = ["Compute", "Databases", "Storage", "Networking"] as const;
+export const SERVICE_CATEGORIES = [
+    "Compute",
+    "Databases",
+    "Storage",
+    "Networking",
+    "AI and Machine Learning",
+] as const;
 
 /** The FOCUS ServiceCategory of the service a SKU prices. */
 export const ServiceCategory = schema.enum(SERVICE_CATEGORIES);
@@ -33,6 +40,8 @@ export const SkuMetadata = schema.object({
     tenancy: Tenancy.exclude(["local"]).exactOptional(),
     /** The meter measuring its billing unit. */
     meter: DeclarationReference,
+    /** The value of each of the meter's attributes the SKU prices, such as direction write. */
+    attributes: MeterAttributes,
     /** The FOCUS PricingUnit, such as GB-month. */
     pricingUnit: schema.string().min(1),
     /** The meter's units in one pricing unit, such as 10^9 byte-months in a GB-month. */
@@ -93,6 +102,11 @@ export class Sku {
     /** The package-local name. */
     get name(): string {
         return this.definition.name;
+    }
+
+    /** The key of the meter and attribute values the SKU prices, which machines rate uses by. */
+    get meterKey(): string {
+        return Meter.key(this.definition.meter, this.definition.attributes);
     }
 
     /** Serialise the SKU as its reference. */

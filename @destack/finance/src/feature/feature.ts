@@ -19,7 +19,7 @@ export type FeatureKind = schema.Infer<typeof FeatureKind>;
 /** The kind of feature allowing each platform resource. */
 export const RESOURCE_KINDS: Readonly<Record<EntitlementResource, FeatureKind>> = {
     database: "metered",
-    storage: "metered",
+    bucket: "metered",
     compute: "metered",
     network: "metered",
     tenancy: "static",

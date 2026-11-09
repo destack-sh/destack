@@ -92,6 +92,11 @@ export const Usage = {
                 "METER_MISMATCH",
                 `sku ${sku.name} prices meter ${measured}, but the use measures ${name}`,
             );
+        } else if (!meter.accepts(sku.definition.attributes)) {
+            throw FinanceError.of(
+                "METER_MISMATCH",
+                `sku ${sku.name} prices attributes ${JSON.stringify(sku.definition.attributes)} that meter ${name} does not declare`,
+            );
         } else if (!isAveraged && meter.definition.aggregation !== "sum") {
             throw FinanceError.of(
                 "AGGREGATION_MISMATCH",
