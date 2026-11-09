@@ -6,7 +6,8 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "exports": {
-        ".": "./src/view/view.ts"
+        "./view": "./src/view/view.ts",
+        "./package": "./src/package.ts"
     },
     "scripts": {
         "build": "bun run generate && bun run build/main.ts build",
