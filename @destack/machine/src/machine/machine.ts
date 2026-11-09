@@ -1,11 +1,11 @@
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
-import { Directory, DOMAINS } from "@destack/account/address";
+import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
 import type { Enrollment, MachineIdentity } from "@destack/account/client";
 import type { TokenBinding } from "@destack/account/native";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
 import {
     eq,
     or,
@@ -318,7 +318,7 @@ export class Machine {
         const enrollment = await this.enrolled("serving spaces");
         const accounts = PackageMount.url(enrollment.issuer, accountPackage.id);
 
-        return { accounts, issuer: `${accounts}${OAUTH_PATH}` };
+        return { accounts, issuer: UniverseOrigin.issuer(enrollment.issuer) };
     }
 
     /** Wait until the directory replica is a complete snapshot, as informers sync caches. */
@@ -1019,9 +1019,9 @@ export class Machine {
         );
     }
 
-    /** Read the issuer of this machine's tokens: its universe's account package oauth adapter. */
+    /** Read the issuer of this machine's tokens: its universe's. */
     static #issuer(enrollment: MachineEnrollment): string {
-        return `${PackageMount.url(enrollment.issuer, accountPackage.id)}${OAUTH_PATH}`;
+        return UniverseOrigin.issuer(enrollment.issuer);
     }
 
     /** Read this machine's valid enrollment, absent before it enrolls and after a revoke. */

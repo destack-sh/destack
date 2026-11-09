@@ -279,7 +279,7 @@ export class Gateway {
                     : undefined;
             const routed =
                 origin === undefined
-                    ? await this.#route(request)
+                    ? await this.#route(request, authentication)
                     : await this.#origin(origin, request);
             if (routed instanceof Response) {
                 return routed;
@@ -315,29 +315,44 @@ export class Gateway {
         }
     }
 
-    /** Serve a routed request: its redirect or views, else its adapter's request. */
-    async #route(request: Request): Promise<Request | Response | undefined> {
-        // answer a redirect
+    /** Serve a routed request by its rule: a response, its views, its adapter or another site. */
+    async #route(
+        request: Request,
+        authentication: Authentication | undefined,
+    ): Promise<Response | undefined> {
+        // return the route's own response
         const routed = await RouteRequest.mount(
             this.#space.database,
             this.#space.id,
             request,
             (installationId) => this.#space.adapters(installationId),
         );
-        if (routed?.kind === "redirect") {
+        if (routed === undefined) {
+            return undefined;
+        } else if (routed.kind === "response") {
             return routed.response;
         }
         // serve the views below the route's path, without the machine's headers
-        else if (routed?.kind === "view") {
+        else if (routed.kind === "view") {
             const found = await Rollout.requireServed(this.#space.database, {
                 spaceId: this.#space.id,
                 installation: routed.installation,
             });
 
-            return this.#views.serve(RouteRequest.strip(request), found, routed.mount);
+            return routed.respond(
+                await this.#views.serve(RouteRequest.strip(routed.request), found, routed.mount),
+            );
         }
+        // hand the adapter its request
+        else if (routed.kind === "adapter") {
+            const response = await this.#installations(routed.request, authentication);
 
-        return routed?.request;
+            return routed.respond(response ?? new Response(null, { status: 404 }));
+        }
+        // send the request on to the other site
+        else {
+            return routed.respond(await this.#space.machine.send(routed.request));
+        }
     }
 
     /** Address an installation origin's packages below its mount, else serve the origin. */

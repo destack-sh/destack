@@ -1,7 +1,8 @@
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { MachineIdentity } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import accountPackage from "@destack/account/package";
+import { UniverseOrigin } from "@destack/account/address";
 import type { ArtifactsNamespace } from "@destack/git/cloudflare";
 import type { DatabaseConnection, Snapshot } from "@destack/db";
 import { DurableObjectReader, Jurisdiction } from "@destack/db/cloudflare";
@@ -180,7 +181,6 @@ export class CloudMachine {
     /** Read the cloud machine of a Worker's bindings in the isolate's system environment. */
     static async read(bindings: MachineBindings, system: Environment): Promise<CloudMachine> {
         // send the universe's and peers' requests through their bindings, others out
-        const accounts = PackageMount.url(bindings.DESTACK_ISSUER, accountPackage.id);
         const peers = peersOf(bindings);
         const environment: Environment = {
             ...system,
@@ -189,7 +189,7 @@ export class CloudMachine {
                 fetch: (request: Request, options?: FetchOptions) => {
                     // call the universe, and a peer machine or its relay, through their bindings
                     const peer = peers.get(new URL(request.url).host);
-                    if (request.url === accounts || request.url.startsWith(`${accounts}/`)) {
+                    if (UniverseOrigin.of(request.url, bindings.DESTACK_ISSUER) !== undefined) {
                         return bindings.UNIVERSE.fetch(request);
                     } else if (peer !== undefined) {
                         return peer.fetch(internal(request));
@@ -231,7 +231,7 @@ export class CloudMachine {
             identity,
             environment,
             replica,
-            issuer: `${accounts}${OAUTH_PATH}`,
+            issuer: UniverseOrigin.issuer(bindings.DESTACK_ISSUER),
         });
     }
 

@@ -21,8 +21,8 @@ import {
     defineInstallationBinding,
     installation,
 } from "@destack/object";
-import { DOMAINS } from "@destack/account/address";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
+import { DOMAINS, UniverseOrigin } from "@destack/account/address";
+import accountPackage from "@destack/account/package";
 import { createClient } from "@destack/object/client";
 import { RequestId, Scope, ObjectReference } from "@destack/sync";
 import { defineWorkload, type RunnerOptions } from "@destack/object/workload";
@@ -764,7 +764,7 @@ test(
         ]).toEqual([computer.machine.id, [{ target: peer.machine.id }]]);
 
         // grant the peer tokens in the universe, the moving space and the other space it does not receive
-        const issuer = `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`;
+        const issuer = UniverseOrigin.issuer(world.universe.origin);
         const grant = (binding: { readonly partition?: Identifier<"space"> }) =>
             peer.machine.identity.token(
                 stackPackage.id,
@@ -893,7 +893,7 @@ test(
                 fetch: machine.identity.fetch(
                     (request) => device.environment.network.fetch(request),
                     accountPackage.id,
-                    `${PackageMount.url(world.universe.origin, accountPackage.id)}${OAUTH_PATH}`,
+                    UniverseOrigin.issuer(world.universe.origin),
                 ),
             },
             device.environment,

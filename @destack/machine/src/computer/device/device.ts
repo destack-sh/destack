@@ -3,7 +3,7 @@ import { type Select, type Table } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { pathToFileURL } from "node:url";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
-import { SpaceAddress } from "@destack/account/address";
+import { SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
 import {
     CLIENT_KEYS,
@@ -19,7 +19,6 @@ import {
     currentLogin,
 } from "@destack/account/native";
 import * as native from "@destack/account/native";
-import accountPackage, { OAUTH_PATH } from "@destack/account/package";
 import { Platform, type Residency } from "@destack/account/object";
 import { connectBunSqlite, openBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
@@ -32,7 +31,7 @@ import { implementPackage, ObjectStore, type PackageImplementation } from "@dest
 import { ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
-import { type Fetch, PackageHandle, PackageMount } from "@destack/object";
+import { type Fetch, PackageHandle } from "@destack/object";
 import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
@@ -126,7 +125,7 @@ export class Device<
         this.#fetch = (request) => options.environment.network.fetch(request);
         this.environment = options.environment;
         this.issuer = new Issuer(
-            `${PackageMount.url(options.issuer, accountPackage.id)}${OAUTH_PATH}`,
+            UniverseOrigin.issuer(options.issuer),
             this.#fetch,
             options.environment,
             this.bookmark,

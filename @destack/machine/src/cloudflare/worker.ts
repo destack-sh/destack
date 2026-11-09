@@ -4,7 +4,7 @@ import { ServerBundle } from "./bundle.ts";
 import { Once } from "@destack/package/manifest";
 import { ProcessRuntime } from "@destack/stack/runtime";
 import { traceSampling } from "@destack/stack/setting";
-import { Directory, type SpaceAddress } from "@destack/account/address";
+import { Directory, type SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
 import { AlarmClock, Snapshot } from "@destack/db";
 import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
@@ -428,6 +428,11 @@ export class MachineWorker {
         // take a public request's client from Cloudflare, and the head a service binding hands on as it is
         const client = given.headers.get(CONNECTING_IP_HEADER);
         const request = client === null ? given : Forwarded.replace(given, { for: client });
+
+        // hand the universe its issuer and package mounts at its origin, which it serves behind the machines
+        if (UniverseOrigin.of(request.url, bindings.DESTACK_ISSUER) !== undefined) {
+            return bindings.UNIVERSE.fetch(request);
+        }
 
         // find the spaces served here alone, by a request to the machine's own host or a name
         const isOwn = new URL(request.url).host === bindings.DESTACK_HOST;

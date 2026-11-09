@@ -1602,6 +1602,7 @@ async function createRoute(
         path: "/",
         match: "prefix",
         installationId: route.installationId,
+        rules: [{ entry: { kind: "origin" } }],
     });
     await served.computer.world.simulation.idle();
 }
