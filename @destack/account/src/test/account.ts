@@ -74,7 +74,7 @@ import {
     StackRelease,
 } from "../object/index.ts";
 import accountPackage, { OAUTH_PATH } from "../package.ts";
-import { accountServer, Platform, PlatformDefinition, UniverseRole } from "../server/index.ts";
+import { accountServer, Platform, PlatformDefinition } from "../server/index.ts";
 import { defineDatabase } from "@destack/db";
 import { tablesOf } from "@destack/object";
 import { TokenLifetime } from "../oauth/index.ts";
@@ -988,8 +988,7 @@ export class TestAccountStore implements AsyncDisposable {
         return await person.client(objectPackage).invitation.accept({
             scope: Scope.universe.id,
             requestId: RequestId.create(this.store.environment),
-            object,
-            invitationId: invitation.id,
+            id: invitation.id,
         });
     }
 
@@ -1461,20 +1460,15 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Add the operator as the platform organization's owner through the invitation it stores. */
     async #joinOperator(): Promise<void> {
-        // sign the operator in and find the platform organization
+        // sign the operator in
         const operator = await this.signIn(OPERATOR_EMAIL);
-        const organizationId = present(
-            await UniverseRole.platform(Snapshot.live(this.database)),
-            "the platform organization",
-        );
 
         // accept the invitation the platform stores for the operator
         const [invited] = (await operator.client(accountPackage).user.invited({ id: ids.operator }))
             .items;
         await operator.client(objectPackage).invitation.accept({
             scope: Scope.universe.id,
-            object: organization.reference(Scope.universe.id, organizationId),
-            invitationId: present(invited, "the invitation to operate").id,
+            id: present(invited, "the invitation to operate").id,
             requestId: RequestId.create(this.store.environment),
         });
     }

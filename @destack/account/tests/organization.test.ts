@@ -231,8 +231,7 @@ test("list an invitation to a person's email to them, and make them a member onc
     await invitee.client(objectPackage).invitation.accept({
         scope: Scope.universe.id,
         requestId: RequestId.create(fixture.environment),
-        object,
-        invitationId: invited.id,
+        id: invited.id,
     });
 
     // add the invitee as a member, who reads the organization from then on

@@ -451,8 +451,7 @@ test("invite a new operator as the platform's owner beside the first", async () 
     await operator.client(objectPackage).invitation.accept({
         scope: Scope.universe.id,
         requestId: RequestId.create(fixture.environment),
-        object: organization.reference(Scope.universe.id, platformId),
-        invitationId: id,
+        id: id,
     });
 
     // add the new operator as an owner once, beside the first
