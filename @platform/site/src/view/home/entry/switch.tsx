@@ -27,8 +27,8 @@ const destacked = ["de", "stacked"];
 /** Where a stack switch sits: in a figure's label, or in the phones' bottom bar. */
 export type SwitchPlace = "label" | "bar";
 
-/** The milliseconds a hinted switch waits, untouched on screen, before showing that it switches. */
-const HINT_DELAY = 2000;
+/** The milliseconds a hinted switch rests before a countdown: time to read its figure. */
+const HINT_DELAY = 10_000;
 
 /** Switch the whole page and every figure between the stack as it is and destacked. */
 export function StackSwitch(properties: {
@@ -68,26 +68,47 @@ export function Toggle(properties: {
     title: string;
     onToggle: () => void;
 }) {
-    // hint once that the switch switches: a sweep across the other cell, the first time it shows untouched
+    // count down to flipping itself while it shows untouched: rest, then fill the other cell, then flip
     const [button, setButton] = createSignal<HTMLElement>();
     const isShown = createVisibilityObserver(button, { initialValue: false });
-    const [isHinting, setIsHinting] = createSignal(false);
+    const [isCounting, setIsCounting] = createSignal(false);
     const [isTouched, setIsTouched] = createSignal(false);
-    const hint = new Timeout();
+    const rest = new Timeout();
     createEffect(
-        () => properties.isHinted === true && isShown() && !isTouched(),
-        (isDue) => {
-            // wait while it shows untouched, and give up once it is touched or leaves
+        () => ({
+            isDue: properties.isHinted === true && isShown() && !isTouched(),
+            isOn: properties.isOn,
+        }),
+        ({ isDue }) => {
+            // rest before each countdown, and give up once it is touched or leaves
+            setIsCounting(false);
             if (isDue) {
-                hint.set(() => setIsHinting(true), HINT_DELAY);
+                rest.set(() => setIsCounting(true), HINT_DELAY);
             } else {
-                hint.clear();
+                rest.clear();
             }
         },
     );
+
+    // stop for good once the reader touches it, or switches the page some other way
+    let flipping = properties.isOn;
     const touch = () => {
         setIsTouched(true);
-        setIsHinting(false);
+        setIsCounting(false);
+    };
+    createEffect(
+        () => properties.isOn,
+        (isOn) => {
+            if (flipping !== isOn) {
+                touch();
+            }
+        },
+    );
+
+    // flip once a countdown's fill completes
+    const flip = () => {
+        flipping = !properties.isOn;
+        properties.onToggle();
     };
 
     return (
@@ -107,22 +128,22 @@ export function Toggle(properties: {
                 {...style.attrs(press.key, styles.switch)}
             >
                 <b
-                    onAnimationEnd={touch}
+                    onAnimationEnd={flip}
                     {...style.attrs(
                         styles.word,
                         properties.isOn ? styles.idle : styles.active,
-                        properties.isOn && isHinting() && styles.hint,
+                        properties.isOn && isCounting() && styles.hint,
                     )}
                 >
                     <Syllables syllables={properties.off} />
                 </b>
                 <b
-                    onAnimationEnd={touch}
+                    onAnimationEnd={flip}
                     {...style.attrs(
                         styles.word,
                         styles.second,
                         properties.isOn ? styles.active : styles.idle,
-                        !properties.isOn && isHinting() && styles.hint,
+                        !properties.isOn && isCounting() && styles.hint,
                     )}
                 >
                     <Syllables syllables={properties.on} />
@@ -184,11 +205,10 @@ export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] 
     );
 }
 
-/** A fill sweeping across a cell and back, once, to show it can be chosen. */
+/** A fill sweeping across a cell, as a countdown to switching to it. */
 const sweep = style.keyframes({
     "0%": { backgroundSize: "0% 100%" },
-    "50%": { backgroundSize: "100% 100%" },
-    "100%": { backgroundSize: "0% 100%" },
+    "100%": { backgroundSize: "100% 100%" },
 });
 
 /** The switch styles. */
@@ -245,9 +265,9 @@ const styles = style.create({
         },
     },
     hint: {
-        animationDuration: "1.6s",
+        animationDuration: "4s",
         animationName: { default: sweep, [media.motionReduce]: "none" },
-        animationTimingFunction: motion.easingStandard,
+        animationTimingFunction: "linear",
     },
     bar: {
         alignItems: "center",
