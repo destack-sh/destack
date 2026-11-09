@@ -31,7 +31,6 @@ import {
     type EntitlementResource,
     type ResidencyCode,
     machine,
-    organization,
     RESIDENCY_RELAY,
     Residency,
     residency,
@@ -52,7 +51,7 @@ import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { UniverseDefinition } from "../universe/definition.ts";
-import { type ReleaseRegistry, UniverseRole } from "@destack/account/server";
+import { type ReleaseRegistry } from "@destack/account/server";
 import { Universe, UNIVERSE_PACKAGES, type UniverseOptions } from "../universe/universe.ts";
 import { TestMachine } from "./machine.ts";
 
@@ -430,10 +429,6 @@ export class TestUniverse implements AsyncDisposable {
     /** Accept the operator's invitation to the platform organization, if one is open. */
     async #join(operator: TestPerson): Promise<void> {
         // find the invitation the platform stores for the operator
-        const organizationId = present(
-            await UniverseRole.platform(Snapshot.live(this.storage.database)),
-            "the platform organization",
-        );
         const user = schema.identifier("user").parse(operator.subject.id);
         const { items } = await operator.client(accountPackage).user.invited({ id: user });
 
@@ -442,8 +437,7 @@ export class TestUniverse implements AsyncDisposable {
         if (invited !== undefined) {
             await operator.client(objectPackage).invitation.accept({
                 scope: Scope.universe.id,
-                object: organization.reference(Scope.universe.id, organizationId),
-                invitationId: invited.id,
+                id: invited.id,
                 requestId: RequestId.create(this.environment),
             });
             await this.simulation.idle();
