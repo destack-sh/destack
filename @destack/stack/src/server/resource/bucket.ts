@@ -34,21 +34,21 @@ export function implementBucket(host: BucketHost) {
             createUpload: {
                 authorize: async (context) => {
                     requireWriter(context);
-                    await requireStorage(context);
+                    await requireEntitled(context);
                 },
                 handle: (context) => createUpload(host, context),
             },
             uploadPart: {
                 authorize: async (context) => {
                     requireWriter(context);
-                    await requireStorage(context);
+                    await requireEntitled(context);
                 },
                 handle: (context) => uploadPart(host, context),
             },
             completeUpload: {
                 authorize: async (context) => {
                     requireWriter(context);
-                    await requireStorage(context);
+                    await requireEntitled(context);
                 },
                 handle: (context) => completeUpload(host, context),
             },
@@ -100,7 +100,7 @@ async function authorizeOpen(context: MethodContextOf<typeof bucket, "open">): P
     if (context.input.mode === "write") {
         await context.require(bucket.permission("write"), context.reference());
         requireWriter(context);
-        await requireStorage(context);
+        await requireEntitled(context);
     }
 }
 
@@ -256,9 +256,9 @@ function requireWriter(context: BucketContext): void {
     }
 }
 
-/** Refuse a write into a space whose storage entitlement is exceeded. */
-async function requireStorage(context: BucketContext): Promise<void> {
-    Space.requireWithin(await Space.read(context, context.scope), "storage");
+/** Refuse a write into a space whose bucket entitlement is exceeded. */
+async function requireEntitled(context: BucketContext): Promise<void> {
+    Space.requireWithin(await Space.read(context, context.scope), "bucket");
 }
 
 /** Work on the bucket a call targets. */

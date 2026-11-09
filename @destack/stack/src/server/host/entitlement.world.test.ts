@@ -27,7 +27,7 @@ async function open() {
     // set the account within its plan until a test changes an entitlement, as its residency's home does
     const entitlement = (resource: SpaceResource, state: "within" | "blocked") =>
         fixture.universe.entitle(ids.account, resource, { kind: "metered", limit: 1000, state });
-    for (const resource of ["database", "storage", "compute", "network"] as const) {
+    for (const resource of ["database", "bucket", "compute", "network"] as const) {
         await entitlement(resource, "within");
     }
 
@@ -48,9 +48,9 @@ test("record a space's conditions from its account's entitlements, each exceeded
     const allowed = ["true", "Within"];
     const blocked = ["false", "Blocked"];
     expect({ database, compute, within }).toEqual({
-        database: { database: blocked, storage: allowed, compute: allowed, network: allowed },
-        compute: { database: blocked, storage: allowed, compute: blocked, network: allowed },
-        within: { database: allowed, storage: allowed, compute: allowed, network: allowed },
+        database: { database: blocked, bucket: allowed, compute: allowed, network: allowed },
+        compute: { database: blocked, bucket: allowed, compute: blocked, network: allowed },
+        within: { database: allowed, bucket: allowed, compute: allowed, network: allowed },
     });
 });
 

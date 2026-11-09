@@ -667,24 +667,24 @@ function errorDocument(
     return `<?xml version="1.0" encoding="UTF-8"?><Error><Code>${code}</Code><Message>${message}</Message><Resource>${resource}</Resource><RequestId>${requestId}</RequestId></Error>`;
 }
 
-/** Refuse writes once the space's storage entitlement is exceeded, allowing reads and removals. */
-test("refuse writes into a space whose storage exceeds its entitlement, allowing reads and removals", async () => {
+/** Refuse writes once the space's bucket entitlement is exceeded, allowing reads and removals. */
+test("refuse writes into a space whose bucket exceeds its entitlement, allowing reads and removals", async () => {
     await using fixture = await openBucket();
     const { client, bucket } = fixture;
 
-    // cap the space's storage, as its machine records the account's blocked entitlement
+    // cap the space's bucket, as its machine records the account's blocked entitlement
     const capped = {
         status: "false",
         observedGeneration: 1,
         reason: "Blocked",
-        message: "storage is at its limit of 1000",
+        message: "bucket is at its limit of 1000",
         lastTransitionAt: NOW,
     } as const;
     await fixture.database.transaction(
         async (transaction) =>
             await transaction
                 .update(space.table)
-                .set({ conditions: { storage: capped } })
+                .set({ conditions: { bucket: capped } })
                 .where(eq(space.table.id, fixture.spaceId)),
     );
 
@@ -714,7 +714,7 @@ test("refuse writes into a space whose storage exceeds its entitlement, allowing
         keys: ["a.txt"],
     });
 
-    const message = `space ${fixture.spaceId} exceeds its entitlement: storage is at its limit of 1000`;
+    const message = `space ${fixture.spaceId} exceeds its entitlement: bucket is at its limit of 1000`;
     expect({ refused, multipart, listed: listed.files, removed }).toEqual({
         refused: ["PAYMENT_REQUIRED", "ENTITLEMENT_EXCEEDED", message],
         multipart: ["PAYMENT_REQUIRED", "ENTITLEMENT_EXCEEDED", message],
