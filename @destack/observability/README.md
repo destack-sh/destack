@@ -94,6 +94,7 @@ controllers: [reading.consume("metering", async (page) => bill(page.events))],
 ## Meters
 
 `defineMeter` declares what a meter's events count and how a period's events fold into usage; the platform's meters measure a space's use in generic units that each vendor's pricing maps to its own SKUs.
+Platform meters are named `resource.measure`, with the measures `time`, `usage`, `operation`, `transfer` and `cost`, and each attribute lists the values its events take, each priced by its own SKU.
 
 ```ts
 const requests = defineMeter({
@@ -101,8 +102,9 @@ const requests = defineMeter({
     description,
     aggregation: "sum",
     unit: "request",
+    attributes: { method: ["read", "write"] },
 });
-import { cpu, machineHours, rowsRead } from "@destack/observability/meter";
+import { computeTime, databaseOperation, machineTime } from "@destack/telemetry/meter";
 ```
 
 ## Settings
