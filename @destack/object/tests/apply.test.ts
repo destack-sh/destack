@@ -52,7 +52,7 @@ test("serve a package applied after the store started, keeping the handlers of t
         await Installation.base(scope, labelsPackage, objects.environment.crypto),
     );
     await TestObjectStore.install(objects.store, scope, [labels]);
-    await objects.apply([...objects.store.servers, labels]);
+    objects.apply([...objects.store.servers, labels]);
 
     // create a label through the applied package, pages keeping its handler
     const created = await objects
