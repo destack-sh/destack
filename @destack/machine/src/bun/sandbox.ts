@@ -35,8 +35,6 @@ export interface BunWorkloadSandboxOptions {
     readonly runtime: string;
     /** The machine's egress, below which the workload calls addresses. */
     readonly egress: string;
-    /** The Unix socket the runner serves its machine on. */
-    readonly socket: string;
     /** The machine's environment, which granted names pass through from. */
     readonly environment: Readonly<Record<string, string | undefined>>;
     /** Find a command on the machine's path. */
@@ -82,14 +80,10 @@ export class BunWorkloadSandbox {
             return path;
         });
 
-        // serve the machine on the runner's socket, and listen on loopback only with `listen`
+        // serve the machine on the sandbox's socket, and bind loopback ports only with `server`
         return {
             executable: machine.executable,
-            arguments: [
-                "--no-env-file",
-                join(machine.directories.build, machine.runner),
-                machine.socket,
-            ],
+            arguments: ["--no-env-file", join(machine.directories.build, machine.runner)],
             directory: machine.directories.build,
             environment: this.#environment(sandbox.env?.names ?? []),
             read: [
@@ -101,12 +95,11 @@ export class BunWorkloadSandbox {
             write: [
                 machine.directories.data,
                 machine.directories.cache,
-                machine.socket,
                 ...resources.flatMap((resource) => resource.files),
                 ...BunWorkloadSandbox.#granted(directories, "write"),
             ],
             network: [new URL(machine.egress).host, ...connect],
-            sockets: [machine.socket, ...resources.flatMap((resource) => resource.sockets)],
+            sockets: resources.flatMap((resource) => resource.sockets),
             listening: sandbox.server === undefined ? "denied" : "loopback",
         };
     }

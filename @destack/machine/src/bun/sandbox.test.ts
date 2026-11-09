@@ -86,7 +86,6 @@ const host: BunWorkloadSandboxOptions = {
     runner: "bun/workload.js",
     runtime: "/run/user/501",
     egress: "http://127.0.0.1:7470/.destack/egress",
-    socket: "/run/user/501/destack-instance-1.sock",
     environment: { PATH: "/usr/bin:/bin", GITHUB_TOKEN: "token", HOME: "/Users/person" },
     which: (command) => (command === "git" ? "/opt/homebrew/bin/git" : undefined),
 };
@@ -95,11 +94,7 @@ test("confine a workload without capabilities to its build, resources and egress
     const channels = channelFiles("/spaces/space-1/main.db#log", "/run/user/501");
     expect(new BunWorkloadSandbox(host).options(spec)).toEqual({
         executable: "/usr/local/bin/bun",
-        arguments: [
-            "--no-env-file",
-            "/workers/instance-1/bun/workload.js",
-            "/run/user/501/destack-instance-1.sock",
-        ],
+        arguments: ["--no-env-file", "/workers/instance-1/bun/workload.js"],
         directory: "/workers/instance-1",
         environment: {
             PATH: "/usr/bin:/bin",
@@ -112,7 +107,6 @@ test("confine a workload without capabilities to its build, resources and egress
         write: [
             "/workers/installation-1/data",
             "/workers/installation-1/cache",
-            "/run/user/501/destack-instance-1.sock",
             "/spaces/space-1/main.db",
             "/spaces/space-1/main.db-wal",
             "/spaces/space-1/main.db-shm",
@@ -120,7 +114,7 @@ test("confine a workload without capabilities to its build, resources and egress
             ...Object.values(channels),
         ],
         network: ["127.0.0.1:7470"],
-        sockets: ["/run/user/501/destack-instance-1.sock", channels.socket],
+        sockets: [channels.socket],
         listening: "denied",
     });
 });

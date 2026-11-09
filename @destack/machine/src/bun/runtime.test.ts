@@ -41,7 +41,7 @@ appendFileSync(process.env.HOME + "/starts", "start\\n");
 const lines = console[Symbol.asyncIterator]();
 const start = JSON.parse((await lines.next()).value);
 const server = Bun.serve({
-    unix: process.argv[2],
+    unix: process.env.DESTACK_SERVER_SOCKET,
     fetch: async (request) => {
         if (new URL(request.url).pathname.endsWith("/crash")) {
             process.exit(3);
@@ -300,7 +300,7 @@ const FETCH_RUNNER = `
 const lines = console[Symbol.asyncIterator]();
 await lines.next();
 const server = Bun.serve({
-    unix: process.argv[2],
+    unix: process.env.DESTACK_SERVER_SOCKET,
     fetch: async (request) => {
         const target = new URL(request.url).searchParams.get("target");
         const response = await fetch(target, { signal: AbortSignal.timeout(2000) });

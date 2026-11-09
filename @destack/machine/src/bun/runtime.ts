@@ -39,9 +39,6 @@ const RUNNER_ORIGIN = "http://localhost";
 /** How long a stopping runner may drain before it is killed, in milliseconds. */
 const STOP_TIMEOUT_MILLISECONDS = 15_000;
 
-/** The hexadecimal digits of an instance's socket name: 64 bits. */
-const SOCKET_DIGITS = 16;
-
 /** How long a call of a build's export may run, in milliseconds. */
 const CALL_TIMEOUT_MILLISECONDS = 10_000;
 
@@ -425,17 +422,14 @@ export class BunRuntime implements Runtime {
         start: WorkloadStart,
     ): Promise<Runner> {
         // confine the runner to its build, its installation's directories, its resources and the egress
-        const { files, process, crypto } = this.#environment;
+        const { files, process } = this.#environment;
         const runtime = await files.realPath(await files.runtimeDirectory());
-        const socket = await BunRuntime.#socket(runtime, spec.instanceId, crypto);
-        await files.remove(socket, { force: true });
         const options = new BunWorkloadSandbox({
             executable: process.executable,
             directories,
             runner: InstanceSpec.entry(spec).path,
             runtime,
             egress: this.#egress(spec.scope),
-            socket,
             environment: process.variables,
             which: (command) => process.which(command),
         }).options(spec);
@@ -446,15 +440,12 @@ export class BunRuntime implements Runtime {
             spec,
             exited,
             secret: start.secret,
-            send: (request) => this.#environment.network.fetch(request, { unix: socket }),
+            send: (request) => this.#environment.network.fetch(request, { unix: sandbox.socket }),
             stop: async () => {
                 await sandbox.stop(STOP_TIMEOUT_MILLISECONDS);
             },
         };
-        const removed = async (exit: InstanceExit) => {
-            await files.remove(socket, { force: true });
-            await this.#exited(child, exit);
-        };
+        const removed = (exit: InstanceExit) => this.#exited(child, exit);
         void sandbox.exited
             .then(
                 (exit) =>
@@ -547,18 +538,6 @@ export class BunRuntime implements Runtime {
         await BunRuntime.#serving(sandbox, this.#environment);
 
         return sandbox;
-    }
-
-    /** Read the path of an instance's socket in the runtime directory. */
-    static async #socket(
-        runtime: string,
-        instanceId: Identifier<"instance">,
-        crypto: Environment["crypto"],
-    ): Promise<string> {
-        const digest = await crypto.digest("SHA-256", new TextEncoder().encode(instanceId));
-        const name = new Uint8Array(digest).toHex().slice(0, SOCKET_DIGITS);
-
-        return join(runtime, `destack-${name}.sock`);
     }
 
     /** Create an instance's build directory and its installation's data and cache directories. */
