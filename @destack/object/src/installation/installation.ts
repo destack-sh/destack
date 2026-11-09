@@ -9,7 +9,7 @@ import {
 } from "@destack/access";
 import { type Select, type Snapshot, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { type DigestCrypto, type Identifier, Instant, schema } from "@destack/schema";
+import { type DigestCrypto, type Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { InstallationName } from "../declare/egress.ts";
 import { InstallationBindings, InstallationSelection } from "./selection.ts";
@@ -18,18 +18,6 @@ import { defineObject } from "../object/object.ts";
 import type { ObjectPackage } from "../server/implementation.ts";
 import type { BaseServerContext } from "../workload/workload.ts";
 import type { PackageDescription } from "../declare/description.ts";
-
-/** A short-lived access token a scope grants one of its installations for a package. */
-export const InstallationToken = schema.object({
-    /** The signed access token. */
-    accessToken: schema.string(),
-    /** The HTTP authorization scheme. */
-    tokenType: schema.literal("Bearer"),
-    /** The exclusive expiry in epoch milliseconds. */
-    expiresAt: Instant,
-});
-/** A short-lived access token a scope grants one of its installations. */
-export type InstallationToken = schema.Infer<typeof InstallationToken>;
 
 /** A package installed in a partition scope: born with it, or installed at a selection. */
 export const installation = defineObject(
@@ -82,13 +70,12 @@ export const installation = defineObject(
             delete: none(),
             replicate: self(),
             run: self(),
-            token: self(),
             observe: none(),
             analyze: none(),
             unmask: none(),
             allow: none(),
         },
-        reserved: ["replicate", "run", "token"],
+        reserved: ["replicate", "run"],
         // bind roles on an installation directly
         shareable: { by: "update" },
         constraints: {
@@ -174,16 +161,6 @@ export const installation = defineObject(
         disallow: method.mutation({
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
-        }),
-
-        /** Grant the installation a token of its scope, as Kubernetes' TokenRequest. */
-        token: method.mutation({
-            permission: "token",
-            input: schema.object({
-                /** The receiving package. */
-                audience: PackageId,
-            }),
-            output: InstallationToken,
         }),
     }),
 );

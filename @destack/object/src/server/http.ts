@@ -317,8 +317,7 @@ export class Server implements AsyncDisposable {
         let authenticated: Authentication | undefined;
         let authenticationError: Error | undefined;
         try {
-            const verified =
-                given ?? (await options.verify?.(request)) ?? (await options.authenticate(request));
+            const verified = given ?? (await options.authenticate(request));
             if (verified !== undefined) {
                 const { credential } = verified;
                 const scope = Server.#scopeOf(options.scopes, credential.scope);
@@ -635,8 +634,6 @@ export interface PackageHandler extends Omit<
     readonly syncing?: Control;
     /** Wait until the package's replicas are synced, at once when absent. */
     readonly synced?: (signal: AbortSignal) => Promise<void>;
-    /** Verify a credential whose keys the package has before the host, undefined for another. */
-    readonly verify?: (request: Request) => Promise<Authentication | undefined>;
     /** Wait until the package can answer before it serves. */
     readonly ready?: (signal: AbortSignal, health?: Health) => Promise<void>;
     /** Activate the package before its controllers run, stopping once the signal aborts. */

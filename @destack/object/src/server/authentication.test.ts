@@ -96,63 +96,6 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
     },
 );
 
-test("verify a credential the package verifies before the host, which answers every other request", async () => {
-    // run in a world of its own
-    const world = testSimulation().environment("test");
-
-    // serve the caller's name, the package verifying its key and refusing a revoked one
-    const definition = {
-        me: defineProcedure({
-            package: Package.of(fixturePackage),
-            authentication: "identity",
-            permission: { principals: [principal.user] },
-            audit: false,
-        })
-            .route({ method: "GET", path: "/me" })
-            .output(schema.string()),
-    };
-    const implementation = implement(definition).$context<RequestContext>();
-    const verified: string[] = [];
-    await using server = Server.start({
-        environment: world,
-        ...hosting,
-        authenticate: authenticateByName(world.clock),
-        health: new Health("verify"),
-        drainTimeout: 100,
-        verify: async (request) => {
-            const key = request.headers.get("package-key");
-            verified.push(key ?? "none");
-            if (key === "revoked") {
-                throw CallError.http("UNAUTHORIZED", { message: "the package key is revoked" });
-            }
-
-            return key === null ? undefined : authenticateUser("bob", world.clock.now());
-        },
-        router: implementation.router({
-            me: implementation.me.handler(({ context }) => Caller.sender(context.caller()).id),
-        }),
-    });
-    const me = (headers: Record<string, string>) =>
-        createClient(
-            { router: definition },
-            { url: "https://fixture.test", headers, fetch: (request) => server.fetch(request) },
-            world,
-        ).me();
-
-    // answer the package's caller, the host's caller without the package's key, and refuse a revoked key
-    expect({
-        package: await me({ "package-key": "standing", authorization: "alice" }),
-        host: await me({ authorization: "alice" }),
-        revoked: await refusal(me({ "package-key": "revoked", authorization: "alice" })),
-        verified,
-    }).toEqual({
-        package: "bob",
-        host: "alice",
-        revoked: ["UNAUTHORIZED", "UNAUTHORIZED", "the package key is revoked"],
-        verified: ["standing", "none", "revoked"],
-    });
-});
-
 /** Hand over a user verified for a package until a time. */
 function handed(name: string, audience: PackageId, expiresAt: number): Authentication {
     const user = authenticateUser(name, expiresAt - 60_000);
