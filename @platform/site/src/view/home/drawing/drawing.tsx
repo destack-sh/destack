@@ -99,8 +99,11 @@ export function createChange(
     return shown;
 }
 
-/** Count the seconds a drawing has run, ticking only while it shows and motion is allowed. */
-export function createClock(host: () => Element | undefined): () => number {
+/** Count the seconds a drawing has run, ticking only while it shows, may move, and is running. */
+export function createClock(
+    host: () => Element | undefined,
+    isRunning: () => boolean = () => true,
+): () => number {
     // hold the count, the motion preference and whether the drawing shows
     const environment = useEnvironment();
     const isReduced = createReducedMotion(host);
@@ -109,9 +112,9 @@ export function createClock(host: () => Element | undefined): () => number {
 
     // tick frame by frame while the drawing shows and may move
     createEffect(
-        () => isShown() && !isReduced(),
+        () => isShown() && !isReduced() && isRunning(),
         (isTicking) => {
-            // hold still while hidden or where motion is reduced
+            // hold still while hidden, stopped, or where motion is reduced
             if (!isTicking) {
                 return;
             }

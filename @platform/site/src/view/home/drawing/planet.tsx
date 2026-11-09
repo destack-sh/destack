@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { color } from "@destack/theme/tokens.stylex";
 import { createEffect, createSignal, useEnvironment } from "@destack/view";
@@ -80,11 +81,27 @@ const moons: readonly Moon[] = [
     { orbit: 1.27, radius: 12, year: 194, phase: 2.5 },
 ].map((moon) => ({ ...moon, orbit: moon.orbit * reach.across }));
 
-/** Return where a world is on its orbit at a time, drawn toward the centre by a share. */
-function placeOf(moon: Moon, seconds: number, gathered: number): { x: number; y: number } {
+/** The share of the change by which every world has landed, inner worlds first. */
+const LANDED = 0.6;
+
+/** The share of the change at which the orbits start to close into the ring. */
+const RINGING = 0.45;
+
+/** The sum of the worlds' areas, in square CSS pixels over pi, which the planet gathers. */
+const MASS = moons.reduce((sum, moon) => sum + moon.radius * moon.radius, 0);
+
+/** Return the share of the change over which a world falls in, inner worlds first. */
+function fallOf(index: number): { start: number; end: number } {
+    const end = 0.2 + ((LANDED - 0.2) * index) / (moons.length - 1);
+
+    return { start: Math.max(0, end - 0.3), end };
+}
+
+/** Return where a world is at a time, fallen toward the centre by a share. */
+function placeOf(moon: Moon, seconds: number, fallen: number): { x: number; y: number } {
     // go around the orbit, faster as it closes in, like a world falling inward
-    const angle = moon.phase + (2 * Math.PI * seconds) / moon.year + gathered * 2;
-    const across = moon.orbit * (1 - gathered);
+    const angle = moon.phase + (2 * Math.PI * seconds) / moon.year + fallen * fallen * 4;
+    const across = moon.orbit * (1 - fallen);
     const flat = { x: across * Math.cos(angle), y: across * FLATTENING * Math.sin(angle) };
 
     // tilt the orbit with the ring
@@ -143,92 +160,103 @@ export function PlanetDrawing(properties: { isOpen: boolean; isMoving: boolean }
         },
     );
 
-    // stage the change: the worlds spiral in, then the globe traces round, its lines sweep in, and the ring closes
-    const travel = () => stageOf(gathered(), 0, 0.6);
-    const outline = () => stageOf(gathered(), 0.35, 0.75);
-    const lines = () => stageOf(gathered(), 0.45, 0.95);
-    const ring = () => stageOf(gathered(), 0.55, 1);
+    // stage the change: each world falls in and adds its mass, then the orbits close into the ring
+    const fallen = (index: number) => {
+        const fall = fallOf(index);
+
+        return stageOf(gathered(), fall.start, fall.end);
+    };
+    const mass = () =>
+        moons.reduce((sum, moon, index) => {
+            const fall = fallOf(index);
+
+            return sum + moon.radius * moon.radius * stageOf(gathered(), fall.end - 0.06, fall.end);
+        }, 0);
+    const size = () => Math.sqrt(mass() / MASS);
+    const ringed = () => stageOf(gathered(), RINGING, 1);
+    const banded = () => stageOf(gathered(), 0.85, 1);
     const rotation = `rotate(${planet.ringTilt})`;
     const front = `M${-box.width} 0H${box.width}V${box.width}H${-box.width}Z`;
+
+    // close each world's orbit into one line of the ring, dashed until it is the ring
+    const ellipses = moons.map((moon, index) => {
+        const line = present(ringLines[index], "the ring's line for the world");
+
+        return {
+            across: () => moon.orbit + (line.across - moon.orbit) * ringed(),
+            down: () => moon.orbit * FLATTENING + (line.down - moon.orbit * FLATTENING) * ringed(),
+            dash: () => `${3 + 60 * ringed()} ${3 * (1 - ringed())}`,
+        };
+    });
 
     return (
         <DrawingFrame box={box}>
             <Sketch box={box}>
                 <defs>
                     <clipPath id="planet-globe">
-                        <circle r={globe} />
+                        <circle r={globe * size()} />
                     </clipPath>
                     <clipPath id="planet-shadow">
-                        <circle cx={shadow.x} cy={shadow.y} r={shadow.radius} />
+                        <circle
+                            cx={shadow.x * size()}
+                            cy={shadow.y * size()}
+                            r={shadow.radius * size()}
+                        />
                     </clipPath>
                     <clipPath id="planet-front">
                         <path d={front} transform={rotation} />
                     </clipPath>
-                    <clipPath id="planet-sweep">
-                        <rect
-                            x={-globe}
-                            y={-globe}
-                            width={globe * 2}
-                            height={globe * 2 * lines()}
-                        />
-                    </clipPath>
                 </defs>
 
                 <g opacity={INK}>
-                    {/* draw each world's orbit, closing in toward the centre as they gather */}
-                    <g transform={rotation} opacity={1 - travel()}>
-                        {moons.map((moon) => (
+                    {/* draw each world's orbit behind the planet, closing into a line of its ring */}
+                    <g transform={rotation}>
+                        {ellipses.map((ellipse) => (
                             <ellipse
-                                rx={moon.orbit * (1 - travel())}
-                                ry={moon.orbit * FLATTENING * (1 - travel())}
+                                rx={ellipse.across()}
+                                ry={ellipse.down()}
+                                stroke-dasharray={ellipse.dash()}
                                 {...style.attrs(styles.orbit)}
                             />
                         ))}
                     </g>
 
-                    {/* draw the ring behind the globe, closing round as the planet forms */}
-                    <g transform={rotation}>
-                        {ringLines.map((line) => (
-                            <ellipse
-                                rx={line.across}
-                                ry={line.down}
-                                pathLength={1}
-                                stroke-dasharray="1 1"
-                                stroke-dashoffset={1 - ring()}
-                            />
-                        ))}
-                    </g>
-
-                    {/* cover the ring's back with the globe, its lines sweeping in from the top, twice as dense in shadow */}
-                    <circle r={globe} opacity={outline()} {...style.attrs(styles.cover)} />
-                    <g clip-path="url(#planet-sweep)">
-                        <g clip-path="url(#planet-globe)">
+                    {/* grow the globe by each world that lands, its lines twice as dense in shadow */}
+                    <circle r={globe * size()} {...style.attrs(styles.cover)} />
+                    <g clip-path="url(#planet-globe)">
+                        <g transform={rotation}>
+                            {latitudes.map((y) => (
+                                <line x1={-globe} x2={globe} y1={y} y2={y} />
+                            ))}
+                        </g>
+                        <g clip-path="url(#planet-shadow)">
                             <g transform={rotation}>
                                 {latitudes.map((y) => (
-                                    <line x1={-globe} x2={globe} y1={y} y2={y} />
+                                    <line
+                                        x1={-globe}
+                                        x2={globe}
+                                        y1={y + LATITUDE / 2}
+                                        y2={y + LATITUDE / 2}
+                                    />
                                 ))}
-                            </g>
-                            <g clip-path="url(#planet-shadow)">
-                                <g transform={rotation}>
-                                    {latitudes.map((y) => (
-                                        <line
-                                            x1={-globe}
-                                            x2={globe}
-                                            y1={y + LATITUDE / 2}
-                                            y2={y + LATITUDE / 2}
-                                        />
-                                    ))}
-                                </g>
                             </g>
                         </g>
                     </g>
-                    <circle
-                        r={globe}
-                        transform="rotate(-90)"
-                        pathLength={1}
-                        stroke-dasharray="1 1"
-                        stroke-dashoffset={1 - outline()}
-                    />
+                    <circle r={globe * size()} />
+
+                    {/* ripple out from the globe where each world lands */}
+                    {moons.map((_, index) => {
+                        const fall = fallOf(index);
+                        const ripple = () => stageOf(gathered(), fall.end - 0.04, fall.end + 0.16);
+
+                        return (
+                            <circle
+                                r={globe * size() + 4 + 30 * ripple()}
+                                opacity={ripple() > 0 && ripple() < 1 ? 1 - ripple() : 0}
+                                {...style.attrs(styles.ripple)}
+                            />
+                        );
+                    })}
 
                     {/* cut the ring's front across the globe, with a gap of page around its band */}
                     <g clip-path="url(#planet-front)">
@@ -237,16 +265,15 @@ export function PlanetDrawing(properties: { isOpen: boolean; isMoving: boolean }
                                 rx={reach.across}
                                 ry={reach.down}
                                 stroke-width={band + GAP * 2}
-                                opacity={ring()}
+                                opacity={banded()}
                                 {...style.attrs(styles.gap)}
                             />
-                            {ringLines.map((line) => (
+                            {ellipses.map((ellipse) => (
                                 <ellipse
-                                    rx={line.across}
-                                    ry={line.down}
-                                    pathLength={1}
-                                    stroke-dasharray="1 1"
-                                    stroke-dashoffset={1 - ring()}
+                                    rx={ellipse.across()}
+                                    ry={ellipse.down()}
+                                    stroke-dasharray={ellipse.dash()}
+                                    {...style.attrs(styles.orbit)}
                                 />
                             ))}
                         </g>
@@ -256,7 +283,7 @@ export function PlanetDrawing(properties: { isOpen: boolean; isMoving: boolean }
 
             {/* set the small worlds on their own layers, so they glide without redrawing their lines */}
             {moons.map((moon, index) => {
-                const place = () => placeOf(moon, seconds(), travel());
+                const place = () => placeOf(moon, seconds(), fallen(index));
 
                 return (
                     <World
@@ -264,8 +291,8 @@ export function PlanetDrawing(properties: { isOpen: boolean; isMoving: boolean }
                         index={index}
                         x={place().x}
                         y={place().y}
-                        scale={1 - 0.8 * travel()}
-                        opacity={1 - stageOf(travel(), 0.7, 1)}
+                        scale={1 - 0.4 * fallen(index)}
+                        opacity={1 - stageOf(fallen(index), 0.8, 1)}
                     />
                 );
             })}
@@ -359,8 +386,10 @@ const styles = style.create({
         transform: "translate(-50%, -50%)",
     },
     orbit: {
-        strokeDasharray: "3 3",
         strokeWidth: 1.25,
+    },
+    ripple: {
+        strokeDasharray: "1 3",
     },
     cover: {
         fill: color.background,

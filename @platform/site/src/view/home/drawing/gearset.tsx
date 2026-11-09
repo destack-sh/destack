@@ -1,5 +1,6 @@
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
-import { createSignal } from "@destack/view";
+import { createMemo, createSignal } from "@destack/view";
 
 import {
     between,
@@ -32,8 +33,33 @@ const SHADE = 3.2;
 /** The seconds the first gear takes to turn once while the engine runs. */
 const TURN = 30;
 
-/** One gear of the train: its teeth, its seat, the turn that meshes it, and where it lies. */
-type Gear = { teeth: number; seat: Point; phase: number; loose: Point; lying: number };
+/** The share of a tooth's depth below the pitch circle: a dedendum of 1.25 in 2.25 modules. */
+const DEDENDUM = 1.25 / 2.25;
+
+/** The points each gear's outline passes through, enough for the finest teeth's corners. */
+const SAMPLES = 360;
+
+/** A tooth's shape: the standard gear's, or one of the shapes each vendor cuts its own way. */
+type Tooth = "standard" | "square" | "saw" | "lobe" | "fine";
+
+/** A gear's cut: the shape and number of its teeth, its pitch radius, and its teeth's depth. */
+type Cut = { tooth: Tooth; teeth: number; pitch: number; depth: number };
+
+/** How each gear is cut while the stack is split: each its own size and tooth, none meshing. */
+const LOOSE: readonly Cut[] = [
+    { tooth: "square", teeth: 7, pitch: 25, depth: 8 },
+    { tooth: "saw", teeth: 15, pitch: 18, depth: 7 },
+    { tooth: "lobe", teeth: 5, pitch: 31, depth: 10 },
+    { tooth: "fine", teeth: 40, pitch: 24, depth: 2.5 },
+    { tooth: "square", teeth: 4, pitch: 11, depth: 6 },
+    { tooth: "lobe", teeth: 9, pitch: 18, depth: 6 },
+    { tooth: "saw", teeth: 8, pitch: 28, depth: 11 },
+    { tooth: "fine", teeth: 24, pitch: 13, depth: 2 },
+    { tooth: "square", teeth: 12, pitch: 21, depth: 5 },
+];
+
+/** One gear of the train: its two cuts, its seat and meshing turn, and how it lies loose. */
+type Gear = { own: Cut; standard: Cut; seat: Point; phase: number; loose: Point; lying: number };
 
 /** Return a gear's pitch radius, where it meets the next gear's. */
 function pitchOf(teeth: number): number {
@@ -66,8 +92,9 @@ const scattered: readonly Point[] = (() => {
 
     // place each gear where it touches no other, clear of the canvas's edges and the switch's corner
     const placed: (Point & { reach: number })[] = [];
-    for (const teeth of TEETH) {
-        const reach = pitchOf(teeth) + MODULE;
+    for (const [index, teeth] of TEETH.entries()) {
+        const own = present(LOOSE[index], "the gear's own cut");
+        const reach = Math.max(reachOf(standardOf(teeth)), reachOf(own));
         let candidate: Point = { x: 0, y: 0 };
         for (let attempt = 0; attempt < 400; attempt++) {
             candidate = {
@@ -115,45 +142,86 @@ const train: readonly Gear[] = (() => {
     };
 
     return TEETH.map((teeth, index) => ({
-        teeth,
+        own: present(LOOSE[index], "the gear's own cut"),
+        standard: standardOf(teeth),
         seat: { x: (seats[index]?.x ?? 0) - middle.x, y: (seats[index]?.y ?? 0) - middle.y + LOW },
         phase: phases[index] ?? 0,
-        loose: scattered[index] ?? { x: 0, y: 0 },
+        loose: present(scattered[index], "the gear's loose place"),
         lying: index * 47,
     }));
 })();
 
-/** Return a gear's outline: trapezoid teeth around its pitch circle. */
-function outlineOf(teeth: number): string {
-    // measure the root and tip circles
-    const pitch = pitchOf(teeth);
-    const root = pitch - 1.25 * MODULE;
-    const tip = pitch + MODULE;
-    const step = (2 * Math.PI) / teeth;
-
-    // walk each tooth: up its flank, across its top, down, and across the root to the next
-    const points = Array.from({ length: teeth }, (_, tooth) => {
-        const start = tooth * step;
-
-        return [
-            [root, start],
-            [tip, start + step * 0.18],
-            [tip, start + step * 0.42],
-            [root, start + step * 0.6],
-        ] as const;
-    }).flat();
-
-    return `${points.map(([radius, angle], index) => `${index === 0 ? "M" : "L"}${(radius * Math.cos(angle)).toFixed(2)} ${(radius * Math.sin(angle)).toFixed(2)}`).join("")}Z`;
+/** Return the standard cut of a gear of some teeth, which meshes with every other. */
+function standardOf(teeth: number): Cut {
+    return { tooth: "standard", teeth, pitch: pitchOf(teeth), depth: 2.25 * MODULE };
 }
 
-/** Draw one gear per service of the figure lying loose, or meshed into one turning gear train. */
+/** Return how far a cut's teeth reach from its middle. */
+function reachOf(cut: Cut): number {
+    return cut.pitch + cut.depth * (1 - DEDENDUM);
+}
+
+/** Return how far out a tooth reaches at a share across it, from 0 at its root to 1 at its tip. */
+function riseOf(tooth: Tooth, share: number): number {
+    switch (tooth) {
+        // rise up a flank, across the top, down, and along the root
+        case "standard":
+            return share < 0.18
+                ? share / 0.18
+                : share < 0.42
+                  ? 1
+                  : share < 0.6
+                    ? 1 - (share - 0.42) / 0.18
+                    : 0;
+        // step straight up and down
+        case "square":
+            return share < 0.04
+                ? share / 0.04
+                : share < 0.5
+                  ? 1
+                  : share < 0.54
+                    ? 1 - (share - 0.5) / 0.04
+                    : 0;
+        // ramp up the whole tooth, then drop
+        case "saw":
+            return share < 0.9 ? share / 0.9 : 1 - (share - 0.9) / 0.1;
+        // swell round and back
+        case "lobe":
+            return 0.5 - 0.5 * Math.cos(2 * Math.PI * share);
+        // cut many shallow standard teeth
+        case "fine":
+            return riseOf("standard", share);
+    }
+}
+
+/** Return a gear's outline at a share from its own cut to the standard one. */
+function outlineOf(own: Cut, standard: Cut, share: number): string {
+    // walk round the gear, blending how far each cut reaches at each angle
+    const radiusOf = (cut: Cut, angle: number) => {
+        const across = ((angle * cut.teeth) / (2 * Math.PI)) % 1;
+        const root = cut.pitch - cut.depth * DEDENDUM;
+
+        return root + cut.depth * riseOf(cut.tooth, across);
+    };
+    const points = Array.from({ length: SAMPLES }, (_, sample) => {
+        const angle = (2 * Math.PI * sample) / SAMPLES;
+        const radius = radiusOf(own, angle) * (1 - share) + radiusOf(standard, angle) * share;
+
+        return `${sample === 0 ? "M" : "L"}${(radius * Math.cos(angle)).toFixed(2)} ${(radius * Math.sin(angle)).toFixed(2)}`;
+    });
+
+    return `${points.join("")}Z`;
+}
+
+/** Draw one gear per service: each cut its own way, or all cut alike and meshed into one train. */
 export function Gearset(properties: { isOpen: boolean }) {
-    // follow the switch: the gears move to their seats and start turning
+    // follow the switch: the teeth change to the standard, then the gears move to their seats and turn
     const [host, setHost] = createSignal<HTMLElement>();
     const assembled = createChange(() => properties.isOpen, host, CHANGE);
     const seconds = createClock(host);
-    const seat = () => stageOf(assembled(), 0, 0.8);
-    const turn = () => ((360 * seconds()) / TURN) * stageOf(assembled(), 0.8, 1);
+    const cut = createMemo(() => stageOf(assembled(), 0, 0.35));
+    const seat = () => stageOf(assembled(), 0.3, 0.85);
+    const turn = () => ((360 * seconds()) / TURN) * stageOf(assembled(), 0.85, 1);
 
     return (
         <DrawingFrame box={CANVAS} reference={setHost}>
@@ -162,26 +230,29 @@ export function Gearset(properties: { isOpen: boolean }) {
                     {/* set each gear, from where it lies to its seat, turning in mesh once seated */}
                     {train.map((gear, index) => {
                         // turn each gear against the last, by the ratio of their teeth
-                        const ratio = (TEETH[0] ?? gear.teeth) / gear.teeth;
+                        const ratio = (TEETH[0] ?? gear.standard.teeth) / gear.standard.teeth;
                         const direction = index % 2 === 0 ? 1 : -1;
                         const at = () => between(gear.loose, gear.seat, seat());
                         const angle = () =>
                             gear.lying * (1 - seat()) +
                             gear.phase * seat() +
                             direction * ratio * turn();
-                        const pitch = pitchOf(gear.teeth);
-                        const reach = pitch + MODULE;
-                        const outline = outlineOf(gear.teeth);
+
+                        // cut the gear between its own teeth and the standard's
+                        const outline = createMemo(() => outlineOf(gear.own, gear.standard, cut()));
+                        const pitch = () =>
+                            gear.own.pitch + (gear.standard.pitch - gear.own.pitch) * cut();
+                        const reach = Math.max(reachOf(gear.own), reachOf(gear.standard));
 
                         return (
                             <g transform={`translate(${at().x} ${at().y})`}>
                                 <defs>
                                     <clipPath id={`gearset-gear-${index}`}>
-                                        <path d={outline} transform={`rotate(${angle()})`} />
+                                        <path d={outline()} transform={`rotate(${angle()})`} />
                                     </clipPath>
                                 </defs>
                                 <path
-                                    d={outline}
+                                    d={outline()}
                                     transform={`rotate(${angle()})`}
                                     {...style.attrs(styles.cover)}
                                 />
@@ -202,11 +273,11 @@ export function Gearset(properties: { isOpen: boolean }) {
                                 </g>
 
                                 <g transform={`rotate(${angle()})`}>
-                                    <path d={outline} />
-                                    <circle r={pitch * 0.38} />
+                                    <path d={outline()} />
+                                    <circle r={pitch() * 0.38} />
                                     <circle r={1.8} {...style.attrs(styles.solid)} />
                                     <path
-                                        d={`M${-pitch * 0.62} 0H${pitch * 0.62}M0 ${-pitch * 0.62}V${pitch * 0.62}`}
+                                        d={`M${-pitch() * 0.62} 0H${pitch() * 0.62}M0 ${-pitch() * 0.62}V${pitch() * 0.62}`}
                                         {...style.attrs(styles.dotted)}
                                     />
                                 </g>

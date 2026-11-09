@@ -1,3 +1,4 @@
+import { present } from "@destack/schema";
 import * as style from "@destack/style";
 import { createSignal } from "@destack/view";
 
@@ -34,6 +35,64 @@ const OWN_YEAR = 9;
 
 /** The ground line the dishes stand on, in CSS pixels below the centre. */
 const GROUND = 96;
+
+/** The length of one wave along a tether or link, in CSS pixels. */
+const WAVELENGTH = 9;
+
+/** How far a wave swings to each side of its line, in CSS pixels. */
+const AMPLITUDE = 2.5;
+
+/** The waves per second that run along every line. */
+const PULSE = 1.4;
+
+/** A signal's shape: each dish speaks its own, and the planet one for all. */
+type Wave = "square" | "saw" | "pulse" | "sine";
+
+/** The signal each lone satellite and its dish speak, in turn. */
+const OWN_WAVES: readonly Wave[] = ["square", "saw", "pulse"];
+
+/** Return a signal's swing at a share along one wave, from -1 to 1. */
+function swingOf(wave: Wave, share: number): number {
+    switch (wave) {
+        // jump between high and low
+        case "square":
+            return share < 0.5 ? 1 : -1;
+        // ramp up, then drop
+        case "saw":
+            return 2 * share - 1;
+        // spike once, then rest
+        case "pulse":
+            return share < 0.15 ? Math.sin((share / 0.15) * Math.PI) * 1.4 : 0;
+        // swing round
+        case "sine":
+            return Math.sin(2 * Math.PI * share);
+    }
+}
+
+/** Return a line from one point to another carrying a signal, its waves running from the start. */
+function signalOf(from: Point, to: Point, wave: Wave, seconds: number, amplitude: number): string {
+    // draw nothing once the line is reeled in to a point
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    if (length < 1) {
+        return "";
+    }
+
+    // step along the line, swinging across it
+    const along = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+    const steps = Math.max(2, Math.ceil(length / 1.5));
+    const points = Array.from({ length: steps + 1 }, (_, step) => {
+        // swing across the line by the signal's shape at this distance
+        const distance = (length * step) / steps;
+        const share = (((distance / WAVELENGTH - seconds * PULSE) % 1) + 1) % 1;
+        const swing = swingOf(wave, share) * amplitude;
+        const x = from.x + along.x * distance - along.y * swing;
+        const y = from.y + along.y * distance + along.x * swing;
+
+        return `${step === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
+    });
+
+    return points.join("");
+}
 
 /** A satellite: the point it circles alone, its dish, and its start on the orbit. */
 type Satellite = { free: Point; dish: Point; angle: number };
@@ -72,7 +131,7 @@ function Dish() {
     );
 }
 
-/** Draw satellites each tied to a dish of its own, or all orbiting our planet. */
+/** Draw satellites each tied to a dish with its own signal, or all round our planet on one. */
 export function Satellites(properties: { isOpen: boolean; count: number }) {
     // fly one satellite for each of the figure's connectors, spaced evenly round the shared orbit
     const satellites = (): readonly Satellite[] =>
@@ -85,7 +144,8 @@ export function Satellites(properties: { isOpen: boolean; count: number }) {
             return { ...station, angle: (index * 2 * Math.PI) / properties.count };
         });
 
-    // follow the switch: the dishes let go, the satellites move onto the shared orbit, the links to the planet draw
+    // follow the switch: the dishes and their signals let go, the satellites move onto the shared
+    //  orbit, and the links to the planet draw, all carrying one signal
     const [host, setHost] = createSignal<HTMLElement>();
     const joined = createChange(() => properties.isOpen, host, CHANGE);
     const seconds = createClock(host);
@@ -117,7 +177,7 @@ export function Satellites(properties: { isOpen: boolean; count: number }) {
         <DrawingFrame box={CANVAS} reference={setHost}>
             <Sketch box={CANVAS}>
                 <g {...style.attrs(styles.ink)}>
-                    {/* draw the ground, each satellite's own orbit and dish, and its tether, reeled in as it is let go */}
+                    {/* draw the ground, each satellite's own orbit and dish, and its signal, reeled in as it is let go */}
                     <g>
                         <path
                             d={`M-226 ${GROUND + 8}H226`}
@@ -125,44 +185,45 @@ export function Satellites(properties: { isOpen: boolean; count: number }) {
                             stroke-dasharray="1 1"
                             stroke-dashoffset={retract()}
                         />
-                        {satellites().map((satellite, index) => (
-                            <g>
-                                <line
-                                    x1={placeOf(satellite, index).at.x}
-                                    y1={placeOf(satellite, index).at.y + 10}
-                                    x2={
-                                        between(
-                                            satellite.dish,
-                                            placeOf(satellite, index).at,
-                                            retract(),
-                                        ).x
-                                    }
-                                    y2={
-                                        between(
-                                            { x: satellite.dish.x, y: satellite.dish.y - 14 },
-                                            {
-                                                x: placeOf(satellite, index).at.x,
-                                                y: placeOf(satellite, index).at.y + 10,
-                                            },
-                                            retract(),
-                                        ).y
-                                    }
-                                    {...style.attrs(styles.dotted)}
-                                />
-                                <ellipse
-                                    cx={satellite.free.x}
-                                    cy={satellite.free.y}
-                                    rx={OWN_ORBIT.across * (1 - move())}
-                                    ry={OWN_ORBIT.down * (1 - move())}
-                                    {...style.attrs(styles.dotted)}
-                                />
-                                <g
-                                    transform={`translate(${satellite.dish.x} ${satellite.dish.y + 40 * retract()})`}
-                                >
-                                    <Dish />
+                        {satellites().map((satellite, index) => {
+                            // reel the signal in from the dish to the satellite's foot
+                            const foot = () => {
+                                const at = placeOf(satellite, index).at;
+
+                                return { x: at.x, y: at.y + 10 };
+                            };
+                            const dish = { x: satellite.dish.x, y: satellite.dish.y - 14 };
+                            const wave = present(
+                                OWN_WAVES[index % OWN_WAVES.length],
+                                "the satellite's own signal",
+                            );
+
+                            return (
+                                <g>
+                                    <path
+                                        d={signalOf(
+                                            between(dish, foot(), retract()),
+                                            foot(),
+                                            wave,
+                                            seconds(),
+                                            AMPLITUDE * (1 - retract()),
+                                        )}
+                                    />
+                                    <ellipse
+                                        cx={satellite.free.x}
+                                        cy={satellite.free.y}
+                                        rx={OWN_ORBIT.across * (1 - move())}
+                                        ry={OWN_ORBIT.down * (1 - move())}
+                                        {...style.attrs(styles.dotted)}
+                                    />
+                                    <g
+                                        transform={`translate(${satellite.dish.x} ${satellite.dish.y + 40 * retract()})`}
+                                    >
+                                        <Dish />
+                                    </g>
                                 </g>
-                            </g>
-                        ))}
+                            );
+                        })}
                     </g>
 
                     {/* draw the shared orbit, fading in as it is joined */}
@@ -196,13 +257,19 @@ export function Satellites(properties: { isOpen: boolean; count: number }) {
 
                         return (
                             <g>
-                                <line
-                                    x1={place().shared.x}
-                                    y1={place().shared.y}
-                                    x2={place().surface.x}
-                                    y2={place().surface.y}
+                                <path
+                                    d={
+                                        link() === 0
+                                            ? ""
+                                            : signalOf(
+                                                  place().surface,
+                                                  place().shared,
+                                                  "sine",
+                                                  seconds(),
+                                                  AMPLITUDE * link(),
+                                              )
+                                    }
                                     opacity={place().isBehind ? 0 : link()}
-                                    {...style.attrs(styles.dotted)}
                                 />
                                 <g
                                     transform={`translate(${place().at.x} ${place().at.y})`}
