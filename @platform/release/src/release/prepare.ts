@@ -46,13 +46,13 @@ export async function prepareRelease(environment: Environment<HostCapability>): 
         installers: JSON.stringify(describeInstallers()),
         names: PLATFORMS.map(({ target }) => target).join(" "),
         renew: String(isRenewing),
-        check: String(isRenewing || isPublishingBuild),
+        published: String(published !== undefined),
     };
     await writeOutputs(outputs, environment);
 
     // report the selected work
     print(
-        `Destack ${release.version} from ${commit}: build ${outputs.build}, publish ${outputs.publish}, renew ${outputs.renew}, check ${outputs.check}`,
+        `Destack ${release.version} from ${commit}: build ${outputs.build}, publish ${outputs.publish}, renew ${outputs.renew}, published ${outputs.published}`,
         environment,
     );
 }
