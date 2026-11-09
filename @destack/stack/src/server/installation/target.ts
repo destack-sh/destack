@@ -42,6 +42,7 @@ import { build, Build, type BuildSource } from "../../object/build.ts";
 import accountPackage from "@destack/account/package";
 import type { SpaceBuildStore, Registry } from "./build.ts";
 import type { Forge } from "./follow.ts";
+import type { Binder } from "../resource/binding.ts";
 import { space } from "@destack/account/object";
 import { StackEvaluation } from "../../object/stack.ts";
 import { StackError } from "../../error/index.ts";
@@ -56,6 +57,8 @@ import {
 
 /** What targeting and describing revisions read: builds, the registry, blobs and the forge. */
 export interface RevisionOptions {
+    /** The kinds of objects bindings target. */
+    readonly binder: Binder;
     /** The space's builds, read through to the machine's cache. */
     readonly builds: SpaceBuildStore;
     /** The registry of published releases. */
@@ -119,7 +122,26 @@ export const RolloutTarget = {
                 (revision === undefined || current === undefined
                     ? undefined
                     : { build: current.id, manifest: Build.manifest(current) });
-            if (chosen === undefined) {
+            // wait for an installation selecting a target of a kind no server here serves yet
+            const selections = Object.values(row.installation.bindings).flatMap((each) =>
+                Object.values(each),
+            );
+            const unserved = selections
+                .map(({ target }) => target)
+                .filter((target) => "id" in target && !options.binder.isBindable(target.id))
+                .map((target) => target.type);
+            if (unserved.length > 0) {
+                const message = `waiting for a provider of ${[...new Set(unserved)].join(", ")} resources`;
+                await reconciliation.observe(installation, row.installation, {
+                    conditions: {
+                        Bound: { status: "false", reason: "WaitingForResources", message },
+                        Ready: { status: "false", reason: "WaitingForResources", message },
+                    },
+                });
+                continue;
+            }
+            // pass over one with no build to revise yet
+            else if (chosen === undefined) {
                 continue;
             }
 

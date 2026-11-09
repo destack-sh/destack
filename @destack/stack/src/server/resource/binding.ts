@@ -169,6 +169,11 @@ export class Binder {
         return this.#kinds.map((kind) => kind.object);
     }
 
+    /** Report whether a target is an object of a kind the binder binds on this machine. */
+    isBindable(target: string): boolean {
+        return this.#kinds.some((kind) => kind.object.identifies(target));
+    }
+
     /** Report whether a bindable kind binds a declaration, by its kind's identity. */
     binds(declaration: { readonly kind: string; readonly kindPackageId: string }): boolean {
         return this.#kinds.some((kind) => kind.declaration.has(declaration));

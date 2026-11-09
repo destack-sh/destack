@@ -204,6 +204,7 @@ async function notesBuild(
                           sandbox: Sandbox.select(sandbox, browser),
                           presents: [],
                           categories: [],
+                          audience: "person",
                           packages: [],
                           render: { mode: "client" },
                       },
@@ -2368,6 +2369,34 @@ test("wait for a provider of a kind no provider here serves yet, naming the kind
     expect(await readiness(fixture.database, notes.installationId)).toEqual([
         "waiting",
         "waiting for a provider of vault resources",
+    ]);
+});
+
+test("wait to revise an installation selecting an object of a kind no server here serves yet, naming the kind", async () => {
+    // install notes needing a connection, and select an existing one before any server here serves connections
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const github: Declared = {
+        definer: objectPackage,
+        name: "github",
+        description: { name: "github", kind: "connection", spec: {} },
+    };
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main, github], fixture.environment.crypto),
+    );
+    const { deployments } = await serveControllers(fixture);
+    await selectBinding(database, notes.installationId, "github", {
+        type: "connection",
+        id: Identifier.create("connection", fixture.environment),
+    });
+
+    // wait rather than fail the revision, naming the kind
+    await deployments.reconcile(notes.installationId);
+    expect(await readiness(database, notes.installationId)).toEqual([
+        "waiting",
+        "waiting for a provider of connection resources",
     ]);
 });
 
