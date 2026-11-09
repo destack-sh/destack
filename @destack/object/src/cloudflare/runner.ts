@@ -21,16 +21,16 @@ import {
     WorkloadStart,
 } from "../workload/index.ts";
 
-/** The path a partition's object posts its workload's start to. */
+/** The path the hosting object posts its workload's start to. */
 export const START_PATH = "/.destack/start";
 
-/** The path where a partition's object asks its workload to drain and forget its start. */
+/** The path where the hosting object asks its workload to drain and forget its start. */
 export const STOP_PATH = "/.destack/stop";
 
-/** The path where a partition's object rings an instance's alarm. */
+/** The path where the hosting object rings an instance's alarm. */
 export const ALARM_PATH = "/.destack/alarm";
 
-/** The path below which an instance reads its build's files through its partition's object. */
+/** The path below which an instance reads its build's files through its hosting object. */
 export const BUILD_PATH = "/.destack/build";
 
 /** The key of the stored start an instance resumes after an eviction. */
@@ -39,14 +39,14 @@ const START_KEY = "start";
 /** The namespace of the database an instance has only while it runs. */
 const EPHEMERAL_NAMESPACE = "ephemeral";
 
-/** The start a partition's object hands its workload. */
+/** The start the hosting object hands its workload. */
 export const DurableObjectStart = schema.object({
     /** The machine's start of the workload. */
     start: WorkloadStart,
     /** The manifest of the build the workload runs. */
     manifest: PackageManifest,
 });
-/** The start a partition's object hands its workload. */
+/** The start the hosting object hands its workload. */
 export type DurableObjectStart = schema.Infer<typeof DurableObjectStart>;
 
 /** A ring of an instance's alarm, or a move of its wake-up. */
@@ -77,16 +77,16 @@ export interface DurableObjectRunnerState {
 
 /** The bindings an instance's facet reads. */
 export interface DurableObjectRunnerBindings {
-    /** The partition's object. */
+    /** The object hosting the facet: its space's or its partition's. */
     readonly PARTITION: { readonly fetch: (request: Request) => Promise<Response> };
 }
 
-/** A workload instance in its partition's facet, beside its databases. */
+/** A workload instance in its installation's facet, beside its databases. */
 export class DurableObjectRunner {
     /** The object's storage. */
     readonly #storage: DurableObjectRunnerStorage;
-    /** The partition's object. */
-    readonly #partition: DurableObjectRunnerBindings["PARTITION"];
+    /** The object hosting the facet: its space's or its partition's. */
+    readonly #object: DurableObjectRunnerBindings["PARTITION"];
     /** What the workload runs with. */
     readonly #runner: Omit<RunnerOptions, "ephemeral">;
     /** The object's databases. */
@@ -100,22 +100,22 @@ export class DurableObjectRunner {
         bindings: DurableObjectRunnerBindings,
         runner: Omit<RunnerOptions, "ephemeral">,
     ) {
-        // set the storage, the partition's object and the databases
+        // set the storage, the hosting object and the databases
         this.#storage = state.storage;
-        this.#partition = bindings.PARTITION;
+        this.#object = bindings.PARTITION;
         this.#runner = runner;
         this.#databases = new DurableObjectDatabaseHost(state.storage, runner.environment);
         this.#running = state.blockConcurrencyWhile(() => this.#resume());
     }
 
-    /** Answer the partition's object's database operations, starts, stops and rings. */
+    /** Answer the hosting object's database operations, starts, stops and rings. */
     async fetch(request: Request): Promise<Response> {
         try {
             const { pathname } = new URL(request.url);
 
-            // run a database operation, reading content through the partition's object
+            // run a database operation, reading content through the hosting object
             if (pathname === DATABASE_PATH) {
-                return await this.#databases.answer(request, () => this.#partition);
+                return await this.#databases.answer(request, () => this.#object);
             }
             // store a new start and run it
             else if (pathname === START_PATH) {
@@ -163,12 +163,12 @@ export class DurableObjectRunner {
 
     /** Start the workload over the object's databases. */
     #start(started: DurableObjectStart): Promise<WorkloadRunner> {
-        // read the build's files through the partition's object and set the wake-up on its alarm
-        const partition = this.#partition;
+        // read the build's files through the object hosting the facet
+        const object = this.#object;
         const build = new BuildReader(
             started.manifest,
             async (path) => {
-                const response = await partition.fetch(
+                const response = await object.fetch(
                     new Request(`https://partition${BUILD_PATH}/${path}`, {
                         headers: { authorization: `Bearer ${started.start.secret}` },
                     }),
@@ -176,17 +176,19 @@ export class DurableObjectRunner {
                 if (!response.ok) {
                     throw ObjectError.of(
                         "BUILD_FILE_UNAVAILABLE",
-                        `the partition has no build file ${path}: ${response.status}`,
+                        `the hosting object has no build file ${path}: ${response.status}`,
                     );
                 }
 
-                return present(response.body, `the partition's body of build file ${path}`);
+                return present(response.body, `the hosting object's body of build file ${path}`);
             },
             this.#runner.environment.crypto,
         );
+        // address the installation's own facet for its alarm and sockets, proving it with the start's secret
+        const facet = `https://partition/${started.start.installation}`;
         const alarm: Alarm = {
-            setAlarm: (at) => this.#move(at),
-            deleteAlarm: () => this.#move(null),
+            setAlarm: (at) => this.#move(facet, started.start.secret, at),
+            deleteAlarm: () => this.#move(facet, started.start.secret, null),
         };
 
         // open the bound databases in the object's storage
@@ -195,8 +197,8 @@ export class DurableObjectRunner {
                 ...this.#runner,
                 alarm,
                 socketHost: {
-                    url: `https://partition${SOCKET_PATH}`,
-                    fetch: (request) => this.#partition.fetch(request),
+                    url: `${facet}${SOCKET_PATH}`,
+                    fetch: (request) => this.#object.fetch(request),
                 },
                 ephemeral: {
                     open: async (tables) => {
@@ -219,11 +221,12 @@ export class DurableObjectRunner {
         );
     }
 
-    /** Move the partition's object's wake-up, or clear it. */
-    async #move(at: number | null): Promise<void> {
-        const response = await this.#partition.fetch(
-            new Request(`https://partition${ALARM_PATH}`, {
+    /** Move the wake-up of the installation's facet, or clear it. */
+    async #move(facet: string, secret: string, at: number | null): Promise<void> {
+        const response = await this.#object.fetch(
+            new Request(`${facet}${ALARM_PATH}`, {
                 method: "POST",
+                headers: { authorization: `Bearer ${secret}` },
                 body: JSON.stringify({ at } satisfies DurableObjectAlarm),
             }),
         );
