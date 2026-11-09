@@ -11,12 +11,12 @@ import {
     WorkloadRequest,
 } from "@destack/stack/runtime";
 import {
-    CALL_PATH,
-    type DurableObjectCall,
     type DurableObjectInstanceStart,
     type DurableObjectNamespace,
     PartitionName,
+    type WorkerLoader,
 } from "./instance.ts";
+import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { type BuildReader, ImportMap } from "@destack/package/manifest";
 import type { SpaceBuildStore } from "@destack/stack/server";
 import type { ImportClosure } from "@destack/build/store";
@@ -35,11 +35,14 @@ const MODULE_MEDIA_TYPE = "text/javascript";
 /** The base of the module names in an isolate, which name each build's modules below its digest. */
 const MODULE_BASE = "/";
 
-/** An instance this runtime started, with its object and secret. */
+/** The module a call's isolate starts from, which calls the export a request names. */
+const CALL_MODULE = "destack-call.js";
+
+/** An instance this runtime started, with its facet and secret. */
 interface Runner {
     /** The instance's spec. */
     readonly spec: InstanceSpec;
-    /** The instance's object. */
+    /** The instance's facet in the space's object. */
     readonly object: { readonly fetch: (request: Request) => Promise<Response> };
     /** The secret the space and the instance prove each other's requests with. */
     readonly secret: string;
@@ -52,12 +55,18 @@ interface Runner {
     >;
 }
 
-/** Run a space's instances on workerd. */
-export class CloudflareRuntime implements Runtime {
+/** Run a space's instances on workerd, each in a facet of the space's object. */
+export class WorkerdRuntime implements Runtime {
     /** The server runtime. */
     readonly name = WORKERD_RUNTIME;
-    /** The instances' objects, in the space's jurisdiction. */
+    /** The partitions' objects, in the space's jurisdiction. */
     readonly #instances: DurableObjectNamespace;
+    /** The facet of an installation in the space's object, beside the space. */
+    readonly #facet: (installation: string) => {
+        readonly fetch: (request: Request) => Promise<Response>;
+    };
+    /** The loader of the calls' isolates. */
+    readonly #loader: WorkerLoader;
     /** The space whose object serves the instances' egress and build files. */
     readonly #space: string;
     /** The space's egress, below which the instances call addresses. */
@@ -80,13 +89,17 @@ export class CloudflareRuntime implements Runtime {
     readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
     /** The instances starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
-    /** The builds of the calls in flight, by the secret each call's isolate reads them with. */
-    readonly #calls = new Map<string, BuildReader>();
 
-    /** Run a space's instances in their objects, calling addresses through the space's egress. */
+    /** Run a space's instances in its object's facets, calling out through the space's egress. */
     constructor(options: {
-        /** The instances' objects, in the space's jurisdiction. */
+        /** The partitions' objects, in the space's jurisdiction. */
         readonly instances: DurableObjectNamespace;
+        /** The facet of an installation in the space's object. */
+        readonly facet: (installation: string) => {
+            readonly fetch: (request: Request) => Promise<Response>;
+        };
+        /** The loader of the calls' isolates. */
+        readonly loader: WorkerLoader;
         /** The space whose object serves the instances' egress and build files. */
         readonly space: string;
         /** The space's egress, below which the instances call addresses. */
@@ -108,8 +121,10 @@ export class CloudflareRuntime implements Runtime {
         /** Read the space's builds, which map a build's imports and open its dependencies. */
         readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
     }) {
-        // set the objects, the space, its egress, the sampling and the spaces' identities
+        // set the objects and facets, the space, its egress, the sampling and the spaces' identities
         this.#instances = options.instances;
+        this.#facet = options.facet;
+        this.#loader = options.loader;
         this.#space = options.space;
         this.#egress = options.egress;
         this.#sampling = options.sampling;
@@ -119,7 +134,7 @@ export class CloudflareRuntime implements Runtime {
         this.#builds = options.builds;
     }
 
-    /** Start an instance in its installation's object, replacing its previous deployment. */
+    /** Start an instance in its installation's facet, replacing its previous deployment. */
     async start(spec: InstanceSpec): Promise<void> {
         return this.#registry.start(spec, (identify) => this.#start(spec, identify));
     }
@@ -136,10 +151,10 @@ export class CloudflareRuntime implements Runtime {
 
     /** Stop an instance after any start in progress, draining its workload in its object. */
     async stop(instanceId: Identifier<"instance">): Promise<void> {
-        await this.#registry.stop(instanceId, (running) => CloudflareRuntime.#drain(running));
+        await this.#registry.stop(instanceId, (running) => WorkerdRuntime.#drain(running));
     }
 
-    /** Drain a running instance's root object and each started partition's. */
+    /** Drain a running instance's facet and each started partition's object. */
     static async #drain(running: Runner): Promise<void> {
         // read the root's object and each partition that started, skipping a failed start
         const started = await Promise.allSettled(running.partitions.values());
@@ -150,7 +165,7 @@ export class CloudflareRuntime implements Runtime {
 
         // stop the root, then each started partition
         for (const object of objects) {
-            await CloudflareRuntime.#requireAnswer(
+            await WorkerdRuntime.#requireAnswer(
                 await object.fetch(
                     new Request(`${INSTANCE_ORIGIN}${STOP_PATH}`, { method: "POST" }),
                 ),
@@ -162,11 +177,16 @@ export class CloudflareRuntime implements Runtime {
     /** Read every module of the build a secret proves and of its dependencies, imports resolved. */
     async modules(secret: string): Promise<Record<string, string>> {
         // require the build a secret proves
-        const build = this.identify(secret)?.build ?? this.#calls.get(secret);
+        const build = this.identify(secret)?.build;
         if (build === undefined) {
             throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
         }
 
+        return this.#modules(build);
+    }
+
+    /** Read each module a build's imports reach, resolved through its import map. */
+    async #modules(build: BuildReader): Promise<Record<string, string>> {
         // read each module the build's imports reach, its specifiers resolved through the closure's import map
         const closure = await this.#closure(build);
         const own = await build.digest();
@@ -186,50 +206,53 @@ export class CloudflareRuntime implements Runtime {
         return Object.fromEntries(read);
     }
 
-    /** Call an export of a build's module once, in an isolate of a fresh object of its own. */
+    /** Call an export of a build's module once, in an isolate of its own beside the space. */
     async call(
         build: BuildReader,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // hand the call to an object of its own with a secret its isolate reads the build with
-        const secret = this.#random.bytes(SECRET_BYTES).toHex();
-        this.#calls.set(secret, build);
-        try {
-            const object = this.#instances.get(
-                this.#instances.idFromName(
-                    PartitionName.of({ space: this.#space, installation: `call-${secret}` }),
+        // load the build's modules beside a module calling the export, in a fresh isolate
+        const modules = await this.#modules(build);
+        const main = JSON.stringify(`./${await build.digest()}/${path}`);
+        const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({
+            compatibilityDate: WORKERD_COMPATIBILITY_DATE,
+            compatibilityFlags: ["nodejs_compat"],
+            mainModule: CALL_MODULE,
+            modules: {
+                ...Object.fromEntries(
+                    Object.entries(modules).map(([module, js]) => [module, { js }]),
                 ),
-            );
-            const call: DurableObjectCall = {
-                space: this.#space,
-                secret,
-                main: `${await build.digest()}/${path}`,
-                name,
-                input: [...input],
-            };
-            const response = await object.fetch(
-                new Request(`${INSTANCE_ORIGIN}${CALL_PATH}`, {
-                    method: "POST",
-                    body: JSON.stringify(call),
-                }),
-            );
-            const text = await response.text();
-            if (!response.ok) {
-                throw MachineError.of(
-                    "RUNTIME_ACTION_FAILED",
-                    `call ${name} of ${path} failed with ${response.status}: ${text}`,
-                );
-            }
+                [CALL_MODULE]: {
+                    js: `import * as module from ${main};\nexport default {\n    async fetch(request) {\n        const { name, input } = await request.json();\n        return Response.json((await module[name](...input)) ?? null);\n    },\n};\n`,
+                },
+            },
+            env: {},
+            globalOutbound: this.#instances.get(
+                this.#instances.idFromName(PartitionName.of({ space: this.#space })),
+            ),
+        }));
 
-            return JsonValue.of(JSON.parse(text));
-        } finally {
-            this.#calls.delete(secret);
+        // call the export with the call's input, refusing a failed call
+        const response = await isolate.getEntrypoint().fetch(
+            new Request("https://call", {
+                method: "POST",
+                body: JSON.stringify({ name, input }),
+            }),
+        );
+        const text = await response.text();
+        if (!response.ok) {
+            throw MachineError.of(
+                "RUNTIME_ACTION_FAILED",
+                `call ${name} of ${path} failed with ${response.status}: ${text}`,
+            );
         }
+
+        return JsonValue.of(JSON.parse(text));
     }
 
-    /** Forward a request at its path below an instance's installation to its object. */
+    /** Forward a request at its path below an instance's installation to its facet or partition. */
     async fetch(
         instanceId: Identifier<"instance">,
         path: string,
@@ -249,7 +272,7 @@ export class CloudflareRuntime implements Runtime {
         );
     }
 
-    /** Hand an instance's root object a request the machine makes at a path below its origin. */
+    /** Hand an instance's facet a request the machine makes at a path below its origin. */
     async deliver(
         instanceId: Identifier<"instance">,
         path: string,
@@ -295,7 +318,7 @@ export class CloudflareRuntime implements Runtime {
                 }),
             )
             .then(async (response) => {
-                await CloudflareRuntime.#requireAnswer(
+                await WorkerdRuntime.#requireAnswer(
                     response,
                     `start partition ${partition} of ${spec.instanceId}`,
                 );
@@ -310,7 +333,7 @@ export class CloudflareRuntime implements Runtime {
         return started;
     }
 
-    /** Hand an instance's object its start. */
+    /** Hand an instance's facet its start. */
     async #start(spec: InstanceSpec, identify: (secret: string) => void): Promise<Runner> {
         // describe the start with a fresh secret
         const start = await InstanceSpec.start(spec, {
@@ -320,11 +343,7 @@ export class CloudflareRuntime implements Runtime {
             identity: await this.#identity(spec.scope),
             random: this.#random,
         });
-        const object = this.#instances.get(
-            this.#instances.idFromName(
-                PartitionName.of({ space: spec.scope, installation: spec.installationId }),
-            ),
-        );
+        const object = this.#facet(spec.installationId);
 
         // load the output's modules and run the workload's entry
         const body: DurableObjectInstanceStart = {
@@ -346,7 +365,7 @@ export class CloudflareRuntime implements Runtime {
                 body: JSON.stringify(body),
             }),
         );
-        await CloudflareRuntime.#requireAnswer(response, `start ${spec.instanceId}`);
+        await WorkerdRuntime.#requireAnswer(response, `start ${spec.instanceId}`);
 
         return running;
     }

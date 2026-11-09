@@ -14,7 +14,6 @@ import { Plan, ResourceId } from "@destack/resource";
 import { MemoryContentStore } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { installation, refusal } from "@destack/object";
-import { type DurableObjectNamespace, PartitionName } from "../runtime/index.ts";
 import { database } from "@destack/stack/object";
 import { ObjectReference } from "@destack/sync";
 import { SpaceStorage } from "../../space/storage.ts";
@@ -79,8 +78,8 @@ const Counted = schema.object({ bytes: schema.number().int().nonnegative() });
 /** The entries an object answers. */
 const Entries = schema.array(schema.object({ id: schema.string(), title: schema.string() }));
 
-/** An installation's partition that writes bytes and entries of its own. */
-class Instance {
+/** An installation's facet in the space's object that writes bytes and entries of its own. */
+export class Instance {
     /** The object's storage. */
     readonly storage: DurableObjectStorage;
     /** The databases' operations, copying through the space's object. */
@@ -138,26 +137,25 @@ class Instance {
 class Space {
     /** The object's storage. */
     readonly storage: DurableObjectStorage;
-    /** The installations' objects. */
-    readonly instances: DurableObjectNamespace;
+    /** The facet of an installation in the space's object. */
+    readonly facet: (installation: string) => {
+        readonly fetch: (request: Request) => Promise<Response>;
+    };
     /** The space's database, recording each database's owning installation. */
     readonly records: ReturnType<DurableObjectDatabaseHost["connect"]>;
     /** The space's databases: its own in its storage, its installations' in their objects. */
     readonly databases: DurableObjectSpaceDatabaseHost;
 
-    /** Take the object's storage, the installations' objects and the space's databases. */
-    constructor(
-        state: { readonly storage: DurableObjectStorage },
-        bindings: { readonly PARTITION: DurableObjectNamespace },
-    ) {
-        // set the storage, the installations' objects and the space's records of its databases
+    /** Take the object's storage, its installations' facets and the space's databases. */
+    constructor(state: SpaceState) {
+        // set the storage, the installations' facets and the space's records of its databases
         this.storage = state.storage;
-        this.instances = bindings.PARTITION;
+        this.facet = (name) => state.facets.get(name, () => ({ class: state.exports["Instance"] }));
         const host = new DurableObjectDatabaseHost(state.storage, WorkerdEnvironment.system);
         this.records = host.connect(MAIN);
         this.databases = new DurableObjectSpaceDatabaseHost(
             this.records,
-            bindings.PARTITION,
+            this.facet,
             host,
             Random.system,
         );
@@ -305,39 +303,40 @@ class Space {
         return provisioned;
     }
 
-    /** Address an installation's object. */
+    /** Address an installation's facet. */
     #instance(installed: typeof INSTALLED) {
-        return this.instances.get(
-            this.instances.idFromName(
-                PartitionName.of({
-                    space: installed.scope,
-                    installation: installed.installationId,
-                }),
-            ),
-        );
+        return this.facet(installed.installationId);
     }
 }
 
-/** A partition's object: the space's own, named by the space, or an installation's. */
+/** The space's object, which hosts its installations' databases in their facets. */
 export class Partition {
-    /** The role the object's name gives it. */
-    readonly #role: Space | Instance;
+    /** The space the object serves. */
+    readonly #space: Space;
 
-    /** Take the space's role under the space's name, else an installation's. */
-    constructor(
-        state: { readonly id: { readonly name?: string }; readonly storage: DurableObjectStorage },
-        bindings: DurableObjectDatabaseBindings & {
-            readonly PARTITION: DurableObjectNamespace;
-        },
-    ) {
-        this.#role =
-            state.id.name === PartitionName.of({ space: SPACE })
-                ? new Space(state, bindings)
-                : new Instance(state, bindings);
+    /** Take the space's role over the object's state. */
+    constructor(state: SpaceState) {
+        this.#space = new Space(state);
     }
 
-    /** Serve a request in the object's role. */
+    /** Serve a request as the space. */
     fetch(request: Request): Promise<Response> {
-        return this.#role.fetch(request);
+        return this.#space.fetch(request);
     }
+}
+
+/** The state of the space's object: its storage, its facets and the Worker's exports. */
+interface SpaceState {
+    /** The object's storage. */
+    readonly storage: DurableObjectStorage;
+    /** The object's facets. */
+    readonly facets: {
+        /** Get a facet, starting it with a class when it does not run. */
+        readonly get: (
+            name: string,
+            options: () => { readonly class: unknown },
+        ) => { readonly fetch: (request: Request) => Promise<Response> };
+    };
+    /** The Worker's own exports, the installations' facet class among them. */
+    readonly exports: Readonly<Record<string, unknown>>;
 }

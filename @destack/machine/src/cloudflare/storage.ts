@@ -74,8 +74,10 @@ export interface DurableObjectSpaceStorageOptions {
     readonly domain: string;
     /** The residency's Artifacts namespace of the spaces' Git storages. */
     readonly artifacts: ArtifactsNamespace;
-    /** The installations' objects, one per installation partition. */
-    readonly partitions: DurableObjectNamespace;
+    /** The facet of an installation in the space's object, which stores its databases. */
+    readonly facet: (installation: string) => {
+        readonly fetch: (request: Request) => Promise<Response>;
+    };
     /** The builds' graph index objects, one per manifest. */
     readonly graphs: DurableObjectNamespace;
     /** The jurisdiction of the objects, empty for none. */
@@ -128,10 +130,9 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         this.#host = host;
         this.database = database;
         this.#files = new R2Bucket(options.files);
-        const partitions = Jurisdiction.narrow(options.partitions, options.jurisdiction);
         this.databases = new DurableObjectSpaceDatabaseHost(
             database,
-            partitions,
+            options.facet,
             host,
             options.environment.random,
         );

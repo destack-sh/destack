@@ -1,9 +1,12 @@
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { BUILD_PATH } from "@destack/object/cloudflare";
+import { Egress } from "@destack/object";
+import { AlarmClock } from "@destack/db";
 import {
+    FacetHost,
     type HibernatingSocket,
-    PartitionFacet,
     type PartitionBindings,
+    PartitionName,
     type PartitionState,
 } from "../instance.ts";
 
@@ -19,52 +22,73 @@ interface ScenarioBindings extends PartitionBindings {
     readonly SECRET: string;
 }
 
-/** A partition's object. */
+/** A partition's object: the space's with its installations' facets, or a partition's. */
 export class Partition {
     /** The object's name. */
     readonly #name: string;
     /** The Worker's bindings. */
     readonly #bindings: ScenarioBindings;
-    /** The installation's partition, its workload in a facet. */
-    readonly #facet: PartitionFacet;
+    /** The object's one alarm. */
+    readonly #alarms: AlarmClock;
+    /** The facets the object hosts. */
+    readonly #facets: FacetHost;
 
-    /** Take the object's name, the bindings and the facet. */
+    /** Take the object's name, state and bindings. */
     constructor(
         state: PartitionState & { readonly id: { readonly name?: string } },
         bindings: ScenarioBindings,
     ) {
+        // keep the object's name and bindings, and host its facets on its alarm
         this.#name = state.id.name ?? "";
         this.#bindings = bindings;
-        this.#facet = new PartitionFacet(state, bindings, WorkerdEnvironment.system);
+        this.#alarms = new AlarmClock(state.storage, state.storage);
+        this.#facets = new FacetHost(state, bindings, WorkerdEnvironment.system, this.#alarms);
     }
 
-    /** Serve the space's build and accept its calls out, else hand the request to the facet. */
+    /** Serve a facet, the space's build and its calls out. */
     async fetch(request: Request): Promise<Response> {
-        // serve the space's role
-        if (this.#name === this.#bindings.SPACE) {
-            const { pathname } = new URL(request.url);
-
-            return pathname === BUILD_PATH
-                ? Response.json({ [this.#bindings.MODULE_NAME]: this.#bindings.MODULE })
-                : Response.json({ calls: [] });
+        // hand a request below an installation to its facet, the workloads' own calls among them
+        const url = new URL(request.url);
+        const { installation } = PartitionName.read(this.#name);
+        const routed = this.#facets.route(request);
+        if (routed !== undefined) {
+            return routed;
         }
-
-        return this.#facet.fetch(request);
+        // serve a partition's one facet
+        else if (installation !== undefined) {
+            return this.#facets.facet(installation).fetch(request);
+        }
+        // serve the space's build
+        else if (url.pathname === BUILD_PATH) {
+            return Response.json({ [this.#bindings.MODULE_NAME]: this.#bindings.MODULE });
+        }
+        // accept the space's calls out
+        else if (url.pathname.startsWith(Egress.path)) {
+            return Response.json({ calls: [] });
+        }
+        // refuse any other path
+        else {
+            return new Response(null, { status: 404 });
+        }
     }
 
-    /** Hand an accepted WebSocket's message to the workload. */
+    /** Hand an accepted WebSocket's message to its installation's workload. */
     webSocketMessage(socket: HibernatingSocket, message: ArrayBuffer | string): Promise<void> {
-        return this.#facet.webSocketMessage(socket, message);
+        return this.#facets.socket(socket).webSocketMessage(socket, message);
     }
 
-    /** Hand an accepted WebSocket's close to the workload. */
+    /** Hand an accepted WebSocket's close to its installation's workload. */
     webSocketClose(socket: HibernatingSocket): Promise<void> {
-        return this.#facet.webSocketClose(socket);
+        return this.#facets.socket(socket).webSocketClose(socket);
     }
 
-    /** Ring the workload's alarm. */
+    /** Fire the due facets' alarms through the object's schedule. */
     alarm(): Promise<void> {
-        return this.#facet.alarm();
+        return this.#alarms.fire(WorkerdEnvironment.system.clock.now(), async (parties) => {
+            for (const party of parties) {
+                await this.#facets.facet(party).alarm();
+            }
+        });
     }
 }
 
@@ -77,9 +101,15 @@ export default {
         const [, name = "", ...below] = url.pathname.split("/");
         url.pathname = `/${below.join("/")}`;
 
-        // forward the request as the host
+        // forward the request as the host, with the secret of the partition or of the installation below the space,
+        //  unless the request brings its own
         const forwarded = new Request(url.href, request);
-        forwarded.headers.set("authorization", `Bearer ${bindings.SECRET}`);
+        const [hosted] = below;
+        const secret =
+            name === bindings.SPACE ? `${bindings.SECRET}:${hosted ?? ""}` : bindings.SECRET;
+        if (!forwarded.headers.has("authorization")) {
+            forwarded.headers.set("authorization", `Bearer ${secret}`);
+        }
         const namespace = bindings.PARTITION;
 
         return namespace.get(namespace.idFromName(name)).fetch(forwarded);

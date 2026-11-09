@@ -11,14 +11,12 @@ export const workload = defineWorkload(
     {
         name: "echo",
         start: async (context) => {
-            // name the partition the instance serves, refusing a host without an installation or sockets
+            // label answers with the partition the instance serves, else its installation
             const { server, hibernation } = context;
-            if (server?.partition === undefined || hibernation === undefined) {
-                throw new TypeError(
-                    "the echo workload runs in a partition whose host leaves sockets open",
-                );
+            if (server === undefined || hibernation === undefined) {
+                throw new TypeError("the echo workload runs in a host that leaves sockets open");
             }
-            const partition = server.partition;
+            const partition = server.partition ?? server.installation;
 
             return {
                 packages: [

@@ -6,7 +6,7 @@ import { ProcessRuntime } from "@destack/stack/runtime";
 import { traceSampling } from "@destack/stack/setting";
 import { Directory, type SpaceAddress } from "@destack/account/address";
 import * as accountObject from "@destack/account/object";
-import { Snapshot } from "@destack/db";
+import { AlarmClock, Snapshot } from "@destack/db";
 import { type DurableObjectStorage, Jurisdiction, CONTENT_PATH } from "@destack/db/cloudflare";
 import { Forwarded } from "@destack/environment";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
@@ -19,16 +19,17 @@ import {
 } from "@destack/object/cloudflare";
 import type { Alarm } from "@destack/db";
 import { CloudMachine, CONNECTING_IP_HEADER, type MachineBindings } from "./cloud.ts";
-import { type Identifier, schema } from "@destack/schema";
+import { type Identifier, present, schema } from "@destack/schema";
 import { SettingValue } from "@destack/setting/object";
 import { Route } from "@destack/stack/object";
 import { TelemetryScope } from "@destack/telemetry";
 import {
-    CloudflareRuntime,
     type HibernatingSocket,
-    PartitionFacet,
+    FacetHost,
+    type InstallationFacet,
     PartitionName,
     type PartitionState,
+    WorkerdRuntime,
 } from "./runtime/index.ts";
 import { Machine } from "../machine/index.ts";
 import machinePackage from "../package.ts";
@@ -46,6 +47,12 @@ export { GraphIndexObject } from "@destack/stack/cloudflare";
 /** The key of the space an object serves, which it resumes after an eviction. */
 const SPACE_KEY = "space";
 
+/** The party of the object's alarm that runs the machine's directory controllers. */
+const DIRECTORY_PARTY = "directory";
+
+/** The party of the object's alarm that runs the space's controllers. */
+const SPACE_PARTY = "space";
+
 /** The egress a space's instances call out through, below the space's object. */
 const EGRESS = `https://space${Egress.path}`;
 
@@ -60,8 +67,8 @@ export type PartitionStorage = DurableObjectStorage &
 
 /** The state a partition's object runs over. */
 type PartitionObjectState = PartitionState & {
-    /** The object's identifier, the same for each name. */
-    readonly id: { readonly toString: () => string };
+    /** The object's identifier, the same for each name, with the name it was addressed by. */
+    readonly id: { readonly toString: () => string; readonly name?: string };
     /** The object's storage. */
     readonly storage: PartitionStorage;
     /** Run a closure before the object takes any event. */
@@ -74,31 +81,37 @@ interface ServedSpace {
     readonly space: Space;
     /** The space's storage in the object. */
     readonly host: DurableObjectSpaceStorage;
-    /** The runtime running the space's instances in their objects. */
-    readonly runtime: CloudflareRuntime;
+    /** The runtime running the space's instances in the object's facets. */
+    readonly runtime: WorkerdRuntime;
 }
 
-/** A partition's object: the machine's directory, a space, or an installation's facet. */
+/** A partition's object: the machine's directory, a space and its facets, or a partition. */
 export class PartitionObject {
+    /** The object's state. */
+    readonly #state: PartitionObjectState;
     /** The object's storage. */
     readonly #storage: PartitionStorage;
     /** The Worker's bindings. */
     readonly #bindings: MachineBindings;
+    /** The object's one alarm, shared by the directory, the space and each installation's facet. */
+    readonly #alarms: AlarmClock;
     /** The cloud machine the object runs as, once read. */
     readonly #cloud = new Once<CloudMachine>();
     /** The machine's directory replica, in the machine partition's object alone. */
     readonly #directory: Promise<DurableObjectWorkloadInstance> | undefined;
     /** The space the object serves, once its partition started. */
     #served: Promise<ServedSpace | undefined>;
-    /** The installation's partition, its workload in a facet. */
-    readonly #facet: PartitionFacet;
+    /** The facets of the installations the object hosts. */
+    readonly #facets: FacetHost;
 
     /** Resume the space the object served before any event. */
     constructor(state: PartitionObjectState, bindings: MachineBindings) {
-        // set the storage, the bindings and the facet
+        // set the state, the storage, the bindings and the alarm clock
+        this.#state = state;
         this.#storage = state.storage;
         this.#bindings = bindings;
-        this.#facet = new PartitionFacet(state, bindings, WorkerdEnvironment.system);
+        this.#alarms = new AlarmClock(state.storage, state.storage);
+        this.#facets = new FacetHost(state, bindings, WorkerdEnvironment.system, this.#alarms);
 
         // follow the directory in the machine partition's object
         const objects = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
@@ -106,7 +119,10 @@ export class PartitionObject {
         this.#directory =
             state.id.toString() === String(machine)
                 ? state.blockConcurrencyWhile(async () =>
-                      (await this.#machine()).startDirectory(state.storage, state.storage),
+                      (await this.#machine()).startDirectory(
+                          state.storage,
+                          this.#alarms.alarm(DIRECTORY_PARTY),
+                      ),
                   )
                 : undefined;
 
@@ -143,10 +159,13 @@ export class PartitionObject {
         });
         this.#served = starting.catch(() => undefined);
         try {
-            // serve the installation's facet in an object serving no space
+            // hand a workload's call to its own facet, and serve a partition's facet in an object serving no space
             const served = await starting;
-            if (served === undefined) {
-                return await this.#facet.fetch(request);
+            const routed = this.#facets.route(request);
+            if (routed !== undefined) {
+                return await routed;
+            } else if (served === undefined) {
+                return await this.#partition().fetch(request);
             }
             Attribution.publish({ scope: served.space.id });
 
@@ -162,7 +181,7 @@ export class PartitionObject {
             if (url.pathname === BUILD_PATH) {
                 return Response.json(await served.runtime.modules(Bearer.require(request.headers)));
             }
-            // serve a page of a database replica an installation's object copies
+            // serve a page of a database replica an installation's facet copies
             else if (url.pathname.startsWith(`${CONTENT_PATH}/`)) {
                 return await served.host.content(request);
             }
@@ -175,38 +194,57 @@ export class PartitionObject {
         }
     }
 
-    /** Hand an accepted WebSocket's message to the installation's workload. */
+    /** Hand an accepted WebSocket's message to its installation's workload. */
     webSocketMessage(socket: HibernatingSocket, message: ArrayBuffer | string): Promise<void> {
-        return this.#facet.webSocketMessage(socket, message);
+        return this.#facets.socket(socket).webSocketMessage(socket, message);
     }
 
-    /** Hand an accepted WebSocket's close to the installation's workload. */
+    /** Hand an accepted WebSocket's close to its installation's workload. */
     webSocketClose(socket: HibernatingSocket): Promise<void> {
-        return this.#facet.webSocketClose(socket);
+        return this.#facets.socket(socket).webSocketClose(socket);
     }
 
-    /** Run the partition's due controllers for at most ten minutes. */
+    /** Wake the directory, the space or each facet whose alarm is due, for at most ten minutes. */
     async alarm(): Promise<void> {
-        // run the directory's controllers, the space's, or the installation workload's
-        const served = await this.#served;
-        if (this.#directory !== undefined) {
+        await this.#alarms.fire(WorkerdEnvironment.system.clock.now(), async (parties) => {
+            for (const party of parties) {
+                await this.#wake(party);
+            }
+        });
+    }
+
+    /** Wake one party of the object's alarm: the directory, the space or a facet. */
+    async #wake(party: string): Promise<void> {
+        // run the directory's controllers
+        const { clock } = WorkerdEnvironment.system;
+        if (party === DIRECTORY_PARTY) {
             await (
-                await this.#directory
-            ).alarm(WorkerdEnvironment.system.clock.now() + ALARM_MILLISECONDS);
+                await present(this.#directory, "the machine's directory")
+            ).alarm(clock.now() + ALARM_MILLISECONDS);
         }
         // run the space's controllers while the machine's account enables it
-        else if (served !== undefined) {
+        else if (party === SPACE_PARTY) {
+            const served = present(await this.#served, "the object's space");
             Attribution.publish({ scope: served.space.id });
             const { machine } = served.space;
             await machine.updateHealth();
             if (machine.health.status === "up") {
-                await served.space.instance.alarm(machine.clock.now() + ALARM_MILLISECONDS);
+                await served.space.instance.alarm(clock.now() + ALARM_MILLISECONDS);
             }
         }
-        // run the facet's own alarm otherwise
+        // run an installation's workload
         else {
-            await this.#facet.alarm();
+            await this.#facets.facet(party).alarm();
         }
+    }
+
+    /** Read the facet of the installation a partition's object serves, named by the object. */
+    #partition(): InstallationFacet {
+        const { installation } = PartitionName.read(
+            present(this.#state.id.name, "the object's name"),
+        );
+
+        return this.#facets.facet(present(installation, "the partition's installation"));
     }
 
     /** Read the cloud machine the object runs as, deriving it again after a failed derivation. */
@@ -254,7 +292,7 @@ export class PartitionObject {
             filesName: bindings.DESTACK_FILES,
             domain: bindings.DESTACK_SPACE_DOMAIN,
             artifacts: bindings.ARTIFACTS,
-            partitions: bindings.PARTITION,
+            facet: (installation) => this.#facets.facet(installation),
             graphs: bindings.GRAPH,
             jurisdiction: bindings.DESTACK_JURISDICTION,
             gigabytes: rates.gigabytes,
@@ -264,12 +302,14 @@ export class PartitionObject {
             report,
         });
 
-        // run the space's instances in their objects, rooted in the space's identity
+        // run the space's instances in the object's facets, rooted in the space's identity
         let served: Space | undefined;
         const directory = new Directory(Snapshot.live(cloud.replica));
         const { database } = host;
-        const runtime = new CloudflareRuntime({
+        const runtime = new WorkerdRuntime({
             instances: Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION),
+            facet: (installation) => this.#facets.facet(installation),
+            loader: bindings.LOADER,
             space,
             egress: EGRESS,
             sampling: (scope, installation) =>
@@ -320,7 +360,7 @@ export class PartitionObject {
             domain: bindings.DESTACK_SPACE_DOMAIN,
             runtimes: [runtime, new ProcessRuntime()],
             hibernation: undefined,
-            alarm: this.#storage,
+            alarm: this.#alarms.alarm(SPACE_PARTY),
             // run in process the servers the deploy bundled with the machine
             server: (manifest) => Promise.resolve(bundle.server(manifest)),
             linked: DistributionManifest.builtins(shipped),

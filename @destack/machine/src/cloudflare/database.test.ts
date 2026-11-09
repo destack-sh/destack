@@ -20,7 +20,7 @@ const Copied = schema.object({
     stray: schema.number(),
 });
 
-/** Run the scenario in the Workers runtime with a space's object and installations' objects. */
+/** Run the scenario in the Workers runtime with a space's object and installations' facets. */
 async function start(): Promise<Miniflare> {
     // bundle the scenario with its declarations' module metadata
     const script = await bundleWorker(new URL("./test/scenario.ts", import.meta.url));
@@ -41,7 +41,7 @@ async function start(): Promise<Miniflare> {
     return worker;
 }
 
-test("measure a space's own object as the space's databases and an installation's object as the installation's", async () => {
+test("measure a space's own object as the space's databases and an installation's facet as the installation's", async () => {
     const worker = await start();
 
     // address the space's object
@@ -58,7 +58,7 @@ test("measure a space's own object as the space's databases and an installation'
     }).toEqual({ space: own.own, installation: installation.own, isApart: true });
 });
 
-test("snapshot an installation's database in its object through the space's store, and restore it into another installation's object, refusing a page outside any copy", async () => {
+test("snapshot an installation's database in its facet through the space's store, and restore it into another installation's facet, refusing a page outside any copy", async () => {
     const worker = await start();
 
     // copy the database through the space's object

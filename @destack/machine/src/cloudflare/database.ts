@@ -16,7 +16,7 @@ import {
     DurableObjectDatabaseHost,
     DurableObjectMeasurement,
 } from "@destack/db/cloudflare";
-import { type DurableObjectNamespace, PartitionName } from "./runtime/index.ts";
+import { PartitionName } from "./runtime/index.ts";
 import { type ContentStore, type KindState, Plan, type ResourceRecord } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Bearer } from "@destack/access/token";
@@ -39,25 +39,29 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     readonly provider = DURABLE_OBJECT_PROVIDER;
     /** The space's database, recording each database's owning installation. */
     readonly #records: DatabaseConnection;
-    /** The installations' objects, in the machine's jurisdiction. */
-    readonly #instances: DurableObjectNamespace;
+    /** The facet of an installation in the space's object, which stores its databases. */
+    readonly #facet: (installation: string) => {
+        readonly fetch: (request: Request) => Promise<Response>;
+    };
     /** The databases the space's object stores itself. */
     readonly #space: DurableObjectDatabaseHost;
-    /** The stores of the copies in flight in installations' objects. */
+    /** The stores of the copies in flight in installations' facets. */
     readonly #copies = new Map<string, Pick<ContentStore, "read" | "write">>();
     /** The randomness the copies' credentials are drawn from. */
     readonly #random: Random;
 
-    /** Store databases in the objects of their installations, read from the space's database. */
+    /** Store databases in the facets of their installations, read from the space's database. */
     constructor(
         records: DatabaseConnection,
-        instances: DurableObjectNamespace,
+        facet: (installation: string) => {
+            readonly fetch: (request: Request) => Promise<Response>;
+        },
         space: DurableObjectDatabaseHost,
         random: Random,
     ) {
-        // set the records, the installations' objects, the space's databases and the randomness
+        // set the records, the installations' facets, the space's databases and the randomness
         this.#records = records;
-        this.#instances = instances;
+        this.#facet = facet;
         this.#space = space;
         this.#random = random;
     }
@@ -127,7 +131,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         if ((await this.#object(record)) !== undefined) {
             throw StackError.of(
                 "UNSERVED",
-                `database ${record.id} belongs to its installation's object, and only its workload can open it`,
+                `database ${record.id} belongs to its installation's facet, and only its workload can open it`,
             );
         }
 
@@ -146,7 +150,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
             return this.#space.snapshot(record, desired, store);
         }
 
-        // have the installation's object copy it through the store
+        // have the installation's facet copy it through the store
         const copied = await this.#copy(object, store, { operation: "snapshot", record, desired });
 
         return schema.object({ digest: Digest }).parse(copied).digest;
@@ -163,12 +167,12 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
             return;
         }
 
-        // have the installation's object restore it through the store
+        // have the installation's facet restore it through the store
         const restored = { operation: "restore", record, desired, digest };
         await this.#copy(object, store, base === undefined ? restored : { ...restored, base });
     }
 
-    /** Serve a page of a copy in flight to the installation's object that runs it. */
+    /** Serve a page of a copy in flight to the installation's facet that runs it. */
     async content(request: Request): Promise<Response> {
         // require the store of a copy in flight
         const token = Bearer.read(request.headers);
@@ -199,7 +203,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         }
     }
 
-    /** Send a copy's operation to an installation's object. */
+    /** Send a copy's operation to an installation's facet. */
     async #copy(
         object: InstanceObject,
         store: Pick<ContentStore, "read" | "write">,
@@ -225,7 +229,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
             return this.#space.measure();
         }
 
-        // ask the installation's object
+        // ask the installation's facet
         const measured = await DurableObjectSpaceDatabaseHost.#send(this.#instance(installed), {
             operation: "measure",
         });
@@ -252,11 +256,11 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
             return undefined;
         }
 
-        // address the installation's object
+        // address the installation's facet
         return this.#instance({ scope, installationId: manager });
     }
 
-    /** Address an installation's object. */
+    /** Address an installation's facet in the space's object. */
     #instance(installed: {
         readonly scope: string;
         readonly installationId: string;
@@ -265,9 +269,8 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
             space: installed.scope,
             installation: installed.installationId,
         });
-        const object = this.#instances.get(this.#instances.idFromName(name));
 
-        return { name, fetch: (request) => object.fetch(request) };
+        return { name, fetch: (request) => this.#facet(installed.installationId).fetch(request) };
     }
 
     /** Send an operation on a database to its object. */
@@ -296,7 +299,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     }
 }
 
-/** An installation's object, named for failures. */
+/** An installation's facet, named for failures. */
 interface InstanceObject {
     /** The object's name. */
     readonly name: string;
