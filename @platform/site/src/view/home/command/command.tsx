@@ -36,20 +36,19 @@ const lineup: Lineup = (category) =>
           }
         : lineupAt(0)(category);
 
-/** The agent noun: whoever destacks, your agents among them. */
-export const destacker: Form = {
-    syllables: ["de", "stack", "er"],
-    pronunciation: "/diːˈstakə/",
-    partOfSpeech: "agent noun",
+/** The abstract noun: how far software lets you and your agents program it. */
+export const destackability: Form = {
+    syllables: ["de", "stack", "a", "bil", "i", "ty"],
+    pronunciation: "/diːˌstakəˈbɪlɪti/",
+    partOfSpeech: "abstract noun",
     sense: {
-        definition: "your agents, fluent in every app",
-        highlight: ["fluent"],
-        sentence:
-            "Put your agents to work across your whole space, with the same API your apps use.",
+        definition: "programmable all the way down",
+        highlight: ["all the way down"],
+        sentence: "Your agents and your code reach every app through one complete API.",
     },
 };
 
-/** Show the destacker at work: an app beside a chat with your agent, a turn per app. */
+/** Show destackability at work: an app beside a chat with your agent, a turn per app. */
 export function Command(properties: { isOpen: boolean }) {
     // hold the section, the motion it may show, and whether it is on screen
     const [section, setSection] = createSignal<HTMLElement>();
@@ -102,7 +101,7 @@ export function Command(properties: { isOpen: boolean }) {
             ref={setSection}
             {...style.attrs(lattice.frame, lattice.ruled, lattice.section, styles.section)}
         >
-            <Entry form={destacker} />
+            <Entry form={destackability} />
             <FigureLabel
                 number={5}
                 isOpen={properties.isOpen}

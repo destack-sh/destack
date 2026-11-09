@@ -16,9 +16,6 @@ const NEAR_MARGIN = "100% 0px";
 /** A page whose scripts run, which draws each underline in once its entry shows. */
 const SCRIPTED = "@media (scripting: enabled)";
 
-/** The headword column's width: the longest headword, de·stack·a·ble, at the definition's size. */
-const WORD_WIDTH = `calc(${typeScale.display} * 6.8)`;
-
 /** The bottom band of the screen an entry rises past before its underline draws. */
 const SEEN_MARGIN = "0px 0px -20% 0px";
 
@@ -244,7 +241,7 @@ const styles = style.create({
             [screen.belowDesktop]: `"word" "title" "sentence"`,
         },
         gridTemplateColumns: {
-            default: `${WORD_WIDTH} minmax(0, 1fr)`,
+            default: `${frame.word} minmax(0, 1fr)`,
             [screen.belowDesktop]: "minmax(0, 1fr)",
         },
         rowGap: { default: "0.875rem", [screen.belowDesktop]: "0.5rem" },
@@ -286,7 +283,7 @@ const styles = style.create({
         backgroundImage: `repeating-linear-gradient(to bottom, ${color.border} 0 4px, transparent 0 8px)`,
         bottom: 0,
         display: { default: "block", [screen.belowDesktop]: "none" },
-        insetInlineStart: `calc(${frame.inset} + ${WORD_WIDTH} + 1rem)`,
+        insetInlineStart: `calc(${frame.inset} + ${frame.word} + 1rem)`,
         position: "absolute",
         top: 0,
         width: "1px",

@@ -276,6 +276,11 @@ export const lattice = style.create({
         whiteSpace: "nowrap",
     },
 
+    /** The headword guide of a running head, dropped on phones where the entry repeats it. */
+    guideWord: {
+        display: { default: "inline", [screen.phone]: "none", [screen.smallPhone]: "none" },
+    },
+
     /** The section number of a running head, in the signal orange. */
     number: {
         color: color.primary,

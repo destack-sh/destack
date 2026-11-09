@@ -1,8 +1,9 @@
 import * as style from "@destack/style";
 import { screen } from "./screen.stylex";
+import { typeScale } from "./type.stylex";
 
-/** The frame width on desktop: 1200px, with 24px to each side on narrower windows. */
-const WIDTH = "min(1200px, calc(100vw - 48px))";
+/** The frame width on desktop: the common 80rem container, less 24px a side when narrower. */
+const WIDTH = "min(1280px, calc(100vw - 48px))";
 
 /** The frame width on phones: the whole window. */
 const PHONE_WIDTH = "100vw";
@@ -59,6 +60,8 @@ export const frame = style.defineVars({
     section: SECTION,
     /** The height of every dictionary entry on desktop. */
     entry: ENTRY,
+    /** The headword column's width: the longest headword, de·stack·a·bil·i·ty, at display size. */
+    word: `calc(${typeScale.display} * 8.4)`,
     /** The height of a figure's label row, with its rule. */
     label: LABEL,
     /** The stack figure's row height. */

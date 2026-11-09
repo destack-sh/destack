@@ -11,10 +11,10 @@ import { typeScale } from "../../layout/type.stylex";
 import { anchorOf, type Form } from "./entry";
 
 /** The windows wide enough for the index in the margin beside the page. */
-const WIDE = "@media (min-width: 1320px)";
+const WIDE = "@media (min-width: 1400px)";
 
-/** The windows whose margin holds a tab slid out to its whole form: a 1200px page and 9.5rem. */
-const ROOMY = "@media (min-width: 1504px)";
+/** The windows whose margin holds a tab slid out to its whole form: a 1280px page and 9.5rem. */
+const ROOMY = "@media (min-width: 1584px)";
 
 /** A tab's height and the gap under it, in CSS pixels: 2.75rem and 3px. */
 const TAB = 44;

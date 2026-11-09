@@ -14,7 +14,7 @@ export const participle: Form = {
     pronunciation: "/diːˈstakɪŋ/",
     partOfSpeech: "present participle",
     sense: {
-        definition: "making all your software work as one",
+        definition: "making your software work as one",
         highlight: ["work as one"],
         sentence: "Move in one app at a time, or all at once: just ask your agent.",
     },

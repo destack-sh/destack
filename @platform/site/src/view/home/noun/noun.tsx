@@ -44,8 +44,8 @@ export const noun: Form = {
     pronunciation: "/ˈdiːstak/",
     partOfSpeech: "noun",
     sense: {
-        definition: "an absurdly integrated universal software engine",
-        highlight: ["universal software engine"],
+        definition: "a universal software engine",
+        highlight: ["software engine"],
         sentence: "Make serious custom apps on one standardised pipeline.",
     },
 };

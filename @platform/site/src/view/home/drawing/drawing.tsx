@@ -315,7 +315,7 @@ export const styles = style.create({
         pointerEvents: "none",
         position: "absolute",
         top: 0,
-        width: `calc(${frame.inset} + clamp(2rem, 3.3vw, 3rem) * 6.8 + 1rem)`,
+        width: `calc(${frame.inset} + ${frame.word} + 1rem)`,
     },
     stage: {
         position: "relative",

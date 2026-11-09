@@ -28,8 +28,7 @@ const pricing: Form = {
     sense: {
         definition: "own the software, rent the hardware",
         highlight: ["own", "rent"],
-        sentence:
-            "The software costs nothing. Pay only for the hardware it runs on, or bring your own, and leave with everything.",
+        sentence: "The software is free and yours to keep. Run it on our hardware or your own.",
     },
 };
 
