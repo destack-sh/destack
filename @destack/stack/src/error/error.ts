@@ -11,6 +11,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     METADATA_TOO_LARGE: { code: "BAD_REQUEST" },
     HOME_MISSING: { code: "BAD_REQUEST" },
     PACKAGE_MISMATCH: { code: "BAD_REQUEST" },
+    ROUTE_INVALID: { code: "BAD_REQUEST" },
     SUBMISSION_KIND_MISMATCH: { code: "BAD_REQUEST" },
     VERSION_MISMATCH: { code: "BAD_REQUEST" },
 

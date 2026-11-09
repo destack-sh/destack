@@ -4,36 +4,60 @@ import { found, present } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { Route, route } from "../../object/index.ts";
+import type { StackInput } from "../../declare/stack.ts";
 import { TestRoute } from "../../test/index.ts";
+
+/** A route as a stack declares it. */
+type Declared = NonNullable<StackInput["routes"]>[string];
 
 /** Serve each path of an account's hostnames once across the universe. */
 test("reconcile a space's routes on its account's hostnames, one per hostname path across the universe", async () => {
     await using fixture = await TestRoute.open();
     const [first, second, rival] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
-    const home = (spaceId: string, on = hostname.name) =>
-        ({
-            hostname: on,
-            path: "/",
-            match: "prefix",
-            installation: { id: found(fixture.installations, spaceId) },
-            view: "notes",
-        }) as const;
-    const old = {
+    const home = (spaceId: string, on = hostname.name): Declared => ({
+        hostname: on,
+        path: "/",
+        match: "prefix",
+        installation: { id: found(fixture.installations, spaceId) },
+        rules: [{ entry: { kind: "view", view: "notes" } }],
+    });
+    const moved = {
+        kind: "redirect",
+        scheme: "https",
+        hostname: "blog.example",
+        path: { kind: "full", value: "/" },
+        status: 308,
+    } as const;
+    const old: Declared = {
         hostname: hostname.name,
         path: "/blog",
         match: "exact",
-        redirect: "https://blog.example/",
-        redirectStatus: 308,
-    } as const;
+        rules: [{ filters: [moved] }],
+    };
 
     // serve the space's installation and a redirect on the hostname
     await fixture.apply(first, { home: home(first), old });
 
-    // refuse another space's installation and the same path in another space of the account
+    // refuse another space's installation, the same path in another space of the account, and rules that cannot serve
+    const invalid = (rules: Declared["rules"]): Declared => ({ ...old, path: "/invalid", rules });
     const refused = {
         installation: await fixture.submit(first, { home: home(second) }),
         path: await fixture.submit(second, { home: home(second) }),
+        both: await fixture.submit(first, {
+            both: invalid([{ filters: [moved], entry: { kind: "origin" } }]),
+        }),
+        uninstalled: await fixture.submit(first, {
+            uninstalled: invalid([{ entry: { kind: "view", view: "notes" } }]),
+        }),
+        pattern: await fixture.submit(first, {
+            pattern: invalid([
+                {
+                    matches: { query: [{ name: "v", value: "(", kind: "regex" }] },
+                    entry: { kind: "url", url: "https://example.org/" },
+                },
+            ]),
+        }),
     };
 
     // conceal another account's hostname as an unknown one, and take the same path on the other account's own hostname
@@ -56,11 +80,11 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
                     hostname: route.table.hostname,
                     path: route.table.path,
                     installationId: route.table.installationId,
-                    redirect: route.table.redirect,
+                    rules: route.table.rules,
                 })
                 .from(route.table)
                 .orderBy(asc(route.table.path))
-        ).map((row) => Object.values(row));
+        ).map(({ rules, ...row }) => [...Object.values(row), rules.length]);
     const routes = [await declared(first), await declared(second), await declared(rival)];
 
     // key each hostname path in the universe's index
@@ -81,6 +105,15 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
                 `@destack/object DECLARATION_INVALID: unknown installation: ${fixture.installations.get(second)}`,
             ],
             path: ["failed", "@destack/object NAME_TAKEN: path is taken"],
+            both: [
+                "failed",
+                "@destack/stack ROUTE_INVALID: a route's rule either redirects or has an entry",
+            ],
+            uninstalled: [
+                "failed",
+                "@destack/stack ROUTE_INVALID: a route serving an installation's view needs its installation",
+            ],
+            pattern: ["failed", "@destack/stack ROUTE_INVALID: invalid pattern for v: ("],
         },
         foreign: {
             hostname: [
@@ -91,11 +124,11 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         },
         routes: [
             [
-                [first, "home", hostname.name, "/", found(fixture.installations, first), null],
-                [first, "old", hostname.name, "/blog", null, "https://blog.example/"],
+                [first, "home", hostname.name, "/", found(fixture.installations, first), 1],
+                [first, "old", hostname.name, "/blog", null, 1],
             ],
             [],
-            [[rival, "home", own.name, "/", found(fixture.installations, rival), null]],
+            [[rival, "home", own.name, "/", found(fixture.installations, rival), 1]],
         ],
         owners: [first, rival],
     });
@@ -106,12 +139,12 @@ test("refuse a route on a machine the account's hostname requests do not reach",
     await using fixture = await TestRoute.open({ isServingHostnames: false });
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
-    const home = {
+    const home: Declared = {
         hostname: hostname.name,
         path: "/",
         match: "prefix",
         installation: { id: found(fixture.installations, first) },
-        view: "notes",
+        rules: [{ entry: { kind: "view", view: "notes" } }],
     } as const;
 
     // apply a route there, which no request would reach
@@ -129,7 +162,7 @@ test("locate the route serving a host's path, the most specific first", async ()
     const wildcard = await fixture.serve(fixture.accountId, "*.example.com");
     const installation = { id: found(fixture.installations, first) };
 
-    // declare a view, a view of an object, a whole origin, a redirect and an adapter on the hostname, and an adapter on its wildcard
+    // declare a view, a view of an object, a whole origin, a redirect and an adapter on the hostname, and one on its wildcard
     const roadmap = ObjectReference.parse({
         packageId: "package-01996ab0-0000-7000-8000-0000000000c1",
         type: "note",
@@ -142,46 +175,49 @@ test("locate the route serving a host's path, the most specific first", async ()
             path: "/",
             match: "prefix",
             installation,
-            view: "notes",
+            rules: [{ entry: { kind: "view", view: "notes" } }],
         },
         roadmap: {
             hostname: notes,
             path: "/roadmap",
             match: "prefix",
             installation,
-            view: "notes",
-            object: roadmap,
+            rules: [{ entry: { kind: "view", view: "notes", object: roadmap } }],
         },
         docs: {
             hostname: notes,
             path: "/docs",
             match: "prefix",
             installation,
+            rules: [{ entry: { kind: "origin" } }],
         },
         old: {
             hostname: notes,
             path: "/blog",
             match: "exact",
-            redirect: "https://blog.example/",
-            redirectStatus: 308,
+            rules: [
+                {
+                    filters: [{ kind: "redirect", hostname: "blog.example", status: 308 }],
+                },
+            ],
         },
         api: {
             hostname: notes,
             path: "/api",
             match: "prefix",
             installation,
-            adapter: "notes",
+            rules: [{ entry: { kind: "adapter", adapter: "notes" } }],
         },
         names: {
             hostname: wildcard.name,
             path: "/",
             match: "prefix",
             installation,
-            adapter: "notes",
+            rules: [{ entry: { kind: "adapter", adapter: "notes" } }],
         },
     });
 
-    // read the route and destination each host and path locate, none outside the hostnames
+    // read the route each host and path locate, none outside the hostnames
     const located = async (host: string, path: string) => {
         const served = await Route.locate(fixture.lookup, host, path);
         if (served === undefined) {
@@ -192,12 +228,8 @@ test("locate the route serving a host's path, the most specific first", async ()
             "the route",
         );
 
-        return [served.scope, row.managerName, Route.destination(row)];
+        return [served.scope, row.managerName];
     };
-    const view = { kind: "view", installationId: installation.id, view: "notes", object: null };
-    const adapter = { kind: "adapter", installationId: installation.id, adapter: "notes" };
-    const redirect = { kind: "redirect", location: "https://blog.example/", status: 308 };
-    const origin = { kind: "installation", installationId: installation.id };
     expect([
         await located(notes, "/roadmap"),
         await located(notes, "/docs/guide"),
@@ -207,12 +239,12 @@ test("locate the route serving a host's path, the most specific first", async ()
         await located("blog.example.com", "/anything"),
         await located("example.org", "/"),
     ]).toEqual([
-        [first, "roadmap", { ...view, object: roadmap }],
-        [first, "docs", origin],
-        [first, "old", redirect],
-        [first, "home", view],
-        [first, "api", adapter],
-        [first, "names", adapter],
+        [first, "roadmap"],
+        [first, "docs"],
+        [first, "old"],
+        [first, "home"],
+        [first, "api"],
+        [first, "names"],
         null,
     ]);
 });
