@@ -318,7 +318,7 @@ export const Entitlement = {
         ];
     },
 
-    /** Decide a served space's database, storage, compute and network conditions. */
+    /** Decide a served space's database, bucket, compute and network conditions. */
     async enforce(
         row: Space,
         database: DatabaseConnection,
@@ -328,7 +328,7 @@ export const Entitlement = {
         const rows = await Entitlement.replicated(database, account.identifier(row.scope));
         const conditions = {
             database: Entitlement.decide(rows, "database"),
-            storage: Entitlement.decide(rows, "storage"),
+            bucket: Entitlement.decide(rows, "bucket"),
             compute: Entitlement.decide(rows, "compute"),
             network: Entitlement.decide(rows, "network"),
         };

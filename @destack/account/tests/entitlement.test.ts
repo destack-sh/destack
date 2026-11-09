@@ -18,7 +18,7 @@ const PRICING = PackageId.parse("package-019f5530-8000-7000-8000-000000000503");
 /** The uses a machine decides for a space: its four resources and two tenancies. */
 const USES: readonly EntitlementUse[] = [
     "database",
-    "storage",
+    "bucket",
     "compute",
     "network",
     { tenancy: "shared" },
@@ -27,7 +27,7 @@ const USES: readonly EntitlementUse[] = [
 
 /** A metered entitlement to a resource with a limit of 1000, blocked at it or within it. */
 function metered(
-    resource: "database" | "storage" | "network",
+    resource: "database" | "bucket" | "network",
     state: "blocked" | "within",
 ): Allowance {
     return {
@@ -43,10 +43,10 @@ function metered(
 }
 
 test("decide a use from an account's entitlements: unknown until replicated, blocked at its limit, unentitled without a grant, and by tenancy", () => {
-    // entitle blocked database and network, storage within its limit, and the shared and local tenancies
+    // entitle blocked database and network, bucket within its limit, and the shared and local tenancies
     const rows: Allowance[] = [
         metered("database", "blocked"),
-        metered("storage", "within"),
+        metered("bucket", "within"),
         metered("network", "blocked"),
         {
             packageId: PRICING,
@@ -68,7 +68,7 @@ test("decide a use from an account's entitlements: unknown until replicated, blo
         pending: ["unknown", "unknown", "unknown", "unknown", "unknown", "unknown"],
         replicated: [
             { status: "false", reason: "Blocked", message: "database is at its limit of 1000" },
-            { status: "true", reason: "Within", message: "storage within the plan" },
+            { status: "true", reason: "Within", message: "bucket within the plan" },
             {
                 status: "false",
                 reason: "Unentitled",

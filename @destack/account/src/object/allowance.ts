@@ -4,7 +4,7 @@ import { schema } from "@destack/schema";
 /** The platform resources a feature allows, which machines and spaces enforce. */
 export const ENTITLEMENT_RESOURCES = [
     "database",
-    "storage",
+    "bucket",
     "compute",
     "network",
     "tenancy",

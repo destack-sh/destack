@@ -148,7 +148,7 @@ export const space = defineObject(
 export type Space = Select<typeof space.table>;
 
 /** The resources whose use sets a space's conditions. */
-export type SpaceResource = "database" | "storage" | "compute" | "network";
+export type SpaceResource = "database" | "bucket" | "compute" | "network";
 
 /** The resources whose exceeded entitlement throttles a space's requests. */
 export const THROTTLED_RESOURCES = [
