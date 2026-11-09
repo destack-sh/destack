@@ -1,13 +1,14 @@
 import { CREDITS, type Sku } from "@destack/finance/declare";
 import { defineSku } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
+import type { Meter } from "@destack/telemetry/meter";
 import { PricingModel } from "./model.ts";
 
 /** The page publishing Destack's unit prices with their cost basis. */
 const SOURCE = "https://destack.sh/pricing";
 
 /** The day the unit prices were set. */
-const OBSERVED_AT = "2026-10-20";
+const OBSERVED_AT = "2026-11-09";
 
 /** The units in a million, the quantity operations are priced per. */
 const MILLION = 1_000_000;
@@ -19,193 +20,216 @@ const GIGABYTE = 1_000_000_000;
 const GIGABYTE_HOUR_SECONDS = 3600;
 
 /** The resources people see Destack's usage as, each unit's FOCUS service. */
-export const RESOURCES = ["Compute", "Database", "Storage", "Network"] as const;
+export const RESOURCES = ["Compute", "Database", "Files", "Network", "Inference"] as const;
 
 /** A resource people see Destack's usage as. */
 export type Resource = (typeof RESOURCES)[number];
 
-/** Memory, 0.09 credits per GB-hour held, double its cost on Cloudflare. */
-export const memoryUnit = defineSku({
-    name: "destack.compute.memory",
-    description: "Memory held while installations run.",
+/** The fields every unit shares: Destack sells it in credits, published on the pricing page. */
+const UNIT = {
     provider: "destack",
-    service: "Compute",
-    category: "Compute",
-    meter: meters.memory.reference,
-    pricingUnit: "GB-hour",
-    unitSize: GIGABYTE_HOUR_SECONDS,
     currency: CREDITS,
-    unitAmount: "9",
     source: SOURCE,
     observedAt: OBSERVED_AT,
-});
+} as const;
 
 /** CPU time, 0.04 credits per million CPU milliseconds, double its cost on Cloudflare. */
-export const cpuUnit = defineSku({
-    name: "destack.compute.cpu",
-    description: "CPU time spent on requests.",
-    provider: "destack",
+export const computeTimeUnit = defineSku({
+    ...UNIT,
+    name: "destack.compute.time",
+    description: "CPU time installations spend.",
     service: "Compute",
     category: "Compute",
-    meter: meters.cpu.reference,
+    meter: meters.computeTime.reference,
+    attributes: {},
     pricingUnit: "million CPU milliseconds",
     unitSize: MILLION,
-    currency: CREDITS,
     unitAmount: "4",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
+});
+
+/** Memory, 0.09 credits per GB-hour held while awake, double its cost on Cloudflare. */
+export const computeUsageUnit = defineSku({
+    ...UNIT,
+    name: "destack.compute.usage",
+    description: "Memory held while installations are awake.",
+    service: "Compute",
+    category: "Compute",
+    meter: meters.computeUsage.reference,
+    attributes: {},
+    pricingUnit: "GB-hour",
+    unitSize: GIGABYTE_HOUR_SECONDS,
+    unitAmount: "9",
 });
 
 /** Requests, 0.90 credits per million, double their cost on Cloudflare. */
-export const requestsUnit = defineSku({
-    name: "destack.compute.requests",
+export const computeOperationUnit = defineSku({
+    ...UNIT,
+    name: "destack.compute.operation",
     description: "Requests served.",
-    provider: "destack",
     service: "Compute",
     category: "Compute",
-    meter: meters.requests.reference,
+    meter: meters.computeOperation.reference,
+    attributes: {},
     pricingUnit: "million requests",
     unitSize: MILLION,
-    currency: CREDITS,
     unitAmount: "90",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
 /** Database bytes, 0.40 credits per GB-month, double their cost on Cloudflare. */
-export const databaseBytesUnit = defineSku({
-    name: "destack.database.bytes",
+export const databaseUsageUnit = defineSku({
+    ...UNIT,
+    name: "destack.database.usage",
     description: "Database storage, kept on average over the month.",
-    provider: "destack",
     service: "Database",
     category: "Databases",
-    meter: meters.databaseBytes.reference,
+    meter: meters.databaseUsage.reference,
+    attributes: {},
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
-    currency: CREDITS,
     unitAmount: "40",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
 /** Database rows read, 0.002 credits per million, double their cost on Cloudflare. */
-export const rowsReadUnit = defineSku({
-    name: "destack.database.rows.read",
-    description: "Database rows read.",
-    provider: "destack",
+export const databaseReadUnit = defineSku({
+    ...UNIT,
+    name: "destack.database.read",
+    description: "Database rows read, every row a query scans.",
     service: "Database",
     category: "Databases",
-    meter: meters.rowsRead.reference,
+    meter: meters.databaseOperation.reference,
+    attributes: { direction: "read" },
     pricingUnit: "million rows",
     unitSize: MILLION,
-    currency: CREDITS,
     unitAmount: "0.2",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
 /** Database rows written, 2 credits per million, double their cost on Cloudflare. */
-export const rowsWrittenUnit = defineSku({
-    name: "destack.database.rows.written",
-    description: "Database rows written.",
-    provider: "destack",
+export const databaseWriteUnit = defineSku({
+    ...UNIT,
+    name: "destack.database.write",
+    description: "Database rows written, deletes included.",
     service: "Database",
     category: "Databases",
-    meter: meters.rowsWritten.reference,
+    meter: meters.databaseOperation.reference,
+    attributes: { direction: "write" },
     pricingUnit: "million rows",
     unitSize: MILLION,
-    currency: CREDITS,
     unitAmount: "200",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
-/** Storage bytes, 0.03 credits per GB-month, double their cost on Cloudflare. */
-export const storageBytesUnit = defineSku({
-    name: "destack.storage.bytes",
-    description: "Bucket storage, kept on average over the month.",
-    provider: "destack",
-    service: "Storage",
+/** File bytes, 0.03 credits per GB-month, double their cost on Cloudflare. */
+export const bucketUsageUnit = defineSku({
+    ...UNIT,
+    name: "destack.bucket.usage",
+    description: "File storage, kept on average over the month.",
+    service: "Files",
     category: "Storage",
-    meter: meters.storageBytes.reference,
+    meter: meters.bucketUsage.reference,
+    attributes: {},
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
-    currency: CREDITS,
     unitAmount: "3",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
-/** Storage writes and lists, 9 credits per million, double their cost on Cloudflare. */
-export const storageWritesUnit = defineSku({
-    name: "destack.storage.writes",
-    description: "Bucket writes and lists.",
-    provider: "destack",
-    service: "Storage",
+/** File reads, 0.72 credits per million, double their cost on Cloudflare. */
+export const bucketReadUnit = defineSku({
+    ...UNIT,
+    name: "destack.bucket.read",
+    description: "File reads.",
+    service: "Files",
     category: "Storage",
-    meter: meters.storageWrites.reference,
+    meter: meters.bucketOperation.reference,
+    attributes: { direction: "read" },
     pricingUnit: "million operations",
     unitSize: MILLION,
-    currency: CREDITS,
-    unitAmount: "900",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
-});
-
-/** Storage reads, 0.72 credits per million, double their cost on Cloudflare. */
-export const storageReadsUnit = defineSku({
-    name: "destack.storage.reads",
-    description: "Bucket reads.",
-    provider: "destack",
-    service: "Storage",
-    category: "Storage",
-    meter: meters.storageReads.reference,
-    pricingUnit: "million operations",
-    unitSize: MILLION,
-    currency: CREDITS,
     unitAmount: "72",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
+});
+
+/** File writes and lists, 9 credits per million, double their cost on Cloudflare. */
+export const bucketWriteUnit = defineSku({
+    ...UNIT,
+    name: "destack.bucket.write",
+    description: "File writes and lists.",
+    service: "Files",
+    category: "Storage",
+    meter: meters.bucketOperation.reference,
+    attributes: { direction: "write" },
+    pricingUnit: "million operations",
+    unitSize: MILLION,
+    unitAmount: "900",
+});
+
+/** Ingress, free. */
+export const networkIngressUnit = defineSku({
+    ...UNIT,
+    name: "destack.network.ingress",
+    description: "Bytes received into Destack.",
+    service: "Network",
+    category: "Networking",
+    meter: meters.networkTransfer.reference,
+    attributes: { direction: "ingress" },
+    pricingUnit: "GB",
+    unitSize: GIGABYTE,
+    unitAmount: "0",
 });
 
 /** Egress, free. */
-export const egressUnit = defineSku({
+export const networkEgressUnit = defineSku({
+    ...UNIT,
     name: "destack.network.egress",
-    description: "Bytes served out of Destack.",
-    provider: "destack",
+    description: "Bytes sent out of Destack.",
     service: "Network",
     category: "Networking",
-    meter: meters.egress.reference,
+    meter: meters.networkTransfer.reference,
+    attributes: { direction: "egress" },
     pricingUnit: "GB",
     unitSize: GIGABYTE,
-    currency: CREDITS,
     unitAmount: "0",
-    source: SOURCE,
-    observedAt: OBSERVED_AT,
 });
 
-/** The units every cloud machine rates its spaces' usage by, one per meter, by resource. */
-export const UNIT_SKUS: readonly Sku[] = [
+/** Model calls, 1.25 credits per US dollar of their provider's list price. */
+export const inferenceCostUnit = defineSku({
+    ...UNIT,
+    name: "destack.inference.cost",
+    description: "Model calls through Destack, at their provider's list price.",
+    service: "Inference",
+    category: "AI and Machine Learning",
+    meter: meters.inferenceCost.reference,
+    attributes: {},
+    pricingUnit: "US dollar",
+    unitSize: 1,
+    unitAmount: "125",
+});
+
+/** Each unit beside the meter it prices, by resource. */
+const UNITS: readonly (readonly [Meter, Sku])[] = [
     // compute
-    memoryUnit,
-    cpuUnit,
-    requestsUnit,
+    [meters.computeTime, computeTimeUnit],
+    [meters.computeUsage, computeUsageUnit],
+    [meters.computeOperation, computeOperationUnit],
 
     // database
-    databaseBytesUnit,
-    rowsReadUnit,
-    rowsWrittenUnit,
+    [meters.databaseUsage, databaseUsageUnit],
+    [meters.databaseOperation, databaseReadUnit],
+    [meters.databaseOperation, databaseWriteUnit],
 
-    // storage
-    storageBytesUnit,
-    storageWritesUnit,
-    storageReadsUnit,
+    // bucket
+    [meters.bucketUsage, bucketUsageUnit],
+    [meters.bucketOperation, bucketReadUnit],
+    [meters.bucketOperation, bucketWriteUnit],
 
     // network
-    egressUnit,
+    [meters.networkTransfer, networkIngressUnit],
+    [meters.networkTransfer, networkEgressUnit],
+
+    // inference
+    [meters.inferenceCost, inferenceCostUnit],
 ];
+
+/** The units every cloud machine rates its spaces' usage by, one per meter and attribute values. */
+export const UNIT_SKUS: readonly Sku[] = UNITS.map(([, sku]) => sku);
 
 /** Destack's pricing model, each meter at its one unit. */
 export const UNIT_PRICING = new PricingModel(
-    UNIT_SKUS.map((sku) => [sku.definition.meter, [[sku, 1]]]),
+    UNITS.map(([meter, sku]) => [meter, sku.definition.attributes, [[sku, 1]]]),
 );

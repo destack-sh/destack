@@ -2,53 +2,49 @@ import { t } from "@destack/locale";
 import type { CatalogProduct } from "@destack/finance/declare";
 import { Fee } from "../price/book.ts";
 import {
+    bucket,
     compute,
     customDomains,
     customRetention,
     database,
     earlyAccess,
     network,
-    storage,
     support,
     tenancy,
 } from "./feature.ts";
 
-/** The bytes the free plan keeps in databases: 1 GB, a GB taken as 10^9 bytes. */
-const FREE_DATABASE = 1_000_000_000;
+/** The credit cents of usage the free plan includes per member each month. */
+const FREE_USAGE =
+    // add up 1 GB of database, 10 GB of files, 10 GB-hours of compute and a million requests
+    40 + 30 + 90 + 90;
 
-/** The bytes the free plan keeps in buckets: 10 GB, a GB taken as 10^9 bytes. */
-const FREE_STORAGE = 10_000_000_000;
-
-/** The GB-seconds the free plan runs each month: 128 MB held 3.25 hours a day, 1.125 credits. */
-const FREE_COMPUTE = 45_000;
-
-/** The bytes the free plan sends out each month: 100 GB, its 10 GB of storage served ten times. */
-const FREE_NETWORK = 100_000_000_000;
-
-/** Destack's plans by key, cheapest first, each fee a round figure set in each currency. */
+/** Destack's plans by key, cheapest first, each fee per member a round figure in each currency. */
 export const PLANS = {
-    // free: every account's default, a small allowance on shared machines, capped
+    // free: every account's default, its usage per member included on shared machines, then blocked
     free: {
         name: t`Free`,
-        description: t`For your first apps, with all of Destack within a free allowance.`,
+        description: t`For your first apps, with all of Destack within its included usage.`,
         isDefault: true,
+        includedUsage: FREE_USAGE,
+        overage: "capped",
         productFeatures: {
-            database: database.grant(FREE_DATABASE),
-            storage: storage.grant(FREE_STORAGE),
-            compute: compute.grant(FREE_COMPUTE),
-            network: network.grant(FREE_NETWORK),
+            database: database.grant(null),
+            bucket: bucket.grant(null),
+            compute: compute.grant(null),
+            network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
             support: support.grant("community"),
         },
     },
-    // go: its fee in usage, then pay as you go, with custom retention and early access
+    // go: its fee in usage, then capped, with custom retention and early access
     go: {
         name: t`Go`,
-        description: t`For your personal stack, with all of Destack, no caps and early access.`,
+        description: t`For your everyday stack, with all of Destack, custom retention and early access.`,
+        overage: "capped",
         prices: Fee.prices({ USD: 800, CAD: 1100, EUR: 800, CHF: 800, GBP: 800, AUD: 1300 }),
         productFeatures: {
             database: database.grant(null),
-            storage: storage.grant(null),
+            bucket: bucket.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
@@ -57,14 +53,14 @@ export const PLANS = {
             "early-access": earlyAccess.grant(null),
         },
     },
-    // plus: more usage in its fee, with custom domains and email support
+    // plus: more usage in its fee, then pay as you go, with custom domains and email support
     plus: {
         name: t`Plus`,
         description: t`For your daily work, with custom domains and email support.`,
         prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3200 }),
         productFeatures: {
             database: database.grant(null),
-            storage: storage.grant(null),
+            bucket: bucket.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
@@ -78,17 +74,10 @@ export const PLANS = {
     pro: {
         name: t`Pro`,
         description: t`For your critical software, with dedicated machines and priority support.`,
-        prices: Fee.prices({
-            USD: 10_000,
-            CAD: 14_000,
-            EUR: 10_000,
-            CHF: 10_000,
-            GBP: 10_000,
-            AUD: 16_000,
-        }),
+        prices: Fee.prices({ USD: 5000, CAD: 7000, EUR: 5000, CHF: 5000, GBP: 5000, AUD: 8000 }),
         productFeatures: {
             database: database.grant(null),
-            storage: storage.grant(null),
+            bucket: bucket.grant(null),
             compute: compute.grant(null),
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "dedicated", "local"]),

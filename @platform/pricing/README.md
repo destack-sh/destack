@@ -4,7 +4,7 @@ Destack's plans, units, price book and plan features, and the list prices of the
 
 ## Plans
 
-`PLANS` declares Free, Go, Plus and Pro as products, and each monthly fee includes the same amount of usage.
+`PLANS` declares Free, Go, Plus and Pro as products, each fee a month per member including the same amount of usage, Free a monthly usage per member, and Free and Go capped at their usage.
 
 ```ts
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
@@ -14,10 +14,10 @@ export const platform = defineStack({
     products: PLANS, // { free: { name: t`Free`, … }, go, plus, pro }
 });
 
-// free: every account's default, capped usage, community support
-// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD a month: no caps, custom retention, early access
-// plus: 20, 28 or 32 a month: custom domains, email support
-// pro:  100, 140 or 160 a month: dedicated machines, priority support
+// free: every account's default, 2.50 credits of usage per member a month, community support
+// go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD per member a month, capped: custom retention, early access
+// plus: 20, 28 or 32 per member a month, then pay as you go: custom domains, email support
+// pro:  50, 70 or 80 per member a month: dedicated machines, priority support
 ```
 
 ## Enterprise
@@ -56,29 +56,31 @@ MACHINE_HOST.quote(MACHINES.small); // { name: "AX42-1", monthly: 1906.51, … }
 
 ## Units
 
-`UNIT_SKUS` prices each generic meter in credits at twice its Cloudflare cost, the same on every host and in every region, and egress is free.
+`UNIT_SKUS` prices each meter at each of its attribute values in credits at twice its Cloudflare cost, the same on every host and in every region, transfer free both ways, and inference at 1.25 credits per US dollar of its provider's list price.
 
 ```ts
-import { memoryUnit, RESOURCES, requestsUnit, rowsWrittenUnit } from "@platform/pricing";
+import { computeUsageUnit, databaseWriteUnit, inferenceCostUnit, RESOURCES } from "@platform/pricing";
 
-RESOURCES; // ["Compute", "Database", "Storage", "Network"]
-memoryUnit.definition.unitAmount; // "9" per GB-hour
-requestsUnit.definition.unitAmount; // "90" per million requests
-rowsWrittenUnit.definition.service; // "Database"
+RESOURCES; // ["Compute", "Database", "Files", "Network", "Inference"]
+computeUsageUnit.definition.unitAmount; // "9" per GB-hour
+databaseWriteUnit.definition.attributes; // { direction: "write" }
+databaseWriteUnit.meterKey; // "<telemetry>/database.operation direction=write"
+inferenceCostUnit.definition.unitAmount; // "125" per US dollar
 ```
 
 ### Pricing models
 
-`PricingModel` maps each generic meter to a provider's SKUs, and `price` rates a meter's quantity in US cents.
+`PricingModel` maps each meter at its attribute values to a provider's SKUs, none where the provider bills nothing, and `price` rates a quantity in US cents.
 
 ```ts
 import { UNIT_PRICING } from "@platform/pricing";
 import { CLOUDFLARE_PRICING } from "@platform/pricing/cloudflare";
-import { requests } from "@destack/observability/meter";
+import { computeOperation } from "@destack/telemetry/meter";
 
-CLOUDFLARE_PRICING.components(requests.reference); // [[workerRequests, 1], [durableObjectRequests, 1]]
-CLOUDFLARE_PRICING.price(requests.reference, 1_000_000); // 45 US cents
-UNIT_PRICING.price(requests.reference, 1_000_000); // 90 US cents
+const requests = computeOperation.key({});
+CLOUDFLARE_PRICING.components(requests); // [[workerRequests, 1], [durableObjectRequests, 1]]
+CLOUDFLARE_PRICING.price(requests, 1_000_000); // 45 US cents
+UNIT_PRICING.price(requests, 1_000_000); // 90 US cents
 ```
 
 ## Vendors
@@ -87,10 +89,10 @@ UNIT_PRICING.price(requests.reference, 1_000_000); // 90 US cents
 
 ```ts
 import { CLOUDFLARE_PRICING, r2Storage } from "@platform/pricing/cloudflare";
-import { requests } from "@destack/observability/meter";
+import { networkTransfer } from "@destack/telemetry/meter";
 
 r2Storage.definition.unitAmount; // "1.5" US cents per GB-month
-CLOUDFLARE_PRICING.price(requests.reference, 1_000_000); // 45 US cents
+CLOUDFLARE_PRICING.price(networkTransfer.key({ direction: "ingress" }), 1e12); // 0 US cents
 ```
 
 ### Refresh
@@ -113,13 +115,13 @@ hetzner.quote({ vcpus: 16, memory: 32, disk: 640 }); // { name: "AX102-1", month
 
 ## Features
 
-Each feature is an entitlement a plan grants: usage amounts per period, where spaces may run, and what a plan unlocks, such as custom retention past each setting's default.
+Each feature is an entitlement a plan grants: the database, bucket, compute and network its spaces use, where they may run, and what a plan unlocks, such as custom retention past each setting's default.
 
 ```ts
-import { compute, customDomains, database, network, tenancy } from "@platform/pricing";
+import { bucket, customDomains, database, tenancy } from "@platform/pricing";
 
-database.grant(1_000_000_000);
-network.grant(100_000_000_000);
+database.grant(null); // unlimited, within the plan's included usage or its spending limit
+bucket.grant(null);
 tenancy.grant(["shared", "dedicated", "local"]);
 customDomains.grant(null);
 ```

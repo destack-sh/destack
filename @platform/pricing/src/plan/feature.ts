@@ -9,17 +9,17 @@ export const database = defineFeature({
     description: "Bytes kept in databases.",
     kind: "metered",
     resource: "database",
-    meters: [meters.databaseBytes.reference],
+    meters: [meters.databaseUsage.reference],
     reset: "never",
 });
 
 /** The bytes an account keeps in its buckets, capped at the bytes kept now. */
-export const storage = defineFeature({
-    name: "storage",
+export const bucket = defineFeature({
+    name: "bucket",
     description: "Bytes kept in buckets.",
     kind: "metered",
-    resource: "storage",
-    meters: [meters.storageBytes.reference],
+    resource: "bucket",
+    meters: [meters.bucketUsage.reference],
     reset: "never",
 });
 
@@ -29,17 +29,17 @@ export const compute = defineFeature({
     description: "GB-seconds run per billing period.",
     kind: "metered",
     resource: "compute",
-    meters: [meters.memory.reference],
+    meters: [meters.computeUsage.reference],
     reset: "period",
 });
 
-/** The bytes an account's spaces send out per billing period. */
+/** The bytes an account's spaces move in and out per billing period. */
 export const network = defineFeature({
     name: "network",
-    description: "Bytes sent out per billing period.",
+    description: "Bytes moved in and out per billing period.",
     kind: "metered",
     resource: "network",
-    meters: [meters.egress.reference],
+    meters: [meters.networkTransfer.reference],
     reset: "period",
 });
 

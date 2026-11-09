@@ -1,7 +1,7 @@
 import type { MachineSize } from "@destack/account/object";
 import { CREDITS, type Sku } from "@destack/finance/declare";
 import { defineSku } from "@destack/finance/declare";
-import { machineHours } from "@destack/telemetry/meter";
+import { machineTime } from "@destack/telemetry/meter";
 import { hetzner } from "../vendor/hetzner.ts";
 import type { MachineType, MachineVendor } from "../vendor/vendor.ts";
 
@@ -34,7 +34,8 @@ export const smallMachineUnit = defineSku({
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineHours.reference,
+    meter: machineTime.reference,
+    attributes: {},
     pricingUnit: "hour",
     unitSize: 1,
     currency: CREDITS,
@@ -53,7 +54,8 @@ export const mediumMachineUnit = defineSku({
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineHours.reference,
+    meter: machineTime.reference,
+    attributes: {},
     pricingUnit: "hour",
     unitSize: 1,
     currency: CREDITS,
@@ -72,7 +74,8 @@ export const largeMachineUnit = defineSku({
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineHours.reference,
+    meter: machineTime.reference,
+    attributes: {},
     pricingUnit: "hour",
     unitSize: 1,
     currency: CREDITS,
@@ -91,7 +94,8 @@ export const xlargeMachineUnit = defineSku({
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineHours.reference,
+    meter: machineTime.reference,
+    attributes: {},
     pricingUnit: "hour",
     unitSize: 1,
     currency: CREDITS,

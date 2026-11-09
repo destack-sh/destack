@@ -1,4 +1,4 @@
-import { DeclarationReference } from "@destack/package/declare";
+import type { Meter, MeterAttributes } from "@destack/telemetry/meter";
 import { Rate, type Sku } from "@destack/finance/declare";
 import { Fee } from "./book.ts";
 
@@ -7,27 +7,27 @@ export type Component = readonly [sku: Sku, quantity: number];
 
 /** A provider's pricing model: the SKUs and quantities one unit of each generic meter costs. */
 export class PricingModel {
-    /** The components of each meter the model prices, by meter key. */
+    /** The components of each meter and attribute values the model prices, by their key. */
     readonly #components: ReadonlyMap<string, readonly Component[]>;
 
-    /** Keep each meter's components. */
-    constructor(meters: readonly (readonly [DeclarationReference, readonly Component[]])[]) {
+    /** Keep each meter's components at its attribute values, none where nothing is billed. */
+    constructor(meters: readonly (readonly [Meter, MeterAttributes, readonly Component[]])[]) {
         this.#components = new Map(
-            meters.map(([meter, components]) => [DeclarationReference.key(meter), components]),
+            meters.map(([meter, attributes, components]) => [meter.key(attributes), components]),
         );
     }
 
-    /** Read the components one unit of a meter costs, absent for a meter the model leaves out. */
-    components(meter: DeclarationReference): readonly Component[] | undefined {
-        return this.#components.get(DeclarationReference.key(meter));
+    /** Read the components one unit of a meter's key with attributes costs, absent if unpriced. */
+    components(key: string): readonly Component[] | undefined {
+        return this.#components.get(key);
     }
 
-    /** Price a meter's quantity at each component's list price, in US cents. */
-    price(meter: DeclarationReference, quantity: number): number {
+    /** Price a quantity of a meter at some attribute values, by their key, in US cents. */
+    price(key: string, quantity: number): number {
         // require the meter's components
-        const components = this.components(meter);
+        const components = this.components(key);
         if (components === undefined) {
-            throw new TypeError(`a pricing model has no price for meter ${meter.name}`);
+            throw new TypeError(`a pricing model has no price for ${key}`);
         }
 
         // rate each component's share of the quantity at its list price in US cents
