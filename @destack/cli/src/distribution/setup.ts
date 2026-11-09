@@ -76,7 +76,7 @@ export class Setup {
     }
 
     /** Install the signed distribution and register a stable command in the user's directory. */
-    static async install(environment: CliEnvironment, archive?: string): Promise<void> {
+    static async install(environment: CliEnvironment, source?: string): Promise<void> {
         // require the compiled executable, and the desktop's libraries on Linux
         if (!environment.process.runtime.isStandalone) {
             throw CliError.of(
@@ -91,7 +91,7 @@ export class Setup {
 
         // find a native package's installed payload, else the Mac application this executable runs from
         const setup = await Setup.current(environment);
-        const isDownloaded = archive !== undefined;
+        const isDownloaded = source !== undefined;
         const native =
             !isDownloaded && os !== "darwin" ? await Distribution.native(environment) : undefined;
         const application =
@@ -114,9 +114,9 @@ export class Setup {
             await using _lock = await setup.installer().lock();
             await setup.#registerApplication(application);
         }
-        // install the latest signed archive, or the downloaded one
+        // install the latest signed release, copying a downloaded one's files
         else {
-            await setup.#installRelease(archive);
+            await setup.#installRelease(source);
         }
 
         // report the installation, and the new terminal an archive's command needs
@@ -392,7 +392,7 @@ export class Setup {
     }
 
     /** Download, stage and activate the stage's latest release, and register it. */
-    async #installRelease(archive: string | undefined): Promise<void> {
+    async #installRelease(source: string | undefined): Promise<void> {
         // open the first installation, refusing to replace a native package with an archive
         const distribution = this.distribution();
         await using updater = await distribution.open(true);
@@ -409,7 +409,7 @@ export class Setup {
             );
         }
 
-        // stage the latest release, or the downloaded archive
+        // stage the latest release, copying the downloaded one's files
         const available = await updater.check();
         if (available === undefined) {
             throw UpdateError.of(
@@ -417,7 +417,7 @@ export class Setup {
                 "the latest Destack release is installed already",
             );
         }
-        const download = await available.download(archive === undefined ? {} : { archive });
+        const download = await available.download(source === undefined ? {} : { source });
         const staged = await updater.stage(download);
 
         // activate it and register the application or the archive

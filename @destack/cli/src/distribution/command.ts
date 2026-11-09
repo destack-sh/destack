@@ -42,16 +42,16 @@ export function selfCommand(context: Context): Group {
                 description: "Install Destack for this user",
                 json: false,
                 options: {
-                    archive: {
+                    source: {
                         type: "string",
-                        argument: "path",
-                        description: "Verify and install a downloaded archive",
+                        argument: "directory",
+                        description: "Verify and install a downloaded release's files",
                     },
                 },
                 async run({ options }) {
                     await Setup.install(
                         context.environment,
-                        OptionValue.string(options["archive"], "archive"),
+                        OptionValue.string(options["source"], "source"),
                     );
                 },
             },

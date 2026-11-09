@@ -132,6 +132,7 @@ export class TerminalFixture {
                 id: TERMINAL_PROCESS,
                 userId: TERMINAL_USER,
                 executable: "destack",
+                script: "destack.js",
                 runtime: { revision: "0".repeat(40), isStandalone: false },
             },
             scheduler,
