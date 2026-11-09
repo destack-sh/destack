@@ -3,10 +3,13 @@ import { type Accessor, createMemo, createSignal, onCleanup } from "solid-js";
 import { createMediaQuery } from "../primitives/media.ts";
 import { createMutationObserver } from "../primitives/mutation-observer.ts";
 import { useEnvironment } from "../page/context.ts";
-import { requestFrame } from "../primitives/raf.ts";
+import { requestIdle } from "../primitives/scheduled.ts";
 
 /** The device preference a theme's motion scale follows unless a person pins the motion setting. */
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+/** The longest a changed motion setting waits for an idle moment, a quarter second. */
+const SETTING_DELAY = 250;
 
 /** Follow whether the theme keeps an element's motion still. */
 export function createReducedMotion(element: Accessor<Element | undefined>): Accessor<boolean> {
@@ -15,18 +18,22 @@ export function createReducedMotion(element: Accessor<Element | undefined>): Acc
     const isPreferred = createMediaQuery(REDUCED_MOTION_QUERY);
     const [mutations, setMutations] = createSignal(0, { ownedWrite: true });
 
-    // read the scale once per frame after a burst of changes, in one style pass, cancelled on cleanup
-    let cancelFrame: (() => void) | undefined;
-    onCleanup(() => cancelFrame?.());
+    // read the scale once in an idle moment after a burst of changes, when styles are settled, cancelled on cleanup
+    let cancelIdle: (() => void) | undefined;
+    onCleanup(() => cancelIdle?.());
     createMutationObserver(
         () => findRoots(element()),
         { attributes: true, attributeFilter: ["style", "class"] },
         () => {
-            // schedule one read for the display's next frame unless one is scheduled
-            cancelFrame ??= requestFrame(() => {
-                cancelFrame = undefined;
-                setMutations((count) => count + 1);
-            }, environment.display);
+            // schedule one read for the display's next idle moment unless one is scheduled
+            cancelIdle ??= requestIdle(
+                () => {
+                    cancelIdle = undefined;
+                    setMutations((count) => count + 1);
+                },
+                SETTING_DELAY,
+                environment.display,
+            );
         },
     );
 
