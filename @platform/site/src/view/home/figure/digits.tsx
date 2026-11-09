@@ -69,7 +69,6 @@ const styles = style.create({
         flexDirection: "row-reverse",
         gridArea: "1 / 1",
         height: "1lh",
-        maskImage: "linear-gradient(transparent, black 18%, black 82%, transparent)",
         overflow: "hidden",
         userSelect: "none",
     },
@@ -79,7 +78,10 @@ const styles = style.create({
         width: "1ch",
     },
     strip: {
+        // give each digit a line twice the window's height, centred, so no neighbour shows at its edge
         display: "block",
+        lineHeight: "2lh",
+        marginBlockStart: "-0.25lh",
         transitionDuration: motion.durationLong,
         transitionProperty: "transform",
         transitionTimingFunction: motion.easingEmphasised,

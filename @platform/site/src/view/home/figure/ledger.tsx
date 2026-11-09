@@ -445,7 +445,8 @@ const styles = style.create({
         minWidth: 0,
         paddingBlock: { default: 0, [media.maxMd]: "0.5rem" },
         paddingInlineStart: ROW_INSET,
-        position: "sticky",
+        // pin the names only where a phone narrows the ledger past its figures
+        position: { default: "static", [media.maxSm]: "sticky" },
         transitionDuration: motion.durationShort,
         transitionProperty: "border-color",
         transitionTimingFunction: motion.easingStandard,
@@ -557,7 +558,7 @@ const styles = style.create({
     corner: {
         backgroundColor: ledgerVariables.surface,
         insetInlineStart: 0,
-        position: "sticky",
+        position: { default: "static", [media.maxSm]: "sticky" },
         zIndex: 1,
     },
     cornerWindow: {

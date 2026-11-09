@@ -26,7 +26,6 @@ import { commandEvents } from "../../layout/command";
 import { lattice } from "../../layout/lattice.stylex";
 import { Crossfade } from "../figure/crossfade";
 import { Label } from "../entry/label";
-import { morph } from "../figure/morph";
 import { plate } from "../figure/plate.stylex";
 import { browserStyles } from "../figure/browser";
 import { chrome } from "../figure/chrome.stylex";
@@ -52,6 +51,7 @@ import { makeResizeObserver } from "@destack/view/primitives/resize-observer";
 import { makeTimer, Timeout } from "@destack/view/primitives/timer";
 import { typeScale, tracking } from "../../layout/type.stylex";
 import { requestFrame } from "@destack/view/primitives/raf";
+import { flip } from "../figure/flip";
 import { Cast } from "../figure/cast";
 
 /** The rows above the waterline today. */
@@ -460,7 +460,6 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         setIsPainted(true);
         const { offset, height } = board;
         const row = height / layers.length;
-        const figureStyle = elements().figure.style;
         const start = offset + row * dryRows;
         for (const index of reveals.keys()) {
             // reveal the dry rows as the water starts to move, then each row as the water passes it
@@ -468,9 +467,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 index < dryRows
                     ? ((level - start) / row) * DRY_PACE - index * DRY_STAGGER
                     : (level - offset - row * index) / row;
-            const reveal = Math.max(0, Math.min(1, passed));
-            figureStyle.setProperty(`--reveal-${index}`, reveal.toFixed(3));
-            reveals[index] = reveal;
+            reveals[index] = Math.max(0, Math.min(1, passed));
+        }
+
+        // set each row's reveal on the parts that read it, so a frame restyles them and not the whole figure
+        for (const part of elements().figure.querySelectorAll<HTMLElement>("[data-reveal-row]")) {
+            const index = Number(part.dataset["revealRow"]);
+            part.style.setProperty(`--reveal-${index}`, (reveals[index] ?? 0).toFixed(3));
         }
     };
 
@@ -521,7 +524,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     createEventListener(
         () => document,
         commandEvents.switchStack,
-        () => morph(() => select(isOpen() ? "today" : "destack"), environment.display),
+        () => flip(() => select(isOpen() ? "today" : "destack"), environment.display),
     );
 
     // rest the water on its line, and again through resizes
@@ -606,6 +609,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         <For each={layers}>
                             {(layer, index) => (
                                 <div
+                                    data-reveal-row={index()}
                                     {...style.attributes([styles.claim, styles.row(index() + 1)], {
                                         opacity: `calc(0.85 + 0.15 * var(--reveal-${index()}))`,
                                     })}
@@ -680,6 +684,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             {columnLefts.map((left, column) =>
                                 [0, 1, 2, 3].map((index) => (
                                     <div
+                                        data-reveal-row={dryRows + index}
                                         style={{
                                             left: `calc(${frame.cell} * ${left})`,
                                             width: `calc(${frame.cell} * ${columnWidth})`,
@@ -724,6 +729,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                             ))}
                             {shared.map((entity, index) => (
                                 <div
+                                    data-reveal-row={dryRows + index}
                                     {...style.attributes(
                                         [
                                             styles.band,
@@ -763,6 +769,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
                             {hosts.map((host, index) => (
                                 <div
+                                    data-reveal-row={5}
                                     style={{
                                         left: `calc(${frame.cell} * ${quarterLefts[index]})`,
                                         top: `calc(${frame.cellRow} * 49.5)`,
@@ -916,25 +923,24 @@ function lockedLayer(id: string, depth: number): Entity {
     return layer;
 }
 
-/** Return the mask that grows a shared band out of the three plates sunk in its row. */
+/** Return the clip that grows a shared band out of the three plates sunk in its row. */
 function growOutOfPlates(reveal: string): JSX.CSSProperties {
-    // widen each window from its plate's span to its third of the board, overlapping a little so no gap shows
+    // widen each window from its plate's span to its third of the board, overlapping so no gap shows
     const third = boardCells / 3;
     const windows = columnLefts.map((left, index) => {
+        // find the window's edges as the reveal moves them
         const end = index * third - 0.2;
-        return {
-            left: `calc(${frame.cell} * (${left} + (${end - left}) * ${reveal}))`,
-            width: `calc(${frame.cell} * (${columnWidth} + (${third + 0.4 - columnWidth}) * ${reveal}))`,
-        };
+        const start = `calc(${frame.cell} * (${left} + (${end - left}) * ${reveal}))`;
+        const width = `(${columnWidth} + (${third + 0.4 - columnWidth}) * ${reveal})`;
+        const stop = `calc(${frame.cell} * (${left} + (${end - left}) * ${reveal} + ${width}))`;
+
+        // trace the window as a rectangle starting and ending on the top edge, so windows chain along it
+        return `${start} 0, ${stop} 0, ${stop} 100%, ${start} 100%, ${start} 0`;
     });
-    const layer = "linear-gradient(#000, #000)";
 
     return {
         opacity: `clamp(0, ${reveal} * 2.5 - 0.25, 1)`,
-        "mask-image": windows.map(() => layer).join(", "),
-        "mask-position": windows.map((window) => `${window.left} 0`).join(", "),
-        "mask-repeat": "no-repeat",
-        "mask-size": windows.map((window) => `${window.width} 100%`).join(", "),
+        "clip-path": `polygon(${windows.join(", ")})`,
     };
 }
 
@@ -992,7 +998,7 @@ function Swap(properties: {
     const reveal = `var(--reveal-${properties.row})`;
 
     return (
-        <span {...style.attrs(styles.swap, properties.xstyle)}>
+        <span data-reveal-row={properties.row} {...style.attrs(styles.swap, properties.xstyle)}>
             <span
                 style={{
                     opacity: `clamp(0, 1 - ${reveal} * 2, 1)`,

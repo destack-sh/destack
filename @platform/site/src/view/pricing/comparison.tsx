@@ -176,6 +176,8 @@ const styles = style.create({
     table: {
         display: "block",
         fontSize: typeScale.body,
+        // scroll the rows under the pinned head on the table's own layer
+        willChange: "transform",
         width: "100%",
     },
     section: {

@@ -46,7 +46,7 @@ export function AuditLog(properties: { lane: Lane; onTouch: () => void }) {
 
     return (
         <div {...style.attrs(appStyles.app, styles.app)}>
-            <AppRail open="audit" apps={rail} morph={undefined} />
+            <AppRail open="audit" apps={rail} />
             <article {...style.attrs(styles.page)}>
                 <AppHeader title="Log">
                     <span {...style.attrs(appStyles.action, styles.wide)}>Undo selected</span>

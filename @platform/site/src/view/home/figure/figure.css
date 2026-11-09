@@ -2,9 +2,7 @@
 [data-item]:not([data-live]) > * {
     filter: grayscale(1);
     opacity: 0.45;
-    transition:
-        filter var(--destack-motion-duration-long) var(--destack-motion-easing-standard),
-        opacity var(--destack-motion-duration-long) var(--destack-motion-easing-standard);
+    transition: opacity var(--destack-motion-duration-long) var(--destack-motion-easing-standard);
 }
 
 /* hold every animation of a figure that has scrolled off screen, and change it without transitions */
@@ -24,10 +22,9 @@
     }
 }
 
-/* fade each large rebuilt part in through a slight blur */
+/* fade each large rebuilt part in */
 @keyframes settle-in {
     from {
-        filter: blur(3px);
         opacity: 0.35;
     }
 }
@@ -43,136 +40,38 @@
         var(--destack-motion-easing-emphasised) both;
 }
 
+/* bring in a part built while its figure slept off screen at once, so it never fades in on arrival */
+:root[data-switched] [data-fade][data-still] {
+    animation: none;
+}
+
 /* drop the first switch's hint once the reader has switched */
 :root[data-switched] [data-hint] {
     display: none;
 }
 
-/* morph the space browser between the rented sites and your space: the rail slides in, the page reshapes */
-[data-morph="space"] [data-component="AppRail"] {
-    view-transition-name: space-rail;
+/* move a part both states share from its old place into its new one, as the switch sets it */
+@keyframes flip-move {
+    from {
+        transform: var(--flip-from);
+    }
 }
 
-/* morph the x-ray and inspector browsers the same way: the rail slides in while the tabs and the page reshape */
-[data-morph="xray"] [data-component="AppRail"] {
-    view-transition-name: xray-rail;
-}
-
-[data-morph="xray"] [data-morph-strip] {
-    view-transition-name: xray-tabs;
-}
-
-[data-morph="xray"] [data-morph-page] {
-    view-transition-name: xray-page;
-}
-
-[data-morph="xray"] [data-morph-tags] {
-    view-transition-name: xray-tags;
-}
-
-[data-morph="inspect"] [data-component="AppRail"] {
-    view-transition-name: inspect-rail;
-}
-
-[data-morph="inspect"] [data-morph-strip] {
-    view-transition-name: inspect-tabs;
-}
-
-[data-morph="inspect"] [data-morph-page] {
-    view-transition-name: inspect-page;
-}
-
-[data-morph] [data-component="AppRail"] {
-    view-transition-class: rail;
-}
-
-[data-morph] [data-morph-strip],
-[data-morph] [data-morph-page],
-[data-morph] [data-morph-tags] {
-    view-transition-class: pane;
-}
-
-/* leave the morphing pages' own fades out, since the morph already brings them in */
-:root[data-switched] [data-morph="xray"] [data-fade],
-:root[data-switched] [data-fade]:has(> [data-morph="inspect"]) {
-    animation: none;
-}
-
-/* carry the page title from the rented site into your own app */
-[data-morph="space"] [data-morph-title],
-[data-morph="space"] [data-component="PageTitle"] {
-    view-transition-name: space-title;
-    width: fit-content;
-}
-
-/* move the tabs and the tab icons as they are, so neither stretches between its two sizes */
-[data-morph="space"] [data-component="Tab"] {
-    view-transition-class: space-tab;
-}
-
-[data-morph="space"] [data-morph-icon] {
-    view-transition-class: space-icon;
-}
-
-::view-transition-old(*.space-tab),
-::view-transition-new(*.space-tab),
-::view-transition-old(*.space-icon),
-::view-transition-new(*.space-icon) {
-    height: 100%;
-    object-fit: none;
-    object-position: left center;
-    width: 100%;
-}
-
-::view-transition-old(*.space-tab),
-::view-transition-old(*.pane) {
-    animation-duration: var(--destack-motion-duration-short);
-}
-
-/* fly the tab icons above the page and the rail, which come later in the page and would cover them */
-::view-transition-group(*.space-icon) {
-    z-index: 1;
-}
-
-/* leave the page out of a figure's morph, so only the named parts are captured and the rest stays live */
-:root[data-morphing] {
-    view-transition-name: none;
-}
-
-::view-transition-group(*) {
-    animation-duration: var(--destack-motion-duration-medium);
-    animation-timing-function: var(--destack-motion-easing-standard);
-}
-
-::view-transition-old(space-page),
-::view-transition-new(space-page),
-::view-transition-old(*.pane),
-::view-transition-new(*.pane) {
-    height: 100%;
-    object-fit: cover;
-    object-position: left top;
-}
-
-::view-transition-new(*.rail) {
-    animation: rail-in var(--destack-motion-duration-medium) var(--destack-motion-easing-emphasised)
-        both;
-}
-
-::view-transition-old(*.rail) {
-    animation: rail-out var(--destack-motion-duration-short) var(--destack-motion-easing-standard)
-        both;
-}
-
-@keyframes rail-in {
+/* slide a part in from the left as the switch brings it */
+@keyframes flip-enter {
     from {
         opacity: 0;
         transform: translateX(-100%);
     }
 }
 
-@keyframes rail-out {
-    to {
-        opacity: 0;
-        transform: translateX(-100%);
-    }
+[data-flipping="move"] {
+    animation: flip-move var(--destack-motion-duration-medium)
+        var(--destack-motion-easing-emphasised);
+    transform-origin: top left;
+}
+
+[data-flipping="enter"] {
+    animation: flip-enter var(--destack-motion-duration-medium)
+        var(--destack-motion-easing-emphasised) both;
 }

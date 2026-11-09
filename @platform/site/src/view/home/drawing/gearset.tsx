@@ -171,19 +171,17 @@ export function Gearset(properties: { isOpen: boolean }) {
                             direction * ratio * turn();
                         const pitch = pitchOf(gear.teeth);
                         const reach = pitch + MODULE;
+                        const outline = outlineOf(gear.teeth);
 
                         return (
                             <g transform={`translate(${at().x} ${at().y})`}>
                                 <defs>
                                     <clipPath id={`gearset-gear-${index}`}>
-                                        <path
-                                            d={outlineOf(gear.teeth)}
-                                            transform={`rotate(${angle()})`}
-                                        />
+                                        <path d={outline} transform={`rotate(${angle()})`} />
                                     </clipPath>
                                 </defs>
                                 <path
-                                    d={outlineOf(gear.teeth)}
+                                    d={outline}
                                     transform={`rotate(${angle()})`}
                                     {...style.attrs(styles.cover)}
                                 />
@@ -204,7 +202,7 @@ export function Gearset(properties: { isOpen: boolean }) {
                                 </g>
 
                                 <g transform={`rotate(${angle()})`}>
-                                    <path d={outlineOf(gear.teeth)} />
+                                    <path d={outline} />
                                     <circle r={pitch * 0.38} />
                                     <circle r={1.8} {...style.attrs(styles.solid)} />
                                     <path

@@ -1,7 +1,8 @@
 import * as style from "@destack/style";
 import { media } from "@destack/style/media.stylex";
 import { color, stroke } from "@destack/theme/tokens.stylex";
-import { createEffect, type JSX } from "@destack/view";
+import { createEffect, type JSX, useEnvironment } from "@destack/view";
+import { requestFrame } from "@destack/view/primitives/raf";
 
 import { palette } from "../../palette.stylex";
 import { AgentAvatar, isAgent } from "./agent";
@@ -163,6 +164,8 @@ export const appStyles = style.create({
         overflow: "hidden",
         paddingBlock: "1.5rem",
         paddingInline: { default: "2rem", [NARROW]: "1rem" },
+        // fade on the page's own layer, so the mask is never redrawn as the site scrolls
+        willChange: "transform",
     },
     toolbar: {
         alignItems: "center",
@@ -262,23 +265,24 @@ export function AppGlyph(properties: { name: string; isOn?: boolean }) {
 export function AppRail(properties: {
     open: string;
     apps: readonly (readonly [name: string, label: string])[];
-    morph: string | undefined;
     onOpen?: (name: string) => void;
 }) {
-    // scroll the open app into the rail's view when more apps sit on it than fit
+    // scroll the open app into the rail's view on the next frame, reading the layout that frame lays out anyway
+    const environment = useEnvironment();
     let rail: HTMLElement | undefined;
     createEffect(
         () => properties.open,
-        (open) => {
-            const link = rail?.querySelector<HTMLElement>(`[data-app="${open}"]`);
-            if (rail !== undefined && link !== null && link !== undefined) {
-                rail.scrollTop = link.offsetTop - rail.clientHeight / 2;
-            }
-        },
+        (open) =>
+            requestFrame(() => {
+                const link = rail?.querySelector<HTMLElement>(`[data-app="${open}"]`);
+                if (rail !== undefined && link !== null && link !== undefined) {
+                    rail.scrollTop = link.offsetTop - rail.clientHeight / 2;
+                }
+            }, environment.display),
     );
 
     return (
-        <nav ref={rail} data-component="AppRail" {...style.attrs(appStyles.rail)}>
+        <nav ref={rail} data-component="AppRail" data-flip-enter {...style.attrs(appStyles.rail)}>
             <span
                 title="Your space"
                 style={{ "background-color": palette.teal }}
@@ -298,15 +302,11 @@ export function AppRail(properties: {
                 <span
                     data-component="AppLink"
                     data-app={name}
-                    data-morph-icon={properties.morph === undefined ? undefined : ""}
+                    data-flip={`icon-${name}`}
                     title={label}
                     onClick={() => properties.onOpen?.(name)}
                     style={{
                         "background-color": name === properties.open ? washOf(name) : undefined,
-                        "view-transition-name":
-                            properties.morph === undefined
-                                ? undefined
-                                : `${properties.morph}-icon-${name}`,
                     }}
                     {...style.attrs(
                         appStyles.railButton,
@@ -336,7 +336,7 @@ export function AppRail(properties: {
 export function AppHeader(properties: { title: JSX.Element; children?: JSX.Element }) {
     return (
         <div data-component="PageHeader" {...style.attrs(appStyles.toolbar)}>
-            <b data-component="PageTitle" {...style.attrs(appText.title)}>
+            <b data-component="PageTitle" data-flip="title" {...style.attrs(appText.title)}>
                 {properties.title}
             </b>
             <div {...style.attrs(appStyles.tools)}>{properties.children}</div>

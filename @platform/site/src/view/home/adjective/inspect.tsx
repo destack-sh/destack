@@ -209,16 +209,8 @@ function RentedConsoles(properties: { console: Console }) {
 
     return (
         <Cast>
-            <div
-                data-component="Browser"
-                data-morph="inspect"
-                {...style.attrs(browserStyles.browser, styles.browser)}
-            >
-                <div
-                    data-component="TabStrip"
-                    data-morph-strip
-                    {...style.attrs(browserStyles.strip)}
-                >
+            <div data-component="Browser" {...style.attrs(browserStyles.browser, styles.browser)}>
+                <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                     <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                     {consoles.map(([key, logo, title]) => (
                         <span
@@ -238,7 +230,7 @@ function RentedConsoles(properties: { console: Console }) {
                     ))}
                 </div>
                 <Address url={shown()[3]} />
-                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
                     <div {...style.attrs(styles.scaled)}>{shown()[4]()}</div>
                 </div>
             </div>
@@ -263,16 +255,8 @@ function TabMark(properties: { logo: string }) {
 function SpaceBrowser(properties: { children: JSX.Element }) {
     return (
         <Cast>
-            <div
-                data-component="Browser"
-                data-morph="inspect"
-                {...style.attrs(browserStyles.browser, styles.browser)}
-            >
-                <div
-                    data-component="TabStrip"
-                    data-morph-strip
-                    {...style.attrs(browserStyles.strip)}
-                >
+            <div data-component="Browser" {...style.attrs(browserStyles.browser, styles.browser)}>
+                <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                     <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                     <span
                         data-component="Tab"
@@ -284,7 +268,7 @@ function SpaceBrowser(properties: { children: JSX.Element }) {
                     </span>
                 </div>
                 <Address url="destack.app/@florian/log" />
-                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
                     <div {...style.attrs(styles.full)}>{properties.children}</div>
                 </div>
             </div>

@@ -1,12 +1,7 @@
 import * as style from "@destack/style";
-import { For, type JSX } from "@destack/view";
+import { For, type JSX, onSettled } from "@destack/view";
 
-/**
- * Build a part of a figure anew each time the stack switches, and bring it in.
- *
- * A small part flips in, and a large part fades in through a slight blur so it never swings.
- * A part given a turn also fades in through the blur each time the turn changes, stacked or not.
- */
+/** Build a figure's part anew on each switch, bringing it in at once while off screen. */
 export function Fade(properties: {
     isOpen: boolean;
     xstyle?: style.Styles;
@@ -18,16 +13,25 @@ export function Fade(properties: {
     // key the part by the state so every switch builds it anew
     return (
         <For each={[`${String(properties.isOpen)}:${String(properties.turn ?? "")}`]}>
-            {() => (
-                <div
-                    data-fade={properties.isLarge === true ? "large" : "small"}
-                    data-turn={properties.turn === undefined ? undefined : ""}
-                    data-component={properties.component}
-                    {...style.attrs(properties.xstyle)}
-                >
-                    {properties.children}
-                </div>
-            )}
+            {() => {
+                // hold the part still when its figure is off screen as it is built
+                let part: HTMLDivElement | undefined;
+                onSettled(() => {
+                    part?.toggleAttribute("data-still", part.closest("[data-asleep]") !== null);
+                });
+
+                return (
+                    <div
+                        ref={part}
+                        data-fade={properties.isLarge === true ? "large" : "small"}
+                        data-turn={properties.turn === undefined ? undefined : ""}
+                        data-component={properties.component}
+                        {...style.attrs(properties.xstyle)}
+                    >
+                        {properties.children}
+                    </div>
+                );
+            }}
         </For>
     );
 }

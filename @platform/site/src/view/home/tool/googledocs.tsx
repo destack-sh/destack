@@ -161,7 +161,7 @@ export function GoogleDocuments() {
                     <Mark name="outline" size={18} />
                 </span>
                 <article {...style.attrs(styles.paper)}>
-                    <b data-morph-title {...style.attrs(styles.title)}>
+                    <b data-flip="title" {...style.attrs(styles.title)}>
                         Destack launch
                     </b>
                     <p {...style.attrs(styles.meta)}>

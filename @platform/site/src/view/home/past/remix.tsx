@@ -436,6 +436,21 @@ type Run = { from: Point; to: Point; bend: number };
 /** A card's edges and centre in layer pixels. */
 type Box = { left: number; right: number; top: number; bottom: number; centre: number };
 
+/** A band item's resting box in layer pixels. */
+type Item = { left: number; width: number; centre: number; top: number; bottom: number };
+
+/** The layer's size, each card's height, and each band item's box, read once per resize or wake. */
+type Geometry = {
+    /** The layer's width. */
+    width: number;
+    /** The layer's height. */
+    height: number;
+    /** Each card's height, by card id. */
+    heights: Map<string, number>;
+    /** Each band item's resting box, by its label. */
+    items: Map<string, Item>;
+};
+
 /** One cable between two cards, and how visible it is. */
 type Cable = {
     /** The drawn cable. */
@@ -468,6 +483,7 @@ export function Remix(properties: {
     let wires: SVGGElement | undefined;
     const cards = new Map<string, HTMLDivElement>();
     const last = new Map<string, Placement>();
+    let released: { id: string; until: number | undefined } | undefined;
 
     // pick the scene on show: the locked stack today, the loop once open
     const shown = () =>
@@ -539,6 +555,7 @@ export function Remix(properties: {
         // follow the pointer until it lifts, then let go of the card and stop following it
         const drop = () => {
             setDrag(undefined);
+            released = { id, until: undefined };
             stops.forEach((stop) => stop());
         };
         const stops = [
@@ -585,26 +602,83 @@ export function Remix(properties: {
         let isStirring = false;
         const narrowScreen = environment.display.media("(max-width: 1099px)");
 
-        // measure the boxes of the given cards within the layer, all before any cable is drawn
-        const measure = (measured: Iterable<string>) => {
-            // measure each card against the layer bounds
-            const bounds = layer.getBoundingClientRect();
-            const boxes = new Map<string, Box>();
-            for (const id of measured) {
-                const card = cards.get(id)?.firstElementChild?.firstElementChild;
-                if (card) {
-                    const rect = card.getBoundingClientRect();
-                    boxes.set(id, {
-                        left: rect.left - bounds.left,
-                        right: rect.right - bounds.left,
-                        top: rect.top - bounds.top,
-                        bottom: rect.bottom - bounds.top,
-                        centre: (rect.left + rect.right) / 2 - bounds.left,
+        // read the layer's geometry once per resize or wake, so a frame reads no layout: the size, card heights and item boxes
+        let geometry: Geometry | undefined;
+        const geometryOf = (): Geometry => {
+            if (geometry === undefined) {
+                // read the layer's size and each card's height, which its centring transform leaves alone
+                const heights = new Map<string, number>();
+                for (const [id, card] of cards) {
+                    heights.set(id, card.offsetHeight);
+                }
+
+                // read each band item's resting box, without the rise its reveal plays
+                const items = new Map<string, Item>();
+                for (const element of layer.parentElement?.querySelectorAll<HTMLElement>(
+                    "[data-item]",
+                ) ?? []) {
+                    const { left, top } = offsetWithin(element, layer.parentElement);
+                    const width = element.offsetWidth;
+                    const height = element.offsetHeight;
+                    items.set(element.dataset["item"] ?? "", {
+                        left,
+                        width,
+                        centre: left + width / 2,
+                        top,
+                        bottom: top + height,
                     });
                 }
+                geometry = { width: layer.offsetWidth, height: layer.offsetHeight, heights, items };
             }
 
-            return { bounds, boxes };
+            return geometry;
+        };
+
+        // tell whether a drag holds a card or it springs home from one, away from its placement
+        const isLoose = (id: string, now: number) => {
+            // start a released card's spring home on the first frame after the drop
+            if (released !== undefined && released.until === undefined) {
+                released.until = now + duration.medium;
+            }
+
+            return drag()?.id === id || (released?.id === id && now < (released.until ?? now));
+        };
+
+        // place a card from its placement, or read it while a drag holds it or it springs home
+        const boxOf = (id: string, now: number): Box | undefined => {
+            // read a held or springing card where it is
+            const { width, height, heights } = geometryOf();
+            const card = cards.get(id);
+            if (isLoose(id, now) && card !== undefined) {
+                const bounds = layer.getBoundingClientRect();
+                const rect = card.getBoundingClientRect();
+
+                return {
+                    left: rect.left - bounds.left,
+                    right: rect.right - bounds.left,
+                    top: rect.top - bounds.top,
+                    bottom: rect.bottom - bounds.top,
+                    centre: (rect.left + rect.right) / 2 - bounds.left,
+                };
+            }
+
+            // place a resting card on its row's line, centred by its own height
+            const place = layout().places.get(id);
+            const cardHeight = heights.get(id);
+            if (place === undefined || cardHeight === undefined) {
+                return undefined;
+            }
+            const cell = width / boardCells;
+            const line = place.row === 0 ? height / 6 + userDrop : height / 2;
+            const left = place.left * cell;
+
+            return {
+                left,
+                right: left + place.width * cell,
+                top: line - cardHeight / 2,
+                bottom: line + cardHeight / 2,
+                centre: left + (place.width * cell) / 2,
+            };
         };
 
         // start a cable the first time it is needed
@@ -718,28 +792,25 @@ export function Remix(properties: {
                 ...current.links.flat(),
                 ...current.lower.map((card) => card.id),
             ]);
-            const { bounds, boxes } = measure(needed);
+            const { width, height, items } = geometryOf();
+            const boxes = new Map<string, Box>();
+            for (const id of needed) {
+                const box = boxOf(id, now);
+                if (box !== undefined) {
+                    boxes.set(id, box);
+                }
+            }
             const kept = new Set<string>();
             const places = layout().places;
-            const cell = bounds.width / boardCells;
-            const cellRow = bounds.height / layerRows;
+            const cell = width / boardCells;
+            const cellRow = height / layerRows;
             isStirring = false;
 
             // snap a position across to the middle of the hole column it falls in
             const hole = (x: number) => (Math.floor(x / cell) + 0.5) * cell;
 
             // tell whether a card rests in its place, neither held nor travelling
-            const rests = (id: string, box: Box) => {
-                const place = places.get(id);
-                const top = cellRow * (place?.row === 0 ? 2 : 11);
-
-                return (
-                    place !== undefined &&
-                    drag()?.id !== id &&
-                    Math.abs(box.centre - centre(place, cell)) < 1.5 &&
-                    Math.abs(box.top - top) < 1.5
-                );
-            };
+            const rests = (id: string) => places.get(id) !== undefined && !isLoose(id, now);
 
             // run every cable across a gap along one tidy bus: its middle, or above the row captions on narrow screens
             const share = narrowScreen.matches ? captionedBus : 0.5;
@@ -775,7 +846,7 @@ export function Remix(properties: {
                         },
                         bend,
                     },
-                    rests(upper, from) && rests(lower, to),
+                    rests(upper) && rests(lower),
                     false,
                     1,
                     now,
@@ -786,21 +857,7 @@ export function Remix(properties: {
             if (isOpen) {
                 const reveal = properties.revealOf(2);
                 const stored = properties.revealOf(3);
-                const item = (label: string) => {
-                    const found = layer.parentElement
-                        ?.querySelector(`[data-item="${label}"]`)
-                        ?.getBoundingClientRect();
-
-                    return found
-                        ? {
-                              left: found.left - bounds.left,
-                              width: found.width,
-                              centre: (found.left + found.right) / 2 - bounds.left,
-                              top: found.top - bounds.top,
-                              bottom: found.bottom - bounds.top,
-                          }
-                        : undefined;
-                };
+                const item = (label: string) => items.get(label);
 
                 // list the calls into the services and the links down to the stores
                 const calls = current.lower.flatMap((card) =>
@@ -818,9 +875,7 @@ export function Remix(properties: {
                 ];
                 const lower = current.lower.flatMap((card) => {
                     const found = boxes.get(card.id);
-                    return found
-                        ? [{ id: card.id, isResting: rests(card.id, found), ...found }]
-                        : [];
+                    return found ? [{ id: card.id, isResting: rests(card.id), ...found }] : [];
                 });
                 lower.forEach((card, index) => {
                     // chain this card to the next one along the hole row
@@ -983,6 +1038,7 @@ export function Remix(properties: {
             if (wake.isWaking) {
                 wake.until = now + 300;
                 wake.isWaking = false;
+                geometry = undefined;
             }
             const isBusy =
                 drag() !== undefined || now - changedAt < 1500 || now < wake.until || isStirring;
@@ -1179,6 +1235,27 @@ function motionOf(
 /** Return a small square plug at a cable end, as an SVG path. */
 function plug(point: Point) {
     return `M${point.x - 2} ${point.y - 2}h4v4h-4Z`;
+}
+
+/** Return an element's offset within an ancestor, untouched by transforms. */
+function offsetWithin(
+    element: HTMLElement,
+    ancestor: Element | null,
+): { left: number; top: number } {
+    // add each offset parent's offset until the ancestor
+    let left = 0;
+    let top = 0;
+    let current: Element | null = element;
+    while (current instanceof HTMLElement && current !== ancestor) {
+        left += current.offsetLeft;
+        top += current.offsetTop;
+        current = current.offsetParent;
+    }
+    if (current !== ancestor) {
+        throw new TypeError("the element sits outside the ancestor it is measured in");
+    }
+
+    return { left, top };
 }
 
 /** Place every card a scene shows in whole board cells. */

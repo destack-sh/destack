@@ -248,15 +248,10 @@ export function XRay(properties: {
             <div
                 ref={setRoot}
                 data-component="XRay"
-                data-morph="xray"
                 {...style.attrs(browserStyles.browser, styles.root)}
             >
                 {/* Tabs */}
-                <div
-                    data-component="TabStrip"
-                    data-morph-strip
-                    {...style.attrs(browserStyles.strip)}
-                >
+                <div data-component="TabStrip" {...style.attrs(browserStyles.strip)}>
                     <span aria-hidden="true" {...style.attrs(browserStyles.lights)} />
                     {isOwned() ? (
                         <span
@@ -333,7 +328,7 @@ export function XRay(properties: {
                 </div>
 
                 {/* Page */}
-                <div data-morph-page {...style.attrs(browserStyles.viewport, styles.viewport)}>
+                <div {...style.attrs(browserStyles.viewport, styles.viewport)}>
                     <Fade
                         isOpen={isOwned()}
                         isLarge
@@ -343,7 +338,6 @@ export function XRay(properties: {
                             <AppRail
                                 open={app()[1]}
                                 apps={rail}
-                                morph={undefined}
                                 onOpen={(icon) => setRow(rowOfApp(icon))}
                             />
                         ) : undefined}
@@ -379,7 +373,7 @@ export function XRay(properties: {
                 </div>
 
                 {/* X-ray */}
-                <div aria-hidden="true" data-morph-tags {...style.attrs(styles.overlay)}>
+                <div aria-hidden="true" {...style.attrs(styles.overlay)}>
                     {boxes().map((box) => (
                         <Mark
                             box={box}

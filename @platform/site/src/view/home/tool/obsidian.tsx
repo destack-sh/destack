@@ -155,7 +155,7 @@ export function Obsidian() {
                 </span>
 
                 <article {...style.attrs(styles.note)}>
-                    <b data-morph-title {...style.attrs(styles.title)}>
+                    <b data-flip="title" {...style.attrs(styles.title)}>
                         Destack launch
                     </b>
                     <span {...style.attrs(styles.propertiesHead)}>Properties</span>

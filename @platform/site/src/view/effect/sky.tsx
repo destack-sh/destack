@@ -1,6 +1,7 @@
 import * as style from "@destack/style";
 import { color, motion } from "@destack/theme/tokens.stylex";
-import type { JSX } from "@destack/view";
+import { createSignal, type JSX } from "@destack/view";
+import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 
 import { night } from "../theme.ts";
 import { palette } from "../palette.stylex";
@@ -44,8 +45,16 @@ const twinklingStars = [starsOf(47, 10, 1.3), starsOf(83, 10, 1.1)] as const;
 
 /** Fill a band with night sky in the night theme, its stars twinkling slowly. */
 export function Sky(properties: { children?: JSX.Element; xstyle?: style.Styles }) {
+    // twinkle only while the sky shows
+    const [sky, setSky] = createSignal<HTMLDivElement>();
+    const isShown = createVisibilityObserver(sky, { initialValue: false });
+
     return (
-        <div {...style.attributes([styles.sky, deepCells, properties.xstyle], night)}>
+        <div
+            ref={setSky}
+            data-shown={isShown() ? "" : undefined}
+            {...style.attributes([styles.sky, deepCells, properties.xstyle], night)}
+        >
             {/* lay the steady stars, then the two twinkling layers over them */}
             <span
                 aria-hidden="true"
@@ -95,7 +104,9 @@ const styles = style.create({
         animationDuration: "3.2s",
         animationIterationCount: "infinite",
         animationName: { default: twinkle, "@media (prefers-reduced-motion: reduce)": "none" },
+        animationPlayState: { default: "paused", ":is([data-shown] > *)": "running" },
         animationTimingFunction: motion.easingStandard,
+        willChange: "opacity",
     },
     offbeat: {
         animationDelay: "-2.1s",

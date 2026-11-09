@@ -129,7 +129,7 @@ export function Verb(properties: {
     const isReduced = createReducedMotion(section);
     const isShown = createVisibilityObserver(section, { initialValue: true });
 
-    // switch the browser and every holding at once, so the switch morphs as one
+    // switch the browser and every holding at once
     const isOpenAt: Stagger = () => properties.isOpen;
 
     // show the bill or your agent's chat beside the space, the chat running while it shows

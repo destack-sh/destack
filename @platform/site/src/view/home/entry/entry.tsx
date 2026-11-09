@@ -10,6 +10,9 @@ import { media } from "@destack/style/media.stylex";
 import { screen } from "../../layout/screen.stylex";
 import { typeScale, tracking } from "../../layout/type.stylex";
 
+/** How far beyond the screen a figure starts rendering: one screen, a quick flick's travel. */
+const NEAR_MARGIN = "100% 0px";
+
 /** A page whose scripts run, which draws each underline in once its entry shows. */
 const SCRIPTED = "@media (scripting: enabled)";
 
@@ -143,6 +146,17 @@ export function FigureLabel(properties: {
             entry.target.toggleAttribute("data-asleep", !entry.isIntersecting);
         }
     });
+
+    // render the figure's cells from a screen away, before they scroll in, since Safari renders them only once in view
+    const nearness = makeIntersectionObserver(
+        [],
+        (entries) => {
+            for (const entry of entries) {
+                entry.target.toggleAttribute("data-near", entry.isIntersecting);
+            }
+        },
+        { rootMargin: NEAR_MARGIN },
+    );
     onSettled(() => {
         // require the rendered label inside its section
         const section = label?.parentElement;
@@ -150,6 +164,7 @@ export function FigureLabel(properties: {
             throw new TypeError("the figure label rendered outside a section");
         }
         sight.add(section);
+        nearness.add(section);
     });
 
     return (

@@ -390,11 +390,7 @@ export function SpaceBrowser(properties: {
 
     return (
         <Cast>
-            <div
-                data-component="Browser"
-                data-morph={properties.name}
-                {...style.attrs(browserStyles.browser)}
-            >
+            <div data-component="Browser" {...style.attrs(browserStyles.browser)}>
                 {/* draw the rail's glyphs out of sight, so they are loaded when the space opens */}
                 <span aria-hidden="true" {...style.attrs(styles.preload)}>
                     {railGlyphs.map((glyph) => (
@@ -409,9 +405,6 @@ export function SpaceBrowser(properties: {
                     {properties.isOpenAt(1) ? (
                         <span
                             data-component="Tab"
-                            style={{
-                                "view-transition-name": `${properties.name}-tab-${String(properties.page.row)}`,
-                            }}
                             {...style.attrs(browserStyles.tab, browserStyles.tabOn)}
                         >
                             <Favicon icon="user" tint="#2f7d8c" />
@@ -432,9 +425,6 @@ export function SpaceBrowser(properties: {
                                 <span
                                     data-component="Tab"
                                     title={title}
-                                    style={{
-                                        "view-transition-name": `${properties.name}-tab-${String(row)}`,
-                                    }}
                                     onClick={() => properties.onChoose(row)}
                                     {...style.attrs(
                                         browserStyles.tab,
@@ -445,10 +435,7 @@ export function SpaceBrowser(properties: {
                                 >
                                     {/* carry the tab's icon to its app on the rail as the space opens */}
                                     <span
-                                        data-morph-icon=""
-                                        style={{
-                                            "view-transition-name": `${properties.name}-icon-${appAt(row)}`,
-                                        }}
+                                        data-flip={`icon-${appAt(row)}`}
                                         {...style.attrs(browserStyles.tabIcon)}
                                     >
                                         <Favicon icon={icon} tint={tint} />
@@ -588,13 +575,9 @@ export function SpaceBrowser(properties: {
                                             seen.includes(properties.viewer),
                                     )
                                     .map(([, name, icon]) => [icon, name] as const)}
-                                morph={properties.name}
                                 onOpen={(icon) => properties.onChoose(rowOfApp(icon))}
                             />
-                            <main
-                                style={{ "view-transition-name": `${properties.name}-page` }}
-                                {...style.attrs(appStyles.main)}
-                            >
+                            <main {...style.attrs(appStyles.main)}>
                                 {isAllowed() ? (
                                     sectionOf(
                                         properties.page.job,
@@ -626,10 +609,7 @@ export function SpaceBrowser(properties: {
                             />
                         </div>
                     ) : (
-                        <div
-                            style={{ "view-transition-name": `${properties.name}-page` }}
-                            {...style.attrs(styles.window)}
-                        >
+                        <div {...style.attrs(styles.window)}>
                             {pageOf(
                                 properties.page,
                                 properties.source,

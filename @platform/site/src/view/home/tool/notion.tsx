@@ -148,7 +148,7 @@ export function NotionPage(properties: {
                 <span aria-hidden="true" {...style.attrs(styles.notionIcon)}>
                     {properties.icon}
                 </span>
-                <b data-morph-title {...style.attrs(styles.notionTitle)}>
+                <b data-flip="title" {...style.attrs(styles.notionTitle)}>
                     {properties.title}
                 </b>
                 <dl {...style.attrs(styles.notionProperties)}>

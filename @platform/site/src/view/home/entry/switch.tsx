@@ -4,11 +4,10 @@ import { Icon } from "@destack/icon";
 import arrowUp from "@destack/icon/phosphor/arrow-up";
 import list from "@destack/icon/phosphor/list";
 import { Button } from "@destack/ui/button";
-import { createEffect, createSignal, onSettled } from "@destack/view";
+import { createEffect, createMemo, createSignal, onSettled } from "@destack/view";
 import { createVisibilityObserver } from "@destack/view/primitives/intersection-observer";
 import { Timeout } from "@destack/view/primitives/timer";
 import { isMotionReduced } from "@destack/view/motion";
-import { createEventListener } from "@destack/view/primitives/event-listener";
 import { palette } from "../../palette.stylex";
 
 import { commandEvents } from "../../layout/command";
@@ -155,26 +154,25 @@ export function Toggle(properties: {
 
 /** Hold the bottom bar below the thumb index's widths, from the first figure to the footer. */
 export function BottomBar(properties: { isOpen: boolean; forms: readonly Form[] }) {
-    // show the bar from the first figure label until the footer comes into view
+    // find where the figures start and where the page ends, once the page is drawn
     let bar: HTMLDivElement | undefined;
-    const [isShown, setIsShown] = createSignal(false);
-    const update = () => {
-        // find where the figures start and where the page ends
-        const first = document.querySelector("[data-figure-label]");
-        const footer = document.querySelector("[data-component=SiteFooter]");
-        if (first === null || footer === null) {
+    const [first, setFirst] = createSignal<Element>();
+    const [footer, setFooter] = createSignal<Element>();
+    onSettled(() => {
+        // read the first figure label and the footer, both drawn by now
+        const label = document.querySelector("[data-figure-label]");
+        const end = document.querySelector("[data-component=SiteFooter]");
+        if (label === null || end === null) {
             throw new Error("the page lacks its figures or its footer");
         }
+        setFirst(label);
+        setFooter(end);
+    });
 
-        // show the bar between the two
-        setIsShown(
-            first.getBoundingClientRect().top < window.innerHeight &&
-                footer.getBoundingClientRect().top > window.innerHeight,
-        );
-    };
-    createEventListener(() => window, "scroll", update, { passive: true });
-    createEventListener(() => window, "resize", update);
-    onSettled(update);
+    // show the bar once the first figure has risen into view, until the footer has
+    const isFirstRisen = createVisibilityObserver(first, { initialValue: false }, risen);
+    const isFooterRisen = createVisibilityObserver(footer, { initialValue: false }, risen);
+    const isShown = createMemo(() => isFirstRisen() && !isFooterRisen());
 
     // scroll back to the top, at once while motion is reduced
     const toTop = () => {
@@ -210,6 +208,11 @@ const sweep = style.keyframes({
     "0%": { backgroundSize: "0% 100%" },
     "100%": { backgroundSize: "100% 100%" },
 });
+
+/** Decide whether an element has risen into view or past the screen's top, from its entry. */
+function risen(entry: IntersectionObserverEntry): boolean {
+    return entry.isIntersecting || entry.boundingClientRect.top < 0;
+}
 
 /** The switch styles. */
 const styles = style.create({

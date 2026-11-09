@@ -156,7 +156,7 @@ export function Word() {
             {/* the page on its desk */}
             <div {...style.attrs(styles.desk)}>
                 <article {...style.attrs(styles.paper)}>
-                    <b data-morph-title {...style.attrs(styles.heading1)}>
+                    <b data-flip="title" {...style.attrs(styles.heading1)}>
                         Destack launch
                     </b>
                     <p {...style.attrs(styles.meta)}>

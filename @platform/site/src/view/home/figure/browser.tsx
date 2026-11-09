@@ -217,5 +217,7 @@ export const browserStyles = style.create({
         minHeight: 0,
         overflow: "clip",
         position: "relative",
+        // fade on the viewport's own layer, so the mask is never redrawn as the site scrolls
+        willChange: "transform",
     },
 });

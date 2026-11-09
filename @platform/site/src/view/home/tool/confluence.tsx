@@ -163,7 +163,7 @@ export function Confluence() {
                         <span aria-hidden="true" {...style.attrs(styles.emoji)}>
                             🚀
                         </span>
-                        <b data-morph-title {...style.attrs(styles.title)}>
+                        <b data-flip="title" {...style.attrs(styles.title)}>
                             Destack launch
                         </b>
                         <span {...style.attrs(styles.byline)}>

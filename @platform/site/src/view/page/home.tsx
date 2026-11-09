@@ -30,7 +30,7 @@ const FORMS: readonly Form[] = [verb, noun, destacked, destackable, destacker, p
 /** The figures' entries in page order, each the anchor of the section it heads. */
 const FIGURES = FORMS.map(anchorOf);
 
-/** The milliseconds a switch's view transition takes, before off-screen figures switch. */
+/** The milliseconds on-screen figures take to fade into a switch, before off-screen ones switch. */
 const SETTLE_TIME = 320;
 
 /** The longest wait for an idle moment before switching the next off-screen figure anyway. */
@@ -75,13 +75,13 @@ export function Home() {
             return undefined;
         }
 
-        // switch every figure on screen now, inside the switch's view transition
+        // switch every figure on screen now
         const isShown = spans.map((span) => span.some((element) => shown.has(element)));
         setOpens((current) =>
             current.map((state, index) => (isShown[index] === true ? open : state)),
         );
 
-        // switch each figure off screen once the switch's transition has settled, one per idle moment
+        // switch each figure off screen once the switch has settled, one per idle moment
         const later = FIGURES.flatMap((_, index) => (isShown[index] === true ? [] : [index]));
         let cancelIdle: (() => void) | undefined;
         const next = () => {

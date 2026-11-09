@@ -40,8 +40,11 @@ const GAP = "3rem";
 /** The height of the hatched band that carries a section's running head. */
 const BAND = "2.5rem";
 
-/** A paper grain of faint ink specks, tiled over the page and its cells. */
-const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.07 0 0 0 0 0.19 0 0 0 0 0.24 0.16 0 0 0 -0.06'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")`;
+/** A paper grain of faint ink specks, noise baked into a tile so no filter renders on scroll. */
+const GRAIN = `url("/grain.webp")`;
+
+/** The size the grain's tile is shown at, half its pixels for sharp grain on dense screens. */
+const GRAIN_SIZE = "180px 180px";
 
 /** The ink of the dot grid, a little stronger than the rules so single dots still read. */
 const DOT_INK = `color-mix(in srgb, ${color.foreground} 22%, ${color.background})`;
@@ -80,6 +83,7 @@ export const paper = style.create({
     ground: {
         backgroundColor: color.background,
         backgroundImage: GRAIN,
+        backgroundSize: GRAIN_SIZE,
         "::before": { ...margin, backgroundPosition: "right top", left: 0 },
         "::after": { ...margin, backgroundPosition: "left top", right: 0 },
     },
@@ -132,6 +136,7 @@ export const lattice = style.create({
     cell: {
         backgroundColor: surface.cell,
         backgroundImage: GRAIN,
+        backgroundSize: GRAIN_SIZE,
         borderImageOutset: `${stroke.border} 100vw 0`,
         borderImageSlice: "1 0 0 0",
         borderImageSource: {
@@ -145,9 +150,9 @@ export const lattice = style.create({
     /** A figure cell of a ruled band, dotted behind its figure and unrendered off screen. */
     figureCell: {
         backgroundImage: `${DOTS}, ${GRAIN}`,
-        backgroundSize: `${DOT_GRID} ${DOT_GRID}, auto`,
+        backgroundSize: `${DOT_GRID} ${DOT_GRID}, ${GRAIN_SIZE}`,
         containIntrinsicSize: "auto 32rem",
-        contentVisibility: "auto",
+        contentVisibility: { default: "auto", ":is([data-near] *)": "visible" },
         display: "grid",
         gap: "0.75rem",
         gridTemplateRows: "auto minmax(0, 1fr) auto",
