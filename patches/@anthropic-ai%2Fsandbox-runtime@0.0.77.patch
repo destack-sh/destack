@@ -1,0 +1,19 @@
+diff --git a/dist/sandbox/linux-sandbox-utils.js b/dist/sandbox/linux-sandbox-utils.js
+index 326c8d972479eec8354c28e82583cb1d36032979..315f815248b89b1abd2617ba19d038b466b61e61 100644
+--- a/dist/sandbox/linux-sandbox-utils.js
++++ b/dist/sandbox/linux-sandbox-utils.js
+@@ -1268,6 +1268,14 @@ function pushReadDenyDirMounts(args, unit) {
+         restoredReads.push(placement);
+         logForDebugging(`[Sandbox Linux] Re-allowed read access within denied region: ${allowPath}`);
+     }
++    // Bind each write path a re-allowed read path covers back on top, so a
++    // read-only ancestor leaves the writable paths below it writable.
++    for (const writePath of allowedWritePaths) {
++        if (restoredReads.some(r => isAtOrUnder(writePath, r.dest) && writePath !== r.dest)) {
++            args.push('--bind', writePath, writePath);
++            logForDebugging(`[Sandbox Linux] Re-bound write path below a re-allowed read path: ${writePath}`);
++        }
++    }
+     return { restoredWrites, restoredReads };
+ }
+ /**

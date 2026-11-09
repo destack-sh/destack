@@ -30,5 +30,8 @@
     "overrides": {
         "@solidjs/compiler": "2.0.0-rc.8",
         "@solidjs/babel-plugin": "2.0.0-rc.8"
+    },
+    "patchedDependencies": {
+        "@anthropic-ai/sandbox-runtime@0.0.77": "patches/@anthropic-ai%2Fsandbox-runtime@0.0.77.patch"
     }
 }
