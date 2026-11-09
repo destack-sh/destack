@@ -178,9 +178,17 @@ export class PlatformBuild implements AsyncDisposable {
         await this.store.writeLayer(manifests, CLOUD_RUNTIMES, directory, "addressed");
     }
 
-    /** Write the distribution to a directory as computers ship it: its manifest and its layer. */
+    /** Write the distribution's manifest, the releases computers pin, to a directory. */
     async writeDistribution(directory: string): Promise<void> {
-        // write the releases' builds with what they run as the distribution's layer
+        // write the manifest into the directory, created if new
+        const { files } = this.store.environment;
+        const text = JSON.stringify(DistributionManifest.parse(await this.distribution()));
+        await files.mkdir(directory, { recursive: true });
+        await files.writeTextFile(join(directory, DISTRIBUTION_MANIFEST), text);
+    }
+
+    /** Write the releases with what computers run as a layer, as local cloud machines read it. */
+    async writeLayer(directory: string): Promise<void> {
         const distribution = await this.distribution();
         const manifests = distribution.releases.map((release) => release.manifest);
         await this.store.writeLayer(
@@ -188,11 +196,6 @@ export class PlatformBuild implements AsyncDisposable {
             COMPUTER_RUNTIMES,
             join(directory, DISTRIBUTION_LAYER),
         );
-
-        // write the manifest beside it
-        const { files } = this.store.environment;
-        const text = JSON.stringify(DistributionManifest.parse(distribution));
-        await files.writeTextFile(join(directory, DISTRIBUTION_MANIFEST), text);
     }
 
     /** List the stacks spaces people create are born with, following the stack package's tag. */

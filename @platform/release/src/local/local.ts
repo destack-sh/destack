@@ -181,6 +181,7 @@ export class LocalUniverse implements AsyncDisposable {
         // write the distribution once, then start each residency's cloud machine shipping it
         const directory = LocalUniverse.#distribution(options);
         await build.writeDistribution(directory);
+        await build.writeLayer(directory);
         const { environment } = build.store;
         const distribution = {
             shipped: await BunDistribution.read(directory, environment.files),
@@ -249,7 +250,7 @@ export class LocalUniverse implements AsyncDisposable {
         // erase the local stage's machine, refused while it runs, then the database and the state files
         await Computer.erase(
             options.home.directory,
-            (service) => new BunKeychain(service, environment.files),
+            (service) => new BunKeychain(service, environment.files, { kind: "system" }),
             environment,
         );
         await LocalUniverse.drop(options);
