@@ -266,7 +266,7 @@ export class TestMessage {
     static async #write(hosted: TestSpace): Promise<MessageWorld> {
         // install the vault, message and documents, then stop serving, as the machine does once installations change
         const installing = await hosted.serve();
-        await hosted.install(installing, VAULT.build, { isolation: "process" });
+        await hosted.install(installing, VAULT.build, { isolation: "host" });
         const installation = await hosted.install(installing, MESSAGE.build, {
             capabilities: [DELIVER_CAPABILITY],
         });
