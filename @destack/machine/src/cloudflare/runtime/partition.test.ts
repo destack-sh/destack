@@ -49,7 +49,7 @@ async function start(): Promise<Miniflare> {
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
         bindings: {
-            DESTACK_JURISDICTION: "local",
+            DESTACK_JURISDICTION: "none",
             MODULE: workload,
             MODULE_NAME: MODULE,
             SPACE,

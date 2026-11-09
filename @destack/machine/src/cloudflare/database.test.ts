@@ -31,7 +31,7 @@ async function start(): Promise<Miniflare> {
         script,
         compatibilityDate: WORKERD_COMPATIBILITY_DATE,
         compatibilityFlags: ["nodejs_compat"],
-        bindings: { DESTACK_JURISDICTION: "local" },
+        bindings: { DESTACK_JURISDICTION: "none" },
         durableObjects: {
             PARTITION: { className: "Partition", useSQLite: true },
         },
