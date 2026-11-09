@@ -1,7 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
+import { BunEnvironment } from "@destack/environment/bun";
 import { schema } from "@destack/schema";
 
 /** The repository root. */
@@ -11,20 +11,24 @@ const generatedFile = join(
     repositoryDirectory,
     "@platform/site/src/view/content/generated/release.ts",
 );
+/** The host the script reads and writes files on. */
+const environment = BunEnvironment.system;
+/** The file system the module is read from and written to. */
+const { files } = environment;
 /** Whether this run checks the generated files instead of writing them. */
-const isCheck = process.argv.includes("--check");
+const isCheck = environment.process.arguments.includes("--check");
 
 // read the repository's calendar version and the release's stability
 /** The release version. */
 const { version } = schema
     .looseObject({ version: schema.string().regex(/^\d{4}\.(?:[1-9]|1[0-2])\.\d+$/u) })
-    .parse(JSON.parse(readFileSync(join(repositoryDirectory, "package.json"), "utf8")));
+    .parse(JSON.parse(await files.readTextFile(join(repositoryDirectory, "package.json"))));
 /** The release stability. */
 const { stability } = schema
     .object({ stability: schema.enum(["experimental", "alpha", "beta", "stable"]) })
     .parse(
         JSON.parse(
-            readFileSync(join(repositoryDirectory, "@platform/release/config.json"), "utf8"),
+            await files.readTextFile(join(repositoryDirectory, "@platform/release/config.json")),
         ),
     );
 
@@ -40,18 +44,18 @@ const generatedSource = await formatSource(
 
 // check or replace the generated module
 if (isCheck) {
-    requireGeneratedFile(generatedFile, generatedSource);
+    await requireGeneratedFile(generatedFile, generatedSource);
 } else {
-    writeGeneratedFile(generatedFile, generatedSource);
+    await writeGeneratedFile(generatedFile, generatedSource);
 }
 
 /** Require one generated file to match its expected contents. */
-function requireGeneratedFile(file: string, source: string) {
-    if (!existsSync(file)) {
+async function requireGeneratedFile(file: string, source: string) {
+    if (!(await files.exists(file))) {
         throw new Error(`missing generated release file: ${file}`);
     }
 
-    const current = readFileSync(file, "utf8");
+    const current = await files.readTextFile(file);
     if (current !== source) {
         throw new Error(
             "generated release metadata is out of date, run `just @platform/site/generate`",
@@ -60,10 +64,10 @@ function requireGeneratedFile(file: string, source: string) {
 }
 
 /** Atomically replace one generated file. */
-function writeGeneratedFile(file: string, source: string) {
+async function writeGeneratedFile(file: string, source: string) {
     // write a temporary file beside the target and rename it into place
-    mkdirSync(dirname(file), { recursive: true });
-    const temporaryFile = `${file}.${process.pid}.tmp`;
-    writeFileSync(temporaryFile, source);
-    renameSync(temporaryFile, file);
+    await files.mkdir(dirname(file), { recursive: true });
+    const temporaryFile = `${file}.${environment.process.id}.tmp`;
+    await files.writeTextFile(temporaryFile, source);
+    await files.rename(temporaryFile, file);
 }

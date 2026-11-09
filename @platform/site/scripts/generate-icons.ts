@@ -1,6 +1,9 @@
-import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { BunEnvironment } from "@destack/environment/bun";
+
+/** The file system the icons are written to. */
+const { files } = BunEnvironment.system;
 
 /** The directory the site serves its icons from. */
 const OUTPUT = join(dirname(fileURLToPath(import.meta.url)), "..", "public", "diagram");
@@ -284,12 +287,12 @@ const icons: Readonly<Record<string, readonly Layer[]>> = {
 /** Write every icon twice: two-tone beside the others, solid under `fill/`. */
 async function generate(): Promise<void> {
     // make room for the solid icons
-    await mkdir(join(OUTPUT, "fill"), { recursive: true });
+    await files.mkdir(join(OUTPUT, "fill"), { recursive: true });
 
     // write both styles of each icon
     for (const [name, layers] of Object.entries(icons)) {
-        await writeFile(join(OUTPUT, `${name}.svg`), render(layers, "tone"));
-        await writeFile(join(OUTPUT, "fill", `${name}.svg`), render(layers, "solid"));
+        await files.writeTextFile(join(OUTPUT, `${name}.svg`), render(layers, "tone"));
+        await files.writeTextFile(join(OUTPUT, "fill", `${name}.svg`), render(layers, "solid"));
     }
 }
 

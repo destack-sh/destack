@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { highlightCode } from "../src/view/content/markdown/highlight.ts";
+import { BunEnvironment } from "@destack/environment/bun";
 
 /** A TypeScript snippet. */
 const typescriptSource = `const port: number = 300;`;
@@ -43,4 +44,4 @@ assert.deepEqual(highlightCode(typescriptSource, "typescript"), expectedTypescri
 
 // keep plain text as one text node, metacharacters and all
 assert.deepEqual(highlightCode('a < b && "c"', "text"), [{ type: "text", value: 'a < b && "c"' }]);
-process.stdout.write("highlighting tests passed\n");
+BunEnvironment.system.process.stdout.writeSync("highlighting tests passed\n");

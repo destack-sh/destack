@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 import { renderMarkdown } from "../src/view/content/markdown/markdown.ts";
+import { BunEnvironment } from "@destack/environment/bun";
 
 /** A page with a fence, an alert, a quotation, a footnote, a table, a figure and an abstract. */
 const page = `## Setup
@@ -150,4 +151,4 @@ assert.deepEqual(
     [element(8).tagName, element(8).properties],
     ["section", { dataFootnotes: true, className: ["footnotes"] }],
 );
-process.stdout.write("markdown tests passed\n");
+BunEnvironment.system.process.stdout.writeSync("markdown tests passed\n");
