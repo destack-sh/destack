@@ -11,7 +11,7 @@ variable "account_id" {
   type        = string
 }
 variable "residency" {
-  description = "Storage jurisdiction."
+  description = "The residency's code, which is also its storage jurisdiction."
   type        = string
   validation {
     condition     = contains(["eu", "us"], var.residency)

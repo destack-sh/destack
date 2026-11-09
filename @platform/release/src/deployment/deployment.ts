@@ -228,7 +228,7 @@ export class Deployment {
 
     /** The jurisdiction keeping a residency's objects and files: none locally, as in workerd. */
     jurisdiction(residency: PlatformResidency): Jurisdiction {
-        return this.stage.name === "local" ? "local" : residency.jurisdiction;
+        return this.stage.name === "local" ? "none" : residency.jurisdiction;
     }
 
     /** Where the stage's Workers send mail: through SES in production, else to their own logs. */

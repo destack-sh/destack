@@ -204,7 +204,7 @@ export class WorkerScript {
     machine(outputs: ResidencyOutputs, residency: PlatformResidency): WranglerConfiguration {
         // keep the objects, the files and the builds in the residency's jurisdiction
         const kept = this.deployment.jurisdiction(residency);
-        const jurisdiction = kept === "local" ? {} : { jurisdiction: kept };
+        const jurisdiction = kept === "none" ? {} : { jurisdiction: kept };
         const universe = new WorkerScript(this.deployment, { kind: "universe" });
         const tail = new WorkerScript(this.deployment, { kind: "tail", residency });
 
