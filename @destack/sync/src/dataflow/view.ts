@@ -20,7 +20,7 @@ import {
 } from "@destack/db";
 import type { Node } from "../query/node.ts";
 import type { Audience } from "../feed/audience.ts";
-import type { RowChange } from "../query/page.ts";
+import type { Encoding } from "./sink.ts";
 import type { Run } from "./run.ts";
 import { Tally, type TallyReading } from "./tally.ts";
 import type { Clock } from "@destack/environment";
@@ -594,7 +594,7 @@ export interface Cache {
     /** The shared reads of single rows by compound key. */
     readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings of selected rows. */
-    readonly encodings: Memo<RowChange>;
+    readonly encodings: Memo<Encoding>;
     /** Read a table's row images before their first change between two sequences, by key. */
     readonly images: (
         table: Table,
@@ -631,7 +631,7 @@ class ViewCache implements Cache {
     /** The shared reads of single rows. */
     readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings. */
-    readonly encodings: Memo<RowChange>;
+    readonly encodings: Memo<Encoding>;
     /** The images of the log's changes, read once. */
     readonly #rewind: Rewind;
 
@@ -642,7 +642,7 @@ class ViewCache implements Cache {
         this.windows = new Memo<Promise<Window>>(1);
         this.clock = database.state.clock;
         this.row = new Memo<Promise<Row | null>>(1);
-        this.encodings = new Memo<RowChange>(1);
+        this.encodings = new Memo<Encoding>(1);
 
         // read images through the log
         this.#rewind = database.log.rewind();

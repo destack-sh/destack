@@ -7,6 +7,15 @@ import type { Cache } from "./view.ts";
 import type { Run, Touch } from "./run.ts";
 import type { Result } from "./tally.ts";
 
+/** The offset bases of the two FNV-1a passes a row's image digest combines. */
+const FNV_OFFSETS = [2_166_136_261, 3_323_878_721] as const;
+
+/** FNV-1a's 32-bit prime. */
+const FNV_PRIME = 16_777_619;
+
+/** The bits the second pass adds below the first's, keeping the digest within 53 exact bits. */
+const LOW_BITS = 21;
+
 /** What the subscriber has: each row with its table and count, and each shown group. */
 export class Sink {
     /** Each row's table and how many members and chains retain it, by key. */
@@ -209,13 +218,19 @@ export class Patch {
         this.results.set(node.name, { query: node.name, group: null, values: null });
     }
 
-    /** Encode the patch into a page at a position without concealed columns. */
+    /** Encode the patch into a page without concealed columns or rows held as they are. */
     async page(
         position: LogPosition,
         audience: Audience,
         cache: Cache,
+        record: ViewRecord,
         flags: { readonly reset: boolean; readonly complete: boolean },
     ): Promise<Page> {
+        // start over on a reset, which replaces everything the subscriber holds
+        if (flags.reset) {
+            record.clear();
+        }
+
         // group the decisions by table
         const byTable = new Map<Table, [string, Decision][]>();
         for (const [key, decision] of this.rows) {
@@ -235,22 +250,29 @@ export class Patch {
             );
             let index = 0;
             for (const [key, decision] of decisions) {
-                changes.push(
-                    decision.operation === "delete"
-                        ? {
-                              table: table[TABLE].sqlName,
-                              operation: "delete",
-                              row: table[TABLE].encode(Patch.#key(table, decision.row)),
-                          }
-                        : Patch.#encode(
-                              table,
-                              key,
-                              decision,
-                              nth(hidden, index++),
-                              position,
-                              cache,
-                          ),
+                // let go of a deleted row
+                if (decision.operation === "delete") {
+                    record.forget(key);
+                    changes.push({
+                        table: table[TABLE].sqlName,
+                        operation: "delete",
+                        row: table[TABLE].encode(Patch.#key(table, decision.row)),
+                    });
+                    continue;
+                }
+
+                // send a row whose image differs from the one the subscriber holds
+                const encoded = Patch.#encode(
+                    table,
+                    key,
+                    decision,
+                    nth(hidden, index++),
+                    position,
+                    cache,
                 );
+                if (record.update(key, encoded.image)) {
+                    changes.push(encoded.change);
+                }
             }
         }
 
@@ -299,7 +321,7 @@ export class Patch {
         return patch;
     }
 
-    /** Encode a selected row's logged columns at a position without concealed ones. */
+    /** Encode a selected row's logged columns without concealed ones, and its image. */
     static #encode(
         table: Table,
         key: string,
@@ -307,16 +329,22 @@ export class Patch {
         concealed: readonly string[],
         position: LogPosition,
         cache: Cache,
-    ): RowChange {
+    ): Encoding {
         return cache.encodings.share(
             position.sequence,
             `encoded:${key}:${decision.operation}:${concealed.join(",")}`,
-            () => ({
-                table: table[TABLE].sqlName,
-                operation: decision.operation,
-                row: table[TABLE].encodeLogged(decision.row, concealed),
-                ...(concealed.length === 0 ? {} : { concealed: [...concealed] }),
-            }),
+            () => {
+                // encode the row once for every subscriber, digesting the image they hold
+                const row = table[TABLE].encodeLogged(decision.row, concealed);
+                const change: RowChange = {
+                    table: table[TABLE].sqlName,
+                    operation: decision.operation,
+                    row,
+                    ...(concealed.length === 0 ? {} : { concealed: [...concealed] }),
+                };
+
+                return { change, image: ViewRecord.digest(JSON.stringify([row, concealed])) };
+            },
         );
     }
 
@@ -328,6 +356,14 @@ export class Patch {
     }
 }
 
+/** A row's change as a page sends it, with the digest of the image it shows. */
+export interface Encoding {
+    /** The change. */
+    readonly change: RowChange;
+    /** The digest of the row's image: its logged columns and what they conceal. */
+    readonly image: number;
+}
+
 /** One row decision of a page. */
 export interface Decision {
     /** The row's table. */
@@ -336,4 +372,45 @@ export interface Decision {
     readonly row: Row;
     /** Whether the row enters, changes or leaves. */
     readonly operation: RowChange["operation"];
+}
+
+/** The images of the rows a subscriber holds, by key, as digests: a client view record. */
+export class ViewRecord {
+    /** The digest of each held row's image, by key. */
+    readonly #images = new Map<string, number>();
+
+    /** Record a row's image, reporting whether it differs from the one held. */
+    update(key: string, image: number): boolean {
+        // compare the image's digest with the held one
+        if (this.#images.get(key) === image) {
+            return false;
+        }
+        this.#images.set(key, image);
+
+        return true;
+    }
+
+    /** Forget a row the subscriber let go of. */
+    forget(key: string): void {
+        this.#images.delete(key);
+    }
+
+    /** Forget every row, as a reset replaces them. */
+    clear(): void {
+        this.#images.clear();
+    }
+
+    /** Digest a text in 53 bits: two 32-bit FNV-1a passes, the second below the first. */
+    static digest(text: string): number {
+        // fold each code unit into both passes with exact 32-bit products
+        let high: number = FNV_OFFSETS[0];
+        let low: number = FNV_OFFSETS[1];
+        for (let index = 0; index < text.length; index += 1) {
+            const unit = text.charCodeAt(index);
+            high = Math.imul(high ^ unit, FNV_PRIME);
+            low = Math.imul(low ^ unit, FNV_PRIME);
+        }
+
+        return (high >>> 0) * 2 ** LOW_BITS + ((low >>> 0) >>> (32 - LOW_BITS));
+    }
 }

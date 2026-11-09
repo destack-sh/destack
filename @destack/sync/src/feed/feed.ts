@@ -15,6 +15,7 @@ import {
 } from "@destack/db";
 import { SyncError } from "../error/error.ts";
 import type { Page, RowChange } from "../query/page.ts";
+import type { Encoding } from "../dataflow/sink.ts";
 import type { Query, Item } from "../query/query.ts";
 import type { AggregateGroup } from "../query/aggregate.ts";
 import { Node } from "../query/node.ts";
@@ -111,7 +112,7 @@ export class Feed implements Cache {
     /** The shared reads of single rows by sequence and key. */
     readonly row: Memo<Promise<Row | null>>;
     /** The shared encodings by sequence and key. */
-    readonly encodings: Memo<RowChange>;
+    readonly encodings: Memo<Encoding>;
     /** The shared images by sequence and range. */
     readonly #images: Memo<Promise<ReadonlyMap<string, Row | null>>>;
 
@@ -144,7 +145,7 @@ export class Feed implements Cache {
         this.rows = new Memo<Promise<readonly Row[]>>(MEMO_SEQUENCES);
         this.windows = new Memo<Promise<Window>>(MEMO_SEQUENCES);
         this.row = new Memo<Promise<Row | null>>(MEMO_SEQUENCES);
-        this.encodings = new Memo<RowChange>(MEMO_SEQUENCES);
+        this.encodings = new Memo<Encoding>(MEMO_SEQUENCES);
         this.#images = new Memo<Promise<ReadonlyMap<string, Row | null>>>(MEMO_SEQUENCES);
 
         // store the logged tables and the limits

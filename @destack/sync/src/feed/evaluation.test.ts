@@ -5,6 +5,7 @@ import { first, note, open, project, START } from "../test/fixture.ts";
 import { type Audience, Watch } from "./audience.ts";
 import { Evaluation } from "./evaluation.ts";
 import { Feed } from "./feed.ts";
+import type { Page, RowChange } from "../query/page.ts";
 import { ConditionAudience } from "./test/audience.ts";
 import { SimulatedClock, Simulation } from "@destack/environment/simulation";
 
@@ -43,14 +44,16 @@ class SwitchingAudience implements Audience {
         return this.#current.visible(table, rows);
     }
 
-    /** List no concealed columns. */
-    concealable(): readonly string[] {
-        return [];
+    /** List the columns either conditions may hide. */
+    concealable(table: Table): readonly string[] {
+        return [
+            ...new Set([...this.#current.concealable(table), ...this.#next.concealable(table)]),
+        ];
     }
 
-    /** Conceal nothing. */
-    async conceals(_table: Table, rows: readonly Row[]): Promise<readonly (readonly string[])[]> {
-        return rows.map(() => []);
+    /** Hide the columns the current conditions hide. */
+    conceals(table: Table, rows: readonly Row[]): Promise<readonly (readonly string[])[]> {
+        return this.#current.conceals(table, rows);
     }
 
     /** Decide the same at every time. */
@@ -216,6 +219,70 @@ test("send the rows an audience shows after deciding again at the same position"
         ["insert", "b"],
         ["delete", "a"],
     ]);
+});
+
+/** Show every open note, hiding the subtitle of one. */
+function hiding(id: string): ConditionAudience {
+    return new ConditionAudience(
+        new Map([[note, { title: "Open" }]]),
+        new Map([[note, { when: { id }, columns: ["subtitle"] }]]),
+    );
+}
+
+/** Read each change's operation, note and subtitle as the subscriber sees them. */
+function imagesOf(changes: readonly RowChange[]) {
+    return changes.map((change) => [
+        change.operation,
+        change.row["id"],
+        change.row["subtitle"] ?? null,
+    ]);
+}
+
+test("send only the rows whose image changes when deciding again, their concealment among them", async () => {
+    await using simulation = new Simulation({ seed: 1, start: START });
+    const database = await open({ simulation });
+    const feed = new Feed(database, [note]);
+    await database.transaction(
+        async (transaction) =>
+            await transaction.insert(note).values([
+                { ...first, id: "a", title: "Open", subtitle: "one" },
+                { ...first, id: "b", title: "Open", subtitle: "two" },
+                { ...first, id: "c", title: "Open", subtitle: "three" },
+            ]),
+    );
+
+    // show every note, hiding the subtitle of b, then of c once the audience decides again
+    const evaluation = new Evaluation(
+        feed,
+        { notes: { table: note, scopes: ["inbox"] } },
+        new SwitchingAudience(hiding("b"), hiding("c")),
+    );
+    const position = await database.log.position();
+    const walked = evaluation.walk(new View(database, position, feed), "snapshot");
+    const sent: Page[] = [];
+    for (let step = await walked.next(); ; step = await walked.next()) {
+        sent.push(step.value);
+        if (step.done === true) {
+            break;
+        }
+    }
+
+    // send b shown and c hidden, and nothing of a, whose image stays the same
+    const page = await evaluation.redecide(position, true, []);
+    expect({
+        sent: imagesOf(sent.flatMap((each) => each.changes)),
+        redecided: imagesOf(page.changes),
+    }).toEqual({
+        sent: [
+            ["insert", "a", "one"],
+            ["insert", "b", null],
+            ["insert", "c", "three"],
+        ],
+        redecided: [
+            ["update", "b", "two"],
+            ["update", "c", null],
+        ],
+    });
 });
 
 test("read shared windows again once their decisions expire, under one key", async () => {

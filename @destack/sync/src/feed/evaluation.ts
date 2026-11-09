@@ -5,7 +5,7 @@ import type { Node } from "../query/node.ts";
 import type { Page } from "../query/page.ts";
 import { Dataflow, type DataflowInspection } from "../dataflow/dataflow.ts";
 import { Run, type Walk } from "../dataflow/run.ts";
-import { type Decision, Patch } from "../dataflow/sink.ts";
+import { type Decision, Patch, ViewRecord } from "../dataflow/sink.ts";
 import { View } from "../dataflow/view.ts";
 import { type Audience, Watch } from "./audience.ts";
 import type { Feed } from "./feed.ts";
@@ -31,6 +31,8 @@ export class Evaluation {
     readonly #feed: Feed;
     /** Who the evaluation serves. */
     readonly #audience: Audience;
+    /** The images of the rows the subscriber holds, by which pages leave out unchanged rows. */
+    readonly #record = new ViewRecord();
     /** The decided pages after each recent sequence. */
     readonly #decided: Map<number, Promise<Advance>>;
     /** The sequences with final decisions and their expiry. */
@@ -211,7 +213,10 @@ export class Evaluation {
         const after = await this.collect(view);
         const patch = Patch.difference(before, after, previous.nodes, () => false);
 
-        return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
+        return patch.page(position, this.#audience, this.#feed, this.#record, {
+            reset: false,
+            complete: false,
+        });
     }
 
     /** Move to other queries at the current position. */
@@ -267,7 +272,10 @@ export class Evaluation {
         // send what entered and left the union at the position
         const patch = this.#union([released, ...patches], "snapshot");
 
-        return patch.page(position, this.#audience, this.#feed, { reset: false, complete: false });
+        return patch.page(position, this.#audience, this.#feed, this.#record, {
+            reset: false,
+            complete: false,
+        });
     }
 
     /** Decide the subscriber's rows again, sending the difference and the changed rows. */
@@ -293,7 +301,7 @@ export class Evaluation {
             (table, key) => changed.has(key) || this.#audience.concealable(table).length > 0,
         );
 
-        return patch.page(position, this.#audience, this.#feed, {
+        return patch.page(position, this.#audience, this.#feed, this.#record, {
             reset: false,
             complete: isComplete,
         });
@@ -344,7 +352,7 @@ export class Evaluation {
                 }
                 const patch = this.#union(patches, undefined);
                 if (patch.size > 0) {
-                    yield await patch.page(position, this.#audience, this.#feed, {
+                    yield await patch.page(position, this.#audience, this.#feed, this.#record, {
                         reset: false,
                         complete: isComplete,
                     });
@@ -384,10 +392,16 @@ export class Evaluation {
                 if (walk === "snapshot" && run.patch.size >= this.#feed.pageSize) {
                     await this.#feed.scheduler.yield();
                     const patch = this.#union(pending.splice(0), walk);
-                    yield await patch.page(view.position, this.#audience, this.#feed, {
-                        reset: isFirst,
-                        complete: false,
-                    });
+                    yield await patch.page(
+                        view.position,
+                        this.#audience,
+                        this.#feed,
+                        this.#record,
+                        {
+                            reset: isFirst,
+                            complete: false,
+                        },
+                    );
                     isFirst = false;
                     run.patch.drain();
                     pending.push(run.patch);
@@ -400,7 +414,7 @@ export class Evaluation {
         const patch = this.#union(pending, walk);
         this.#rememberRows();
 
-        return await patch.page(view.position, this.#audience, this.#feed, {
+        return await patch.page(view.position, this.#audience, this.#feed, this.#record, {
             reset: isFirst,
             complete: false,
         });
