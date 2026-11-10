@@ -23,9 +23,6 @@ import { ObjectWatch, type ObjectReconciliation } from "../object/controller.ts"
 import { defineObject } from "../object/object.ts";
 import { Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
 
-/** Whose grant an approved change's call runs under: its requester's, or its approver's. */
-export const CHANGE_AUTHORITIES = ["requester", "approver"] as const;
-
 /** A call one principal asks others to approve, made once approved as requester or approver. */
 export const changeRequest = defineObject(
     {
@@ -36,8 +33,8 @@ export const changeRequest = defineObject(
         fields: {
             /** The principal asking for the change. */
             requester: field.subject().caller().immutable(),
-            /** Whose grant the call runs under: the requester's, or an approver's. */
-            as: field.enum(CHANGE_AUTHORITIES).immutable().default("requester"),
+            /** The approver the call runs as, else the requester (SQL's EXECUTE AS). */
+            as: field.subject().open().immutable().optional(),
             /** The call the change makes once approved. */
             call: field.json(Call).immutable(),
             /** The actors the requester called through, none for a direct call. */
@@ -86,10 +83,14 @@ export const changeRequest = defineObject(
                 relation("requester"),
                 through("scope", "manage"),
             ),
-            // the object's approvers and the space's managers approve it
-            approve: union(through("parent", "approve"), through("scope", "manage")),
-            // the object's approvers, and anyone reading the space for a call its grant gives once approved
-            open: union(through("parent", "approve"), through("scope", "read")),
+            // the object's approvers, the space's managers, and the approver the call runs as approve it
+            approve: union(
+                through("parent", "approve"),
+                through("scope", "manage"),
+                relation("as"),
+            ),
+            // the object's approvers, anyone reading the space, and the approver the call runs as open it
+            open: union(through("parent", "approve"), through("scope", "read"), relation("as")),
             // the change's code advances it through its role, and its requester withdraws it
             advance: none(),
             withdraw: relation("requester"),
@@ -99,7 +100,17 @@ export const changeRequest = defineObject(
     },
     (method) => ({
         create: method.create("open", {
-            fields: ["call", "count", "as", "stepUp", "grant"],
+            fields: [
+                "call",
+                "count",
+                "asPackageId",
+                "asType",
+                "asScope",
+                "asId",
+                "asRelation",
+                "stepUp",
+                "grant",
+            ],
             input: schema.object({
                 /** The principals or subject sets asked, the grant delegator when absent. */
                 approvers: schema.array(Subject).min(1).exactOptional(),
@@ -110,25 +121,34 @@ export const changeRequest = defineObject(
 ).implement({
     methods: {
         create: async (context, next) => {
-            // refuse the acting principal asking itself, as a pull request's author cannot
+            // ask the approvers given, the approver the call runs as, or those the caller's kind of request asks
             const { subject, actors } = context.caller;
-            const acting = actors.at(-1) ?? subject;
-            const given = context.input.approvers;
-            if (given?.some((each) => Subject.same(each, acting)) === true) {
+            const as =
+                context.input.asId === undefined ? undefined : ChangeRequest.as(context.input);
+            const approvers =
+                context.input.approvers ??
+                (as === undefined ? ChangeRequest.approvers(context.caller) : [as]);
+            const count = context.input.count ?? 1;
+            ApprovalQuorum.require(count, approvers.length);
+
+            // refuse a change run as anyone but its one approver
+            const [only, ...others] = approvers;
+            if (
+                as !== undefined &&
+                (only === undefined || others.length > 0 || !Subject.same(only, as))
+            ) {
                 throw ObjectError.of(
-                    "SELF_APPROVAL",
-                    "a requester cannot approve their own change",
+                    "APPROVERS_INVALID",
+                    "a change run as an approver asks exactly that approver",
                 );
             }
 
-            // ask the approvers given, or those the caller's kind of request asks
-            const approvers = given ?? ChangeRequest.approvers(context.caller);
-            const count = context.input.count ?? 1;
-            ApprovalQuorum.require(count, approvers.length);
-            if (context.input.as === "approver" && approvers.length !== 1) {
+            // refuse the acting principal asking itself, as a pull request's author cannot
+            const acting = actors.at(-1) ?? subject;
+            if (approvers.some((each) => Subject.same(each, acting))) {
                 throw ObjectError.of(
-                    "APPROVERS_INVALID",
-                    "a change run as its approver asks exactly one approver",
+                    "SELF_APPROVAL",
+                    "a requester cannot approve their own change",
                 );
             }
 
@@ -206,6 +226,18 @@ export class ChangeRequest {
         this.row = row;
     }
 
+    /** Read the approver a change runs as: a principal, or a subject set by its relation. */
+    static as(
+        row: Parameters<typeof ObjectReference.at<"as">>[1] & {
+            readonly asRelation?: string | null;
+        },
+    ): Subject {
+        const as = ObjectReference.at("as", row);
+        const set = row.asRelation;
+
+        return set === undefined || set === null ? as : { ...as, relation: set };
+    }
+
     /** Ask a delegated caller's delegator, refusing a direct caller naming no approvers. */
     static approvers(caller: Caller): readonly Subject[] {
         // ask the person whose grant the delegated caller acts within
@@ -264,20 +296,25 @@ export class ChangeRequest {
         const approvals = await this.#approvals(ChangeRequest.#reader(context));
         const approved = approvals.filter((row) => row.state === "approved");
         let caller: AccessContext;
-        if (this.row.as === "requester") {
+        if (this.row.asId === null) {
             const subject = ObjectReference.at("requester", this.row);
             const chain = { subject, actors: this.row.actors };
             const acting = await Grant.chain(ChangeRequest.#reader(context), chain, context.now);
             const approvers = approved.map((row) => Approval.decider(row));
             caller = AccessContext.of(acting, context.now, { approvers });
         }
-        // run an elevation's call as its one approver, acting directly, refusing approvals added since
+        // run the call as the approver it names, acting directly, refusing approvals added since
         else {
             const [decided, ...added] = approved;
-            if (decided === undefined || added.length > 0 || approvals.length > 1) {
+            if (
+                decided === undefined ||
+                added.length > 0 ||
+                approvals.length > 1 ||
+                !Subject.same(Approval.asked(decided), ChangeRequest.as(this.row))
+            ) {
                 throw ObjectError.of(
                     "APPROVERS_INVALID",
-                    "a change run as its approver asks exactly one approver",
+                    "a change run as an approver asks exactly that approver",
                 );
             }
             const credential = Credential.approval(

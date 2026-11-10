@@ -25,7 +25,7 @@ async function openChange(
         readonly call: ReturnType<typeof note.call>;
         readonly approvers?: readonly Subject[];
         readonly count?: number;
-        readonly as?: "requester" | "approver";
+        readonly as?: Subject;
     },
 ): Promise<string> {
     const { id, call, approvers, count, as } = input;
@@ -39,7 +39,7 @@ async function openChange(
             call,
             ...(approvers === undefined ? {} : { approvers: [...approvers] }),
             ...(count === undefined ? {} : { count }),
-            ...(as === undefined ? {} : { as }),
+            ...(as === undefined ? {} : ObjectReference.columns("as", as)),
         });
 
     return opened.id;
@@ -188,13 +188,13 @@ test("publish alice's note as alice once she approves bob's elevated change, and
     const fixture = await openApprovals();
     const id = await fixture.write();
     const scope = fixture.served.scope;
-    const ask = async (as: "requester" | "approver") => {
-        const publish = note.call("publish", { scope, id, title: as });
+    const ask = async (runAs: "approver" | "requester") => {
+        const publish = note.call("publish", { scope, id, title: runAs });
         const change = await openChange(fixture, bob, {
             id,
             call: publish,
             approvers: [alice],
-            as,
+            ...(runAs === "approver" ? { as: alice } : {}),
         });
         await fixture.decide(alice, await asked(fixture, change, alice), "approve");
 
@@ -281,7 +281,14 @@ test("gate alice's agent archiving her note on her step-up, refuse her approval 
     const stepUp = { assurance: 2, maxAge: 15 * 60_000 };
     const [opened] = await fixture.served.store.mutate(acting, {
         id: RequestId.create(fixture.environment),
-        calls: [changeRequest.call("create", { scope, call: archive, as: "approver", stepUp })],
+        calls: [
+            changeRequest.call("create", {
+                scope,
+                call: archive,
+                ...ObjectReference.columns("as", alice),
+                stepUp,
+            }),
+        ],
     });
     const change = present(opened, "the change").id;
     const asking = await asked(fixture, change, alice);
@@ -322,6 +329,43 @@ test("gate alice's agent archiving her note on her step-up, refuse her approval 
         ],
         ["applied", null],
         "Archived",
+    ]);
+});
+
+test("let bob's agent ask bob to make a call as himself in a space he cannot read, decided by bob alone", async () => {
+    // let bob's agent publish alice's notes once approved and open change requests for him
+    const fixture = await openApprovals();
+    const id = await fixture.write();
+    const scope = fixture.served.scope;
+    const agent = agentOf(scope);
+    const grantId = await fixture.grant(bob, agent, [
+        { ...note.permission("publish"), scope },
+        { ...changeRequest.permission("open"), scope },
+    ]);
+    const acting = AccessContext.of(
+        { ...Caller.of(bob), actors: [agent], grants: [{ id: grantId, scope: bob.id }] },
+        fixture.served.store.clock.now(),
+    );
+
+    // open the agent's change asking bob to publish as himself, and approve it as bob
+    const publish = note.call("publish", { scope, id, title: "Final" });
+    const [opened] = await fixture.served.store.mutate(acting, {
+        id: RequestId.create(fixture.environment),
+        calls: [
+            changeRequest.call("create", {
+                scope,
+                call: publish,
+                ...ObjectReference.columns("as", bob),
+            }),
+        ],
+    });
+    const change = present(opened, "the change").id;
+    await fixture.decide(bob, await asked(fixture, change, bob), "approve");
+
+    // make the call as bob, whose own authority refuses publishing alice's note
+    expect([await settled(fixture, change), await title(fixture)]).toEqual([
+        ["failed", "PERMISSION_DENIED"],
+        "Plan",
     ]);
 });
 
@@ -462,7 +506,7 @@ test("refuse a requester asking to approve their own change, asking nobody, aski
                     id,
                     call: rename,
                     approvers: [bob, carol],
-                    as: "approver",
+                    as: bob,
                 }),
             ),
         ]),
@@ -475,7 +519,7 @@ test("refuse a requester asking to approve their own change, asking nobody, aski
         [
             "BAD_REQUEST",
             "APPROVERS_INVALID",
-            "a change run as its approver asks exactly one approver",
+            "a change run as an approver asks exactly that approver",
         ],
     ]);
 });
