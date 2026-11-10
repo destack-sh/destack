@@ -68,6 +68,17 @@ await writer.close();
 const options = { ...base, network: ["api.example.com", "*.example.org", "203.0.113.7:8443"] };
 ```
 
+## Tools
+
+A Linux release runs the `ripgrep` and `socat` it ships beside its programs, and a checkout runs the system's.
+
+```ts
+import { SandboxTool } from "@destack/sandbox";
+
+SandboxTool.path("ripgrep", environment.process, environment.host.os);
+// "<helpers>/rg" in a Linux release, else undefined
+```
+
 ## Refusals
 
 The proxy answers HTTP requests and HTTPS tunnels to a host outside `network` with status 403, and the operating system refuses direct connections.

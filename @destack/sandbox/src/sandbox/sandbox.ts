@@ -1,6 +1,7 @@
 import type { FamilyError } from "@destack/error";
 import type { Environment, ProcessChannel, Scheduler, Subprocess } from "@destack/environment";
 import { isAbsolute, join } from "node:path";
+import { SANDBOX_TOOLS, SandboxTool } from "./tools.ts";
 import { launcherCommand } from "../bun/command.ts";
 import { SandboxError, type SandboxReason } from "../error/index.ts";
 import { LauncherMessage, SandboxExit, SandboxOptions } from "./message.ts";
@@ -181,20 +182,37 @@ interface WatchedLauncher {
 }
 
 /** Refuse platforms without runtime paths and hosts missing the enforcement tools. */
-async function requireSupport(environment: Environment<"host">): Promise<void> {
+async function requireSupport(
+    environment: Environment<"host" | "process" | "files">,
+): Promise<void> {
     // load the upstream manager on first start as an operation, since it costs hundreds of milliseconds to import
     const [{ SandboxManager }, { RUNTIME_PATHS }] = await environment.scheduler.run(() =>
         Promise.all([import("@anthropic-ai/sandbox-runtime"), import("../launcher/launcher.ts")]),
     );
 
-    // refuse an unsupported platform or missing tools
+    // refuse an unsupported platform
     const { os } = environment.host;
     if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[os]) {
         throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${os}`);
     }
-    const dependencies = SandboxManager.checkDependencies();
-    if (dependencies.errors.length > 0) {
-        throw SandboxError.of("UNSUPPORTED", dependencies.errors.join("; "));
+
+    // require a release's own tools, as the launcher's manager checks bubblewrap
+    const shipped = SANDBOX_TOOLS.flatMap(
+        (tool) => SandboxTool.path(tool, environment.process, os) ?? [],
+    );
+    if (shipped.length > 0) {
+        for (const path of shipped) {
+            if (!(await environment.files.exists(path))) {
+                throw SandboxError.of("UNSUPPORTED", `the release lacks its sandbox tool ${path}`);
+            }
+        }
+    }
+    // require the system's tools otherwise
+    else {
+        const dependencies = SandboxManager.checkDependencies();
+        if (dependencies.errors.length > 0) {
+            throw SandboxError.of("UNSUPPORTED", dependencies.errors.join("; "));
+        }
     }
 }
 

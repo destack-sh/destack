@@ -11,6 +11,7 @@ import {
 } from "@destack/environment";
 import { SandboxError } from "../error/index.ts";
 import { LauncherRequest, type SandboxExit, type SandboxOptions } from "../sandbox/message.ts";
+import { SandboxTool } from "../sandbox/tools.ts";
 
 /** The system files every process reads, by platform. */
 export const RUNTIME_PATHS: Partial<Record<OperatingSystem, readonly string[]>> = {
@@ -85,14 +86,21 @@ export async function runLauncher(
             throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${host.os}`);
         }
 
+        // find a release's own tools
+        const ripgrep = SandboxTool.path("ripgrep", process, host.os);
+        const socat = SandboxTool.path("socat", process, host.os);
+
         // configure a fresh manager with no access to other application state
         await SandboxManager.initialize(
             {
+                ...(ripgrep === undefined ? {} : { ripgrep: { command: ripgrep } }),
+                ...(socat === undefined ? {} : { socatPath: socat }),
                 filesystem: {
                     denyRead: ["/"],
                     allowRead: [
                         ...runtime,
                         ...(helper === undefined ? [] : [helper]),
+                        ...(socat === undefined ? [] : [socat]),
                         options.executable,
                         ...options.read,
                         ...options.write,
