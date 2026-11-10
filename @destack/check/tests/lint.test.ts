@@ -38,6 +38,9 @@ const ENVIRONMENT_HOST = "/workspace/@destack/environment/src/file/bun.ts";
 /** A test module path of a Destack package. */
 const TEST = new URL("../src/note/note.test.ts", import.meta.url).pathname;
 
+/** The test runner's configuration at a package's root. */
+const TEST_CONFIGURATION = new URL("../vitest.config.ts", import.meta.url).pathname;
+
 tester.run("require-jsdoc", rules["require-jsdoc"], {
     valid: [
         "/** The note title. */\nexport const title = 1;",
@@ -894,6 +897,11 @@ tester.run("package-layout", rules["package-layout"], {
             settings: SETTINGS,
         },
         { code: 'import server from "@acme/notes/server";', filename: TEST, settings: SETTINGS },
+        {
+            code: 'import { viewTests } from "@destack/view/test";',
+            filename: TEST_CONFIGURATION,
+            settings: SETTINGS,
+        },
         { code: 'import { z } from "zod";', filename: SOURCE, settings: SETTINGS },
     ],
     invalid: [

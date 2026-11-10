@@ -4,6 +4,7 @@ import { formatPackage } from "./format.ts";
 import { configurePackage } from "./configuration.ts";
 import { CheckError } from "../error/index.ts";
 import { listAffected } from "../workspace/index.ts";
+import { Toolchain } from "../toolchain/index.ts";
 
 /** Run the shared package commands in an environment. */
 export async function main(environment: Environment<"files" | "process" | "host">): Promise<void> {
@@ -25,11 +26,12 @@ export async function main(environment: Environment<"files" | "process" | "host"
     // write direct-tool settings when requested
     const options = {
         directory: process.workingDirectory,
+        toolchain: Toolchain.workspace(),
         environment,
         ...(files.length ? { files } : {}),
     };
     if (command === "configure") {
-        await configurePackage(options.directory, environment.files);
+        await configurePackage(options.directory, options.toolchain, environment.files);
         return;
     }
 

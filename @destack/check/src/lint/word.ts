@@ -39,9 +39,13 @@ export function isDeclaredName(node: ESTree.Node): boolean {
     );
 }
 
-/** Report whether a path is a test module. */
+/** Report whether a path is a test module, or the test runner's configuration. */
 export function isTestFile(path: string): boolean {
-    return /\.test\.[cm]?[jt]sx?$/u.test(path) || /[\\/]tests[\\/]/u.test(path);
+    return (
+        /\.test\.[cm]?[jt]sx?$/u.test(path) ||
+        /[\\/]tests[\\/]/u.test(path) ||
+        /(?:^|[\\/])vitest\.config\.[cm]?[jt]s$/u.test(path)
+    );
 }
 
 /** Report whether a path is a module of a package's test kit, which only its tests import. */

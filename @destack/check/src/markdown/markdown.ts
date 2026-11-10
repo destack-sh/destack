@@ -181,7 +181,7 @@ function sentenceBoundaries(line: string): number[] {
     for (const match of masked.matchAll(/[.?!]["')\]*_]*\s+(?=[*_"([]*[A-Z`])/gu)) {
         const end = match.index + match[0].length;
         const before = masked.slice(0, match.index + 1);
-        const isListMarker = /^\s*\d+\.$/u.test(before);
+        const isListMarker = /^\s*(?:>\s*)*\d+\.$/u.test(before);
         if (!isListMarker && !ABBREVIATIONS.test(before) && !/(?:^|\s)[A-Z]\.$/u.test(before)) {
             breaks.push(end);
         }

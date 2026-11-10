@@ -46,12 +46,14 @@ Serve a site from a space.
 `checkPackage`, `fixPackage`, `formatPackage` and `formatSource` run the commands from code, and `plugins` adds trusted lint plugins.
 
 ```ts
-import { checkPackage, formatSource } from "@destack/check";
+import { checkPackage, formatSource, Toolchain } from "@destack/check";
 
+const toolchain = Toolchain.workspace(); // or Toolchain.at(directory) for a checked-out one
 const result = await checkPackage({
     directory: ".",
     files: ["src"],
+    toolchain,
     plugins: [{ name: "database", specifier, rules }],
 });
-const source = await formatSource("generated.ts", generatedSource);
+const source = await formatSource("generated.ts", generatedSource, toolchain);
 ```
