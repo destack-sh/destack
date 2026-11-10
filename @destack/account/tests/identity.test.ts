@@ -524,9 +524,7 @@ test("grant a space a token in another space stating the people it is home to, a
     );
 
     // grant a token in the other space, and ask for one in the machine's partition
-    const granted = TestJwt.claims(
-        await home.granted.token(AUDIENCE, { partition: other }),
-    );
+    const granted = TestJwt.claims(await home.granted.token(AUDIENCE, { partition: other }));
     const machineToken = await refusal(
         home.granted.token(AUDIENCE, { partition: laptop.machineId }),
     );

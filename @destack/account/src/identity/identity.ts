@@ -67,7 +67,12 @@ export class Identity implements Credential, Signer {
         this.issuer = network.issuer;
         this.send = network.send;
         this.environment = network.environment;
-        this.granted = new IssuerCredential(this, network.issuer, network.send, network.environment);
+        this.granted = new IssuerCredential(
+            this,
+            network.issuer,
+            network.send,
+            network.environment,
+        );
 
         // sign as the universe under its issuer, or as the space
         this.#signing = universe.is(subject)
