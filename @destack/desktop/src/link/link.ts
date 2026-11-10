@@ -1,9 +1,8 @@
 import type { Stage } from "@destack/update/release";
-import { InstallationOrigin, SpaceAddress, SpaceOrigin } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress, SpaceOrigin, OPEN_PATH } from "@destack/account/address";
 import {
     OBJECT_PARAMETER,
     ObjectAddress,
-    OPEN_PATH,
     type Address,
     TOKEN_PARAMETER,
     VIEW_PARAMETER,

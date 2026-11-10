@@ -1,7 +1,6 @@
-use crate::app::{Bounds, Window, browse};
+use crate::app::{Bounds, Window, browse, remove_profile};
 use crate::badge::Badge;
 use crate::banner::Banner;
-use crate::dialog::Dialog;
 use crate::menu::Shortcut;
 use crate::menu::Tray;
 use crate::menu::{Menu, MenuItem, MenuName};
@@ -54,10 +53,12 @@ pub enum Command {
         count: Option<i64>,
     },
 
-    // dialogs
-    /// Ask the person a question in a modal dialog with two answers.
-    #[serde(rename = "dialog.ask")]
-    AskDialog(Dialog),
+    /// Remove a browser profile and everything its windows stored, as signing out does.
+    #[serde(rename = "profile.remove")]
+    RemoveProfile {
+        /// The profile.
+        profile: uuid::Uuid,
+    },
 
     // menus, the tray, shortcuts and the browser
     /// Replace the host's items in a native menu.
@@ -147,8 +148,7 @@ impl Command {
             Self::WithdrawBanner { id } => Banner::withdraw(app, &id)?,
             Self::SetBadge { count } => app.state::<Badge>().set(app, count)?,
 
-            // dialogs
-            Self::AskDialog(dialog) => dialog.ask(app, input),
+            Self::RemoveProfile { profile } => remove_profile(app, &input, profile),
 
             // menus, the tray, shortcuts and the browser
             Self::SetMenu { menu, items } => app.state::<Menu>().set(app, menu, items)?,
@@ -179,7 +179,7 @@ impl Command {
             Self::ShowBanner(_) => "banner.show",
             Self::WithdrawBanner { .. } => "banner.withdraw",
             Self::SetBadge { .. } => "badge.set",
-            Self::AskDialog(_) => "dialog.ask",
+            Self::RemoveProfile { .. } => "profile.remove",
             Self::SetMenu { .. } => "menu.set",
             Self::TitleMenu { .. } => "menu.title",
             Self::SetTray { .. } => "tray.set",
@@ -251,17 +251,6 @@ pub enum Event {
     BannerDismissed {
         /// The banner's identity.
         id: String,
-    },
-
-    // dialogs
-    /// The person answered a dialog.
-    #[serde(rename = "dialog.answered")]
-    DialogAnswered {
-        /// The dialog's identity.
-        id: String,
-        /// Whether the person allowed.
-        #[serde(rename = "isAllowed")]
-        is_allowed: bool,
     },
 
     // links, menus and shortcuts
@@ -342,8 +331,8 @@ mod tests {
     #[test]
     fn test_read_host_commands() {
         let lines = [
-            r#"{"action":"window.open","id":"window-1","kind":"view","url":"http://notes--personal--florian.localhost:7470/home","profile":"00000000-0000-0000-0000-000000000002","title":"notes","bounds":{"x":10,"y":20,"width":800,"height":600}}"#,
-            r#"{"action":"window.open","id":"palette","kind":"palette","url":"http://home--personal--florian.localhost:7470/command","profile":"00000000-0000-0000-0000-000000000003","title":"Commands"}"#,
+            r#"{"action":"window.open","id":"window-1","kind":"view","url":"http://notes--personal--florian.localhost:7470/home","origins":["http://127.0.0.1:4100"],"profile":"00000000-0000-0000-0000-000000000002","title":"notes","bounds":{"x":10,"y":20,"width":800,"height":600}}"#,
+            r#"{"action":"window.open","id":"palette","kind":"palette","url":"http://home--personal--florian.localhost:7470/command","origins":[],"profile":"00000000-0000-0000-0000-000000000003","title":"Commands"}"#,
             r#"{"action":"window.focus","id":"window-1"}"#,
             r#"{"action":"window.close","id":"window-1"}"#,
             r#"{"action":"banner.show","id":"delivery-1","title":"Bob mentioned you","body":"can you check the intro?","interruption":"timeSensitive","actions":[{"name":"reply","title":"Reply","isDestructive":false,"text":{"placeholder":"Reply","button":"Send"}}]}"#,
@@ -357,7 +346,7 @@ mod tests {
             r#"{"action":"shortcut.unregister","id":"palette"}"#,
             r#"{"action":"browser.open","url":"https://destack.app/sign-in"}"#,
             r#"{"action":"autostart.set","isEnabled":true}"#,
-            r#"{"action":"dialog.ask","id":"window-1","title":"Allow notes to act for you?","body":"read note","allow":"Allow","deny":"Don't Allow"}"#,
+            r#"{"action":"profile.remove","profile":"00000000-0000-0000-0000-000000000002"}"#,
             r#"{"action":"application.quit"}"#,
         ];
         let read = lines.map(|line| match serde_json::from_str::<Command>(line) {
@@ -379,10 +368,7 @@ mod tests {
             Ok(Command::UnregisterShortcut { id }) => format!("unregister {id}"),
             Ok(Command::OpenBrowser { url }) => format!("browse {url}"),
             Ok(Command::SetAutostart { is_enabled }) => format!("autostart {is_enabled}"),
-            Ok(Command::AskDialog(dialog)) => format!(
-                "ask {} {} {} {} {}",
-                dialog.id, dialog.title, dialog.body, dialog.allow, dialog.deny
-            ),
+            Ok(Command::RemoveProfile { profile }) => format!("remove {profile}"),
             Ok(Command::QuitApplication {}) => "quit".to_owned(),
             Err(error) => format!("invalid {error}"),
         });
@@ -404,7 +390,7 @@ mod tests {
                 "unregister palette",
                 "browse https://destack.app/sign-in",
                 "autostart true",
-                "ask window-1 Allow notes to act for you? read note Allow Don't Allow",
+                "remove 00000000-0000-0000-0000-000000000002",
                 "quit",
             ]
         );
@@ -412,7 +398,7 @@ mod tests {
         // refuse fields a command does not take
         let unknown = [
             r#"{"action":"badge.set","count":1,"label":"new"}"#,
-            r#"{"action":"window.open","id":"window-1","kind":"view","url":"https://destack.app/","profile":"00000000-0000-0000-0000-000000000002","title":"notes","label":"x"}"#,
+            r#"{"action":"window.open","id":"window-1","kind":"view","url":"https://destack.app/","origins":[],"profile":"00000000-0000-0000-0000-000000000002","title":"notes","label":"x"}"#,
         ];
         let refused = unknown.map(|line| match serde_json::from_str::<Command>(line) {
             Ok(_) => "accepted".to_owned(),
@@ -422,7 +408,7 @@ mod tests {
             refused,
             [
                 "unknown field `label`, expected `count`",
-                "unknown field `label`, expected one of `id`, `kind`, `url`, `profile`, `title`, `bounds`",
+                "unknown field `label`, expected one of `id`, `kind`, `url`, `origins`, `profile`, `title`, `bounds`",
             ]
         );
     }

@@ -1,8 +1,6 @@
 import type { ObjectClient } from "@destack/object/client";
-import type { Session } from "@destack/machine/device";
 import { type Condition, Observation } from "@destack/object";
 import type { Address } from "@destack/view/declare";
-import { Identifier } from "@destack/schema";
 import { Link } from "../link/index.ts";
 import {
     type DESKTOP_OBJECTS,
@@ -11,7 +9,9 @@ import {
     type WindowRow,
 } from "../object/index.ts";
 import type { Shell } from "../shell/index.ts";
-import type { Dialog } from "./dialog.ts";
+
+/** The browser profile of the person signed in on this computer, removed once they sign out. */
+export const PERSON_PROFILE = "4a1f3c2e-6b0d-4c7e-9f21-0d5e8a7b3c19";
 
 /** How long a window rests after a move before the desktop writes its place: half a second. */
 const PLACE_DELAY_MILLISECONDS = 500;
@@ -59,17 +59,11 @@ export type WindowStep =
           readonly isClosing: boolean;
       };
 
-/** Where a row's window stands: launching, asking the person to grant its view, or shown. */
+/** Where a row's window stands: launching or shown. */
 export type WindowState =
     | {
           /** Launching the row's link, before the shell shows it. */
           readonly kind: "launching";
-      }
-    | {
-          /** Asking the person to grant the row's view what it asks. */
-          readonly kind: "asking";
-          /** The dialog asking. */
-          readonly dialog: Dialog;
       }
     | {
           /** Shown by the shell. */
@@ -86,6 +80,8 @@ export interface WindowContext {
     readonly shell: Shell;
     /** Report a failure no event answers, such as a place written late. */
     readonly report: (error: unknown) => void;
+    /** The universe's origin, which signs the windows' origins in. */
+    readonly universe: string;
 }
 
 /** One native window of this computer, showing a window row's link on its launched origin. */
@@ -191,12 +187,12 @@ export class Window {
         row: WindowRow,
         address: Address,
         title: string,
-        session: Pick<Session, "launch">,
+        device: { readonly launch: (address: Address) => Promise<{ readonly url: string }> },
         context: WindowContext,
     ): Promise<Window> {
-        // launch it on its origin
-        const launched = await session.launch(address);
-        const profile = Identifier.uuid(launched.target);
+        // address its page on its origin, which the universe signs in within the person's profile
+        const launched = await device.launch(address);
+        const profile = PERSON_PROFILE;
 
         // show it, and observe it shown with its title and profile
         const opened = new Window(
@@ -215,6 +211,7 @@ export class Window {
             id: row.id,
             kind: row.kind,
             url: launched.url,
+            origins: [context.universe],
             profile,
             title,
             ...(row.bounds === null ? {} : { bounds: row.bounds }),

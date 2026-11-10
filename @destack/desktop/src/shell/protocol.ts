@@ -67,7 +67,9 @@ export type Command =
           readonly kind: WindowKind;
           /** The location, which its origin authorized. */
           readonly url: string;
-          /** The browser profile isolating the origin's storage. */
+          /** The other origins the window navigates within, such as the universe signing it in. */
+          readonly origins: readonly string[];
+          /** The browser profile whose storage the window uses. */
           readonly profile: string;
           /** The title bar's text. */
           readonly title: string;
@@ -116,21 +118,11 @@ export type Command =
           /** The count to show, or null to clear the badge. */
           readonly count: number | null;
       }
-
-    // dialogs
     | {
-          /** Ask the person a question in a modal dialog with two answers. */
-          readonly action: "dialog.ask";
-          /** The dialog's identity, which the answer includes. */
-          readonly id: string;
-          /** The question. */
-          readonly title: string;
-          /** The text below the question. */
-          readonly body: string;
-          /** The label of the answer allowing. */
-          readonly allow: string;
-          /** The label of the answer refusing. */
-          readonly deny: string;
+          /** Remove a browser profile and everything its windows stored, as signing out does. */
+          readonly action: "profile.remove";
+          /** The profile. */
+          readonly profile: string;
       }
 
     // menus, the tray, shortcuts and the browser
@@ -237,16 +229,6 @@ export const Event = schema.discriminatedUnion("action", [
         action: schema.literal("banner.dismissed"),
         /** The banner's identity. */
         id: schema.string().min(1),
-    }),
-
-    // dialogs
-    schema.object({
-        /** The person answered a dialog. */
-        action: schema.literal("dialog.answered"),
-        /** The dialog's identity. */
-        id: schema.identifier("window"),
-        /** Whether the person allowed. */
-        isAllowed: schema.boolean(),
     }),
 
     // links, menus and shortcuts

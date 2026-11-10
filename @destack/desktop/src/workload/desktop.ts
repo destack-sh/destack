@@ -13,13 +13,16 @@ import { schema } from "@destack/schema";
 import { FOCUS_PARAMETER } from "@destack/view/declare";
 import { start } from "@destack/home/setting";
 import { DESKTOP_OBJECTS, window } from "../object/index.ts";
-import { Autostart, Menu, type MenuEntry } from "../server/index.ts";
+import { Autostart, Menu, type MenuEntry, PERSON_PROFILE } from "../server/index.ts";
 import { type Event, Shell } from "../shell/index.ts";
 import { DesktopLock } from "./lock.ts";
 import { MACHINE_ENTRY } from "./machine.ts";
 import { Person } from "./person.ts";
 import { Link } from "../link/index.ts";
 import { DesktopError } from "../error/index.ts";
+
+/** The window the issuer's sign-in shows in, before any person's windows. */
+const SIGN_IN_WINDOW = "sign-in";
 
 /** The view of Home showing the person's settings, which the settings window opens. */
 const SETTINGS_VIEW = "settings";
@@ -237,23 +240,32 @@ export class Desktop implements AsyncDisposable {
             return;
         }
 
-        // sign in through the browser until a person shows or the desktop stops
+        // sign in in the person's profile until a person shows or the desktop stops (RFC 8252)
         await this.menu.set("account", Desktop.accountEntries({ status: "signingIn" }, this));
         const stopping = new AbortController();
         const signal = AbortSignal.any([this.#stopping.signal, stopping.signal]);
         const signedIn = native.signIn(
             { kind: "browser" },
             async (state) => {
-                // open the sign-in page in the browser
+                // open the issuer's sign-in in a window, which returns to this computer's loopback
                 if (state.kind === "open") {
-                    await shell.send({ action: "browser.open", url: state.url });
+                    const redirect = new URL(state.url).searchParams.get("redirect_uri");
+                    await shell.send({
+                        action: "window.open",
+                        id: SIGN_IN_WINDOW,
+                        kind: "view",
+                        url: state.url,
+                        origins: redirect === null ? [] : [new URL(redirect).origin],
+                        profile: PERSON_PROFILE,
+                        title: this.localization.render(t`Sign in to Destack`),
+                    });
                 }
             },
             signal,
         );
 
         // report a failure and offer signing in again, unless the desktop stopped the sign-in
-        const done = signedIn
+        const ended = signedIn
             .then(
                 () => undefined,
                 async (error: unknown) => {
@@ -269,6 +281,9 @@ export class Desktop implements AsyncDisposable {
             .finally(() => {
                 this.#signingIn = undefined;
             });
+
+        // close the sign-in window however the sign-in ended
+        const done = ended.then(() => shell.send({ action: "window.close", id: SIGN_IN_WINDOW }));
         this.#signingIn = { done, stopping };
     }
 
@@ -277,7 +292,7 @@ export class Desktop implements AsyncDisposable {
         // send the person's telemetry while their session stands, then revoke this computer's client
         const person = this.#requirePerson();
         await person.telemetry.flush();
-        await this.native.signOut(person.session.login);
+        await this.native.signOut(person.login);
     }
 
     /** Sign the person out and another person in. */
@@ -303,6 +318,14 @@ export class Desktop implements AsyncDisposable {
         // bring back the window the person returns to, signing in while nobody is
         else if (event.action === "application.reopened") {
             await (this.#person === undefined ? this.signIn() : this.reopen());
+        }
+        // stop the sign-in the person closed its window of
+        else if (event.action === "window.closed" && event.id === SIGN_IN_WINDOW) {
+            this.#signingIn?.stopping.abort();
+        }
+        // leave the sign-in window's other events
+        else if ("id" in event && event.id === SIGN_IN_WINDOW) {
+            return;
         }
         // let the person answer every other event
         else {
@@ -482,16 +505,17 @@ export class Desktop implements AsyncDisposable {
         record: Select<typeof computer.table> | undefined,
     ): Promise<boolean> {
         // leave the person shown
-        if (login?.id === this.#person?.session.login.row.id) {
+        if (login?.id === this.#person?.login.row.id) {
             return false;
         }
 
-        // stop the person shown before, leaving nothing of them on screen
+        // stop the person shown before, leaving nothing of them on screen or in their profile
         const before = this.#person;
         this.#person = undefined;
         if (before !== undefined) {
             await before.stop();
             await before.clear();
+            await this.shell.send({ action: "profile.remove", profile: PERSON_PROFILE });
         }
 
         // offer signing in to nobody
@@ -515,7 +539,14 @@ export class Desktop implements AsyncDisposable {
         else {
             this.#signingIn?.stopping.abort();
             const session = await this.native.session(login.id);
-            this.#person = await Person.open(this, session, record.machineId, enrollment.accountId);
+            const signedIn = await this.native.signedIn(login.id);
+            this.#person = await Person.open(
+                this,
+                session,
+                signedIn,
+                record.machineId,
+                enrollment.accountId,
+            );
             await this.menu.set(
                 "account",
                 Desktop.accountEntries({ status: "signedIn", login }, this),

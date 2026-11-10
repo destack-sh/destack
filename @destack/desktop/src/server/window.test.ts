@@ -5,7 +5,6 @@ import { Link } from "../link/index.ts";
 import { type DESKTOP_OBJECTS, window, type WindowRow } from "../object/index.ts";
 import { desktopObjects, recordShell } from "../test/index.ts";
 import { present } from "@destack/schema";
-import { Dialog } from "./dialog.ts";
 import { Window, type WindowState } from "./window.ts";
 
 /** The links of the stable desktop. */
@@ -30,6 +29,7 @@ function opened(
         report: (error: unknown) => {
             throw error;
         },
+        universe: "https://destack.test",
     };
 
     return new Window({ ...row, url, address }, context);
@@ -105,26 +105,25 @@ test("plan a palette apart from a view window opening the same link, showing bot
     ]);
 });
 
-test("plan nothing for a window launching or asking, and remove one asking once its row closes", async () => {
-    // open notes and the board, one launching and one asking the person
+test("plan nothing for a window launching, and remove it once its row closes", async () => {
+    // open notes and the board, both launching
     const simulation = testSimulation();
     const objects = await desktopObjects(simulation.environment("desktop"));
     const windows = objects.mutate(window);
     const notes = await windows.open({ link: NOTES }).predicted;
     await simulation.jump(simulation.clock.now() + 1);
     const board = await windows.open({ link: TASKS }).predicted;
-    const address = present(links.parse(TASKS), "the board's address");
     const states = new Map<string, WindowState>([
         [notes.id, { kind: "launching" }],
-        [board.id, { kind: "asking", dialog: new Dialog(board.id, address) }],
+        [board.id, { kind: "launching" }],
     ]);
     const open = await objects.query.window.findMany();
 
-    // close the board while its dialog asks
+    // close the board while it launches
     await windows.close({ id: board.id }).confirmed;
     const closed = await objects.query.window.findMany();
 
-    // expect no step while both wait, then the asking board removed
+    // expect no step while both launch, then the board removed
     expect({ open: Window.plan(states, open), closed: Window.plan(states, closed) }).toEqual({
         open: [],
         closed: [{ kind: "remove", id: board.id, isClosing: true }],

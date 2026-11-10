@@ -2,21 +2,19 @@ import { machine, placement, space } from "@destack/account/object";
 import { Login, login } from "@destack/account/native";
 import { TokenCache } from "@destack/access/token";
 import { Localization, SOURCE_LOCALE } from "@destack/locale";
-import { MachineError } from "@destack/machine/error";
 import { computer } from "@destack/machine/device";
 import { message } from "@destack/message/object";
 import { activity, notification } from "@destack/notification/object";
 import { Bookmark } from "@destack/object/client";
 import { testSimulation } from "@destack/object/test";
-import { PackageId } from "@destack/package";
-import { Identifier, present } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import { setting } from "@destack/setting/object";
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import { expect, test } from "@destack/test";
 import type { Address } from "@destack/view/declare";
 import { Link } from "../link/index.ts";
 import { window } from "../object/index.ts";
-import { BannerCapabilities, Menu } from "../server/index.ts";
+import { BannerCapabilities, Menu, PERSON_PROFILE } from "../server/index.ts";
 import { desktopObjects, localObjects, recordShell } from "../test/index.ts";
 import { Person, type PersonSession } from "./person.ts";
 
@@ -29,25 +27,13 @@ const NOTES = "destack://notes--personal--florian/home";
 /** The board the windows open. */
 const TASKS = "destack://tasks--personal--florian/board";
 
-/** The package whose settings the views ask to read. */
-const SETTINGS = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
-
 /** Read the installation a view address opens. */
 function name(address: Address): string {
     return "installation" in address ? address.installation : "space";
 }
 
-/** Describe the dialog asking the person to grant a view reading their settings. */
-function dialog(id: string, view: string) {
-    return {
-        action: "dialog.ask",
-        id,
-        title: `Allow ⁨${view}⁩ to act for you?`,
-        body: "read setting",
-        allow: "Allow",
-        deny: "Don’t Allow",
-    };
-}
+/** The space the launched views run in. */
+const SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 /** Refuse a call the person makes to a space, which these tests never make. */
 function refuse(): Promise<never> {
@@ -57,7 +43,7 @@ function refuse(): Promise<never> {
 /** Show a person launching and granting views as given, on a separate desktop. */
 async function signedIn(
     simulation: ReturnType<typeof testSimulation>,
-    session: Pick<PersonSession, "launch" | "grant">,
+    session: Pick<PersonSession, "url">,
 ) {
     // store the windows and the person's login in memory, and record what the shell is sent
     const environment = simulation.environment("desktop");
@@ -76,6 +62,13 @@ async function signedIn(
     const row = present(
         await logins.query.login.findFirst({ where: { id: (await created.predicted).id } }),
         "the login",
+    );
+    const signedInLogin = new Login(
+        row,
+        { tokens: () => new TokenCache(), issue: refuse, prove: refuse, forget: refuse },
+        refuse,
+        environment,
+        new Bookmark(),
     );
 
     // record this computer's machine with an open tunnel, replicating nothing from the person's scopes
@@ -102,6 +95,11 @@ async function signedIn(
             report: (_, error) => {
                 throw error;
             },
+            native: {
+                launch: (launching, address) => launching.url(address),
+                open: refuse,
+                issuer: { url: "https://destack.test/oauth" },
+            },
             openPalette: async () => undefined,
             openSettings: async () => undefined,
             notify: (key, title, body) =>
@@ -117,22 +115,12 @@ async function signedIn(
         {
             session: {
                 ...session,
-                login: new Login(
-                    row,
-                    {
-                        tokens: () => new TokenCache(),
-                        issue: refuse,
-                        prove: refuse,
-                        forget: refuse,
-                    },
-                    refuse,
-                    environment,
-                    new Bookmark(),
-                ),
+                person: signedInLogin.person,
                 address: refuse,
-                open: refuse,
+                follow: refuse,
                 view: refuse,
             },
+            login: signedInLogin,
             inbox: await localObjects({ notification, activity, message }, environment),
             account: await localObjects({ machine, placement, space }, environment),
             settings: await localObjects({ setting }, environment),
@@ -160,11 +148,10 @@ test("return to the window last in focus, and close every window and row on clea
     // show two views as a person launching each on its origin
     const simulation = testSimulation();
     const { person, objects, sent } = await signedIn(simulation, {
-        launch: async (address) => ({
+        url: async (address) => ({
             url: `http://${name(address)}--personal--florian.localhost:7470/`,
-            target: Identifier.create("installation", objects.environment),
+            space: SPACE,
         }),
-        grant: () => Promise.reject(new TypeError("no view asks for a grant here")),
     });
     const notes = await objects.mutate(window).open({ link: NOTES }).predicted;
     await simulation.jump(simulation.clock.now() + 1);
@@ -204,64 +191,30 @@ test("return to the window last in focus, and close every window and row on clea
     });
 });
 
-test("ask the person in a dialog to grant a view, showing it once allowed, closing it once refused, and close a link failing to open", async () => {
-    // launch a view only once the person granted its installation what it asks
+test("open each view on its origin in the person's profile, signed in through the universe, and close a link failing to open", async () => {
+    // address each view's page on its origin
     const simulation = testSimulation();
-    const granted = new Set<string>();
-    const targets: Identifier<"installation">[] = [];
     const { person, objects, sent } = await signedIn(simulation, {
-        launch: async (address) => {
-            if (!granted.has(name(address))) {
-                throw MachineError.of("GRANT_REQUIRED", `${name(address)} asks for a grant`, {
-                    data: {
-                        permissions: [
-                            { packageId: SETTINGS, type: "setting", name: "read", scope: "user-1" },
-                            {
-                                packageId: SETTINGS,
-                                type: "setting",
-                                name: "read",
-                                scope: "space-1",
-                            },
-                        ],
-                    },
-                });
-            }
-
-            const target = Identifier.create("installation", objects.environment);
-            targets.push(target);
-
-            return { url: `http://${name(address)}--personal--florian.localhost:7470/`, target };
-        },
-        grant: async (address) => {
-            granted.add(name(address));
-
-            return { id: Identifier.create("grant", objects.environment), scope: "user-1" };
-        },
+        url: async (address) => ({
+            url: `http://${name(address)}--personal--florian.localhost:7470/`,
+            space: SPACE,
+        }),
     });
 
-    // open notes, the board and a link addressing nothing, then plan again while the dialogs wait
+    // open notes and a link addressing nothing
     const windows = objects.mutate(window);
     const notes = await windows.open({ link: NOTES }).predicted;
     await simulation.jump(simulation.clock.now() + 1);
-    const board = await windows.open({ link: TASKS }).predicted;
-    await simulation.jump(simulation.clock.now() + 1);
     const nothing = await windows.open({ link: "destack://nothing" }).predicted;
     await person.showWindows(await objects.query.window.findMany());
-    await person.showWindows(await objects.query.window.findMany());
-    const asked = sent.splice(0);
-
-    // allow notes and refuse the board
-    await person.answer({ action: "dialog.answered", id: notes.id, isAllowed: true });
-    await person.answer({ action: "dialog.answered", id: board.id, isAllowed: false });
     const rows = await objects.query.window.findMany();
 
-    // expect the failed link removed, one dialog per view, notes shown and the board closed
+    // expect notes shown in the person's profile within the universe, and the failed link closed
     expect({
-        asked,
-        answered: sent,
+        sent,
         closed: rows.map((row) => ({ id: row.id, isClosed: row.deletedAt !== null })),
     }).toEqual({
-        asked: [
+        sent: [
             {
                 action: "banner.show",
                 id: `notice.${nothing.id}`,
@@ -270,22 +223,19 @@ test("ask the person in a dialog to grant a view, showing it once allowed, closi
                 interruption: "active",
                 actions: [],
             },
-            dialog(notes.id, "notes"),
-            dialog(board.id, "tasks"),
-        ],
-        answered: [
             {
                 action: "window.open",
                 id: notes.id,
                 kind: "view",
                 url: "http://notes--personal--florian.localhost:7470/",
-                profile: Identifier.uuid(present(targets[0], "the launched installation")),
+                origins: ["https://destack.test"],
+                profile: PERSON_PROFILE,
                 title: "notes",
             },
         ],
         closed: [
             { id: notes.id, isClosed: false },
-            { id: board.id, isClosed: true },
+            { id: nothing.id, isClosed: true },
         ],
     });
 });
@@ -294,11 +244,10 @@ test("open a view a window navigated to beside it in a new window, and hand any 
     // show notes as a person launching each view on its origin
     const simulation = testSimulation();
     const { person, objects, sent } = await signedIn(simulation, {
-        launch: async (address) => ({
+        url: async (address) => ({
             url: `http://${name(address)}--personal--florian.localhost:7470/home`,
-            target: Identifier.create("installation", objects.environment),
+            space: SPACE,
         }),
-        grant: () => Promise.reject(new TypeError("no view asks for a grant here")),
     });
     const notes = await objects.mutate(window).open({ link: NOTES }).predicted;
     await person.showWindows(await objects.query.window.findMany());

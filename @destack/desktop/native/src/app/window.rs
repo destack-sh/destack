@@ -58,6 +58,8 @@ pub struct Window {
     pub kind: WindowKind,
     /// The location, which its origin authorized.
     pub url: tauri::Url,
+    /// The other origins the window navigates within, such as the universe signing it in.
+    pub origins: Vec<tauri::Url>,
     /// The browser profile isolating the origin's storage.
     pub profile: Uuid,
     /// The title bar's text.
@@ -67,21 +69,28 @@ pub struct Window {
 }
 
 impl Window {
-    /// Require an encrypted origin or a view a device host serves on loopback.
+    /// Require encrypted or loopback locations without credentials, its own and its origins'.
     pub fn validate(&self) -> io::Result<()> {
-        let is_local = self.url.scheme() == "http"
-            && self
-                .url
-                .host_str()
-                .is_some_and(|host| host.ends_with(LOCAL_SUFFIX));
-        if !(self.url.scheme() == "https" || is_local)
-            || !self.url.username().is_empty()
-            || self.url.password().is_some()
+        if !std::iter::once(&self.url)
+            .chain(&self.origins)
+            .all(Window::is_supported)
         {
             return Err(io::Error::other("unsupported view URL"));
         }
 
         Ok(())
+    }
+
+    /// Report whether a location is encrypted or on loopback (RFC 8252 7.3), without credentials.
+    fn is_supported(url: &tauri::Url) -> bool {
+        let is_local = url.scheme() == "http"
+            && url.host_str().is_some_and(|host| {
+                host.ends_with(LOCAL_SUFFIX) || host == "localhost" || host == "127.0.0.1"
+            });
+
+        (url.scheme() == "https" || is_local)
+            && url.username().is_empty()
+            && url.password().is_none()
     }
 
     /// Open the window with isolated storage, handing locations on other origins to the host.
@@ -95,8 +104,11 @@ impl Window {
             return Ok(());
         }
 
-        // confine navigation to the window's origin, letting the host open locations on other origins
-        let origin = self.url.origin();
+        // confine navigation to the window's origins, letting the host open locations on other origins
+        let origins: Vec<_> = std::iter::once(&self.url)
+            .chain(&self.origins)
+            .map(tauri::Url::origin)
+            .collect();
         let navigation = input.clone();
         let opening = input.clone();
         let (id, kind) = (self.id.clone(), self.kind);
@@ -104,7 +116,7 @@ impl Window {
         let builder = WebviewWindowBuilder::new(app, &self.id, WebviewUrl::External(self.url))
             .title(self.title)
             .on_navigation(move |destination| {
-                if destination.origin() == origin {
+                if origins.contains(&destination.origin()) {
                     return true;
                 }
                 navigate(&navigation, &navigated, destination);
@@ -214,6 +226,42 @@ fn navigate(input: &Input, id: &str, url: &tauri::Url) {
     }
 }
 
+/// Remove a browser profile's stored data, reporting a failure to the host.
+pub fn remove_profile(app: &AppHandle, input: &Input, profile: Uuid) {
+    let handle = app.clone();
+    let input = input.clone();
+    tauri::async_runtime::spawn(async move {
+        // remove the data store the profile's windows used
+        #[cfg(target_os = "macos")]
+        let result = handle
+            .remove_data_store(*profile.as_bytes())
+            .await
+            .map_err(|error| error.to_string());
+        #[cfg(not(target_os = "macos"))]
+        let result = remove_directory(&handle, profile);
+
+        // report a failure
+        if let Err(error) = result {
+            Event::failed("profile.remove", error).report(&handle, &input);
+        }
+    });
+}
+
+/// Remove a profile's data directory, a profile never used being removed already.
+#[cfg(not(target_os = "macos"))]
+fn remove_directory(app: &AppHandle, profile: Uuid) -> Result<(), String> {
+    let directory = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| error.to_string())?
+        .join("profile")
+        .join(profile.to_string());
+    match std::fs::remove_dir_all(directory) {
+        Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error.to_string()),
+        _ => Ok(()),
+    }
+}
+
 /// Open a web location in the default browser, reporting a refused one to the host.
 pub fn browse(app: &AppHandle, input: &Input, url: &tauri::Url) {
     // open only web locations
@@ -239,7 +287,7 @@ mod tests {
         for (url, accepted) in [
             ("https://notes.personal.florian.destack.app/home", true),
             ("http://notes.personal.florian.localhost:7777/home", true),
-            ("http://127.0.0.1:3210/", false),
+            ("http://127.0.0.1:3210/", true),
             ("http://localhost.example.com/", false),
             ("http://destack.app/", false),
             ("file:///etc/passwd", false),
@@ -250,6 +298,7 @@ mod tests {
                 id: "window-1".into(),
                 kind: WindowKind::View,
                 url: url.parse().unwrap(),
+                origins: vec!["https://destack.app".parse().unwrap()],
                 profile: Uuid::nil(),
                 title: "Notes".into(),
                 bounds: None,
@@ -262,5 +311,22 @@ mod tests {
             };
             assert_eq!(result, expected, "{url}");
         }
+
+        // refuse an unencrypted origin to navigate within
+        let window = Window {
+            id: "window-1".into(),
+            kind: WindowKind::View,
+            url: "https://notes.personal.florian.destack.app/home"
+                .parse()
+                .unwrap(),
+            origins: vec!["http://destack.app".parse().unwrap()],
+            profile: Uuid::nil(),
+            title: "Notes".into(),
+            bounds: None,
+        };
+        assert_eq!(
+            window.validate().map_err(|error| error.to_string()),
+            Err("unsupported view URL".to_owned())
+        );
     }
 }

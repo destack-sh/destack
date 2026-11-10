@@ -17,7 +17,6 @@ path = "src/main.rs"
 [dependencies]
 tauri = { version = "=2.12.0", features = ["tray-icon", "image-png"] }
 tauri-plugin-autostart = "=2.7.0"
-tauri-plugin-dialog = "=2.8.0"
 tauri-plugin-global-shortcut = "=2.4.0"
 tauri-plugin-opener = "=2.6.0"
 tauri-plugin-single-instance = "=2.5.2"

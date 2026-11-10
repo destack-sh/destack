@@ -52,12 +52,12 @@ test(
         });
         const native = laptop.device;
 
-        // start the desktop, which asks for a browser sign-in while nobody is signed in
+        // start the desktop, which opens the issuer's sign-in in a window while nobody is signed in
         const { shell, sent, next, emit, close } = openShell();
         const environment = { ...laptop.environment, process: testHost().process };
         const desktop = await Desktop.open(native, shell, Link.of(new Stage("local")), environment);
         const running = desktop.run(undefined);
-        await world.simulation.wait(next(isAction("browser.open")));
+        await world.simulation.wait(next(isAction("window.open")));
 
         // sign in by mail and enroll the laptop as the CLI does, and see the desktop show them and their start page
         const shown = next(isOffered("Sign Out"));
@@ -74,7 +74,7 @@ test(
 
         // sign them out as the CLI does, and see the desktop offer signing in
         const offered = next(isOffered("Sign In…"));
-        await native.signOut((await native.session(signedIn.id)).login);
+        await native.signOut(await native.signedIn(signedIn.id));
         await world.simulation.wait(offered);
 
         // stop the desktop
@@ -106,15 +106,16 @@ test(
                 "autostart.set",
                 "menu.set",
                 "menu.set",
-                "browser.open",
+                "window.open",
                 "menu.set",
+                "window.close",
                 "menu.set",
                 "menu.set",
                 "menu.set",
                 "menu.set",
                 "tray.set",
-                "shortcut.register",
                 "badge.set",
+                "shortcut.register",
                 "window.open",
                 "window.open",
                 "tray.set",
@@ -126,6 +127,7 @@ test(
                 "shortcut.unregister",
                 "menu.set",
                 "menu.set",
+                "profile.remove",
                 "menu.set",
             ],
             last: {

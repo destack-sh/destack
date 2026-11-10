@@ -1,8 +1,9 @@
+import type { Login } from "@destack/account/native";
 import { inspect } from "node:util";
 import { t } from "@destack/locale";
 import { machine, placement, space } from "@destack/account/object";
-import { MachineError } from "@destack/machine/error";
-import type { Session } from "@destack/machine/device";
+import type { Device, Session } from "@destack/machine/device";
+import type { Address } from "@destack/view/declare";
 import type { ObjectClient } from "@destack/object/client";
 import { setting } from "@destack/setting/object";
 import { message } from "@destack/message/client";
@@ -20,7 +21,6 @@ import {
     Badge,
     Banner,
     BannerCapabilities,
-    Dialog,
     Shortcut,
     Tray,
     Window,
@@ -59,18 +59,23 @@ export type PersonDesktop = Pick<
     | "openPalette"
     | "openSettings"
     | "notify"
->;
+> & {
+    /** This computer's device: its issuer, views it launches and visits of objects it opens. */
+    readonly native: Pick<Device, "launch" | "open"> & {
+        /** The issuer people sign in at, whose origin signs the windows' origins in. */
+        readonly issuer: Pick<Device["issuer"], "url">;
+    };
+};
 
-/** What a person uses of their session: their login, views and grants. */
-export type PersonSession = Pick<
-    Session,
-    "login" | "launch" | "grant" | "address" | "open" | "view"
->;
+/** What a person uses of their session: their calls and views. */
+export type PersonSession = Pick<Session, "person" | "url" | "address" | "follow" | "view">;
 
 /** The person signed in on this computer, and the windows and icons showing what is theirs. */
 export class Person {
     /** The person's session on this computer. */
     readonly session: PersonSession;
+    /** The person's sign-in on this computer: its client, name and keychain entry. */
+    readonly login: Login;
     /** The banners the shell shows, by message. */
     readonly banners: Map<string, Banner>;
     /** The application icon's unread count. */
@@ -101,7 +106,7 @@ export class Person {
     readonly #desktop: PersonDesktop;
     /** The rows, shell and failures the windows work with. */
     readonly #context: WindowContext;
-    /** Where each row's window stands, by row: launching, asking or shown. */
+    /** Where each row's window stands, by row: launching or shown. */
     readonly #windows: Map<string, WindowState>;
     /** The client the person's sign-in registered, which desktop messages address. */
     readonly #client: Identifier<"client">;
@@ -119,13 +124,17 @@ export class Person {
     /** Show a person on a desktop from their session, clients and telemetry. */
     constructor(
         desktop: PersonDesktop,
-        fields: Pick<Person, "session" | "inbox" | "account" | "settings" | "telemetry"> & {
+        fields: Pick<
+            Person,
+            "session" | "login" | "inbox" | "account" | "settings" | "telemetry"
+        > & {
             readonly machineId: Identifier<"machine">;
             readonly capabilities: BannerCapabilities;
         },
     ) {
         // set the session, the clients and the telemetry
         this.session = fields.session;
+        this.login = fields.login;
         this.inbox = fields.inbox;
         this.account = fields.account;
         this.settings = fields.settings;
@@ -153,8 +162,9 @@ export class Person {
             objects,
             shell,
             report: (error) => desktop.report("window.failed", error),
+            universe: new URL(desktop.native.issuer.url).origin,
         };
-        this.#client = schema.identifier("client").parse(fields.session.login.row.clientId);
+        this.#client = schema.identifier("client").parse(fields.login.row.clientId);
         this.#capabilities = fields.capabilities;
         this.#stopping = new AbortController();
         this.#opened = new AsyncDisposableStack();
@@ -165,6 +175,7 @@ export class Person {
     static async open(
         desktop: PersonDesktop & Pick<Desktop, "native" | "environment">,
         session: Session,
+        login: Login,
         machineId: Identifier<"machine">,
         accountId: Identifier<"account">,
     ): Promise<Person> {
@@ -193,14 +204,21 @@ export class Person {
         opened.defer(() => telemetry.shutdown());
 
         // replicate the person's inbox, the account's spaces and their settings
-        const inbox = await session.open(home, { notification, activity, message }, opened);
-        const account = await session.open(
+        const inbox = await desktop.native.open(
+            session,
+            home,
+            { notification, activity, message },
+            opened,
+        );
+        const account = await desktop.native.open(
+            session,
             { scope: accountId },
             { machine, placement, space },
             opened,
         );
-        const settings = await session.open(
-            { scope: session.login.subject.id },
+        const settings = await desktop.native.open(
+            session,
+            { scope: session.person.subject.id },
             { setting },
             opened,
         );
@@ -208,6 +226,7 @@ export class Person {
         // show the person, who closes what opened once they leave
         const person = new Person(desktop, {
             session,
+            login,
             inbox,
             account,
             settings,
@@ -248,13 +267,11 @@ export class Person {
         else if (event.action === "window.focused") {
             this.#focused = this.#shown(event.id) === undefined ? this.#focused : event.id;
         }
-        // grant or close the window a dialog asked about
-        else if (event.action === "dialog.answered") {
-            await this.answered(event.id, event.isAllowed);
-        }
         // answer a banner's action as the person
         else if (event.action === "banner.acted") {
-            await this.banners.get(event.id)?.act(this.session, event.name, event.text);
+            await this.banners
+                .get(event.id)
+                ?.act(this.session, this.#desktop.native, event.name, event.text);
         }
         // leave a dismissed banner's notification unread
         else {
@@ -262,33 +279,11 @@ export class Person {
         }
     }
 
-    /** Make the windows match the rows, leaving the ones launching or asking. */
+    /** Make the windows match the rows, leaving the ones launching. */
     async showWindows(rows: readonly WindowRow[]): Promise<void> {
         // plan the steps, then apply them together
         const steps = Window.plan(this.#windows, rows);
         await Promise.all(steps.map((step) => this.#apply(step)));
-    }
-
-    /** Show a window once the person grants its view what it asks, else close its row. */
-    async answered(id: Identifier<"window">, isAllowed: boolean): Promise<void> {
-        // drop the answer for a row closed while its dialog asked
-        const state = this.#windows.get(id);
-        if (state?.kind !== "asking") {
-            return;
-        }
-
-        // grant the view and launch its window
-        const row = await this.#desktop.objects.query.window.findFirst({ where: { id } });
-        const asked = present(row, `the window ${id} a dialog asks about`);
-        if (isAllowed) {
-            await this.session.grant(state.dialog.address);
-            await this.#launch(asked);
-        }
-        // close the row the person refused
-        else {
-            this.#windows.delete(id);
-            await this.#rows().close({ id }).confirmed;
-        }
     }
 
     /** Close every palette, as at most one floats and only while it has focus. */
@@ -446,7 +441,7 @@ export class Person {
                 await this.tray.failed();
             }),
             this.shortcut
-                .follow(this.settings, this.session.login.row.subjectId, signal)
+                .follow(this.settings, this.login.row.subjectId, signal)
                 .catch((error: unknown) => report("shortcut.failed", error)),
         ]);
     }
@@ -487,7 +482,7 @@ export class Person {
             await this.#rows().close({ id: step.id }).confirmed;
             await this.#rows().focus({ id: step.into }).confirmed;
         }
-        // close a removed row's window, dropping a dialog asking about it, and remove a closing row
+        // close a removed row's window, and remove a closing row
         else {
             const shown = this.#shown(step.id);
             this.#windows.delete(step.id);
@@ -498,10 +493,10 @@ export class Person {
         }
     }
 
-    /** Launch a row's link and show it, asking for a grant or refusing a link that fails. */
+    /** Launch a row's link and show it, refusing a link that fails. */
     async #launch(row: WindowRow): Promise<void> {
         // refuse a link to no view or object
-        const { links, localization, shell } = this.#desktop;
+        const { links, localization } = this.#desktop;
         const address = links.parse(row.link);
         if (address === undefined) {
             await this.#refuse(row.id, `${row.link} addresses no Destack view or object`);
@@ -512,20 +507,15 @@ export class Person {
                 row.kind === "palette" ? localization.render(t`Commands`) : Link.title(address);
             this.#windows.set(row.id, { kind: "launching" });
             try {
-                const opened = await Window.open(row, address, title, this.session, this.#context);
+                const launching = {
+                    launch: (asked: Address) => this.#desktop.native.launch(this.session, asked),
+                };
+                const opened = await Window.open(row, address, title, launching, this.#context);
                 await this.#record(row.id, opened);
             } catch (error) {
-                // ask the person to grant a view what it asks
-                if (MachineError.is(error, "GRANT_REQUIRED")) {
-                    const dialog = new Dialog(row.id, address);
-                    this.#windows.set(row.id, { kind: "asking", dialog });
-                    await dialog.ask(shell, localization, error.data.permissions);
-                }
                 // tell the person why the window failed and close its row
-                else {
-                    const reason = error instanceof Error ? error.message : String(error);
-                    await this.#refuse(row.id, reason);
-                }
+                const reason = error instanceof Error ? error.message : String(error);
+                await this.#refuse(row.id, reason);
             }
         }
     }
