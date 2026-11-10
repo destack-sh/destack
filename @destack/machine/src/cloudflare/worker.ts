@@ -1,7 +1,7 @@
 import { DistributionManifest } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
 import { ServerBundle } from "./bundle.ts";
-import { Once } from "@destack/package/manifest";
+import { Once } from "@destack/environment";
 import { ProcessRuntime } from "@destack/stack/runtime";
 import { traceSampling } from "@destack/stack/setting";
 import { Directory, type SpaceAddress, UniverseOrigin } from "@destack/account/address";

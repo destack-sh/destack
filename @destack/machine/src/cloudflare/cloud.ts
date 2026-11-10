@@ -18,7 +18,8 @@ import type { DurableObjectNamespace, PartitionBindings } from "./runtime/index.
 import { defineDatabase } from "@destack/db";
 import { DIRECTORY_PREFIX, directoryConfiguration, directoryWorkload } from "./directory.ts";
 import type { Alarm } from "@destack/db";
-import { R2BlobStorage, R2Bucket } from "@destack/bucket/cloudflare";
+import { R2Bucket } from "@destack/bucket/cloudflare";
+import { BucketBlobStorage } from "@destack/bucket/blob";
 import { BuildLayer, type LayerAssets } from "@destack/build/store";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
@@ -54,9 +55,9 @@ export interface CloudflareStorageBindings {
     readonly DESTACK_RATES: string;
     /** Where the spaces' mail goes, as `MailSender` JSON. */
     readonly DESTACK_MAIL: string;
-    /** The access key sending the spaces' mail. */
+    /** The Worker's AWS access key: decrypting its sealed keys and sending the spaces' mail. */
     readonly AWS_ACCESS_KEY_ID: string;
-    /** The secret of the access key sending the spaces' mail. */
+    /** The secret of the Worker's AWS access key. */
     readonly AWS_SECRET_ACCESS_KEY: string;
 }
 
@@ -72,10 +73,6 @@ export interface MachineBindings extends PartitionBindings, CloudflareStorageBin
     readonly DESTACK_ROOT_KEY: string;
     /** The machine's private key, as `KeyPair.generate` writes it, sealed as its envelope says. */
     readonly DESTACK_MACHINE_KEY: string;
-    /** The access key decrypting the machine's sealed keys, under a KMS envelope. */
-    readonly DESTACK_KMS_ACCESS_KEY_ID?: string;
-    /** The secret of the access key decrypting the machine's sealed keys under a KMS envelope. */
-    readonly DESTACK_KMS_SECRET_ACCESS_KEY?: string;
     /** The universe's origin, serving the account package. */
     readonly DESTACK_UNIVERSE: string;
     /** The objects of the builds' graph indexes, one per manifest. */
@@ -205,10 +202,10 @@ export class CloudMachine {
         const envelope = new Envelope(
             EnvelopeConfiguration.parse(JSON.parse(bindings.DESTACK_ENVELOPE)),
             Envelope.machine(id),
-            Envelope.credentials(
-                bindings.DESTACK_KMS_ACCESS_KEY_ID,
-                bindings.DESTACK_KMS_SECRET_ACCESS_KEY,
-            ),
+            {
+                accessKeyId: bindings.AWS_ACCESS_KEY_ID,
+                secretAccessKey: bindings.AWS_SECRET_ACCESS_KEY,
+            },
             environment,
         );
         const keyring = await envelope.keyring(bindings.DESTACK_ROOT_KEY, environment);
@@ -315,7 +312,7 @@ export class CloudMachine {
             environment: this.environment,
             resources: new ResourceContext().bind(directoryConfiguration, {
                 database,
-                blobs: new R2BlobStorage(
+                blobs: new BucketBlobStorage(
                     new R2Bucket(this.bindings.BUILDS),
                     DIRECTORY_PREFIX,
                     this.environment.random,

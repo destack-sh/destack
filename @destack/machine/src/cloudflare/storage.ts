@@ -8,12 +8,8 @@ import { Entitlement } from "@destack/account/object";
 import { SettingValue } from "@destack/setting/object";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { bucketOperation, databaseOperation } from "@destack/telemetry/meter";
-import {
-    DurableObjectCatalogueStore,
-    R2BlobStorage,
-    R2Bucket,
-    R2BucketHost,
-} from "@destack/bucket/cloudflare";
+import { DurableObjectCatalogueStore, R2Bucket, R2BucketHost } from "@destack/bucket/cloudflare";
+import { BucketBlobStorage } from "@destack/bucket/blob";
 import { S3Origin } from "@destack/account/address";
 import type { S3Credentials } from "@destack/bucket/s3";
 import {
@@ -166,7 +162,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
             namespace: CACHE_NAMESPACE,
         });
         await database.migrate(BuildStore.database.tables, { others: "retain" });
-        const storage = new R2BlobStorage(
+        const storage = new BucketBlobStorage(
             new R2Bucket(builds),
             `${CACHE_PREFIX}${space}/`,
             environment.random,
@@ -233,7 +229,7 @@ export class DurableObjectVolume implements Volume {
     /** The space's events, their segments in the residency's files. */
     readonly events: EventStore;
     /** The space's blobs, below its prefix of the residency's files. */
-    readonly blobs: R2BlobStorage;
+    readonly blobs: BucketBlobStorage;
     /** The registry of the space's sockets and presence in the object's storage. */
     readonly sockets: SocketRegistry;
     /** The providers of the space's databases in objects, Git in Artifacts and mail. */
@@ -282,7 +278,7 @@ export class DurableObjectVolume implements Volume {
             personal: new DatabasePersonalKeyring(database, options.keyring, environment),
             settings: Entitlement.capRetention(database, SettingValue.retention(database)),
         });
-        this.blobs = new R2BlobStorage(
+        this.blobs = new BucketBlobStorage(
             fields.files,
             `${BLOBS_PREFIX}/${space}/`,
             environment.random,
