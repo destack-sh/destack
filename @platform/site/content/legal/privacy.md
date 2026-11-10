@@ -1,97 +1,98 @@
 ---
 title: Privacy
-description: What the Destack service stores about you, why, where, for how long, and who processes it.
+description: What Destack keeps about you, why, where, and for how long.
 ---
 
-Effective 9 November 2026.
+Effective 10 November 2026.
 
 ## Who we are
 
-Symbol Industries GmbH, Baslerstrasse 77, 8048 Zürich, Switzerland (UID CHE-146.865.821), runs the Destack service at destack.app and this site at destack.sh.
-We are the controller of your account, sign-in and billing data under the Swiss Federal Act on Data Protection and, for people in the European Economic Area and the United Kingdom, the General Data Protection Regulation.
-For the data you and your apps keep in your spaces, you are the controller, and we process it on your instructions to run your spaces.
-Spaces you run on your own computers stay on them: we never receive their data.
+**Symbol Industries GmbH** runs Destack at destack.app and this site at destack.sh.
+We are at Baslerstrasse 77, 8048 Zürich, Switzerland (UID CHE-146.865.821).
 
-## What we collect
+- **We are responsible for your account, sign-in and billing data.**
+- **Your spaces are yours**, and we process what you keep in them only to run them for you.
 
-| Data | What it is |
-| --- | --- |
-| Account | Your email address, name, handle, profile image, time zone, language, and the residency you chose. |
-| Sign-in | Your sessions with the IP address and browser they started from, the identities you sign in with at GitHub, Google or Microsoft, your passkeys' public keys, and your authenticator secret, stored encrypted. |
-| Calls | A record of each call made in your account: who made it, what it did, when, and whether it succeeded. Records never contain passwords, codes or tokens. |
-| Spaces | What you and your apps store in your spaces. |
-| Billing | Your plan and invoices. Stripe holds your payment details; we never see your card number. |
-| Mail | The sign-in codes and notices we send to your email address. |
-| Usage | How our sites and the service are used, measured with our own first-party analytics. |
+## What we keep
 
-## How we use it
+- **Account**: your email address, name, handle, profile image, time zone, language and residency.
+- **Sign-in**: your sessions with their IP address and browser, your GitHub, Google or Microsoft identity, your passkeys' public keys, and your encrypted authenticator secret.
+- **Calls**: who did what in your account and when, without passwords, codes or tokens.
+- **Spaces**: what you and your apps store in them.
+- **Billing**: your plan and invoices, while Stripe keeps your card details.
+- **Usage**: how our sites and the service are used, from our own analytics.
 
-- **To run the service you signed up for**, as our contract with you requires: your account, sign-in, spaces, mail and billing.
-- **To keep the service and your account secure**, our legitimate interest: sessions with their IP address and browser, and the record of calls.
-- **To understand and improve Destack**, our legitimate interest: usage measured with our own analytics.
-- **To meet legal obligations**: invoices and tax records.
+We collect it from you, from your apps, and from the sign-in provider you choose.
 
-We do not sell your data, use it for advertising, or train AI models on the content of your spaces.
+## Why we keep it
 
-## Who we share it with
+- **To run Destack for you**: our contract with you.
+- **To keep your account secure**: our legitimate interest.
+- **To improve Destack**: our legitimate interest.
+- **To follow the law**: invoices and tax records.
 
-We share your data only in these cases:
-
-- **Processors** that run parts of the service for us, under contracts that bind them to our instructions:
-
-| Processor | What for | Where |
-| --- | --- | --- |
-| Cloudflare | Hosting, network and storage of the service and our sites | Global network; spaces stored in your residency |
-| PlanetScale | The database of accounts and sign-in | European Union |
-| Amazon Web Services | Sending mail, and keeping the service's encryption keys | European Union |
-| Stripe | Payments and invoices | European Union and United States |
-| GitHub, Google, Microsoft | Signing you in, only when you choose to sign in with them | United States |
-
-- **Apps and packages you install**, which read and write your spaces as you allow them; their publishers' own policies apply to what they do with it.
-- **People you share with**, such as the members of a space or the readers of a public space.
-- **Authorities**, when Swiss law requires it, and we tell you unless the law forbids it.
-- **A successor**, if Symbol Industries merges or is acquired, bound by this policy.
+**We don't sell your data, and we don't train AI models on your spaces.**
 
 ## Where it lives
 
-Your account and sign-in data live in the European Union.
-Your spaces live in the residency you choose at sign-up: the European Union or the United States.
-Transfers to countries without an adequate level of protection rely on the European Commission's standard contractual clauses, the EU-US Data Privacy Framework, or the Swiss-US Data Privacy Framework.
+- **Your account and sign-in data, and the keys that protect them, live in Switzerland.**
+- **Your spaces live in the residency you choose**: the EU or the US.
+
+## Who we share it with
+
+- **Amazon Web Services**: our account database and its keys in Switzerland, and our mail, sent from the EU.
+- **Cloudflare**: our hosting and network, and your spaces, in your residency.
+- **Stripe**: payments and invoices, in the EU and the US.
+- **GitHub, Google and Microsoft**: sign-in, in the US, only if you choose them.
+- **Apps and people**: only the ones you choose.
+- **Authorities**: only when Swiss law requires it, and we tell you unless the law forbids it.
+- **A successor**: only if we are acquired, bound by this policy.
+
+Our providers act only on our instructions.
+The EU recognises Switzerland as protecting data adequately.
+Transfers to the US rely on the Data Privacy Frameworks of the EU, the UK and Switzerland, or on standard contractual clauses.
 
 ## How long we keep it
 
-- Your account stays until you delete it. A deleted account can be restored for 30 days, then it is removed.
-- A session lasts until it expires or you sign out.
-- Sign-in codes expire within minutes, and we store them only as hashes.
-- Records of calls stay as long as they serve the security of your account.
-- Invoices stay for the ten years Swiss law requires.
+- **Your account**: until you delete it, plus 30 days to restore it.
+- **Sessions**: until they expire or you sign out.
+- **Sign-in codes**: a few minutes, and only as hashes.
+- **Calls**: as long as they help keep your account secure.
+- **Invoices**: ten years, as Swiss law requires.
 
 ## Your rights
 
-You can ask for a copy of your data, correct it, delete it, take it elsewhere, restrict or object to how we process it, and withdraw any consent you gave.
-Write to florian@symbol.industries, and we answer within 30 days.
-You can also complain to the Swiss Federal Data Protection and Information Commissioner, or to the data protection authority where you live or work.
+**Wherever you live, you can see, correct, delete or export your data**, object to how we use it, and withdraw consent.
+Write to florian@symbol.industries, or have someone you authorise write for you, and we answer within 30 days.
+**We never treat you differently for using these rights.**
 
-## Cookies and analytics
+You can also complain to your data protection authority:
 
-destack.app sets one cookie, which keeps you signed in.
-Our analytics are our own, run on Destack and stored in our systems; we share them with no one.
-We use no third-party trackers and no advertising cookies.
-Videos on destack.sh play through YouTube's privacy-enhanced player (youtube-nocookie.com), which loads only when you play them.
+- **Switzerland**: the Federal Data Protection and Information Commissioner.
+- **EU and EEA**: the authority where you live or work.
+- **UK**: the Information Commissioner's Office.
+- **Canada**: the Office of the Privacy Commissioner of Canada.
+- **US**: your state's attorney general or privacy agency, such as the California Privacy Protection Agency.
+
+## Cookies
+
+- **destack.app sets one cookie**, which keeps you signed in.
+- **We use no third-party trackers.**
+- **YouTube videos on destack.sh load only when you press play**, through its privacy-enhanced player.
 
 ## Security
 
-We encrypt data in transit and the service's secrets at rest, sign every token the service issues, and record every call made in your account.
-If a breach puts your data at risk, we tell you and the authorities as the law requires.
+- **We encrypt your data in transit** and our secrets at rest.
+- **We sign every token we issue** and record every call in your account.
+- **If a breach puts your data at risk, we tell you** and the authorities.
 
 ## Children
 
-Destack is not for children under 16, and we do not knowingly collect their data.
+**Destack is for people aged 16 and over**, and we don't knowingly collect children's data.
 
 ## Changes
 
-We update this page when what we collect, why, or who processes it changes, and change its effective date.
-We tell you by email before a change that affects you takes effect.
+**We email you before a change to this policy affects you.**
 
 ## Contact
 
