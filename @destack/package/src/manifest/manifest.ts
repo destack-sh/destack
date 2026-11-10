@@ -54,10 +54,15 @@ const manifest = schema.object({
 
 /** The portable structure of a package build manifest. */
 export const PackageManifest = Object.assign(manifest, {
+    /** Report whether a build builds a Destack package, not an npm unit. */
+    isPackage(value: PackageManifest): value is PackageManifest & { readonly package: Package } {
+        return "id" in value.package;
+    },
+
     /** Read the Destack package a build builds, refusing an npm unit's build. */
     package(value: PackageManifest): Package {
         // refuse an npm unit's build, which names no Destack package
-        if (!("id" in value.package)) {
+        if (!PackageManifest.isPackage(value)) {
             const { name, version } = value.package;
             throw PackageError.of(
                 "BUILD_INVALID",

@@ -4,8 +4,11 @@ import { PackagePath } from "../file/file.ts";
 import { Sandbox } from "../definition/sandbox.ts";
 import { PackageError } from "../error/index.ts";
 
-/** The roles a client opens a view in: a start view, or a command palette over a window. */
-const VIEW_CATEGORIES = ["home", "command"] as const;
+/** The roles a client opens a view in: the main view, a start view, or a command palette. */
+const VIEW_CATEGORIES = ["main", "home", "command"] as const;
+
+/** Who a view serves: a signed-in person, or anyone, signed in or not. */
+const VIEW_AUDIENCES = ["person", "anyone"] as const;
 
 /** The presentation priorities, the strongest first. */
 const PRESENTATION_PRIORITIES = ["default", "option"] as const;
@@ -31,6 +34,11 @@ export const ViewPresentation = schema.object({
 });
 /** An object type a view presents, as its declaration describes it. */
 export type ViewPresentation = schema.Infer<typeof ViewPresentation>;
+
+/** Who a view serves: a signed-in person, whom its origin signs in first, or anyone. */
+export const ViewAudience = schema.enum(VIEW_AUDIENCES);
+/** Who a view serves. */
+export type ViewAudience = schema.Infer<typeof ViewAudience>;
 
 /** A role a client opens a view in, as Android's intent categories mark a home screen. */
 export const ViewCategory = schema.enum(VIEW_CATEGORIES);
@@ -93,6 +101,8 @@ const viewDescription = schema
         presents: schema.array(ViewPresentation),
         /** The roles clients open the view in. */
         categories: schema.array(ViewCategory),
+        /** Who the view serves. */
+        audience: ViewAudience,
         /** The packages the view calls as its person. */
         packages: schema.array(PackageId),
         /** How the view renders. */
@@ -103,10 +113,12 @@ const viewDescription = schema
 /** A view a browser output compiles, as manifests describe it. */
 export const ViewDescription = Object.assign(viewDescription, {
     /** A view as its declaration describes it: name, presented types, packages and render mode. */
-    declaration: viewDescription.pick({ presents: true, categories: true, packages: true }).extend({
-        name: schema.string().min(1),
-        render: ViewRender.declaration,
-    }),
+    declaration: viewDescription
+        .pick({ presents: true, categories: true, audience: true, packages: true })
+        .extend({
+            name: schema.string().min(1),
+            render: ViewRender.declaration,
+        }),
 
     /** List the views a build's outputs compile, by name. */
     list(manifest: {
@@ -129,6 +141,18 @@ export const ViewDescription = Object.assign(viewDescription, {
         }
 
         return views;
+    },
+
+    /** Find the view the package's origin opens at its root, refusing two, none without one. */
+    main(views: Readonly<Record<string, Pick<ViewDescription, "categories">>>): string | undefined {
+        const mains = Object.entries(views)
+            .filter(([, view]) => view.categories.includes("main"))
+            .map(([name]) => name);
+        if (mains.length > 1) {
+            throw PackageError.of("VIEW_MAIN_DUPLICATE", `views ${mains.join(", ")} are each main`);
+        }
+
+        return mains[0];
     },
 
     /** Read the directory of a static view's pages in the browser output describing it. */

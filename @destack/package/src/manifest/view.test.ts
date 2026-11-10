@@ -8,6 +8,7 @@ const VIEW: ViewDescription = {
     sandbox: {},
     presents: [],
     categories: [],
+    audience: "person",
     packages: [],
     render: { mode: "client" },
 };
@@ -30,6 +31,26 @@ test("list the views every output compiles by name, refusing a name two outputs 
             "UNPROCESSABLE_CONTENT",
             "VIEW_DUPLICATE",
             "output panel compiles view home, which another output already compiles",
+        ],
+    });
+});
+
+test("find the main view the package's origin opens at its root, none without one, refusing two", async () => {
+    // mark one view main, then none, then two
+    const main = { ...VIEW, categories: ["main" as const, "home" as const] };
+    const settings = { ...VIEW, entrypoint: "settings.js" };
+
+    expect({
+        found: ViewDescription.main({ home: main, settings }),
+        none: ViewDescription.main({ home: VIEW, settings }),
+        refused: await refusal(() => ViewDescription.main({ home: main, settings: main })),
+    }).toEqual({
+        found: "home",
+        none: undefined,
+        refused: [
+            "UNPROCESSABLE_CONTENT",
+            "VIEW_MAIN_DUPLICATE",
+            "views home, settings are each main",
         ],
     });
 });

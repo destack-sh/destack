@@ -28,6 +28,7 @@ export const PackageError = defineErrorFamily(
         ABILITY_UNENFORCEABLE: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
         ABILITY_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
         VIEW_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
+        VIEW_MAIN_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
         HOST_MODULE_UNAVAILABLE: { code: "UNPROCESSABLE_CONTENT" },
         INSPECTION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
         LANGUAGE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
