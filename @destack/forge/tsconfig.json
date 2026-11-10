@@ -31,6 +31,14 @@
         ],
         "types": ["bun", "@destack/build/browser"]
     },
-    "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/answer", "tests/fixture/greeting"]
+    "include": ["**/*"],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "target",
+        "coverage",
+        "out",
+        "tests/fixture/answer",
+        "tests/fixture/greeting"
+    ]
 }

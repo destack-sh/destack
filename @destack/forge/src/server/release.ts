@@ -1,5 +1,6 @@
 import { type BuildStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
+import type { PackageRelease } from "@destack/package";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
 import { present, Version, schema } from "@destack/schema";
@@ -76,6 +77,9 @@ export const ReleaseMethod = {
             );
         }
 
+        // refuse a dependency on a package hosted here that pins an unreleased build
+        await ReleaseMethod.requirePublished(context, await contents.releases());
+
         // lease the npm units it depends on, which its readers read with it
         const units = await store.units(manifest, parentId);
         for (const each of units) {
@@ -128,6 +132,32 @@ export const ReleaseMethod = {
         ]);
 
         return created;
+    },
+
+    /** Refuse a dependency on a package this forge hosts whose pinned build it has not released. */
+    async requirePublished(
+        context: MethodContextOf<typeof release, "create", Candidate | undefined>,
+        dependencies: readonly PackageRelease[],
+    ): Promise<void> {
+        for (const dependency of dependencies) {
+            // read the release of its pinned build among the packages hosted here
+            const { id } = dependency.package;
+            const [hosted] = await context
+                .read(packageObject)
+                .findMany({ where: { id }, limit: 1 });
+            const [released] = await context.read(release).findMany({
+                where: { parentId: id, manifest: dependency.manifest },
+                limit: 1,
+            });
+
+            // refuse a hosted package's unreleased build, leaving packages other forges host
+            if (hosted !== undefined && released === undefined) {
+                throw ForgeError.of(
+                    "DEPENDENCY_UNPUBLISHED",
+                    `${dependency.package.name}@${dependency.package.version} is not published`,
+                );
+            }
+        }
     },
 
     /** Find a package's published release of a version, or of the version a tag points at. */
