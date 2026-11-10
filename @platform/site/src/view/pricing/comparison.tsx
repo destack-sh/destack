@@ -5,12 +5,12 @@ import * as style from "@destack/style";
 import { FigureLabel } from "../home/entry/entry";
 import { Glyph } from "../home/figure/glyph";
 import { frame } from "../layout/frame.stylex";
-import { lattice } from "../layout/lattice.stylex";
+import { lattice, paper } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
-import { allowance, plans } from "../content/generated/pricing";
+import { plans } from "../content/generated/pricing";
 import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
-import { convert, type Currency, money } from "./money";
+import { type Currency, money } from "./money";
 import { type Plan } from "./plan";
 
 /** What a plan gives on a row: included or not, or a short value. */
@@ -33,26 +33,20 @@ const rows: readonly Row[] = [
     {
         feature: features.included,
         cell: (plan, currency) =>
-            plan.fees.USD === 0
-                ? money(convert(allowance.usage, currency), currency, true)
-                : money(plan.fees[currency], currency),
+            plan.fees.USD === 0 ? "Limited" : money(plan.fees[currency], currency),
     },
     {
         feature: features.retention,
         cell: (plan) => (plan.isCustomRetention ? "Custom" : "Default"),
     },
     {
-        feature: features.overage,
-        cell: (plan) => (plan.isUncapped ? "Pay as you go" : "Capped"),
+        feature: features.uncapped,
+        cell: (plan) => plan.isUncapped,
     },
 
     // software
-    {
-        feature: features.members,
-        cell: (plan) => (plan.fees.USD === 0 ? "Up to 5" : "Any number"),
-    },
+    { feature: features.members, cell: () => true },
     { feature: features.pooled, cell: () => true },
-    { feature: features.guests, cell: () => true },
     { feature: features.agents, cell: () => true },
     { feature: features.apps, cell: () => true },
     { feature: features.integrations, cell: () => true },
@@ -114,7 +108,7 @@ export function Comparison(properties: { currency: Currency }) {
 
             <table {...style.attrs(styles.table)}>
                 {/* one column per plan, pinned while the rows scroll past */}
-                <thead {...style.attrs(styles.section, styles.sticky)}>
+                <thead {...style.attrs(styles.section, paper.patch, styles.sticky)}>
                     <tr {...style.attrs(styles.row)}>
                         <th {...style.attrs(styles.name, styles.corner)}>
                             <span {...style.attrs(styles.hidden)}>Feature</span>
@@ -184,7 +178,6 @@ const styles = style.create({
         display: "block",
     },
     sticky: {
-        backgroundColor: color.background,
         position: "sticky",
         top: 0,
         zIndex: 1,

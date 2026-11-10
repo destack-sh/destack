@@ -7,19 +7,14 @@ export type Feature = { name: string; detail: string; icon: GlyphName };
 export const features = {
     // software
     members: {
-        name: "Members",
-        detail: "The people in your organisation, each on the plan's price; up to 5 on Free.",
+        name: "Members and guests",
+        detail: "Any number of members, each on the plan's price, and guests in your spaces for free.",
         icon: "people",
     },
     pooled: {
         name: "Pooled usage",
         detail: "Every member's fee is usage, and an organisation's members share one pool.",
         icon: "layers",
-    },
-    guests: {
-        name: "Free guests",
-        detail: "Invite guests into your spaces at no charge; only members pay.",
-        icon: "person",
     },
     agents: {
         name: "Unlimited agents",
@@ -104,14 +99,9 @@ export const features = {
         detail: "Usage is billed at the unit prices below.",
         icon: "inbox",
     },
-    overage: {
-        name: "Past included usage",
-        detail: "Capped: your spaces stop taking writes until the next month. Pay as you go: usage bills at the unit prices, up to a limit you set.",
-        icon: "up",
-    },
     uncapped: {
         name: "Pay as you go",
-        detail: "Past the included usage, usage bills at the unit prices, up to a monthly limit you set.",
+        detail: "Keep going past the included usage at the unit prices, up to a monthly limit you set, instead of stopping writes.",
         icon: "up",
     },
     retention: {

@@ -97,7 +97,7 @@ export const plans = [
     },
 ] as const;
 
-/** The free plan's usage per member a month in US dollars, and a month it covers. */
+/** The free plan's usage per account a month in US dollars, and a month it covers. */
 export const allowance = { usage: 2.5, database: 1, files: 10, compute: 10, requests: 1 } as const;
 
 /** The dedicated machines, smallest first, priced in US dollars. */

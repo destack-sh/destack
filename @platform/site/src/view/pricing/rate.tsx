@@ -26,13 +26,11 @@ const sizeNames: Readonly<Record<(typeof machines)[number]["size"], string>> = {
 
 /** Show the rates as two panels: the usage meters, then the dedicated machines. */
 export function Rates(properties: { currency: Currency }) {
-    // price an amount in US dollars in the reader's currency, as a rate or as a whole fee
+    // price an amount in US dollars in the reader's currency as a rate
     const rate = (dollars: number) =>
         dollars === 0
             ? "Free"
             : money(convert(dollars, properties.currency), properties.currency, true);
-    const fee = (dollars: number) =>
-        money(convert(dollars, properties.currency), properties.currency);
 
     return (
         <>
@@ -61,9 +59,9 @@ export function Rates(properties: { currency: Currency }) {
                     </section>
                 ))}
                 <p {...style.attrs(styles.note)}>
-                    The Free plan includes {fee(allowance.usage)} of usage per person each month,
-                    enough for {allowance.database} GB of database, {allowance.files} GB of files,{" "}
-                    {allowance.compute} GB-hours of compute and a million requests.
+                    The Free plan includes enough usage each month for {allowance.database} GB of
+                    database, {allowance.files} GB of files, {allowance.compute} GB-hours of compute
+                    and a million requests.
                 </p>
             </section>
 

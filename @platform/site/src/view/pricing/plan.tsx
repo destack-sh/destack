@@ -15,7 +15,7 @@ import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Feature, features } from "./feature";
 import { Hint } from "./hint";
-import { convert, type Currency, money } from "./money";
+import { type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { press } from "../layout/press";
 
@@ -327,35 +327,32 @@ function Enterprise(properties: { currency: Currency; isShown: boolean }) {
 
 /** Set the usage a plan includes each month under its fee, pooled across an organisation. */
 function Usage(properties: { plan: Plan; fee: number; currency: Currency; isPooled: boolean }) {
-    // name the usage the fee includes, or the free plan's, pooled for an organisation
+    // name the usage the fee includes, pooled for an organisation, or the free plan's limited usage
     const isFree = () => properties.fee === 0;
-    const amount = () =>
+    const included = () =>
         isFree()
-            ? money(convert(allowance.usage, properties.currency), properties.currency, true)
-            : money(properties.fee, properties.currency);
-    const included = () => `${amount()} of ${properties.isPooled ? "pooled " : ""}usage included`;
+            ? "Limited usage included"
+            : `${money(properties.fee, properties.currency)} of ${properties.isPooled ? "pooled " : ""}usage included`;
 
     // explain the pool for an organisation, then what happens past the included usage
     const pool = () =>
         properties.isPooled ? "Each member's fee is usage, pooled across your organisation. " : "";
     const detail = () =>
         isFree()
-            ? `Enough for ${allowance.database} GB of database, ${allowance.files} GB of files, ${allowance.compute} GB-hours of compute and a million requests a month${properties.isPooled ? " for each member, up to 5" : ""}. Past it your spaces slow down and stop taking writes, and nothing is billed.`
+            ? `Enough for ${allowance.database} GB of database, ${allowance.files} GB of files, ${allowance.compute} GB-hours of compute and a million requests a month${properties.isPooled ? " for the whole organisation" : ""}. Past it your spaces slow down and stop taking writes, and nothing is billed.`
             : properties.plan.isUncapped
               ? `${pool()}Past it, usage is billed at the prices below, up to a monthly limit you set.`
               : `${pool()}Past it your spaces slow down and stop taking writes, and nothing more is billed.`;
-    const past = () =>
-        properties.plan.isUncapped
-            ? "then pay as you go"
-            : isFree() && properties.isPooled
-              ? "per person, then capped"
-              : "then capped";
 
     return (
         <p {...style.attrs(styles.usage)}>
             <Hint text={included()} detail={detail()} />
-            <br />
-            {past()}
+            {properties.plan.isUncapped ? (
+                <>
+                    <br />
+                    then pay as you go
+                </>
+            ) : undefined}
         </p>
     );
 }
@@ -515,6 +512,7 @@ const styles = style.create({
         margin: 0,
     },
     price: {
+        alignContent: "start",
         display: "grid",
         paddingBlockStart: "0.5rem",
         rowGap: "0.875rem",

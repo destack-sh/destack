@@ -146,8 +146,8 @@ const creditPrices = Object.fromEntries(
     ]),
 );
 
-// read the free plan's included usage per member, and require the month it covers to cost exactly that
-/** The free plan's monthly usage per member, and a month it covers. */
+// read the free plan's included usage per account, and require the month it covers to cost exactly that
+/** The free plan's monthly usage per account, and a month it covers. */
 const allowance = { usage: dollarsOf(PLANS.free.includedUsage), ...FREE_MONTH };
 /** What the month the free plan covers costs at the unit prices, in US dollars. */
 const covered = roundOf(
@@ -185,7 +185,7 @@ const generatedSource = await formatSource(
         `export const creditPrices = ${JSON.stringify(creditPrices)} as const;\n\n` +
         `/** The plans, cheapest first, then the enterprise contract, each fee a month in each currency. */\n` +
         `export const plans = ${JSON.stringify(plans)} as const;\n\n` +
-        `/** The free plan's usage per member a month in US dollars, and a month it covers. */\n` +
+        `/** The free plan's usage per account a month in US dollars, and a month it covers. */\n` +
         `export const allowance = ${JSON.stringify(allowance)} as const;\n\n` +
         `/** The dedicated machines, smallest first, priced in US dollars. */\n` +
         `export const machines = ${JSON.stringify(machines)} as const;\n`,
