@@ -1,3 +1,4 @@
+import { spaceAliases } from "@destack/account/declare";
 import { currentSpace, type Login, NATIVE_SETTINGS } from "@destack/account/native";
 import type { Environment } from "@destack/environment";
 import { dirname, relative } from "node:path";
@@ -84,17 +85,25 @@ export class Context {
 
     /** Read the person the terminal acts as, refusing a computer nobody signed in on. */
     person(): Promise<Session> {
-        this.#person ??= (async () => {
-            // require a person signed in on this computer
-            const signedIn = await this.login();
-            if (signedIn === undefined) {
-                throw CliError.of("SIGN_IN_REQUIRED", "sign in with destack login");
-            }
-
-            return (await this.native()).session(signedIn.id);
-        })();
+        this.#person ??= (async () => (await this.native()).session(await this.#loginId()))();
 
         return this.#person;
+    }
+
+    /** Read the login the terminal acts through, refusing a computer nobody signed in on. */
+    async signedIn(): Promise<Login> {
+        return (await this.native()).signedIn(await this.#loginId());
+    }
+
+    /** Read the login the terminal acts as by its identifier, refusing none signed in. */
+    async #loginId(): Promise<Identifier<"login">> {
+        // require a person signed in on this computer
+        const signedIn = await this.login();
+        if (signedIn === undefined) {
+            throw CliError.of("SIGN_IN_REQUIRED", "sign in with destack login");
+        }
+
+        return signedIn.id;
     }
 
     /** Read the space the command line acts in: --space, else this computer's space setting. */
@@ -116,7 +125,9 @@ export class Context {
 
     /** Resolve a space's name, as the signed-in person names it. */
     async resolve(name: string): Promise<Identifier<"space">> {
-        return (await this.person()).resolve(name);
+        const aliases = await (await this.native()).setting(spaceAliases);
+
+        return (await this.person()).resolve(name, aliases);
     }
 
     /** Read the space the command line acts in, refusing a command line acting in none. */
@@ -144,7 +155,7 @@ export class Context {
         // read the person's own account outside a space
         const space = await this.space();
         if (space === undefined) {
-            return (await this.person()).login.account();
+            return (await this.person()).person.account();
         }
 
         // read the account of the space

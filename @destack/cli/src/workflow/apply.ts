@@ -163,7 +163,7 @@ async function submitStack(
         id: registered.checkout.id,
         requestId: RequestId.create(environment),
         space,
-        login: (await context.person()).login.row.id,
+        login: (await context.signedIn()).row.id,
         directory: registered.path,
         export: exported,
         parameters,

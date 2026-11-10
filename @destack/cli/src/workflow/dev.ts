@@ -193,7 +193,7 @@ async function follow(
     const client = await context.native();
     const person = await context.person();
     await using opened = new AsyncDisposableStack();
-    const builds = await person.open({ space }, { build: stackObject.build }, opened);
+    const builds = await client.open(person, { space }, { build: stackObject.build }, opened);
     using interrupt = new Interrupt(context.environment.process);
     const cancelled = new Promise<unknown>((resolve) => {
         interrupt.signal.addEventListener("abort", () => {
@@ -262,7 +262,7 @@ async function preview(context: Context, directory: string, json: boolean): Prom
         checkoutId: registered.checkout.id,
         package: registered.path,
         space,
-        login: (await context.person()).login.row.id,
+        login: (await context.signedIn()).row.id,
     });
     await context.terminal.print(
         json ? JSON.stringify(created) : `Previewing ${created.package} (${created.id}).`,

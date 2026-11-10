@@ -52,6 +52,8 @@ export interface Group {
     readonly resolve?: (name: string) => Promise<Node | undefined>;
     /** List the names outside `commands` that `resolve` loads, for help and completion. */
     readonly names?: () => Promise<readonly string[]>;
+    /** Explain why `resolve` loads no subcommand now, such as for a signed-out person. */
+    readonly unavailable?: () => Promise<string | undefined>;
     /** The positional argument leading to a subcommand of any value, such as an object's id. */
     readonly argument?: GroupArgument;
     /** The command the group runs without a subcommand, help when absent. */
@@ -220,7 +222,12 @@ export class CommandTree {
             }
             const child = await this.child(command, name);
             if (child === undefined) {
-                throw CliError.of("USAGE_INVALID", `unknown command ${[...path, name].join(" ")}`);
+                const unknown = `unknown command ${[...path, name].join(" ")}`;
+                const reason = await command.unavailable?.();
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    reason === undefined ? unknown : `${unknown}: ${reason}`,
+                );
             }
             path.push(name);
             command = child;

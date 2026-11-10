@@ -161,7 +161,7 @@ export class TerminalFixture {
         const session = await this.native.session(this.login.id);
         const { home } = this.computer.world.owner;
         const objects = await this.wait(
-            session.open({ space: home, installation }, { type }, stack),
+            this.native.open(session, { space: home, installation }, { type }, stack),
         );
         const read = () => objects.query.type.findFirst({ where: { id } });
         await this.computer.waitUntil(

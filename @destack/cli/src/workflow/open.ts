@@ -7,9 +7,6 @@ import { type Verb, OptionValue } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 import { Application } from "@destack/desktop/workload";
 import { CliError } from "../error/index.ts";
-import type { GrantPermission } from "@destack/access";
-import { MachineError } from "@destack/machine/error";
-import type { Session } from "@destack/machine/device";
 import type { Address } from "@destack/view/declare";
 
 /** Open a link, or an object by its identifier, in a desktop window or the browser. */
@@ -42,17 +39,11 @@ export function openCommand(context: Context): Verb {
                 );
             }
 
-            // launch it on its origin in the browser, asking the person to grant what its view asks
+            // open its page on its origin in the browser, which signs the person in at the universe
             if (options["browser"] === true) {
                 const person = await context.person();
-                const { url } = await person.launch(address).catch(async (error: unknown) => {
-                    if (!MachineError.is(error, "GRANT_REQUIRED")) {
-                        throw error;
-                    }
-                    await openGrant(person, address, error.data.permissions, context);
-
-                    return person.launch(address);
-                });
+                const native = await context.native();
+                const { url } = await native.launch(person, address);
                 await context.terminal.printDiagnostic(`Opening ${url}`);
                 await context.environment.opener.openUrl(url);
                 await context.terminal.print(json ? JSON.stringify({ url }) : `Opened ${url}.`);
@@ -84,23 +75,4 @@ async function objectAddress(
     const space = await (await context.person()).address(await context.requireSpace());
 
     return catalog.select(id, space, view, context);
-}
-
-/** Ask the person on the terminal to grant a view what it asks, refusing to open it otherwise. */
-async function openGrant(
-    person: Pick<Session, "grant">,
-    address: Address,
-    permissions: readonly GrantPermission[],
-    context: Context,
-): Promise<void> {
-    // list each permission as its verb and type
-    const name = "object" in address ? address.space : address.installation;
-    const listed = [...new Set(permissions.map((entry) => `${entry.name} ${entry.type}`))];
-    await context.terminal.printDiagnostic(`${name} asks to act for you: ${listed.join(", ")}`);
-
-    // grant it once the person allows
-    if (!(await context.terminal.prompt.confirm(`Allow ${name}?`))) {
-        throw CliError.of("GRANT_REFUSED", `${name} was not granted what it asks`);
-    }
-    await person.grant(address);
 }

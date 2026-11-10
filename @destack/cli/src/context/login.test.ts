@@ -15,7 +15,7 @@ function environment(variables: Readonly<Record<string, string>> = {}) {
     };
 }
 
-test("read a new person's sign-up from their handle, asking the residency and name, and nothing without a handle", async () => {
+test("read a new person's sign-up from their handle, asking the residency and name, refusing an empty name, and nothing without a handle", async () => {
     // answer each question in turn, recording it
     const asked: string[] = [];
     const prompt = (...answers: string[]) => ({
@@ -42,14 +42,22 @@ test("read a new person's sign-up from their handle, asking the residency and na
     )
         .signUp(residencies)
         .catch((error: unknown) => (error instanceof Error ? error.message : error));
+    const unnamed = await new SignInPrompt(
+        { handle: "bea", residency: "eu" },
+        prompt(""),
+        environment(),
+    )
+        .signUp(residencies)
+        .catch((error: unknown) => (error instanceof Error ? error.message : error));
 
     // take the time zone and locale this terminal runs in
     const { timeZone, locale } = environment();
-    expect({ signIn, signUp, refused, asked }).toEqual({
+    expect({ signIn, signUp, refused, unnamed, asked }).toEqual({
         signIn: undefined,
         signUp: { name: "Bea", handle: "bea", residencyId: "eu", timeZone, locale },
         refused: "unknown residency mars: choose one of eu (Europe)",
-        asked: ["Residency: eu (Europe)", "Name"],
+        unnamed: "a name has 1 to 200 characters, not 0",
+        asked: ["Residency: eu (Europe)", "Name", "Name"],
     });
 });
 

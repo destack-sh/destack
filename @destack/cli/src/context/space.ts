@@ -12,7 +12,7 @@ export function switchCommand(context: Context): Verb {
             {
                 name: "space",
                 // offer the spaces of the person's accounts
-                complete: async () => (await context.person()).login.spaces(),
+                complete: async () => (await context.person()).person.spaces(),
             },
         ],
         json: true,

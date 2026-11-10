@@ -204,7 +204,7 @@ export class Noun {
         }
         // read the person signed in
         else if (level === "user") {
-            return (await context.person()).login.row.subjectId;
+            return (await context.person()).person.subjectId;
         }
         // read this computer's device
         else if (level === "device") {

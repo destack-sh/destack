@@ -80,26 +80,26 @@ test("open an object by its identifier as a window of the running desktop", asyn
     });
 });
 
-test("open a view in the browser through the person's opener, without asking when they installed it", async () => {
+test("open a view's page on its origin in the browser through the person's opener, which the universe signs in", async () => {
     // install the start page in a work space of the owner's, reaching their home's settings
     const terminal = await TerminalFixture.open({ DESTACK_STAGE: "local" });
     const work = await terminal.space("work");
     await terminal.install("start", "start", work);
     const link = `destack-local://start--${terminal.address("work")}/start`;
 
-    // open it in the browser, which the installer granted what it asks
+    // open it in the browser
     const printed = await terminal.printed(["open", link, "--browser", "--json"]);
     const [url = ""] = terminal.opened();
     const launched = new URL(url);
 
-    // open the launch once, on the installation's origin, printing and announcing it
+    // open the page once, on the installation's origin and without a token, printing and announcing it
     expect({
         printed,
         opened: terminal.opened().length,
-        launch: [launched.hostname, launched.pathname, launched.searchParams.has("token")],
+        page: [launched.hostname, launched.pathname, launched.search],
     }).toEqual({
         printed: { code: 0, output: `${JSON.stringify({ url })}\n`, error: `Opening ${url}\n` },
         opened: 1,
-        launch: [`start--${terminal.address("work")}.localhost`, "/start", true],
+        page: [`start--${terminal.address("work")}.localhost`, "/start", ""],
     });
 });

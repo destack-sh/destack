@@ -102,17 +102,27 @@ test("switch to a space as this computer's space setting, which --space override
     });
 });
 
-test("refuse a command line acting as nobody signed in, telling the person to sign in and exiting 4", async () => {
+test("refuse a command line acting as nobody signed in, telling the person to sign in, also for a universe noun", async () => {
     // sign the owner out
     const terminal = await TerminalFixture.open();
     const { native } = terminal;
-    await native.signOut((await native.session(terminal.login.id)).login);
+    await native.signOut(await native.signedIn(terminal.login.id));
 
-    // ask who is signed in
-    expect(await terminal.printed(["whoami", "--json"])).toEqual({
-        code: 4,
-        output: "",
-        error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "sign in with destack login" } })}\n`,
+    // ask who is signed in, then list spaces, which only a signed-in person's catalog offers
+    expect({
+        whoami: await terminal.printed(["whoami", "--json"]),
+        spaces: await terminal.printed(["spaces"]),
+    }).toEqual({
+        whoami: {
+            code: 4,
+            output: "",
+            error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "sign in with destack login" } })}\n`,
+        },
+        spaces: {
+            code: 2,
+            output: "",
+            error: "destack: unknown command destack spaces: sign in with destack login for the universe's and spaces' commands\n",
+        },
     });
 });
 

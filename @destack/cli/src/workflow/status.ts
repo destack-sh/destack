@@ -61,7 +61,9 @@ export async function* followInstallation(
     const person = await context.person();
     const stack = await context.package(stackPackage, await context.locate());
     await using opened = new AsyncDisposableStack();
-    const { query } = await person.open(
+    const native = await context.native();
+    const { query } = await native.open(
+        person,
         { space },
         { installation, rollout, database, bucket, vault, approval },
         opened,

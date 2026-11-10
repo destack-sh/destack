@@ -1,5 +1,5 @@
 import { currentLogin, currentSpace, type Login } from "@destack/account/native";
-import type { Residency } from "@destack/account/object";
+import { DisplayName, NAME_LENGTH, type Residency } from "@destack/account/object";
 import type { SignUp } from "@destack/account/better-auth";
 import type { schema } from "@destack/schema";
 
@@ -79,8 +79,16 @@ export class SignInPrompt {
             );
         }
 
-        // ask for the name, and take the time zone and locale this terminal runs in
+        // ask for the name, refusing one no account takes
         const name = this.#given("name") ?? (await this.#prompt.ask("Name"));
+        if (!DisplayName.safeParse(name).success) {
+            throw CliError.of(
+                "USAGE_INVALID",
+                `a name has 1 to ${NAME_LENGTH} characters, not ${name.length}`,
+            );
+        }
+
+        // take the time zone and locale this terminal runs in
         const { timeZone, locale } = this.#environment;
 
         return { name, handle, residencyId, timeZone, locale };
@@ -155,7 +163,7 @@ export function logoutCommand(context: Context): Verb {
         json: true,
         async run({ json }) {
             // revoke the session at its issuer and remove the login
-            const { login } = await context.person();
+            const login = await context.signedIn();
             await (await context.native()).signOut(login);
             await context.terminal.print(
                 json ? JSON.stringify({ id: login.row.id }) : `Signed out ${login.row.name}.`,
@@ -172,7 +180,7 @@ export function whoamiCommand(context: Context): Verb {
         async run({ json }) {
             // read the person and the address of the space
             const person = await context.person();
-            const { row } = person.login;
+            const { row } = await context.signedIn();
             const acting = await context.space();
             const space = acting === undefined ? null : await person.address(acting);
             await context.terminal.print(
@@ -250,7 +258,7 @@ async function switchHome(
 
     // switch to the home of the person's account
     const session = await client.session(login.id);
-    const home = await session.login.home();
+    const home = await session.person.home();
     await client.set(currentSpace, home);
 
     return session.address(home);

@@ -12,7 +12,6 @@ export const CliError = defineErrorFamily(import.meta.destack.package, {
     SIGN_IN_REQUIRED: { code: "UNAUTHORIZED" },
 
     // forbidden
-    GRANT_REFUSED: { code: "FORBIDDEN" },
 
     // not found
     NOUN_NOT_FOUND: { code: "NOT_FOUND" },

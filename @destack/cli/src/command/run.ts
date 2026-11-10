@@ -126,7 +126,20 @@ export class CommandLine {
             // find a noun the stores describe, listed qualified where a root verb takes its word
             resolve: async (word) => nounCommand(context, await context.catalog(), word),
             names: async () => (await context.catalog()).plurals(Object.keys(commands)),
+            unavailable: () => CommandLine.#unavailable(context),
         };
+    }
+
+    /** Explain the nouns a command line lacks: signed out, or outside a space. */
+    static async #unavailable(context: Context): Promise<string | undefined> {
+        // point a signed-out person at signing in, and one outside a space at switching to one
+        if ((await context.me()) === undefined) {
+            return "sign in with destack login for the universe's and spaces' commands";
+        } else if ((await context.space()) === undefined) {
+            return "switch to a space with destack switch <space> for its commands";
+        }
+
+        return undefined;
     }
 
     /** Run a command line through this computer's native device and return a shell exit status. */
