@@ -12,6 +12,7 @@ import {
     lintSettings,
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
+import { OUTPUT_DIRECTORIES } from "../src/check/sources.ts";
 import { Toolchain } from "../src/toolchain/index.ts";
 
 /** The language libraries every package compiles against. */
@@ -77,7 +78,8 @@ test("compile a browser package with views against DOM, the view JSX runtime and
             jsxImportSource: "@destack/view",
             types: ["@destack/view/client"],
         },
-        include: ["src", "tests", "*.config.ts"],
+        include: ["**/*"],
+        exclude: [...OUTPUT_DIRECTORIES],
     });
 });
 

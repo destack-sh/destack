@@ -10,6 +10,7 @@ import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations, workspaceMembers } from "./expectation.ts";
 import { type Manifest, readManifest } from "./manifest.ts";
 import { formatSource } from "./format.ts";
+import { OUTPUT_DIRECTORIES, readSourceRoots } from "./sources.ts";
 import type { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
@@ -21,9 +22,6 @@ const SCRIPT_MODULE = /^[\w./@-]+\.[cm]?[jt]sx?$/u;
 
 /** The operators separating the commands of a package script. */
 const SCRIPT_COMMANDS = /&&|\|\||;/u;
-
-/** The directories a package's compiler configuration includes beside its configuration files. */
-const SOURCES = ["src", "tests"] as const;
 
 /** Fixed source formatting shared by editors and managed commands. */
 export const formatConfiguration = {
@@ -360,8 +358,8 @@ export async function typescriptConfiguration(directory: string, files: FileSyst
             ...(types.length > 0 ? { types } : {}),
             ...jsx,
         },
-        include: [...SOURCES, "*.config.ts"],
-        ...(sources.packages.length > 0 ? { exclude: sources.packages } : {}),
+        include: ["**/*"],
+        exclude: [...OUTPUT_DIRECTORIES, ...sources.packages],
     };
 }
 
@@ -400,21 +398,18 @@ function jsxOptions(
     }
 }
 
-/** Find the nested packages and TSX modules in a package's included directories. */
+/** Find the nested packages and TSX modules among a package's sources. */
 async function readSources(directory: string, files: FileSystem) {
-    // walk the included directories, stopping at each directory with a manifest
-    const packages: string[] = [];
-    let hasViews = false;
-    const pending: string[] = [];
-    for (const name of SOURCES) {
-        if (await files.exists(resolve(directory, name))) {
-            pending.push(name);
-        }
-    }
+    // walk the source folders, stopping at each directory with a manifest
+    const roots = await readSourceRoots(directory, files);
+    const packages = [...roots.packages];
+    let hasViews = roots.modules.some((module) => module.endsWith(".tsx"));
+    const pending = [...roots.folders];
     for (let path = pending.pop(); path !== undefined; path = pending.pop()) {
         for (const entry of await files.readDirectory(resolve(directory, path))) {
             const child = `${path}/${entry.name}`;
-            if (entry.kind === "directory" && entry.name !== "node_modules") {
+            const isOutput = entry.name.startsWith(".") || OUTPUT_DIRECTORIES.includes(entry.name);
+            if (entry.kind === "directory" && !isOutput) {
                 if (await files.exists(resolve(directory, child, "package.json"))) {
                     packages.push(child);
                 } else {

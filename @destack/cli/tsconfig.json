@@ -29,6 +29,6 @@
         ],
         "types": ["bun"]
     },
-    "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["tests/fixture/notebooks"]
+    "include": ["**/*"],
+    "exclude": ["node_modules", "dist", "target", "coverage", "out", "tests/fixture/notebooks"]
 }

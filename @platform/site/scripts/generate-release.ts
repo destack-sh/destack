@@ -1,6 +1,6 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatSource } from "@destack/check";
+import { formatSource, Toolchain } from "@destack/check";
 import { BunEnvironment } from "@destack/environment/bun";
 import { schema } from "@destack/schema";
 
@@ -40,6 +40,7 @@ const generatedSource = await formatSource(
     generatedFile,
     `/** The current Destack release. */\n` +
         `export const release = ${JSON.stringify(release)} as const;\n`,
+    Toolchain.workspace(),
 );
 
 // check or replace the generated module

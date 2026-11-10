@@ -8,12 +8,13 @@ author: "Florian"
 > [!ABSTRACT]
 > Destack is an **open-source software engine** for general purpose application software, just like Unity and Unreal are engines for games.
 > Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
-> 
+>
 > Destack **standardises software production and deployment**:
+>
 > 1. **Build custom software**, with your own AI, in a standardised pipeline.
 > 2. **Integrate every app and agent**: one account, one database, no walls.
 > 3. **Control your whole stack**: your data, your context, your machine.
-> 
+>
 > The Destack comprises both the platform core for building malleable software _and_ standard apps for common use cases (think Notion, Linear, Miro).
 > Everything built on Destack is fully standardised and integrated by default, and thus fully hackable and programmable by your agents.
 >
@@ -27,7 +28,7 @@ Both products and processes will undergo intense evolutionary pressure, with fas
 
 The contemporary stack is structurally broken.
 The "stack" is a thousand little silos, each with their own slightly incompatible slice of software, each demanding its own terms and standards.
-Our stack was never designed as one whole, and so nothing _quite_ fits together. 
+Our stack was never designed as one whole, and so nothing _quite_ fits together.
 
 Now, the technical debt accumulated over decades of organic software growth is coming due.
 Probabilistic computing is here, and we _could_ infuse intelligence into all software, but we're stuck on an opaque stack that rejects it at every layer.
@@ -35,10 +36,10 @@ Instead, we got APIs and MCPs.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
-> — Edsger Dijkstra, *The Humble Programmer* (1972)
+> — Edsger Dijkstra, _The Humble Programmer_ (1972)
 
 The familiar features that make modern software modern - cloud-based, multiplayer, multi-vendor, multi-stack - also make it hostile to agents.
-Fragmenting context and control across the mosasic that is the old stack precludes personalised, malleable, intelligent software. 
+Fragmenting context and control across the mosaic that is the old stack precludes personalised, malleable, intelligent software.
 
 Half a century after the last software crisis, the computing stack is once again buckling under the weight of a more powerful machine.
 Once more, we get to reconsider what programming even means and reshape software for the 21st-century.
@@ -58,7 +59,7 @@ We used to solve software-shaped problems with artisanal next-character-predicti
 
 Indeed, there was programming before code, and so there is programming after code - and programming _alongside_ code already has rich prior art.
 Game developers have iterated on multimodal software production over decades:
-early game development was a schlep! 
+early game development was a schlep!
 Only a tiny guild of brilliant nerds managed to produce presentable commercial games.
 
 To build a game, _everyone_ had to write their own graphics, networking, scripting, asset pipelines, editors - a whole engine for every game, on top of the actual game!
@@ -67,7 +68,7 @@ Then, we figured out how to package the hard bits into reusable components, and 
 ![IBM’s 1951 advertisement, 150 Extra Engineers, showing rows of engineers doing calculations.](./ibm-extra-engineers.jpg){width=480}
 [150 Extra Engineers, 1951](https://commons.wikimedia.org/wiki/File:IBM_150_Extra_Engineers_1951.jpg) — IBM.
 
-Modern game engines go _far_ beyond traditional software frameworks like Django or Rails or some flavorless blend of cloud services. 
+Modern game engines go _far_ beyond traditional software frameworks like Django or Rails or some flavorless blend of cloud services.
 The best game engines are integrated software platforms: a runtime, an editor, tools, packaging, netcode, a deployment platform, and myriad affordances for prototyping, iterating, refining, and shipping games.
 
 Like most new abstractions, game engines _initially_ didn't provide quite the same level of control as their underlying substrate.
@@ -80,12 +81,13 @@ Code is still there, it's still relevant, but - thanks to game engines - we can 
 
 General purpose software is now hitting similar issues that games have long solved.
 The principal components have ossified, but they're scattered and reconstituted a thousand different ways.
-Now, _all_ software needs a proper "software engine": an _integrated_ "platform software" with building blocks to support a new level of "userland software". 
+Now, _all_ software needs a proper "software engine": an _integrated_ "platform software" with building blocks to support a new level of "userland software".
 
 The objective of "software factories" is elevating developers in the production process, but by itself, such higher level programming lacks higher order specification.
-Steering open ended software only through the peephole of a chatbox, we lose track of where to go next, and how to get there, in frighteningly short order. Why?
+Steering open ended software only through the peephole of a chatbox, we lose track of where to go next, and how to get there, in frighteningly short order.
+Why?
 
-It is insufficient to accelerate the software production _process_, because the software *is* the specification, and a higher order process requires a higher order specification.
+It is insufficient to accelerate the software production _process_, because the software _is_ the specification, and a higher order process requires a higher order specification.
 The software _factory_ thus requires a software _engine_: to truly industrialise the manufacture of software with _new_ integrated processes that standardise the software substrate itself.
 
 ![A full-size Wright Flyer replica mounted on a test stand inside the Ames wind tunnel, with two engineers standing beside it.](./wright-flyer-wind-tunnel.jpg){width=640}
@@ -113,8 +115,8 @@ Until now, the cardinal sin of malleable software has been that "userland mallea
 Now, the equation has flipped: building is cheap, and the lack of integration is expensive.
 How do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
 
-We have all these amazing new probabilistic computing capabilities to infuse into our software, but due to the lack of integration all we get are MCPs and sidebars with chatboxes. 
-Forms don't _autocomplete_ intelligently, software is not adaptive, apps are not magic. 
+We have all these amazing new probabilistic computing capabilities to infuse into our software, but due to the lack of integration all we get are MCPs and sidebars with chatboxes.
+Forms don't _autocomplete_ intelligently, software is not adaptive, apps are not magic.
 Where is all the automation?
 Where is the higher order software?
 
@@ -125,7 +127,7 @@ The fragmented pieces of the software production and deployment process must be 
 We need a complete _software engine_ that provides both the building blocks for development and the platform services for deployment.
 
 That is Destack: an open-source software engine for general purpose apps.
-As a coarse analogy, Destack is like GitHub + NPM + Convex + Vercel + Sentry in one: a integrated system of software production, standardised principal building blocks for modern software, _and_ a ready-to-wear suite of common applications built on top.  
+As a coarse analogy, Destack is like GitHub + NPM + Convex + Vercel + Sentry in one: a integrated system of software production, standardised principal building blocks for modern software, _and_ a ready-to-wear suite of common applications built on top.
 
 ![Eleven versions of Picasso's bull, progressing from a detailed animal to a few essential lines.](./picasso-bull.jpg)
 [The Bull, 1945–46](https://drawpaintacademy.com/the-bull/) — Pablo Picasso, reproduction via Draw Paint Academy.
@@ -136,4 +138,4 @@ Once every app speaks the same API, feels and looks the same, and works with the
 It's as indestructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 (Or any combination.)-->
 
- TODO
+TODO

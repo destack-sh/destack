@@ -29,8 +29,13 @@
         ],
         "types": ["bun"]
     },
-    "include": ["src", "tests", "*.config.ts"],
+    "include": ["**/*"],
     "exclude": [
+        "node_modules",
+        "dist",
+        "target",
+        "coverage",
+        "out",
         "tests/fixture/apps",
         "tests/fixture/board",
         "tests/fixture/mention",

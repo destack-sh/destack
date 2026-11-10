@@ -29,5 +29,6 @@
         ],
         "types": ["bun"]
     },
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["**/*"],
+    "exclude": ["node_modules", "dist", "target", "coverage", "out"]
 }

@@ -31,6 +31,13 @@
         ],
         "types": ["bun", "vite/client"]
     },
-    "include": ["src", "tests", "*.config.ts"],
-    "exclude": ["src/transform/tests/fixture/notes"]
+    "include": ["**/*"],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "target",
+        "coverage",
+        "out",
+        "src/transform/tests/fixture/notes"
+    ]
 }

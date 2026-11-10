@@ -18,6 +18,11 @@ test("split prose lines into one sentence each", () => {
     expect(codes(text)).toEqual(["markdown(one-sentence-per-line)"]);
     expect(fixMarkdown(text)).toBe("# Notes\n\n- Read the note.\n  Then write it.\n");
 
+    // ignore the numbers of ordered lists, also in blockquotes
+    expect(codes("# Notes\n\n1. **Read** the note.\n\n> 2. **Write** it, then keep it.\n")).toEqual(
+        [],
+    );
+
     // ignore abbreviations, code, links, tables and fenced blocks
     expect(
         codes(
