@@ -32,6 +32,9 @@ const REPLICA_MILLISECONDS = 2000;
 /** The longest a fixture runs its world toward a condition: an hour, past any change's settling. */
 const UNTIL_MILLISECONDS = 60 * 60 * 1000;
 
+/** How recently an owner signs in to archive a note: fifteen minutes, a sudo window. */
+const ARCHIVE_AGE = 15 * 60_000;
+
 /** The module of the notes application whose calls the changes make. */
 const NOTES = {
     package: Package.parse({
@@ -64,7 +67,7 @@ export function agentOf(spaceId: string): Subject {
     return principal.installation.reference(spaceId, "installation-agent");
 }
 
-/** Notes their owners write, and publish under a new title, which no role lets anyone else do. */
+/** Notes their owners write, publish, and archive after signing in again recently. */
 export const note = defineObject(
     {
         name: "note",
@@ -78,8 +81,11 @@ export const note = defineObject(
             write: relation("owner"),
             approve: union(relation("owner"), relation("reviewer")),
             publish: relation("owner"),
+            archive: relation("owner"),
             share: relation("owner"),
         },
+        // ask several factors within fifteen minutes to archive a note
+        elevated: { archive: { assurance: 2, maxAge: ARCHIVE_AGE } },
         // let the owner bind the space's roles on a note
         shareable: { by: "share" },
         attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
@@ -91,6 +97,7 @@ export const note = defineObject(
             permission: "publish",
             input: schema.object({ title: schema.string() }),
         }),
+        archive: method.mutation({ permission: "archive" }),
     }),
     NOTES,
 );
@@ -164,7 +171,12 @@ export async function openApprovals(): Promise<TestApproval> {
             implementPackage(objectPackage, { follows: [grants] }),
             implementPackage(notesPackage, {
                 objects: [
-                    note.implement({ methods: { publish: (call) => call.update(call.input) } }),
+                    note.implement({
+                        methods: {
+                            publish: (call) => call.update(call.input),
+                            archive: (call) => call.update({ title: "Archived" }),
+                        },
+                    }),
                 ],
             }),
         ],

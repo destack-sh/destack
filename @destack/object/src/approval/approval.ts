@@ -1,10 +1,13 @@
 import {
     accepts,
+    AccessContext,
     AccessError,
+    AuthenticationAssurance,
     Caller,
     intersection,
     principal,
     relation,
+    StepUp,
     through,
 } from "@destack/access";
 import type { Select } from "@destack/db";
@@ -57,6 +60,10 @@ export const approval = defineObject(
             }),
             /** What the approver wrote with the decision. */
             comment: field.string(schema.string().max(COMMENT_LENGTH)).optional(),
+            /** The authentication deciding asks of the approver, as the call it approves needs. */
+            stepUp: field.json(StepUp.schema).immutable().optional(),
+            /** How strongly and how recently the approver authenticated when deciding. */
+            assurance: field.json(AuthenticationAssurance).optional(),
         },
         permissions: {
             // the parent's readers read approvals, its approvers request them, and the asked or a member of the asked set decides
@@ -79,6 +86,7 @@ export const approval = defineObject(
                 "approverScope",
                 "approverId",
                 "approverRelation",
+                "stepUp",
             ],
         }),
         list: method.list("read"),
@@ -100,9 +108,17 @@ export const approval = defineObject(
             return await next();
         },
         approve: async (context, next) => {
+            // require the approver acting directly, authenticated as the approval asks
             Approval.requireDecider(context);
+            const assurance = AccessContext.assurance(context.caller);
+            Approval.requireAssured(context.target, assurance, context.now);
 
-            return await next();
+            // record how the approver authenticated, which the approved call runs with
+            const approved = await next();
+
+            return assurance === undefined
+                ? approved
+                : await context.at(approved).update({ assurance });
         },
         reject: async (context, next) => {
             Approval.requireDecider(context);
@@ -123,6 +139,32 @@ export const Approval = {
             throw ObjectError.of(
                 "DECIDER_REFUSED",
                 "an approval is decided by its approver, acting directly",
+            );
+        }
+    },
+
+    /** Refuse an approver authenticated less strongly or less recently than the approval asks. */
+    requireAssured(
+        row: Pick<Approval, "stepUp">,
+        assurance: AuthenticationAssurance | undefined,
+        now: number,
+    ): void {
+        // pass an approval asking no step-up
+        const { stepUp } = row;
+        if (stepUp === null || stepUp === undefined) {
+            return;
+        }
+
+        // refuse an approver below the level, or authenticated before the age allows
+        const isStale =
+            stepUp.maxAge !== undefined &&
+            assurance !== undefined &&
+            now - assurance.authenticatedAt >= stepUp.maxAge;
+        if (assurance === undefined || assurance.level < stepUp.assurance || isStale) {
+            throw AccessError.of(
+                "AUTHENTICATION_INSUFFICIENT",
+                "authentication assurance is too low: authenticate again",
+                { data: stepUp },
             );
         }
     },

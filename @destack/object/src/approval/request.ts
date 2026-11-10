@@ -1,8 +1,11 @@
 import {
     AccessContext,
     Caller,
+    Credential,
     Grant,
+    GrantPermission,
     none,
+    StepUp,
     principal,
     relation,
     through,
@@ -41,6 +44,10 @@ export const changeRequest = defineObject(
             actors: field.json(schema.array(Subject)).immutable().default([]),
             /** The approvals that approve the change. */
             count: field.integer().immutable().default(1),
+            /** The authentication approving asks of each approver, as the call needs it. */
+            stepUp: field.json(StepUp.schema).immutable().optional(),
+            /** The permission the requester's grant lacks, which allowing it from now on adds. */
+            grant: field.json(GrantPermission.schema).immutable().optional(),
             /** Whether the change is open, applied, failed, rejected or withdrawn. */
             state: field.state({
                 initial: "open",
@@ -92,7 +99,7 @@ export const changeRequest = defineObject(
     },
     (method) => ({
         create: method.create("open", {
-            fields: ["call", "count", "as"],
+            fields: ["call", "count", "as", "stepUp", "grant"],
             input: schema.object({
                 /** The principals or subject sets asked, the grant delegator when absent. */
                 approvers: schema.array(Subject).min(1).exactOptional(),
@@ -149,6 +156,9 @@ export const changeRequest = defineObject(
                         ...(asked.relation === undefined
                             ? {}
                             : { approverRelation: asked.relation }),
+                        ...(context.input.stepUp === undefined
+                            ? {}
+                            : { stepUp: context.input.stepUp }),
                     });
                 }),
             );
@@ -186,16 +196,13 @@ export const changeRequest = defineObject(
     ],
 });
 
-/** A change request as its table stores it. */
-export type ChangeRequestRow = Select<typeof changeRequest.table>;
-
 /** A call one principal asks others to approve, as its row stores it. */
 export class ChangeRequest {
     /** The change request's row. */
-    readonly row: ChangeRequestRow;
+    readonly row: Select<typeof changeRequest.table>;
 
     /** Read a change request from its row. */
-    constructor(row: ChangeRequestRow) {
+    constructor(row: Select<typeof changeRequest.table>) {
         this.row = row;
     }
 
@@ -273,7 +280,15 @@ export class ChangeRequest {
                     "a change run as its approver asks exactly one approver",
                 );
             }
-            caller = AccessContext.of(Caller.of(Approval.decider(decided)), context.now);
+            const credential = Credential.approval(
+                decided.id,
+                decided.assurance ?? undefined,
+                changeRequest.package.id,
+                context.now,
+            );
+            caller = AccessContext.of(Caller.of(Approval.decider(decided)), context.now, {
+                credential,
+            });
         }
 
         // make the call and answer its output

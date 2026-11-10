@@ -254,6 +254,77 @@ test("refuse alice's agent a call her grant gives once approved, and make it thr
     ]);
 });
 
+test("gate alice's agent archiving her note on her step-up, refuse her approval without it, and archive as her once she approves signed in again", async () => {
+    // let alice's agent archive her notes and open change requests for her
+    const fixture = await openApprovals();
+    const id = await fixture.write();
+    const scope = fixture.served.scope;
+    const agent = agentOf(scope);
+    const grantId = await fixture.grant(alice, agent, [
+        { ...note.permission("archive"), scope },
+        { ...changeRequest.permission("open"), scope },
+    ]);
+    const now = fixture.served.store.clock.now();
+    const acting = AccessContext.of(
+        { ...Caller.of(alice), actors: [agent], grants: [{ id: grantId, scope: alice.id }] },
+        now,
+    );
+
+    // archive as the agent, refused for alice's step-up, then ask her in a change request run as her
+    const archive = note.call("archive", { scope, id });
+    const refused = await refusal(
+        fixture.served.store.mutate(acting, {
+            id: RequestId.create(fixture.environment),
+            calls: [archive],
+        }),
+    );
+    const stepUp = { assurance: 2, maxAge: 15 * 60_000 };
+    const [opened] = await fixture.served.store.mutate(acting, {
+        id: RequestId.create(fixture.environment),
+        calls: [changeRequest.call("create", { scope, call: archive, as: "approver", stepUp })],
+    });
+    const change = present(opened, "the change").id;
+    const asking = await asked(fixture, change, alice);
+
+    // approve as alice signed in with one factor, refused, then signed in again with two
+    const signedIn = (level: number) => {
+        const at = fixture.served.store.clock.now();
+        const credential = {
+            kind: "session",
+            id: "session-alice",
+            audience: objectPackage.id,
+            verifiedAt: at,
+            expiresAt: at + 60_000,
+            assurance: { level, authenticatedAt: at },
+        };
+
+        return AccessContext.of(Caller.of(alice), at, { credential });
+    };
+    const approve = (level: number) =>
+        fixture.served.store.mutate(signedIn(level), {
+            id: RequestId.create(fixture.environment),
+            calls: [approval.call("approve", approval.target(asking))],
+        });
+    const weak = await refusal(approve(1));
+    await approve(2);
+
+    // archive the note as alice, with the approval's assurance
+    expect([refused, weak, await settled(fixture, change), await title(fixture)]).toEqual([
+        [
+            "UNAUTHORIZED",
+            "AUTHENTICATION_INSUFFICIENT",
+            "authentication assurance is too low: authenticate again",
+        ],
+        [
+            "UNAUTHORIZED",
+            "AUTHENTICATION_INSUFFICIENT",
+            "authentication assurance is too low: authenticate again",
+        ],
+        ["applied", null],
+        "Archived",
+    ]);
+});
+
 test("count only approvals from others than the requester and its actors toward a role's approvals", async () => {
     // let bob publish alice's notes through a role once two others approved, and let his agent ask him
     const fixture = await openApprovals();
