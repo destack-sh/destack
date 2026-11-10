@@ -33,5 +33,6 @@
         "jsx": "preserve",
         "jsxImportSource": "@destack/view"
     },
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["**/*"],
+    "exclude": ["node_modules", "dist", "target", "coverage", "out"]
 }
