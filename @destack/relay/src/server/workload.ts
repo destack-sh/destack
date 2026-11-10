@@ -17,7 +17,7 @@ import { implementPackage, ObjectStore, type PackageHandler } from "@destack/obj
 import {
     defineWorkload,
     ClientHead,
-    type InstalledServerContext,
+    type ServerContext,
     type WorkloadContext,
     type WorkloadImplementation,
 } from "@destack/object/workload";
@@ -75,7 +75,7 @@ export const relayWorkload = defineWorkload({
 /** Serve the root: the router of names over the directory's replica, and the names' controller. */
 async function serveRoot(
     context: WorkloadContext,
-    server: InstalledServerContext,
+    server: ServerContext,
 ): Promise<WorkloadImplementation> {
     // answer the partitions' reads of their machines' standing, refusing every other call at the root
     const answer = async (request: Request): Promise<Response> => {
@@ -140,7 +140,7 @@ async function serveRoot(
 /** Serve a machine's partition: its tunnel over the hibernated sockets. */
 async function servePartition(
     context: WorkloadContext,
-    server: InstalledServerContext,
+    server: ServerContext,
     partition: string,
 ): Promise<WorkloadImplementation> {
     // answer the root's calls to the tunnel
@@ -201,7 +201,7 @@ async function servePartition(
 /** Open a store following some of the universe's rows into the instance's memory. */
 async function openReplica(
     context: WorkloadContext,
-    server: InstalledServerContext,
+    server: ServerContext,
     follows: readonly Follow[],
     tunnels: (request: Request) => Promise<Response>,
     names: (request: Request) => Promise<Response>,
