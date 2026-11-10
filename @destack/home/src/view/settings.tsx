@@ -4,7 +4,9 @@ import { type JsonObject, type JsonValue, schema, toJsonSchema } from "@destack/
 import { text } from "@destack/theme/text";
 import { space } from "@destack/theme/tokens.stylex";
 import { Card, CardContent, CardHeader, CardTitle } from "@destack/ui/card";
+import { ItemContent, ItemDescription, ItemTitle, itemVariants } from "@destack/ui/item";
 import { SchemaForm } from "@destack/ui/schema-form";
+import { UniverseOrigin } from "@destack/account/address";
 import { For, Loading, Show, useHome, useLocale, useQuery, useView } from "@destack/view";
 import { setting } from "@destack/setting/object";
 import { PERSON_SETTINGS } from "../setting/index.ts";
@@ -26,11 +28,22 @@ const styles = style.create({
 /** Show the person's settings, each saved in their own scope. */
 export default function Settings() {
     const locale = useLocale();
+    const apps = UniverseOrigin.page(useView().universe, "apps").href;
 
     return (
         <main {...style.attrs(styles.page)}>
             {/* Title */}
             <h1 {...style.attrs(text.largeTitle)}>{locale.render(t`Settings`)}</h1>
+
+            {/* Apps with access, kept at the universe */}
+            <a href={apps} {...style.attrs(itemVariants({ variant: "outline" }))}>
+                <ItemContent>
+                    <ItemTitle>{locale.render(t`Apps`)}</ItemTitle>
+                    <ItemDescription>
+                        {locale.render(t`Apps that can act for you, and what you allowed them.`)}
+                    </ItemDescription>
+                </ItemContent>
+            </a>
 
             {/* Settings */}
             <Loading>

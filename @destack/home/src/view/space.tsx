@@ -1,4 +1,4 @@
-import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress, OPEN_PATH } from "@destack/account/address";
 import { Failure } from "@destack/error";
 import { argument, t } from "@destack/locale";
 import { present, schema, type Identifier } from "@destack/schema";
@@ -25,12 +25,7 @@ import {
     useQuery,
     useView,
 } from "@destack/view";
-import {
-    INSTALLATION_PARAMETER,
-    OPEN_PATH,
-    SPACE_PARAMETER,
-    VIEW_PARAMETER,
-} from "@destack/view/declare";
+import { INSTALLATION_PARAMETER, SPACE_PARAMETER, VIEW_PARAMETER } from "@destack/view/declare";
 import type { ViewEntry } from "@destack/view/palette";
 import { space } from "@destack/account/object";
 import { PackageMount } from "@destack/object";
@@ -39,7 +34,13 @@ import objectPackage from "@destack/object/package";
 import { RequestId } from "@destack/sync";
 import { HOME_PATH } from "@destack/view/declare";
 import { SpaceCatalog } from "../palette/catalog.ts";
-import { readWaitingPlans, type WaitingPlan } from "./approval.ts";
+import {
+    allowAlways,
+    readWaitingChanges,
+    readWaitingPlans,
+    type WaitingChange,
+    type WaitingPlan,
+} from "./approval.ts";
 
 /** List the account's spaces by name, each with the views its apps mount. */
 export function Spaces() {
@@ -109,32 +110,53 @@ function SpaceItem(properties: {
     const locale = useLocale();
     const origin = useOrigin();
     const environment = useEnvironment();
-    const [views, setViews] = createSignal<readonly ViewEntry[]>([]);
+    const [views, setViews] = createSignal<readonly Pick<ViewEntry, "installation" | "name">[]>([]);
     const [failure, setFailure] = createSignal<string | undefined>(undefined);
 
     // read the plans the space's installations wait on, again after each approval
     const [waitingPlans, setWaitingPlans] = createSignal<readonly WaitingPlan[]>([]);
     const [approvalFailure, setApprovalFailure] = createSignal<string | undefined>(undefined);
+    const [waitingChanges, setWaitingChanges] = createSignal<readonly WaitingChange[]>([]);
+    const person = useView().user;
     const readApproval = (id: Identifier<"space">) =>
-        readWaitingPlans(id, origin, environment).then(setWaitingPlans, (error: unknown) => {
-            globalThis.reportError(error);
-            setApprovalFailure(Failure.of(error).message);
-        });
-    const decide = (waiting: WaitingPlan, decision: "approve" | "reject") => {
-        const objects = createClient<typeof objectPackage.router>(
-            objectPackage,
-            origin(`${HOME_PATH}/${waiting.space}${PackageMount.path(objectPackage.id)}`),
-            environment,
+        Promise.all([
+            readWaitingPlans(id, origin, environment),
+            readWaitingChanges(id, person, origin, environment),
+        ]).then(
+            ([plans, changes]) => {
+                setWaitingPlans(plans);
+                setWaitingChanges(changes);
+            },
+            (error: unknown) => {
+                globalThis.reportError(error);
+                setApprovalFailure(Failure.of(error).message);
+            },
         );
-        const request = { scope: waiting.space, id: waiting.approval };
-        objects.approval[decision]({ ...request, requestId: RequestId.create(environment) }).then(
+    const settled = (deciding: Promise<unknown>) =>
+        deciding.then(
             () => {
                 setApprovalFailure(undefined);
                 void readApproval(properties.id);
             },
             (error: unknown) => setApprovalFailure(Failure.of(error).message),
         );
+    const decide = (
+        waiting: Pick<WaitingPlan, "space" | "approval">,
+        decision: "approve" | "reject",
+    ) => {
+        const objects = createClient<typeof objectPackage.router>(
+            objectPackage,
+            origin(`${HOME_PATH}/${waiting.space}${PackageMount.path(objectPackage.id)}`),
+            environment,
+        );
+        const request = { scope: waiting.space, id: waiting.approval };
+        void settled(
+            objects.approval[decision]({ ...request, requestId: RequestId.create(environment) }),
+        );
     };
+    const always = (
+        waiting: WaitingChange & { readonly grant: NonNullable<WaitingChange["grant"]> },
+    ) => void settled(allowAlways(waiting, person, origin, environment));
     createEffect(
         () => properties.id,
         (id) => void readApproval(id),
@@ -145,7 +167,13 @@ function SpaceItem(properties: {
             SpaceCatalog.read({ id, address: properties.address }, origin, environment).then(
                 (catalog) => {
                     setFailure(undefined);
-                    setViews(catalog.entries({}, locale).filter((entry) => entry.kind === "view"));
+                    setViews(
+                        catalog.installations.flatMap((installed) =>
+                            installed.main === undefined
+                                ? []
+                                : [{ installation: installed.name, name: installed.main }],
+                        ),
+                    );
                 },
                 (error: unknown) => {
                     globalThis.reportError(error);
@@ -172,7 +200,7 @@ function SpaceItem(properties: {
                     fallback={
                         <For each={views()}>
                             {(view) => (
-                                <a href={openPath(properties.address, view)}>{view.title}</a>
+                                <a href={openPath(properties.address, view)}>{view.installation}</a>
                             )}
                         </For>
                     }
@@ -219,7 +247,45 @@ function SpaceItem(properties: {
                     )}
                 </For>
 
-                {/* Why the plans could not be read or approved */}
+                {/* Changes waiting for the person: once, from now on, or not */}
+                <For each={waitingChanges()}>
+                    {(waiting) => (
+                        <Item variant="muted">
+                            <ItemContent>
+                                <ItemTitle>
+                                    {locale.render(
+                                        t`${argument("actor")} asks to ${argument("method")} ${argument("type")}`,
+                                        {
+                                            actor: waiting.actor.id,
+                                            method: waiting.call.method,
+                                            type: waiting.call.type,
+                                        },
+                                    )}
+                                </ItemTitle>
+                            </ItemContent>
+                            <ItemActions>
+                                <Button onClick={() => decide(waiting, "approve")}>
+                                    {locale.render(t`Only this time`)}
+                                </Button>
+                                <Show when={waiting.grant}>
+                                    {(grant) => (
+                                        <Button
+                                            variant="outline"
+                                            onClick={() => always({ ...waiting, grant: grant() })}
+                                        >
+                                            {locale.render(t`Always allow`)}
+                                        </Button>
+                                    )}
+                                </Show>
+                                <Button variant="ghost" onClick={() => decide(waiting, "reject")}>
+                                    {locale.render(t`Don't allow`)}
+                                </Button>
+                            </ItemActions>
+                        </Item>
+                    )}
+                </For>
+
+                {/* Why the plans and changes could not be read or decided */}
                 <Show when={approvalFailure()}>
                     {(message) => <ItemDescription>{message()}</ItemDescription>}
                 </Show>
@@ -229,7 +295,7 @@ function SpaceItem(properties: {
 }
 
 /** Address a view of an installation in a space through the page's open path. */
-function openPath(address: string, view: ViewEntry): string {
+function openPath(address: string, view: Pick<ViewEntry, "installation" | "name">): string {
     const query = new URLSearchParams({
         [SPACE_PARAMETER]: address,
         [INSTALLATION_PARAMETER]: view.installation,

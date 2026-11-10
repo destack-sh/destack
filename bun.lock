@@ -458,6 +458,7 @@
       "name": "@destack/home",
       "version": "2026.11.0",
       "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -1497,6 +1498,7 @@
         "@destack/stack": "workspace:*",
         "@destack/vault": "workspace:*",
         "@platform/pricing": "workspace:*",
+        "@platform/site": "workspace:*",
       },
       "devDependencies": {
         "@destack/check": "workspace:*",

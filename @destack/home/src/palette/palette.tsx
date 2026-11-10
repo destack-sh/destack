@@ -1,4 +1,4 @@
-import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { InstallationOrigin, SpaceAddress, OPEN_PATH } from "@destack/account/address";
 import { CommandReference } from "@destack/object";
 import { present, schema } from "@destack/schema";
 import {
@@ -17,7 +17,6 @@ import {
     FOCUS_PARAMETER,
     INSTALLATION_PARAMETER,
     OBJECT_PARAMETER,
-    OPEN_PATH,
     SPACE_PARAMETER,
     VIEW_PARAMETER,
 } from "@destack/view/declare";
@@ -47,7 +46,7 @@ export default function Commands() {
     const focus = PaletteFocus.of(over, space, domain);
     const parent = ParentPage.of(over);
     const close = () =>
-        parent === undefined ? environment.navigation.navigate("about:blank") : parent.close();
+        parent === undefined ? environment.navigation.assign("about:blank") : parent.close();
     const origin = useOrigin();
     const localization = useLocale();
 

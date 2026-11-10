@@ -16,6 +16,7 @@
         "@destack/build": "workspace:*"
     },
     "dependencies": {
+        "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",

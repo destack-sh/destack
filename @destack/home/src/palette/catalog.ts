@@ -1,3 +1,4 @@
+import { ViewDescription } from "@destack/package/manifest";
 import { Filter } from "@destack/db";
 import {
     type Command,
@@ -46,6 +47,8 @@ interface CatalogInstallation {
     readonly commands: readonly Command[];
     /** The views it declares. */
     readonly views: readonly DeclarationName[];
+    /** The view its origin opens at its root, absent for an installation without one. */
+    readonly main: DeclarationName | undefined;
     /** The object types it lists, as the space's store describes them. */
     readonly objects: readonly ObjectType[];
 }
@@ -100,7 +103,12 @@ export class SpaceCatalog {
         // list each named installation's commands, views and types, by name
         const installations = description.installations
             .flatMap((installation) => {
+                // find the view its origin opens at its root
                 const { name } = installation;
+                const declared = description.declarations(installation, VIEW_KIND);
+                const main = ViewDescription.main(
+                    Object.fromEntries(declared.map((view) => [view.name, view.description])),
+                );
 
                 return name === undefined
                     ? []
@@ -109,9 +117,8 @@ export class SpaceCatalog {
                               name: DeclarationName.parse(name),
                               packageId: installation.packageId,
                               commands: description.commands(installation),
-                              views: description
-                                  .declarations(installation, VIEW_KIND)
-                                  .map((view) => DeclarationName.parse(view.name)),
+                              views: declared.map((view) => DeclarationName.parse(view.name)),
+                              main: main === undefined ? undefined : DeclarationName.parse(main),
                               objects: description.types(installation),
                           },
                       ];
