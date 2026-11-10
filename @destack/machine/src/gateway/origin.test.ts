@@ -9,6 +9,7 @@ import { Jwt, KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
 import { ANONYMOUS, anyone, LinkSecret, principal, relation, Role } from "@destack/access";
+import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import {
     defineObject,
     field,
@@ -1198,6 +1199,10 @@ test(
             id: page.grant.id,
             requestId: RequestId.create(home.computer.environment),
         });
+
+        // refuse the page's next token once its current one lapses
+        const { clock } = home.computer.environment;
+        await home.computer.world.simulation.wait(clock.sleep(TOKEN_LIFETIME_MILLISECONDS + 1));
         const revoked = await list(page);
         const regranted = await openPage(home, address);
         await accounts.client.revoke({
@@ -1209,7 +1214,11 @@ test(
 
         expect({ before, revoked, signedOut }).toEqual({
             before: "done",
-            revoked: ["UNAUTHORIZED", "GRANT_REVOKED", `grant ${page.grant.id} is revoked`],
+            revoked: [
+                "BAD_REQUEST",
+                "INVALID_GRANT",
+                `the token endpoint refused the request: invalid_grant: grant ${page.grant.id} is revoked`,
+            ],
             signedOut: [
                 "BAD_REQUEST",
                 "INVALID_GRANT",

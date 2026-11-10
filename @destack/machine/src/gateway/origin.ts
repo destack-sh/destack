@@ -11,7 +11,7 @@ import {
     SpaceAddress,
 } from "@destack/account/address";
 import { Issuer, Person } from "@destack/account/client";
-import type { RequestedGrant } from "@destack/account/authentication";
+import type { GrantRequest } from "@destack/account/authentication";
 import { TokenCache } from "@destack/access/token";
 import { Session, type SessionMachine } from "../session/index.ts";
 import {
@@ -281,7 +281,7 @@ export class ViewOrigin {
         page: Page,
         requesting: {
             /** The grant the view's launch needs, signed into the request. */
-            readonly grant?: RequestedGrant;
+            readonly grant?: GrantRequest;
             /** The permissions the page's calls request beyond its view's. */
             readonly requested: readonly PermissionReference[];
             /** The fresh sign-in a call requests. */

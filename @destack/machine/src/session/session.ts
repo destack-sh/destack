@@ -261,7 +261,7 @@ export class Session {
         const { view, place, installation: found, delegate, permissions, granted } = requested;
         let grant: GrantClaim;
         if (granted !== undefined && GrantPermission.includes(granted.permissions, permissions)) {
-            grant = { id: granted.id, scope: granted.scope };
+            grant = granted;
         } else if (Session.#isDecided(requested, this.person.subject)) {
             grant = await this.person.grant(delegate, permissions);
         }
