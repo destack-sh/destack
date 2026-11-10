@@ -4,7 +4,7 @@ import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
-import { installCommand } from "../content/site";
+import { installCommand, isInstallOpen } from "../content/site";
 import { lattice } from "../layout/lattice.stylex";
 import { press } from "../layout/press";
 import { type Download, type System, systems } from "./catalog";
@@ -43,11 +43,11 @@ function DownloadField(properties: { system: System | undefined; download: Downl
 
     return (
         <Show
-            when={properties.download}
+            when={isInstallOpen ? properties.download : undefined}
             fallback={
                 <span
                     aria-disabled="true"
-                    title={missing()}
+                    title={isInstallOpen ? missing() : "Coming soon"}
                     {...style.attrs(press.key, styles.field, styles.tiled, styles.unavailable)}
                 >
                     <Product />
@@ -89,6 +89,20 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
     // copy the text and show it as copied for a moment
     const copied = createCopy();
 
+    // show the field as coming soon until the install opens
+    if (!isInstallOpen) {
+        return (
+            <span
+                aria-disabled="true"
+                title="Coming soon"
+                {...style.attrs(press.key, styles.field, styles.unavailable)}
+            >
+                {properties.children}
+                <span {...style.attrs(styles.soon)}>Soon</span>
+            </span>
+        );
+    }
+
     return (
         <button
             type="button"
@@ -110,7 +124,7 @@ export function AgentField(properties: { prompt: string }) {
     return (
         <CopyField name="prompt" text={properties.prompt}>
             <span {...style.attrs(styles.text)}>
-                <span {...style.attrs(styles.prompt)}>&gt; </span>
+                <span {...style.attrs(isInstallOpen && styles.prompt)}>&gt; </span>
                 {properties.prompt}
             </span>
         </CopyField>
@@ -122,7 +136,7 @@ export function TerminalField() {
     return (
         <CopyField name="command" text={installCommand}>
             <code {...style.attrs(styles.text)}>
-                <span {...style.attrs(styles.prompt)}>$ </span>
+                <span {...style.attrs(isInstallOpen && styles.prompt)}>$ </span>
                 {installCommand}
             </code>
         </CopyField>

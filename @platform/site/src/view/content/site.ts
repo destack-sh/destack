@@ -13,6 +13,10 @@ export const product = "https://destack.app/";
 /** The address that serves a coding agent the setup guide as Markdown. */
 export const setupGuide = "https://destack.me";
 
+// NOTE #Incomplete: open the install once Destack opens
+/** Whether the install is open; until then its fields show as coming soon. */
+export const isInstallOpen = false;
+
 /** The public installation command. */
 export const installCommand = `curl -fsSL ${origin}/install | sh`;
 
