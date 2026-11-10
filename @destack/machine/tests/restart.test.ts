@@ -25,7 +25,7 @@ test(
         const session = await laptop.device.session(signedIn.id);
         const space = `home--${world.owner.handle}`;
         await using stack = new AsyncDisposableStack();
-        const replica = await session.open({ space }, { installation }, stack);
+        const replica = await laptop.device.open(session, { space }, { installation }, stack);
         const watched = replica.query.installation.findMany({}).watch(new AbortController().signal);
         const first = await world.simulation.wait(watched.next());
         const before = present(startOf(first), "the home's start installation");

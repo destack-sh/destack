@@ -1,14 +1,7 @@
-import { GrantPermission } from "@destack/access";
+import { RequestedGrant } from "@destack/account/authentication";
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
-import { schema } from "@destack/schema";
 import { ERROR_DATA, RetryAfter } from "@destack/object";
 import type {} from "@destack/package/import-meta";
-
-/** What a person is asked to grant an installation before its view opens. */
-const GrantPrompt = schema.object({
-    /** The permissions the view asks the person to grant. */
-    permissions: schema.array(GrantPermission.schema),
-});
 
 /** The machine package's failures, each reason with the call error code it answers. */
 const machineError = defineErrorFamily(import.meta.destack.package, {
@@ -16,6 +9,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     OBJECTS_MISSING: { code: "BAD_REQUEST" },
     RELEASE_NOT_BUILT: { code: "BAD_REQUEST" },
     ENDPOINT_INVALID: { code: "BAD_REQUEST" },
+    REQUEST_INVALID: { code: "BAD_REQUEST" },
     REGISTRATION_INVALID: { code: "BAD_REQUEST" },
     TARGET_INVALID: { code: "BAD_REQUEST" },
     PATH_INVALID: { code: "BAD_REQUEST" },
@@ -36,6 +30,8 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     TOKEN_UNBOUND: { code: "UNAUTHORIZED" },
     COPY_CREDENTIAL_UNKNOWN: { code: "UNAUTHORIZED" },
     SESSION_INVALID: { code: "UNAUTHORIZED" },
+    SIGN_IN_INVALID: { code: "UNAUTHORIZED" },
+    SIGN_IN_REFUSED: { code: "UNAUTHORIZED" },
     PROOF_REQUIRED: { code: "UNAUTHORIZED" },
 
     // forbidden
@@ -43,7 +39,7 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
     SIGN_IN_FAILED: { code: "FORBIDDEN" },
     FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
-    GRANT_REQUIRED: { code: "FORBIDDEN", data: GrantPrompt },
+    GRANT_REQUIRED: { code: "FORBIDDEN", data: RequestedGrant },
     OWNER_MISSING: { code: "FORBIDDEN" },
     ORIGIN_MISMATCH: { code: "FORBIDDEN" },
     OWNER_REQUIRED: { code: "FORBIDDEN" },

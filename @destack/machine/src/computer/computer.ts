@@ -859,10 +859,10 @@ export class Computer implements AsyncDisposable {
         spaceId: Identifier<"space">,
     ): Promise<ClientOf<Handle>> {
         // call the package at the machine serving the space as the person
-        const session = await opened.device.session(loginId);
+        const signedIn = await opened.device.signedIn(loginId);
         const located = await opened.machine.locate(spaceId);
         if (located.placement.machine !== opened.machine.id) {
-            return session.login.package(handle, located.url, spaceId);
+            return signedIn.person.package(handle, located.url, spaceId);
         }
 
         // call the package mounted here as the person's own client
@@ -878,7 +878,7 @@ export class Computer implements AsyncDisposable {
                 fetch: async (request: Request) => {
                     // prove the person's client afresh on each call
                     const headers = new Headers(request.headers);
-                    headers.set("authorization", `Bearer ${await session.prove()}`);
+                    headers.set("authorization", `Bearer ${await signedIn.prove()}`);
 
                     return server.fetch(new Request(request, { headers }));
                 },

@@ -478,12 +478,12 @@ function stackAt(served: Served, spaceId: Identifier<"space">, token: string) {
 async function steppedUp(served: Served) {
     const { computer, space } = served;
     const elevated = await computer.elevate(MOVE_STEP_UP);
-    const person = await computer.device.session(elevated.id);
+    const { person } = await computer.device.session(elevated.id);
 
     return stackAt(
         served,
         space,
-        await person.login.token(stackPackage.id, { partition: space }, MOVE_STEP_UP),
+        await person.token(stackPackage.id, { partition: space }, MOVE_STEP_UP),
     );
 }
 
@@ -848,9 +848,9 @@ test(
             });
 
         // challenge the person's token for a second factor
-        const person = await computer.device.session(login.id);
+        const { person } = await computer.device.session(login.id);
         const challenge = await move(
-            await person.login.token(stackPackage.id, { partition: space }),
+            await person.token(stackPackage.id, { partition: space }),
         ).then(
             () => undefined,
             (error: unknown) => {
@@ -864,7 +864,7 @@ test(
         const stepUp = StepUp.schema.parse(Array.isArray(challenge) ? challenge[1] : undefined);
         const elevated = await computer.device.session((await computer.elevate(stepUp)).id);
         const moved = await move(
-            await elevated.login.token(stackPackage.id, { partition: space }, stepUp),
+            await elevated.person.token(stackPackage.id, { partition: space }, stepUp),
         );
         expect({ challenge, moved: [moved.sourceId, moved.targetId] }).toEqual({
             challenge: ["UNAUTHORIZED", { assurance: 2, maxAge: 900_000 }],

@@ -158,6 +158,7 @@ export class Space {
                 send: (request) => machine.send(request),
                 builds,
                 linked: machine.linked,
+                shipped: machine.shipped,
                 trusted: machine.trusted,
             };
             const space = new Space({
@@ -316,7 +317,7 @@ export class Space {
         // fail the store and gateway waits of a start that fails, which its calls await
         const serving = this.#serving;
         try {
-            const { servers, sandboxes } = await this.host.servers(
+            const { servers, sandboxes, revisions } = await this.host.servers(
                 installed,
                 start,
                 context.signal,
@@ -356,6 +357,11 @@ export class Space {
                 sandboxes,
             );
             this.#store = served;
+
+            // record what this start serves before handing out its store, replacing an earlier start's claims
+            if (role === "primary") {
+                await Rollout.serve(served.store, this.id, revisions);
+            }
             this.#serving.store.resolve(served.store);
 
             // route the installations' calls through the space's gateway
@@ -447,21 +453,34 @@ export class Space {
         }
     }
 
-    /** Wait until an installation of the space is current, refusing once a signal ends. */
+    /** Wait until an installation of the space is current and served, refusing once aborted. */
     async waitServed(name: string, signal: AbortSignal): Promise<void> {
+        // wake on changes of installations and their rollouts
         const installations = installation.table[TABLE].sqlName;
+        const rollouts = rollout.table[TABLE].sqlName;
         const isServed = await this.database.log.waitUntil(async (tables) => {
-            // skip commits that change no installation
-            if (!tables.has(installations)) {
+            // skip commits that change no installation and no rollout
+            if (!tables.has(installations) && !tables.has(rollouts)) {
                 return false;
             }
 
-            // read the installation by its name, current once its latest change is served
-            const installed = await Snapshot.live(this.database)
+            // read the installation by its name, current once this start serves its latest revision
+            const snapshot = Snapshot.live(this.database);
+            const installed = await snapshot
                 .read(installation.table)
                 .findFirst({ where: { scope: this.id, name } });
+            const served =
+                installed === undefined
+                    ? undefined
+                    : await snapshot
+                          .read(rollout.table)
+                          .findFirst({ where: { installationId: installed.id } });
 
-            return installed !== undefined && Observation.progress(installed) === "current";
+            return (
+                installed !== undefined &&
+                Observation.progress(installed) === "current" &&
+                served?.servedRevisionId === installed.revisionId
+            );
         }, signal);
         if (!isServed) {
             const { status, reason } = this.health;

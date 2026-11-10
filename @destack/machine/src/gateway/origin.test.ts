@@ -5,7 +5,7 @@ import { testHost } from "@destack/test/host";
 import { DOMAINS } from "@destack/account/address";
 import accountPackage from "@destack/account/package";
 import { TestDns } from "@destack/account/test";
-import { KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
+import { Jwt, KeyPair, Proof, PROOF_HEADER } from "@destack/identity";
 import * as accountObject from "@destack/account/object";
 import { space, user } from "@destack/account/object";
 import { ANONYMOUS, anyone, LinkSecret, principal, relation, Role } from "@destack/access";
@@ -67,10 +67,13 @@ const notes = Package.parse({
     version: "2026.9.0-dev.1",
 });
 
-/** The notes package's definition: it reads the person's settings, its camera scans notes. */
+/** The notes package: it reads the person's settings, writes them once asked, and scans notes. */
 const notesPackage = definePackage(
     {
-        permissions: { user: { home: [setting.permission("read")] } },
+        permissions: {
+            user: { home: [setting.permission("read")] },
+            optional: { home: [setting.permission("write")] },
+        },
         capabilities: {
             camera: { reason: "Scan notes", optional: true, sandbox: { camera: {} } },
         },
@@ -139,7 +142,8 @@ function notesBuild(crypto: Crypto): Promise<BuildReader> {
                 stylesheets: [],
                 sandbox: { "clipboard-write": {} },
                 presents: [{ packageId: notes.id, type: "note", priority: "option" }],
-                categories: [],
+                categories: ["main"],
+                audience: "person" as const,
                 packages: [],
                 render: { mode: "client" },
             },
@@ -149,6 +153,7 @@ function notesBuild(crypto: Crypto): Promise<BuildReader> {
                 sandbox: {},
                 presents: [{ packageId: notes.id, type: "note", priority: "default" }],
                 categories: [],
+                audience: "person" as const,
                 packages: [],
                 render: { mode: "client" },
             },
@@ -166,6 +171,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
         sandbox: {},
         presents: [],
         categories: [],
+        audience: "person" as const,
         packages: [stackPackage.id],
         render: { mode: "client" as const },
     };
@@ -193,6 +199,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
                     name: "board",
                     presents: [],
                     categories: [],
+                    audience: "person" as const,
                     packages: [stackPackage.id],
                     render: { mode: "client" },
                 },
@@ -266,6 +273,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
         sandbox: {},
         presents: [],
         categories: [],
+        audience: "person" as const,
         packages: [],
         render: { mode: "client" as const },
     };
@@ -293,6 +301,7 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
                     name: "reader",
                     presents: [],
                     categories: [],
+                    audience: "person" as const,
                     packages: [],
                     render: { mode: "client" },
                 },
@@ -365,7 +374,7 @@ async function openShared(
 
     // invite them to own the space with the owner, and accept as them from their own listing
     const object = space.reference(computer.world.owner.account, spaceId);
-    const inviting = (await computer.device.session(opened.login)).login;
+    const inviting = (await computer.device.session(opened.login)).person;
     const invitation = await inviting.objects().invitation.create({
         scope: computer.world.owner.account,
         requestId: RequestId.create(computer.environment),
@@ -375,7 +384,7 @@ async function openShared(
             subject: principal.user.reference(Scope.universe.id, member.subjectId),
         },
     });
-    const accepting = (await computer.device.session(member.id)).login;
+    const accepting = (await computer.device.session(member.id)).person;
     const { items } = await accepting.accounts().user.invited({ id: member.subjectId });
     expect(items.map((each) => each.id)).toEqual([invitation.id]);
     await accepting.objects().invitation.accept({
@@ -406,9 +415,15 @@ async function openPage(served: Served, address: Address) {
     // launch it under the owner's grant, and trade its token for the session cookie
     const { device: native, computer } = served.computer;
     const listener = computer;
-    const login = await native.session(served.login);
-    const launched = await login.launch(address);
-    const grant = await login.grant(address);
+    const session = await native.session(served.login);
+    const signedIn = await native.signedIn(served.login);
+    const launched = await session.launch(address);
+    const grant = present(
+        await session.person.granted(
+            principal.installation.reference(launched.space, launched.target),
+        ),
+        "the owner's grant to the view's installation",
+    );
     const traded = await listener.fetch(new Request(launched.url));
     const cookie = nth(header(traded, "set-cookie").split(";"), 0);
     const origin = new URL(launched.url).origin;
@@ -422,7 +437,7 @@ async function openPage(served: Served, address: Address) {
         return listener.fetch(new Request(request, { headers }));
     };
 
-    return { login, grant, launched, traded, cookie, origin, fetch };
+    return { session, signedIn, grant, launched, traded, cookie, origin, fetch };
 }
 
 /** Describe the refusal an origin answers with, as its JSON body states it. */
@@ -469,6 +484,11 @@ function registerClient(
     );
 }
 
+/** Read the first cookie a response sets, as a browser sends it back. */
+function firstCookie(response: Response): string {
+    return nth(header(response, "set-cookie").split(";"), 0);
+}
+
 /** Read the context in a view's document. */
 async function contextOf(document: Response): Promise<unknown> {
     const embedded = /id="destack-view">(.*)<\/script>/u.exec(await document.text());
@@ -495,7 +515,7 @@ test(
 
         // launch it, granting what the view asks at once, and trade the launch's token for the session cookie
         const launched = await login.launch(address);
-        const granted = await login.login.granted(
+        const granted = await login.person.granted(
             principal.installation.reference(spaceId, installation.id),
         );
         const traded = await listener.fetch(new Request(launched.url));
@@ -525,6 +545,16 @@ test(
         const forged = await listener.fetch(
             new Request(`http://notes--${opened.address}.localhost:${port}/home?token=forged`),
         );
+
+        // open the origin's root, which serves the main view, and load a page of no view
+        const root = await listener.fetch(
+            new Request(`http://notes--${opened.address}.localhost:${port}/`),
+        );
+        const missing = await listener.fetch(
+            new Request(`http://notes--${opened.address}.localhost:${port}/missing`, {
+                headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
+            }),
+        );
         const person = principal.user.reference(Scope.universe.id, owner.id);
         const permissions = [owner.id, spaceId].map((scope) => ({
             ...setting.permission("read"),
@@ -541,6 +571,8 @@ test(
             policies: [policy, allowed.headers.get("permissions-policy")],
             unopened: [unopened.status, await contextOf(unopened)],
             forged: forged.status,
+            root: [root.status, Launched.pick({ view: true }).parse(await contextOf(root)).view],
+            missing: [missing.status, missing.headers.get("content-type")],
         }).toEqual({
             granted: { id: "grant", scope: owner.id, permissions },
             url: `http://notes--${opened.address}.localhost:${port}/home?token=…`,
@@ -555,6 +587,8 @@ test(
                 home: owner.home,
                 view: "home",
                 base: "",
+                universe: computer.world.universe.origin,
+                catalogs: [],
                 user: person,
             },
             policies: [
@@ -569,38 +603,128 @@ test(
                     account: owner.account,
                     view: "home",
                     base: "",
+                    universe: computer.world.universe.origin,
+                    catalogs: [],
                     user: ANONYMOUS,
                 },
             ],
             forged: 401,
+            root: [200, "home"],
+            missing: [404, "text/html; charset=utf-8"],
         });
     },
     SCENARIO_MILLISECONDS,
 );
 
 test(
-    "ask a person for a grant before a view another installed reaches beyond its space, launching it once they grant it and again without asking",
+    "ask an anonymous page load's person at the issuer for a grant a view another installed needs beyond its space, then launch it as them",
     async () => {
-        // install notes in the owner's work space, which the person they shared it with opens
+        // install notes in the owner's work space, whose origin the person they shared it with loads signed out
         const opened = await openShared(await openHome());
-        const { computer, member } = opened;
+        const { computer } = opened;
+        const { universe } = computer.world;
+        const listener = computer.computer;
         await install(opened, await notesBuild(computer.environment.crypto), "notes");
-        const session = await computer.device.session(member);
-        const address = { space: opened.address, installation: "notes", view: "home", path: "/" };
+        const port = new URL(await computer.device.origin()).port;
+        const origin = `http://notes--${opened.address}.localhost:${port}`;
+        const loaded = await listener.fetch(
+            new Request(`${origin}/`, {
+                headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
+            }),
+        );
 
-        // refuse the launch until the person grants it, then launch it twice
-        const refused = await refusal(session.launch(address));
-        const grant = await session.grant(address);
-        const launched = await session.launch(address);
-        const again = await session.launch(address);
-        expect({ refused, targets: [launched.target, again.target], grant: grant.scope }).toEqual({
-            refused: [
-                "FORBIDDEN",
-                "GRANT_REQUIRED",
-                `${opened.address} notes asks the person for a grant`,
-            ],
-            targets: [launched.target, launched.target],
-            grant: session.login.subject.id,
+        // sign the member in at the issuer, whose code returns to the origin, which asks them for the grant
+        const member = await universe.signIn(MEMBER_EMAIL);
+        const signedIn = await universe.approve(header(loaded, "location"), member);
+        const asking = await listener.fetch(
+            new Request(signedIn, { headers: { cookie: firstCookie(loaded) } }),
+        );
+
+        // consent to the grant at the issuer, then trade the launch for the origin's session and load the page
+        const consented = await universe.approve(header(asking, "location"), member);
+        const completed = await listener.fetch(
+            new Request(consented, { headers: { cookie: firstCookie(asking) } }),
+        );
+        const traded = await listener.fetch(new Request(header(completed, "location")));
+        const page = await listener.fetch(
+            new Request(new URL(header(traded, "location"), origin).href, {
+                headers: { cookie: firstCookie(traded) },
+            }),
+        );
+        expect({
+            asking: [asking.status, new URL(header(asking, "location")).pathname],
+            completed: completed.status,
+            page: [page.status, Launched.pick({ view: true }).parse(await contextOf(page)).view],
+        }).toEqual({
+            asking: [302, "/oauth/oauth2/authorize"],
+            completed: 303,
+            page: [200, "home"],
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "ask a page's person at the issuer for an optional permission a call needs, then return to the page with it",
+    async () => {
+        // load notes signed in as the member, as a signed-out page load does
+        const opened = await openShared(await openHome());
+        const { computer } = opened;
+        const { universe } = computer.world;
+        const listener = computer.computer;
+        await install(opened, await notesBuild(computer.environment.crypto), "notes");
+        const port = new URL(await computer.device.origin()).port;
+        const origin = `http://notes--${opened.address}.localhost:${port}`;
+        const document = { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" };
+        const loaded = await listener.fetch(new Request(`${origin}/`, { headers: document }));
+        const member = await universe.signIn(MEMBER_EMAIL);
+        const follow = async (from: Response, cookie: string) => {
+            const signedIn = await universe.approve(header(from, "location"), member);
+
+            return listener.fetch(new Request(signedIn, { headers: { cookie } }));
+        };
+        const asking = await follow(loaded, firstCookie(loaded));
+        const completed = await follow(asking, firstCookie(asking));
+        const traded = await listener.fetch(new Request(header(completed, "location")));
+        const session = firstCookie(traded);
+
+        // ask for writing the member's settings, which the package declares optional, returning to the editor
+        const query = new URLSearchParams({
+            package: setting.package.id,
+            type: setting.name,
+            name: "write",
+            return: "/editor",
+        });
+        const asked = await listener.fetch(
+            new Request(`${origin}/.destack/request?${query.toString()}`, {
+                headers: { cookie: session },
+            }),
+        );
+        const growing = await follow(asked, firstCookie(asked));
+        const grown = await follow(growing, firstCookie(growing));
+        const returned = await listener.fetch(new Request(header(grown, "location")));
+
+        // ask the grant again with writing in both home scopes, then return to the editor
+        const request = new URL(header(growing, "location")).searchParams.get("request");
+        const details = schema
+            .looseObject({
+                authorization_details: schema.array(
+                    schema.looseObject({
+                        permissions: schema.array(schema.looseObject({ name: schema.string() })),
+                    }),
+                ),
+            })
+            .parse(Jwt.claims(present(request, "the signed request")));
+        expect({
+            asked: [asked.status, new URL(header(asked, "location")).pathname],
+            permissions: details.authorization_details.flatMap((detail) =>
+                detail.permissions.map((permission) => permission.name),
+            ),
+            returned: new URL(header(returned, "location"), origin).pathname,
+        }).toEqual({
+            asked: [302, "/oauth/oauth2/authorize"],
+            permissions: ["read", "read", "write", "write"],
+            returned: "/editor",
         });
     },
     SCENARIO_MILLISECONDS,
@@ -644,7 +768,66 @@ test(
 );
 
 test(
-    "refuse an anonymous visitor's telemetry, and a session cookie the space did not sign, clearing it",
+    "sign an anonymous page load of a person's view in at the issuer by its space's signed request, and launch the page as them",
+    async () => {
+        // install notes in the owner's home, and load its origin's root as a browser with no session
+        const opened = await openHome();
+        const { computer } = opened;
+        const listener = computer.computer;
+        await install(opened, await notesBuild(computer.environment.crypto), "notes");
+        const port = new URL(await computer.device.origin()).port;
+        const origin = `http://notes--${opened.address}.localhost:${port}`;
+        const loaded = await listener.fetch(
+            new Request(`${origin}/`, {
+                headers: { "sec-fetch-mode": "navigate", "sec-fetch-dest": "document" },
+            }),
+        );
+        const authorize = new URL(header(loaded, "location"));
+        const attempt = nth(header(loaded, "set-cookie").split(";"), 0);
+
+        // sign the owner in at the issuer, which returns the browser to the origin's open path with a code
+        const back = new URL(
+            await computer.world.universe.approve(authorize.href, computer.world.owner),
+        );
+        const completed = await listener.fetch(
+            new Request(back.href, { headers: { cookie: attempt } }),
+        );
+
+        // trade the launch for the origin's session, then load the page as the owner
+        const traded = await listener.fetch(new Request(header(completed, "location")));
+        const cookie = nth(header(traded, "set-cookie").split(";"), 0);
+        const page = await listener.fetch(
+            new Request(new URL(header(traded, "location"), origin).href, { headers: { cookie } }),
+        );
+        expect({
+            loaded: loaded.status,
+            client: [
+                authorize.origin + authorize.pathname,
+                [...authorize.searchParams.keys()],
+                authorize.searchParams.get("client_id"),
+            ],
+            back: back.origin + back.pathname,
+            completed: [completed.status, completed.headers.getSetCookie().at(-1)],
+            traded: traded.status,
+            page: [page.status, Launched.pick({ view: true }).parse(await contextOf(page)).view],
+        }).toEqual({
+            loaded: 302,
+            client: [
+                `${computer.world.universe.origin}/oauth/oauth2/authorize`,
+                ["client_id", "request"],
+                origin,
+            ],
+            back: `${origin}/.destack/open`,
+            completed: [303, "destack-sign-in=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0"],
+            traded: 303,
+            page: [200, "home"],
+        });
+    },
+    SCENARIO_MILLISECONDS,
+);
+
+test(
+    "take an anonymous visitor's telemetry, and refuse a session cookie the space did not sign, clearing it",
     async () => {
         // install notes in the owner's home
         const opened = await openHome();
@@ -668,12 +851,7 @@ test(
             telemetry: await summary(telemetry),
             forged: [...(await summary(forged)), header(forged, "set-cookie")],
         }).toEqual({
-            telemetry: answered(
-                "FORBIDDEN",
-                "PERSON_REQUIRED",
-                403,
-                "only a person's page can send telemetry",
-            ),
+            telemetry: [200, "{}"],
             forged: [
                 ...answered(
                     "UNAUTHORIZED",
@@ -841,7 +1019,6 @@ test(
                 object: note,
                 ...(view === undefined ? {} : { view }),
             };
-            await login.grant(address);
             const launched = await login.launch(address);
             const traded = await listener.fetch(new Request(launched.url));
             const cookie = nth(header(traded, "set-cookie").split(";"), 0);
@@ -1007,11 +1184,11 @@ test(
         const before = await list(page);
 
         // revoke the grant, grant it again, then revoke the launching client
-        const accounts = page.login.login.accounts();
+        const accounts = page.session.person.accounts();
         const objects = createClient(
             objectPackage,
             {
-                ...page.login.login.universe(PackageId.parse(objectPackage.id)),
+                ...page.session.person.universe(PackageId.parse(objectPackage.id)),
                 bookmark,
             },
             home.computer.device.environment,
@@ -1025,7 +1202,7 @@ test(
         const regranted = await openPage(home, address);
         await accounts.client.revoke({
             userId: owner.id,
-            id: present(regranted.login.login.row.clientId, "the login's client"),
+            id: present(regranted.signedIn.row.clientId, "the login's client"),
             requestId: RequestId.create(home.computer.environment),
         });
         const signedOut = await list(regranted);
@@ -1178,7 +1355,7 @@ test(
         const call = accountObject.client.call("revoke", {
             ...accountObject.client.target({
                 scope: user.identifier(owner.id),
-                id: schema.identifier("client").parse(page.login.login.row.clientId),
+                id: schema.identifier("client").parse(page.signedIn.row.clientId),
             }),
         });
         const response = await page.fetch(
@@ -1193,7 +1370,7 @@ test(
         );
 
         // refuse the call at the universe as outside the start page's grant, which revokes no clients
-        const client = schema.identifier("client").parse(page.login.login.row.clientId);
+        const client = schema.identifier("client").parse(page.signedIn.row.clientId);
         expect([response.status, await response.json()]).toEqual([
             403,
             {
@@ -1234,7 +1411,7 @@ test(
         });
 
         // register a browser client from the start page, granted it, then from the board, granted none
-        const person = (await home.computer.device.session(home.login)).login.subject.id;
+        const person = (await home.computer.device.session(home.login)).person.subject.id;
         const client = Identifier.create("client", home.computer.device.environment);
         const registered = await registerClient(homePage, client);
         const refused = await registerClient(
@@ -1320,7 +1497,7 @@ test(
         const elsewhere = await bind(`${page.origin}/.destack/client/elsewhere`);
 
         // remove the client as the person, and bind again
-        await page.login.login.accounts().client.revoke({
+        await page.session.person.accounts().client.revoke({
             userId: home.computer.world.owner.id,
             id: client,
             requestId: RequestId.create(environment),
@@ -1366,7 +1543,6 @@ test(
         const { device: native } = home.computer;
         const login = await native.session(home.login);
         const address = { space: work.address, installation: "tasks", view: "board", path: "/" };
-        await login.grant(address);
         const launched = await login.launch(address);
         const traded = await home.computer.browse(new Request(launched.url));
         const cookie = nth(header(traded, "set-cookie").split(";"), 0);
@@ -1433,7 +1609,7 @@ const ServedCatalog = schema.looseObject({
 });
 
 test(
-    "serve a view's build with the German catalogs of its package and of a release dependency",
+    "serve a view's build with the German catalogs of its package and of a release dependency, and no French ones",
     async () => {
         // publish a widget library with its German catalog, and install a greeting view pinning it
         const { crypto } = testHost();
@@ -1452,6 +1628,7 @@ test(
                     sandbox: {},
                     presents: [],
                     categories: [],
+                    audience: "person" as const,
                     packages: [],
                     render: { mode: "client" },
                 },
@@ -1483,10 +1660,22 @@ test(
                 return [read.package, read.messages["greeting"]];
             }),
         );
-        expect(served).toEqual([
-            [GREETING.id, "Willkommen zurück"],
-            [WIDGETS.id, "Schließen"],
-        ]);
+        // read the French catalogs neither package has, which the view's loader takes as none
+        const missing = await Promise.all(
+            ["/locale/fr.json", `/locale/${WIDGETS.id}/fr.json`].map(async (path) => {
+                const response = await page.fetch(new Request(new URL(path, address).href));
+                await response.body?.cancel();
+
+                return response.status;
+            }),
+        );
+        expect({ served, missing }).toEqual({
+            served: [
+                [GREETING.id, "Willkommen zurück"],
+                [WIDGETS.id, "Schließen"],
+            ],
+            missing: [404, 404],
+        });
     },
     SCENARIO_MILLISECONDS,
 );
@@ -1538,6 +1727,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
                 sandbox: {},
                 presents: [],
                 categories: [],
+                audience: "person" as const,
                 packages: [],
                 render: { mode: "static" },
             },
@@ -1614,7 +1804,7 @@ test(
         const home = await openHome();
         const { computer } = home;
         const { owner } = computer.world;
-        const login = (await computer.device.session(home.login)).login.row;
+        const login = (await computer.device.signedIn(home.login)).row;
         const spaceId = await computer.space(login, owner.account, "site");
         const opened = { ...home, spaceId, address: `site--${owner.handle}` };
         const hostname = `www.${SITE_DOMAIN}`;

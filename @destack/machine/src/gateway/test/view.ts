@@ -102,6 +102,7 @@ export const TestViewBuild = {
                     name,
                     presents: view.presents,
                     categories: view.categories,
+                    audience: view.audience,
                     packages: view.packages,
                     render: renderOf(view.render),
                 },

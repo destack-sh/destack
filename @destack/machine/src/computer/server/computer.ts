@@ -1,8 +1,7 @@
 import type { Environment, OperatingSystem } from "@destack/environment";
 import { principal, type TableMapping } from "@destack/access";
-import { assignment, placement, Platform, space } from "@destack/account/object";
-import { AccountError } from "@destack/account/error";
-import type { Session } from "../device/session.ts";
+import { assignment, placement, Platform } from "@destack/account/object";
+import type { Session } from "../../session/index.ts";
 import {
     defineAdapter,
     type CallKey,
@@ -271,33 +270,33 @@ export class ComputerServer {
     async #people(request: Request): Promise<Response> {
         // read the login and the target below the adapter's path
         const { pathname } = new URL(request.url);
-        const [, login, ...target] = pathname.split("/");
-        const loginId = schema.identifier("login").safeParse(login);
+        const [, segment, ...target] = pathname.split("/");
+        const loginId = schema.identifier("login").safeParse(segment);
 
         // forward as that person, refusing a path without a login
         if (!loginId.success) {
             throw MachineError.of("TARGET_INVALID", `${pathname} has no login`);
         }
-        const session = await this.device.session(loginId.data);
+        const login = await this.device.signedIn(loginId.data);
         const [kind] = target;
 
         // answer the person's account token for this computer's programs
         if (kind === "token") {
-            return Response.json({ token: await session.login.accountToken() });
+            return Response.json({ token: await login.person.accountToken() });
         }
         // answer a proof of the person's client
         else if (kind === "proof") {
-            return Response.json({ proof: await session.prove() });
+            return Response.json({ proof: await login.prove() });
         }
         // forget the person signed out by a program of this computer
         else if (kind === "forget" && request.method === "POST") {
-            await this.device.credential.forget(session.login.row);
+            await this.device.credential.forget(login.row);
 
             return Response.json({});
         }
         // forward anything else to its target
         else {
-            return session.forward(request, target);
+            return (await this.device.session(loginId.data)).forward(request, target);
         }
     }
 
@@ -378,22 +377,8 @@ export class ComputerServer {
                         );
                     }
 
-                    // find the space by its identifier or its address in the machine's directory replica
-                    const { directory } = machine;
-                    const given = call.input.space;
-                    const parsed = schema.identifier("space").safeParse(given);
-                    const found = parsed.success ? undefined : await directory.find(space, given);
-                    const spaceId = parsed.success
-                        ? parsed.data
-                        : found === undefined
-                          ? undefined
-                          : schema.identifier("space").parse(found.id);
-                    if (spaceId === undefined) {
-                        throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${given}`);
-                    }
-
                     // answer where the space's machine answers, this machine's origin for its own
-                    return machine.locate(spaceId);
+                    return machine.locate(call.input.space);
                 },
                 resolve: async (call) => {
                     // find the account claiming the handle in the directory replica
@@ -464,9 +449,9 @@ export class ComputerServer {
 
         // enroll as the approving person at their issuer
         const { input } = context;
-        const { login } = await this.session(input.login);
+        const { person } = await this.session(input.login);
 
-        return this.machine.enroll(login.accounts(), new URL(login.issuer.url).origin, {
+        return this.machine.enroll(person.accounts(), new URL(person.issuer.url).origin, {
             accountId: schema.identifier("account").parse(input.accountId),
             name: input.name ?? ComputerServer.#label(this.platform.hostname),
             version: target.version,

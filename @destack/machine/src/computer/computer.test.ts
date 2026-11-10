@@ -121,12 +121,8 @@ test(
 
         // list the checkouts at the relayed name as the owner signed in on another computer
         const other = await TestComputer.open({ world });
-        const person = await other.device.session((await other.signIn(OWNER_EMAIL)).id);
-        const client = person.login.package(
-            machinePackage,
-            relayed.machine.origin,
-            relayed.machine.id,
-        );
+        const { person } = await other.device.session((await other.signIn(OWNER_EMAIL)).id);
+        const client = person.package(machinePackage, relayed.machine.origin, relayed.machine.id);
         const { items } = await client.checkout.list({ machineId: relayed.machine.id });
         expect(items.map((item) => item.id)).toEqual([registered.id]);
     },

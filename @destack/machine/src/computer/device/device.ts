@@ -1,3 +1,5 @@
+import { Snapshot } from "@destack/db";
+import type { Address } from "@destack/view/declare";
 import { join } from "node:path";
 import { type Select, type Table } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
@@ -5,10 +7,10 @@ import { pathToFileURL } from "node:url";
 import { AccessContext, Authorization, Caller, principal } from "@destack/access";
 import { SpaceAddress, UniverseOrigin } from "@destack/account/address";
 import type { PlacementEndpoint } from "@destack/account/object";
+import { Issuer } from "@destack/account/client";
 import {
     CLIENT_KEYS,
     ClientKey,
-    Issuer,
     type LoginClient,
     type LoginCredential,
     NativeClient,
@@ -31,18 +33,25 @@ import { implementPackage, ObjectStore, type PackageImplementation } from "@dest
 import { ObjectClient } from "@destack/object/client";
 import { Package, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
-import { type Fetch, PackageHandle } from "@destack/object";
+import { type Fetch, PackageHandle, PackageMount, SpaceMount } from "@destack/object";
 import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import type { Setting } from "@destack/setting";
-import { deviceSetting } from "@destack/setting/object";
+import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import settingPackage from "@destack/setting/package";
 import machinePackage from "../../package.ts";
 import { MachineError } from "../../error/index.ts";
-import { Session } from "./session.ts";
+import { Session, type SessionMachine } from "../../session/index.ts";
 import { MachineCredential } from "./credential.ts";
-import { computer, signIn, type SignInMethod, type SignInState, visit } from "./object/index.ts";
+import {
+    computer,
+    signIn,
+    type SignInMethod,
+    type SignInState,
+    Visit,
+    visit,
+} from "./object/index.ts";
 import { Loopback, StageHome } from "../process/index.ts";
 import { type Clock, type Environment, FileSystemError } from "@destack/environment";
 
@@ -490,7 +499,7 @@ export class Device<
     /** Sign a person out on this computer, revoking this computer's client and their session. */
     async signOut(login: Login): Promise<void> {
         // revoke the client the person's sign-in registered, which ends its sessions there
-        await login.accounts().client.revoke({
+        await login.person.accounts().client.revoke({
             userId: schema.identifier("user").parse(login.row.subjectId),
             id: schema.identifier("client").parse(login.row.clientId),
             requestId: RequestId.create(this.environment),
@@ -562,7 +571,18 @@ export class Device<
                 throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
             }
 
-            return (await this.session(signedIn.id)).setting(declared);
+            // follow the person's values at the universe as the person
+            const session = await this.session(signedIn.id);
+            const userScope = session.person.subject.id;
+            await using stack = new AsyncDisposableStack();
+            const settings = await this.open(session, { scope: userScope }, { setting }, stack);
+
+            // wait until the follow holds them, as a query's first answer does, then resolve along the chain
+            await settings.query.setting.findMany({});
+
+            return await SettingValue.resolve(Snapshot.live(settings.database), declared, {
+                scope: userScope,
+            });
         }
         // read the values this device stores
         else if (scope === "device") {
@@ -617,10 +637,10 @@ export class Device<
         if (signedIn === undefined) {
             throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
         }
-        const { login } = await this.session(signedIn.id);
+        const { person } = await this.session(signedIn.id);
         const values = createClient(
             settingPackage,
-            login.universe(settingPackage.id),
+            person.universe(settingPackage.id),
             this.environment,
         );
         const placed = signedIn.subjectId;
@@ -691,19 +711,71 @@ export class Device<
         );
     }
 
-    /** Act as a signed-in person through the session in the keychain, once per sign-in. */
-    async session(loginId: Identifier<"login">): Promise<Session> {
-        // act through the client the person's current sign-in registered
-        const signedIn = await this.#login(loginId);
-        const login = new Login(
-            signedIn,
+    /** Read a signed-in person's login, acting through the session in the keychain. */
+    async signedIn(loginId: Identifier<"login">): Promise<Login> {
+        return new Login(
+            await this.#login(loginId),
             this.credential,
             this.#fetch,
             this.environment,
             this.bookmark,
         );
+    }
 
-        return new Session(this, login);
+    /** Open a scope's objects as a person into memory here, until the stack closes. */
+    async open<const Objects extends Readonly<Record<string, ObjectType>>>(
+        session: Pick<Session, "follow">,
+        location: Parameters<Session["follow"]>[0],
+        objects: Objects,
+        stack: AsyncDisposableStack,
+    ): Promise<ObjectClient<Objects>> {
+        // store the objects in memory, closed after the client
+        const database = await connectBunSqlite(":memory:", ObjectClient.tables(objects), {
+            environment: this.environment,
+        });
+        stack.defer(() => database.close());
+
+        return session.follow(location, objects, database, stack);
+    }
+
+    /** Launch a view from this device, recording a visit of an object it opens. */
+    async launch(
+        session: Pick<Session, "url" | "person">,
+        address: Address,
+    ): ReturnType<Session["url"]> {
+        // address its page, then record the person's visit of the object it opens
+        const launched = await session.url(address);
+        if ("object" in address) {
+            await Visit.record(this.visits, session.person.subject, launched.space, address.object);
+        }
+
+        return launched;
+    }
+
+    /** Act as a signed-in person from this device, proving their client to its own machine. */
+    async session(loginId: Identifier<"login">): Promise<Session> {
+        // find spaces through this machine's directory, and reach this machine itself with the client's proof
+        const login = await this.signedIn(loginId);
+        const own = await this.loopback.computer();
+        const machine: SessionMachine = {
+            id: own.machineId,
+            environment: this.environment,
+            locate: (space) => this.locate(space),
+            serve: async (place, packageId, request) => {
+                // address the package below the space's mount with a fresh proof of the person's client
+                const url = new URL(request.url);
+                const path = `${SpaceMount.path(place.placement.space)}${PackageMount.path(packageId)}`;
+                const target = new URL(`${path}${url.pathname}${url.search}`, place.url);
+                const headers = new Headers(request.headers);
+                headers.set("authorization", `Bearer ${await login.prove()}`);
+
+                return this.environment.network.fetch(
+                    new Request(target.href, new Request(request, { headers })),
+                );
+            },
+        };
+
+        return new Session(machine, login.person);
     }
 
     /** Read the account this computer's machine is enrolled in, refusing an unenrolled one. */
@@ -782,13 +854,13 @@ export class Device<
         }
 
         // enroll it in the person's own account as the person
-        const { login } = await this.session(signedIn.id);
+        const { person } = await this.session(signedIn.id);
         await this.machine().computer.enroll({
             deviceId: recorded.scope,
             requestId: RequestId.create(this.environment),
             id: recorded.id,
             login: signedIn.id,
-            accountId: await login.account(),
+            accountId: await person.account(),
         });
     }
 }

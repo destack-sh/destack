@@ -101,8 +101,11 @@ export function openGateway(
                 get: refuse("read builds"),
             },
             machine: {
+                id: space.machine.id,
                 clock: space.machine.clock,
                 domain: "localhost",
+                serve: refuse("serve the machine's own spaces"),
+                locate: refuse("locate spaces"),
                 environment: space.machine.environment,
                 runtimes: options.runtimes ?? [],
                 hibernation: undefined,

@@ -295,6 +295,115 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     });
 });
 
+test("keep an instance's data in the runtime's own directory when it runs its build in place from a layer", async () => {
+    // lay the build out as a layer does, beside the runtime's directory, and let the store find it there
+    const world = testSimulation().environment("runtime");
+    const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
+    onTestFinished(() => world.files.remove(directory, { recursive: true }));
+    const layered = join(directory, "layer", "notes");
+    await world.files.mkdir(join(layered, "bun"), { recursive: true });
+    await world.files.mkdir(join(layered, "node_modules"), { recursive: true });
+    await world.files.writeTextFile(join(layered, "bun/workload.js"), ECHO_RUNNER);
+    const store = await testStore(world);
+    onTestFinished(() => store[Symbol.asyncDispose]());
+    const packages = new Proxy(store, {
+        get: (target, key) => {
+            const value: unknown = Reflect.get(target, key);
+
+            return key === "layered"
+                ? () => layered
+                : typeof value === "function"
+                  ? (...input: unknown[]): unknown => Reflect.apply(value, target, input)
+                  : value;
+        },
+    });
+
+    // run instances below a directory of the runtime's own
+    const workers = join(directory, "workers");
+    const runtime = new BunRuntime({
+        isolation: "sandbox",
+        program: Program.of({}, world.process.loader),
+        environment: world,
+        identity: async () => testKeys(world),
+        directory: workers,
+        packages,
+        egress: () => "http://127.0.0.1:7470/.destack/egress",
+        sampling: async () => 1,
+        url: async () => "http://127.0.0.1:7470/installation",
+        output: () => {},
+        report: (error) => {
+            throw error;
+        },
+    });
+    onTestFinished(() => runtime.close());
+
+    // start an instance of the layered build
+    const build = await MemoryBuild.write(
+        new Map([["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)]]),
+        {
+            role: "app",
+            package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
+            outputs: {
+                bun: {
+                    runtime: "bun",
+                    emit: true,
+                    workloads: {
+                        notes: {
+                            entrypoint: "./workload/notes",
+                            packages: [],
+                            resources: [],
+                            secrets: [],
+                            compute: {},
+                            sandbox: {},
+                        },
+                    },
+                    views: {},
+                    directory: "bun",
+                    exports: { "./workload/notes": { path: "bun/workload.js", imports: [] } },
+                    dependencies: {},
+                    peers: {},
+                },
+            },
+        },
+        world.crypto,
+    );
+    await store.put(build);
+    const installationId = schema
+        .identifier("installation")
+        .parse("installation-01996ab0-0000-7000-8000-0000000000f1");
+    const scope = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000f4");
+    await runtime.start(
+        {
+            settings: {},
+            instanceId: schema
+                .identifier("instance")
+                .parse("instance-01996ab0-0000-7000-8000-0000000000f2"),
+            installationId,
+            name: "notes",
+            deploymentId: schema
+                .identifier("deployment")
+                .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
+            build,
+            output: "bun",
+            workload: "notes",
+            enabled: [],
+            sandbox: {},
+            directories: [],
+            served: [],
+            installations: [],
+            scope,
+            resources: [],
+        },
+        async () => {},
+    );
+
+    // find its start in the data directory below the runtime's, none beside the layer
+    expect({
+        starts: await world.files.readTextFile(join(workers, installationId, "data", "starts")),
+        isBesideLayer: await world.files.exists(join(directory, installationId)),
+    }).toEqual({ starts: "start\n", isBesideLayer: false });
+});
+
 /** A workload runner answering each request with the status of a fetch of the URL it names. */
 const FETCH_RUNNER = `
 const lines = console[Symbol.asyncIterator]();
@@ -456,14 +565,14 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     ]);
 });
 
-test("import a shared package's export as the machine's own instance, and another's from its placed build", async () => {
+test("import and call a shared package's export as the machine's own instance, and import another's from its placed build", async () => {
     // share one package's server, and store a build of it and of another, each exporting a placed marker
     const world = testSimulation().environment("runtime");
     const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
     onTestFinished(() => world.files.remove(directory, { recursive: true }));
     const packages = await testStore(world);
     onTestFinished(() => packages[Symbol.asyncDispose]());
-    const own = { marker: "own" };
+    const own = { marker: "own", describe: () => "own" };
     const runtime = new BunRuntime({
         isolation: "sandbox",
         program: Program.of({ "@example/shared/server": async () => own }, world.process.loader),
@@ -515,8 +624,17 @@ test("import a shared package's export as the machine's own instance, and anothe
         await runtime.import(shared, "./server"),
         await runtime.import(other, "./server"),
     ];
+
+    // call the shared one's export in the machine's instance too, which a sandbox could not load
+    const called = await runtime.call(
+        await packages.contents(shared),
+        "bun/server.js",
+        "describe",
+        [],
+    );
     expect([
         imported[0] === own,
         schema.looseObject({ marker: schema.string() }).parse(imported[1]).marker,
-    ]).toEqual([true, "placed"]);
+        called,
+    ]).toEqual([true, "placed", "own"]);
 });

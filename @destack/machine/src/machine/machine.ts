@@ -1,7 +1,8 @@
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
+import { AccountError } from "@destack/account/error";
 import type { Enrollment, MachineIdentity } from "@destack/account/client";
-import type { TokenBinding } from "@destack/account/native";
+import type { TokenBinding } from "@destack/account/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
@@ -38,7 +39,7 @@ import type {
     RequestContext,
     Server,
 } from "@destack/object/server";
-import type { PackageId, PackageRelease } from "@destack/package";
+import { PackageId, type PackageRelease } from "@destack/package";
 import { TUNNEL_PATH, TunnelClient, type TunnelStatus } from "@destack/tunnel";
 import { Bearer, type PartitionId, SPACE_KEY } from "@destack/access/token";
 import { createClient, type ClientOf } from "@destack/object/client";
@@ -188,6 +189,8 @@ export class Machine {
     readonly trusted: ReadonlySet<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine ships, by package. */
+    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The SKU key rating each meter at its attribute values, by `Meter.key`, absent unbilled. */
     readonly skus: ReadonlyMap<string, string> | undefined;
     /** The URL the machine answers at: a cloud machine's declared origin, else its local one. */
@@ -246,6 +249,9 @@ export class Machine {
         this.alarm = options.alarm;
         this.server = options.server;
         this.linked = options.linked;
+        this.shipped = new Map(
+            options.shipped.map((release) => [PackageId.parse(release.package.id), release]),
+        );
         this.trusted = new Set(
             [...options.shipped, ...options.linked.values()].map((release) => release.manifest),
         );
@@ -619,8 +625,18 @@ export class Machine {
         return { oldest: OLDEST_DESTACK, newest: this.#version };
     }
 
-    /** Locate a space where its machine answers: this machine's origin for its own spaces. */
-    async locate(spaceId: Identifier<"space">): Promise<accountObject.PlacementEndpoint> {
+    /** Locate a space by its identifier or address where its machine answers. */
+    async locate(space: Identifier<"space"> | string): Promise<accountObject.PlacementEndpoint> {
+        // find the space by its identifier, else by its address in the directory replica
+        const parsed = schema.identifier("space").safeParse(space);
+        const found = parsed.success
+            ? { id: parsed.data }
+            : await this.directory.find(accountObject.space, space);
+        if (found === undefined) {
+            throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${space}`);
+        }
+        const spaceId = schema.identifier("space").parse(found.id);
+
         // answer this machine's own space at its origin, named by a relay or not, another where it answers
         const [placed] = await accountObject.Placement.find(this.directory.snapshot, [spaceId]);
 

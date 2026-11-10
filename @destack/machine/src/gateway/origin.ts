@@ -3,7 +3,17 @@ import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
 import { PackageId, Package, Sandbox } from "@destack/package";
-import { Digest, schema, type Identifier, present } from "@destack/schema";
+import { Digest, schema, type Identifier, present, Uuid } from "@destack/schema";
+import {
+    InstallationOrigin,
+    OPEN_PATH,
+    REQUEST_PATH,
+    SpaceAddress,
+} from "@destack/account/address";
+import { Issuer, Person } from "@destack/account/client";
+import type { RequestedGrant } from "@destack/account/authentication";
+import { TokenCache } from "@destack/access/token";
+import { Session, type SessionMachine } from "../session/index.ts";
 import {
     InstallationMount,
     PACKAGE_PATH,
@@ -22,9 +32,18 @@ import {
 } from "@destack/stack/object";
 import { Snapshot } from "@destack/db";
 import type { ExchangeSubject } from "./gateway.ts";
+import { PageCredential } from "./credential.ts";
 import { OtlpSignal } from "@destack/telemetry/otlp";
-import { ANONYMOUS, Authentication, GrantClaim, LinkSecret, principal } from "@destack/access";
-import { IdentityError, Jwt, Proof, PROOF_HEADER } from "@destack/identity";
+import {
+    ANONYMOUS,
+    Authentication,
+    GrantClaim,
+    LinkSecret,
+    PermissionReference,
+    principal,
+    StepUp,
+} from "@destack/access";
+import { IdentityError, Jwt, type JwtClaims, Proof, PROOF_HEADER } from "@destack/identity";
 import { copyRequest, Forwarded, HostAddress } from "@destack/environment";
 import stackPackage from "@destack/stack/package";
 import type { ImportClosure } from "@destack/build/store";
@@ -37,16 +56,18 @@ import {
     ViewDescription,
 } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
-import { createClient, type ClientOf } from "@destack/object/client";
+import { Bookmark, createClient, type ClientOf } from "@destack/object/client";
 import {
     CLIENT_PATH,
     HOME_PATH,
     LINK_PARAMETER,
-    OPEN_PATH,
     PLATFORM_PATH,
     TARGET_PARAMETER,
     TOKEN_PARAMETER,
+    type ViewAddress,
     ViewContext,
+    ViewPath,
+    ViewState,
 } from "@destack/view/declare";
 import { LINK_SECRET_HEADER } from "@destack/object/server";
 import { ScopePrimary } from "./primary.ts";
@@ -60,6 +81,18 @@ const BUILD_PATH = "/.destack/build/";
 
 /** The cookie with a page's session on its installation's origin, as a backend for frontend. */
 export const SESSION_COOKIE = "destack-session";
+
+/** The authorization detail type of a grant an installation asks (RFC 9396 2). */
+const GRANT_DETAIL = "destack_grant";
+
+/** The cookie remembering a sign-in an origin started at the issuer, until it returns. */
+const SIGN_IN_COOKIE = "destack-sign-in";
+
+/** How long a sign-in waits for the person: ten minutes, as the issuer keeps the request. */
+const SIGN_IN_SECONDS = 10 * 60;
+
+/** The scopes an origin signs a person in with: who they are and their profile. */
+const ORIGIN_SCOPES = ["openid", "profile"];
 
 /** The cookie with the secrets of the links a visitor opened the origin's views by. */
 export const LINK_COOKIE = "destack-link";
@@ -103,6 +136,8 @@ export class ViewOrigin {
     readonly #builds = new Map<string, Promise<Pick<Page, "manifest" | "reader">>>();
     /** The browser import map closure of each build served so far, by build and base. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
+    /** The catalog paths each build's pages load, by build and base. */
+    readonly #catalogs = new Map<string, Promise<string[]>>();
 
     /** Serve the origins of a space's installations through its gateway. */
     constructor(
@@ -119,6 +154,12 @@ export class ViewOrigin {
             // serve the request below a route's base as at the origin's root
             const request = ViewOrigin.#below(given, mount);
             const url = new URL(request.url);
+
+            // complete a sign-in the issuer returns to the open path with its code
+            const code = url.searchParams.get("code");
+            if (request.method === "GET" && url.pathname === OPEN_PATH && code !== null) {
+                return await this.#complete(request, url, code, found, mount);
+            }
 
             // set a launch's token as the origin's cookie, sending the person on without it
             const launch = await this.#launchToken(request, url);
@@ -145,6 +186,10 @@ export class ViewOrigin {
             else if (url.pathname.startsWith(`${HOME_PATH}/`)) {
                 return await this.#primary(request, url, page);
             }
+            // request the page's person's permission a call needs, or a fresh sign-in
+            else if (url.pathname === REQUEST_PATH) {
+                return await this.#request(url, page);
+            }
             // register or bind the page's client
             else if (url.pathname === CLIENT_PATH || url.pathname.startsWith(`${CLIENT_PATH}/`)) {
                 return await this.#client(request, url, page);
@@ -164,7 +209,7 @@ export class ViewOrigin {
                 refused.headers.append("set-cookie", new OriginCookie(SESSION_COOKIE, url).clear());
             }
 
-            return refused;
+            return ViewState.isPageLoad(given) ? await ViewState.document(refused) : refused;
         }
     }
 
@@ -192,6 +237,240 @@ export class ViewOrigin {
         return posted;
     }
 
+    /** Request a page's person's declared permission or a fresh sign-in, then return. */
+    async #request(url: URL, page: Page): Promise<Response> {
+        // read where to return, refusing another origin's address
+        const back = ViewPath.safeParse(url.searchParams.get("return") ?? "/");
+        if (!back.success) {
+            throw MachineError.of(
+                "REQUEST_INVALID",
+                "a request returns to a path of its own origin",
+            );
+        }
+
+        // request a permission by its package, type and name, or a fresh sign-in at an assurance
+        const query = Object.fromEntries(url.searchParams);
+        const permission = PermissionReference.safeParse({
+            packageId: query["package"],
+            type: query["type"],
+            name: query["name"],
+        });
+        const stepUp = StepUp.schema.safeParse({
+            assurance: Number(query["assurance"]),
+            ...(query["max-age"] === undefined ? {} : { maxAge: Number(query["max-age"]) }),
+        });
+        if (permission.success) {
+            return this.#signIn(url.origin, back.data, page, { requested: [permission.data] });
+        } else if (stepUp.success) {
+            return this.#signIn(url.origin, back.data, page, {
+                requested: [],
+                stepUp: stepUp.data,
+            });
+        } else {
+            throw MachineError.of(
+                "REQUEST_INVALID",
+                "a request names a permission or an assurance",
+            );
+        }
+    }
+
+    /** Send a page load to the issuer, signed by the space, asking for a grant or a step-up. */
+    async #signIn(
+        origin: string,
+        path: string,
+        page: Page,
+        requesting: {
+            /** The grant the view's launch needs, signed into the request. */
+            readonly grant?: RequestedGrant;
+            /** The permissions the page's calls request beyond its view's. */
+            readonly requested: readonly PermissionReference[];
+            /** The fresh sign-in a call requests. */
+            readonly stepUp?: StepUp;
+        },
+    ): Promise<Response> {
+        // require the installation's own origin, as a route serves anonymous visitors
+        if (page.mount !== ROOT) {
+            throw MachineError.of(
+                "INSTALLATION_ORIGIN_REQUIRED",
+                "a route serves anonymous visitors: open the view at its installation's origin",
+            );
+        }
+
+        // start an authorization as the origin's own client, signed by its space, proven by PKCE
+        const { grant, requested, stepUp } = requesting;
+        const { environment } = this.#space.machine;
+        const state = Uuid.v4(environment.random);
+        const issuer = this.#issuer();
+        const identity = this.#space.host.identityOf(
+            principal.installation.reference(this.#space.id, page.rollout.installationId),
+        );
+        const details =
+            grant === undefined
+                ? {}
+                : { authorization_details: [{ type: GRANT_DETAIL, ...grant }] };
+        const authorization = await issuer.authorizeSigned(
+            origin,
+            `${origin}${OPEN_PATH}`,
+            state,
+            ORIGIN_SCOPES,
+            environment.clock.now(),
+            (parameters) => identity.request(issuer.url, { ...parameters, ...details }),
+            stepUp,
+        );
+
+        // remember the attempt in the origin's cookie, then send the browser to the issuer
+        const attempt = await this.#sign(SignInAttempt, {
+            state,
+            verifier: authorization.verifier,
+            path,
+            requested: [...requested],
+            exp: Math.floor(environment.clock.now() / 1000) + SIGN_IN_SECONDS,
+        });
+        const cookie = new OriginCookie(SIGN_IN_COOKIE, new URL(origin));
+
+        return new Response(null, {
+            status: 302,
+            headers: {
+                location: authorization.url,
+                "cache-control": "no-store",
+                "set-cookie": cookie.write(attempt, SIGN_IN_SECONDS),
+            },
+        });
+    }
+
+    /** Complete a sign-in the issuer returns with a code: launch the asked page as the person. */
+    async #complete(
+        request: Request,
+        url: URL,
+        code: string,
+        found: InstallationRollout,
+        mount: ViewMount | undefined,
+    ): Promise<Response> {
+        // read the attempt the origin's cookie remembers, refusing another state and the issuer's refusal
+        const cookie = new OriginCookie(SIGN_IN_COOKIE, url);
+        const remembered = cookie.read(request);
+        const attempt =
+            remembered === undefined ? undefined : await this.#read(SignInAttempt, remembered);
+        const refused = url.searchParams.get("error");
+        if (attempt === undefined || attempt.state !== url.searchParams.get("state")) {
+            throw MachineError.of(
+                "SIGN_IN_INVALID",
+                "the sign-in returned without the attempt this origin started",
+            );
+        } else if (refused !== null) {
+            throw MachineError.of(
+                "SIGN_IN_REFUSED",
+                `the issuer refused the sign-in: ${url.searchParams.get("error_description") ?? refused}`,
+            );
+        }
+
+        // redeem the code for the person's account token, which lives within their session at the issuer
+        const issuer = this.#issuer();
+        const redirect = `${url.origin}${OPEN_PATH}`;
+        const signedIn = await issuer.redeem(url.origin, code, attempt.verifier, redirect);
+        const { environment } = this.#space.machine;
+        const person = new Person(
+            signedIn.userId,
+            issuer,
+            { tokens: new TokenCache(), issue: () => Promise.resolve(signedIn.tokens.accessToken) },
+            (sent) => this.#space.machine.send(sent),
+            environment,
+            new Bookmark(),
+        );
+
+        // launch the view the path asks for as the person, from this machine
+        const page = await this.#page(request, url, found, mount);
+        const session = new Session(this.#machine(person), person);
+        try {
+            // send the person on to trade the launch for the origin's session, forgetting the attempt
+            const address = this.#address(url, found, page, attempt.path);
+            const launched = await session.launch(address, attempt.requested);
+
+            return new Response(null, {
+                status: 303,
+                headers: [
+                    ["location", launched.url],
+                    ["cache-control", "no-store"],
+                    ["set-cookie", cookie.clear()],
+                ],
+            });
+        } catch (error) {
+            // ask the person for a grant the view needs, signed in already
+            if (MachineError.is(error, "GRANT_REQUIRED")) {
+                return await this.#signIn(url.origin, attempt.path, page, {
+                    grant: error.data,
+                    requested: attempt.requested,
+                });
+            }
+            // pass on any other failure
+            else {
+                throw error;
+            }
+        }
+    }
+
+    /** Call the issuer of the machine's universe through the machine's network. */
+    #issuer(): Issuer {
+        const { host, machine } = this.#space;
+
+        return new Issuer(
+            host.machine.universe.issuer,
+            (sent) => machine.send(sent),
+            machine.environment,
+            new Bookmark(),
+        );
+    }
+
+    /** Act for a person's session from this machine, serving its own spaces in process. */
+    #machine(person: Person): SessionMachine {
+        const { machine } = this.#space;
+
+        return {
+            id: machine.id,
+            environment: machine.environment,
+            locate: (space) => machine.locate(space),
+            serve: async (place, packageId, sent) => {
+                // serve the package of this machine's own space in process, as the person
+                const { space } = place.placement;
+                const asked = new URL(sent.url);
+                const path = `${SpaceMount.path(space)}${PackageMount.path(packageId)}`;
+                const target = new URL(`${path}${asked.pathname}${asked.search}`, place.url);
+                const headers = new Headers(sent.headers);
+                const token = await person.token(packageId, { partition: space });
+                headers.set("authorization", `Bearer ${token}`);
+
+                return machine.serve(new Request(target.href, new Request(sent, { headers })));
+            },
+        };
+    }
+
+    /** Address the view a page's path asks for: its first segment's view, else the main view. */
+    #address(url: URL, found: InstallationRollout, page: Page, asked: string): ViewAddress {
+        // read the space's address from the origin, and the views the installation serves
+        const origin = present(
+            InstallationOrigin.parse(url.hostname, this.#space.machine.domain),
+            `the installation origin of ${url.hostname}`,
+        );
+        const views = ViewDescription.list(page.reader.manifest);
+        const [, segment = ""] = asked.split(/[/?]/u);
+        const isNamed = Object.hasOwn(views, segment);
+        const view = isNamed ? segment : ViewDescription.main(views);
+        if (view === undefined) {
+            throw MachineError.of(
+                "VIEW_NOT_FOUND",
+                `${found.installation.name} mounts no view at ${asked}`,
+            );
+        }
+        const rest = isNamed ? asked.slice(segment.length + 1) : asked;
+
+        return {
+            space: SpaceAddress.of({ space: origin.space, handle: origin.handle }),
+            installation: found.installation.name,
+            view,
+            path: rest.startsWith("/") ? rest : `/${rest}`,
+        };
+    }
+
     /** Trade a launch's token for the origin's session cookie, dropping it from the address. */
     async #launch(
         request: Request,
@@ -208,21 +487,23 @@ export class ViewOrigin {
             );
         }
 
-        // require a person acting through the installation under one grant from their client
+        // require a person acting through the installation under one grant, within their session or client
         const { caller, credential } = await this.#verify(request, token, found);
         const [grant, ...further] = caller.grants;
-        if (credential.kind !== "client" || grant === undefined || further.length > 0) {
+        const within = PageCredential.safeParse(credential.id);
+        const isWithin = credential.kind === "client" || credential.kind === "session";
+        if (!isWithin || !within.success || grant === undefined || further.length > 0) {
             throw MachineError.of(
                 "VIEW_GRANT_REQUIRED",
-                "a person can only open a view under their grant, from their client",
+                "a person can only open a view under their grant, within their session or client",
             );
         }
 
         // set the launching client in the origin's cookie and send the person on without the token
         const now = Math.floor(this.#space.machine.clock.now() / 1000);
-        const session = await this.#sign({
+        const session = await this.#sign(PageSession, {
             sub: schema.identifier("user").parse(caller.subject.id),
-            client: schema.identifier("client").parse(credential.id),
+            credential: within.data,
             grant,
             installation: found.installationId,
             exp: now + SESSION_SECONDS,
@@ -304,7 +585,7 @@ export class ViewOrigin {
         }
 
         // refuse a session the space did not sign for this installation
-        const session = await this.#read(cookie);
+        const session = await this.#read(PageSession, cookie);
         if (session === undefined || session.installation !== found.installationId) {
             throw MachineError.of("SESSION_INVALID", "the page's session is invalid or expired");
         }
@@ -313,7 +594,7 @@ export class ViewOrigin {
             kind: "person",
             subject: principal.user.reference(Scope.universe.id, session.sub),
             grants: [session.grant],
-            client: session.client,
+            credential: session.credential,
         };
     }
 
@@ -564,10 +845,13 @@ export class ViewOrigin {
         // sign the page's session again within the bound client, keeping its grant and expiry
         const cookie = new OriginCookie(SESSION_COOKIE, url);
         const session = present(
-            await this.#read(present(cookie.read(request), "the page's session cookie")),
+            await this.#read(
+                PageSession,
+                present(cookie.read(request), "the page's session cookie"),
+            ),
             "the page's session",
         );
-        const bound = await this.#sign({ ...session, client });
+        const bound = await this.#sign(PageSession, { ...session, credential: client });
         const remaining = session.exp - Math.floor(this.#space.machine.clock.now() / 1000);
 
         return Response.json(
@@ -589,27 +873,28 @@ export class ViewOrigin {
         return AccountError.is(error, "CREDENTIAL_REVOKED") || isHidden;
     }
 
-    /** Sign a page's session with the space's derived session key, as a compact JWS (RFC 7515). */
-    async #sign(session: PageSession): Promise<string> {
+    /** Sign a cookie's claims with the space's derived session key, as a compact JWS (RFC 7515). */
+    async #sign<Claims extends schema.Schema<JwtClaims>>(
+        shape: Claims,
+        claims: schema.Infer<Claims>,
+    ): Promise<string> {
         const { crypto } = this.#space.machine.environment;
 
-        return Jwt.sign(
-            PageSession.parse(session),
-            { alg: "HS256" },
-            await this.#sessionKey(),
-            crypto,
-        );
+        return Jwt.sign(shape.parse(claims), { alg: "HS256" }, await this.#sessionKey(), crypto);
     }
 
-    /** Read a page's session from its cookie, absent for one the space did not sign. */
-    async #read(cookie: string): Promise<PageSession | undefined> {
-        // verify the cookie, taking any refused token as no session
+    /** Read a cookie's claims, absent for a cookie the space did not sign. */
+    async #read<Claims extends schema.Schema>(
+        shape: Claims,
+        cookie: string,
+    ): Promise<schema.Infer<Claims> | undefined> {
+        // verify the cookie, taking any refused token as none
         const { clock, crypto } = this.#space.machine.environment;
         const options = { algorithms: ["HS256"] as const, now: clock.now() };
         try {
             const verified = await Jwt.verify(cookie, await this.#sessionKey(), options, crypto);
 
-            return PageSession.parse(verified.claims);
+            return shape.parse(verified.claims);
         } catch (error) {
             if (IdentityError.is(error) && error.code === "UNAUTHORIZED") {
                 return undefined;
@@ -658,14 +943,11 @@ export class ViewOrigin {
 
     /** Take a page's telemetry export as its installation's, under the build it serves. */
     async #pageTelemetry(request: Request, url: URL, page: Page): Promise<Response> {
-        // require a POST from the page's own origin
+        // require a POST from the page's own origin, of a person or an anonymous visitor alike
         if (request.method !== "POST") {
             return new Response(null, { status: 405, headers: { allow: "POST" } });
         }
         ViewOrigin.#requireSameOrigin(request, url);
-        if (page.visitor.kind !== "person") {
-            throw MachineError.of("PERSON_REQUIRED", "only a person's page can send telemetry");
-        }
 
         // record it as the installation, under the build the page serves
         const signal = OtlpSignal.at(url.pathname);
@@ -774,17 +1056,24 @@ export class ViewOrigin {
                 { package: catalog.dependency, locale: catalog.locale },
                 catalog.dependency,
             );
-            const served = await dependency.file(path);
-
-            return ViewOrigin.#file(request, served, () => dependency.load(served.path), {
-                "cache-control": "no-cache",
-            });
+            const served = (await dependency.files()).find((each) => each.path === path);
+            if (served !== undefined) {
+                return ViewOrigin.#file(request, served, () => dependency.load(served.path), {
+                    "cache-control": "no-cache",
+                });
+            }
         }
 
-        // find the view a route fixes, else the one the path's first segment names
+        // refuse a catalog the builds lack, as a package without one has none
+        if (catalog !== undefined) {
+            throw MachineError.of("VIEW_NOT_FOUND", `the views have no catalog at ${pathname}`);
+        }
+
+        // find the view a route fixes, else the one the path's first segment names, the main view at the root
         const [, segment = ""] = pathname.split("/");
-        const name = page.mount.view ?? segment;
-        const view = ViewDescription.list(reader.manifest)[name];
+        const views = ViewDescription.list(reader.manifest);
+        const name = page.mount.view ?? (segment === "" ? ViewDescription.main(views) : segment);
+        const view = name === undefined ? undefined : views[name];
         const missing = site?.missing;
         const isMounted = view?.render.mode === "client";
         // answer a site's not-found page for a path no mounted view serves
@@ -798,19 +1087,29 @@ export class ViewOrigin {
             });
         }
         // refuse a path no mounted view serves
-        else if (view === undefined || !isMounted) {
+        else if (name === undefined || view === undefined || !isMounted) {
             throw MachineError.of(
                 "VIEW_NOT_FOUND",
-                `${found.installation.name} mounts no view ${name}`,
+                `${found.installation.name} mounts no view ${name ?? "at its root"}`,
             );
+        }
+        // sign an anonymous visitor in first on a page load of a view serving people
+        if (
+            view.audience === "person" &&
+            page.visitor.kind === "anonymous" &&
+            ViewState.isPageLoad(request)
+        ) {
+            return await this.#signIn(url.origin, `${url.pathname}${url.search}`, page, {
+                requested: [],
+            });
         }
         const target = ViewOrigin.#targetOf(url) ?? page.mount.target;
 
         // mount it in its context, for the person in their home or for an anonymous visitor
         const { visitor } = page;
-        const space = present(
-            await accountObject.Space.read(Snapshot.live(this.#space.database), this.#space.id),
-            `the row of ${this.#space.id}`,
+        const space = await accountObject.Space.read(
+            Snapshot.live(this.#space.database),
+            this.#space.id,
         );
         const document = ViewContext.document(
             {
@@ -819,6 +1118,10 @@ export class ViewOrigin {
                 account: space.scope,
                 view: name,
                 base,
+                universe: new URL(this.#space.host.machine.universe.issuer).origin,
+                catalogs: await ViewOrigin.#memo(this.#catalogs, `${page.manifest} ${base}`, () =>
+                    this.#catalogPaths(reader, closure),
+                ),
                 ...(visitor.kind === "person"
                     ? {
                           user: visitor.subject,
@@ -840,11 +1143,44 @@ export class ViewOrigin {
         return request.method === "HEAD" ? new Response(null, document) : document;
     }
 
+    /** List the catalogs a page loads: its build's, and each reached build's own. */
+    async #catalogPaths(reader: BuildReader, closure: ImportClosure): Promise<string[]> {
+        const owner = PackageManifest.package(reader.manifest).id;
+        const listed = await Promise.all(
+            [...closure.builds].map(async (digest) => {
+                // read a Destack build's catalog files, an npm unit's build having none
+                const reached = await this.#space.builds.contents(digest);
+                if (!PackageManifest.isPackage(reached.manifest)) {
+                    return [];
+                }
+                const packageId = reached.manifest.package.id;
+                const files = (await reached.files()).filter((file) => Catalog.isPath(file.path));
+
+                // serve the view's build's at their paths, and another build's own below its package
+                return files.flatMap((file) => {
+                    const at = Catalog.at(file.path);
+                    if (packageId === owner) {
+                        return [file.path];
+                    } else if (at !== undefined && at.dependency === undefined) {
+                        return [Catalog.path({ package: packageId, locale: at.locale }, owner)];
+                    } else {
+                        return [];
+                    }
+                });
+            }),
+        );
+
+        return [...new Set(listed.flat())].toSorted();
+    }
+
     /** Find a package's runtime build among those a page's views reach, refusing others. */
     async #reached(closure: ImportClosure, packageId: PackageId): Promise<BuildReader> {
         for (const digest of closure.builds) {
             const reader = await this.#space.builds.contents(digest);
-            if (PackageManifest.package(reader.manifest).id === packageId) {
+            if (
+                PackageManifest.isPackage(reader.manifest) &&
+                reader.manifest.package.id === packageId
+            ) {
                 return reader;
             }
         }
@@ -1163,12 +1499,12 @@ export interface ViewMount {
     readonly target?: ObjectReference;
 }
 
-/** A person a page serves, from the client that launched it. */
+/** A person a page serves, within the session or client that launched it. */
 type PagePerson = ExchangeSubject & {
     /** The kind of visitor. */
     readonly kind: "person";
-    /** The person's client that launched the page. */
-    readonly client: Identifier<"client">;
+    /** The person's session or client that launched the page. */
+    readonly credential: PageCredential;
 };
 
 /** Who a page serves: a person, or an anonymous visitor reading what anyone may. */
@@ -1180,12 +1516,26 @@ const ANONYMOUS_VISITOR: PageVisitor = { kind: "anonymous" };
 /** The mount of an installation's own origin, its pages at the root. */
 const ROOT: ViewMount = { base: "" };
 
-/** A page's session as its origin's cookie states it: the person, their grant and their client. */
+/** A sign-in an origin started at the issuer, as its cookie remembers it until it returns. */
+const SignInAttempt = schema.object({
+    /** The value the issuer returns, binding the return to this browser (RFC 6749 10.12). */
+    state: schema.string().min(1),
+    /** The PKCE verifier the authorization's challenge commits to. */
+    verifier: schema.string().min(43).max(128),
+    /** The path and query the person asked for. */
+    path: schema.string().startsWith("/"),
+    /** The permissions the page's calls request beyond what its view asks. */
+    requested: schema.array(PermissionReference),
+    /** When the attempt lapses, in seconds since the epoch (RFC 7519 exp). */
+    exp: schema.number().int(),
+});
+
+/** A page's session as its cookie states it: the person, their grant and their credential. */
 const PageSession = schema.object({
     /** The person (RFC 7519 sub). */
     sub: schema.identifier("user"),
-    /** The person's client that launched the page, which its tokens live within. */
-    client: schema.identifier("client"),
+    /** The person's session or client that launched the page, which its tokens live within. */
+    credential: PageCredential,
     /** The person's grant to the installation. */
     grant: GrantClaim,
     /** The installation whose origin sets the session. */

@@ -121,7 +121,7 @@ test("push a person's mutation through a scope the session opens, confirmed once
     const signedIn = await computer.signIn(OWNER_EMAIL);
     const session = await device.session(signedIn.id);
     await using stack = new AsyncDisposableStack();
-    const settings = await session.open({ scope: signedIn.subjectId }, { setting }, stack);
+    const settings = await device.open(session, { scope: signedIn.subjectId }, { setting }, stack);
 
     // set the focus through that client
     const value = { schedules: [], allowed: [], isTimeSensitiveAllowed: false };
@@ -178,17 +178,17 @@ test("resolve the owner's spaces by address, identifier, home and residency, ref
     const { device, world } = home;
     const session = await device.session(login);
     const address = await session.address(world.owner.home);
-    const residency = await session.residency(await session.login.account());
+    const residency = await session.residency(await session.person.account());
 
     // expect each name of the home to resolve to its space, and the other refused
     expect({
         resolved: [
-            await session.resolve(address),
-            await session.resolve(world.owner.home),
-            await session.resolve("home"),
-            await session.resolve("residency"),
+            await session.resolve(address, {}),
+            await session.resolve(world.owner.home, {}),
+            await session.resolve("home", {}),
+            await session.resolve("residency", {}),
         ],
-        nowhere: await refusal(session.resolve("nowhere")),
+        nowhere: await refusal(session.resolve("nowhere", {})),
     }).toEqual({
         resolved: [world.owner.home, world.owner.home, world.owner.home, residency],
         nowhere: ["NOT_FOUND", "SPACE_NOT_FOUND", "no space of yours is called nowhere"],

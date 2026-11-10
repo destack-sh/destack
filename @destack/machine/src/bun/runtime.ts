@@ -52,6 +52,14 @@ if (typeof exported !== "function") {
 process.stdout.write(JSON.stringify((await exported(...input)) ?? null));
 `;
 
+/** A build placed for this runtime: its directory, and its closure's roots read on demand. */
+interface PlacedBuild {
+    /** The directory with the build's files. */
+    readonly build: string;
+    /** Read the roots of the build's closure in the store's trees, once. */
+    readonly roots: () => Promise<readonly string[]>;
+}
+
 /** The workload a Bun build's entry exports, which a runtime starts in this process. */
 type HostedWorkload = Pick<BunWorkload, "start">;
 
@@ -103,7 +111,7 @@ export class BunRuntime implements Runtime {
     /** The runners starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
     /** Each build's directory and closure roots by digest, shared by its starts and calls. */
-    readonly #layouts = new Map<Digest, Promise<Pick<BunInstanceLayout, "build" | "roots">>>();
+    readonly #layouts = new Map<Digest, Promise<PlacedBuild>>();
     /** The host the runners run on: its files, processes and clock. */
     readonly #environment: Environment<"files" | "process" | "host">;
     /** How the runners are isolated. */
@@ -195,8 +203,7 @@ export class BunRuntime implements Runtime {
         );
 
         // import a builtin's export as this process's own instance, never a second copy from its build
-        const { name } = build.manifest.package;
-        const shared = specifier === "." ? name : `${name}${specifier.slice(1)}`;
+        const shared = BunRuntime.#shared(build.manifest.package.name, specifier);
         if (this.#program.shares(shared)) {
             return await this.#program.module(shared);
         }
@@ -321,13 +328,38 @@ export class BunRuntime implements Runtime {
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
+        // call a builtin's export in this process's own instance, as importing it does
+        const output = Object.values(build.manifest.outputs).find(
+            (each) => each.runtime === BUN_RUNTIME,
+        );
+        const exported = Object.entries(output?.exports ?? {}).find(
+            ([, each]) => each.path === path,
+        );
+        const shared =
+            exported === undefined
+                ? undefined
+                : BunRuntime.#shared(build.manifest.package.name, exported[0]);
+        if (shared !== undefined && this.#program.shares(shared)) {
+            return await BunRuntime.#apply(await this.#program.module(shared), shared, name, input);
+        }
+
         // write the build as its instances run it, then call the export in the module
         const written = await this.#write(build);
         const module = join(written.build, path);
 
         return this.#isolation === "sandbox"
-            ? await this.#callSandboxed(written, module, name, input)
+            ? await this.#callSandboxed(
+                  { build: written.build, roots: await written.roots() },
+                  module,
+                  name,
+                  input,
+              )
             : await this.#callHosted(module, name, input);
+    }
+
+    /** Read the module specifier of a package's export, as the program shares it. */
+    static #shared(name: string, specifier: string): string {
+        return specifier === "." ? name : `${name}${specifier.slice(1)}`;
     }
 
     /** Call an export in a sandboxed process confined to the build, its closure and no network. */
@@ -384,8 +416,19 @@ export class BunRuntime implements Runtime {
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // import the module as an operation and call the export, refusing a module without the function
+        // import the module as an operation, then call the export
         const imported: unknown = await this.#environment.scheduler.run(() => import(module));
+
+        return await BunRuntime.#apply(imported, module, name, input);
+    }
+
+    /** Call an imported module's export, refusing a module without the function. */
+    static async #apply(
+        imported: unknown,
+        module: string,
+        name: string,
+        input: readonly JsonValue[],
+    ): Promise<JsonValue> {
         const exported: unknown =
             typeof imported === "object" && imported !== null
                 ? Reflect.get(imported, name)
@@ -404,13 +447,13 @@ export class BunRuntime implements Runtime {
         identify: (secret: string) => void,
     ): Promise<Runner> {
         // write the build's files and describe its start
-        const directories = await this.#directories(spec);
+        const { placed, ...directories } = await this.#directories(spec);
         const start = await this.#start(spec);
         identify(start.secret);
 
-        // run the runner in a sandboxed process, else in this process
+        // run the runner in a sandboxed process reading its closure's roots, else in this process
         return this.#isolation === "sandbox"
-            ? this.#sandboxed(spec, exited, directories, start)
+            ? this.#sandboxed(spec, exited, { ...directories, roots: await placed.roots() }, start)
             : this.#hosted(spec, exited, directories, start);
     }
 
@@ -465,7 +508,7 @@ export class BunRuntime implements Runtime {
     async #hosted(
         spec: InstanceSpec,
         exited: (exit: InstanceExit) => Promise<void>,
-        directories: BunInstanceLayout,
+        directories: Pick<BunInstanceLayout, "build">,
         start: WorkloadStart,
     ): Promise<Runner> {
         // import the entry's hosted workload as an operation, and start it with the build's own runner
@@ -540,25 +583,28 @@ export class BunRuntime implements Runtime {
         return sandbox;
     }
 
-    /** Create an instance's build directory and its installation's data and cache directories. */
-    async #directories(spec: InstanceSpec): Promise<BunInstanceLayout> {
-        // write the build once, beside the installation's data and cache directories
-        const written = await this.#write(spec.build);
-        const root = dirname(dirname(written.build));
+    /** Place an instance's build, and create its installation's data and cache directories. */
+    async #directories(
+        spec: InstanceSpec,
+    ): Promise<Omit<BunInstanceLayout, "roots"> & { readonly placed: PlacedBuild }> {
+        // place the build once, and keep the installation's directories in the runtime's own
+        const placed = await this.#write(spec.build);
+        const { files } = this.#environment;
+        await files.mkdir(this.#directory, { recursive: true });
+        const root = await files.realPath(this.#directory);
         const data = join(root, spec.installationId, "data");
         const cache = join(root, spec.installationId, "cache");
 
         // create the installation's directories
-        const { files } = this.#environment;
         for (const directory of [data, cache]) {
             await files.mkdir(directory, { recursive: true });
         }
 
-        return { ...written, data, cache };
+        return { build: placed.build, data, cache, placed };
     }
 
     /** Write a build's Bun output and closure once, shared by its instances and calls. */
-    async #write(build: BuildReader): Promise<Pick<BunInstanceLayout, "build" | "roots">> {
+    async #write(build: BuildReader): Promise<PlacedBuild> {
         // share the layout of each build, forgetting one that failed
         const digest = await BuildStore.digest(build.manifest, this.#environment.crypto);
         const known = this.#layouts.get(digest);
@@ -573,14 +619,15 @@ export class BunRuntime implements Runtime {
     }
 
     /** Place a build's Bun output in the runtime's directory, its closure in the store's trees. */
-    async #place(digest: Digest): Promise<Pick<BunInstanceLayout, "build" | "roots">> {
-        // run a layered build in place, its run tree linked beside it
+    async #place(digest: Digest): Promise<PlacedBuild> {
+        // run a layered build in place, its run tree linked beside it, walking its links only for a sandbox
         const { files } = this.#environment;
         const layered = this.#packages.layered(digest);
         if (layered !== undefined && (await files.exists(join(layered, "node_modules")))) {
             const build = await files.realPath(layered);
+            let roots: Promise<readonly string[]> | undefined;
 
-            return { build, roots: await DependencyTree.linkedRoots(build, files) };
+            return { build, roots: () => (roots ??= DependencyTree.linkedRoots(build, files)) };
         }
 
         // place the closure's Bun outputs in the store's trees, shared with every build reaching them
@@ -592,7 +639,7 @@ export class BunRuntime implements Runtime {
         await files.mkdir(this.#directory, { recursive: true });
         const written = join(await files.realPath(this.#directory), BUILDS_DIRECTORY, digest);
         if (await files.exists(join(written, MANIFEST_PATH))) {
-            return { build: written, roots };
+            return { build: written, roots: () => Promise.resolve(roots) };
         }
 
         // write the build's Bun output with its maps, its manifest and its closure's links in a staging directory beside its place
@@ -628,7 +675,7 @@ export class BunRuntime implements Runtime {
             await files.remove(staging, { recursive: true });
         }
 
-        return { build: written, roots };
+        return { build: written, roots: () => Promise.resolve(roots) };
     }
 
     /** Describe a runner's start with a fresh secret. */

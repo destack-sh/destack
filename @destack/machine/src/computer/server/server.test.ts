@@ -326,7 +326,7 @@ test(
     async () => {
         const { home: computer, login } = await TestComputer.home();
         const { device: native, machine } = computer;
-        const home = await (await native.session(login)).login.home();
+        const home = await (await native.session(login)).person.home();
 
         // export a desktop's failure log to the home's observability as its person
         const now = computer.clock.now();
@@ -372,9 +372,7 @@ test("authenticate a signed-in person's own client by its key's proof, reading n
     const signedIn = await computer.signIn(OWNER_EMAIL);
     computer.keychain(SESSIONS).secrets.clear();
     const registration = schema.identifier("client").parse(signedIn.clientId);
-    const proof = await native.credential.prove(
-        await native.session(signedIn.id).then((session) => session.login),
-    );
+    const proof = await native.credential.prove(await native.signedIn(signedIn.id));
 
     // take the client's proof from this machine as the person
     const authentication = await authenticator.authenticate(
@@ -483,7 +481,7 @@ test(
         const service = await stackOf(opened, signedIn.id, created);
 
         // drain or enable the machine as the owner, and list the space's sockets
-        const accounts = (await device.session(signedIn.id)).login.accounts();
+        const accounts = (await device.session(signedIn.id)).person.accounts();
         const change = (name: "drain" | "enable") =>
             accounts.machine[name]({
                 scope: owner.account,

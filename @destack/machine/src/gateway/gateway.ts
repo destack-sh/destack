@@ -1,3 +1,5 @@
+import type { PageCredential } from "./credential.ts";
+import { ViewState } from "@destack/view/declare";
 import * as accountObject from "@destack/account/object";
 import type { WorkloadInstance } from "@destack/object/workload";
 import { Identity } from "@destack/account/object";
@@ -59,6 +61,7 @@ import { ConnectionKind, ConnectionSpec } from "@destack/connection/declare";
 import type { ConnectionLease } from "@destack/connection/object";
 import { ConnectionRequest } from "@destack/connection/client";
 import stackPackage from "@destack/stack/package";
+import { StackError } from "@destack/stack/error";
 import {
     EgressCaller,
     type InstanceSpec,
@@ -114,7 +117,16 @@ export type GatewaySpace = Pick<
     /** The machine serving the space: its clock, runtimes, network and registry. */
     readonly machine: Pick<
         Machine,
-        "clock" | "environment" | "runtimes" | "hibernation" | "send" | "authenticate" | "domain"
+        | "id"
+        | "clock"
+        | "environment"
+        | "runtimes"
+        | "hibernation"
+        | "send"
+        | "serve"
+        | "locate"
+        | "authenticate"
+        | "domain"
     > & {
         readonly releases: Pick<Registry, "locate">;
     };
@@ -177,10 +189,10 @@ export interface ExchangeTarget {
     readonly scope?: Identifier<"space">;
 }
 
-/** Whom an exchanged token acts for: the person under their grants, from their client if given. */
+/** Whom an exchanged token acts for: the person under their grants, within a credential. */
 export type ExchangeSubject = Pick<Caller, "subject" | "grants"> & {
-    /** The person's client the token lives within, ending with its revocation. */
-    readonly client?: Identifier<"client">;
+    /** The person's session or client the token lives within, ending with it. */
+    readonly credential?: PageCredential;
 };
 
 /** How a machine acts for the subjects of its installations' calls under their grants. */
@@ -254,7 +266,7 @@ export class Gateway {
                         ...(asked.grants.length === 0
                             ? {}
                             : { grants: asked.grants.map((grant) => grant.id) }),
-                        ...(asked.client === undefined ? {} : { credential: asked.client }),
+                        ...(asked.credential === undefined ? {} : { credential: asked.credential }),
                     }),
                 ),
             verify: (token, target) =>
@@ -311,7 +323,10 @@ export class Gateway {
                   })
                 : error;
 
-            return refusal(failure, this.#space.machine.environment.telemetry);
+            // answer a refused page load with its state's page
+            const refused = refusal(failure, this.#space.machine.environment.telemetry);
+
+            return ViewState.isPageLoad(request) ? await ViewState.document(refused) : refused;
         }
     }
 
@@ -501,10 +516,21 @@ export class Gateway {
         const installed = { ...mounted, request };
 
         // hand an installation the space's store serves to its package there
-        if (this.#packages().some((handle) => handle.id === served.installation.packageId)) {
+        const isStored = this.#packages().some(
+            (handle) => handle.id === served.installation.packageId,
+        );
+        if (isStored) {
             const answered = await this.#store(served, installed, authentication);
 
             return traffic.countEgress(scope, installationId, answered);
+        }
+        // ask the caller to wait for a host installation the store does not serve now, such as one its stack moves
+        else if (served.installation.isolation === "host") {
+            throw StackError.of(
+                "INSTALLATION_NOT_SERVED",
+                `installation ${served.installation.name ?? installationId} in this space is not served yet`,
+                { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
+            );
         }
 
         // hand a request at an adapter its package declares to the newest deployment, as it speaks no release

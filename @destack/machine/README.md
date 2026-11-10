@@ -69,23 +69,23 @@ await Computer.run({ localObjects, servers }, environment); // the machine proce
 
 ## Device
 
-`Device` is this computer's device, a root partition no universe knows, and a person's `Session` launches views under the person's grant, granting at once what they already decided.
+`Device` is this computer's device, a root partition no universe knows, and a person's `Session` addresses views on their installations' origins, which sign the person in at the universe and ask there for any grant a view needs.
 
 ```ts
 const device = await Device.current(environment);
 const login = await device.signIn(open);
 const session = await device.session(login.id);
 const address = { space: "home--acme", installation: "notes", view: "home", path: "/" };
-const { url } = await session.launch(address); // GRANT_REQUIRED with the permissions to ask for
-await session.grant(address); // once the person allows, then launch again
+const { url } = await device.launch(session, address); // the page on its origin, recording an object's visit
+const launched = await session.launch(address); // a page under the person's grant, GRANT_REQUIRED with the described grant
 ```
 
 ## Sessions
 
-A session opens a scope's objects as the person in a client in memory, closed with the stack.
+A device opens a scope's objects as the person in a client in memory, closed with the stack.
 
 ```ts
-const inbox = await session.open(home, { notification, activity, message }, stack);
+const inbox = await device.open(session, home, { notification, activity, message }, stack);
 for await (const rows of inbox.query.notification.findMany({ with: { activity: true } }).watch(signal)) show(rows);
 const latest = RelationalQuery.latest({ messages: inbox.query.message.findMany(), activities: inbox.query.activity.findMany() }, signal);
 ```

@@ -4,7 +4,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import type { Session } from "./device/session.ts";
+import type { Session } from "../session/index.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";

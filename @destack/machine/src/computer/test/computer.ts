@@ -750,7 +750,7 @@ export class TestComputer implements AsyncDisposable {
     ): Promise<Identifier<"space">> {
         // create the space on the machine as the person
         const session = await this.device.session(login.id);
-        const created = await session.login.accounts().space.create({
+        const created = await session.person.accounts().space.create({
             accountId,
             requestId: RequestId.create(this.environment),
             name,
