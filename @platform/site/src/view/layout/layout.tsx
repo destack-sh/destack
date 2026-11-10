@@ -9,6 +9,7 @@ import { origin, tagline } from "../content/site";
 import Shortcuts from "../islands/shortcuts";
 import TopBarIsland from "../islands/topbar";
 import { Footer } from "./footer";
+import { frame } from "./frame.stylex";
 import { paper } from "./lattice.stylex";
 
 /** The metadata every page starts from: the site's name, origin, preview and icons. */
@@ -63,6 +64,8 @@ const styles = style.create({
     main: {
         display: "flex",
         flexDirection: "column",
+        // start the footer near the end of the first screen on short pages
+        minHeight: `calc(100svh - 2 * ${frame.bar})`,
         minWidth: 0,
     },
 });
