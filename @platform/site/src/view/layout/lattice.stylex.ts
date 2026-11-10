@@ -84,6 +84,13 @@ export const paper = style.create({
         "::before": { ...margin, backgroundPosition: "right top", left: 0 },
         "::after": { ...margin, backgroundPosition: "left top", right: 0 },
     },
+
+    /** A patch of page over what scrolls under it, grained like the page. */
+    patch: {
+        backgroundColor: color.background,
+        backgroundImage: GRAIN,
+        backgroundSize: GRAIN_SIZE,
+    },
 });
 
 /** The colours lattice cells paint, which a band such as the sky sets for its own cells. */
@@ -176,8 +183,6 @@ export const lattice = style.create({
                 // measure the band's top rule like a ruler, by column and quarter column
                 TICKS.column,
                 TICKS.quarter,
-                // keep the frame's gap blank page over the margins' dots
-                `linear-gradient(${color.background}, ${color.background})`,
             ].join(", "),
             [media.maxMd]: [
                 `linear-gradient(${RULE}, ${RULE})`,
@@ -199,7 +204,6 @@ export const lattice = style.create({
                 "center",
                 `center top calc(${EDGE} + ${GAP} + ${stroke.border})`,
                 `center top calc(${EDGE} + ${GAP} + ${stroke.border})`,
-                "center",
             ].join(", "),
             [media.maxMd]: [
                 `center top ${EDGE}`,
@@ -222,7 +226,6 @@ export const lattice = style.create({
                 `${frame.width} 100%`,
                 `${frame.width} 8px`,
                 `${frame.width} 4px`,
-                `${frame.width} 100%`,
             ].join(", "),
             [media.maxMd]: [
                 `100% ${stroke.border}`,
