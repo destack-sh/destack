@@ -1,4 +1,4 @@
-import { RequestedGrant } from "@destack/account/authentication";
+import { GrantRequest } from "@destack/account/authentication";
 import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import { ERROR_DATA, RetryAfter } from "@destack/object";
 import type {} from "@destack/package/import-meta";
@@ -36,10 +36,11 @@ const machineError = defineErrorFamily(import.meta.destack.package, {
 
     // forbidden
     CONNECTION_UNAUTHENTICATED: { code: "UNAUTHORIZED" },
+    PUBLISHER_UNKNOWN: { code: "FORBIDDEN" },
     SIGN_IN_FAILED: { code: "FORBIDDEN" },
     FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
     FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
-    GRANT_REQUIRED: { code: "FORBIDDEN", data: RequestedGrant },
+    GRANT_REQUIRED: { code: "FORBIDDEN", data: GrantRequest },
     OWNER_MISSING: { code: "FORBIDDEN" },
     ORIGIN_MISMATCH: { code: "FORBIDDEN" },
     OWNER_REQUIRED: { code: "FORBIDDEN" },

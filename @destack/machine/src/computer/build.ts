@@ -130,10 +130,13 @@ export class BuildRunner {
         replicated: Select<typeof build.table>,
         signal: AbortSignal,
     ): Promise<void> {
-        // open the source and its workspace, and resolve the outputs it implies
+        // open the source and its workspace, compiling only its publisher's members as a published build does
         await using opened = await this.#open(target.spaceId, replicated, signal);
-        const workspace = await Workspace.open(opened.directory, this.#compilers, (dependency) =>
-            this.#release(dependency),
+        const workspace = await Workspace.open(
+            opened.directory,
+            this.#compilers,
+            (dependency) => this.#release(dependency),
+            "account",
         );
         const implied = outputsOf(workspace.root.packageJson);
         const outputs = replicated.outputs ?? Object.keys(implied);
