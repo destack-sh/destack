@@ -1,3 +1,4 @@
+import type { UniverseDefinition } from "@destack/universe";
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import type { Environment } from "@destack/environment";
@@ -19,10 +20,15 @@ import { type Renewal, TunnelClient, type TunnelClientOptions } from "@destack/t
 import { TestRelay } from "./relay.ts";
 
 /** The residencies of the universe, each with its cloud machine. */
-const RESIDENCIES = [
-    { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test" },
-    { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
-] as const;
+const RESIDENCIES: UniverseDefinition["residencies"] = [
+    { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test", countries: ["DE"] },
+    {
+        code: "us",
+        name: "United States",
+        relay: "https://relay-us.machine.test",
+        countries: ["US"],
+    },
+];
 
 /** The handle of the account the computer belongs to. */
 const HANDLE = "acme";
