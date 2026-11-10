@@ -14,6 +14,9 @@ export const RegistryError = defineErrorFamily(import.meta.destack.package, {
     // conflict
     RELEASE_CONFLICT: { code: "CONFLICT" },
 
+    // precondition failed
+    DEPENDENCY_UNPUBLISHED: { code: "PRECONDITION_FAILED" },
+
     // bad gateway
     REMOTE_FAILED: { code: "BAD_GATEWAY" },
 });
