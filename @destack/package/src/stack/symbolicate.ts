@@ -1,5 +1,6 @@
 import { originalPositionFor, TraceMap } from "@jridgewell/trace-mapping";
-import { type BuildReader, Once } from "../manifest/reader.ts";
+import { Once } from "@destack/environment";
+import type { BuildReader } from "../manifest/reader.ts";
 import type { StackFrame } from "./frame.ts";
 
 /** Maps stack frames through one build's source maps to the sources they ran. */

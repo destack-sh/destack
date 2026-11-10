@@ -1,5 +1,6 @@
 import type { Document } from "../graph/document.ts";
-import { type BuildReader, Once } from "../manifest/reader.ts";
+import { Once } from "@destack/environment";
+import type { BuildReader } from "../manifest/reader.ts";
 import type { Module } from "../graph/module.ts";
 import { type FrameModule, StackFrame } from "./frame.ts";
 

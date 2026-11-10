@@ -1,4 +1,10 @@
-import type { Compression, Crypto, FileHandle, FileSystem } from "@destack/environment";
+import {
+    type Compression,
+    type Crypto,
+    type FileHandle,
+    type FileSystem,
+    Once,
+} from "@destack/environment";
 import { Tarball, TarballEntry } from "../archive/tarball.ts";
 import { Digest, present, schema } from "@destack/schema";
 import { PackageFile, PackagePath } from "../file/file.ts";
@@ -424,20 +430,4 @@ async function streamFile(
 /** Decode a JSON file's verified bytes. */
 function decode(bytes: Uint8Array<ArrayBuffer>): unknown {
     return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
-}
-
-/** A value read on first use and read again after a failure. */
-export class Once<Value> {
-    /** The current read, if any. */
-    #read: Promise<Value> | undefined;
-
-    /** Return the value, reading it on first use and after a failure. */
-    get(read: () => Promise<Value>): Promise<Value> {
-        this.#read ??= read().catch((error: unknown) => {
-            this.#read = undefined;
-            throw error;
-        });
-
-        return this.#read;
-    }
 }
