@@ -1,7 +1,6 @@
 import type { Fetch, OmitEach } from "@destack/object";
-import { PackageId } from "@destack/package";
 import type { Environment } from "@destack/environment";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId, Scope, type Subject } from "@destack/sync";
 import { type Identifier, schema } from "@destack/schema";
 import type { ClientOf } from "@destack/object/client";
 import { Machine, machine } from "../object/index.ts";
@@ -17,8 +16,7 @@ import {
 import { Assertion } from "@destack/access/token";
 import { principal } from "@destack/access";
 import { AccountError } from "../error/error.ts";
-import type { TokenBinding } from "./issuer.ts";
-import { TokenSource } from "./bearer.ts";
+import { IssuerCredential, type Signer } from "./credential.ts";
 
 /** The label a cloud machine's key derives from its process's keyring under. */
 const MACHINE_KEY_LABEL = { label: "@destack/account/machine-key", context: "" } as const;
@@ -29,26 +27,42 @@ export type Enrollment = OmitEach<
     "id" | "publicKey" | "proof"
 >;
 
-/** The identity a machine proves with its key. */
-export class MachineIdentity {
+/** A machine's key in its keychain: it proves and enrolls the machine and signs its assertions. */
+export class MachineKey implements Signer {
     /** The machine's identifier. */
     readonly machineId: Identifier<"machine">;
     /** The keychain storing the private key. */
     readonly #keys: Keychain;
     /** The key pair once loaded or generated. */
     #pair: KeyPair | undefined;
-    /** The access tokens granted to this machine by its assertions. */
-    readonly #tokens: TokenSource;
+    /** The machine's tokens each issuer granted, by issuer. */
+    readonly #credentials = new Map<string, IssuerCredential>();
     /** The environment proofs are signed and tokens refreshed at, and requests drawn from. */
     readonly #environment: Environment;
 
     /** Prove a machine's identity with the key in its keychain, in an environment. */
     constructor(machineId: Identifier<"machine">, keys: Keychain, environment: Environment) {
-        // keep the keychain, and get tokens by the assertions the machine's key signs
         this.machineId = machineId;
         this.#keys = keys;
         this.#environment = environment;
-        this.#tokens = new TokenSource((endpoint) => this.assert(endpoint), environment);
+    }
+
+    /** The machine. */
+    get subject(): Subject {
+        return principal.machine.reference(Scope.universe.id, this.machineId);
+    }
+
+    /** Read the machine's tokens as an issuer grants them for its assertions. */
+    at(issuer: string, fetch: Fetch): IssuerCredential {
+        // reuse the issuer's credential, else open one
+        const found = this.#credentials.get(issuer);
+        if (found !== undefined) {
+            return found;
+        }
+        const credential = new IssuerCredential(this, issuer, fetch, this.#environment);
+        this.#credentials.set(issuer, credential);
+
+        return credential;
     }
 
     /** Generate and store a key pair, and return its public half with a proof of possession. */
@@ -65,11 +79,11 @@ export class MachineIdentity {
         machineId: Identifier<"machine">,
         keyring: Pick<Keyring, "derivePrivateKey">,
         environment: Environment,
-    ): Promise<MachineIdentity> {
+    ): Promise<MachineKey> {
         const keychain = new MemoryKeychain();
-        await MachineIdentity.save(machineId, keyring, keychain);
+        await MachineKey.save(machineId, keyring, keychain);
 
-        return new MachineIdentity(machineId, keychain, environment);
+        return new MachineKey(machineId, keychain, environment);
     }
 
     /** Save the key a keyring derives for a machine in a keychain. */
@@ -120,9 +134,9 @@ export class MachineIdentity {
             }
         }
 
-        // reload the stored key and forget the tokens the replaced key granted
+        // reload the stored key and forget the tokens granted for the replaced one
         this.#pair = undefined;
-        this.#tokens.clear();
+        this.#clear();
     }
 
     /** Read the public half of this machine's key. */
@@ -143,32 +157,12 @@ export class MachineIdentity {
         );
     }
 
-    /** Wrap a fetch to call a package with this machine's tokens, in a partition when given. */
-    fetch(
-        send: Fetch,
-        audience: PackageId,
-        issuer: string,
-        binding: Pick<TokenBinding, "partition"> = {},
-    ): Fetch {
-        return this.#tokens.fetch(send, audience, issuer, binding);
-    }
-
-    /** Read this machine's access token for a package, in a partition when given (RFC 7523). */
-    token(
-        audience: PackageId,
-        issuer: string,
-        fetch: Fetch,
-        binding: Pick<TokenBinding, "partition"> = {},
-    ): Promise<string> {
-        return this.#tokens.token(audience, issuer, fetch, binding);
-    }
-
     /** Sign an assertion of this machine for a token endpoint now (RFC 7523). */
     async assert(endpoint: string): Promise<string> {
         const pair = await this.#load();
         const key = {
             id: await PublicKey.thumbprint(pair.publicKey, this.#environment.crypto),
-            subject: principal.machine.reference(Scope.universe.id, this.machineId),
+            subject: this.subject,
             publicKey: pair.publicKey,
         };
 
@@ -185,7 +179,14 @@ export class MachineIdentity {
     async forget(): Promise<void> {
         await this.#keys.remove(this.machineId);
         this.#pair = undefined;
-        this.#tokens.clear();
+        this.#clear();
+    }
+
+    /** Forget the tokens the issuers granted the replaced or forgotten key. */
+    #clear(): void {
+        for (const credential of this.#credentials.values()) {
+            credential.clear();
+        }
     }
 
     /** Store a generated pair in place of the key read before. */

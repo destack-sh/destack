@@ -11,7 +11,7 @@ import {
 import { eq, inArray, Snapshot } from "@destack/db";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test, refusal, type Refusal } from "@destack/test";
-import { MachineIdentity } from "../src/client/machine-identity.ts";
+import { MachineKey } from "../src/client/machine-key.ts";
 import {
     account,
     endpoint,
@@ -87,8 +87,8 @@ async function availability(person: TestPerson, handle: string): Promise<string>
 }
 
 /** Derive a cloud machine's identity from a new keyring, as the universe declares it. */
-async function declare(environment: Environment): Promise<MachineIdentity> {
-    return MachineIdentity.derive(
+async function declare(environment: Environment): Promise<MachineKey> {
+    return MachineKey.derive(
         Identifier.create("machine", environment),
         await LocalKeyring.read(LocalKeyring.generate(environment), environment),
         environment,

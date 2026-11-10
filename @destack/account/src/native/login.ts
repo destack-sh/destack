@@ -8,7 +8,8 @@ import type { TokenCache } from "@destack/access/token";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
 import { Issuer } from "../client/issuer.ts";
-import { Person } from "../client/person.ts";
+import { Session } from "../client/session.ts";
+import { UserIdentity } from "../client/user.ts";
 
 /** A person signed in on a computer's native device, the keychain storing their refresh token. */
 export const login = defineObject({
@@ -50,8 +51,8 @@ export interface LoginCredential {
 export class Login {
     /** The login's row. */
     readonly row: Select<typeof login.table>;
-    /** The person acting through the login's account tokens. */
-    readonly person: Person;
+    /** The user's calls to packages, with their tokens. */
+    readonly session: Session<UserIdentity>;
     /** The credential issuing the person's account tokens and client proofs. */
     readonly #credential: LoginCredential;
 
@@ -68,17 +69,26 @@ export class Login {
             throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
         }
 
-        // act as the person through the credential's tokens at the login's issuer
+        // act as the user through the credential's tokens at the login's issuer
         this.row = row;
         this.#credential = credential;
-        this.person = new Person(
+        const user = new UserIdentity(
             schema.identifier("user").parse(row.subjectId),
             new Issuer(row.issuer, fetch, environment, bookmark),
-            { tokens: credential.tokens(row), issue: () => credential.issue(this) },
-            fetch,
+            { cache: credential.tokens(row), issue: () => credential.issue(this) },
             environment,
-            bookmark,
         );
+        this.session = new Session(user, {
+            universe: new URL(row.issuer).origin,
+            send: fetch,
+            bookmark,
+            environment,
+        });
+    }
+
+    /** The signed-in user's tokens. */
+    get user(): UserIdentity {
+        return this.session.credential;
     }
 
     /** Prove the person's client to this computer's machine. */

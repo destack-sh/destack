@@ -498,7 +498,7 @@ test("grant an installation a token naming no space toward the universe, and one
 
     // take its token of the object package toward the universe, and toward its own space
     const identity = fixture.identityOf(automation);
-    const universe = TestJwt.claims(await identity.grantedToken(objectPackage.id));
+    const universe = TestJwt.claims(await identity.granted.token(objectPackage.id, {}));
     const exchanged = await identity.exchange(objectPackage.id, { partition: spaceId });
     const space = TestJwt.claims(exchanged);
     expect([universe.partition, space.partition]).toEqual([undefined, spaceId]);

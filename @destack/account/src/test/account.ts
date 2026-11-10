@@ -46,9 +46,9 @@ import {
     type BetterAuthAuthenticatorOptions,
     type SignUp,
 } from "../better-auth/index.ts";
-import { MachineIdentity } from "../client/index.ts";
+import { MachineKey } from "../client/index.ts";
 import { DEVICE_SCOPES, Issuer, TokenSet } from "../client/index.ts";
-import { IdentityKeystore, IdentityRegistry, type WorkloadIdentity } from "../identity/index.ts";
+import { IdentityKeystore, IdentityRegistry, type Identity } from "../identity/index.ts";
 import {
     account,
     Account,
@@ -357,7 +357,7 @@ interface Served {
     /** The universe's packages served over HTTP to bearers, signed by each caller's key. */
     readonly served: TestObjectStore;
     /** The machines tests act as, by machine. */
-    readonly machines: Map<string, MachineIdentity>;
+    readonly machines: Map<string, MachineKey>;
     /** The published releases declaring settings, by package and version. */
     readonly releases: Map<string, Promise<BuildReader>>;
     /** The email sign-in mailed. */
@@ -409,7 +409,7 @@ export class TestAccountStore implements AsyncDisposable {
     /** The sessions of the people with an authenticator, by email, refreshed at each sign-in. */
     readonly #sessions: Map<string, TestSession>;
     /** The machines tests act as: the declared and the enrolled ones, by machine. */
-    readonly #machines: Map<string, MachineIdentity>;
+    readonly #machines: Map<string, MachineKey>;
     /** The keychains storing the keys of the declared cloud machines, by machine. */
     readonly #cloudKeychains: ReadonlyMap<Identifier<"machine">, Keychain>;
     /** The keychain of the universe's keyring. */
@@ -639,7 +639,7 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Act as a space or installation by its space's key, as the machine serving it does. */
-    identityOf(subject: Subject): WorkloadIdentity {
+    identityOf(subject: Subject): Identity {
         return this.keystore.identityOf(this.database, subject, {
             environment: this.environment,
             issuer: ISSUER,
@@ -884,7 +884,7 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Act as the cloud machine a space is placed on. */
-    async machine(spaceId: Identifier<"space">): Promise<MachineIdentity> {
+    async machine(spaceId: Identifier<"space">): Promise<MachineKey> {
         const placed = present(
             await Snapshot.live(this.database)
                 .read(placement.table)
@@ -943,7 +943,7 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Act as a cloud machine the platform declares, such as a residency's shared machine. */
-    cloud(machineId: Identifier<"machine">): MachineIdentity {
+    cloud(machineId: Identifier<"machine">): MachineKey {
         return found(this.#machines, machineId);
     }
 
@@ -980,9 +980,9 @@ export class TestAccountStore implements AsyncDisposable {
         accountId: Identifier<"account">,
         person: TestPerson,
         options: MachineEnrollment = {},
-    ): Promise<MachineIdentity> {
+    ): Promise<MachineKey> {
         // enroll a new identity, acting as it from then on
-        const identity = new MachineIdentity(
+        const identity = new MachineKey(
             Identifier.create("machine", this.environment),
             new MemoryKeychain(),
             this.environment,
@@ -1010,7 +1010,7 @@ export class TestAccountStore implements AsyncDisposable {
         accountId: Identifier<"account">,
         residencyId: ResidencyCode,
         origin?: string,
-    ): Promise<MachineIdentity> {
+    ): Promise<MachineKey> {
         // entitle the account to dedicated tenancy, which the platform requires to declare its machine
         await this.entitle(accountId, "tenancy", {
             kind: "static",
@@ -1018,7 +1018,7 @@ export class TestAccountStore implements AsyncDisposable {
         });
 
         // store a new identity's machine as the universe with its key
-        const identity = new MachineIdentity(
+        const identity = new MachineKey(
             Identifier.create("machine", this.environment),
             new MemoryKeychain(),
             this.environment,
@@ -1046,13 +1046,13 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Act as a machine a test enrolled outside the fixture, by the identity holding its key. */
-    register(identity: MachineIdentity): void {
+    register(identity: MachineKey): void {
         this.#machines.set(identity.machineId, identity);
     }
 
     /** Call as a registered machine, a space or an installation, signed by its key. */
-    as(caller: MachineIdentity | string | Subject): TestCaller {
-        return this.served.as(caller instanceof MachineIdentity ? caller.machineId : caller);
+    as(caller: MachineKey | string | Subject): TestCaller {
+        return this.served.as(caller instanceof MachineKey ? caller.machineId : caller);
     }
 
     /** Stop serving the packages. */
@@ -1252,14 +1252,14 @@ export class TestAccountStore implements AsyncDisposable {
         const machines = new Map(
             [...keys.cloud].map(([id, keychain]) => [
                 id,
-                new MachineIdentity(id, keychain, environment),
+                new MachineKey(id, keychain, environment),
             ]),
         );
 
         // serve each package to bearers, signing machines by their keys and spaces by their space's
         const fetch = (request: Request) => TestAccountStore.#route(store, served, request);
         const issuer = new Issuer(ISSUER, fetch, environment, new Bookmark());
-        const identities = new Map<string, WorkloadIdentity>();
+        const identities = new Map<string, Identity>();
         const served: TestObjectStore = TestObjectStore.serve(store, {
             credential: {
                 sign: async (request, signer) => {
@@ -1330,9 +1330,9 @@ export class TestAccountStore implements AsyncDisposable {
         signer: TestSigner,
         keys: {
             /** The machines tests act as, by machine. */
-            readonly machines: ReadonlyMap<string, MachineIdentity>;
+            readonly machines: ReadonlyMap<string, MachineKey>;
             /** The identities of the spaces and installations tests act as, by subject. */
-            readonly identities: Map<string, WorkloadIdentity>;
+            readonly identities: Map<string, Identity>;
             /** The keystore storing the spaces' keys. */
             readonly keystore: IdentityKeystore;
             /** The account database. */
@@ -1353,7 +1353,7 @@ export class TestAccountStore implements AsyncDisposable {
         if (principal.machine.is(subject)) {
             const identity = found(keys.machines, subject.id);
 
-            return identity.token(audience, ISSUER, keys.send);
+            return identity.at(ISSUER, keys.send).token(audience, {});
         }
 
         // sign a space or installation with its space's key, keeping its granted tokens
@@ -1367,7 +1367,7 @@ export class TestAccountStore implements AsyncDisposable {
             });
         keys.identities.set(key, identity);
 
-        return identity.grantedToken(audience);
+        return identity.granted.token(audience, {});
     }
 
     /** Open the releases a test publishes, by package and version, refusing any other. */
@@ -1546,7 +1546,7 @@ async function cloudMachine(
 ): Promise<PlatformDefinition["machines"][number]> {
     // generate its key, storing its keychain for tests to act as it and run it
     const keychain = new MemoryKeychain();
-    const { publicKey } = await new MachineIdentity(id, keychain, environment).generate();
+    const { publicKey } = await new MachineKey(id, keychain, environment).generate();
     keychains.set(id, keychain);
 
     return {

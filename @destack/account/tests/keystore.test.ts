@@ -184,17 +184,17 @@ test("sign an installation's request for the space it goes to by its space's key
         "installation-01996ab0-0000-7000-8000-000000000005",
     );
     let received: Request | undefined;
-    const send = keystore
-        .identityOf(database, installation, {
-            environment: accounts.environment,
-            issuer: "https://universe.test/oauth",
-            send: async (request) => {
-                received = request;
+    const identity = keystore.identityOf(database, installation, {
+        environment: accounts.environment,
+        issuer: "https://universe.test/oauth",
+        send: async (request) => {
+            received = request;
 
-                return new Response(null, { status: 204 });
-            },
-        })
-        .fetchSigned(audience);
+            return new Response(null, { status: 204 });
+        },
+    });
+    const send = async (request: Request) =>
+        identity.send(await identity.authorize(request, audience, {}));
     const target = "space-01996ab0-0000-7000-8000-0000000000aa";
     await send(new Request(SpaceMount.url("https://machine.test/", target)));
     const unscoped = await refusal(send(new Request("https://notes.test/")));
@@ -290,8 +290,10 @@ test("send a request as the universe bound to the space it goes to, which a veri
     const audience = PackageId.parse("package-01996ab0-0000-7000-8000-000000000012");
     const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
     const received: Request[] = [];
-    const universeFetch = keystore
-        .identityOf(database, universe.reference(Scope.universe.id, Scope.universe.id), {
+    const identity = keystore.identityOf(
+        database,
+        universe.reference(Scope.universe.id, Scope.universe.id),
+        {
             environment: accounts.environment,
             issuer,
             send: async (request) => {
@@ -299,8 +301,10 @@ test("send a request as the universe bound to the space it goes to, which a veri
 
                 return new Response(null, { status: 204 });
             },
-        })
-        .fetchSigned(audience);
+        },
+    );
+    const universeFetch = async (request: Request) =>
+        identity.send(await identity.authorize(request, audience, {}));
     await universeFetch(new Request(`https://machine.test/spaces/${space}/package-x/objects`));
 
     // verify it as the universe in that space, refuse it in another, and refuse a request to no space

@@ -205,7 +205,7 @@ test("time an installation's granted token by its package's lifetime, past the o
         },
     });
     const { inbox } = await grantInbox(fixture);
-    const granted = await fixture.identityOf(inbox).grantedToken(objectPackage.id);
+    const granted = await fixture.identityOf(inbox).granted.token(objectPackage.id, {});
 
     // live the package's lifetime, in seconds
     const { iat, exp } = TestJwt.claims(granted);

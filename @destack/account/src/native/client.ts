@@ -241,7 +241,7 @@ export class NativeClient implements LoginCredential {
         }
 
         // refresh, storing the rotated refresh token
-        const tokens = await signedIn.person.issuer.refresh(
+        const tokens = await signedIn.user.issuer.refresh(
             client.identifier(signedIn.row.clientId),
             refreshToken,
         );

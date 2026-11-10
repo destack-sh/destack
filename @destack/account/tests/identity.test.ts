@@ -10,7 +10,7 @@ import {
 } from "@destack/access/token";
 import { expect, refusal, test } from "@destack/test";
 import { found, Identifier, present, schema } from "@destack/schema";
-import { MachineIdentity } from "../src/client/index.ts";
+import { MachineKey } from "../src/client/index.ts";
 import { TOKEN_PATH } from "../src/authentication/path.ts";
 import { Account, Identity, key, machine } from "../src/object/index.ts";
 import { JWT_BEARER } from "../src/oauth/index.ts";
@@ -80,7 +80,7 @@ async function ask(
 /** Grant a machine a token for the audience by a fresh assertion, in a partition when given. */
 async function grant(
     accounts: TestAccountStore,
-    signer: MachineIdentity,
+    signer: MachineKey,
     partition?: PartitionId,
 ): Promise<"done" | readonly [number, unknown]> {
     return ask(accounts, await signer.assert(ENDPOINT), partition);
@@ -107,7 +107,7 @@ async function enrollCloud(accounts: TestAccountStore) {
     // enroll the machine with a keychain of its own
     const operator = await accounts.signIn(OPERATOR_EMAIL);
     const keys = new MemoryKeychain();
-    const identity = new MachineIdentity(
+    const identity = new MachineKey(
         Identifier.create("machine", accounts.environment),
         keys,
         accounts.environment,
@@ -126,7 +126,7 @@ async function enrollCloud(accounts: TestAccountStore) {
     // copy the first key to a keychain the machine's rotations leave alone
     const keychain = new MemoryKeychain();
     keychain.secrets.set(identity.machineId, found(keys.secrets, identity.machineId));
-    const first = new MachineIdentity(identity.machineId, keychain, accounts.environment);
+    const first = new MachineKey(identity.machineId, keychain, accounts.environment);
     const enrolled = present(
         await Snapshot.live(accounts.database)
             .read(key.table)
@@ -154,7 +154,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     expect(await itself()).toBe("done");
 
     // refuse a stranger enrolling a machine into the account and a proof for another machine
-    const stray = new MachineIdentity(
+    const stray = new MachineKey(
         Identifier.create("machine", accounts.environment),
         new MemoryKeychain(),
         accounts.environment,
@@ -168,7 +168,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         architecture: "arm64",
         model: "Mac14,2",
     };
-    const other = new MachineIdentity(
+    const other = new MachineKey(
         Identifier.create("machine", accounts.environment),
         new MemoryKeychain(),
         accounts.environment,
@@ -190,7 +190,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     ]);
 
     // number a taken name at enrollment and refuse taken names and branch separators
-    const namesake = new MachineIdentity(
+    const namesake = new MachineKey(
         Identifier.create("machine", accounts.environment),
         new MemoryKeychain(),
         accounts.environment,
@@ -251,11 +251,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
     // rotate the machine's key as the machine and refuse the owner registering a key for it
     await identity.rotate(accounts.as(identity).client(accountPackage), accountId);
     expect(await itself()).toBe("done");
-    const impostor = new MachineIdentity(
-        identity.machineId,
-        new MemoryKeychain(),
-        accounts.environment,
-    );
+    const impostor = new MachineKey(identity.machineId, new MemoryKeychain(), accounts.environment);
     const { publicKey: foreign, proof } = await impostor.generate();
     expect(
         await refusal(
@@ -283,7 +279,7 @@ test("grant a cloud machine a token for a minute as itself alone, by its enrolle
     await using accounts = await TestAccountStore.open();
     const { identity, enrolled } = await enrollCloud(accounts);
     const fetch = (request: Request) => accounts.fetch(request);
-    const accessToken = await identity.token(AUDIENCE, ISSUER, fetch);
+    const accessToken = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
 
     // verify the token as the machine alone, by its key's thumbprint
     const verifier = new TokenVerifier({
@@ -392,7 +388,7 @@ test("issue a machine's token at the store clock's time, verifiable after the cl
     // declare a cloud machine on the same clock and take its token
     const identity = await fixture.declareCloudMachine(fixture.platform, "eu");
     const fetch = (request: Request) => fixture.fetch(request);
-    const accessToken = await identity.token(AUDIENCE, ISSUER, fetch);
+    const accessToken = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
 
     // verify it at the clock's time, with exactly the provider's claims
     const verifier = new TokenVerifier({
@@ -462,9 +458,11 @@ test("reuse a machine's token for several calls to one package, exchanging it on
     };
 
     // read the token for three calls at once and one later, and one for another package
-    const tokens = await Promise.all([1, 2, 3].map(() => identity.token(AUDIENCE, ISSUER, fetch)));
-    const later = await identity.token(AUDIENCE, ISSUER, fetch);
-    const other = await identity.token(accountPackage.id, ISSUER, fetch);
+    const tokens = await Promise.all(
+        [1, 2, 3].map(() => identity.at(ISSUER, fetch).token(AUDIENCE, {})),
+    );
+    const later = await identity.at(ISSUER, fetch).token(AUDIENCE, {});
+    const other = await identity.at(ISSUER, fetch).token(accountPackage.id, {});
 
     // send the first token every time for the package, and another one for the other package
     expect({
@@ -526,8 +524,12 @@ test("grant a space a token in another space stating the people it is home to, a
     );
 
     // grant a token in the other space, and ask for one in the machine's partition
-    const granted = TestJwt.claims(await home.grantedToken(AUDIENCE, other));
-    const machineToken = await refusal(home.grantedToken(AUDIENCE, laptop.machineId));
+    const granted = TestJwt.claims(
+        await home.granted.token(AUDIENCE, { partition: other }),
+    );
+    const machineToken = await refusal(
+        home.granted.token(AUDIENCE, { partition: laptop.machineId }),
+    );
 
     // state the owner's home set in the other space, and refuse the machine's partition
     expect([
@@ -584,8 +586,8 @@ test("store one key when two processes generate a machine's first key at once, b
     const keys = new MemoryKeychain();
     const machineId = Identifier.create("machine", accounts.environment);
     const generated = await Promise.all([
-        new MachineIdentity(machineId, keys, accounts.environment).generate(),
-        new MachineIdentity(machineId, keys, accounts.environment).generate(),
+        new MachineKey(machineId, keys, accounts.environment).generate(),
+        new MachineKey(machineId, keys, accounts.environment).generate(),
     ]);
 
     // answer the stored key's public half to both
@@ -607,7 +609,7 @@ test("rotate once for two identities of one machine rotating at once, ending on 
     const owner = await accounts.signIn(OWNER_EMAIL);
     const accountId = ids.account;
     const keys = new MemoryKeychain();
-    const identity = new MachineIdentity(
+    const identity = new MachineKey(
         Identifier.create("machine", accounts.environment),
         keys,
         accounts.environment,
@@ -626,8 +628,8 @@ test("rotate once for two identities of one machine rotating at once, ending on 
 
     // rotate its key from two of its identities at once
     const rotations = [
-        new MachineIdentity(identity.machineId, keys, accounts.environment),
-        new MachineIdentity(identity.machineId, keys, accounts.environment),
+        new MachineKey(identity.machineId, keys, accounts.environment),
+        new MachineKey(identity.machineId, keys, accounts.environment),
     ];
     await Promise.all(
         rotations.map((rotation) =>

@@ -1,5 +1,5 @@
 import { Bookmark } from "@destack/object/client";
-import { present, schema, Uuid } from "@destack/schema";
+import { schema, Uuid } from "@destack/schema";
 import { type Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
@@ -7,20 +7,17 @@ import { PackageId } from "@destack/package";
 import { type Fetch, SpaceMount } from "@destack/object";
 import {
     ASSERTION_TYPE,
-    type PartitionId,
     SPACE_KEY,
     TOKEN_LIFETIME_MILLISECONDS,
     TokenIssuer,
 } from "@destack/access/token";
-import { TokenSource } from "../client/bearer.ts";
+import { bearer, type Credential, IssuerCredential, type Signer } from "../client/credential.ts";
 import { Issuer, type TokenBinding } from "../client/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
 import { SECOND_MILLISECONDS, REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
-import { OAuthError } from "../authentication/token.ts";
 import type { GrantRequest } from "../authentication/request.ts";
-import { CallError } from "@destack/object";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
 
@@ -30,8 +27,8 @@ const ASSERTION_SECONDS = 60;
 /** The credential kind of a token the universe's key signs for the universe. */
 const UNIVERSE_KEY = "universe-key";
 
-/** The universe, a space or one of its installations calling out as its identity, by its keys. */
-export class WorkloadIdentity {
+/** The universe, a space or an installation, signing its tokens and assertions with its keys. */
+export class Identity implements Credential, Signer {
     /** The keystore that stores the identity's keys. */
     readonly keystore: IdentityKeystore;
     /** The connection reading the identity's keys. */
@@ -48,8 +45,8 @@ export class WorkloadIdentity {
     readonly environment: Environment;
     /** The issuer of the subject's tokens, signed with its identity's key. */
     readonly #signing: TokenIssuer;
-    /** The tokens the universe's issuer grants for the subject's assertions. */
-    readonly #granted: TokenSource;
+    /** The subject's tokens the universe's issuer grants for its assertions. */
+    readonly granted: IssuerCredential;
 
     /** Call out as a subject whose identity's keys a keystore stores. */
     constructor(
@@ -66,10 +63,11 @@ export class WorkloadIdentity {
         this.keystore = keystore;
         this.database = database;
         this.subject = subject;
-        this.identity = WorkloadIdentity.#identity(subject);
+        this.identity = Identity.#identity(subject);
         this.issuer = network.issuer;
         this.send = network.send;
         this.environment = network.environment;
+        this.granted = new IssuerCredential(this, network.issuer, network.send, network.environment);
 
         // sign as the universe under its issuer, or as the space
         this.#signing = universe.is(subject)
@@ -79,12 +77,6 @@ export class WorkloadIdentity {
                   sign: (claims, header) => keystore.sign(database, this.identity, claims, header),
               })
             : keystore.issuer(database, this.identity);
-
-        // get granted tokens by the assertions the identity signs
-        this.#granted = new TokenSource(
-            (endpoint) => this.assertion(endpoint),
-            network.environment,
-        );
     }
 
     /** Authenticate the subject calling a package in a space now, by its identity's key. */
@@ -104,98 +96,45 @@ export class WorkloadIdentity {
         };
     }
 
-    /** Create a fetch calling a package with tokens the subject signs. */
-    fetchSigned(audience: PackageId, partition?: PartitionId): Fetch {
-        return async (request) => {
-            // bind the token to the partition, else to the space below the request's mount, refusing a request to no space
-            const scope = partition ?? SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
-            if (scope === undefined) {
-                throw AccountError.of(
-                    "SPACE_REQUIRED",
-                    `${this.subject.id} can only sign calls to spaces, not ${request.url}`,
-                );
-            }
-
-            // send the request with a short token of only the subject for the package there
-            const { accessToken } = await this.#signing.issue(
-                this.authentication(audience, scope),
-                this.keystore.environment.clock.now(),
-                this.keystore.environment,
-            );
-
-            return this.send(WorkloadIdentity.#bearer(request, accessToken));
-        };
-    }
-
-    /** Create a fetch calling a package for a caller, exchanging the subject's token for theirs. */
-    fetchExchanged(
+    /** Add a short token of only the subject, signed by its identity, bound to a space. */
+    async authorize(
+        request: Request,
         audience: PackageId,
-        caller: Pick<Caller, "subject" | "grants">,
-        requested: GrantRequest,
-    ): Fetch {
-        return async (request) => {
-            // act in the space below the request's mount, refusing a request to no space
-            const spaceId = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
-            if (spaceId === undefined) {
-                throw AccountError.of(
-                    "SPACE_REQUIRED",
-                    `${this.subject.id} can only act for its caller in spaces, not ${request.url}`,
-                );
-            }
+        binding: TokenBinding,
+    ): Promise<Request> {
+        // sign the token for the package in the space the call goes to
+        const { accessToken } = await this.#signing.issue(
+            this.authentication(audience, this.#space(request, binding)),
+            this.keystore.environment.clock.now(),
+            this.keystore.environment,
+        );
 
-            // exchange for the caller's token carrying the grant the installation asks, answering a consent it lacks
-            const exchanged = await this.exchange(audience, {
-                subject: caller.subject,
-                partition: schema.identifier("space").parse(spaceId),
-                ...(caller.grants.length === 0
-                    ? {}
-                    : { grants: caller.grants.map((grant) => grant.id) }),
-                requested,
-            }).then(
-                (token) => ({ token }),
-                (error: unknown) => {
-                    if (!OAuthError.is(error, "CONSENT_REQUIRED")) {
-                        throw error;
-                    }
+        return bearer(request, accessToken);
+    }
 
-                    return { consent: present(CallError.of(error), "the call error of a consent") };
-                },
-            );
-            if ("consent" in exchanged) {
-                return Response.json(exchanged.consent.toJSON(), {
-                    status: exchanged.consent.status,
+    /** Act for a caller under the grant the subject asks, exchanging tokens (RFC 8693). */
+    acting(caller: Pick<Caller, "subject" | "grants">, requested: GrantRequest): Credential {
+        return {
+            authorize: async (request, audience, binding) => {
+                // exchange for the caller's token in the call's space, carrying the grant the subject asks
+                const token = await this.exchange(audience, {
+                    subject: caller.subject,
+                    partition: schema.identifier("space").parse(this.#space(request, binding)),
+                    ...(caller.grants.length === 0
+                        ? {}
+                        : { grants: caller.grants.map((grant) => grant.id) }),
+                    requested,
                 });
-            }
-            const { token } = exchanged;
 
-            return this.send(WorkloadIdentity.#bearer(request, token));
+                return bearer(request, token);
+            },
         };
-    }
-
-    /** Create a fetch calling a package with the subject's granted tokens, bound to a partition. */
-    fetchGranted(audience: PackageId, partition?: PartitionId): Fetch {
-        return this.#granted.fetch(
-            this.send,
-            audience,
-            this.issuer,
-            WorkloadIdentity.#bound(partition),
-        );
-    }
-
-    /** Read the subject's granted token of a package and partition, reused a while. */
-    grantedToken(audience: PackageId, partition?: PartitionId): Promise<string> {
-        return this.#granted.token(
-            audience,
-            this.issuer,
-            this.send,
-            WorkloadIdentity.#bound(partition),
-        );
     }
 
     /** Exchange the subject's token for a person's token of a package (RFC 8693). */
     async exchange(audience: PackageId, bound: TokenBinding): Promise<string> {
         // exchange the subject's account token at the universe's issuer
-        const accountToken = await this.grantedToken(accountPackage.id);
+        const accountToken = await this.granted.token(accountPackage.id, {});
         const issuer = new Issuer(this.issuer, this.send, this.environment, new Bookmark());
         const exchanged = await issuer.exchange(
             { token: accountToken, type: ACCESS_TOKEN_TYPE },
@@ -207,7 +146,7 @@ export class WorkloadIdentity {
     }
 
     /** Sign an assertion of the subject for a token endpoint (RFC 7523). */
-    assertion(endpoint: string): Promise<string> {
+    assert(endpoint: string): Promise<string> {
         // sign a short assertion as the identity, for itself or its installation
         const issuedAt = Math.floor(this.keystore.environment.clock.now() / SECOND_MILLISECONDS);
         const claims = {
@@ -241,17 +180,18 @@ export class WorkloadIdentity {
         });
     }
 
-    /** Bind a token to a partition when given. */
-    static #bound(partition: PartitionId | undefined): Pick<TokenBinding, "partition"> {
-        return partition === undefined ? {} : { partition };
-    }
+    /** Read the space a call goes to: its partition, else the space below its mount. */
+    #space(request: Request, binding: TokenBinding): string {
+        const spaceId =
+            binding.partition ?? SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
+        if (spaceId === undefined) {
+            throw AccountError.of(
+                "SPACE_REQUIRED",
+                `${this.subject.id} can only sign calls to spaces, not ${request.url}`,
+            );
+        }
 
-    /** Copy a request with a bearer token. */
-    static #bearer(request: Request, token: string): Request {
-        const signed = new Request(request);
-        signed.headers.set("authorization", `Bearer ${token}`);
-
-        return signed;
+        return spaceId;
     }
 
     /** Read the identity signing for a subject: the universe, a space, or an installation's. */

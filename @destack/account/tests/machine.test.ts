@@ -6,7 +6,7 @@ import { present } from "@destack/schema";
 import { ObjectReference, RequestId } from "@destack/sync";
 import { MemoryKeychain } from "@destack/identity";
 import { expect, test, refusal } from "@destack/test";
-import { MachineIdentity } from "../src/client/index.ts";
+import { MachineKey } from "../src/client/index.ts";
 import { account, key, Key, machine } from "../src/object/index.ts";
 import {
     TestAccountStore,
@@ -19,11 +19,7 @@ import {
 const PAST_LIFETIME = 366 * 24 * 60 * 60 * 1000;
 
 /** Read the name an enrolled machine took in its account. */
-async function nameOf(
-    owner: TestPerson,
-    accountId: string,
-    enrolled: MachineIdentity,
-): Promise<string> {
+async function nameOf(owner: TestPerson, accountId: string, enrolled: MachineKey): Promise<string> {
     return (
         await owner.client(accountPackage).machine.get({ scope: accountId, id: enrolled.machineId })
     ).name;
@@ -35,7 +31,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
     const enrolled = await fixture.enroll(accountId, owner);
-    const rotated = new MachineIdentity(
+    const rotated = new MachineKey(
         enrolled.machineId,
         new MemoryKeychain(),
         fixture.store.environment,

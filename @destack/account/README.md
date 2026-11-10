@@ -116,29 +116,29 @@ await native.email("bea@example.com", ask, {
 }); // signs Bea up
 ```
 
-## Tokens for a person
+## Calling packages
 
-A `Person` acting through account tokens at an issuer exchanges them for a package's token (RFC 8693), acting through a delegate under their grant; a computer's `Login` is how one is signed in there.
+A `Session` calls packages as a principal through its `Credential`, which adds the principal's token to each call.
 
 ```ts
-import { Person } from "@destack/account/client";
+import { Session } from "@destack/account/client";
 
-const { person } = login; // the person a computer's sign-in acts as
-const asked = await person.granted(installation); // the unexpiring grant to the delegate, if any
-const grant = await person.grant(installation, permissions); // grows the person's grant to include them
-const token = await person.token(notes.id, { partition: spaceId, grants: [grant.id] }); // stamped with the universe's position (Zanzibar's zookie)
+const { session, user } = login; // a computer's sign-in: the user's tokens and their calls
+const accounts = session.accounts(); // the account package the universe serves
+const notes = session.client(notesPackage, origin, { partition: spaceId }); // a package in a space
+const token = await user.token(notes.id, { partition: spaceId }); // exchanged at the issuer (RFC 8693)
 ```
 
 ## Machines
 
-`MachineIdentity` enrolls a machine and signs its calls to the universe.
+`MachineKey` enrolls a machine and signs its assertions, which an issuer grants tokens for (RFC 7523).
 
 ```ts
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey, Session } from "@destack/account/client";
 
-const identity = new MachineIdentity(machineId, keychain, clock);
-await identity.enroll(accounts, { scope: accountId, requestId, name: "laptop", kind: "personal" });
-const fetch = identity.fetch(send, audience, issuer);
+const key = new MachineKey(machineId, keychain, environment);
+await key.enroll(accounts, { scope: accountId, requestId, name: "laptop", kind: "personal" });
+const session = new Session(key.at(issuer, send), { universe, send, bookmark, environment });
 ```
 
 ## Addresses

@@ -1,13 +1,12 @@
 import { principal } from "@destack/access";
-import { and, eq, Snapshot } from "@destack/db";
+import { and, eq } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import { MemoryKeychain } from "@destack/identity";
 import { Bookmark, ObjectClient } from "@destack/object/client";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
 import { expect, onTestFinished, refusal, single, test } from "@destack/test";
-import { Account, account } from "../object/account.ts";
-import { Residency } from "../object/residency.ts";
+import { account } from "../object/account.ts";
 import { client } from "../object/client.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
 import { TestAccountStore, TestBrowser, ISSUER, ORIGIN, type TestPerson } from "../test/index.ts";
@@ -326,66 +325,16 @@ test("read a person's account through tokens refreshed after a mailed code signe
     // sign in with the mailed code and read the person's account through a refreshed token
     const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const { person } = new Login(
+    const signedInLogin = new Login(
         signedIn,
         nativeClient,
         (request) => accounts.fetch(request),
         laptop,
         new Bookmark(),
     );
-    expect(await person.account()).toBe(owner.account);
-});
-
-test("list the addresses of the spaces of every account a signed-in person belongs to", async () => {
-    await using accounts = await TestAccountStore.open();
-    const owner = await accounts.signIn(EMAIL);
-    const { nativeClient, laptop } = await native(accounts);
-
-    // sign in with the mailed code and list the person's spaces
-    const started = await nativeClient.startEmail(EMAIL);
-    const signedIn = await started.verify(await accounts.code());
-    const { person } = new Login(
-        signedIn,
-        nativeClient,
-        (request) => accounts.fetch(request),
-        laptop,
-        new Bookmark(),
-    );
-
-    // expect the home of their personal account, their only space
-    expect(await person.spaces()).toEqual([`home--${owner.handle}`]);
-});
-
-test("find a signed-in person's home and the space of their account's residency", async () => {
-    await using accounts = await TestAccountStore.open();
-    const owner = await accounts.signIn(EMAIL);
-    const { nativeClient, laptop } = await native(accounts);
-
-    // sign in with the mailed code
-    const started = await nativeClient.startEmail(EMAIL);
-    const signedIn = await started.verify(await accounts.code());
-    const { person } = new Login(
-        signedIn,
-        nativeClient,
-        (request) => accounts.fetch(request),
-        laptop,
-        new Bookmark(),
-    );
-
-    // read the residency the personal account stores its data in, as the store has it
-    const snapshot = Snapshot.live(accounts.database);
-    const [row] = await accounts.database
-        .select({ residencyId: account.table.residencyId })
-        .from(account.table)
-        .where(eq(account.table.id, owner.account));
-    const residency = await Residency.space(snapshot, present(row, "the account").residencyId);
-
-    // expect the home of the personal account and the residency's space
-    expect({
-        home: await person.home(),
-        residency: await person.residency(),
-    }).toEqual({
-        home: Account.home(owner.account),
-        residency,
+    const { items } = await signedInLogin.session.accounts().account.list({
+        scope: signedInLogin.user.userId,
+        where: { kind: "personal" },
     });
+    expect(items.map((item) => item.id)).toEqual([owner.account]);
 });

@@ -31,7 +31,7 @@ import {
     type Tenancy,
 } from "../src/object/index.ts";
 import { ACCESS_TOKEN_TYPE } from "../src/oauth/index.ts";
-import { MachineIdentity } from "../src/client/index.ts";
+import { MachineKey } from "../src/client/index.ts";
 import { MemoryKeychain } from "@destack/identity";
 import accountPackage from "../src/package.ts";
 import { TestAccountStore, ISSUER, ids, type TestPerson, OWNER_EMAIL } from "../src/test/index.ts";
@@ -530,9 +530,9 @@ test("refuse a machine exchanging a token for itself, which it asks for with its
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { identity, laptop } = opened;
-    const accessToken = await identity.token(accountPackage.id, ISSUER, (request) =>
-        fixture.fetch(request),
-    );
+    const accessToken = await identity
+        .at(ISSUER, (request) => fixture.fetch(request))
+        .token(accountPackage.id, {});
 
     // refuse exchanging it for a token in its space
     expect(
@@ -937,7 +937,7 @@ test("refuse declaring an account's dedicated cloud machine its plan does not un
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
     const { id: accountId } = await fixture.createAccount(owner);
-    const identity = new MachineIdentity(
+    const identity = new MachineKey(
         Identifier.create("machine", fixture.environment),
         new MemoryKeychain(),
         fixture.store.environment,
