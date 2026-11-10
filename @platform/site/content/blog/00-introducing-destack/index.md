@@ -1,13 +1,13 @@
 ---
 title: "Introducing Destack"
-subtitle: "The open, standardised, hackable stack for personal software."
+subtitle: "The software factory needs a software engine."
 date: "2026-11-14"
 author: "Florian"
 ---
 
 > [!ABSTRACT]
 > Destack is an **open-source software engine** for general purpose application software, just like Unity and Unreal are engines for games.
-> Think GitHub + NPM + Convex + Vercel + Sentry in one, with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
+> Think **GitHub + NPM + Convex + Vercel + Sentry in one**, with all the boring decisions already made: auth, migrations, multiplayer, permissions, workflows, telemetry, testing.
 > 
 > Destack **standardises software production and deployment**:
 > 1. **Build custom software**, with your own AI, in a standardised pipeline.
@@ -82,7 +82,7 @@ General purpose software is now hitting similar issues that games have long solv
 The principal components have ossified, but they're scattered and reconstituted a thousand different ways.
 Now, _all_ software needs a proper "software engine": an _integrated_ "platform software" with building blocks to support a new level of "userland software". 
 
-The objective of "software factories" is elevating developers in the production process, but by itself, such higher level of programming lacks higher order specification.
+The objective of "software factories" is elevating developers in the production process, but by itself, such higher level programming lacks higher order specification.
 Steering open ended software only through the peephole of a chatbox, we lose track of where to go next, and how to get there, in frighteningly short order. Why?
 
 It is insufficient to accelerate the software production _process_, because the software *is* the specification, and a higher order process requires a higher order specification.
@@ -109,13 +109,14 @@ I just don't know what I want until I see it.
 The continuous process of _shaping_ is critical not just for "malleable" software but - because programming is just reified problem solving - for all software.
 Software production - from databases to web apps to spreadsheets - spans one continuous that has been separated into rigid planes only by historical happenstance, and now must be standardised and unified.
 
-Until now, the cardinal sin of "malleable software" has been that "userland software" like spreadsheets is too limited, while "general software" is annoying to build and maintain.
+Until now, the cardinal sin of malleable software has been that "userland malleability" as in spreadsheets is too limited, while general software is annoying to build and maintain.
 Now, the equation has flipped: building is cheap, and the lack of integration is expensive.
 How do you join "reminders in Notion" with "leads in Salesforce" and "events in Outlook"?
 
-We now have amazing new probabilistic computing capabilities to infuse into all software, and the lack of integration is why all we got are MCPs with chatboxes in the sidebar. 
-Forms don't even _autofill_, software is not adaptive, apps are not magic - where is all the automation?
-If we truly have higher order programming, where is the higher order software?
+We have all these amazing new probabilistic computing capabilities to infuse into our software, but due to the lack of integration all we get are MCPs and sidebars with chatboxes. 
+Forms don't _autocomplete_ intelligently, software is not adaptive, apps are not magic. 
+Where is all the automation?
+Where is the higher order software?
 
 # The Destack
 
@@ -135,4 +136,4 @@ Once every app speaks the same API, feels and looks the same, and works with the
 It's as indestructible as can be, and you can host it entirely yourself, we can tunnel for you, or you could let us take care of everything.
 (Or any combination.)-->
 
-<!-- TODO -->
+ TODO
