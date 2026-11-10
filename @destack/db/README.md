@@ -55,7 +55,10 @@ export const note = defineTable(
 `blob()` columns reference content-addressed blobs, which `BlobStore` stores in packs and deletes an hour after no row or lease references them.
 
 ```ts
-export const attachment = defineTable("attachment", { id: text("id").primaryKey(), file: blob("file") });
+export const attachment = defineTable("attachment", {
+    id: text("id").primaryKey(),
+    file: blob("file"),
+});
 
 const blobs = new BlobStore({ storage: new MemoryBlobStorage(crypto), database, environment });
 await blobs.put([{ digest, size, open: async () => body }]); // leased half an hour, one pack
@@ -89,7 +92,15 @@ A table's `globalIndexes` keep its rows unique in another database, and a migrat
 
 ```ts
 export const member = defineTable("member", columns, {
-    globalIndexes: () => [{ name: "member/handle", declaration: '{"on":["handle"]}', id: "id", scope: "scope", outbox }],
+    globalIndexes: () => [
+        {
+            name: "member/handle",
+            declaration: '{"on":["handle"]}',
+            id: "id",
+            scope: "scope",
+            outbox,
+        },
+    ],
 });
 await database.migrate([member, outbox]); // safe update table/member/globalIndexes: queue the rows for member/handle
 ```
