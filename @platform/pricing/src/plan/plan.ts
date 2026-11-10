@@ -13,14 +13,14 @@ import {
     tenancy,
 } from "./feature.ts";
 
-/** The credit cents of usage the free plan includes per member each month. */
+/** The credit cents of usage the free plan includes per account each month. */
 const FREE_USAGE =
     // add up 1 GB of database, 10 GB of files, 10 GB-hours of compute and a million requests
     40 + 30 + 90 + 90;
 
 /** Destack's plans by key, cheapest first, each fee per member a round figure in each currency. */
 export const PLANS = {
-    // free: every account's default, its usage per member included on shared machines, then blocked
+    // free: every account's default, its usage per account included on shared machines, then blocked
     free: {
         name: t`Free`,
         description: t`For your first apps, with all of Destack within its included usage.`,
