@@ -31,5 +31,6 @@
         ],
         "types": ["bun", "@destack/build/browser"]
     },
-    "include": ["src", "tests", "*.config.ts"]
+    "include": ["**/*"],
+    "exclude": ["node_modules", "dist", "target", "coverage", "out"]
 }

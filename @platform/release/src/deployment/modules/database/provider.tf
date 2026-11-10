@@ -1,8 +1,12 @@
 terraform {
   required_providers {
-    planetscale = {
-      source  = "planetscale/planetscale"
-      version = "1.11.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.67.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.9.1"
     }
   }
 }

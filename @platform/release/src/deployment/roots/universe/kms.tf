@@ -3,8 +3,5 @@ module "kms" {
   operators = var.kms_operators
   name      = "destack-${var.environment}-universe"
   owner     = "universe"
-  providers = {
-    aws         = aws
-    aws.replica = aws.replica
-  }
+  worker    = module.worker.arn
 }

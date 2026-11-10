@@ -29,7 +29,6 @@ import {
     diffPlatform,
     formatPlatform,
     initializePlatform,
-    rehearsePlatform,
     publishPlatform,
     sealCustody,
     testPlatform,
@@ -83,7 +82,6 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "platform diff": diffPlatform,
     "platform deploy": deployPlatform,
     "platform publish": publishPlatform,
-    "platform rehearse": rehearsePlatform,
     "custody seal": sealCustody,
     "platform e2e": testPlatform,
 

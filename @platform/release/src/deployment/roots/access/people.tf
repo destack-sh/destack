@@ -43,12 +43,19 @@ resource "aws_ssoadmin_permission_set_inline_policy" "plan" {
   inline_policy      = local.state
 }
 
-# operate as a person: create the root keys and the Workers' users the deploy workflow never touches
+# operate as a person: deploy, root keys and Worker users
 resource "aws_ssoadmin_permission_set" "operator" {
   provider         = aws.management
   instance_arn     = local.instance
   name             = "destack-platform-operator"
-  session_duration = "PT1H"
+  session_duration = "PT8H"
+}
+
+resource "aws_ssoadmin_managed_policy_attachment" "operator" {
+  provider           = aws.management
+  instance_arn       = local.instance
+  permission_set_arn = aws_ssoadmin_permission_set.operator.arn
+  managed_policy_arn = local.power_user
 }
 
 resource "aws_ssoadmin_permission_set_inline_policy" "operator" {
@@ -63,7 +70,7 @@ resource "aws_ssoadmin_permission_set" "administrator" {
   provider         = aws.management
   instance_arn     = local.instance
   name             = "AdministratorAccess"
-  session_duration = "PT1H"
+  session_duration = "PT8H"
 }
 
 resource "aws_ssoadmin_managed_policy_attachment" "administrator" {

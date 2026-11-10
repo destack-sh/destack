@@ -17,3 +17,8 @@ variable "dmarc_report_address" {
     error_message = "Use one mail address."
   }
 }
+
+variable "mail_region" {
+  description = "The region SES sends the platform's mail from."
+  type        = string
+}

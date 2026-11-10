@@ -1,10 +1,7 @@
 terraform {
   required_version = ">= 1.12.0, < 2.0.0"
+
   required_providers {
-    planetscale = {
-      source  = "planetscale/planetscale"
-      version = "1.11.0"
-    }
     cloudflare = {
       source  = "cloudflare/cloudflare"
       version = "5.24.0"
@@ -13,18 +10,16 @@ terraform {
       source  = "hashicorp/aws"
       version = "6.67.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "3.9.1"
+    }
   }
 }
-provider "planetscale" {}
 
 provider "cloudflare" {}
 
-# seal the universe's keys in Frankfurt, near its database, replicated to Ireland
+# keep the universe's data and keys in Zurich
 provider "aws" {
-  region = "eu-central-1"
-}
-
-provider "aws" {
-  alias  = "replica"
-  region = "eu-west-1"
+  region = "eu-central-2"
 }

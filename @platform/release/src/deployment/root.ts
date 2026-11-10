@@ -2,6 +2,7 @@ import { resolve } from "node:path";
 import type { Environment, HostCapability } from "@destack/environment";
 import { CloudflareCredentials } from "./cloudflare/credential.ts";
 import type { EnvelopeConfiguration } from "@destack/identity/aws";
+import type { S3Location } from "@destack/bucket/s3";
 import { schema } from "@destack/schema";
 import { RESIDENCIES } from "@platform/stack";
 
@@ -19,46 +20,35 @@ const HOST_VARIABLES: ReadonlySet<string> = new Set([
     "CI",
 ]);
 
-/** The prefixes of the variables OpenTofu and its AWS and PlanetScale providers read. */
-export const TOFU_VARIABLES = ["TF_", "AWS_", "PLANETSCALE_"] as const;
+/** The prefixes of the variables OpenTofu and its AWS provider read. */
+export const TOFU_VARIABLES = ["TF_", "AWS_"] as const;
 
 /** The prefixes of the variables wrangler reads beside the deployment's credentials. */
 export const WRANGLER_VARIABLES = ["WRANGLER_", "CLOUDFLARE_ACCOUNT_ID"] as const;
 
-/** The KMS outputs of a universe or residency root, as `tofu output -json` prints them. */
-const KmsOutputs = schema.object({
+/** A universe or residency root's outputs for its Worker, as `tofu output -json` prints them. */
+const WorkerOutputs = schema.object({
     kms_region: output(schema.string().min(1)),
     kms_key_arn: output(schema.string().min(1)),
-    kms_access_key_id: output(schema.string().min(1)),
-    kms_secret_access_key: output(schema.string().min(1)),
+    access_key_id: output(schema.string().min(1)),
+    secret_access_key: output(schema.string().min(1)),
 });
 
 /** The outputs of a universe root, as `tofu output -json` prints them. */
-const UniverseOutputs = KmsOutputs.extend({
+const UniverseOutputs = WorkerOutputs.extend({
     account: output(schema.string().min(1)),
     hyperdrive: output(schema.string().min(1)),
-    history: output(schema.string().min(1)),
-    role: output(
-        schema.object({
-            host: schema.string().min(1),
-            user: schema.string().min(1),
-            password: schema.string().min(1),
-        }),
-    ),
+    files: output(schema.string().min(1)),
+    files_region: output(schema.string().min(1)),
 });
 
 /** The outputs of a residency root, as `tofu output -json` prints them. */
-const ResidencyOutputs = KmsOutputs.extend({
+const ResidencyOutputs = WorkerOutputs.extend({
     account: output(schema.string().min(1)),
     files: output(schema.string().min(1)),
     packages: output(schema.string().min(1)),
     host: output(schema.string().min(1)),
-});
-
-/** The outputs of the global root, as `tofu output -json` prints them. */
-const GlobalOutputs = schema.object({
-    mail_access_key_id: output(schema.string().min(1)),
-    mail_secret_access_key: output(schema.string().min(1)),
+    hyperdrive: output(schema.string().min(1)),
 });
 
 /** An access key and its secret, as AWS and R2's S3 API sign with them. */
@@ -69,36 +59,26 @@ export interface AccessKey {
     readonly secretAccessKey: string;
 }
 
-/** What the applied global root provisions for the Workers. */
-export interface GlobalOutputs {
-    /** The key the universe and the cloud machines send mail through SES with. */
-    readonly mail: AccessKey;
+/** What a root provisions for its Worker: its root keys' KMS key and its one AWS access key. */
+export interface WorkerOutputs {
+    /** The envelope of the KMS key sealing the Worker's root keys. */
+    readonly envelope: EnvelopeConfiguration;
+    /** The Worker's access key: decrypting its own keys, sending mail, keeping its bucket. */
+    readonly access: AccessKey;
 }
 
 /** What an applied universe root provisions. */
-export interface UniverseOutputs {
+export interface UniverseOutputs extends WorkerOutputs {
     /** The Cloudflare account running the universe Worker. */
     readonly account: string;
     /** The Hyperdrive configuration the universe Worker connects through. */
     readonly hyperdrive: string;
-    /** The bucket keeping the account service's history. */
-    readonly history: string;
-    /** The PostgreSQL URL of the universe's database, as its role. */
-    readonly database: string;
-    /** The KMS key sealing the universe's root keys, with the Worker's key decrypting them. */
-    readonly kms: KmsOutputs;
-}
-
-/** A KMS key a root provisions for one Worker: the key, and the Worker's access key to decrypt. */
-export interface KmsOutputs {
-    /** The envelope of the key. */
-    readonly envelope: EnvelopeConfiguration;
-    /** The Worker's access key, allowed to decrypt only its own keys. */
-    readonly access: AccessKey;
+    /** The S3 bucket keeping the universe's files: its call events' segments and its blobs. */
+    readonly files: S3Location;
 }
 
 /** What an applied residency root provisions. */
-export interface ResidencyOutputs {
+export interface ResidencyOutputs extends WorkerOutputs {
     /** The Cloudflare account running the machine Worker. */
     readonly account: string;
     /** The residency's files bucket. */
@@ -107,8 +87,8 @@ export interface ResidencyOutputs {
     readonly packages: string;
     /** The cloud machine's host, which its Worker's routes answer. */
     readonly host: string;
-    /** The KMS key sealing the cloud machine's keys, with the Worker's key decrypting them. */
-    readonly kms: KmsOutputs;
+    /** The Hyperdrive configuration the machine Worker reaches the residency's database through. */
+    readonly hyperdrive: string;
 }
 
 /** The roots no stage selects: the platform's identities and its global infrastructure. */
@@ -272,22 +252,18 @@ export class Root {
 
     /** Read an applied universe root's outputs. */
     async universe(variables: Readonly<Record<string, string>>): Promise<UniverseOutputs> {
-        // read the outputs, the role's password among them
         const parsed = UniverseOutputs.parse(await this.#outputs(variables));
-        const role = parsed.role.value;
-
-        // connect over verified TLS to the branch's default database as the role
-        const url = new URL(`postgresql://${role.host}/postgres`);
-        url.username = role.user;
-        url.password = role.password;
-        url.searchParams.set("sslmode", "verify-full");
+        const region = parsed.files_region.value;
 
         return {
             account: parsed.account.value,
             hyperdrive: parsed.hyperdrive.value,
-            history: parsed.history.value,
-            database: url.href,
-            kms: kmsOf(parsed),
+            files: {
+                endpoint: new URL(`https://s3.${region}.amazonaws.com`),
+                bucket: parsed.files.value,
+                region,
+            },
+            ...workerOf(parsed),
         };
     }
 
@@ -300,19 +276,8 @@ export class Root {
             files: parsed.files.value,
             packages: parsed.packages.value,
             host: parsed.host.value,
-            kms: kmsOf(parsed),
-        };
-    }
-
-    /** Read the applied global root's outputs. */
-    async global(variables: Readonly<Record<string, string>>): Promise<GlobalOutputs> {
-        const parsed = GlobalOutputs.parse(await this.#outputs(variables));
-
-        return {
-            mail: {
-                accessKeyId: parsed.mail_access_key_id.value,
-                secretAccessKey: parsed.mail_secret_access_key.value,
-            },
+            hyperdrive: parsed.hyperdrive.value,
+            ...workerOf(parsed),
         };
     }
 
@@ -420,8 +385,8 @@ export class Root {
     }
 }
 
-/** Read a root's KMS outputs: its key's envelope and the Worker's access key. */
-function kmsOf(parsed: schema.Infer<typeof KmsOutputs>): KmsOutputs {
+/** Read what a root provisions for its Worker: its key's envelope and its access key. */
+function workerOf(parsed: schema.Infer<typeof WorkerOutputs>): WorkerOutputs {
     return {
         envelope: {
             kind: "aws-kms",
@@ -429,8 +394,8 @@ function kmsOf(parsed: schema.Infer<typeof KmsOutputs>): KmsOutputs {
             keyId: parsed.kms_key_arn.value,
         },
         access: {
-            accessKeyId: parsed.kms_access_key_id.value,
-            secretAccessKey: parsed.kms_secret_access_key.value,
+            accessKeyId: parsed.access_key_id.value,
+            secretAccessKey: parsed.secret_access_key.value,
         },
     };
 }

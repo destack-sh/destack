@@ -1,0 +1,40 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "RootKeys",
+            "Effect": "Allow",
+            "Action": "kms:Decrypt",
+            "Resource": "arn:aws:kms:*:${account}:key/*",
+            "Condition": {
+                "StringLike": { "aws:ResourceTag/destack-root": "destack-production-*" }
+            }
+        },
+        {
+            "Sid": "Mail",
+            "Effect": "Allow",
+            "Action": ["ses:SendEmail", "ses:SendRawEmail"],
+            "Resource": [
+                "arn:aws:ses:*:${account}:identity/destack.app",
+                "arn:aws:ses:*:${account}:configuration-set/destack-mail"
+            ]
+        },
+        {
+            "Sid": "Files",
+            "Effect": "Allow",
+            "Action": [
+                "s3:GetObject",
+                "s3:PutObject",
+                "s3:DeleteObject",
+                "s3:AbortMultipartUpload",
+                "s3:ListMultipartUploadParts",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads"
+            ],
+            "Resource": [
+                "arn:aws:s3:::destack-production-files-*",
+                "arn:aws:s3:::destack-production-files-*/*"
+            ]
+        }
+    ]
+}

@@ -215,11 +215,11 @@ test("sign people in through GitHub, Google and Microsoft with each secret a sta
     );
     const production = Deployment.of("production", host);
     const providers = production.providers((id) => `${id}-secret`);
-    const global = { mail: { accessKeyId: "mail", secretAccessKey: "mail-secret" } };
+    const access = { accessKeyId: "worker", secretAccessKey: "worker-secret" };
 
     // bind them on the universe's script, and on no machine's
     const bound = (target: ScriptTarget) =>
-        new WorkerScript(production, target).secrets(custody, undefined, global, providers)[
+        new WorkerScript(production, target).secrets(custody, access, providers)[
             "DESTACK_PROVIDERS"
         ];
     const residency = present(RESIDENCIES[0], "a residency");

@@ -23,12 +23,18 @@ output "kms_region" {
   description = "The region of the cloud machine's KMS key."
   value       = module.kms.region
 }
-output "kms_access_key_id" {
-  description = "The cloud machine Worker's access key id, decrypting its own keys alone."
-  value       = module.kms.access_key_id
+output "access_key_id" {
+  description = "The cloud machine Worker's access key id."
+  value       = module.worker.access_key_id
 }
-output "kms_secret_access_key" {
+
+output "secret_access_key" {
   description = "The cloud machine Worker's secret access key."
-  value       = module.kms.secret_access_key
+  value       = module.worker.secret_access_key
   sensitive   = true
+}
+
+output "hyperdrive" {
+  description = "The Hyperdrive configuration the machine Worker reaches the residency's database through."
+  value       = cloudflare_hyperdrive_config.residency.id
 }

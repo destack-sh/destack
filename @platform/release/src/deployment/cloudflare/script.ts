@@ -16,7 +16,6 @@ import {
     ROOT,
     type ResidencyOutputs,
     type AccessKey,
-    type GlobalOutputs,
     type UniverseOutputs,
     WRANGLER_VARIABLES,
 } from "../root.ts";
@@ -119,11 +118,10 @@ export class WorkerScript {
         return fileURLToPath(import.meta.resolve(SCRIPT_ENTRIES[kind]));
     }
 
-    /** Write the script's secrets by binding: its sealed keys, KMS key, mail key and providers. */
+    /** Write the script's secrets by binding: its sealed keys, its AWS access key and providers. */
     secrets(
         custody: Custody,
-        kms: AccessKey | undefined,
-        global: GlobalOutputs,
+        access: AccessKey,
         providers: ProviderClients,
     ): Readonly<Record<string, string>> {
         // keep no secrets in a tail
@@ -147,30 +145,16 @@ export class WorkerScript {
             ...machineKey,
         };
 
-        // decrypt them with the Worker's KMS key under a KMS envelope, refusing one without it
-        let decrypting = {};
-        if (keys.envelope.kind === "aws-kms") {
-            if (kms === undefined) {
-                throw new Error(
-                    `${this.name} needs its KMS access key to open its aws-kms envelope`,
-                );
-            }
-            decrypting = {
-                DESTACK_KMS_ACCESS_KEY_ID: kms.accessKeyId,
-                DESTACK_KMS_SECRET_ACCESS_KEY: kms.secretAccessKey,
-            };
-        }
-
-        // send mail with the global root's key, and sign people in through the providers at the universe
+        // sign people in through the providers at the universe
         const signIn =
             target.kind === "universe" ? { DESTACK_PROVIDERS: JSON.stringify(providers) } : {};
 
+        // bind the Worker's AWS access key
         return {
             ...sealed,
-            ...decrypting,
             ...signIn,
-            AWS_ACCESS_KEY_ID: global.mail.accessKeyId,
-            AWS_SECRET_ACCESS_KEY: global.mail.secretAccessKey,
+            AWS_ACCESS_KEY_ID: access.accessKeyId,
+            AWS_SECRET_ACCESS_KEY: access.secretAccessKey,
         };
     }
 
@@ -194,8 +178,8 @@ export class WorkerScript {
             durable_objects: { bindings: [{ name: "INSTANCE", class_name: UNIVERSE_CLASS }] },
             migrations: [{ tag: "v1", new_sqlite_classes: [UNIVERSE_CLASS] }],
             hyperdrive: [{ binding: "DATABASE", id: outputs.hyperdrive }],
-            r2_buckets: [{ binding: "EVENTS", bucket_name: outputs.history }],
             vars: {
+                DESTACK_FILES: JSON.stringify(outputs.files),
                 DESTACK_UNIVERSE: this.deployment.universeOrigin,
                 DESTACK_LOCATION: UNIVERSE_LOCATION,
                 DESTACK_MAIL: JSON.stringify(this.deployment.mail),
