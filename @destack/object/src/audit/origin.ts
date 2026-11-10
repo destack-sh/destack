@@ -1,3 +1,4 @@
+import { ClientId } from "@destack/access";
 import { schema } from "@destack/schema";
 import { Package } from "@destack/package";
 import { AuditCaller } from "./actor.ts";
@@ -23,7 +24,7 @@ export const CallOrigin = schema.object({
     /** The deployment the acting workload ran, as the caller's verified claims name it. */
     deploymentId: schema.identifier("deployment").exactOptional(),
     /** The client the caller authenticated through. */
-    clientId: schema.identifier("client").exactOptional(),
+    clientId: ClientId.exactOptional(),
     /** The caller's session, without its credential. */
     sessionId: schema.identifier("session").exactOptional(),
     /** The caller's token, without its secret. */

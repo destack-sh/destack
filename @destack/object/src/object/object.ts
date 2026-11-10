@@ -1,3 +1,4 @@
+import type { Message } from "@destack/locale";
 import { AuditTarget } from "../audit/execution.ts";
 import { ObjectError } from "../error/error.ts";
 import { Issues } from "../error/detail.ts";
@@ -418,6 +419,8 @@ export interface ObjectDefinition<
     readonly elevated?: Readonly<Partial<Record<NoInfer<Granted>, Elevation>>>;
     /** The permission every column but the identity and the shown columns needs. */
     readonly guard?: ObjectGuard<NoInfer<Granted>>;
+    /** How a person reads a permission someone asks them to grant, for one its name says badly. */
+    readonly descriptions?: Readonly<Partial<Record<NoInfer<Granted>, Message>>>;
     /** Permissions available while the object's scope is suspended. */
     readonly administration?: readonly NoInfer<Granted>[];
     /** Permissions available while the object's scope moves to another machine. */
@@ -839,6 +842,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** The read permission each guarded column needs, by column. */
     get guards(): Readonly<Record<string, string>> {
         return this.definition.guards;
+    }
+
+    /** The type's guard over its columns, absent for a type guarding fields alone. */
+    get guard(): ObjectGuard | undefined {
+        return this.definition.guard;
     }
 
     /** Report whether rows show a reader a guarded field with personal values, unconcealed. */
@@ -2227,6 +2235,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 throw new TypeError(`object ${this.name} has no permission ${declared.permission}`);
             }
             declared.validate?.(this);
+        }
+
+        // require a permission for each description
+        const described = Object.keys(this.definition.descriptions ?? {});
+        const undescribable = described.find((name) => !this.permissions.includes(name));
+        if (undescribable !== undefined) {
+            throw new TypeError(`object ${this.name} describes no permission ${undescribable}`);
         }
 
         // require the permission of the type's guard

@@ -3,7 +3,15 @@ import { testSimulation } from "../test/index.ts";
 import { testCallKey } from "../test/context.ts";
 import { TestDatabase } from "@destack/db/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { accessRelationship, none, principal, relation, through } from "@destack/access";
+import {
+    accessRelationship,
+    none,
+    permission,
+    principal,
+    relation,
+    through,
+    union,
+} from "@destack/access";
 import { call, defineObject, defineShape, field, relationship } from "../index.ts";
 import { followReplicas, testEvents, serversOf } from "../test/index.ts";
 import { TestAccess } from "@destack/access/test";
@@ -68,6 +76,27 @@ const badge = defineObject({
     permissions: { read: relation("shown") },
 });
 
+/** Cards of the universe, listed to the spaces shown them and read whole by those given them. */
+const card = defineObject(
+    {
+        name: "card",
+        plural: "cards",
+        scope: "universe",
+        fields: { title: field.string(), body: field.string() },
+        relations: {
+            shown: { subjects: [principal.space], grantedBy: null },
+            given: { subjects: [principal.space], grantedBy: null },
+        },
+        permissions: {
+            list: union(relation("shown"), relation("given")),
+            view: relation("given"),
+            read: permission("view"),
+        },
+        guard: { read: "view", except: ["title"] },
+    },
+    (method) => ({ list: method.list("list") }),
+);
+
 /** The people and their profiles a space reads. */
 const PEOPLE = defineShape({
     name: "people",
@@ -82,6 +111,14 @@ const SHOWN = defineShape({
     parameters: schema.object({}),
     objects: [person, badge],
     queries: () => [person.query({}), badge.query({ scopes: "every" })],
+}).at({ key: { scope: Scope.universe.id } });
+
+/** The cards a space lists. */
+const CARDS = defineShape({
+    name: "cards",
+    parameters: schema.object({}),
+    objects: [card],
+    queries: () => [card.query({})],
 }).at({ key: { scope: Scope.universe.id } });
 
 /** The people a space reads. */
@@ -362,6 +399,93 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     ]);
 });
 
+test("replicate a guarded type's rows whole to a space that reads them past the guard, and none to a space that only lists them", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const home = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { card }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    const space = await TestDatabase.create(
+        defineDatabase({
+            name: "space",
+            ...tablesOf({ packages: [objectPackage], follows: [CARDS], tables: [] }),
+        }),
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(async () => {
+        await Promise.all([home.close(), space.close()]);
+    });
+
+    // create a card the space is shown and a card it is given
+    const at = { scope: "universe", createdAt: 1, updatedAt: 1 };
+    const [shown, given] = [cardId(1), cardId(2)];
+    await home.database.transaction(
+        async (transaction) =>
+            await transaction.insert(card.table).values([
+                { id: shown, title: "Shown", body: "the shown card's body", ...at },
+                { id: given, title: "Given", body: "the given card's body", ...at },
+            ]),
+    );
+    const spaceSubject = principal.space.reference(Scope.universe.id, spaceId);
+    const fixture = new TestAccess(home.database, world);
+    await fixture.replicateRelationship(
+        card.reference(Scope.universe.id, shown),
+        "shown",
+        spaceSubject,
+    );
+    await fixture.replicateRelationship(
+        card.reference(Scope.universe.id, given),
+        "given",
+        spaceSubject,
+    );
+
+    // serve the cards at home and replicate what the space lists
+    const served = await TestObjectStore.at(spaceSubject, {
+        chain: async () => undefined,
+        environment: world,
+        principal: spaceSubject,
+        servers: serversOf([card]),
+        database: home.database,
+        callKey: testCallKey,
+        events: await testEvents(home.database, world),
+        origin: { package: card.package },
+    });
+    const replicating: ObjectStore = await TestObjectStore.at(spaceSubject, {
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        environment: world,
+        principal: spaceSubject,
+        servers: serversOf([card], { follows: [CARDS] }),
+        database: space.database,
+        uplink: {
+            receive: refuseChanges,
+            call: refuseQueries,
+            request: async () => {},
+            stream: (asked, signal) =>
+                served.source.replicate(
+                    asked,
+                    asked.after,
+                    { subject: principal.space.reference(Scope.universe.id, asked.target) },
+                    signal,
+                ),
+        },
+        callKey: testCallKey,
+        events: await testEvents(space.database, world),
+        origin: { package: card.package },
+    });
+    await follow(replicating, home.database, space.database);
+
+    // replicate the given card whole, and withhold the shown card a replica could store only concealed
+    const replicated = await space.database.select().from(card.table).orderBy(asc(card.table.id));
+    expect(replicated.map((row) => [row.id, row.title, row.body])).toEqual([
+        [given, "Given", "the given card's body"],
+    ]);
+});
+
 test("replicate each person once the space may read them at the change's position, though the home lists relationships as objects", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
@@ -504,6 +628,11 @@ async function follow(
 /** Report whether a replica key follows a shape at the universe. */
 function isUniverseKey(key: string): boolean {
     return key.endsWith(`:${Scope.universe.id} ${Scope.universe.id}`);
+}
+
+/** Build the identifier of a numbered card. */
+function cardId(index: number): Identifier<"card"> {
+    return schema.identifier("card").parse(`card-01996ab0-0000-7000-8000-00000000000${index}`);
 }
 
 /** Build the identifier of a numbered badge. */

@@ -1,3 +1,4 @@
+import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
 import { TABLE, type Table } from "@destack/db";
@@ -198,6 +199,20 @@ const objectDescription = schema.object({
     definition: schema.jsonObject(),
 });
 
+/** The verb a person reads for each standard permission, any other permission its own name. */
+const PERMISSION_VERBS: Readonly<Record<string, string>> = {
+    read: "See",
+    list: "See",
+    create: "Create",
+    update: "Change",
+    write: "Change",
+    manage: "Change",
+    delete: "Delete",
+};
+
+/** The descriptions a type declares of its permissions, by permission. */
+const DeclaredDescriptions = schema.record(schema.string(), Message);
+
 /** The kind of the declarations `defineObject` makes, which object defines. */
 export const OBJECT_KIND = defineDeclarationKind("object", objectDescription);
 
@@ -250,6 +265,34 @@ export const ObjectDescription = Object.assign(objectDescription, {
                 return reference?.packageId === packageId && reference.type === name;
             })
         );
+    },
+
+    /** Describe a type's permission as a person reads it: as declared, else from its verb. */
+    describe(description: ObjectDescription, permission: string): Message {
+        // take the type's own description of the permission
+        const raw = description.definition["descriptions"];
+        const declared = raw === undefined ? undefined : DeclaredDescriptions.parse(raw);
+        const own = declared?.[permission];
+        if (own !== undefined) {
+            return own;
+        }
+        // write one from the permission's verb and the plural, split into words
+        else {
+            const plural = schema
+                .string()
+                .parse(description.definition["plural"])
+                .replaceAll(/([a-z])([A-Z])/gu, "$1 $2");
+            const verb =
+                PERMISSION_VERBS[permission] ??
+                `${permission.charAt(0).toUpperCase()}${permission.slice(1)}`;
+
+            return {
+                package: description.package.id,
+                id: `permission.${description.name}.${permission}`,
+                source: `${verb} ${plural.toLowerCase()}`,
+                values: {},
+            };
+        }
     },
 
     /** Read the object descriptions a build declares. */

@@ -480,10 +480,14 @@ export class SubscriptionAudience implements Audience {
             return "none";
         }
 
-        // read the listing permission and the query's permission
+        // read the query's permission
         const required = permission === undefined ? undefined : object.permission(permission);
 
-        return { object, listing: object.listing, required };
+        // list a guarded type's rows under its guard, as a replica stores rows whole
+        const listing =
+            object.guard === undefined ? object.listing : object.permission(object.guard.read);
+
+        return { object, listing, required };
     }
 
     /** Share one grant reader among the scope's subscribers at a position. */
