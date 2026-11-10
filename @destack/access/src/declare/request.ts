@@ -78,6 +78,8 @@ export const GrantRequest = schema
         space: SpaceSet.exactOptional(),
         /** What each user grants it on use, as when they open its view or start its agent. */
         user: permissionSetSchema.exactOptional(),
+        /** What each user grants it on a permission's first use (Chrome's optional permissions). */
+        optional: permissionSetSchema.exactOptional(),
     })
     .strict();
 /** What a package may be granted, by delegator. */

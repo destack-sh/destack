@@ -134,6 +134,23 @@ export const Credential = Object.assign(credentialSchema, {
         return `${credential.kind}:${credential.id}`;
     },
 
+    /** Read an approval as its approver's credential for the call it approves. */
+    approval(
+        id: string,
+        assurance: AuthenticationAssurance | undefined,
+        audience: PackageId,
+        now: number,
+    ): Credential {
+        return {
+            kind: "approval",
+            id,
+            audience,
+            verifiedAt: now,
+            expiresAt: now + CLOCK_TOLERANCE_MILLISECONDS,
+            ...(assurance === undefined ? {} : { assurance }),
+        };
+    },
+
     /** Read the deployment a credential vouches a workload identity runs in, if any. */
     deployment(credential: Credential, subject: Subject): Identifier<"deployment"> | undefined {
         const deployments = credential.deployments ?? [];
@@ -391,13 +408,16 @@ export const AccessContext = {
 
     /** Read how strongly the caller authenticated, a key's strength for a principal's code. */
     assurance(
-        context: Pick<AccessContext, "subject" | "credential" | "now">,
+        context: Pick<AccessContext, "subject" | "actors" | "grants" | "credential" | "now">,
     ): AuthenticationAssurance | undefined {
-        return context.credential !== undefined
-            ? context.credential.assurance
-            : Caller.isAnonymous(context)
-              ? undefined
-              : { level: KEY_ASSURANCE, authenticatedAt: context.now };
+        // read the credential's, else a key's for a principal's own code, none for code acting for another
+        if (context.credential !== undefined) {
+            return context.credential.assurance;
+        } else if (Caller.isAnonymous(context) || Caller.isDelegated(context)) {
+            return undefined;
+        } else {
+            return { level: KEY_ASSURANCE, authenticatedAt: context.now };
+        }
     },
 
     /** Report whether a context's caller is remote, unlike a principal running its code. */

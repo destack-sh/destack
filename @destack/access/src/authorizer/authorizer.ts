@@ -48,7 +48,7 @@ import {
     INTRINSIC_POLICIES,
 } from "../declare/principal.ts";
 import { ACCESS_MAPPINGS } from "../replica/replica.ts";
-import { AccessContext, Caller } from "../context/context.ts";
+import { AccessContext, Caller, Credential } from "../context/context.ts";
 import { HIGHEST_ASSURANCE, type Elevation, type StepUp } from "../context/elevation.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -1606,11 +1606,24 @@ export class Authorizer {
         // decide again at each level as if the caller authenticated just now
         for (let level = lowest; level <= HIGHEST_ASSURANCE; level++) {
             const assurance = { level, authenticatedAt: context.now };
+            let credential: Credential | undefined;
+            // step up a caller's own credential
+            if (context.credential !== undefined) {
+                credential = { ...context.credential, assurance };
+            }
+            // step up code acting for a person as the person's approval of this permission
+            else if (Caller.isDelegated(context)) {
+                const approval = PermissionReference.key(permission);
+                credential = Credential.approval(
+                    approval,
+                    assurance,
+                    permission.packageId,
+                    context.now,
+                );
+            }
             const stepped = await this.resolve(snapshot, access.scope, {
                 ...context,
-                ...(context.credential === undefined
-                    ? {}
-                    : { credential: { ...context.credential, assurance } }),
+                ...(credential === undefined ? {} : { credential }),
             });
             if (await allows(stepped)) {
                 return {

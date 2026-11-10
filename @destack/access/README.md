@@ -148,7 +148,7 @@ await Grant.revoke(aliceScope, grant.id, authorization);
 
 ## Requests
 
-A `GrantRequest` declares what each delegator may grant a package or one of its capabilities as a `PermissionSet`: its space at install and each user on use (GitHub App installation and user permissions).
+A `GrantRequest` declares what each delegator may grant a package or one of its capabilities as a `PermissionSet`: its space at install, each user on use, and `optional` ones each user grants on first use (GitHub App installation and user permissions, Chrome's optional permissions).
 
 ```ts
 definePackage({
@@ -158,6 +158,7 @@ definePackage({
             universe: [user.permission("recipient")],
         },
         user: { home: [notification.permission("read")] },
+        optional: { home: [notification.permission("archive")] }, // asked when first used
     },
 });
 PermissionSet.grant(set, { space, home: [userId, homeId], account }); // [{ within: "home", permission }, …]
