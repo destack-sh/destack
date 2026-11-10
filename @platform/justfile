@@ -48,11 +48,6 @@ build:
 diff +deployment:
     just stack/diff {{deployment}}
 
-# deploy the site
-deploy:
-    just site/build
-    just site/deploy
-
 # clean the site's outputs
 clean:
     just site/clean
