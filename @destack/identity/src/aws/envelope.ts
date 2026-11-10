@@ -67,16 +67,6 @@ export class Envelope {
         return `machine ${id}`;
     }
 
-    /** Read KMS credentials from a process's two secrets, none when it sets neither. */
-    static credentials(
-        accessKeyId: string | undefined,
-        secretAccessKey: string | undefined,
-    ): AwsCredentials | undefined {
-        return accessKeyId === undefined || secretAccessKey === undefined
-            ? undefined
-            : { accessKeyId, secretAccessKey };
-    }
-
     /** Generate a keyset with a new root key, inside KMS for a KMS envelope, else in the clear. */
     async generate(environment: KeyringEnvironment): Promise<string> {
         const kms = this.#kms;
