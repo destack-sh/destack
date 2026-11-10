@@ -15,7 +15,6 @@ import {
     installation,
     type MethodContext,
     type MethodContextOf,
-    ObjectError,
     type ObjectProjection,
     ObjectWatch,
     PackageDescription,
@@ -77,13 +76,8 @@ export function implementInstallations(options: InstallationOptions) {
         },
         methods: {
             create: async (call, next) => {
-                // refuse an installation without a name, which only a scope's base installations lack
-                const { selection, name } = call.input;
-                if (name === undefined || name === null) {
-                    throw ObjectError.of("FIELD_MISSING", "an installation needs a name");
-                }
-
                 // refuse another account's repository
+                const { selection, name } = call.input;
                 const owner = await SelectedRepository.owner(options.forge, selection);
                 await SelectedRepository.require(call, call.scope, selection, owner);
 

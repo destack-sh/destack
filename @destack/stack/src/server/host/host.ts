@@ -32,7 +32,6 @@ import {
     Egress,
     type Fetch,
     HookSandbox,
-    Installation,
     InstallationMount,
     PackageDescription,
     InstallationBinding,
@@ -41,7 +40,7 @@ import {
     type PackageHandle,
     PackageMount,
 } from "@destack/object";
-import { InstallationRoot, type InstalledServerContext } from "@destack/object/workload";
+import { InstallationRoot, type ServerContext } from "@destack/object/workload";
 import {
     type Connector,
     EGRESS_PROVIDER,
@@ -73,7 +72,7 @@ import {
     type Subscription,
     Uplink,
 } from "@destack/sync";
-import { SPACE_BASE_PACKAGES, type SpaceOptions } from "../server.ts";
+import type { SpaceOptions } from "../server.ts";
 import {
     ACTIVE_BUILD_STATES,
     Binding,
@@ -183,7 +182,7 @@ export interface SpaceStart {
     /** Run the hooks of an installation served in its sandbox. */
     readonly sandbox: (
         row: InstallationRollout,
-        server: InstalledServerContext,
+        server: ServerContext,
         declarations: readonly graph.Declaration[],
     ) => HookSandbox;
 }
@@ -402,7 +401,6 @@ export class SpaceHost {
     async options(): Promise<
         Pick<
             SpaceOptions,
-            | "bases"
             | "host"
             | "role"
             | "principal"
@@ -424,23 +422,7 @@ export class SpaceHost {
         // call the universe as the machine, and claim names at the universe through it
         const accounts = this.accounts();
 
-        // derive the base installation of each package the space is born with
-        const bases = await Promise.all(
-            SPACE_BASE_PACKAGES.map(
-                async (handle) =>
-                    [
-                        handle.id,
-                        await Installation.base(
-                            this.principal,
-                            handle,
-                            this.machine.environment.crypto,
-                        ),
-                    ] as const,
-            ),
-        );
-
         return {
-            bases: new Map(bases),
             host: this,
             role: await this.role(),
             principal: this.principal,
@@ -979,7 +961,7 @@ export class SpaceHost {
         resources: ResourceContext,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
-    ): Promise<InstalledServerContext> {
+    ): Promise<ServerContext> {
         // call the space's stack package in process as the installation
         const { machine } = this;
         const { installationId: id, scope } = row;
@@ -1205,10 +1187,10 @@ export class SpaceHost {
 
     /** Place another space's verified caller inside its account's chain, as this space records. */
     async contain(verified: Authentication): Promise<Authentication> {
-        // find the account the universe places the signing space in: the space or its installation's
+        // find the account the universe places the signing space in: the acting space or its installation's
         const { caller } = verified;
-        const { subject } = caller;
-        const signer = principal.installation.is(subject) ? subject.scope : subject.id;
+        const acting = Caller.principal(caller);
+        const signer = principal.installation.is(acting) ? acting.scope : acting.id;
         const space = schema.identifier("space").parse(signer);
         const [placement] = await accountObject.Placement.find(this.machine.directory.snapshot, [
             space,
@@ -1418,7 +1400,7 @@ export class SpaceHost {
         }
     }
 
-    /** Receive a placed space at its primary below its ancestors, with its base installations. */
+    /** Receive a placed space at its primary below its ancestors. */
     async #receive(
         store: ObjectStore,
         spaceId: Identifier<"space">,
@@ -1431,15 +1413,14 @@ export class SpaceHost {
             .where(eq(accountObject.space.table.id, spaceId));
         const replicated = present(row, `the row of ${spaceId}`);
         const now = store.clock.now();
-        // record its scope here, its primary, born with its base installations
+        // record its scope here, its primary
         const scope = accountObject.space.reference(replicated.scope, spaceId);
         await Authorization.run(
             store.authorizer,
             this.database,
             () => AccessContext.of(Caller.of(store.principal), now),
             store.environment,
-            (authorization) =>
-                Installation.receive(authorization, scope, ancestors, SPACE_BASE_PACKAGES),
+            (authorization) => authorization.receive(scope, ancestors),
         );
     }
 

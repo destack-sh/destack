@@ -399,8 +399,8 @@ export type Rollout = Select<typeof rollout.table>;
 export type InstallationRollout = Omit<Rollout, "id"> & {
     /** The revision its installation targets, absent before the first. */
     readonly revisionId: Identifier<"installation-revision"> | null;
-    /** The installation the rollout rolls out, with its name in its space. */
-    readonly installation: Installation & { readonly name: string };
+    /** The installation the rollout rolls out. */
+    readonly installation: Installation;
 };
 
 /** Why an installation is not ready yet, as a Kubernetes condition's reason. */
@@ -432,7 +432,7 @@ export const Rollout = {
         );
     },
 
-    /** Read the rollouts of some installations joined with them, none of a base installation. */
+    /** Read the rollouts of some installations joined with them. */
     async installed(
         snapshot: Pick<Snapshot, "read">,
         installed: readonly Installation[],
@@ -452,17 +452,9 @@ export const Rollout = {
         );
     },
 
-    /** Join a rollout with its installation, refusing a base installation. */
+    /** Join a rollout with its installation. */
     join(row: Rollout, installed: Installation): InstallationRollout {
-        // refuse a base installation, which its scope bore without a rollout or a name
-        const { name } = installed;
-        if (name === null) {
-            throw new TypeError(
-                `installation ${installed.id} is a base installation without a rollout`,
-            );
-        }
-
-        return { ...row, revisionId: installed.revisionId, installation: { ...installed, name } };
+        return { ...row, revisionId: installed.revisionId, installation: installed };
     },
 
     /** Read rollouts' installations and join them, refusing a rollout without its installation. */
@@ -730,7 +722,7 @@ export const Rollout = {
     async moved(
         database: DatabaseConnection,
         id: Identifier<"installation">,
-        spaceId: string,
+        spaceId: Identifier<"space">,
     ): Promise<{ readonly scope: string; readonly machine: string } | undefined> {
         // read the installation in the call's space
         const [found] = await database
@@ -756,16 +748,17 @@ export const Rollout = {
         installed: { readonly spaceId: string; readonly installation: string },
     ): Promise<InstallationRollout> {
         // take the installation served in the call's space, by its identifier or its name
-        const id = await identify(database, installed);
+        const spaceId = schema.identifier("space").parse(installed.spaceId);
+        const id = await identify(database, spaceId, installed.installation);
         const served = id === undefined ? undefined : await Rollout.findServed(database, id);
-        if (served?.scope === installed.spaceId) {
+        if (served?.scope === spaceId) {
             return served;
         }
 
         // answer a moving space's installation with where it moves
         const moved =
             served === undefined && id !== undefined
-                ? await Rollout.moved(database, id, installed.spaceId)
+                ? await Rollout.moved(database, id, spaceId)
                 : undefined;
         // send a moving space's caller to where it moves
         if (moved !== undefined) {
@@ -776,7 +769,7 @@ export const Rollout = {
         // let a caller wait for an installation not served yet, such as one still deploying or one the space's stack may still create
         else if (
             (id !== undefined && served === undefined) ||
-            (await isStackPending(database, installed.spaceId))
+            (await isStackPending(database, spaceId))
         ) {
             throw StackError.of(
                 "INSTALLATION_NOT_SERVED",
@@ -915,7 +908,10 @@ export const InstallationRevision = {
 };
 
 /** Determine whether a space's stack may still create installations, before or during a pass. */
-async function isStackPending(database: DatabaseConnection, spaceId: string): Promise<boolean> {
+async function isStackPending(
+    database: DatabaseConnection,
+    spaceId: Identifier<"space">,
+): Promise<boolean> {
     const stack = await Snapshot.live(database)
         .read(installation.table)
         .findFirst({ where: { scope: spaceId, name: STACK_INSTALLATION } });
@@ -939,31 +935,20 @@ function joinedInstallation(): SQL {
 /** Read the identifier of an installation a call refers to. */
 async function identify(
     database: DatabaseConnection,
-    installed: { readonly spaceId: string; readonly installation: string },
+    spaceId: Identifier<"space">,
+    reference: string,
 ): Promise<Identifier<"installation"> | undefined> {
-    const id = schema.identifier("installation").safeParse(installed.installation);
-    const spaceId = schema.identifier("space").safeParse(installed.spaceId);
-
     // take an identifier as given
+    const id = schema.identifier("installation").safeParse(reference);
     if (id.success) {
         return id.data;
     }
-    // find a name in the call's space, served or not
-    else if (spaceId.success) {
-        const [found] = await database
-            .select({ id: installation.table.id })
-            .from(installation.table)
-            .where(
-                and(
-                    installation.inScope(spaceId.data),
-                    eq(installation.table.name, installed.installation),
-                ),
-            );
 
-        return found?.id;
-    }
-    // find none outside a space
-    else {
-        return undefined;
-    }
+    // find a name in the call's space, served or not
+    const [found] = await database
+        .select({ id: installation.table.id })
+        .from(installation.table)
+        .where(and(installation.inScope(spaceId), eq(installation.table.name, reference)));
+
+    return found?.id;
 }

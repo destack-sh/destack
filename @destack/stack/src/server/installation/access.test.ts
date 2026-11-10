@@ -2,11 +2,10 @@ import { schema } from "@destack/schema";
 import { AccessContext, Caller, Permission, principal } from "@destack/access";
 import { account, residency, space, user } from "@destack/account/object";
 import { Snapshot, Table } from "@destack/db";
-import { grant, Installation, role, type PackageDescription } from "@destack/object";
+import { grant, role, type PackageDescription } from "@destack/object";
 import { nth } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import stackPackage from "../../package.ts";
 import { ids, insertRollout, openSpaceDatabase } from "../../test/index.ts";
 import { Rollout, rollout } from "../../object/index.ts";
 import { InstallationAccess } from "./access.ts";
@@ -61,7 +60,7 @@ async function installNotes(): ReturnType<typeof openSpaceDatabase> {
 
 test("bind an installation's requests on other packages' types on its consenter's authority, and drop them once it goes", async () => {
     // install notes in the space as its owner
-    const { database, crypto, now } = await installNotes();
+    const { database, now } = await installNotes();
     const installer = INSTALLER;
     const snapshot = Snapshot.live(database);
     const rows = await snapshot
@@ -69,10 +68,8 @@ test("bind an installation's requests on other packages' types on its consenter'
         .findMany({ where: { installationId: ids.notes } });
     const target = nth(await Rollout.read(snapshot, rows), 0);
 
-    // build its access as the space's base stack installation, then once it goes
-    const scope = principal.space.reference(Scope.universe.id, ids.space);
-    const stack = await Installation.base(scope, stackPackage, crypto);
-    const subject = principal.installation.reference(ids.space, stack.installation);
+    // build its access as the space, whose own code installs it, then once it goes
+    const subject = principal.space.reference(Scope.universe.id, ids.space);
     const installation = principal.installation.reference(ids.space, ids.notes);
     const installed = await InstallationAccess.changes(snapshot, target, DESCRIPTION, subject, now);
     const removed = await InstallationAccess.changes(snapshot, target, undefined, subject, now);
@@ -87,7 +84,7 @@ test("bind an installation's requests on other packages' types on its consenter'
             subject: installation,
             manager: { installationId: ids.notes, packageId: ids.package, name: "permissions" },
         });
-    const delegator = AccessContext.of(Caller.acting(scope, subject), now);
+    const delegator = AccessContext.of(Caller.of(subject), now);
     const lent = grant.call("create", {
         ...grant.in(ids.space),
         delegate: installation,

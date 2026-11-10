@@ -975,10 +975,14 @@ export class Binder {
             input.drainingStates.join() !== row.drainingStates.join() ||
             input.approval !== row.approval;
         if (isChanged) {
-            // write the platform's state as a blob, as the revisions wrote the others
-            for (const state of platform.values()) {
-                await store.blobs.writeJson(state);
+            // write the platform's state as a blob once the space lacks it, else lease the one it has
+            const missing = new Set(await store.blobs.missing([...platform.keys()]));
+            for (const [digest, state] of platform) {
+                if (missing.has(digest)) {
+                    await store.blobs.writeJson(state);
+                }
             }
+            await store.blobs.lease([...platform.keys()].filter((digest) => !missing.has(digest)));
             await store.mutate(
                 store.as(object),
                 {

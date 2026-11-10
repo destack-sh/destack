@@ -536,9 +536,6 @@ class Reconcile {
                 }),
             `the installation ${current.installationId}`,
         );
-        if (installed.name === null) {
-            throw new TypeError(`base installation ${installed.id} deploys no workloads`);
-        }
         await running.start(
             {
                 instanceId: recorded.id,

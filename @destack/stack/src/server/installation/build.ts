@@ -7,7 +7,6 @@ import { buildRetention } from "../../setting/index.ts";
 import { type ImportClosure, type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import {
-    Installation,
     type MethodContextOf,
     type NextOf,
     ObjectDescription,
@@ -782,10 +781,8 @@ async function publishRequest(
         "scope" | "environment" | "read" | "input"
     >,
 ): Promise<GrantRequest> {
-    // derive the space's stack installation, and read the space and its account's replica, which has its handle
+    // read the space, which asks for itself, and its account's replica, which has its handle
     const spaceId = schema.identifier("space").parse(context.scope);
-    const space = principal.space.reference(Scope.universe.id, spaceId);
-    const base = await Installation.base(space, stackPackage, context.environment.crypto);
     const placed = await Space.read(context, spaceId);
     const owner = present(
         await context.read(account).findFirst({ where: { id: placed.scope } }),
@@ -796,7 +793,7 @@ async function publishRequest(
     const description = ObjectDescription.describe(ObjectDescription.of(account), "publish");
 
     return {
-        delegate: principal.installation.reference(spaceId, base.installation),
+        delegate: principal.space.reference(Scope.universe.id, spaceId),
         package: stackPackage.name,
         space: SpaceAddress.of({ space: placed.name, handle: owner.handle }),
         permissions: [

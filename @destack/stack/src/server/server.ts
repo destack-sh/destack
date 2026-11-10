@@ -5,10 +5,9 @@ import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import { type PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { type Digest, type Identifier, present, schema, type VersionRange } from "@destack/schema";
+import { type Digest, type Identifier, schema, type VersionRange } from "@destack/schema";
 import { type Publisher, RequestId, type Subject, Scope, type Uplink } from "@destack/sync";
 import { type CallKey, Provisioned } from "@destack/object";
-import type { ObjectPackage } from "@destack/object/server";
 import type accountPackage from "@destack/account/package";
 import type { ClientOf } from "@destack/object/client";
 import { type IdentityKeystore } from "@destack/account/identity";
@@ -44,12 +43,11 @@ import { bucketProvider, type CatalogueBucketHost } from "@destack/bucket/provid
 import { implementBucket } from "./resource/bucket.ts";
 import type { Runtime } from "../runtime/index.ts";
 import { settingServer } from "@destack/setting/server";
-import { type BaseServerContext, PackageContext } from "@destack/object/workload";
-import settingPackage from "@destack/setting/package";
+import type { BootstrapPackageName } from "../declare/index.ts";
+import { PackageContext } from "@destack/object/workload";
 import { rollout } from "../object/index.ts";
 import objectPackage from "@destack/object/package";
 import stackPackage from "../package.ts";
-import { SPACE_KERNEL } from "../declare/index.ts";
 import { implementRestore, implementSnapshot } from "./resource/snapshot.ts";
 import { Binder, ResourceBindable, ObjectBindable } from "./resource/binding.ts";
 import { implementDeployment, implementInstance } from "./deployment/deployment.ts";
@@ -102,8 +100,6 @@ export interface SpaceOptions {
     readonly role: SpaceRole;
     /** The space as this machine hosts it. */
     readonly host: SpaceHost;
-    /** The base installation of each package the space is born with, by package. */
-    readonly bases: ReadonlyMap<PackageId, BaseServerContext>;
     /** The principal the store's own work runs as. */
     readonly principal: Subject;
     /** Report an installation the space leaves unserved, such as a sandbox of unserved types. */
@@ -240,9 +236,6 @@ function stackServer(
         responseHeaders: { "Cache-Control": "no-store" },
     });
 }
-
-/** The packages every space is born with as base installations: the installer and its kernel. */
-export const SPACE_BASE_PACKAGES = [stackPackage, ...SPACE_KERNEL];
 
 /** A space's store: its stack, access and settings over its installed packages, as they change. */
 export class SpaceStore {
@@ -434,22 +427,27 @@ export class SpaceStore {
             bindables,
         );
 
-        // serve the stack with its access objects, then a primary's settings
-        const stack = stackServer(options, providers, binder);
-        const access = implementPackage(objectPackage, {
-            objects: [
-                implementRole(),
-                implementRelationship(),
-                implementInstallations(installationOptions(options, providers, binder)),
-            ],
-        });
-        const base = (handle: Pick<ObjectPackage, "id" | "name">) =>
-            present(options.bases.get(handle.id), `the base installation of ${handle.name}`);
-        const born = [stack.at(base(stackPackage)), access.at(base(objectPackage))];
+        // serve the space's own packages on a standby: the stack with its access objects
+        const standby: {
+            readonly [Name in Exclude<BootstrapPackageName, "setting">]: PackageImplementation;
+        } = {
+            stack: stackServer(options, providers, binder),
+            object: implementPackage(objectPackage, {
+                objects: [
+                    implementRole(),
+                    implementRelationship(),
+                    implementInstallations(installationOptions(options, providers, binder)),
+                ],
+            }),
+        };
 
-        return options.role === "primary"
-            ? [...born, settingServer({ after: [rollout] }).at(base(settingPackage))]
-            : born;
+        // serve every own package on a primary, its settings after rollout
+        const primary: { readonly [Name in BootstrapPackageName]: PackageImplementation } = {
+            ...standby,
+            setting: settingServer({ after: [rollout] }),
+        };
+
+        return Object.values(options.role === "primary" ? primary : standby);
     }
 }
 
@@ -677,7 +675,7 @@ async function linkSocket(
 /** Record a machine leaving its home, where this store serves the machine's row. */
 async function leaveMachine(store: ObjectStore, subject: Subject): Promise<void> {
     // leave a machine whose row lives elsewhere, or replicated here
-    if (store.readServer(machine) === undefined || store.replicates(machine)) {
+    if (store.findImplementation(machine) === undefined || store.replicates(machine)) {
         return;
     }
     const [row] = await store.database

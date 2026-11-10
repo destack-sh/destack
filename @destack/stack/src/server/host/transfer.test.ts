@@ -113,7 +113,7 @@ test("hand a space's database to another machine and send its clients there", as
         [target.database, await testEvents(target.database, world)],
     ]);
     const open = (database: DatabaseConnection) =>
-        TestObjectStore.at(principal.space.reference("universe", spaceId), {
+        TestObjectStore.of({
             chain: async () => undefined,
             environment: world,
             principal: principal.space.reference("universe", spaceId),
@@ -124,8 +124,8 @@ test("hand a space's database to another machine and send its clients there", as
             origin: { package: key.package },
         });
     const stores = new Map<DatabaseConnection, ObjectStore>([
-        [source.database, await open(source.database)],
-        [target.database, await open(target.database)],
+        [source.database, open(source.database)],
+        [target.database, open(target.database)],
     ]);
     const serve = (database: DatabaseConnection) =>
         present(stores.get(database), "the database's store");

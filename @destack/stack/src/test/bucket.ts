@@ -14,9 +14,8 @@ import {
     Relationship,
 } from "@destack/access";
 import { STACKS, TestAccountStore, TestDirectory } from "@destack/account/test";
-import { CallEvent, call, journal, CallError, Installation, installation } from "@destack/object";
+import { CallEvent, call, journal, CallError, installation } from "@destack/object";
 import { Health, Journal, Server, type ClaimPrimary, ObjectStore } from "@destack/object/server";
-import type { BaseServerContext } from "@destack/object/workload";
 import { testEvents, serversOf, testCallKey } from "@destack/object/test";
 import type { EventStore } from "@destack/event";
 import { LocalBucket } from "@destack/bucket/bun";
@@ -102,7 +101,7 @@ export class TestBucket implements AsyncDisposable {
     readonly #events: EventStore;
     /** Release the database and bucket directory. */
     readonly #close: () => Promise<void>;
-    /** The store serving the bucket as the space's base stack installation. */
+    /** The store serving the bucket as the space's own. */
     readonly #store: ObjectStore;
     /** The world the bucket's servers and records run in. */
     readonly environment: Environment;
@@ -116,7 +115,6 @@ export class TestBucket implements AsyncDisposable {
         close: () => Promise<void>,
         environment: Environment,
         ids: { readonly accountId: Identifier<"account">; readonly spaceId: Identifier<"space"> },
-        base: BaseServerContext,
     ) {
         // retain the storage, the call events, the world and the member's identity
         this.database = database;
@@ -141,7 +139,7 @@ export class TestBucket implements AsyncDisposable {
         });
 
         // serve the bucket's files under the member's bearer identity
-        const objects = this.#serveObjects(database, claims, base);
+        const objects = this.#serveObjects(database, claims);
         this.#store = objects;
         this.server = Server.start({
             environment: this.environment,
@@ -177,11 +175,7 @@ export class TestBucket implements AsyncDisposable {
     }
 
     /** Serve the bucket object over the spaces database and the universe's claims. */
-    #serveObjects(
-        database: DatabaseConnection,
-        claims: ClaimPrimary,
-        base: BaseServerContext,
-    ): ObjectStore {
+    #serveObjects(database: DatabaseConnection, claims: ClaimPrimary): ObjectStore {
         return new ObjectStore({
             blobs: new MemoryBlobStorage(this.environment.crypto),
             chain: async () => undefined,
@@ -207,7 +201,7 @@ export class TestBucket implements AsyncDisposable {
                         };
                     },
                 }),
-            ]).map((server) => server.at(base)),
+            ]),
             policies: [space],
             claims,
             database,
@@ -417,25 +411,14 @@ export class TestBucket implements AsyncDisposable {
             await environment.files.remove(directory, { recursive: true });
         };
 
-        // serve the files as the space's base stack installation, releasing the bucket when it fails to start
+        // serve the files as the space's own, releasing the bucket when it fails to start
         const ids = {
             accountId: Identifier.create("account", environment),
             spaceId: Identifier.create("space", environment),
         };
-        const scope = space.reference(ids.accountId, ids.spaceId);
-        const base = await Installation.base(scope, stackPackage, environment.crypto);
         let fixture: TestBucket;
         try {
-            fixture = new TestBucket(
-                database,
-                files,
-                claims,
-                events,
-                release,
-                environment,
-                ids,
-                base,
-            );
+            fixture = new TestBucket(database, files, claims, events, release, environment, ids);
         } catch (error) {
             await release();
             throw error;
@@ -489,7 +472,7 @@ export class TestBucket implements AsyncDisposable {
         return { spaceId, id: bucketId };
     }
 
-    /** Receive a space at its home with its base installations, as its placement does. */
+    /** Receive a space at its home, as its placement does. */
     async #receive(spaceId: Identifier<"space">, now: number): Promise<void> {
         await Transaction.run(this.database, async (transaction) => {
             const authorization = new Authorization(
@@ -498,12 +481,7 @@ export class TestBucket implements AsyncDisposable {
                 () => AccessContext.of(Caller.of(this.#store.principal), now),
                 this.environment,
             );
-            await Installation.receive(
-                authorization,
-                space.reference(this.accountId, spaceId),
-                [this.accountId],
-                [stackPackage],
-            );
+            await authorization.receive(space.reference(this.accountId, spaceId), [this.accountId]);
         });
     }
 
@@ -527,7 +505,7 @@ export class TestBucket implements AsyncDisposable {
                     stack: STACKS.space,
                 }),
         );
-        // receive a homed scope with its base installations, as its placement does
+        // receive a homed scope, as its placement does
         if (place === "home") {
             await this.#receive(spaceId, now);
         }

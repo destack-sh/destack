@@ -3,7 +3,7 @@ import { expect, refusal, test } from "@destack/test";
 import { present } from "@destack/schema";
 import { type Capability, type ObjectType, PackageHandle } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { Package } from "@destack/package";
 import { testHost } from "@destack/test/host";
 import { TestSpace } from "../../test/index.ts";
@@ -26,7 +26,7 @@ async function installCaller(connect: readonly string[]) {
     const objects: Readonly<Record<string, ObjectType>> = {};
     const handle = PackageHandle.of(released, { objects, capabilities: { call } });
     const build = await testBuild(handle, testHost().crypto);
-    const contexts: InstalledServerContext[] = [];
+    const contexts: ServerContext[] = [];
     const fixture = await TestSpace.open({
         servers: [
             implementPackage(handle, (context) => {

@@ -1,11 +1,10 @@
 import { placement, Space } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { type Select, Snapshot } from "@destack/db";
-import { Installation, ObjectWatch, type Condition } from "@destack/object";
+import { ObjectWatch, type Condition } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import { transfer } from "../../object/index.ts";
-import stackPackage from "../../package.ts";
 
 /** The scheduler of served spaces onto the machines the universe decides for their tenancy. */
 export const Scheduler = {
@@ -31,7 +30,7 @@ export const Scheduler = {
 
         // keep a person's move, and this scheduler's move while the decision still asks for it
         const isAsked = asked?.kind === "move" && asked.machine === moving?.targetId;
-        const isKept = moving !== undefined && (isAsked || !(await Scheduler.isOwn(moving, store)));
+        const isKept = moving !== undefined && (isAsked || !Scheduler.isOwn(moving));
 
         // wait for the placement to replicate here, which its watch schedules again
         if (asked === undefined) {
@@ -74,15 +73,10 @@ export const Scheduler = {
         }
     },
 
-    /** Report whether the space's base stack, which runs this scheduler, requested a move. */
-    async isOwn(
-        moving: Select<typeof transfer.table>,
-        store: Pick<ObjectStore, "environment">,
-    ): Promise<boolean> {
-        // derive the space's base stack installation, which requests the scheduler's moves
-        const space = principal.space.reference(Scope.universe.id, moving.scope);
-        const base = await Installation.base(space, stackPackage, store.environment.crypto);
-        const own = principal.installation.reference(moving.scope, base.installation);
+    /** Report whether the space itself, whose own code runs this scheduler, requested a move. */
+    isOwn(moving: Select<typeof transfer.table>): boolean {
+        // take the space, whose own code requests the scheduler's moves
+        const own = principal.space.reference(Scope.universe.id, moving.scope);
 
         return (
             ObjectReference.key(ObjectReference.at("requestedBy", moving)) ===

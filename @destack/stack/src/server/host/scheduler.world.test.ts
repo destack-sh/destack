@@ -1,5 +1,3 @@
-import stackPackage from "../../package.ts";
-import { Installation } from "@destack/object";
 import { principal } from "@destack/access";
 import { Tenancy, space } from "@destack/account/object";
 import { eq } from "@destack/db";
@@ -62,19 +60,12 @@ async function placement(fixture: TestSpace) {
     };
 }
 
-/** Read the space's base stack installation, which requests the space's moves. */
-async function baseStack(fixture: TestSpace) {
-    const scope = principal.space.reference(Scope.universe.id, ids.space);
-    const { installation } = await Installation.base(
-        scope,
-        stackPackage,
-        fixture.environment.crypto,
-    );
-
-    return principal.installation.reference(ids.space, installation);
+/** Read the space, whose own code requests the space's moves. */
+function spaceItself() {
+    return principal.space.reference(Scope.universe.id, ids.space);
 }
 
-test("keep a space where the universe decides it stays, and move it as its base stack once the universe decides a move", async () => {
+test("keep a space where the universe decides it stays, and move it as the space once the universe decides a move", async () => {
     const { fixture, laptop } = await open(["shared", "local"]);
 
     // keep the space on its machine while no tenancy is set
@@ -96,7 +87,7 @@ test("keep a space where the universe decides it stays, and move it as its base 
                 {
                     sourceId: fixture.machine.id,
                     targetId: laptop,
-                    requestedBy: await baseStack(fixture),
+                    requestedBy: spaceItself(),
                     outcome: null,
                 },
             ],
@@ -121,7 +112,7 @@ test("cancel a running move once the universe decides the space stays, and keep 
             {
                 sourceId: fixture.machine.id,
                 targetId: laptop,
-                requestedBy: await baseStack(fixture),
+                requestedBy: spaceItself(),
                 outcome: "cancelled",
             },
         ],

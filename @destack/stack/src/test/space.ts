@@ -19,7 +19,6 @@ import {
     Snapshot,
     type Table,
     TABLE,
-    Transaction,
 } from "@destack/db";
 import type { BuildReader } from "@destack/package/manifest";
 import { RequestId, Scope } from "@destack/sync";
@@ -36,7 +35,7 @@ import { TestDatabase, TestTemplate, type TemplateStorage } from "@destack/db/te
 import { expect, onTestFinished, single } from "@destack/test";
 import { Failure } from "@destack/error";
 import { SettingValue } from "@destack/setting/object";
-import { AccessContext, Authorization, Caller, CALLER_HEADER, principal } from "@destack/access";
+import { CALLER_HEADER, principal } from "@destack/access";
 import { Exchange } from "@destack/access/token";
 import {
     Account,
@@ -83,13 +82,11 @@ import {
     schema,
 } from "@destack/schema";
 import objectPackage from "@destack/object/package";
-import { ServerContext } from "@destack/object/workload";
 import { Simulation } from "@destack/environment/simulation";
 import { Database } from "../object/index.ts";
 import { BuildCache, SpaceBuildStore } from "../server/installation/build.ts";
 import { StackDocument, type StackTypes } from "../declare/stack.ts";
 import { Handoff } from "../server/host/handoff.ts";
-import { SPACE_BASE_PACKAGES } from "../server/server.ts";
 import * as object from "../object/index.ts";
 import {
     SocketRegistry,
@@ -1198,27 +1195,12 @@ export class TestSpace implements AsyncDisposable {
             cursors: [],
             external: await this.index(),
             ...overrides,
-            servers: await this.#placed(overrides.servers ?? []),
+            servers: overrides.servers ?? [],
             providers: [
                 ...(overrides.providers ?? []),
                 TestSpaceDatabaseHost.over(this.#main, this.environment),
             ],
         };
-    }
-
-    /** Place servers without an installation at their base installations in the space. */
-    #placed(servers: readonly PackageImplementation[]): Promise<PackageImplementation[]> {
-        const scope = space.reference(this.account, this.id);
-
-        return Promise.all(
-            servers.map(async (server) =>
-                server.installation === undefined
-                    ? server.at(
-                          await Installation.base(scope, server.package, this.environment.crypto),
-                      )
-                    : server,
-            ),
-        );
     }
 
     /** Build a store of the space over its options, applying its installed set in place. */
@@ -1672,8 +1654,8 @@ export class TestSpace implements AsyncDisposable {
         );
         const hosted = await this.host.servers(installed, start, stopping.signal);
 
-        // serve the space's companions and the test's own packages at their base installations in the space
-        const own = await this.#placed([...this.#beside.companions, ...(given.servers ?? [])]);
+        // serve the space's companions and the test's own packages as the space's own
+        const own = [...this.#beside.companions, ...(given.servers ?? [])];
 
         // apply a primary's installed set in place at each change of it, as the machine's space does
         const applyInstalled = async () => {
@@ -1700,39 +1682,6 @@ export class TestSpace implements AsyncDisposable {
             }),
         );
         const { store } = spaceStore;
-
-        // receive the space's and the test's own base installations on each start, with roles from the types they serve
-        const born = [
-            ...SPACE_BASE_PACKAGES,
-            ...own
-                .filter(
-                    (server) =>
-                        server.installation !== undefined &&
-                        !ServerContext.isInstalled(server.installation),
-                )
-                .map((server) => server.package),
-        ];
-        await Transaction.run(store.database, async (transaction) => {
-            // leave a space this machine has no row of, such as one arriving by a move
-            const [here] = await Scope.read(transaction.view(), [this.id]);
-            if (here === undefined) {
-                return;
-            }
-
-            // receive it again, born already, with the roles its bases have now
-            const authorization = new Authorization(
-                store.authorizer,
-                transaction,
-                () => AccessContext.of(Caller.of(store.principal), store.clock.now()),
-                store.environment,
-            );
-            await Installation.receive(
-                authorization,
-                space.reference(this.account, this.id),
-                [this.account],
-                born,
-            );
-        });
 
         // serve the store as its machine does, in the partitions the space serves
         const served = TestObjectStore.serve(store, {

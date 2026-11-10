@@ -148,6 +148,26 @@ export const RolloutTarget = {
                 continue;
             }
 
+            // pass over a stack whose targeted revision has this build at these inputs, as stacks bind nothing
+            const inputs =
+                row.installation.export === null
+                    ? undefined
+                    : await RolloutTarget.inputs(snapshot, row.installation);
+            const isRevised =
+                inputs !== undefined &&
+                revision !== undefined &&
+                revision.buildId === chosen.build &&
+                revision.digest ===
+                    (await InstallationRevision.digest(
+                        chosen.manifest,
+                        inputs,
+                        [],
+                        store.environment.crypto,
+                    ));
+            if (isRevised) {
+                continue;
+            }
+
             // describe a new build's revision, reusing the targeted one's for the same build
             const reader = await options.builds.contents(chosen.manifest);
             const described =
@@ -161,10 +181,6 @@ export const RolloutTarget = {
                       );
 
             // evaluate a stack's export of it at its inputs
-            const inputs =
-                row.installation.export === null
-                    ? undefined
-                    : await RolloutTarget.inputs(snapshot, row.installation);
             const evaluation =
                 inputs === undefined
                     ? undefined

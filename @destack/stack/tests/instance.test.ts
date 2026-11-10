@@ -53,7 +53,6 @@ import {
     type GrantDeclaration,
     principal,
 } from "@destack/access";
-import accountPackage from "@destack/account/package";
 import { space } from "@destack/account/object";
 import type { ServerRuntime } from "@destack/package/runtime";
 import type { BuildReader } from "@destack/package/manifest";
@@ -2197,8 +2196,8 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
     });
 });
 
-test("deploy an application depending on a package the universe installs, which every space's chain includes, and refuse one depending on a package installed nowhere on its chain", async () => {
-    // install notes depending on the account package, installed at the universe alone
+test("deploy an application depending on a package of the space's own, and refuse one depending on a package installed nowhere on its chain", async () => {
+    // install notes depending on the setting package, one of the space's own packages
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const notes = await installNotes(fixture);
@@ -2216,7 +2215,7 @@ test("deploy an application depending on a package the universe installs, which 
                         eq(object.installationRevision.table.installationId, notes.installationId),
                     ),
         );
-    await depend(Package.of(accountPackage));
+    await depend(Package.of(settingPackage));
     const { deployments } = await serveControllers(fixture, {});
 
     // deploy it, then depend on a vault package no scope on the chain installs and deploy again
@@ -2226,7 +2225,7 @@ test("deploy an application depending on a package the universe installs, which 
     await refusal(deployments.reconcile(notes.installationId));
     const refused = await readiness(database, notes.installationId);
 
-    // satisfy the dependency installed at the universe, and refuse the one installed nowhere
+    // satisfy the space's own dependency, and refuse the one installed nowhere
     expect({ deployed, refused }).toEqual({
         deployed: ["current", "1 workloads deployed"],
         refused: [

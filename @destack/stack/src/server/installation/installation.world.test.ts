@@ -38,10 +38,10 @@ import stackPackage from "../../package.ts";
 /** How long a failed pass gets to retry: 30 s, inside the minute before its failures report. */
 const RETRY_MILLISECONDS = 30_000;
 
-test("install an application into a space as its owner, refuse one without a name, and refuse a stranger whether its name is taken or free", async () => {
+test("install an application into a space as its owner, and refuse a stranger whether its name is taken or free", async () => {
     const fixture = await TestSpace.open();
     const served = await fixture.serve();
-    const create = (user: string | Subject, name: string | null = "notes") =>
+    const create = (user: string | Subject, name = "notes") =>
         served
             .as(user)
             .client(objectPackage)
@@ -50,7 +50,7 @@ test("install an application into a space as its owner, refuse one without a nam
                 requestId: RequestId.create(fixture.machine.environment),
                 packageId: ids.package,
                 selection: { kind: "release", version: "2026.9.0" },
-                ...(name === null ? {} : { name }),
+                name,
             });
 
     // install the package as an unmanaged application under its name, rolled out from the start
@@ -70,13 +70,6 @@ test("install an application into a space as its owner, refuse one without a nam
         installed?.status,
         rolled?.id,
     ]).toEqual([null, "notes", ids.package, "enabled", created.id]);
-
-    // refuse an installation without a name, which only a scope's base installations lack
-    expect(await refusal(create(fixture.owner.id, null))).toEqual([
-        "BAD_REQUEST",
-        "FIELD_MISSING",
-        "an installation needs a name",
-    ]);
 
     // refuse a caller with no role in the space alike for a free and a taken name
     for (const name of ["tasks", "notes"]) {

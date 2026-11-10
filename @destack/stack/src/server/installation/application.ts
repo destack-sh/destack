@@ -81,6 +81,7 @@ import { Approval } from "./approval.ts";
 import type { Forge } from "./follow.ts";
 import { HOOK_WORKLOAD } from "../../workload/hook.ts";
 import { type DeploymentRuntime, PROCESS_RUNTIME } from "../../object/index.ts";
+import { BOOTSTRAP_PACKAGES } from "../../declare/index.ts";
 import { RolloutTarget } from "./target.ts";
 import { InstallationAccess } from "./access.ts";
 
@@ -776,17 +777,19 @@ export class ApplicationInstallation {
         return undefined;
     }
 
-    /** Describe a package the application needs that no scope on the space's chain installed. */
+    /** Describe a package the application needs that nothing in the space serves. */
     async #describeUninstalled(
         call: MethodContextOf<typeof rollout, "deploy">,
         revision: InstallationRevision,
         description: PackageDescription | undefined,
     ): Promise<Refusal | undefined> {
-        // read the packages installed on the space's chain
+        // read the space's own packages and the packages installed in it
         const target = this.#target;
-        const installed = new Set(
-            (await chainInstallations(call, this.#target.scope)).map((row) => row.packageId),
-        );
+        const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
+        const installed = new Set([
+            ...Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id),
+            ...rows.map((row) => row.packageId),
+        ]);
 
         // refuse the first needed package missing, naming the capability needing it
         const missing = Rollout.needed(target.installation, revision, description).find(
@@ -1274,14 +1277,18 @@ export async function describeUngranted(
     revision: InstallationRevision,
     description: PackageDescription | undefined,
 ): Promise<string | undefined> {
-    // wait for each package the installation needs served on the space's chain
-    const rows = await chainInstallations(call, target.scope);
+    // wait for each package the installation needs that neither the space's own packages nor a served installation serve
+    const own = new Set(Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id));
+    const rows = await call.read(installation).findMany({ where: { scope: target.scope } });
     const rollouts = await call.read(rollout).findMany({ where: { scope: target.scope } });
     const isServed = (row: (typeof rows)[number]) =>
-        row.name === null ||
         rollouts.some((each) => each.installationId === row.id && each.servedRevisionId !== null);
     const waiting = Rollout.needed(target.installation, revision, description)
-        .filter((entry) => !rows.some((row) => row.packageId === entry.package.id && isServed(row)))
+        .filter(
+            (entry) =>
+                !own.has(entry.package.id) &&
+                !rows.some((row) => row.packageId === entry.package.id && isServed(row)),
+        )
         .map((entry) => entry.package.name);
 
     // and for each type of another package in its space grant that the space does not serve yet
@@ -1295,20 +1302,6 @@ export async function describeUngranted(
     return unserved.length === 0
         ? undefined
         : `waiting for the space to serve ${unserved.join(", ")}`;
-}
-
-/** Read the installations on a space's chain: its own, its ancestors' and the universe's. */
-async function chainInstallations(
-    call: Pick<MethodContextOf<typeof rollout, "deploy">, "read">,
-    scope: Identifier<"space">,
-) {
-    // read the space's ancestors, then the installations of each scope on its chain
-    const [link] = await Scope.read(call, [scope]);
-    const { ancestors } = present(link, `the scope of space ${scope}`);
-
-    return call
-        .read(installation)
-        .findMany({ where: { scope: { in: [scope, ...ancestors, Scope.universe.id] } } });
 }
 
 /** Report whether an active deployment runs a chosen output of the revision. */
