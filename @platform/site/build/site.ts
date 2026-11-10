@@ -1,4 +1,5 @@
 import { CompilerPool, LocalBuildStore, outputsOf, Workspace } from "@destack/build";
+import { Toolchain } from "@destack/check/toolchain";
 import { DevelopmentServer } from "@destack/view/build";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { fileURLToPath } from "node:url";
@@ -17,7 +18,7 @@ export async function run(
 ): Promise<void> {
     // open the site's workspace on the person's development store
     await using store = await LocalBuildStore.user("development", environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
 
     // serve the view, rendering each page on request, until the process receives a shutdown signal

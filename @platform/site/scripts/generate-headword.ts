@@ -1,6 +1,6 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatSource } from "@destack/check";
+import { formatSource, Toolchain } from "@destack/check";
 import { BunEnvironment } from "@destack/environment/bun";
 import { create, type Font, type Path } from "fontkitten";
 
@@ -87,6 +87,7 @@ const generatedSource = await formatSource(
             y: round(ink.top - dot.y),
             radius: round(dot.radius),
         })} as const;\n`,
+    Toolchain.workspace(),
 );
 
 // check or replace the module

@@ -1,6 +1,6 @@
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { formatSource } from "@destack/check";
+import { formatSource, Toolchain } from "@destack/check";
 import { BunEnvironment } from "@destack/environment/bun";
 import { present } from "@destack/schema";
 import {
@@ -189,6 +189,7 @@ const generatedSource = await formatSource(
         `export const allowance = ${JSON.stringify(allowance)} as const;\n\n` +
         `/** The dedicated machines, smallest first, priced in US dollars. */\n` +
         `export const machines = ${JSON.stringify(machines)} as const;\n`,
+    Toolchain.workspace(),
 );
 
 /** Return a unit's price in US dollars for a quantity of its meter, such as a gigabyte of bytes. */
