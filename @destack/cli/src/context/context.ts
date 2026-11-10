@@ -14,8 +14,13 @@ import { type Identifier, schema, Version } from "@destack/schema";
 
 import { Catalog } from "../object/catalog.ts";
 import { Terminal } from "../output/index.ts";
+import type { Decision, GrantRequest } from "@destack/account/authentication";
+import { Localization, SOURCE_LOCALE } from "@destack/locale";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
+
+/** The localization the terminal reads permissions in: the source language. */
+const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
 /** The settings Destack's packages declare beside the space's installations'. */
 const BUILT_IN_SETTINGS: readonly Setting[] = [...NATIVE_SETTINGS, ...DESKTOP_SETTINGS];
@@ -186,13 +191,32 @@ export class Context {
 
     /** Open a client of a package of the machine serving a space, as the person. */
     async package<Handle extends PackageHandle>(handle: Handle, location: PlacementEndpoint) {
+        // send as the person, asking them at the terminal for a consent a call needs
         const client = await this.native();
+        const session = await this.person();
+        const decide = (request: GrantRequest) => this.#decide(request);
 
         return createClient<Handle["router"]>(
             handle,
-            (await this.person()).endpoint(handle.id, location),
+            session.endpoint(handle.id, location, { decide }),
             client.environment,
         );
+    }
+
+    /** Ask the person at the terminal whether to grant what an installation asks. */
+    async #decide(request: GrantRequest): Promise<Decision> {
+        // name the package, its address if any, its space and each permission as its package describes it
+        const named = request.installation === undefined ? "" : ` (${request.installation})`;
+        const permissions = request.permissions.map(
+            (permission) => `  - ${SOURCE.render(permission.description)}`,
+        );
+        const question = [
+            `${request.package}${named} in ${request.space} asks to:`,
+            ...permissions,
+            "Allow it?",
+        ].join("\n");
+
+        return (await this.terminal.prompt.confirm(question)) ? "approve" : "deny";
     }
 
     /** Register a directory's working tree unless a checkout has it, and read its path there. */

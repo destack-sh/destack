@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import { type JsonValue, present, schema } from "@destack/schema";
 import type { InstallationRollout } from "@destack/stack/object";
 import { expect, test } from "@destack/test";
-import { TerminalFixture } from "../test/terminal.ts";
+import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
@@ -25,7 +25,14 @@ const Created = schema.looseObject({ id: schema.identifier("installation") });
 const Revisioned = schema.looseObject({ revision: schema.number() });
 
 /** A printed release's version and manifest. */
-const Released = schema.looseObject({ version: schema.string(), manifest: schema.string() });
+const Published = schema.looseObject({
+    releases: schema.array(
+        schema.looseObject({
+            package: schema.looseObject({ version: schema.string() }),
+            manifest: schema.string(),
+        }),
+    ),
+});
 
 /** A printed installation revision's build. */
 const Revised = schema.looseObject({ buildId: schema.identifier("build") });
@@ -41,9 +48,13 @@ const Built = schema.looseObject({
 });
 
 /** Run a command line in the owner's home, printing JSON. */
-async function json(terminal: TerminalFixture, words: readonly string[]): Promise<JsonValue> {
+async function json(
+    terminal: TerminalFixture,
+    words: readonly string[],
+    input: TerminalInput = {},
+): Promise<JsonValue> {
     // run it, refusing a failure
-    const printed = await terminal.printed(["--space", "home", ...words, "--json"]);
+    const printed = await terminal.printed(["--space", "home", ...words, "--json"], input);
     expect({ code: printed.code, error: printed.error }).toEqual({ code: 0, error: "" });
 
     // read the last line, past any progress it showed
@@ -103,18 +114,20 @@ test(
             (target) => target.installation.conditions["Ready"] !== undefined,
         );
 
-        // publish the checkout under latest, then tag its version stable
-        const released = Released.parse(
-            await json(terminal, ["publish", NOTEBOOKS, "--tag", "latest"]),
+        // publish the checkout under latest, allowing the stack to publish, then tag its version stable
+        const published = Published.parse(
+            await json(terminal, ["publish", NOTEBOOKS, "--tag", "latest"], { stdin: "yes\n" }),
         );
-        const specifier = `${PACKAGE.name}@${released.version}`;
+        const released = present(published.releases.at(-1), "the published checkout");
+        const specifier = `${PACKAGE.name}@${released.package.version}`;
         const tagged = await terminal.printed(["tag", specifier, "stable"]);
 
         // wait until the installation following stable runs the release
         const converged = await terminal.rollout(following.id, isReady);
 
         // pin it to the release instead, until it runs it at the new generation
-        const { version, manifest } = released;
+        const { manifest } = released;
+        const { version } = released.package;
         const { revision } = Revisioned.parse(await json(terminal, ["installation", following.id]));
         const update = ["installation", following.id, "update", "--revision", String(revision)];
         const pin = ["--selection-kind", "release", "--selection-version", version];

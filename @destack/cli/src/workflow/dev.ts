@@ -7,7 +7,6 @@ import * as stackObject from "@destack/stack/object";
 import { type Verb, OptionValue, type Options } from "../command/command.ts";
 import type { Context } from "../context/context.ts";
 
-import { openForge } from "./forge.ts";
 import stackPackage from "@destack/stack/package";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
@@ -82,48 +81,34 @@ export function publishCommand(context: Context): Verb {
     };
 }
 
-/** Build a checkout's package in a space, push the build to the registry and release it. */
+/** Build a checkout's package in a space and publish it with its unpublished dependencies. */
 async function publish(
     context: Context,
     directory: string,
     json: boolean,
     values: Options,
 ): Promise<void> {
-    // draw request identifiers from the device's environment
-    const { environment } = await context.native();
-
-    // build the package, and open the forge of its account
+    // build the package, and read the account of its name's handle
+    const native = await context.native();
     const built = await build(context, directory, json, values);
-    const described = built.package;
-    const { client, home, accountId } = await openForge(described.name, context);
+    const accountId = await native.resolve(PackageName.split(built.package.name).handle);
 
-    // create the package on its first publish, as the forge's create is idempotent
-    await client.package.create({
-        spaceId: home,
-        requestId: RequestId.create(environment),
-        id: described.id,
-        accountId,
-        name: PackageName.split(described.name).local,
-    });
-
-    // push the build from its space to the package's forge and release it there
+    // publish the build and the account's builds it pins that the forge lacks, as the person
     const stack = await context.package(stackPackage, await context.locate());
-    await stack.build.push({
+    const tag = OptionValue.string(values["tag"], "tag");
+    const published = await stack.build.publish({
         spaceId: built.space,
         id: built.id,
-        requestId: RequestId.create(environment),
-    });
-    const tag = OptionValue.string(values["tag"], "tag");
-    const released = await client.release.create({
-        spaceId: home,
-        requestId: RequestId.create(environment),
-        parentId: described.id,
-        manifest: built.manifest,
+        requestId: RequestId.create(native.environment),
+        account: accountId,
         ...(tag === undefined ? {} : { tag }),
     });
-    await context.terminal.print(
-        json ? JSON.stringify(released) : `Published ${described.name}@${released.version}.`,
+
+    // print each release, its dependencies before it
+    const lines = published.releases.map(
+        (release) => `Published ${release.package.name}@${release.package.version}.`,
     );
+    await context.terminal.print(json ? JSON.stringify(published) : lines.join("\n"));
 }
 
 /** Build the checkout containing a directory in a space. */

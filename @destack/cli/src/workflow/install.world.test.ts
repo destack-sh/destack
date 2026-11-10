@@ -41,7 +41,10 @@ test(
         const run = (words: readonly string[]) => terminal.printed(["--space", "home", ...words]);
         const organization = ["--name", "Acme", "--handle", "acme", "--residency-id", "eu"];
         const organized = await terminal.printed(["organization", "create", ...organization]);
-        const published = await run(["publish", NOTEBOOKS, "--tag", "latest", "--json"]);
+        const published = await terminal.printed(
+            ["--space", "home", "publish", NOTEBOOKS, "--tag", "latest", "--json"],
+            { stdin: "yes\n" },
+        );
 
         // install the latest release in the owner's home, which returns once the home serves it
         const installing = await run(["install", "@acme/notebooks", "--json"]);
