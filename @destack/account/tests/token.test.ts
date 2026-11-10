@@ -105,6 +105,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             ...ObjectReference.columns("delegate", token),
             permissions,
             expiresAt,
+            sessionId: null,
         },
     ]);
     const grantId = present(grant, "the token's grant").id;

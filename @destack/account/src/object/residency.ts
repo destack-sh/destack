@@ -26,6 +26,9 @@ export const ResidencyCode = schema.string().regex(/^[a-z]{2,16}$/u);
 /** A residency's code. */
 export type ResidencyCode = schema.Infer<typeof ResidencyCode>;
 
+/** A country by its ISO 3166-1 alpha-2 code, such as DE. */
+export const CountryCode = schema.string().regex(/^[A-Z]{2}$/u);
+
 /** A cloud machine serving a residency, with the URL it answers at. */
 export const ServingMachine = schema.object({
     /** The cloud machine. */
@@ -67,6 +70,8 @@ export const residency = defineObject(
             name: field.string(DisplayName),
             /** The origin its accounts' machines open their tunnels at, its relay's. */
             relay: field.string(schema.url()),
+            /** The countries whose people are offered it first when signing up. */
+            countries: field.json(schema.array(CountryCode)).default([]),
             /** The space hosting the residency's platform installations. */
             space: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
         },
@@ -105,14 +110,14 @@ export const residency = defineObject(
     (method) => ({
         /** Store a residency the universe declares, shown to everyone. */
         create: method.create("operate", {
-            fields: ["code", "name", "relay"],
+            fields: ["code", "name", "relay", "countries"],
             visibility: "package",
             isPredicted: false,
         }),
 
         /** Rename a residency, or give it its space. */
         update: method.update("operate", {
-            fields: ["name", "relay", "space"],
+            fields: ["name", "relay", "countries", "space"],
             visibility: "package",
         }),
 
@@ -168,7 +173,7 @@ export const residency = defineObject(
 /** A jurisdiction Destack stores data in. */
 export type Residency = Select<typeof residency.table>;
 
-/** A residency as the universe declares it: its code, the name people read and its relay. */
+/** A residency as the universe declares it: its code, name, relay and the countries offered it. */
 export interface ResidencyDefinition {
     /** The code, the row's key. */
     readonly code: ResidencyCode;
@@ -176,6 +181,8 @@ export interface ResidencyDefinition {
     readonly name: string;
     /** The origin its accounts' machines open their tunnels at. */
     readonly relay: string;
+    /** The countries whose people are offered it first when signing up. */
+    readonly countries: readonly string[];
 }
 
 /** The rows of residencies. */
@@ -285,6 +292,7 @@ export const Residency = {
 
             // create a missing residency
             const { code, name, relay } = definition;
+            const countries = [...definition.countries];
             if (row === undefined) {
                 return [
                     residency.call("create", {
@@ -292,12 +300,19 @@ export const Residency = {
                         code,
                         name,
                         relay,
+                        countries,
                     }),
                 ];
             }
-            // update a renamed or relayed one
-            else if (row.name !== name || row.relay !== relay) {
-                return [residency.call("update", { ...residency.target(row), name, relay })];
+            // update one whose name, relay or countries changed
+            else if (
+                row.name !== name ||
+                row.relay !== relay ||
+                row.countries.join() !== countries.join()
+            ) {
+                return [
+                    residency.call("update", { ...residency.target(row), name, relay, countries }),
+                ];
             }
 
             return [];

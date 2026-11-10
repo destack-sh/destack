@@ -20,7 +20,6 @@ const SENSITIVE_PATHS = new Set([
 
 /** Completed authentication protocols and their verified methods. */
 const METHOD_PATHS: Readonly<Record<string, NonNullable<Session["authenticationMethod"]>>> = {
-    "/magic-link/verify": "magic-link",
     "/sign-in/email-otp": "email-otp",
     "/two-factor/verify-totp": "totp",
     "/two-factor/verify-backup-code": "recovery",

@@ -28,8 +28,8 @@ const DEVICE_INTERVAL_SECONDS = 5;
 /** How long a browser sign-in may take, in milliseconds: ten minutes for the person to sign in. */
 const BROWSER_MILLISECONDS = 10 * 60_000;
 
-/** The scopes a native sign-in asks for: the person's profile, and a refresh token (OIDC). */
-const SIGN_IN_SCOPES = "openid profile offline_access";
+/** The scopes a device signs in with: the person's profile, and a refresh token (OIDC). */
+export const DEVICE_SCOPES = ["openid", "profile", "offline_access"] as const;
 
 /** The issuer's answer to mailing a sign-in code: Better Auth's email OTP's. */
 const CodeSent = schema.looseObject({
@@ -89,9 +89,21 @@ export interface TokenSet {
     readonly accessToken: string;
     /** When the access token expires, in UTC epoch milliseconds. */
     readonly expiresAt: number;
-    /** The refresh token of the signed-in person. */
-    readonly refreshToken: string;
+    /** The refresh token, null for a client that asked none, such as an installation's origin. */
+    readonly refreshToken: string | null;
 }
+
+/** The tokens of a sign-in. */
+export const TokenSet = {
+    /** Read the refresh token a device keeps, refusing tokens without one. */
+    refreshToken(tokens: TokenSet): string {
+        if (tokens.refreshToken === null) {
+            throw AccountError.of("REFRESH_TOKEN_MISSING", "the issuer returned no refresh token");
+        }
+
+        return tokens.refreshToken;
+    },
+};
 
 /** A completed sign-in: the client's tokens and the person of its ID token. */
 export interface SignedIn {
@@ -138,45 +150,103 @@ export class Issuer {
         this.#bookmark = bookmark;
     }
 
-    /** Start a browser sign-in returning to a loopback redirect, fresh for a step-up. */
+    /** Start a browser sign-in returning to a client's redirect, fresh for a step-up. */
     async authorize(
-        clientId: Identifier<"client">,
+        clientId: string,
         redirect: string,
         state: string,
+        scopes: readonly string[],
         now: number,
         stepUp?: StepUp,
     ): Promise<BrowserAuthorization> {
-        // prove the flow with a verifier its S256 challenge commits to
-        const verifier = Pkce.verifier(this.#environment.random);
+        // ask with the parameters in the address
+        const { parameters, verifier } = await this.#authorization(
+            clientId,
+            redirect,
+            state,
+            scopes,
+            stepUp,
+        );
+        const url = new URL(`${this.url}${AUTHORIZATION_PATH}`);
+        url.search = new URLSearchParams(parameters).toString();
+
+        return { url: url.href, verifier, expiresAt: now + BROWSER_MILLISECONDS };
+    }
+
+    /** Start a browser sign-in whose parameters the client signs as a request object (RFC 9101). */
+    async authorizeSigned(
+        clientId: string,
+        redirect: string,
+        state: string,
+        scopes: readonly string[],
+        now: number,
+        sign: (parameters: Readonly<Record<string, string>>) => Promise<string>,
+        stepUp?: StepUp,
+    ): Promise<BrowserAuthorization> {
+        // ask with the signed parameters, beside the client they name
+        const { parameters, verifier } = await this.#authorization(
+            clientId,
+            redirect,
+            state,
+            scopes,
+            stepUp,
+        );
         const url = new URL(`${this.url}${AUTHORIZATION_PATH}`);
         url.search = new URLSearchParams({
+            client_id: clientId,
+            request: await sign(parameters),
+        }).toString();
+
+        return { url: url.href, verifier, expiresAt: now + BROWSER_MILLISECONDS };
+    }
+
+    /** Write a code flow's parameters and the PKCE verifier its S256 challenge commits to. */
+    async #authorization(
+        clientId: string,
+        redirect: string,
+        state: string,
+        scopes: readonly string[],
+        stepUp?: StepUp,
+    ): Promise<{ readonly parameters: Record<string, string>; readonly verifier: string }> {
+        const verifier = Pkce.verifier(this.#environment.random);
+        const parameters = {
             response_type: "code",
             client_id: clientId,
             redirect_uri: redirect,
             state,
-            scope: SIGN_IN_SCOPES,
+            scope: scopes.join(" "),
             resource: PackageId.resource(accountPackage.id),
             code_challenge: await Pkce.challenge(verifier, this.#environment.crypto),
             code_challenge_method: "S256",
+            ...(stepUp === undefined ? {} : { acr_values: `aal${stepUp.assurance}` }),
             ...(stepUp?.maxAge === undefined
                 ? {}
                 : {
                       prompt: "login",
                       max_age: String(Math.floor(stepUp.maxAge / SECOND_MILLISECONDS)),
                   }),
-        }).toString();
+        };
 
-        return { url: url.href, verifier, expiresAt: now + BROWSER_MILLISECONDS };
+        return { parameters, verifier };
     }
 
-    /** Redeem a redirect's authorization code for the client's tokens. */
+    /** Redeem a redirect's authorization code for the person's tokens. */
     async redeem(
-        clientId: Identifier<"client">,
+        clientId: string,
         code: string,
         verifier: string,
         redirect: string,
     ): Promise<SignedIn> {
-        // post the code with its verifier
+        return this.#signedIn(await this.#code(clientId, code, verifier, redirect));
+    }
+
+    /** Post an authorization code with its verifier to the token endpoint (RFC 6749 4.1.3). */
+    async #code(
+        clientId: string,
+        code: string,
+        verifier: string,
+        redirect: string,
+    ): Promise<TokenResponse> {
         const response = await this.#post(TOKEN_PATH, {
             grant_type: "authorization_code",
             code,
@@ -188,7 +258,7 @@ export class Issuer {
             throw await TokenResponse.refusal(response);
         }
 
-        return this.#signedIn(await Issuer.#read(response, TokenResponse));
+        return Issuer.#read(response, TokenResponse);
     }
 
     /** Mail a person a sign-in code. */
@@ -248,7 +318,7 @@ export class Issuer {
         // ask the issuer for the codes
         const response = await this.#post(DEVICE_AUTHORIZATION_PATH, {
             client_id: clientId,
-            scope: SIGN_IN_SCOPES,
+            scope: DEVICE_SCOPES.join(" "),
             resource: PackageId.resource(accountPackage.id),
         });
         if (!response.ok) {
@@ -394,17 +464,21 @@ export class Issuer {
 
     /** Read granted tokens, refusing a grant without a refresh token. */
     #granted(tokens: TokenResponse): TokenSet {
-        if (tokens.refresh_token === undefined) {
-            throw AccountError.of("REFRESH_TOKEN_MISSING", "the issuer returned no refresh token");
-        }
-
         const now = this.#environment.clock.now();
 
-        return { ...TokenResponse.granted(tokens, now), refreshToken: tokens.refresh_token };
+        return {
+            ...TokenResponse.granted(tokens, now),
+            refreshToken: tokens.refresh_token ?? null,
+        };
     }
 
     /** Read a sign-in's tokens and the person of its ID token. */
     #signedIn(granted: TokenResponse): SignedIn {
+        return { tokens: this.#granted(granted), userId: Issuer.#subject(granted) };
+    }
+
+    /** Read the person of a token response's ID token. */
+    static #subject(granted: TokenResponse): Identifier<"user"> {
         // refuse a sign-in without an ID token
         if (granted.id_token === undefined) {
             throw AccountError.of("ID_TOKEN_MISSING", "the issuer returned no ID token");
@@ -422,7 +496,7 @@ export class Issuer {
         );
         const { sub } = IdClaims.parse(JSON.parse(claims));
 
-        return { tokens: this.#granted(granted), userId: sub };
+        return sub;
     }
 
     /** Post a form to one of the issuer's endpoints, keeping the position it answers. */

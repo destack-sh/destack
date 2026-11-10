@@ -3,18 +3,10 @@ import { Failure } from "@destack/error";
 import { AuditCaller } from "@destack/object";
 import { auditedCalls } from "@destack/object/test";
 import { ObjectReference, Subject, RequestId } from "@destack/sync";
-import {
-    Account,
-    account,
-    factor,
-    passkey,
-    placement,
-    session,
-    userLogin,
-} from "../src/object/index.ts";
+import { Account, account, factor, passkey, session, userLogin } from "../src/object/index.ts";
 import { user } from "../src/object/user.ts";
 import { expect, single, test } from "@destack/test";
-import { eq } from "@destack/db";
+import { and, eq, isNull } from "@destack/db";
 import { Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import { Ciphertext } from "@destack/identity";
 import { ActiveSession } from "../src/better-auth/active-session.ts";
@@ -28,7 +20,6 @@ import {
     SIGN_UP,
     TestAccountStore,
     TestBrowser,
-    TestDirectory,
     TestJwt,
 } from "../src/test/index.ts";
 import { DeviceGrant, Redirect } from "./fixture.ts";
@@ -87,11 +78,15 @@ async function current(browser: TestBrowser) {
     return CurrentSession.parse(await (await browser.fetch("/get-session")).json());
 }
 
-/** Sign a browser in by the person's mailed link. */
-async function signInByLink(fixture: TestAccountStore, browser: TestBrowser): Promise<Response> {
-    await browser.fetch("/sign-in/magic-link", { email: EMAIL, callbackURL: "/" });
+/** Sign a browser in by the person's mailed code, answering whether the second factor is due. */
+async function signInByCode(fixture: TestAccountStore, browser: TestBrowser): Promise<unknown> {
+    await browser.fetch("/email-otp/send-verification-otp", { email: EMAIL, type: "sign-in" });
+    const signedIn = await browser.fetch("/sign-in/email-otp", {
+        email: EMAIL,
+        otp: await fixture.code(),
+    });
 
-    return browser.fetch(await fixture.link());
+    return await signedIn.json();
 }
 
 /** Enroll an authenticator in a browser a mailed code signs in, then sign the browser out. */
@@ -129,6 +124,20 @@ function answerProviders(fixture: TestAccountStore): void {
         exp: now + 3600,
     });
 
+    // an ID token a Microsoft tenant would sign, its email's domain verified by its owner
+    const tenant = "9188040d-6c67-4c5b-b112-36a304b66dad";
+    const microsoft = TestJwt.encode({
+        iss: `https://login.microsoftonline.com/${tenant}/v2.0`,
+        aud: "microsoft-client",
+        tid: tenant,
+        sub: "microsoft-subject",
+        email: "grace@example.com",
+        xms_edov: true,
+        name: "Grace",
+        iat: now,
+        exp: now + 3600,
+    });
+
     // answer each provider endpoint by URL
     const answers: JsonObject = {
         "https://github.com/login/oauth/access_token": {
@@ -144,6 +153,13 @@ function answerProviders(fixture: TestAccountStore): void {
             access_token: "google-access-token",
             expires_in: 3600,
             id_token: token,
+            token_type: "Bearer",
+            scope: "openid email profile",
+        },
+        "https://login.microsoftonline.com/common/oauth2/v2.0/token": {
+            access_token: "microsoft-access-token",
+            expires_in: 3600,
+            id_token: microsoft,
             token_type: "Bearer",
             scope: "openid email profile",
         },
@@ -165,59 +181,74 @@ function answerProviders(fixture: TestAccountStore): void {
     }
 }
 
-test("sign a person up by a mailed link once, and end the browser's session from the command line and by signing out", async () => {
+test("sign a person up by a mailed code once, its mail linking the sign-up view, and end the browser's session from the command line and by signing out", async () => {
     await using fixture = await TestAccountStore.open();
     const { database, authenticator } = fixture;
     const started = (await auditedCalls(database)).length;
 
-    // request a sign-in link through the HTTP route a browser calls
-    const requested = await fixture.fetch(
-        new Request(`${ISSUER}/sign-in/magic-link`, {
-            method: "POST",
-            headers: { "content-type": "application/json", origin: ORIGIN },
-            body: JSON.stringify({
-                email: EMAIL,
-                callbackURL: "/",
-                metadata: { ...SIGN_UP, name: "Florian", handle: "florian", residencyId: "eu" },
+    // request a sign-in code through the HTTP route a browser calls
+    const post = (path: string, body: object) =>
+        fixture.fetch(
+            new Request(`${ISSUER}${path}`, {
+                method: "POST",
+                headers: { "content-type": "application/json", origin: ORIGIN },
+                body: JSON.stringify(body),
             }),
-        }),
-    );
-    const messages = await fixture.links();
-    const link = single(messages).url;
-    const query = new URL(link).searchParams;
-    const token = present(query.get("token"), "the link token");
-    query.delete("token");
+        );
+    const requested = await post("/email-otp/send-verification-otp", {
+        email: EMAIL,
+        type: "sign-in",
+    });
+    const mailed = single(await fixture.links());
+    const link = new URL(mailed.url);
+    const otp = await fixture.code();
+
+    // mail the code with a link entering it on the sign-up view, as nobody owns the email yet
     expect([
         await answered(requested),
-        messages.map(({ email }) => email),
-        Object.fromEntries(query),
-    ]).toEqual([
-        [200, { status: true }],
-        [EMAIL],
-        { callbackURL: "/", ...SIGN_UP, name: "Florian", handle: "florian", residencyId: "eu" },
-    ]);
+        mailed.email,
+        `${link.origin}${link.pathname}`,
+        Object.fromEntries(link.searchParams),
+    ]).toEqual([[200, { success: true }], EMAIL, `${ORIGIN}/sign-up`, { email: EMAIL, code: otp }]);
 
-    // store the SHA-256 digest of the link token in base64url alone
+    // store the SHA-256 digest of the code in base64url beside its attempts alone
     const digest = await fixture.environment.crypto.digest(
         "SHA-256",
-        new TextEncoder().encode(token),
+        new TextEncoder().encode(otp),
     );
-    expect(single(await database.select().from(verification)).identifier).toBe(
-        new Uint8Array(digest).toBase64({ alphabet: "base64url", omitPadding: true }),
+    expect(single(await database.select().from(verification)).value).toBe(
+        `${new Uint8Array(digest).toBase64({ alphabet: "base64url", omitPadding: true })}:0`,
     );
 
-    // verify the link once, refusing its replay
-    const verified = await fixture.fetch(new Request(link));
+    // sign up with the code once, refusing its replay
+    const signUp = {
+        email: EMAIL,
+        otp,
+        ...SIGN_UP,
+        name: "Florian",
+        handle: "florian",
+        residencyId: "eu",
+    };
+    const verified = await post("/sign-in/email-otp", signUp);
     const cookies = verified.headers
         .getSetCookie()
         .map((cookie) => cookie.split(";")[0])
         .join("; ");
-    const replay = await fixture.fetch(new Request(link));
-    expect([
-        [verified.status, TestBrowser.location(verified)],
-        [replay.status, TestBrowser.location(replay)],
-        await database.select().from(verification),
-    ]).toEqual([[302, `${ORIGIN}/`], [302, `${ORIGIN}/?error=INVALID_TOKEN`], []]);
+    const [status] = await answered(verified);
+    const replay = await post("/sign-in/email-otp", signUp);
+    expect([status, await answered(replay), await database.select().from(verification)]).toEqual([
+        200,
+        [
+            400,
+            {
+                code: "BAD_REQUEST",
+                reason: "INVALID_OTP",
+                domain: "better-auth",
+                message: "Invalid OTP",
+            },
+        ],
+        [],
+    ]);
 
     // store the person and their session, which the cookie signs in
     const person = single(
@@ -246,7 +277,7 @@ test("sign a person up by a mailed link once, and end the browser's session from
         { id: person.id, name: "Florian", email: EMAIL, emailVerified: true },
         { id: login.id, userId: person.id },
         person.id,
-        "magic-link",
+        "email-otp",
     ]);
 
     // revoke the browser's session from the person's command line, without waiting for the cookie to expire
@@ -262,21 +293,41 @@ test("sign a person up by a mailed link once, and end the browser's session from
     );
     expect(await answered(revoked)).toEqual([
         401,
-        { code: "SESSION_ENDED", message: "session is no longer authorized" },
+        {
+            code: "UNAUTHORIZED",
+            reason: "SESSION_ENDED",
+            domain: "@destack/account",
+            message: "session is no longer authorized",
+        },
     ]);
 
-    // sign out through the browser protocol and reject the previously valid cookie
+    // sign out through the browser protocol, keeping the session revoked and its cookie refused
     const signedOut = await fixture.fetch(
         new Request(`${ISSUER}/sign-out`, {
             method: "POST",
             headers: { cookie: cookies, origin: ORIGIN },
         }),
     );
-    expect([
-        await answered(signedOut),
-        await authenticator.auth.api.getSession({ headers: new Headers({ cookie: cookies }) }),
-        await database.select().from(session.table).where(eq(session.table.id, login.id)),
-    ]).toEqual([[200, { success: true }], null, []]);
+    const after = await fixture.fetch(
+        new Request(`${ISSUER}/get-session`, { headers: { cookie: cookies } }),
+    );
+    const [ended] = await database
+        .select({ revokedAt: session.table.revokedAt })
+        .from(session.table)
+        .where(eq(session.table.id, login.id));
+    expect([await answered(signedOut), await answered(after), ended?.revokedAt !== null]).toEqual([
+        [200, { success: true }],
+        [
+            401,
+            {
+                code: "UNAUTHORIZED",
+                reason: "SESSION_ENDED",
+                domain: "@destack/account",
+                message: "session is no longer authorized",
+            },
+        ],
+        true,
+    ]);
 
     // retain each authentication request and its outcome without credential contents
     const audited = await auditedCalls(database);
@@ -290,13 +341,13 @@ test("sign a person up by a mailed link once, and end the browser's session from
                 outcome: call.execution.outcome,
             })),
     ).toEqual([
-        { endpoint: "/sign-in/magic-link", outcome: { kind: "success" } },
-        { endpoint: "/magic-link/verify", outcome: { kind: "success" } },
+        { endpoint: "/email-otp/send-verification-otp", outcome: { kind: "success" } },
+        { endpoint: "/sign-in/email-otp", outcome: { kind: "success" } },
         {
-            endpoint: "/magic-link/verify",
+            endpoint: "/sign-in/email-otp",
             outcome: {
                 kind: "failure",
-                error: Failure.http("UNAUTHORIZED", "authentication rejected"),
+                error: Failure.http("BAD_REQUEST", "authentication rejected"),
             },
         },
         { endpoint: "/email-otp/send-verification-otp", outcome: { kind: "success" } },
@@ -339,42 +390,9 @@ test("sign a person up by a mailed link once, and end the browser's session from
             method: "session.create",
             actor: { subject },
             target: { type: "session", id: login.id },
-            details: { path: "/magic-link/verify" },
+            details: { path: "/sign-in/email-otp" },
             outcome: { kind: "success" },
         },
-    ]);
-});
-
-test("send a signed-in person from the sign-in page to their Home, and say it starts while their home's machine answers nowhere", async () => {
-    // sign a person up through a mailed link, which places their home at the residency's machine, and open the sign-in page
-    await using fixture = await TestAccountStore.open();
-    const { person, browser } = await fixture.signInWithLink("ada@example.com", "ada");
-    const answering = await browser.fetch("/sign-in");
-
-    // withdraw the endpoint of the machine serving their home, and open the page again
-    const home = Account.home(Account.personal(person.id));
-    const placed = single(
-        await fixture.database
-            .select()
-            .from(placement.table)
-            .where(eq(placement.table.spaceId, home)),
-    );
-    await TestDirectory.publish(
-        fixture.database,
-        placed.machineId,
-        placed.scope,
-        null,
-        fixture.clock,
-    );
-    const starting = await browser.fetch("/sign-in");
-
-    // send the person to Home's origin in their home space, then say it starts
-    expect([
-        [answering.status, answering.headers.get("location")],
-        [starting.status, starting.headers.get("location")],
-    ]).toEqual([
-        [303, "https://home--home--ada.destack.space/"],
-        [200, null],
     ]);
 });
 
@@ -462,10 +480,9 @@ test("stop a passwordless sign-in at the second factor, and complete it with a r
         );
     const enrolled = await factorOf();
 
-    // stop a magic link at the second factor
+    // stop a mailed code at the second factor
     const browser = fixture.browser();
-    const challenge = await signInByLink(fixture, browser);
-    const stopped = new URL(TestBrowser.location(challenge), ORIGIN);
+    const challenge = await signInByCode(fixture, browser);
     const unfinished: unknown = await (await browser.fetch("/get-session")).json();
 
     // complete the sign-in with a recovery code, spending it
@@ -474,13 +491,13 @@ test("stop a passwordless sign-in at the second factor, and complete it with a r
     expect({
         sealed: Ciphertext.safeParse(enrolled.secret).success,
         codes: [enrolled.recoveryCodes.length, consumed.recoveryCodes.length],
-        challenge: [challenge.status, `${stopped.origin}${stopped.pathname}`],
+        challenge,
         unfinished,
         session: (await current(browser)).user.email,
     }).toEqual({
         sealed: true,
         codes: [10, 9],
-        challenge: [302, `${ISSUER}/sign-in/two-factor`],
+        challenge: { twoFactorRedirect: true, twoFactorMethods: ["totp"] },
         unfinished: null,
         session: EMAIL,
     });
@@ -491,12 +508,12 @@ test("refuse a spent recovery code in a later sign-in", async () => {
     await using fixture = await TestAccountStore.open();
     const { backupCodes } = await enroll(fixture, fixture.browser());
     const first = fixture.browser();
-    await signInByLink(fixture, first);
+    await signInByCode(fixture, first);
     const spent = await first.fetch("/two-factor/verify-backup-code", { code: backupCodes[0] });
 
     // refuse it in another
     const second = fixture.browser();
-    await signInByLink(fixture, second);
+    await signInByCode(fixture, second);
     const replay = await second.fetch("/two-factor/verify-backup-code", { code: backupCodes[0] });
     expect([
         spent.status,
@@ -504,7 +521,15 @@ test("refuse a spent recovery code in a later sign-in", async () => {
         await (await second.fetch("/get-session")).json(),
     ]).toEqual([
         200,
-        [401, { code: "CODE_INVALID", message: "the recovery code is wrong or used" }],
+        [
+            401,
+            {
+                code: "UNAUTHORIZED",
+                reason: "CODE_INVALID",
+                domain: "@destack/account",
+                message: "the recovery code is wrong or used",
+            },
+        ],
         null,
     ]);
 });
@@ -516,10 +541,10 @@ test("lock a factor after five wrong codes across sign-ins, and accept its codes
     const wrong = async (browser: TestBrowser) =>
         answered(await browser.fetch("/two-factor/verify-totp", { code: "000000" }));
     const first = fixture.browser();
-    await signInByLink(fixture, first);
+    await signInByCode(fixture, first);
     const tried = [await wrong(first), await wrong(first), await wrong(first)];
     const second = fixture.browser();
-    await signInByLink(fixture, second);
+    await signInByCode(fixture, second);
     tried.push(await wrong(second), await wrong(second));
 
     // refuse the sixth code and then a right one while locked
@@ -535,12 +560,25 @@ test("lock a factor after five wrong codes across sign-ins, and accept its codes
     // accept a right code in a new sign-in once the lock lifted
     await fixture.simulation.jump(fixture.clock.now() + 15 * 60_000);
     const third = fixture.browser();
-    await signInByLink(fixture, third);
+    await signInByCode(fixture, third);
     const [status] = await right(third);
-    const wrongCode = [401, { code: "CODE_INVALID", message: "the code is wrong or expired" }];
+    const wrongCode = [
+        401,
+        {
+            code: "UNAUTHORIZED",
+            reason: "CODE_INVALID",
+            domain: "@destack/account",
+            message: "the code is wrong or expired",
+        },
+    ];
     const lockedOut = [
         429,
-        { code: "FACTOR_LOCKED", message: "too many wrong codes: try again later" },
+        {
+            code: "TOO_MANY_REQUESTS",
+            reason: "FACTOR_LOCKED",
+            domain: "@destack/account",
+            message: "too many wrong codes: try again later",
+        },
     ];
     expect({ tried, locked, refused, status }).toEqual({
         tried: Array.from({ length: 5 }, () => wrongCode),
@@ -558,10 +596,10 @@ test("accept one of two codes checked at once, refusing the other", async () => 
         fixture.database
             .select({ id: session.table.id })
             .from(session.table)
-            .where(eq(session.table.userId, userId));
+            .where(and(eq(session.table.userId, userId), isNull(session.table.revokedAt)));
     const before = await sessionsOf();
     const browser = fixture.browser();
-    await signInByLink(fixture, browser);
+    await signInByCode(fixture, browser);
     const code = await authenticatorCode(totpURI, fixture.environment, 0);
     const answers = await Promise.all(
         [0, 1].map(async () => answered(await browser.fetch("/two-factor/verify-totp", { code }))),
@@ -578,13 +616,18 @@ test("refuse enrolling an authenticator over a verified one", async () => {
     await using fixture = await TestAccountStore.open();
     const { totpURI } = await enroll(fixture, fixture.browser());
     const browser = fixture.browser();
-    await signInByLink(fixture, browser);
+    await signInByCode(fixture, browser);
     await browser.fetch("/two-factor/verify-totp", {
         code: await authenticatorCode(totpURI, fixture.environment, 0),
     });
     expect(await answered(await browser.fetch("/two-factor/enable", { method: "totp" }))).toEqual([
         409,
-        { code: "FACTOR_ENROLLED", message: "the person has an authenticator: disable it first" },
+        {
+            code: "CONFLICT",
+            reason: "FACTOR_ENROLLED",
+            domain: "@destack/account",
+            message: "the person has an authenticator: disable it first",
+        },
     ]);
 });
 
@@ -593,7 +636,7 @@ test("disable an authenticator only with a current code", async () => {
     await using fixture = await TestAccountStore.open();
     const { totpURI, userId } = await enroll(fixture, fixture.browser());
     const browser = fixture.browser();
-    await signInByLink(fixture, browser);
+    await signInByCode(fixture, browser);
     const code = async (offset: number) => authenticatorCode(totpURI, fixture.environment, offset);
     await browser.fetch("/two-factor/verify-totp", { code: await code(0) });
 
@@ -606,7 +649,15 @@ test("disable an authenticator only with a current code", async () => {
         .from(factor.table)
         .where(eq(factor.table.userId, userId));
     expect([wrong, disabled.status, left]).toEqual([
-        [401, { code: "CODE_INVALID", message: "the code is wrong or expired" }],
+        [
+            401,
+            {
+                code: "UNAUTHORIZED",
+                reason: "CODE_INVALID",
+                domain: "@destack/account",
+                message: "the code is wrong or expired",
+            },
+        ],
         200,
         [],
     ]);
@@ -615,7 +666,7 @@ test("disable an authenticator only with a current code", async () => {
 test("approve a device's new client in a signed-in session, and redeem its code once as the client", async () => {
     // request a device code as a new client, and approve it in the person's signed-in browser
     await using fixture = await TestAccountStore.open();
-    const { browser } = await fixture.signInWithLink(EMAIL);
+    const { browser } = await fixture.signInBrowser(EMAIL);
     const device = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
     const offered = await device.fetch(
@@ -627,10 +678,7 @@ test("approve a device's new client in a signed-in session, and redeem its code 
         }),
     );
     const grant = DeviceGrant.parse(await offered.json());
-    const approved = await browser.fetch(
-        `/device?${new URLSearchParams({ user_code: grant.user_code })}`,
-        new URLSearchParams({ action: "approve" }),
-    );
+    const approved = await browser.verify(grant.user_code, "approve");
 
     // redeem the code as the client once, its tokens naming the client
     const redeem = () =>
@@ -658,7 +706,7 @@ test("approve a device's new client in a signed-in session, and redeem its code 
 test("refuse refreshing a device's tokens once the person revokes its client", async () => {
     // sign a device's new client in by a device code the person approves
     await using fixture = await TestAccountStore.open();
-    const { person, browser } = await fixture.signInWithLink(EMAIL);
+    const { person, browser } = await fixture.signInBrowser(EMAIL);
     const device = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
     const offered = await device.fetch(
@@ -670,10 +718,7 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
         }),
     );
     const grant = DeviceGrant.parse(await offered.json());
-    await browser.fetch(
-        `/device?${new URLSearchParams({ user_code: grant.user_code })}`,
-        new URLSearchParams({ action: "approve" }),
-    );
+    await browser.verify(grant.user_code, "approve");
     const exchanged = await device.fetch(
         "/oauth2/token",
         new URLSearchParams({
@@ -707,8 +752,8 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
 test("list and revoke a session over the account package", async () => {
     // sign the owner in on two browsers, each beside a native client
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser: ownerBrowser } = await fixture.signInWithLink(EMAIL);
-    const { browser: otherBrowser } = await fixture.signInWithLink(EMAIL);
+    const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser(EMAIL);
+    const { browser: otherBrowser } = await fixture.signInBrowser(EMAIL);
     const sessions = owner.client(accountPackage).session;
 
     // list the sessions of both browsers and both clients of the user
@@ -740,11 +785,19 @@ test("list and revoke a session over the account package", async () => {
             updatedAt: fixture.clock.now(),
             revision: before.revision + 1,
         },
-        [401, { code: "SESSION_ENDED", message: "session is no longer authorized" }],
+        [
+            401,
+            {
+                code: "UNAUTHORIZED",
+                reason: "SESSION_ENDED",
+                domain: "@destack/account",
+                message: "session is no longer authorized",
+            },
+        ],
     ]);
 
     // revoke every other session of the user except the calling one
-    const { browser: thirdBrowser } = await fixture.signInWithLink(EMAIL);
+    const { browser: thirdBrowser } = await fixture.signInBrowser(EMAIL);
     const calling = (await current(ownerBrowser)).session.id;
     await sessions.revokeOthers({
         userId: owner.id,
@@ -756,7 +809,15 @@ test("list and revoke a session over the account package", async () => {
         await answered(await thirdBrowser.fetch("/get-session")),
     ]).toEqual([
         calling,
-        [401, { code: "SESSION_ENDED", message: "session is no longer authorized" }],
+        [
+            401,
+            {
+                code: "UNAUTHORIZED",
+                reason: "SESSION_ENDED",
+                domain: "@destack/account",
+                message: "session is no longer authorized",
+            },
+        ],
     ]);
 
     // close Better Auth's endpoints the session objects replace
@@ -771,7 +832,7 @@ test("list and revoke a session over the account package", async () => {
 test("register a passkey and sign in with it", async () => {
     // register the passkey through the browser ceremony
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser: ownerBrowser } = await fixture.signInWithLink(EMAIL);
+    const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser(EMAIL);
     const authenticator = await PasskeyAuthenticator.generate(ORIGIN, fixture.environment);
     const creation = await ownerBrowser.fetch("/passkey/generate-register-options");
     const registered = await ownerBrowser.fetch("/passkey/verify-registration", {
@@ -808,18 +869,19 @@ test("register a passkey and sign in with it", async () => {
     });
 });
 
-test("sign people up with github and google, taking their name, time zone and locale from the profile or the sign-up", async () => {
+test("sign people up with github, google and microsoft, taking their name, time zone and locale from the profile or the sign-up", async () => {
     // complete each provider's authorization code callback in a separate browser
     await using fixture = await TestAccountStore.open({
         signIn: {
             providers: {
                 github: { clientId: "github-client", clientSecret: "github-secret" },
                 google: { clientId: "google-client", clientSecret: "google-secret" },
+                microsoft: { clientId: "microsoft-client", clientSecret: "microsoft-secret" },
             },
         },
     });
     answerProviders(fixture);
-    const signUp = async (provider: "github" | "google") => {
+    const signUp = async (provider: "github" | "google" | "microsoft") => {
         // follow the provider's page back to the callback with the sign-in's state
         const browser = fixture.browser();
         const started = await browser.fetch("/sign-in/social", {
@@ -846,10 +908,13 @@ test("sign people up with github and google, taking their name, time zone and lo
             .where(eq(user.table.id, schema.identifier("user").parse(signedUp.user.id)));
     };
 
-    // store each person's sign-up, and each provider identity without its signed ID token
+    // list the providers, store each person's sign-up, and each provider identity without its signed ID token
+    const listed: unknown = await (await fixture.browser().fetch("/sign-in/providers")).json();
     expect({
+        listed,
         github: await signUp("github"),
         google: await signUp("google"),
+        microsoft: await signUp("microsoft"),
         logins: await fixture.database
             .select({
                 providerId: userLogin.table.providerId,
@@ -858,11 +923,14 @@ test("sign people up with github and google, taking their name, time zone and lo
             })
             .from(userLogin.table),
     }).toEqual({
+        listed: { providers: ["github", "google", "microsoft"] },
         github: [{ name: "Octo", ...SIGN_UP }],
         google: [{ name: "Ada", timeZone: "Europe/London", locale: "en-GB" }],
+        microsoft: [{ name: "Grace", ...SIGN_UP }],
         logins: [
             { providerId: "github", providerUserId: "1", idToken: null },
             { providerId: "google", providerUserId: "google-subject", idToken: null },
+            { providerId: "microsoft", providerUserId: "microsoft-subject", idToken: null },
         ],
     });
 });

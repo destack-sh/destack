@@ -1,4 +1,5 @@
 import {
+    anyone,
     CONTAINED,
     contained,
     none,
@@ -66,6 +67,8 @@ export const account = defineObject(
             home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
             // the people the account's managers let publish packages under its name, and its trusted publishers
             publisher: { subjects: [principal.user], grantedBy: "manage", open: true },
+            // anyone, who finds the account's profile without reading it
+            public: { subjects: [anyone.all()] },
         },
         permissions: {
             // inherit from the organization: its members view and its administrators manage
@@ -79,7 +82,9 @@ export const account = defineObject(
             edit: through("organization", "manage"),
             manage: through("organization", "manage"),
             bill: union(permission("manage"), through("organization", "bill")),
-            list: union(permission("read"), permission("serve")),
+            list: union(permission("view"), relation("public")),
+            // let those reading or serving the account see it whole, its replicas among them
+            view: union(permission("read"), permission("serve")),
             replicate: union(contained(principal.space), relation("resident")),
             // let the residency's servers and installations, the account's home and its machines serve it
             serve: union(
@@ -106,6 +111,11 @@ export const account = defineObject(
             place: none(),
             // let the account's home declare and provision the account's own resources
             provision: relation("home"),
+        },
+        // show those who find the account without reading it its profile, residency, revision and trash state
+        guard: {
+            read: "view",
+            except: ["handle", "name", "kind", "residencyId", "revision", "deletedAt"],
         },
         shareable: {},
         reserved: ["administer", "replicate", "serve", "entitle", "claim", "place", "provision"],
@@ -256,11 +266,12 @@ export const Account = {
         const homed = principal.space.reference(Scope.universe.id, Account.home(object.id));
         const home = { relation: "home", subject: homed };
         const inside = { relation: "home", subject: { ...homed, relation: CONTAINED } };
+        const shown = { relation: "public", subject: anyone.reference("*", "*") };
 
         // leave an organization's account to the organization's members
         const scope = await Scope.object(context, context.scope);
         if (organization.is(scope)) {
-            return { relationships: [resident, claimant, relay, installed, home, inside] };
+            return { relationships: [resident, claimant, relay, installed, home, inside, shown] };
         }
 
         // require a creator of a user's account
@@ -278,6 +289,7 @@ export const Account = {
                 installed,
                 home,
                 inside,
+                shown,
             ],
             owner: { ...object, relation: "owner" },
         };

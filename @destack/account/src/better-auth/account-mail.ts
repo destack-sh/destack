@@ -18,15 +18,15 @@ export const CODE_PURPOSES = {
     "change-email": "email change",
 } as const;
 
-/** The emails an account receives: a sign-in link, or a one-use code. */
+/** The emails an account receives: a sign-in code with its link, or another one-use code. */
 export const AccountMail = {
-    /** Compose the email with a sign-in link. */
-    link(url: string): MailContent {
+    /** Compose the email with a sign-in code, and a link entering it on the page it opens. */
+    signIn(otp: string, link: URL): MailContent {
         return {
-            subject: "Sign in to Destack",
-            text: `Sign in to Destack with this link:\n\n${url}\n\nIf you did not ask to sign in, ignore this email.`,
-            html: html`<p>Sign in to Destack with this link:</p>
-                <p><a href="${url}">Sign in</a></p>
+            subject: `Your Destack code is ${otp}`,
+            text: `Your Destack sign-in code is ${otp}.\n\nOr continue with this link:\n\n${link.href}\n\nIf you did not ask to sign in, ignore this email.`,
+            html: html`<p>Your Destack sign-in code is <strong>${otp}</strong>.</p>
+                <p>Or <a href="${link.href}">continue with this link</a>.</p>
                 <p>If you did not ask to sign in, ignore this email.</p>`.text,
         };
     },

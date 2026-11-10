@@ -1,13 +1,15 @@
-import { type Select } from "@destack/db";
-import { type MethodContext, defineAuditAction, defineObject, field } from "@destack/object";
+import { AccessContext, accessGrant, Caller, principal } from "@destack/access";
+import { type Select, type Snapshot, type Table } from "@destack/db";
+import { type MethodContext, defineAuditAction, defineObject, field, grant } from "@destack/object";
 import { schema } from "@destack/schema";
+import { type Call, RequestId, Scope } from "@destack/sync";
+import type { ObjectStore } from "@destack/object/server";
 import { Revocation } from "../credential/revocation.ts";
 import { client } from "./client.ts";
 import { user } from "./user.ts";
 
 /** The verified methods of an authentication ceremony. */
 export const AUTHENTICATION_METHODS = [
-    "magic-link",
     "email-otp",
     "oauth",
     "totp",
@@ -73,11 +75,20 @@ export const session = defineObject(
     }),
 ).implement({
     methods: {
-        revoke: (call) => {
+        revoke: async (call) => {
             // withdraw the target now, refusing one withdrawn before
             Revocation.requireUnrevoked(call.target, call.object.name);
+            const revoked = await call.update({ revokedAt: call.now });
 
-            return call.update({ revokedAt: call.now });
+            // revoke the grants its person gave for this sign-in alone, as the person
+            const reader = { read: <Read extends Table>(table: Read) => call.read(table) };
+            const calls = await Session.grantRevocations(reader, call.target.id);
+            if (calls.length > 0) {
+                const person = principal.user.reference(Scope.universe.id, call.target.userId);
+                await call.mutate(AccessContext.of(Caller.of(person), call.now), calls);
+            }
+
+            return revoked;
         },
         revokeOthers: async (call) => {
             await revokeOthers(call, call.target.id);
@@ -94,6 +105,31 @@ export const session = defineObject(
 });
 /** A persisted session record. */
 export type Session = Select<typeof session.table>;
+
+/** A person's sign-in, which ends the grants they gave for it alone. */
+export const Session = {
+    /** Revoke sessions as their people, each revoking the grants given for it alone. */
+    async revoke(
+        objects: Pick<ObjectStore, "mutate" | "environment">,
+        sessions: readonly Pick<Session, "id" | "scope" | "userId">[],
+        now: number,
+    ): Promise<void> {
+        for (const row of sessions) {
+            const person = principal.user.reference(Scope.universe.id, row.userId);
+            await objects.mutate(AccessContext.of(Caller.of(person), now), {
+                id: RequestId.create(objects.environment),
+                calls: [session.call("revoke", session.target(row))],
+            });
+        }
+    },
+
+    /** List the calls revoking the grants a person gave for one sign-in alone. */
+    async grantRevocations(reader: Pick<Snapshot, "read">, id: Session["id"]): Promise<Call[]> {
+        const bound = await reader.read(accessGrant).findMany({ where: { sessionId: id } });
+
+        return bound.map((row) => grant.call("revoke", grant.target(row)));
+    },
+};
 
 /** End every active session of the target's user but the target. */
 async function revokeOthers(context: MethodContext, current: Session["id"]): Promise<void> {

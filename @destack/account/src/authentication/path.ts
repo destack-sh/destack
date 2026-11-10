@@ -24,3 +24,20 @@ export const INTROSPECTION_PATH = "/oauth2/introspect";
 
 /** The path of the userinfo endpoint below the issuer's URL (OIDC Core 5.3). */
 export const USER_INFO_PATH = "/oauth2/userinfo";
+
+/** The path of the stored authorization requests a consent view reads and decides (Ory Hydra's). */
+export const AUTHORIZATION_REQUEST_PATH = "/oauth2/requests/authorization";
+
+/** The path of the signed-in person's consents, which their list of apps reads and revokes. */
+export const CONSENT_PATH = "/oauth2/consents";
+
+/** The path of the pending device sign-ins a verification view reads and decides. */
+export const DEVICE_REQUEST_PATH = "/oauth2/requests/device";
+/** The path of a sign-up's handle check below the issuer's URL. */
+export const HANDLE_CHECK_PATH = "/sign-up/handle";
+/** The path of the residencies a sign-up chooses from below the issuer's URL. */
+export const RESIDENCY_CHOICE_PATH = "/sign-up/residency";
+/** The path of where a signed-in person's Home answers, below the issuer's URL. */
+export const HOME_LOCATION_PATH = "/home";
+/** The path of the providers the issuer signs people in through, below the issuer's URL. */
+export const SIGN_IN_PROVIDERS_PATH = "/sign-in/providers";

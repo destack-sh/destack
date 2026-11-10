@@ -122,19 +122,14 @@ test("grant an organization's members the access of their relations", async () =
         accessed.push(await access(person, organizationId, accountId, fixture.store.environment));
     }
 
-    // conceal the account from people outside it, and the whole organization from the one who left
+    // conceal the account from people outside it and from the one who left, and the organization from the latter
     const hidden = ["NOT_FOUND", "NOT_FOUND", `account ${accountId} not found`];
-    const concealed = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${organizationId} not found`];
     expect(accessed).toEqual([
         ["done", "done", "done"],
         ["done", "done", ["FORBIDDEN", "PERMISSION_DENIED", `permission denied: update`]],
         ["done", hidden, hidden],
         ["done", hidden, hidden],
-        [
-            ["NOT_FOUND", "NOT_FOUND", `organization ${organizationId} not found`],
-            concealed,
-            concealed,
-        ],
+        [["NOT_FOUND", "NOT_FOUND", `organization ${organizationId} not found`], hidden, hidden],
     ]);
 });
 

@@ -1,6 +1,8 @@
 import type { Authorizer } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
 import type { Environment } from "@destack/environment";
+import { REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
+import { ConsentEndpoint } from "./consent.ts";
 import { CALL_ERROR_STATUSES, Failure } from "@destack/error";
 import type { JwtClaims, KeySet } from "@destack/identity";
 import { Bookmark, BOOKMARK_HEADER } from "@destack/object/client";
@@ -9,7 +11,10 @@ import { Scope } from "@destack/sync";
 import type { AuthContext } from "better-auth";
 import {
     AUTHORIZATION_PATH,
+    AUTHORIZATION_REQUEST_PATH,
+    CONSENT_PATH,
     DEVICE_AUTHORIZATION_PATH,
+    DEVICE_REQUEST_PATH,
     INTROSPECTION_PATH,
     JWKS_PATH,
     METADATA_PATHS,
@@ -20,9 +25,9 @@ import {
 import { OAuthError } from "../authentication/token.ts";
 import { OAUTH_CLIENT_AUTHENTICATIONS } from "../object/application.ts";
 import { Prompt } from "../object/authorization-request.ts";
-import { AuthorizationEndpoint, codeGrant } from "./authorization.ts";
-import { bearerGrant, JWT_BEARER } from "./bearer.ts";
-import { DeviceAuthorizationEndpoint, deviceGrant } from "./device.ts";
+import { AuthorizationEndpoint, AuthorizationRequestEndpoint, codeGrant } from "./authorization.ts";
+import { assertionVerifier, bearerGrant, JWT_BEARER } from "./bearer.ts";
+import { DeviceAuthorizationEndpoint, deviceGrant, DeviceRequestEndpoint } from "./device.ts";
 import { type CodeCheck, emailGrant } from "./email.ts";
 import { exchangeGrant, TOKEN_EXCHANGE } from "./exchange.ts";
 import { DEVICE_CODE, EMAIL_CODE } from "./party.ts";
@@ -76,7 +81,9 @@ export interface AuthorizationServerOptions {
     /** The check of mailed sign-in codes, spending each. */
     readonly codes: CodeCheck;
     /** The Better Auth context, which creates the people and sessions mailed codes sign in. */
-    readonly context: Promise<Pick<AuthContext, "internalAdapter" | "sessionConfig">>;
+    readonly context: Promise<
+        Pick<AuthContext, "internalAdapter" | "sessionConfig" | "isTrustedOrigin">
+    >;
     /** The pages a person signs in, consents and approves devices on. */
     readonly pages: { readonly signIn: URL; readonly consent: URL; readonly verification: URL };
 }
@@ -108,14 +115,19 @@ export class AuthorizationServer {
         const { issuer, pages } = options;
         this.#base = new URL(issuer).pathname;
         this.#objects = options.objects;
-        this.authorization = new AuthorizationEndpoint({ ...options, ...pages });
+        const endpoint = `${issuer}${TOKEN_PATH}`;
+        this.authorization = new AuthorizationEndpoint({
+            ...options,
+            ...pages,
+            requests: assertionVerifier({ ...options, endpoint: issuer }, REQUEST_OBJECT_TYPE),
+        });
         this.device = new DeviceAuthorizationEndpoint({ ...options, ...pages });
         this.token = new TokenEndpoint(
             options,
             new Map([
                 ["authorization_code", codeGrant(options)],
                 ["refresh_token", refreshGrant(options)],
-                [JWT_BEARER, bearerGrant({ ...options, endpoint: `${issuer}${TOKEN_PATH}` })],
+                [JWT_BEARER, bearerGrant({ ...options, endpoint })],
                 [TOKEN_EXCHANGE, exchangeGrant(options)],
                 [EMAIL_CODE, emailGrant(options)],
                 [DEVICE_CODE, deviceGrant(options)],
@@ -130,6 +142,15 @@ export class AuthorizationServer {
             [AUTHORIZATION_PATH, this.authorization],
             [TOKEN_PATH, this.token],
             [DEVICE_AUTHORIZATION_PATH, this.device],
+            [
+                AUTHORIZATION_REQUEST_PATH,
+                new AuthorizationRequestEndpoint(this.authorization, options.context),
+            ],
+            [
+                DEVICE_REQUEST_PATH,
+                new DeviceRequestEndpoint(this.device, options.session, options.context),
+            ],
+            [CONSENT_PATH, new ConsentEndpoint(options)],
             [REVOCATION_PATH, new RevocationEndpoint(options)],
             [INTROSPECTION_PATH, new IntrospectionEndpoint(options, this.token)],
             [USER_INFO_PATH, new UserInfoEndpoint(options, this.token)],

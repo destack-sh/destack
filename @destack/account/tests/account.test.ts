@@ -166,7 +166,7 @@ test("give every account's home the home stack, a shared account's and a person'
     ]);
 });
 
-test("show a person's public profile to another signed-in user, and hide their accounts", async () => {
+test("let another signed-in user find a person's accounts by their profile alone, and read, change or add none", async () => {
     // create a shared account of the owner
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -174,7 +174,7 @@ test("show a person's public profile to another signed-in user, and hide their a
     const outsider = await fixture.signIn(STRANGER_EMAIL);
     const outsiders = outsider.client(accountPackage);
 
-    // read, rename, create in and list the owner's accounts as the outsider
+    // read, rename, create in and find the owner's accounts as the outsider
     const hidden = await Promise.all(
         [
             outsiders.user.get({ id: owner.id }),
@@ -197,6 +197,18 @@ test("show a person's public profile to another signed-in user, and hide their a
         ].map((attempt) => refusal(attempt)),
     );
     const listed = await outsiders.account.list({ scope: owner.id, limit: 10 });
+    const profile = (id: string, handle: string, name: string, kind: string) => ({
+        id,
+        scope: owner.id,
+        handle,
+        name,
+        kind,
+        residencyId: shared.residencyId,
+        revision: 1,
+        deletedAt: null,
+    });
+
+    // show the outsider each account's profile, its residency, revision and trash state alone
     expect({ hidden, listed: listed.items }).toEqual({
         hidden: [
             "done",
@@ -204,7 +216,11 @@ test("show a person's public profile to another signed-in user, and hide their a
             ["NOT_FOUND", "NOT_FOUND", `account ${shared.id} not found`],
             ["NOT_FOUND", "NOT_FOUND", "account not found"],
         ],
-        listed: [],
+        listed: [
+            profile(ids.other, "rival", "rival", "shared"),
+            profile(Account.personal(owner.id), "acme", "acme", "personal"),
+            profile(shared.id, shared.handle, shared.name, "shared"),
+        ],
     });
 });
 
@@ -435,8 +451,8 @@ test("create accounts in an organization, administered by its owner members", as
         });
     expect(await refusal(rename(partner))).toEqual([
         "NOT_FOUND",
-        "SCOPE_NOT_FOUND",
-        `scope ${acme.id} not found`,
+        "NOT_FOUND",
+        `account ${created.id} not found`,
     ]);
     founder = await fixture.elevate(founder);
     await founder.client(accountPackage).organization.update({

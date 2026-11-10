@@ -1,3 +1,4 @@
+import { RequestedGrant } from "../authentication/request.ts";
 import { type Select, type Transaction } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -18,6 +19,8 @@ export const oauthConsent = defineObject(
             scopes: field.json(schema.array(schema.string())),
             /** When the user granted the consent, before which no refresh token of it stands. */
             grantedAt: field.time(),
+            /** The grant the consent gave an installation, as the person read it. */
+            grant: field.json(RequestedGrant).optional(),
         },
         permissions: ["read", "revoke", "grant"],
         constraints: {
@@ -28,13 +31,13 @@ export const oauthConsent = defineObject(
     (method) => ({
         /** Grant a client the scopes a person approved. */
         create: method.create("grant", {
-            fields: ["clientId", "scopes", "grantedAt"],
+            fields: ["clientId", "scopes", "grantedAt", "grant"],
             visibility: "package",
             isPredicted: false,
         }),
-        /** Widen a consent to the further scopes a person approved. */
+        /** Widen a consent to the further scopes and grant a person approved. */
         widen: method.update("grant", {
-            fields: ["scopes"],
+            fields: ["scopes", "grant"],
             visibility: "package",
             isPredicted: false,
         }),
@@ -57,6 +60,8 @@ export const OAuthConsent = {
             readonly userId: string;
             /** The scopes the person approved. */
             readonly scopes: readonly string[];
+            /** The lasting grant the person approved, absent for none. */
+            readonly grant: RequestedGrant | undefined;
         },
         now: number,
         transaction: Transaction,
@@ -71,9 +76,17 @@ export const OAuthConsent = {
                 .findFirst({ where: { clientId, scope: userId } });
         const standing = await read();
         const scopes = [...new Set([...(standing?.scopes ?? []), ...terms.scopes])];
+        const granted =
+            terms.grant === undefined
+                ? (standing?.grant ?? null)
+                : RequestedGrant.merge(standing?.grant ?? null, terms.grant);
 
-        // leave a consent covering the scopes as it is
-        if (standing !== undefined && scopes.length === standing.scopes.length) {
+        // leave a consent covering the scopes and the grant as it is
+        if (
+            standing !== undefined &&
+            scopes.length === standing.scopes.length &&
+            terms.grant === undefined
+        ) {
             return standing;
         }
 
@@ -85,8 +98,13 @@ export const OAuthConsent = {
                       clientId,
                       scopes,
                       grantedAt: now,
+                      grant: granted,
                   })
-                : oauthConsent.call("widen", { ...oauthConsent.target(standing), scopes });
+                : oauthConsent.call("widen", {
+                      ...oauthConsent.target(standing),
+                      scopes,
+                      grant: granted,
+                  });
         await objects.mutate(
             objects.as(oauthConsent, now),
             { id: RequestId.create(objects.environment), calls: [call] },

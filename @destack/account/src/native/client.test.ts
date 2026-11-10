@@ -10,8 +10,8 @@ import { Account, account } from "../object/account.ts";
 import { Residency } from "../object/residency.ts";
 import { client } from "../object/client.ts";
 import { SignUp } from "../better-auth/sign-up.ts";
-import { TestAccountStore, TestBrowser, ISSUER, type TestPerson } from "../test/index.ts";
-import { Issuer } from "./issuer.ts";
+import { TestAccountStore, TestBrowser, ISSUER, ORIGIN, type TestPerson } from "../test/index.ts";
+import { Issuer } from "../client/issuer.ts";
 import { ClientKey } from "./client-key.ts";
 import { SessionStore } from "./session.ts";
 import { login, Login } from "./login.ts";
@@ -32,11 +32,10 @@ const EMAIL = "ada@example.com";
 
 /** Allow a browser sign-in on the issuer's consent page, returning the loopback redirect. */
 async function consent(browser: TestBrowser, url: string): Promise<string> {
-    // follow the authorization to the consent page and allow it
-    const page = TestBrowser.location(await browser.fetch(url));
-    const allowed = await browser.fetch(page, new URLSearchParams({ action: "approve" }));
+    // follow the authorization to the consent view and allow it there
+    const view = TestBrowser.location(await browser.fetch(url));
 
-    return TestBrowser.location(allowed);
+    return browser.consent(view, "approve");
 }
 
 /** The login a sign-in writes for a person on the native device. */
@@ -147,7 +146,7 @@ test("ask the issuer for a fresh sign-in within the challenged age in a step-up,
 
 test("sign a person in through a browser redirect with PKCE as a new client, and forget them and their refresh token", async () => {
     await using accounts = await TestAccountStore.open();
-    const { person: owner, browser: ownerBrowser } = await accounts.signInWithLink(EMAIL);
+    const { person: owner, browser: ownerBrowser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, logins, sessions, network } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
@@ -224,7 +223,7 @@ test("fail a browser sign-in whose redirect names another issuer", async () => {
 
 test("sign a person in with a device code once they approve it, and replace the client an earlier sign-in here registered", async () => {
     await using accounts = await TestAccountStore.open();
-    const { person: owner, browser } = await accounts.signInWithLink(EMAIL);
+    const { person: owner, browser } = await accounts.signInBrowser(EMAIL);
     const { nativeClient, logins } = await native(accounts);
     const before = await nativeClients(accounts, owner);
 
@@ -232,10 +231,10 @@ test("sign a person in with a device code once they approve it, and replace the 
     const waiting = await nativeClient.startDevice();
     const pending = await waiting.poll();
 
-    // approve each code on the verification page before its first poll, as the issuer paces polls
+    // approve each code as the verification view does before its first poll, as the issuer paces polls
     const signInWithCode = () =>
         nativeClient.device(async (started) => {
-            await browser.fetch(started.url, new URLSearchParams({ action: "approve" }));
+            await browser.verify(started.userCode, "approve");
         });
     const first = await signInWithCode();
     const second = await signInWithCode();
@@ -248,7 +247,7 @@ test("sign a person in with a device code once they approve it, and replace the 
         rows: await logins.query.login.findMany(),
         clients: await nativeClients(accounts, owner),
     }).toEqual({
-        page: `${ISSUER}/device`,
+        page: `${ORIGIN}/verification`,
         pending: 5000,
         rows: [{ ...loginRow(second, owner), revision: 2, id: first.id }],
         clients: [
@@ -327,7 +326,7 @@ test("read a person's account through tokens refreshed after a mailed code signe
     // sign in with the mailed code and read the person's account through a refreshed token
     const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = new Login(
+    const { person } = new Login(
         signedIn,
         nativeClient,
         (request) => accounts.fetch(request),
@@ -345,7 +344,7 @@ test("list the addresses of the spaces of every account a signed-in person belon
     // sign in with the mailed code and list the person's spaces
     const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = new Login(
+    const { person } = new Login(
         signedIn,
         nativeClient,
         (request) => accounts.fetch(request),
@@ -365,7 +364,7 @@ test("find a signed-in person's home and the space of their account's residency"
     // sign in with the mailed code
     const started = await nativeClient.startEmail(EMAIL);
     const signedIn = await started.verify(await accounts.code());
-    const person = new Login(
+    const { person } = new Login(
         signedIn,
         nativeClient,
         (request) => accounts.fetch(request),
@@ -382,7 +381,10 @@ test("find a signed-in person's home and the space of their account's residency"
     const residency = await Residency.space(snapshot, present(row, "the account").residencyId);
 
     // expect the home of the personal account and the residency's space
-    expect({ home: await person.home(), residency: await person.residency() }).toEqual({
+    expect({
+        home: await person.home(),
+        residency: await person.residency(),
+    }).toEqual({
         home: Account.home(owner.account),
         residency,
     });

@@ -653,7 +653,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
     ]).toEqual([
         [
             "done",
-            ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
+            ["NOT_FOUND", "NOT_FOUND", `machine ${local.subject.id} not found`],
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
             ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
         ],

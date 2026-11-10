@@ -11,6 +11,7 @@ import { verification } from "../src/authentication/index.ts";
 import { deviceAuthorization } from "../src/object/device-authorization.ts";
 import {
     ISSUER,
+    ORIGIN,
     OPERATOR_EMAIL,
     TestAccountStore,
     TestBrowser,
@@ -147,7 +148,7 @@ function registerNotes(fixture: TestAccountStore, person: TestPerson) {
 test("sign a user in to another application through the authorization code flow with PKCE, until they revoke the consent", async () => {
     // let the person choose their time zone and locale, and register a public client
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser } = await fixture.signInWithLink("ada@example.com", "ada");
+    const { person: owner, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const current = await owner.client(accountPackage).user.get({ id: owner.id });
     await owner.client(accountPackage).user.update({
         id: owner.id,
@@ -215,15 +216,11 @@ test("sign a user in to another application through the authorization code flow 
     const consentPage = new URL(TestBrowser.location(authorized));
     expect([authorized.status, `${consentPage.origin}${consentPage.pathname}`]).toEqual([
         302,
-        `${ISSUER}/consent`,
+        `${ORIGIN}/consent`,
     ]);
 
     // consent and return the user to the application with a code for its state from this issuer
-    const consented = await browser.fetch(
-        consentPage.href,
-        new URLSearchParams({ action: "approve" }),
-    );
-    const callback = new URL(TestBrowser.location(consented));
+    const callback = new URL(await browser.consent(consentPage.href, "approve"));
     expect([
         `${callback.origin}${callback.pathname}`,
         Object.fromEntries(callback.searchParams),
@@ -359,7 +356,7 @@ test("sign a user in to another application through the authorization code flow 
 test("refuse a refresh token issued before a revoked consent was granted again", async () => {
     // register a public client and authorize it with PKCE, consenting once
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser } = await fixture.signInWithLink("ada@example.com", "ada");
+    const { person: owner, browser } = await fixture.signInBrowser("ada@example.com", "ada");
     const registered = await registerNotes(fixture, owner);
     const authorization = {
         clientId: registered.clientId,
@@ -430,8 +427,7 @@ test("refuse a device authorization asking scopes beyond the client's", async ()
 test("sign a device in to a confidential application through the device authorization flow", async () => {
     // register a confidential client in an account from a secret only its registrar knows
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser: ownerBrowser } =
-        await fixture.signInWithLink("ada@example.com");
+    const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser("ada@example.com");
     const { id: accountId } = await fixture.createAccount(owner);
     const secret = await Credential.create("client-secret", fixture.environment);
     const registered = await owner.client(accountPackage).application.create({
@@ -455,9 +451,9 @@ test("sign a device in to a confidential application through the device authoriz
         scope: "openid profile offline_access",
     });
     const grant = DeviceGrant.parse(await requested.clone().json());
-    const page = `/device?user_code=${grant.user_code}`;
+    const page = `/oauth2/requests/device?user_code=${grant.user_code}`;
     const reviewed = await ownerBrowser.fetch(page);
-    const approved = await ownerBrowser.fetch(page, new URLSearchParams({ action: "approve" }));
+    const approved = await ownerBrowser.verify(grant.user_code, "approve");
     expect([
         await answered(requested),
         reviewed.status,
@@ -474,8 +470,8 @@ test("sign a device in to a confidential application through the device authoriz
             {
                 device_code: grant.device_code,
                 user_code: grant.user_code,
-                verification_uri: `${ISSUER}/device`,
-                verification_uri_complete: `${ISSUER}/device?user_code=${grant.user_code}`,
+                verification_uri: `${ORIGIN}/verification`,
+                verification_uri_complete: `${ORIGIN}/verification?user_code=${grant.user_code}`,
                 expires_in: 1800,
                 interval: 5,
             },
@@ -526,8 +522,7 @@ test("sign a device in to a confidential application through the device authoriz
 test("sign a device in as a new client through the browser once the person allows it, with a loopback redirect and PKCE", async () => {
     // authorize a fresh client with a challenge on the loopback, signed out and signed in
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser: ownerBrowser } =
-        await fixture.signInWithLink("ada@example.com");
+    const { person: owner, browser: ownerBrowser } = await fixture.signInBrowser("ada@example.com");
     const signedOut = fixture.browser();
     const clientId = Identifier.create("client", fixture.environment);
     const verifier = Pkce.verifier(fixture.environment.random);
@@ -549,15 +544,13 @@ test("sign a device in as a new client through the browser once the person allow
         away: [away.status, `${signIn.origin}${signIn.pathname}`],
         asked: [asked.status, `${consentPage.origin}${consentPage.pathname}`],
     }).toEqual({
-        away: [302, `${ISSUER}/sign-in`],
-        asked: [302, `${ISSUER}/consent`],
+        away: [302, `${ORIGIN}/sign-in`],
+        asked: [302, `${ORIGIN}/consent`],
     });
 
     // return a denial to the client, then a code once the person allows a new request
     const decide = async (page: URL, action: "approve" | "deny") => {
-        const decided = await ownerBrowser.fetch(page.href, new URLSearchParams({ action }));
-
-        return new URL(TestBrowser.location(decided));
+        return new URL(await ownerBrowser.consent(page.href, action));
     };
     const authorize = async () =>
         new URL(TestBrowser.location(await ownerBrowser.fetch(`/oauth2/authorize?${query}`)));
@@ -660,7 +653,7 @@ test("sign a device in as a new client through the browser once the person allow
 test("include the second factor and verified email of the session approving a device's client in its tokens, and keep them in refreshed ones", async () => {
     // authorize a fresh client in a browser the person stepped up in
     await using fixture = await TestAccountStore.open();
-    const { person, browser } = await fixture.signInWithLink("ada@example.com");
+    const { person, browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     await fixture.elevate(person, browser);
     const clientId = Identifier.create("client", fixture.environment);
@@ -703,7 +696,7 @@ test("include the second factor and verified email of the session approving a de
 test("send a signed-in person asked to sign in again within an age to the sign-in page", async () => {
     // authorize a fresh client asking the person to sign in again, a second after they signed in
     await using fixture = await TestAccountStore.open();
-    const { browser } = await fixture.signInWithLink("ada@example.com");
+    const { browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     const query = new URLSearchParams({
         response_type: "code",
@@ -724,13 +717,13 @@ test("send a signed-in person asked to sign in again within an age to the sign-i
 
     // send the browser to the sign-in page
     const page = new URL(TestBrowser.location(asked));
-    expect([asked.status, `${page.origin}${page.pathname}`]).toEqual([302, `${ISSUER}/sign-in`]);
+    expect([asked.status, `${page.origin}${page.pathname}`]).toEqual([302, `${ORIGIN}/sign-in`]);
 });
 
 test("continue an authorization asking a sign-in of no age once the person signed in again", async () => {
     // authorize a fresh client asking for a sign-in no older than zero seconds
     await using fixture = await TestAccountStore.open();
-    const { browser } = await fixture.signInWithLink("ada@example.com");
+    const { browser } = await fixture.signInBrowser("ada@example.com");
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     const clientId = Identifier.create("client", fixture.environment);
     const query = new URLSearchParams({
@@ -749,17 +742,16 @@ test("continue an authorization asking a sign-in of no age once the person signe
     });
     const asked = new URL(TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`)));
 
-    // sign in again by link, then continue the stored request
-    await browser.fetch("/sign-in/magic-link", { email: "ada@example.com", callbackURL: "/" });
-    await browser.fetch(await fixture.link());
+    // sign in again by a mailed code, then continue the stored request
+    await browser.signIn("ada@example.com", () => fixture.code());
     await fixture.simulation.jump(fixture.clock.now() + 1000);
     const continued = await browser.fetch(`/oauth2/authorize?${asked.searchParams}`);
     const next = new URL(TestBrowser.location(continued));
 
     // send the browser to sign in first, then on to consent
     expect([`${asked.origin}${asked.pathname}`, `${next.origin}${next.pathname}`]).toEqual([
-        `${ISSUER}/sign-in`,
-        `${ISSUER}/consent`,
+        `${ORIGIN}/sign-in`,
+        `${ORIGIN}/consent`,
     ]);
 });
 
@@ -853,7 +845,7 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
 test("update, disable and delete an application", async () => {
     // register, rename and disable a public client
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser } = await fixture.signInWithLink("ada@example.com");
+    const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await owner.client(accountPackage).application.create({
         scope: owner.id,
         requestId: RequestId.create(fixture.environment),
@@ -892,7 +884,10 @@ test("update, disable and delete an application", async () => {
         code_challenge_method: "S256",
     });
     const refused = await browser.fetch(`/oauth2/authorize?${query}`);
-    expect([refused.status, refused.headers.get("location")]).toEqual([400, null]);
+    expect([refused.status, refused.headers.get("location")]).toEqual([
+        302,
+        `${ORIGIN}/sign-in?error=unauthorized_client&error_description=client+is+disabled`,
+    ]);
 
     // delete the client
     const deleted = await owner.client(accountPackage).application.delete({
@@ -912,7 +907,7 @@ test("update, disable and delete an application", async () => {
 test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal is refused, rotate it at each use, revoke the family a spent token returns to, and refuse a lapsed code", async () => {
     // authorize a registered client with the challenge of RFC 7636 Appendix B
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser } = await fixture.signInWithLink("ada@example.com");
+    const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await registerNotes(fixture, owner);
     const query = new URLSearchParams({
         response_type: "code",
@@ -923,11 +918,7 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
         code_challenge_method: "S256",
     });
     const consentPage = TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`));
-    const first = codeOf(
-        TestBrowser.location(
-            await browser.fetch(consentPage, new URLSearchParams({ action: "approve" })),
-        ),
-    );
+    const first = codeOf(await browser.consent(consentPage, "approve"));
     const redeem = (redeemed: string) =>
         provider(fixture, "/oauth2/token", {
             grant_type: "authorization_code",
@@ -979,7 +970,7 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
 test("answer tokens uncached, introspect only the asking client's own standing tokens, renew offline after sign-out, and refuse repeated parameters and malformed basic credentials", async () => {
     // redeem a code of a registered client for its tokens
     await using fixture = await TestAccountStore.open();
-    const { person: owner, browser } = await fixture.signInWithLink("ada@example.com");
+    const { person: owner, browser } = await fixture.signInBrowser("ada@example.com");
     const registered = await registerNotes(fixture, owner);
     const query = new URLSearchParams({
         response_type: "code",
@@ -990,11 +981,7 @@ test("answer tokens uncached, introspect only the asking client's own standing t
         code_challenge_method: "S256",
     });
     const consentPage = TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`));
-    const code = codeOf(
-        TestBrowser.location(
-            await browser.fetch(consentPage, new URLSearchParams({ action: "approve" })),
-        ),
-    );
+    const code = codeOf(await browser.consent(consentPage, "approve"));
     const redeemed = await provider(fixture, "/oauth2/token", {
         grant_type: "authorization_code",
         code,

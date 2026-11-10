@@ -12,7 +12,6 @@ import { SUDO_MILLISECONDS } from "../authentication/sudo.ts";
 /** The assurance level each verified method proves. */
 const ASSURANCE_LEVELS: Readonly<Record<NonNullable<Session["authenticationMethod"]>, 1 | 2 | 3>> =
     {
-        "magic-link": 1,
         "email-otp": 1,
         oauth: 1,
         totp: 2,
@@ -38,7 +37,9 @@ export class ActiveSession {
     readonly emailVerified: boolean;
 
     /** Store a read session. */
-    private constructor(row: Omit<ActiveSession, "assurance" | "requireAuthentication">) {
+    private constructor(
+        row: Omit<ActiveSession, "assurance" | "reachable" | "requireAuthentication">,
+    ) {
         // take the session's and its user's columns
         this.id = row.id;
         this.userId = row.userId;
@@ -109,6 +110,27 @@ export class ActiveSession {
         return { level: ASSURANCE_LEVELS[method], authenticatedAt: this.authenticatedAt };
     }
 
+    /** Read the highest assurance the person's enrolled sign-in methods reach. */
+    async reachable(database: DatabaseConnection): Promise<1 | 2 | 3> {
+        // read an enrolled passkey and a verified factor
+        const [credential] = await database
+            .select({ id: passkey.table.id })
+            .from(passkey.table)
+            .where(eq(passkey.table.userId, this.userId))
+            .limit(1);
+        const [verified] = await database
+            .select({ id: factor.table.id })
+            .from(factor.table)
+            .where(and(eq(factor.table.userId, this.userId), eq(factor.table.status, "verified")))
+            .limit(1);
+
+        return credential !== undefined
+            ? ASSURANCE_LEVELS.webauthn
+            : verified !== undefined
+              ? ASSURANCE_LEVELS.totp
+              : ASSURANCE_LEVELS["email-otp"];
+    }
+
     /** Report whether a method proves an enrolled factor. */
     static isEnrolledFactor(method: NonNullable<Session["authenticationMethod"]>): boolean {
         return ASSURANCE_LEVELS[method] >= 2;
@@ -124,17 +146,7 @@ export class ActiveSession {
         }
 
         // require an enrolled factor
-        const [credential] = await database
-            .select({ id: passkey.table.id })
-            .from(passkey.table)
-            .where(eq(passkey.table.userId, this.userId))
-            .limit(1);
-        const [verified] = await database
-            .select({ id: factor.table.id })
-            .from(factor.table)
-            .where(and(eq(factor.table.userId, this.userId), eq(factor.table.status, "verified")))
-            .limit(1);
-        const isEnrolled = verified !== undefined || credential !== undefined;
+        const isEnrolled = (await this.reachable(database)) >= ASSURANCE_LEVELS.totp;
         if (isEnrolled && !ActiveSession.isEnrolledFactor(method)) {
             throw AccountError.of(
                 "REAUTHENTICATION_REQUIRED",

@@ -1,3 +1,4 @@
+import { AUTHORIZATION_REQUEST_PATH } from "../authentication/path.ts";
 import { Bookmark } from "@destack/object/client";
 import type { Environment, HostCapability } from "@destack/environment";
 import { type DatabaseConnection, type Dialect, eq, Snapshot } from "@destack/db";
@@ -53,7 +54,7 @@ import {
     type SignUp,
 } from "../better-auth/index.ts";
 import { MachineIdentity } from "../client/index.ts";
-import { Issuer } from "../native/index.ts";
+import { DEVICE_SCOPES, Issuer, TokenSet } from "../client/index.ts";
 import { IdentityKeystore, IdentityRegistry, type WorkloadIdentity } from "../identity/index.ts";
 import {
     account,
@@ -77,7 +78,7 @@ import accountPackage from "../package.ts";
 import { UniverseOrigin } from "../address/address.ts";
 import { accountServer, Platform, PlatformDefinition } from "../server/index.ts";
 import { defineDatabase } from "@destack/db";
-import { tablesOf } from "@destack/object";
+import { type InstanceOf, tablesOf } from "@destack/object";
 import { TokenLifetime } from "../oauth/index.ts";
 import { TestBrowser } from "./browser.ts";
 import { TestDns } from "./dns.ts";
@@ -95,9 +96,6 @@ export const ORIGIN = "http://localhost:3210";
 /** The loopback redirect a stepped-up native client returns to, which the step-up stops at. */
 const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
 
-/** The redirects a browser follows at most, the Fetch standard's limit. */
-const FETCH_REDIRECTS = 20;
-
 /** The seed of the simulated world a fixture runs in. */
 const WORLD_SEED = 1;
 
@@ -109,9 +107,6 @@ const WORLD_NODE = "universe";
 
 /** The packages the fixture's universe serves, each with its base installation. */
 const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage];
-
-/** The button a person presses on each page a step-up passes. */
-const STEP_UP_ACTIONS = [["/consent", "approve"]] as const;
 
 /** The universe's issuer. */
 export const ISSUER = UniverseOrigin.issuer(ORIGIN);
@@ -200,8 +195,18 @@ const PERSONAL_MACHINE = {
 
 /** The residencies of the universe, as the platform's bootstrap declares them. */
 const RESIDENCIES: readonly ResidencyDefinition[] = [
-    { code: "eu", name: "European Union", relay: "https://relay-eu.machine.test" },
-    { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
+    {
+        code: "eu",
+        name: "European Union",
+        relay: "https://relay-eu.machine.test",
+        countries: ["DE"],
+    },
+    {
+        code: "us",
+        name: "United States",
+        relay: "https://relay-us.machine.test",
+        countries: ["US"],
+    },
 ];
 
 /** The people who sign up at the account package's start, and whether they step up. */
@@ -264,6 +269,12 @@ export const PEOPLE = [
         isEnrolled: false,
     },
 ] as const;
+
+/** A decided authorization request: where the browser goes next. */
+const Decided = schema.object({
+    /** The client's redirect with a code or a denial. */
+    location: schema.string(),
+});
 
 /** A person's client, which their sign-ins refresh, and the authenticator they step up with. */
 const TestSession = schema.object({
@@ -600,7 +611,8 @@ export class TestAccountStore implements AsyncDisposable {
 
         // refresh the client of a person with one, whom a mailed code no longer signs in
         const tokens = await this.issuer.refresh(session.clientId, session.refreshToken);
-        this.#sessions.set(email, { ...session, refreshToken: tokens.refreshToken });
+        const refreshToken = TokenSet.refreshToken(tokens);
+        this.#sessions.set(email, { ...session, refreshToken });
 
         return new TestPerson(this.#signIn(), {
             id: session.userId,
@@ -611,19 +623,19 @@ export class TestAccountStore implements AsyncDisposable {
         });
     }
 
-    /** Sign a person up with an eu personal account through a mailed link in a new browser. */
-    async signInWithLink(
+    /** Sign a person in by a mailed code in a new browser, signing them up in the eu if new. */
+    async signInBrowser(
         email: string,
         handle: string = freshHandle(this.environment),
     ): Promise<{ readonly person: TestPerson; readonly browser: TestBrowser }> {
-        // follow the mailed link
+        // sign in by the mailed code
         const browser = this.browser();
-        await browser.fetch("/sign-in/magic-link", {
-            email,
-            callbackURL: "/",
-            metadata: { ...SIGN_UP, name: email, handle, residencyId: "eu" },
+        await browser.signIn(email, () => this.code(), {
+            ...SIGN_UP,
+            name: email,
+            handle,
+            residencyId: "eu",
         });
-        await browser.fetch(await this.link());
 
         // sign the same person in on a native client too, for calls beside the browser's pages
         return { person: await this.signIn(email), browser };
@@ -647,7 +659,7 @@ export class TestAccountStore implements AsyncDisposable {
 
     /** Step a person up with their authenticator in a browser on a new client, as RFC 9470 does. */
     async elevate(person: TestPerson, browser: TestBrowser = this.browser()): Promise<TestPerson> {
-        // enroll an authenticator the first time, in a browser the person's link signs in
+        // enroll an authenticator the first time, in a browser the person's code signs in
         const enrolled =
             this.#authenticators.get(person.id) ?? (await this.#enroll(person, this.browser()));
 
@@ -657,42 +669,21 @@ export class TestAccountStore implements AsyncDisposable {
             clientId,
             STEP_UP_REDIRECT,
             "step-up",
+            DEVICE_SCOPES,
             this.store.clock.now(),
             sudo,
         );
-        const asked = new URL(TestBrowser.location(await browser.fetch(authorization.url)));
 
-        // sign in by the mailed link, and answer the second-factor challenge with the authenticator's code
-        await browser.fetch(
-            asked.href,
-            new URLSearchParams({ action: "link", email: person.email }),
+        // follow the issuer back to the new client, signing in by the mailed and authenticator's codes
+        const next = await browser.authorize(
+            authorization.url,
+            {
+                email: person.email,
+                code: () => this.code(),
+                authenticator: () => authenticatorCode(enrolled, this.environment),
+            },
+            (url) => url.href.startsWith(STEP_UP_REDIRECT),
         );
-        const linked = await browser.fetch(await this.link());
-        const challenge = TestBrowser.location(linked);
-        const verified = await browser.fetch(
-            challenge,
-            new URLSearchParams({
-                action: "totp",
-                code: await authenticatorCode(enrolled, this.environment),
-            }),
-        );
-
-        // follow the issuer back to the new client, continuing the sign-in and approving its consent
-        let next = TestBrowser.location(verified);
-        const passed: string[] = [];
-        while (!next.startsWith(STEP_UP_REDIRECT)) {
-            const url = new URL(next);
-            passed.push(`${url.pathname}${url.search}`);
-            if (passed.length > FETCH_REDIRECTS) {
-                throw new TypeError(`the step-up redirected too often: ${passed.join(" -> ")}`);
-            }
-            const action = STEP_UP_ACTIONS.find(([path]) => url.pathname.endsWith(path))?.[1];
-            const answered = await browser.fetch(
-                url.href,
-                action === undefined ? undefined : new URLSearchParams({ action }),
-            );
-            next = TestBrowser.location(answered);
-        }
 
         // redeem the code for the new client's tokens
         const code = present(new URL(next).searchParams.get("code"), "the authorization code");
@@ -712,11 +703,10 @@ export class TestAccountStore implements AsyncDisposable {
         });
     }
 
-    /** Enroll a person's authenticator in a browser their link signs in, returning its URI. */
+    /** Enroll a person's authenticator in a browser their code signs in, returning its URI. */
     async #enroll(person: TestPerson, browser: TestBrowser): Promise<string> {
-        // sign the browser in by the person's link
-        await browser.fetch("/sign-in/magic-link", { email: person.email, callbackURL: "/" });
-        await browser.fetch(await this.link());
+        // sign the browser in by the person's code
+        await browser.signIn(person.email, () => this.code());
 
         // enable an authenticator and verify the code it showed a step ago, leaving the current code to sign in with
         const enabled = Enrollment.parse(
@@ -757,13 +747,6 @@ export class TestAccountStore implements AsyncDisposable {
         return this.#mail.codes();
     }
 
-    /** Read the last sign-in link the issuer mailed. */
-    async link(): Promise<string> {
-        const links = await this.#mail.links();
-
-        return present(links.at(-1), "a mailed link").url;
-    }
-
     /** Read the last one-use code the issuer mailed. */
     async code(): Promise<string> {
         const codes = await this.#mail.codes();
@@ -794,11 +777,20 @@ export class TestAccountStore implements AsyncDisposable {
             code_challenge_method: "S256",
             ...resource,
         });
-        const consent = TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`));
+        const consent = new URL(
+            TestBrowser.location(await browser.fetch(`/oauth2/authorize?${query}`)),
+        );
 
-        // approve on the consent page, which returns the browser to the client with a code
-        const approved = await browser.fetch(consent, new URLSearchParams({ action: "approve" }));
-        const callback = new URL(TestBrowser.location(approved));
+        // approve the stored request as the consent view does, which answers the client's redirect with a code
+        const requestUri = present(
+            consent.searchParams.get("request_uri"),
+            "the request's reference",
+        );
+        const decided = await browser.fetch(AUTHORIZATION_REQUEST_PATH, {
+            requestUri,
+            decision: "approve",
+        });
+        const callback = new URL(Decided.parse(await decided.json()).location);
         const code = present(callback.searchParams.get("code"), "the authorization code");
 
         // redeem the code with its verifier as the client
@@ -825,7 +817,10 @@ export class TestAccountStore implements AsyncDisposable {
     }
 
     /** Create a new shared account of a person in a residency. */
-    createAccount(person: TestPerson, residencyId: ResidencyCode = "eu"): Promise<Account> {
+    createAccount(
+        person: TestPerson,
+        residencyId: ResidencyCode = "eu",
+    ): Promise<InstanceOf<typeof account>> {
         return person.client(accountPackage).account.create({
             kind: "shared",
             scope: person.id,
@@ -1138,7 +1133,7 @@ export class TestAccountStore implements AsyncDisposable {
             // seed each person proven, as no mailbox answers the template's write
             await context.internalAdapter.createUser(
                 { ...person, emailVerified: true, ...SIGN_UP, residencyId: "eu" },
-                { method: "magic-link" },
+                { method: "email-otp" },
             );
         }
     }
@@ -1154,7 +1149,7 @@ export class TestAccountStore implements AsyncDisposable {
                 userId: person.id,
                 handle: person.handle,
                 clientId: person.clientId,
-                refreshToken: (await person.tokens()).refreshToken,
+                refreshToken: TokenSet.refreshToken(await person.tokens()),
                 authenticator,
             };
         }

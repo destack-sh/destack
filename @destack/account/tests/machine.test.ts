@@ -175,7 +175,7 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
         "draining",
         "done",
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: rename"],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `machine ${enrolled.machineId} not found`],
     ]);
 });
 

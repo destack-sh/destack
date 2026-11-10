@@ -45,15 +45,15 @@ test("let a space's account owner and its viewers read it, its guests find it al
             await reads(partner),
             await reads(stranger),
         ],
-        list: [await finds(partner), await refusal(finds(stranger))],
+        list: [await finds(partner), await finds(stranger)],
     };
 
     // let the stranger read it once the owner makes them a viewer too
     await grant("viewer", stranger.subject);
-    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`];
+    const hidden = ["NOT_FOUND", "NOT_FOUND", `space ${spaceId} not found`];
     expect({ ...decided, later: await reads(stranger) }).toEqual({
-        read: ["done", "done", ["NOT_FOUND", "NOT_FOUND", `space ${spaceId} not found`], hidden],
-        list: [[spaceId], hidden],
+        read: ["done", "done", hidden, hidden],
+        list: [[spaceId], []],
         later: "done",
     });
 });

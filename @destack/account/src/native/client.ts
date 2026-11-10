@@ -4,7 +4,14 @@ import { Identifier, schema, Uuid } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { waitAborted } from "@destack/environment";
 import { client, type ClientRegistration } from "../object/client.ts";
-import type { DeviceAuthorization, DevicePoll, Issuer, SignedIn } from "./issuer.ts";
+import {
+    DEVICE_SCOPES,
+    type DeviceAuthorization,
+    type DevicePoll,
+    type Issuer,
+    type SignedIn,
+    TokenSet,
+} from "../client/issuer.ts";
 import { type Login, login, type LoginCredential } from "./login.ts";
 import type { TokenCache } from "@destack/access/token";
 import type { ClientKey } from "./client-key.ts";
@@ -93,6 +100,7 @@ export class NativeClient implements LoginCredential {
             clientId,
             redirect.url,
             state,
+            DEVICE_SCOPES,
             clock.now(),
             stepUp,
         );
@@ -224,20 +232,20 @@ export class NativeClient implements LoginCredential {
     }
 
     /** Refresh a login's account token, storing the refresh token the issuer rotates to. */
-    async issue(person: Login): Promise<string> {
+    async issue(signedIn: Login): Promise<string> {
         // read the refresh token the keychain stores, refusing a signed-out person
         const { sessions } = this.#options;
-        const refreshToken = await sessions.load(person.row);
+        const refreshToken = await sessions.load(signedIn.row);
         if (refreshToken === undefined) {
             throw AccountError.of("SIGNED_OUT", "the person signed out");
         }
 
         // refresh, storing the rotated refresh token
-        const tokens = await person.issuer.refresh(
-            client.identifier(person.row.clientId),
+        const tokens = await signedIn.person.issuer.refresh(
+            client.identifier(signedIn.row.clientId),
             refreshToken,
         );
-        await sessions.replace(person.row, tokens.refreshToken);
+        await sessions.replace(signedIn.row, TokenSet.refreshToken(tokens));
 
         return tokens.accessToken;
     }
@@ -285,9 +293,10 @@ export class NativeClient implements LoginCredential {
         const person = { issuer: issuer.url, subjectId: sub };
 
         // store the refresh token, or adopt a racing sign-in's and revoke this one
-        const stored = await sessions.replace(person, tokens.refreshToken);
-        if (stored !== tokens.refreshToken) {
-            await issuer.revoke(clientId, tokens.refreshToken);
+        const refreshToken = TokenSet.refreshToken(tokens);
+        const stored = await sessions.replace(person, refreshToken);
+        if (stored !== refreshToken) {
+            await issuer.revoke(clientId, refreshToken);
         }
 
         // report the client's details, and withdraw the client an earlier sign-in here registered

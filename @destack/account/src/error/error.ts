@@ -11,7 +11,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
     SELF_SUSPENSION: { code: "BAD_REQUEST" },
     IDENTITY_NOT_STARTED: { code: "BAD_REQUEST" },
     TOKEN_EXPIRY_INVALID: { code: "BAD_REQUEST" },
-    FORM_FIELD_MISSING: { code: "BAD_REQUEST" },
+    BODY_INVALID: { code: "BAD_REQUEST" },
     QUERY_PARAMETER_MISSING: { code: "BAD_REQUEST" },
     SIGNER_REQUIRED: { code: "BAD_REQUEST" },
     KEYS_MISSING: { code: "BAD_REQUEST" },
@@ -73,6 +73,7 @@ export const AccountError = defineErrorFamily(import.meta.destack.package, {
 
     // not found
     ACCOUNT_NOT_FOUND: { code: "NOT_FOUND" },
+    CONSENT_NOT_FOUND: { code: "NOT_FOUND" },
     FACTOR_MISSING: { code: "NOT_FOUND" },
     ADDRESS_NOT_FOUND: { code: "NOT_FOUND" },
     IDENTITY_NOT_FOUND: { code: "NOT_FOUND" },

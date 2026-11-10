@@ -9,6 +9,9 @@ export const SECOND_MILLISECONDS = 1000;
 /** The media type of a JSON answer (RFC 8259 11). */
 const JSON_TYPE = "application/json";
 
+/** The JWT type of a request object (RFC 9101 10.8). */
+export const REQUEST_OBJECT_TYPE = "oauth-authz-req+jwt";
+
 /** The OAuth refusals, each reason the wire code its RFC spells, transcribed in upper case. */
 export const OAuthError = defineErrorFamily(
     { name: "oauth" },
@@ -30,7 +33,9 @@ export const OAuthError = defineErrorFamily(
         UNSUPPORTED_RESPONSE_TYPE: { code: "BAD_REQUEST" },
         LOGIN_REQUIRED: { code: "BAD_REQUEST" },
         CONSENT_REQUIRED: { code: "BAD_REQUEST" },
+        UNMET_AUTHENTICATION_REQUIREMENTS: { code: "BAD_REQUEST" },
         INVALID_REQUEST_URI: { code: "BAD_REQUEST" },
+        INVALID_REQUEST_OBJECT: { code: "BAD_REQUEST" },
 
         // the resource endpoints' (RFC 6750 3.1, RFC 7009 2.2.1)
         INVALID_TOKEN: { code: "UNAUTHORIZED" },

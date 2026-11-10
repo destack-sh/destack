@@ -23,9 +23,6 @@ import { challenge } from "../object/challenge.ts";
 import { factor } from "../object/factor.ts";
 import { betterAuthModel } from "./adapter.ts";
 
-/** The Better Auth route a mailed sign-in link opens. */
-const LINK_PATH = "/magic-link/verify";
-
 /** The prefix of the Better Auth routes a provider's sign-in returns to. */
 const CALLBACK_PREFIX = "/callback/";
 
@@ -233,8 +230,8 @@ export function betterAuthSecondFactor(options: SecondFactorOptions): BetterAuth
                             cookie.attributes,
                         );
 
-                        // send a navigation to the challenge's page, and a request its answer
-                        if (isNavigation(context.path)) {
+                        // send a provider's callback on to the second step's page
+                        if (context.path.startsWith(CALLBACK_PREFIX)) {
                             const page = new URL(options.challengeUri);
                             const location = context.context.responseHeaders?.get("location");
                             if (location !== null && location !== undefined) {
@@ -365,9 +362,4 @@ async function answer(
     await setSessionCookie(context, { session, user: person });
 
     return context.json({ token: session.token, user: person });
-}
-
-/** Report whether a route signs a browser in by navigation, through a link or a provider. */
-function isNavigation(path: string | undefined): boolean {
-    return path === LINK_PATH || path?.startsWith(CALLBACK_PREFIX) === true;
 }

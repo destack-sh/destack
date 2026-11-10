@@ -15,6 +15,12 @@ The account package is the universe's OAuth 2.1 and OpenID Connect authorization
 ```ts
 const metadata = await fetch(`${issuer}/.well-known/openid-configuration`); // the endpoints below
 const sent = `${issuer}/oauth2/authorize?${query}`; // PKCE S256, continued after sign-in by request_uri (RFC 9126)
+// an installation's origin is its own client and sends a request object its space signs (RFC 9101),
+// asking a grant as one destack_grant authorization detail (RFC 9396)
+const signed = `${issuer}/oauth2/authorize?client_id=${origin}&request=${jar}`;
+await fetch(`${issuer}/oauth2/requests/authorization?request_uri=${uri}`); // the consent page's review, then a POSTed decision
+await fetch(`${issuer}/oauth2/requests/device?user_code=${code}`); // the verification page's review and decision
+await fetch(`${issuer}/oauth2/consents`); // the person's apps, each consent with the grant it gave; DELETE ?client_id= removes one
 await fetch(`${issuer}/oauth2/token`, { method: "POST", body: form }); // code, refresh, device, jwt-bearer, token exchange, email code
 await fetch(`${issuer}/oauth2/device_authorization`, { method: "POST", body: form }); // RFC 8628, approved on the device page
 await fetch(`${issuer}/oauth2/revoke`, { method: "POST", body: form }); // ends a refresh token's family
@@ -112,12 +118,15 @@ await native.email("bea@example.com", ask, {
 
 ## Tokens for a person
 
-A signed-in `Login` exchanges its session for a package's token (RFC 8693), acting for the person through a delegate under their grant, the consent `Login.grant` stores.
+A `Person` acting through account tokens at an issuer exchanges them for a package's token (RFC 8693), acting through a delegate under their grant; a computer's `Login` is how one is signed in there.
 
 ```ts
-const asked = await login.granted(installation, permissions); // the unexpiring grant of exactly these, if any
-const grant = await login.grant(installation, permissions); // the person's consent, reusing that grant
-const token = await login.token(notes.id, { spaceId, grants: [grant.id] }); // stamped with the universe's position (Zanzibar's zookie)
+import { Person } from "@destack/account/client";
+
+const { person } = login; // the person a computer's sign-in acts as
+const asked = await person.granted(installation); // the unexpiring grant to the delegate, if any
+const grant = await person.grant(installation, permissions); // grows the person's grant to include them
+const token = await person.token(notes.id, { partition: spaceId, grants: [grant.id] }); // stamped with the universe's position (Zanzibar's zookie)
 ```
 
 ## Machines

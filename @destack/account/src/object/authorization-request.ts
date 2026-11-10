@@ -1,3 +1,4 @@
+import { RequestedGrant } from "../authentication/request.ts";
 import { none } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -34,6 +35,10 @@ export const authorizationRequest = defineObject(
             prompts: field.json(schema.array(Prompt)),
             /** The longest age of the person's sign-in, in milliseconds (OIDC Core max_age). */
             maxAge: field.integer().optional(),
+            /** The lowest assurance level the person's sign-in meets, from its acr_values. */
+            assurance: field.integer().optional(),
+            /** The grant its client asks for, absent for none. */
+            grant: field.json(RequestedGrant).optional(),
             /** When the request lapses. */
             expiresAt: field.time(),
         },
@@ -53,6 +58,8 @@ export const authorizationRequest = defineObject(
                 "resource",
                 "prompts",
                 "maxAge",
+                "assurance",
+                "grant",
                 "expiresAt",
             ],
             visibility: "package",

@@ -5,19 +5,24 @@ import {
     genericOAuth,
     type GenericOAuthUserInfo,
 } from "better-auth/plugins";
-import { getOAuthState } from "better-auth/api";
+import { createAuthEndpoint, getOAuthState } from "better-auth/api";
 import type { Environment } from "@destack/environment";
 import { Jwt } from "@destack/identity";
 import { present, schema } from "@destack/schema";
 import { AccountError } from "../error/error.ts";
 import { SignUp } from "./sign-up.ts";
 import { SECOND_MILLISECONDS } from "../authentication/token.ts";
+import { SIGN_IN_PROVIDERS_PATH } from "../authentication/path.ts";
+import { ProviderId, SignInProviders } from "../authentication/request.ts";
 
 /** The user agent GitHub's API requires on every request. */
 const USER_AGENT = "Destack";
 
 /** The issuers Google's ID tokens name, as its OpenID Connect discovery document lists them. */
 const GOOGLE_ISSUERS = new Set(["https://accounts.google.com", "accounts.google.com"]);
+
+/** The Microsoft identity platform's authority for work, school and personal accounts alike. */
+const MICROSOFT_AUTHORITY = "https://login.microsoftonline.com/common/oauth2/v2.0";
 
 /** A provider's answer to an authorization code exchange (RFC 6749 5.1). */
 const TokenAnswer = schema.looseObject({
@@ -59,19 +64,32 @@ const GoogleClaims = schema.looseObject({
     picture: schema.string().exactOptional(),
 });
 
-/** The OAuth providers people sign in with. */
-const PROVIDER_IDS = ["github", "google"] as const;
-
-/** An OAuth provider people sign in with. */
-export type ProviderId = (typeof PROVIDER_IDS)[number];
+/** The claims of a Microsoft ID token a sign-in reads (Microsoft identity platform ID tokens). */
+const MicrosoftClaims = schema.looseObject({
+    iss: schema.string(),
+    aud: schema.string(),
+    exp: schema.number(),
+    tid: schema.string(),
+    sub: schema.string(),
+    email: schema.string().exactOptional(),
+    name: schema.string().exactOptional(),
+    xms_edov: schema.boolean().exactOptional(),
+});
 
 /** A deployment's application at a provider. */
-export interface ProviderClient {
+export const ProviderClient = schema.object({
     /** The application's client identifier. */
-    readonly clientId: string;
+    clientId: schema.string().min(1),
     /** The application's client secret. */
-    readonly clientSecret: string;
-}
+    clientSecret: schema.string().min(1),
+});
+/** A deployment's application at a provider. */
+export type ProviderClient = schema.Infer<typeof ProviderClient>;
+
+/** A deployment's applications at the providers it signs people in through. */
+export const ProviderClients = schema.partialRecord(ProviderId, ProviderClient);
+/** A deployment's applications at the providers it signs people in through. */
+export type ProviderClients = schema.Infer<typeof ProviderClients>;
 
 /** The effects a provider is called with: its network, and the clock its tokens expire on. */
 export type ProviderEnvironment = Pick<Environment, "network" | "clock">;
@@ -151,54 +169,96 @@ const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
             };
         },
     },
+    microsoft: {
+        name: "Microsoft",
+        authorization: `${MICROSOFT_AUTHORITY}/authorize`,
+        token: `${MICROSOFT_AUTHORITY}/token`,
+        scopes: ["openid", "email", "profile"],
+        // read the ID token the token endpoint answered over TLS, issued by the person's tenant
+        profile: async (tokens, client, environment) => {
+            // require the person's tenant as issuer, this client as audience and a live token
+            const idToken = present(tokens.idToken, "microsoft's id token");
+            const claims = MicrosoftClaims.parse(Jwt.claims(idToken));
+            const now = environment.clock.now();
+            if (claims.iss !== `https://login.microsoftonline.com/${claims.tid}/v2.0`) {
+                throw AccountError.of(
+                    "TOKEN_INVALID",
+                    `microsoft's id token names the issuer ${claims.iss}`,
+                );
+            } else if (claims.aud !== client.clientId) {
+                throw AccountError.of("TOKEN_INVALID", `microsoft's id token is for ${claims.aud}`);
+            } else if (claims.exp * SECOND_MILLISECONDS <= now) {
+                throw AccountError.of("TOKEN_INVALID", "microsoft's id token expired");
+            }
+
+            // trust the email only where its domain's owner verified it (the xms_edov claim)
+            return {
+                ...claims,
+                id: claims.sub,
+                email: claims.email ?? null,
+                emailVerified: claims.xms_edov === true,
+            };
+        },
+    },
 };
 
 /** The providers a deployment signs people in through. */
 export const SignInProvider = {
     /** Sign people in through each configured provider, calling it on the environment's network. */
-    plugin(
-        clients: Readonly<Partial<Record<ProviderId, ProviderClient>>>,
-        environment: ProviderEnvironment,
-    ): BetterAuthPlugin {
-        const configurations = PROVIDER_IDS.flatMap((id): GenericOAuthConfig<ProviderId>[] => {
-            // leave out a provider the deployment has no application at
-            const client = clients[id];
-            if (client === undefined) {
-                return [];
-            }
+    plugin(clients: ProviderClients, environment: ProviderEnvironment): BetterAuthPlugin {
+        // configure each provider in the order a sign-in offers them
+        const configurations = ProviderId.options.flatMap(
+            (id): GenericOAuthConfig<ProviderId>[] => {
+                // leave out a provider the deployment has no application at
+                const client = clients[id];
+                if (client === undefined) {
+                    return [];
+                }
 
-            // exchange codes and read profiles through the environment
-            const provider = PROVIDERS[id];
+                // exchange codes and read profiles through the environment
+                const provider = PROVIDERS[id];
 
-            return [
-                {
-                    providerId: id,
-                    name: provider.name,
-                    clientId: client.clientId,
-                    clientSecret: client.clientSecret,
-                    authorizationUrl: provider.authorization,
-                    scopes: [...provider.scopes],
-                    getToken: (data) => exchange(id, client, data, environment),
-                    getUserInfo: (tokens) => provider.profile(tokens, client, environment),
-                    mapProfileToUser: async (profile) => {
-                        // read the callback's sign-up state and GitHub's login
-                        const state = present(
-                            await getOAuthState(),
-                            "the OAuth state of the callback",
-                        );
-                        const login = id === "github" ? { login: profile["login"] } : {};
+                return [
+                    {
+                        providerId: id,
+                        name: provider.name,
+                        clientId: client.clientId,
+                        clientSecret: client.clientSecret,
+                        authorizationUrl: provider.authorization,
+                        scopes: [...provider.scopes],
+                        getToken: (data) => exchange(id, client, data, environment),
+                        getUserInfo: (tokens) => provider.profile(tokens, client, environment),
+                        mapProfileToUser: async (profile) => {
+                            // read the callback's sign-up state and GitHub's login
+                            const state = present(
+                                await getOAuthState(),
+                                "the OAuth state of the callback",
+                            );
+                            const login = id === "github" ? { login: profile["login"] } : {};
 
-                        // pass a text name on, leaving any other for the sign-up to refuse as missing
-                        const { name, ...claimed } = SignUp.claimed(profile, state);
-                        const named = typeof name === "string" ? { name } : {};
+                            // pass a text name on, leaving any other for the sign-up to refuse as missing
+                            const { name, ...claimed } = SignUp.claimed(profile, state);
+                            const named = typeof name === "string" ? { name } : {};
 
-                        return { ...login, ...claimed, ...named };
+                            return { ...login, ...claimed, ...named };
+                        },
                     },
-                },
-            ];
-        });
+                ];
+            },
+        );
 
-        return genericOAuth({ config: configurations });
+        // list the configured providers beside their sign-in endpoints
+        const plugin = genericOAuth({ config: configurations });
+        const providers = SignInProviders.parse({
+            providers: configurations.map((configuration) => configuration.providerId),
+        });
+        const listProviders = createAuthEndpoint(
+            SIGN_IN_PROVIDERS_PATH,
+            { method: "GET" },
+            async (context) => context.json(providers),
+        );
+
+        return { ...plugin, endpoints: { listProviders } };
     },
 };
 

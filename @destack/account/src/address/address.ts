@@ -64,14 +64,44 @@ export const DOMAINS = {
     machine: "destack.computer",
 } as const;
 
+/** The platform's domains, whose hostnames reach its cloud machines through its own zone. */
+export const PlatformDomain = {
+    /** Whether a hostname or wildcard lies at or below one of the platform's domains. */
+    covers(hostname: string): boolean {
+        return Object.values(DOMAINS).some(
+            (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+        );
+    },
+};
+
 /** The domain installation origins answer below on a loopback machine, as browsers resolve it. */
 export const LOOPBACK_DOMAIN = "localhost";
+
+/** The installation origin's path opening a view or object, and receiving a sign-in. */
+export const OPEN_PATH = "/.destack/open";
+
+/** The installation origin's path requesting its person's permission or a fresh sign-in. */
+export const REQUEST_PATH = "/.destack/request";
 
 /** The path of the universe's issuer below its origin, the account's oauth adapter. */
 export const OAUTH_PATH = "/oauth";
 
+/** The paths of the universe's pages people sign in, consent and approve devices on. */
+export const UNIVERSE_PAGES = {
+    signIn: "/sign-in",
+    signUp: "/sign-up",
+    consent: "/consent",
+    verification: "/verification",
+    apps: "/apps",
+} as const;
+
 /** The universe's origin: its issuer below its path, and its packages below their mounts. */
 export const UniverseOrigin = {
+    /** Build the URL of one of the universe's pages, such as `https://destack.app/sign-in`. */
+    page(origin: string, page: keyof typeof UNIVERSE_PAGES): URL {
+        return new URL(UNIVERSE_PAGES[page], origin);
+    },
+
     /** Build the issuer URL of the universe at an origin, such as `https://destack.app/oauth`. */
     issuer(origin: string): string {
         return `${new URL(origin).origin}${OAUTH_PATH}`;

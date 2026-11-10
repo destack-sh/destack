@@ -11,7 +11,7 @@ import type { PackageId } from "@destack/package";
 import { type ClientOptions, type ClientTarget, createClient } from "@destack/object/client";
 import { Identifier, present, schema, type UuidEnvironment } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
-import type { Issuer, TokenBinding, TokenSet } from "../native/index.ts";
+import { type Issuer, type TokenBinding, TokenSet } from "../client/index.ts";
 import { Account } from "../object/index.ts";
 import type { ResidencyCode } from "../object/index.ts";
 import type { TestMail } from "./account.ts";
@@ -58,8 +58,8 @@ export const PersonSignIn = schema.object({
         accessToken: schema.string(),
         /** When the access token expires, in UTC epoch milliseconds. */
         expiresAt: schema.number(),
-        /** The refresh token of the signed-in person. */
-        refreshToken: schema.string(),
+        /** The refresh token, null for a client that asked none. */
+        refreshToken: schema.string().nullable(),
     }),
 });
 /** A person's sign-in on a client, as a template stores it to restore the person. */
@@ -185,7 +185,7 @@ export class TestPerson {
                 return tokens;
             }
 
-            return await this.#signIn.issuer.refresh(this.clientId, tokens.refreshToken);
+            return await this.#signIn.issuer.refresh(this.clientId, TokenSet.refreshToken(tokens));
         })();
         this.#client = refreshing;
 

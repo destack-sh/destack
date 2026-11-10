@@ -17,7 +17,7 @@ import {
 import { Assertion } from "@destack/access/token";
 import { principal } from "@destack/access";
 import { AccountError } from "../error/error.ts";
-import type { TokenBinding } from "../native/issuer.ts";
+import type { TokenBinding } from "./issuer.ts";
 import { TokenSource } from "./bearer.ts";
 
 /** The label a cloud machine's key derives from its process's keyring under. */

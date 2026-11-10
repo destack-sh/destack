@@ -185,7 +185,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
             }),
         ),
     ]).toEqual([
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
+        ["NOT_FOUND", "NOT_FOUND", "machine not found"],
         ["BAD_REQUEST", "PROOF_INVALID", "key proof is for another subject or time"],
     ]);
 
@@ -573,7 +573,7 @@ test("disable, drain and enable a machine, refusing its token grants while disab
         requestId: RequestId.create(accounts.environment),
     });
     expect([refused, await change(owner, "enable")]).toEqual([
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.account} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `machine ${identity.machineId} not found`],
         ["CONFLICT", "CREDENTIAL_REVOKED", "machine is revoked"],
     ]);
 });

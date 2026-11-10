@@ -7,6 +7,7 @@ import {
     Contact,
     Grant,
     principal,
+    ClientId,
 } from "@destack/access";
 import { and, eq, isNull, Snapshot, type DatabaseConnection } from "@destack/db";
 import type { PackageId } from "@destack/package";
@@ -191,12 +192,14 @@ export const AccountAuthentication = {
     },
 };
 
-/** Mark a device's client on a person's credential, as its tokens act as the person. */
+/** Mark the client a person's credential was issued to: a device's, or one its URL identifies. */
 function withClient(authentication: Authentication, clientId: string): Authentication {
     const { caller, credential } = authentication;
 
-    return client.identifies(clientId)
-        ? { caller, credential: { ...credential, client: client.identifier(clientId) } }
+    const bound = ClientId.safeParse(clientId);
+
+    return bound.success
+        ? { caller, credential: { ...credential, client: bound.data } }
         : { caller, credential };
 }
 

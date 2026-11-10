@@ -5,7 +5,7 @@ import type { Fetch } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import type { EventStore } from "@destack/event";
-import { magicLink, emailOTP } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins";
 import { passkey } from "@better-auth/passkey";
 import type { IdentityKeystore } from "../identity/index.ts";
 import type { Keyring, KeySet } from "@destack/identity";
@@ -15,8 +15,9 @@ import { betterAuthSessionPolicy } from "./session-policy.ts";
 import { betterAuthSecondFactor } from "./second-factor.ts";
 import { APIError, isAPIError } from "better-auth/api";
 import { BetterAuthAudit } from "./audit.ts";
-import { SignInPage } from "./sign-in-page.ts";
 import { AccountMail, type MailContent } from "./account-mail.ts";
+import { Home } from "./home.ts";
+import { BetterAuthRefusal } from "./refusal.ts";
 import { MailError } from "@destack/mail/error";
 import type { MailTransport } from "@destack/mail/transport";
 import { JWKS_PATH } from "../authentication/path.ts";
@@ -26,21 +27,12 @@ import type { TokenLifetime } from "../oauth/resource.ts";
 import { AuthorizationServer } from "../oauth/server.ts";
 import { User } from "../object/user.ts";
 import { SignUp } from "./sign-up.ts";
-import { type ProviderClient, type ProviderId, SignInProvider } from "./provider.ts";
+import { type ProviderClients, SignInProvider } from "./provider.ts";
 import { Identifier, type UuidEnvironment, Uuid } from "@destack/schema";
 import { type Clock, type Environment, type Scheduler } from "@destack/environment";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
-import { SIGN_IN_PATH } from "../package.ts";
-
-/** The sign-in pages below the issuer's URL. */
-const SIGN_IN_PATHS = {
-    signIn: SIGN_IN_PATH,
-    signUp: "/sign-up",
-    consent: "/consent",
-    verification: "/device",
-    secondFactor: "/sign-in/two-factor",
-} as const;
+import { UniverseOrigin } from "../address/address.ts";
 
 /** The label that derives the cookie and provider token secret from the process's root key. */
 const SESSION_SECRET_LABEL = { label: "@destack/account/session-secret", context: "" } as const;
@@ -123,7 +115,7 @@ export interface BetterAuthAuthenticatorOptions {
     /** Read the deployment's key that sensitive call inputs are fingerprinted under. */
     callKey: CallKey;
     /** The deployment's applications at the providers people sign in with. */
-    providers: Readonly<Partial<Record<ProviderId, ProviderClient>>>;
+    providers: ProviderClients;
     /** The account objects, which create a new person's personal account and decide access. */
     objects: Pick<
         ObjectStore,
@@ -149,8 +141,6 @@ export class BetterAuthAuthenticator {
     readonly keystore: IdentityKeystore;
     /** The issuer's URL, below which every request is answered. */
     readonly issuer: string;
-    /** The sign-in pages, answered before the protocol. */
-    readonly #pages: SignInPage;
     /** The authorization server, whose endpoints answer before Better Auth's protocol. */
     readonly #server: AuthorizationServer;
     /** The audited authorization server. */
@@ -163,11 +153,10 @@ export class BetterAuthAuthenticator {
         return this.environment.clock;
     }
 
-    /** Answer sign-in through a Better Auth instance, its pages and its audited protocol. */
+    /** Sign people in through Better Auth, its authorization server and its audited protocol. */
     private constructor(
         options: BetterAuthAuthenticatorOptions,
         auth: BetterAuth,
-        pages: SignInPage,
         server: AuthorizationServer,
         authorization: Fetch,
         protocol: Fetch,
@@ -178,9 +167,8 @@ export class BetterAuthAuthenticator {
         this.keystore = options.keystore;
         this.issuer = options.issuer;
 
-        // answer through the instance, its pages and its protocol
+        // answer through the instance, the authorization server and the protocol
         this.auth = auth;
-        this.#pages = pages;
         this.#server = server;
         this.#authorization = authorization;
         this.#protocol = protocol;
@@ -191,7 +179,7 @@ export class BetterAuthAuthenticator {
         // audit the protocol below the issuer's URL
         const { keystore } = options;
         const issuer = new URL(options.issuer);
-        const pages = resolvePages(options.issuer);
+        const pages = resolvePages(issuer.origin);
         const audit = new BetterAuthAudit(
             new Journal(options.database, options.callKey, {
                 events: options.events,
@@ -251,7 +239,7 @@ export class BetterAuthAuthenticator {
             },
         });
 
-        // serve the sign-in pages over the audited protocol and the audited authorization server
+        // serve the audited protocol and the audited authorization server
         const protocol = auditedProtocol(auth, audit, environment.scheduler);
         const authorization = audited(
             audit,
@@ -259,17 +247,8 @@ export class BetterAuthAuthenticator {
             (headers) => readBrowserSession(auth, headers, environment.scheduler),
             (request) => environment.scheduler.task(() => server.fetch(request)),
         );
-        const signIn = new SignInPage({
-            ...pages,
-            endpoint: options.issuer,
-            context: auth.$context,
-            send: protocol,
-            database: options.database,
-            server,
-            clock: environment.clock,
-        });
 
-        return new BetterAuthAuthenticator(options, auth, signIn, server, authorization, protocol);
+        return new BetterAuthAuthenticator(options, auth, server, authorization, protocol);
     }
 
     /** Read the key set the universe's tokens verify against: its identity's signing keys. */
@@ -293,17 +272,13 @@ export class BetterAuthAuthenticator {
         if (below.pathname === JWKS_PATH) {
             return Response.json(await this.keys());
         }
-        // answer a sign-in page
-        else if (this.#pages.handles(url.pathname)) {
-            return this.#pages.serve(placed);
-        }
         // answer an endpoint of the authorization server
         else if (this.#server.handles(below.pathname)) {
             return this.#authorization(placed);
         }
-        // answer a protocol request
+        // answer a protocol request, its refusals as call errors
         else {
-            return this.#protocol(placed);
+            return await BetterAuthRefusal.failure(await this.#protocol(placed));
         }
     }
 }
@@ -315,7 +290,7 @@ type BetterAuth = ReturnType<typeof configure>;
 function configure(
     options: BetterAuthAuthenticatorOptions,
     audit: BetterAuthAudit,
-    pages: Pick<SignInPage, keyof typeof SIGN_IN_PATHS>,
+    pages: Pages,
     secrets: Awaited<ReturnType<typeof sessionSecrets>>,
 ) {
     return betterAuth({
@@ -383,16 +358,31 @@ async function sessionSecrets(keyring: Keyring) {
     return derived.map(({ version, secret }) => ({ version, value: secret.toHex() }));
 }
 
-/** Resolve the sign-in pages below the issuer's URL. */
-function resolvePages(issuer: string): Pick<SignInPage, keyof typeof SIGN_IN_PATHS> {
-    const page = (path: string) => new URL(`${issuer}${path}`);
+/** The pages at the universe's origin the issuer sends a browser to: Home's views. */
+interface Pages {
+    /** Where a person signs in. */
+    readonly signIn: URL;
+    /** Where a new person signs up. */
+    readonly signUp: URL;
+    /** Where a person consents to a client. */
+    readonly consent: URL;
+    /** Where a person approves a device's sign-in. */
+    readonly verification: URL;
+    /** Where a person completes their second factor: the sign-in page at its second step. */
+    readonly secondFactor: URL;
+}
+
+/** Resolve the pages at the universe's origin the issuer sends a browser to. */
+function resolvePages(origin: string): Pages {
+    const secondFactor = UniverseOrigin.page(origin, "signIn");
+    secondFactor.searchParams.set("step", "second-factor");
 
     return {
-        signIn: page(SIGN_IN_PATHS.signIn),
-        signUp: page(SIGN_IN_PATHS.signUp),
-        consent: page(SIGN_IN_PATHS.consent),
-        verification: page(SIGN_IN_PATHS.verification),
-        secondFactor: page(SIGN_IN_PATHS.secondFactor),
+        signIn: UniverseOrigin.page(origin, "signIn"),
+        signUp: UniverseOrigin.page(origin, "signUp"),
+        consent: UniverseOrigin.page(origin, "consent"),
+        verification: UniverseOrigin.page(origin, "verification"),
+        secondFactor,
     };
 }
 
@@ -416,9 +406,9 @@ function settings(
         databaseHooks: {
             user: {
                 create: {
-                    before: async (person, context) => {
-                        // read the sign-up
-                        const signUp = SignUp.of(person, context);
+                    before: async (person) => {
+                        // read the sign-up the person's fields carry
+                        const signUp = SignUp.require(person);
 
                         return { data: { ...person, ...signUp } };
                     },
@@ -461,14 +451,12 @@ function settings(
 }
 
 /** Build the sign-in plugins. */
-function plugins(
-    options: BetterAuthAuthenticatorOptions,
-    audit: BetterAuthAudit,
-    pages: Pick<SignInPage, keyof typeof SIGN_IN_PATHS>,
-) {
+function plugins(options: BetterAuthAuthenticatorOptions, audit: BetterAuthAudit, pages: Pages) {
     return [
         passkeys(options),
         SignInProvider.plugin(options.providers, options.objects.environment),
+        SignUp.plugin(options.database),
+        Home.plugin(options.database, options.objects.environment.clock),
         betterAuthSecondFactor({
             challengeUri: pages.secondFactor.href,
             keyring: options.keystore.keyring,
@@ -476,17 +464,24 @@ function plugins(
         }),
         emailOTP({
             storeOTP: "hashed",
-            sendVerificationOTP: ({ email, otp, type }) =>
-                mail(options, email, AccountMail.code(otp, type)),
-        }),
-        magicLink({
-            storeToken: "hashed",
-            sendMagicLink: ({ email, url, metadata }) =>
-                mail(
-                    options,
-                    email,
-                    AccountMail.link(metadata === undefined ? url : SignUp.link(url, metadata)),
-                ),
+            sendVerificationOTP: async ({ email, otp, type }, context) => {
+                // mail another kind of code alone
+                if (type !== "sign-in") {
+                    await mail(options, email, AccountMail.code(otp, type));
+
+                    return;
+                }
+
+                // link the code to the sign-in page of a known person, else to the sign-up page
+                if (context === undefined) {
+                    throw new TypeError("better auth sent a sign-in code without its request");
+                }
+                const person = await context.context.internalAdapter.findUserByEmail(email);
+                const link = new URL(person === null ? pages.signUp : pages.signIn);
+                link.searchParams.set("email", email);
+                link.searchParams.set("code", otp);
+                await mail(options, email, AccountMail.signIn(otp, link));
+            },
         }),
         betterAuthSessionPolicy(options.database, options.objects.environment.clock),
         audit.plugin(),
@@ -560,7 +555,7 @@ function generateIdentifier(model: string, environment: UuidEnvironment): string
     return Identifier.create(prefix, environment);
 }
 
-/** Mail a sign-in link or code to an address, refusing a message the transport did not send. */
+/** Mail a code to an address, refusing a message the transport did not send. */
 async function mail(
     options: Pick<BetterAuthAuthenticatorOptions, "mail" | "objects">,
     address: string,

@@ -113,7 +113,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
     ]);
 });
 
-test("list an account's placements to those reading it and to its machines, and conceal it from others", async () => {
+test("list an account's placements to those reading it and to any machine, and to no other person", async () => {
     // store a space of an account, and an outsider with a machine of their own account
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -124,7 +124,8 @@ test("list an account's placements to those reading it and to its machines, and 
         .identifier("account")
         .parse("account-01996ab0-0000-7000-8000-000000000009");
 
-    // list the account's home, placed with the account on the residency's cloud machine, beside the space
+    // list the account's home, placed with the account on the residency's cloud machine, beside the space,
+    //  to every machine, which addresses any account's spaces
     const home = {
         space: Account.home(accountId),
         scope: accountId,
@@ -135,14 +136,14 @@ test("list an account's placements to those reading it and to its machines, and 
     expect([
         await placements(owner.client(accountPackage), accountId),
         await placements(computer.client(accountPackage), accountId),
-        await refusal(placements(outsider.client(accountPackage), accountId)),
-        await refusal(placements(foreign.client(accountPackage), accountId)),
+        await placements(outsider.client(accountPackage), accountId),
+        await placements(foreign.client(accountPackage), accountId),
         await refusal(placements(owner.client(accountPackage), unknown)),
     ]).toEqual([
         [home, placed],
         [home, placed],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`],
+        [],
+        [home, placed],
         ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${unknown} not found`],
     ]);
 });
@@ -204,8 +205,8 @@ test("read a space's address in its account for those reading the account, an or
     ]).toEqual([
         `notes--${personal.handle}`,
         "board--initech",
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${personal.id} not found`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${organization.payer} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `space ${notes.id} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `space ${board.id} not found`],
     ]);
 });
 

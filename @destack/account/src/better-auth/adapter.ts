@@ -5,6 +5,7 @@ import { createAdapterFactory, type CleanedWhere, type CustomAdapter } from "bet
 import type { BetterAuthPlugin, DBAdapterInstance } from "better-auth";
 import {
     and,
+    isNull,
     sql,
     asc,
     desc,
@@ -26,7 +27,7 @@ import { ResidencyCode } from "../object/residency.ts";
 import { rateLimit, verification } from "../authentication/table.ts";
 import { userLogin } from "../object/user-login.ts";
 import { passkey } from "../object/passkey.ts";
-import { session } from "../object/session.ts";
+import { Session, session } from "../object/session.ts";
 import { challenge } from "../object/challenge.ts";
 import { factor } from "../object/factor.ts";
 import { CallError } from "@destack/object";
@@ -210,6 +211,16 @@ function filter(source: Table, where: CleanedWhere[] | undefined): SQL<boolean> 
     return BetterAuthWhere.condition(source, where);
 }
 
+/** Read the unrevoked sessions Better Auth's clauses match. */
+async function matching(database: DatabaseConnection, where: CleanedWhere[]) {
+    // match the clauses among the sessions no revocation ended
+    const live = isNull(session.table.revokedAt);
+    const matched = filter(session.table, where);
+    const condition = matched === undefined ? live : and(matched, live);
+
+    return database.select().from(session.table).where(condition);
+}
+
 /** Create, change, consume and delete authentication rows, each change one statement. */
 function writes(
     database: DatabaseConnection,
@@ -254,6 +265,13 @@ function writes(
             return rows.length;
         },
         async delete({ model, where }) {
+            // revoke a session a sign-out ends, as its person
+            if (model === "session") {
+                await Session.revoke(objects, await matching(database, where), clock.now());
+
+                return;
+            }
+
             // delete the first matching row
             const source = table(model);
             await database.transaction(
@@ -262,6 +280,14 @@ function writes(
             );
         },
         async deleteMany({ model, where }) {
+            // revoke the sessions a sign-out ends, as their people
+            if (model === "session") {
+                const ended = await matching(database, where);
+                await Session.revoke(objects, ended, clock.now());
+
+                return ended.length;
+            }
+
             // delete every matching row
             const source = table(model);
             const rows = await database.transaction(

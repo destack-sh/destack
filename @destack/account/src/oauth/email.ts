@@ -136,7 +136,7 @@ export function emailGrant(options: EmailOptions): GrantType {
             await Client.register(objects, party.clientId, userId, now, transaction);
             const consent = await OAuthConsent.grant(
                 objects,
-                { clientId: party.clientId, userId, scopes: CODE_SCOPES },
+                { clientId: party.clientId, userId, scopes: CODE_SCOPES, grant: undefined },
                 now,
                 transaction,
             );

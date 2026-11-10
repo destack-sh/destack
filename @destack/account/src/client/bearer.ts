@@ -4,7 +4,7 @@ import { copyRequest, type Environment } from "@destack/environment";
 import { TokenCache } from "@destack/access/token";
 import { TOKEN_PATH } from "../authentication/path.ts";
 import { TokenResponse } from "../authentication/token.ts";
-import type { TokenBinding } from "../native/issuer.ts";
+import type { TokenBinding } from "./issuer.ts";
 import { JWT_BEARER } from "../oauth/bearer.ts";
 
 /** A source of a caller's access tokens, by its assertions at a token endpoint (RFC 7523). */

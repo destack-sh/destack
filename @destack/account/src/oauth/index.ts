@@ -1,5 +1,6 @@
 export * from "./authorization.ts";
 export * from "./bearer.ts";
+export * from "./consent.ts";
 export * from "./device.ts";
 export * from "./email.ts";
 export * from "./exchange.ts";

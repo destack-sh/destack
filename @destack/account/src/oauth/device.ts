@@ -1,3 +1,4 @@
+import type { AuthContext } from "better-auth";
 import { type DatabaseConnection, eq, Snapshot, Transaction } from "@destack/db";
 import { type Environment, Random } from "@destack/environment";
 import type { ObjectStore } from "@destack/object/server";
@@ -19,7 +20,13 @@ import { ClientAuthentication, DEVICE_CODE, OAuthClient } from "./party.ts";
 import { PackageResource } from "./resource.ts";
 import { spaceSeparated, type GrantType, TokenEndpoint } from "./token.ts";
 import { Credential } from "../credential/credential.ts";
-import type { Decision } from "./authorization.ts";
+import { requireBody, requireOrigin, requireQuery } from "./authorization.ts";
+import type { Decision } from "../authentication/request.ts";
+import {
+    DeviceRequestDecision,
+    DeviceRequestOutcome,
+    DeviceRequestReview,
+} from "../authentication/request.ts";
 
 /** How long a device's codes wait for the person, in milliseconds: half an hour (RFC 8628 3.2). */
 const DEVICE_MILLISECONDS = 30 * 60_000;
@@ -186,12 +193,17 @@ export class DeviceAuthorizationEndpoint {
 
         // register a device's client for the person, grant the client the scopes, and approve, in one commit
         await Transaction.run(database, async (transaction) => {
-            if (party.registration === undefined) {
+            if (party.registration.kind === "device") {
                 await Client.register(objects, party.clientId, session.userId, now, transaction);
             }
             await OAuthConsent.grant(
                 objects,
-                { clientId: party.clientId, userId: session.userId, scopes: row.scopes },
+                {
+                    clientId: party.clientId,
+                    userId: session.userId,
+                    scopes: row.scopes,
+                    grant: undefined,
+                },
                 now,
                 transaction,
             );
@@ -206,6 +218,58 @@ export class DeviceAuthorizationEndpoint {
                 { transaction },
             );
         });
+    }
+}
+
+/** The pending device sign-ins a verification view reads and decides by their user code. */
+export class DeviceRequestEndpoint {
+    /** The device authorization endpoint storing and deciding the sign-ins. */
+    readonly #device: DeviceAuthorizationEndpoint;
+    /** Read the session a browser's request signs in, none for a signed-out browser. */
+    readonly #session: (headers: Headers) => Promise<string | undefined>;
+    /** The origins a decision may come from. */
+    readonly #context: Promise<Pick<AuthContext, "isTrustedOrigin">>;
+
+    /** Answer a verification view through the device authorization endpoint. */
+    constructor(
+        device: DeviceAuthorizationEndpoint,
+        session: (headers: Headers) => Promise<string | undefined>,
+        context: Promise<Pick<AuthContext, "isTrustedOrigin">>,
+    ) {
+        this.#device = device;
+        this.#session = session;
+        this.#context = context;
+    }
+
+    /** Read a pending sign-in by its code as a signed-in person, or decide it. */
+    async fetch(request: Request): Promise<Response> {
+        // read the sign-in's client, scopes and status, refusing a signed-out person
+        if (request.method === "GET") {
+            if ((await this.#session(request.headers)) === undefined) {
+                throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            }
+            const userCode = requireQuery(request, "user_code");
+            const { party, row, decision } = await this.#device.review(userCode);
+
+            return Response.json(
+                DeviceRequestReview.parse({
+                    client: { id: party.clientId, name: party.name },
+                    scopes: row.scopes,
+                    status: decision.status,
+                }),
+            );
+        }
+        // decide it from a trusted origin
+        else if (request.method === "POST") {
+            await requireOrigin(request, this.#context);
+            const { userCode, decision } = await requireBody(request, DeviceRequestDecision);
+            await this.#device.decide(userCode, request.headers, decision);
+            const status = decision === "approve" ? "approved" : "denied";
+
+            return Response.json(DeviceRequestOutcome.parse({ status }));
+        }
+
+        return new Response(null, { status: 405, headers: { allow: "GET, POST" } });
     }
 }
 

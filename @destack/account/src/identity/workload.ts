@@ -13,10 +13,10 @@ import {
     TokenIssuer,
 } from "@destack/access/token";
 import { TokenSource } from "../client/bearer.ts";
-import { Issuer, type TokenBinding } from "../native/issuer.ts";
+import { Issuer, type TokenBinding } from "../client/issuer.ts";
 import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
-import { SECOND_MILLISECONDS } from "../authentication/token.ts";
+import { SECOND_MILLISECONDS, REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
@@ -172,6 +172,25 @@ export class WorkloadIdentity {
         };
 
         return this.keystore.sign(this.database, this.identity, claims, { typ: ASSERTION_TYPE });
+    }
+
+    /** Sign a request object of the subject for an issuer's authorization endpoint (RFC 9101). */
+    request(issuer: string, parameters: Readonly<Record<string, unknown>>): Promise<string> {
+        // sign the parameters as the identity, for itself or its installation, living as an assertion does
+        const issuedAt = Math.floor(this.keystore.environment.clock.now() / SECOND_MILLISECONDS);
+        const claims = {
+            ...parameters,
+            iss: this.identity,
+            sub: this.subject.id,
+            aud: issuer,
+            iat: issuedAt,
+            exp: issuedAt + ASSERTION_SECONDS,
+            jti: Uuid.v4(this.keystore.environment.random),
+        };
+
+        return this.keystore.sign(this.database, this.identity, claims, {
+            typ: REQUEST_OBJECT_TYPE,
+        });
     }
 
     /** Bind a token to a partition when given. */

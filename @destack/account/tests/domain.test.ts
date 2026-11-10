@@ -223,31 +223,23 @@ test("hide an account's domains from a stranger to every domain method", async (
     });
     fixture.dns.publish(claimed);
 
-    // hide the account from a stranger's listing, reads, claims, verifications and deletions
+    // hide the account's domains from a stranger's listing, reads, claims, verifications and deletions
     const id = claimed.id;
     const scope = accountId;
-    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${accountId} not found`];
-    expect(await refusal(stranger.domain.list({ scope }))).toEqual(hidden);
-    expect(await refusal(stranger.domain.get({ scope, id }))).toEqual(hidden);
-    expect(
-        await refusal(
-            stranger.domain.create({
-                scope,
-                requestId: RequestId.create(fixture.environment),
-                name,
-            }),
-        ),
-    ).toEqual(hidden);
-    expect(
-        await refusal(
-            stranger.domain.verify({ scope, id, requestId: RequestId.create(fixture.environment) }),
-        ),
-    ).toEqual(hidden);
-    expect(
-        await refusal(
-            stranger.domain.delete({ scope, id, requestId: RequestId.create(fixture.environment) }),
-        ),
-    ).toEqual(hidden);
+    const requestId = () => RequestId.create(fixture.environment);
+    expect({
+        listed: (await stranger.domain.list({ scope })).items,
+        read: await refusal(stranger.domain.get({ scope, id })),
+        claimed: await refusal(stranger.domain.create({ scope, requestId: requestId(), name })),
+        verified: await refusal(stranger.domain.verify({ scope, id, requestId: requestId() })),
+        deleted: await refusal(stranger.domain.delete({ scope, id, requestId: requestId() })),
+    }).toEqual({
+        listed: [],
+        read: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
+        claimed: ["NOT_FOUND", "NOT_FOUND", "domain not found"],
+        verified: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
+        deleted: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
+    });
 
     // leave the claim unverified and ask the resolver nothing
     expect(await owner.domain.get({ scope, id })).toEqual(claimed);

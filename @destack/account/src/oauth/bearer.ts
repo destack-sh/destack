@@ -2,7 +2,12 @@ import { CONTAINED, principal } from "@destack/access";
 import { Scope, type Subject } from "@destack/sync";
 import { type DatabaseConnection, Snapshot } from "@destack/db";
 import { schema } from "@destack/schema";
-import { type AssertionKey, AssertionVerifier, PartitionId } from "@destack/access/token";
+import {
+    ASSERTION_TYPE,
+    type AssertionKey,
+    AssertionVerifier,
+    PartitionId,
+} from "@destack/access/token";
 import { Identity } from "../object/identity.ts";
 import { Machine, machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
@@ -42,11 +47,15 @@ export interface BearerOptions {
     readonly environment: Environment;
 }
 
-/** Exchange a machine's or installation's assertion for a package's access token (RFC 7523). */
-export function bearerGrant(options: BearerOptions): GrantType {
-    // verify assertions by the machines' keys that authenticate, spending each once
+/** Verify the tokens of a type machines and spaces sign by their keys, spending each once. */
+export function assertionVerifier(
+    options: BearerOptions,
+    type: string = ASSERTION_TYPE,
+): AssertionVerifier {
     const { database } = options;
-    const assertions = new AssertionVerifier({
+
+    return new AssertionVerifier({
+        type,
         endpoint: options.endpoint,
         audience: accountPackage.id,
         keys: (thumbprint, issuer, now) =>
@@ -54,6 +63,13 @@ export function bearerGrant(options: BearerOptions): GrantType {
         crypto: options.environment.crypto,
         database,
     });
+}
+
+/** Exchange a machine's or installation's assertion for a package's access token (RFC 7523). */
+export function bearerGrant(options: BearerOptions): GrantType {
+    // verify assertions by the machines' keys that authenticate, spending each once
+    const { database } = options;
+    const assertions = assertionVerifier(options);
     const federated = new FederatedVerifier(database, options.endpoint, options.environment);
 
     return async ({ body }) => {
@@ -72,7 +88,7 @@ export function bearerGrant(options: BearerOptions): GrantType {
         const now = options.environment.clock.now();
         const { caller: asserted, credential } = FederatedVerifier.isFederated(assertion)
             ? await federated.verify(assertion, audience, now)
-            : await assertions.verify(assertion, now);
+            : (await assertions.verify(assertion, now)).authentication;
 
         // read the partitions the subject acts in: a machine its own and any space, a space or a trusted publisher any space, an installation its space
         const { subject } = asserted;

@@ -180,8 +180,8 @@ async function describe(
 
         // refuse a token whose device client was revoked, as offline renewals rest on it
         const presented = verified.credential;
-        if (presented.client !== undefined) {
-            await requireClient(transaction, presented.client);
+        if (presented.client !== undefined && client.identifies(presented.client)) {
+            await requireClient(transaction, client.identifier(presented.client));
         }
 
         // end the token with the session it was issued in

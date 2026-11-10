@@ -1,12 +1,24 @@
-import { APIError } from "better-auth/api";
+import type { BetterAuthPlugin } from "better-auth";
+import { APIError, createAuthEndpoint } from "better-auth/api";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
+import { claimTable } from "@destack/object";
 import { Locale, LocaleTag, SOURCE_LOCALE } from "@destack/locale";
 import { schema, TimeZone } from "@destack/schema";
 import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "../object/display-name.ts";
-import { ResidencyCode } from "../object/residency.ts";
+import { Residency, ResidencyCode } from "../object/residency.ts";
+import { Account } from "../object/account.ts";
+import { HANDLE_CHECK_PATH, RESIDENCY_CHOICE_PATH } from "../authentication/path.ts";
+import { HandleCheck, ResidencyChoice } from "../authentication/request.ts";
 
-/** The Better Auth route a mailed sign-in link opens, with the sign-up in its query. */
-const LINK_PATH = "/magic-link/verify";
+/** The header Cloudflare's edge reads the visitor's country into, ISO 3166-1 alpha-2. */
+const COUNTRY_HEADER = "cf-ipcountry";
+
+/** The query of a handle's check: the handle as the person typed it. */
+const HandleQuery = schema.object({
+    /** The handle as typed. */
+    handle: schema.string().max(64),
+});
 
 /** The schema of the time zone and locale a person stores. */
 const SignUpPerson = schema.object({
@@ -33,6 +45,52 @@ export type SignUp = schema.Infer<typeof SignUpValues>;
 export const SignUp = Object.assign(SignUpValues, {
     /** The schema of the time zone and locale the person stores. */
     person: SignUpPerson,
+
+    /** Answer what a sign-up asks before the person exists: handles and residencies. */
+    plugin(database: DatabaseConnection): BetterAuthPlugin {
+        return {
+            id: "destack-sign-up",
+            endpoints: {
+                /** Report whether a handle is free, taken, or invalid. */
+                checkHandle: createAuthEndpoint(
+                    HANDLE_CHECK_PATH,
+                    { method: "GET", query: HandleQuery },
+                    async (context) => {
+                        const { handle } = context.query;
+                        const claims = Snapshot.live(database).read(claimTable);
+
+                        return context.json(
+                            HandleCheck.parse({
+                                handle,
+                                availability: await Account.availability(claims, handle),
+                            }),
+                        );
+                    },
+                ),
+
+                /** List the residencies, and the one offered the visitor's country, if any. */
+                listResidencies: createAuthEndpoint(
+                    RESIDENCY_CHOICE_PATH,
+                    { method: "GET" },
+                    async (context) => {
+                        // offer the residency listing the edge's country of the visitor
+                        const residencies = await Residency.list(database);
+                        const country = context.request?.headers.get(COUNTRY_HEADER)?.toUpperCase();
+                        const suggested = residencies.find(
+                            (each) => country !== undefined && each.countries.includes(country),
+                        );
+
+                        return context.json(
+                            ResidencyChoice.parse({
+                                residencies: residencies.map(({ code, name }) => ({ code, name })),
+                                suggested: suggested?.code ?? null,
+                            }),
+                        );
+                    },
+                ),
+            },
+        };
+    },
 
     /** Read the first well-formed tag a request's Accept-Language asks for. */
     locale(headers: Headers): LocaleTag {
@@ -76,18 +134,6 @@ export const SignUp = Object.assign(SignUpValues, {
         return parsed.data;
     },
 
-    /** Add a sign-up to the query of a mailed sign-in link. */
-    link(url: string, values: Readonly<Record<string, unknown>>): string {
-        // add the sign-up to the link's query
-        const signUp = SignUp.require(values);
-        const link = new URL(url);
-        for (const [name, value] of Object.entries(signUp)) {
-            link.searchParams.set(name, value);
-        }
-
-        return link.href;
-    },
-
     /** Read a provider's well-formed name, zoneinfo and locale claims. */
     claimed(
         profile: object,
@@ -111,27 +157,6 @@ export const SignUp = Object.assign(SignUpValues, {
             handle: state["handle"],
             residencyId: state["residencyId"],
         };
-    },
-
-    /** Read a new user's sign-up. */
-    of(
-        person: Readonly<Record<string, unknown>>,
-        context: { readonly path?: string; readonly request?: Request | undefined } | null,
-    ): SignUp {
-        // read the query of a mailed sign-in link
-        if (context?.path === LINK_PATH && context.request !== undefined) {
-            const query = new URL(context.request.url).searchParams;
-
-            return SignUp.require(
-                Object.fromEntries(
-                    Object.keys(SignUpValues.shape).map((name) => [name, query.get(name)]),
-                ),
-            );
-        }
-        // read the fields the sign-up passed
-        else {
-            return SignUp.require(person);
-        }
     },
 });
 
