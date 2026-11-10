@@ -21,7 +21,7 @@ import { PackageId, PackageName } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
 import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
-import type { InstalledServerContext, PackageContext } from "@destack/object/workload";
+import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository } from "@destack/registry/object";
@@ -69,7 +69,7 @@ export interface ForgeOptions {
     /** The forge's installation, the consumer its accounts bind their connections to. */
     readonly installation: Subject;
     /** The installation's resources, which bind the GitHub App's webhook secret. */
-    readonly server: Pick<InstalledServerContext, "resources">;
+    readonly server: Pick<ServerContext, "resources">;
 }
 
 /** How long the forge follows a calling space's row: an hour, 2 renewals and 1 KB per space. */
