@@ -73,7 +73,12 @@ An island takes JSON properties and children, which keep their server HTML.
 // islands/disclosure.tsx
 export default function Disclosure(properties: { label: string; children?: JSX.Element }) {
     const [isOpen, setIsOpen] = createSignal(false);
-    return <section><button onClick={() => setIsOpen(!isOpen())}>{properties.label}</button>{properties.children}</section>;
+    return (
+        <section>
+            <button onClick={() => setIsOpen(!isOpen())}>{properties.label}</button>
+            {properties.children}
+        </section>
+    );
 }
 ```
 
@@ -82,7 +87,12 @@ export default function Disclosure(properties: { label: string; children?: JSX.E
 `DevelopmentServer` serves a workspace's static view on Vite, rendering each page and endpoint on request.
 
 ```ts
-await using development = await DevelopmentServer.start({ workspace, view: "site", environment, server: { port: 3737 } });
+await using development = await DevelopmentServer.start({
+    workspace,
+    view: "site",
+    environment,
+    server: { port: 3737 },
+});
 ```
 
 ## Packages
@@ -151,7 +161,12 @@ await mount(
 ```ts
 import { registerCommand } from "@destack/view";
 
-registerCommand({ name: "copy-link", title: t`Copy Link`, keybinding: "mod+shift+c", run: () => copy(link) });
+registerCommand({
+    name: "copy-link",
+    title: t`Copy Link`,
+    keybinding: "mod+shift+c",
+    run: () => copy(link),
+});
 registerCommand({
     name: "go-to-line",
     title: t`Go to Line…`,
