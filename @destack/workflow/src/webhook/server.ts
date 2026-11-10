@@ -1,6 +1,6 @@
 import { refusal } from "@destack/object";
 import type { AdapterFetch } from "@destack/object/server";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { SecretReading } from "@destack/resource";
 import type { Webhook, WebhookReceive } from "./webhook.ts";
 
@@ -17,13 +17,13 @@ export class WebhookServer {
     /** What takes the verified deliveries. */
     readonly #receive: WebhookReceive;
     /** The installation's resources, which bind the webhook's secret. */
-    readonly #server: Pick<InstalledServerContext, "resources">;
+    readonly #server: Pick<ServerContext, "resources">;
 
     /** Answer a webhook's deliveries for an installation. */
     constructor(
         webhook: Webhook,
         receive: WebhookReceive,
-        server: Pick<InstalledServerContext, "resources">,
+        server: Pick<ServerContext, "resources">,
     ) {
         this.#webhook = webhook;
         this.#receive = receive;

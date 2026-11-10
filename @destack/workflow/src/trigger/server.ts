@@ -23,7 +23,7 @@ import { ObjectType, type ObjectReconciliation, ObjectWatch, refuseInput } from 
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { Failure } from "@destack/error";
 import { Manager } from "@destack/access";
 import { canonicalize, present, schema } from "@destack/schema";
@@ -165,7 +165,7 @@ export class TriggerServer<Input> {
 
     /** Serve the triggers' webhooks, starting a run of each active trigger per delivery. */
     webhooks(
-        server: Pick<InstalledServerContext, "resources"> | undefined,
+        server: Pick<ServerContext, "resources"> | undefined,
     ): ReadonlyMap<string, AdapterFetch> {
         // group the webhook triggers by their webhook, refusing to serve one without the installation
         const triggers = [...this.#declared.values()].filter((each) => isWebhook(each));
@@ -414,10 +414,15 @@ export class TriggerServer<Input> {
 
     /** Create missing declared rows, update changed schedules, retire undeclared attached rows. */
     async #declare(store: ObjectStore, scope: string): Promise<void> {
-        // read the rows the workflow's installation declared in the space, detached ones too
+        // leave a scope's own package, which no installation's build declares triggers for
         const { trigger } = this.workflow;
-        const served = present(store.readServer(trigger), `the server of ${trigger.name}`);
-        const manager = { installationId: served.installation, packageId: trigger.package.id };
+        const { server } = store.implementation(trigger);
+        if (server === undefined) {
+            return;
+        }
+
+        // read the rows the workflow's installation declared in the space, detached ones too
+        const manager = { installationId: server.installation, packageId: trigger.package.id };
         const column = (name: string) => trigger.table[TABLE].column(name);
         const rows = await store.database
             .select()

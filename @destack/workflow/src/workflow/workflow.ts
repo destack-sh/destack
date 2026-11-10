@@ -21,7 +21,7 @@ import type { RunContext, Step } from "../step/step.ts";
 import { ENDED_STATES, LIVE_STATES, Run, RUN_STATES } from "../run/run.ts";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { ScheduleOn, ScheduleSkip } from "../trigger/schedule.ts";
 import {
     type Trigger,
@@ -98,7 +98,7 @@ export type WorkflowDeclaration<Input = unknown, Output = unknown> = Omit<
 /** What a server needs beside a workflow's function: the installation its webhooks verify with. */
 export interface WorkflowServing {
     /** The installation's resources, which bind its webhooks' secrets. */
-    readonly server?: Pick<InstalledServerContext, "resources">;
+    readonly server?: Pick<ServerContext, "resources">;
 }
 
 /** A workflow as a server serves it: its types, its trigger controllers and its webhooks. */

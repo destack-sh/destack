@@ -1,12 +1,5 @@
 import type { Environment, HostCapability } from "@destack/environment";
-import {
-    Grant,
-    type GrantPermission,
-    InstallationId,
-    principal,
-    relation,
-    universe,
-} from "@destack/access";
+import { Grant, type GrantPermission, principal, relation, universe } from "@destack/access";
 import { space } from "@destack/account/object";
 import type { Simulation } from "@destack/environment/simulation";
 import {
@@ -15,16 +8,17 @@ import {
     defineObject,
     field,
     grantShape,
+    installation,
     PackageHandle,
     type ObjectType,
 } from "@destack/object";
 import { DynamicObjectClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
-import { TestObjectStore, testSimulation } from "@destack/object/test";
+import { TestObjectStore, testServerContext, testSimulation } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
-import { type Call, RequestId, Scope, type Subject, Uplink } from "@destack/sync";
-import { Snapshot } from "@destack/db";
+import { type Call, ObjectReference, RequestId, Scope, type Subject, Uplink } from "@destack/sync";
+import { Snapshot, Table } from "@destack/db";
 import { onTestFinished } from "@destack/test";
 import type {
     RunContext,
@@ -191,19 +185,15 @@ export async function openServed<Input, Output>(
     });
     onTestFinished(() => universal[Symbol.asyncDispose]());
 
-    // follow the grants people give the space and its agent from the universe, as the space
+    // serve the notes application at its installation in the space, which runs the workflows
     const spaceId = Identifier.create("space", universal.environment);
     const scope = principal.space.reference(Scope.universe.id, spaceId);
-    const runners = await Promise.all(
-        [note.package.id].map(async (packageId) =>
-            principal.installation.reference(
-                spaceId,
-                await InstallationId.base(scope, packageId, universal.environment.crypto),
-            ),
-        ),
-    );
+    const context = await testServerContext(note.package, spaceId, universal.environment);
+    const runner = principal.installation.reference(spaceId, context.installation);
+
+    // follow the grants people give the space, the installation and its agent from the universe, as the space
     const grants = grantShape.at(
-        ...[scope, ...runners, agentOf(spaceId)].map((delegate) => ({
+        ...[scope, runner, agentOf(spaceId)].map((delegate) => ({
             key: {
                 scope: Scope.universe.id,
                 delegatePackageId: delegate.packageId,
@@ -233,7 +223,7 @@ export async function openServed<Input, Output>(
                 adapters: Object.fromEntries(
                     implementations.flatMap((each) => Object.entries(each.adapters)),
                 ),
-            }),
+            }).at(context),
         ],
         simulation,
         node: SPACE_NODE,
@@ -241,8 +231,26 @@ export async function openServed<Input, Output>(
     });
     onTestFinished(() => served[Symbol.asyncDispose]());
 
-    // let alice and bob read the space and write and approve notes in it, binding the role as alice
+    // record the installation in the space, as installing it does
+    const at = served.environment.clock.now();
+    await served.database.transaction(async (transaction) =>
+        transaction.insert(installation.table).values(
+            Table.complete(installation.table, {
+                id: context.installation,
+                scope: spaceId,
+                name: context.name,
+                packageId: note.package.id,
+                selection: { kind: "release", version: note.package.version },
+                createdAt: at,
+                updatedAt: at,
+                ...ObjectReference.columns("createdBy", scope),
+                ...ObjectReference.columns("updatedBy", scope),
+            }),
+        ),
+    );
     const access = served.as(alice).client(objectPackage);
+
+    // let alice and bob read the space and write and approve notes in it, binding the role as alice
     const member = await access.role.create({
         scope: served.scope,
         requestId: RequestId.create(served.environment),
@@ -289,7 +297,7 @@ export async function openServed<Input, Output>(
         return created.id;
     };
 
-    // let alice and bob grant the installations serving the runs every permission of the served types
+    // let alice and bob grant the installation running the workflows every permission of the served types
     const consented = [...declared, approval, changeRequest].flatMap((type) =>
         Object.keys(type.policy.definition.permissions).map((name) => ({
             ...type.policy.permission(name),
@@ -297,9 +305,7 @@ export async function openServed<Input, Output>(
         })),
     );
     for (const user of [alice, bob]) {
-        for (const runner of runners) {
-            await grant(user, runner, consented);
-        }
+        await grant(user, runner, consented);
     }
 
     // read the runs, oldest first

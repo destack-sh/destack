@@ -1,5 +1,5 @@
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { DeclarationName, defineDeclarationKind, ModuleMetadata } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import type { AdapterDeclaration } from "@destack/object";
@@ -69,7 +69,7 @@ export interface Webhook extends AdapterDeclaration {
     /** Answer the deliveries of an installation, verifying each before handing it over. */
     readonly serve: (
         receive: WebhookReceive,
-        server: Pick<InstalledServerContext, "resources">,
+        server: Pick<ServerContext, "resources">,
     ) => AdapterFetch;
 }
 
@@ -151,7 +151,7 @@ export function defineWebhook(
         template: new WebhookPath(definition.template ?? "/"),
         signature,
         secret,
-        serve: (receive: WebhookReceive, server: Pick<InstalledServerContext, "resources">) =>
+        serve: (receive: WebhookReceive, server: Pick<ServerContext, "resources">) =>
             new WebhookServer(webhook, receive, server).fetch,
     });
 
