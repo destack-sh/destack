@@ -1,6 +1,6 @@
 import { Caller } from "@destack/access";
 import { Account, Space, space } from "@destack/account/object";
-import { KERNEL_TYPES } from "../../stack/kernel.ts";
+import { KNOWN_TYPES } from "../../stack/kernel.ts";
 import { Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { and, type DatabaseConnection, eq, isNotNull, Snapshot, Transaction } from "@destack/db";
 import {
@@ -10,7 +10,6 @@ import {
     ObjectType,
     ObjectTypePool,
 } from "@destack/object";
-import accountPackage from "@destack/account/package";
 import { Stack, ObjectStore } from "@destack/object/server";
 import { StackError } from "../../error/index.ts";
 import { installation } from "@destack/object";
@@ -349,9 +348,7 @@ async function installedTypes(
     );
 
     // declare them against the space's types, the account's and the kernel's, which they refer to
-    const pool = ObjectTypePool.of(
-        ObjectType.known(objects, [...Object.values(accountPackage.objects), ...KERNEL_TYPES]),
-    );
+    const pool = ObjectTypePool.of(ObjectType.known(objects, KNOWN_TYPES));
 
     // report an installation the document declares that follows no build yet
     const followed = new Set(following.map((entry) => entry.installation.name));

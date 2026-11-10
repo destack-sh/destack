@@ -4,7 +4,7 @@ import {
     approval,
     AWAITING_APPROVAL,
     changeRequest,
-    type ChangeRequestRow,
+    type ChangeRequest,
     installation,
     MethodContext,
     type ObjectReconciliation,
@@ -151,6 +151,7 @@ export class Approval {
         // withdraw the open requests for another plan, and ask for this one unless decided already
         const stale = requests.filter((row) => row.state === "open" && asked(row) !== digest);
         const isAsked = requests.some((row) => asked(row) === digest);
+        const managers = Approval.managers(rolled);
         const opened =
             digest === undefined || isAsked
                 ? []
@@ -162,8 +163,10 @@ export class Approval {
                               ...rollout.target({ scope: rolled.scope, id: rolled.installationId }),
                               plan: digest,
                           }),
-                          as: "approver",
-                          approvers: [Approval.managers(rolled)],
+                          ...ObjectReference.columns("as", managers),
+                          ...(managers.relation === undefined
+                              ? {}
+                              : { asRelation: managers.relation }),
                       }),
                   ];
         const calls = [
@@ -188,7 +191,7 @@ export class Approval {
     static async requests(
         reader: Pick<Snapshot, "read">,
         rolled: Pick<Rollout, "id" | "scope">,
-    ): Promise<ChangeRequestRow[]> {
+    ): Promise<ChangeRequest["row"][]> {
         const found = await reader.read(changeRequest.table).findMany({
             where: {
                 scope: rolled.scope,

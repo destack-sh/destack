@@ -39,7 +39,6 @@ import { type Call, ObjectTypeReference } from "@destack/sync";
 import { Setting } from "@destack/setting";
 import { SettingValue } from "@destack/setting/object";
 import { build, Build, type BuildSource } from "../../object/build.ts";
-import accountPackage from "@destack/account/package";
 import type { SpaceBuildStore, Registry } from "./build.ts";
 import type { Forge } from "./follow.ts";
 import type { Binder } from "../resource/binding.ts";
@@ -67,10 +66,14 @@ export interface RevisionOptions {
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
-    /** The types the kernel declares, which packages implement and their descriptions refer to. */
-    readonly kernel: readonly ObjectType[];
+    /** The types every space knows beside those it serves, which descriptions refer to. */
+    readonly known: readonly ObjectType[];
     /** The release the machine links of each package, which its spaces run before any revision. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine ships, by package. */
+    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
+    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    readonly trusted: ReadonlySet<Digest>;
 }
 
 /** The build a selection resolves to: the space's build, its manifest and source. */
@@ -134,8 +137,8 @@ export const RolloutTarget = {
                 const message = `waiting for a provider of ${[...new Set(unserved)].join(", ")} resources`;
                 await reconciliation.observe(installation, row.installation, {
                     conditions: {
-                        Bound: { status: "false", reason: "WaitingForResources", message },
-                        Ready: { status: "false", reason: "WaitingForResources", message },
+                        Bound: Rollout.waiting("WaitingForResources", message),
+                        Ready: Rollout.waiting("WaitingForResources", message),
                     },
                 });
                 continue;
@@ -352,7 +355,7 @@ export const RolloutTarget = {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
         objects: readonly ObjectType[],
-        options: Pick<RevisionOptions, "builds" | "registry" | "blobs" | "kernel">,
+        options: Pick<RevisionOptions, "builds" | "registry" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the installable packages it depends on, at the releases it compiled against
         const { builds, registry, blobs } = options;
@@ -420,10 +423,22 @@ async function selectBuild(
     const { selection, packageId } = row.installation;
     const snapshot = Snapshot.live(reconciliation.database);
     if (selection.kind === "release" || selection.kind === "tag") {
-        const selected = await selectedRelease(snapshot, row.installation, current, options);
-        if (selected === undefined) {
+        const pinned = await selectedRelease(snapshot, row.installation, current, options);
+        if (pinned === undefined) {
             return undefined;
         }
+
+        // move a stack's host installation off a release this machine no longer runs, as a system image updates its apps
+        const running = options.linked.get(packageId) ?? options.shipped.get(packageId);
+        const isSuperseded = Rollout.isSuperseded(
+            row.installation,
+            pinned.manifest,
+            options.trusted,
+        );
+        const selected =
+            isSuperseded && running !== undefined
+                ? { version: running.package.version, manifest: running.manifest }
+                : pinned;
         const source = current?.source;
         if (
             source?.kind === "release" &&
@@ -569,7 +584,7 @@ async function mainTables(
     reader: BuildReader,
     revision: Pick<InstallationRevision, "dependencies">,
     objects: readonly ObjectType[],
-    options: Pick<RevisionOptions, "builds" | "registry" | "kernel">,
+    options: Pick<RevisionOptions, "builds" | "registry" | "known">,
 ): Promise<DatabaseState | undefined> {
     // declare no tables for a package declaring no object types
     const packageId = PackageManifest.package(reader.manifest).id;
@@ -579,10 +594,7 @@ async function mainTables(
     }
 
     // read the types the builds of the packages it needs declare, reading none of a package the pool knows
-    const pooled = ObjectType.known(objects, [
-        ...Object.values(accountPackage.objects),
-        ...options.kernel,
-    ]);
+    const pooled = ObjectType.known(objects, options.known);
     const known = new Set(objects.map((type) => ObjectTypeReference.key(type.typeReference)));
     const pooledPackages = new Set(pooled.map((type) => type.package.id));
     const description = await PackageDescription.of(reader);

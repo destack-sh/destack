@@ -1,16 +1,17 @@
+import { PlatformDomain } from "@destack/account/address";
 import { hostname } from "@destack/account/object";
 import { type MethodContext } from "@destack/object";
 import { Route, route, type RouteRule } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../../error/index.ts";
 
-/** Implement the routes of a space, refused on a machine the account's hostnames do not reach. */
+/** Implement the routes of a space, refusing an account's own hostname a machine does not serve. */
 export function implementRoute(isServingHostnames: boolean) {
     return route.implement({
         methods: {
             create: async (call, next) => {
-                // refuse a route no request would reach, then a hostname outside the account
-                if (!isServingHostnames) {
+                // refuse a route on an account's own hostname no request would reach, then a hostname outside the account
+                if (!isServingHostnames && !PlatformDomain.covers(call.input.hostname)) {
                     throw StackError.of(
                         "HOSTNAME_NOT_SERVED",
                         `requests for ${call.input.hostname} do not reach this space's machine`,

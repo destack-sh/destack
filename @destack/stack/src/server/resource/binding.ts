@@ -729,9 +729,9 @@ export class Binder {
         });
         const bound = revisions
             .flatMap((revision) => revision.bindings)
-            .filter((entry) => entry.targetSpaceId === null);
+            .filter((entry) => entry.targetSpaceId === null && this.isBindable(entry.target));
 
-        // read the objects each binding lets the installation use
+        // read the objects each binding of a kind served here lets the installation use
         const wanted = (
             await Promise.all(
                 bound.map((entry) =>

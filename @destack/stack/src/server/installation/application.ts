@@ -108,14 +108,16 @@ export interface ApplicationOptions {
     readonly database: DatabaseConnection;
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine ships, by package. */
+    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The manifests of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
     /** The forge whose references and tags installations select, null without one. */
     readonly forge: Forge | null;
-    /** The types the kernel declares, which packages implement and their descriptions refer to. */
-    readonly kernel: readonly ObjectType[];
+    /** The types every space knows beside those it serves, which descriptions refer to. */
+    readonly known: readonly ObjectType[];
 }
 
 /** What a revision deploys: its build, workloads, replaced deployments and needs. */
@@ -462,15 +464,35 @@ export class ApplicationInstallation {
         revision: InstallationRevision,
         live: readonly Deployment[],
     ): Promise<void> {
-        // read the workloads the machine runs
+        // wait while the stack managing a host installation moves it off a build this machine does not run
         const target = this.#target;
-        const build = await this.#open(call, revision);
-        const description = await PackageDescription.of(build);
         const built = await Build.require(
             { read: (table) => call.read(table) },
             revision.scope,
             revision.buildId,
         );
+        if (Rollout.isSuperseded(target.installation, built.manifest, this.#options.trusted)) {
+            const message = `waiting for the space's stack to move it to a release this machine runs`;
+            await call.observe(installation, target.installation, {
+                conditions: { Ready: Rollout.waiting("WaitingForStack", message) },
+            });
+
+            return;
+        }
+
+        // wait for a build this machine lacks, which a pull or its stack brings, as an image pull waits
+        if (!(await this.#options.builds.contains(built.manifest))) {
+            const message = `waiting for build ${built.manifest}, which this machine does not have yet`;
+            await call.observe(installation, target.installation, {
+                conditions: { Ready: Rollout.waiting("WaitingForBuild", message) },
+            });
+
+            return;
+        }
+
+        // read the workloads the machine runs
+        const build = await this.#open(call, revision);
+        const description = await PackageDescription.of(build);
 
         // select the workloads the machine runs
         const { workloads, stranded } = this.#selectWorkloads(built.manifest, build, description);
@@ -536,8 +558,8 @@ export class ApplicationInstallation {
             const message = `waiting for a provider of ${unprovided.join(", ")} resources`;
             await call.observe(installation, target.installation, {
                 conditions: {
-                    Bound: { status: "false", reason: "WaitingForResources", message },
-                    Ready: { status: "false", reason: "WaitingForResources", message },
+                    Bound: Rollout.waiting("WaitingForResources", message),
+                    Ready: Rollout.waiting("WaitingForResources", message),
                 },
             });
 
@@ -550,8 +572,8 @@ export class ApplicationInstallation {
             const message = "bound targets wait for their resources";
             await call.observe(installation, target.installation, {
                 conditions: {
-                    Bound: { status: "false", reason: "WaitingForResources", message },
-                    Ready: { status: "false", reason: "WaitingForResources", message },
+                    Bound: Rollout.waiting("WaitingForResources", message),
+                    Ready: Rollout.waiting("WaitingForResources", message),
                 },
             });
 
@@ -571,8 +593,8 @@ export class ApplicationInstallation {
             const message = `waiting for settings ${keys.join(", ")}`;
             await call.observe(installation, target.installation, {
                 conditions: {
-                    Bound: { status: "false", reason: "WaitingForSettings", message },
-                    Ready: { status: "false", reason: "WaitingForSettings", message },
+                    Bound: Rollout.waiting("WaitingForSettings", message),
+                    Ready: Rollout.waiting("WaitingForSettings", message),
                 },
             });
 
@@ -585,7 +607,7 @@ export class ApplicationInstallation {
             await call.observe(installation, target.installation, {
                 conditions: {
                     Bound: BOUND,
-                    Ready: { status: "false", reason: "WaitingForSpace", message: unserved },
+                    Ready: Rollout.waiting("WaitingForSpace", unserved),
                 },
             });
 

@@ -117,11 +117,13 @@ test("apply a submitted stack build and open its installations' views", async ()
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             categories: [],
+            audience: "person",
             packages: [],
             render: { mode: "client" },
         },
         path: "/",
-        permissions: {},
+        package: "@test/package",
+        permissions: [],
         home: fixture.owner.home,
     });
     expect(
@@ -242,11 +244,13 @@ test("install an application from a checkout by submitting its build, following 
             sandbox: {},
             presents: [{ packageId: ids.package, type: "note", priority: "option" }],
             categories: [],
+            audience: "person",
             packages: [],
             render: { mode: "client" },
         },
         path: "/",
-        permissions: {},
+        package: "@test/package",
+        permissions: [],
         home: fixture.owner.home,
     });
     const declared = await owner.declaration.list({ buildId: recorded.build });

@@ -3,6 +3,7 @@ import { database } from "../object/database.ts";
 import { dependency } from "../object/dependency.ts";
 import { gitStorage } from "../object/git.ts";
 import { mail } from "../object/mail.ts";
+import accountPackage from "@destack/account/package";
 import registryPackage from "@destack/registry/package";
 
 /** The resource types the stack provisions in a space in addition to its package's objects. */
@@ -13,3 +14,6 @@ export const KERNEL_TYPES = [
     ...Object.values(PROVISIONED),
     ...Object.values(registryPackage.objects),
 ];
+
+/** The types every space knows beside those it serves: the account's and the kernel's. */
+export const KNOWN_TYPES = [...Object.values(accountPackage.objects), ...KERNEL_TYPES];

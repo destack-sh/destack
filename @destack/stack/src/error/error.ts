@@ -43,6 +43,7 @@ export const StackError = defineErrorFamily(import.meta.destack.package, {
     STACK_NOT_FOUND: { code: "NOT_FOUND" },
     TRANSFER_NOT_FOUND: { code: "NOT_FOUND" },
     VIEW_NOT_FOUND: { code: "NOT_FOUND" },
+    PERMISSION_UNDECLARED: { code: "FORBIDDEN" },
 
     // conflict
     INSTALLATION_AMBIGUOUS: { code: "CONFLICT" },

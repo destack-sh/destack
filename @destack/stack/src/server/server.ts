@@ -1,5 +1,5 @@
 import { PROCESS_RUNTIME } from "../object/index.ts";
-import { KERNEL_TYPES } from "../stack/kernel.ts";
+import { KNOWN_TYPES } from "../stack/kernel.ts";
 import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
@@ -146,6 +146,8 @@ export interface SpaceOptions {
     readonly registry: Registry;
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine ships, by package. */
+    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The manifests of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
     /** The platform's declaration of every space's main database, with the platform's tables. */
@@ -498,11 +500,12 @@ function installationOptions(
         destack: options.destack,
         accounts: options.accounts,
         forge: options.forge,
-        kernel: KERNEL_TYPES,
+        known: KNOWN_TYPES,
         issuer: options.keystore.issuer(options.database, options.principal.id),
         isEnforcingEntitlements: options.isEnforcingEntitlements,
         database: options.database,
         linked: options.linked,
+        shipped: options.shipped,
         trusted: options.trusted,
     };
 }

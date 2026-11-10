@@ -89,7 +89,9 @@ export const InstallationAccess = {
             space: target.scope,
             home: [],
             account: found.parent,
-        }).filter((permission) => permission.scope !== target.scope);
+        })
+            .map((entry) => entry.permission)
+            .filter((permission) => permission.scope !== target.scope);
 
         // let the installation ask for its package's optional capabilities, each once its space approves
         const isAsking = Object.values(description?.capabilities ?? {}).some(

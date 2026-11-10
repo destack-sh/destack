@@ -9,6 +9,7 @@ import {
     approval,
     type BindingTarget,
     changeRequest,
+    ChangeRequest,
     defineObject,
     field,
     type Field,
@@ -2020,12 +2021,16 @@ test("ask the space's managers to approve a held plan through a change request o
     // ask the managers as one set to approve exactly the held plan, and apply it once the owner approved
     expect({
         asked: { ...ObjectReference.at("approver", asked), relation: asked.approverRelation },
-        call: [opened.call.method, opened.call.input["plan"], opened.as],
+        call: [opened.call.method, opened.call.input["plan"], ChangeRequest.as(opened)],
         state: decided?.state,
         applied: applied.appliedRevisionId === applied.revisionId,
     }).toEqual({
         asked: { ...principal.space.reference(Scope.universe.id, ids.space), relation: "manage" },
-        call: ["approve", await Plan.digest(plan, fixture.environment.crypto), "approver"],
+        call: [
+            "approve",
+            await Plan.digest(plan, fixture.environment.crypto),
+            { ...principal.space.reference(Scope.universe.id, ids.space), relation: "manage" },
+        ],
         state: "applied",
         applied: true,
     });

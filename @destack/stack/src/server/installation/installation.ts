@@ -3,7 +3,13 @@ import { Plan } from "@destack/resource";
 import { setting, SettingValue } from "@destack/setting/object";
 import { ObjectReference, Subject } from "@destack/sync";
 import { canonicalize, type Digest, type Identifier, present, schema } from "@destack/schema";
-import { InstallationId, principal } from "@destack/access";
+import {
+    InstallationId,
+    PermissionReference,
+    PermissionScope,
+    type PermissionSet,
+    principal,
+} from "@destack/access";
 import { and, Change, eq, inArray, isNotNull, ne, Snapshot } from "@destack/db";
 import {
     installation,
@@ -24,6 +30,7 @@ import {
     deployment,
     installationRevision,
     Rollout,
+    WaitingReason,
     rollout,
     type SubmissionPreparation,
     Build,
@@ -266,6 +273,7 @@ export function implementRollouts(options: InstallationOptions) {
         projections: [rolloutProjection(options)],
         methods: {
             open: async (call) => open(call, await Rollout.of(call), options),
+            request: async (call) => request(call, await Rollout.of(call), options),
             plan: async (call) => {
                 // join the plans the installation and its managed, owned or bound resources wait on
                 const target = await Rollout.of(call);
@@ -751,7 +759,8 @@ function rolloutWatches(
                     .filter(
                         (each) =>
                             (each.conditions[SYNCED]?.status === "false" ||
-                                each.conditions["Ready"]?.reason === "WaitingForSpace") &&
+                                each.conditions["Ready"]?.reason ===
+                                    WaitingReason.enum.WaitingForSpace) &&
                             each.dependencies.some(
                                 (dependency) => dependency.package.id === row.packageId,
                             ),
@@ -786,7 +795,7 @@ function rolloutWatches(
                 .filter(
                     (each) =>
                         each.packageId === row.packageId &&
-                        each.conditions["Ready"]?.reason === "WaitingForSettings",
+                        each.conditions["Ready"]?.reason === WaitingReason.enum.WaitingForSettings,
                 )
                 .map((each) => ({ installationId: each.id }));
         }),
@@ -802,11 +811,88 @@ function rolloutWatches(
     ];
 }
 
+/** Describe a permission the installation's package lets it ask its opener for. */
+async function request(
+    context: MethodContextOf<typeof rollout, "request">,
+    target: InstallationRollout,
+    options: Pick<InstallationOptions, "accounts" | "builds" | "known">,
+): Promise<ResultOf<typeof rollout, "request">> {
+    // read the applied revision's build, refusing an installation applying none
+    const { permission } = context.input;
+    const key = PermissionReference.key(permission);
+    const revision =
+        target.appliedRevisionId === null
+            ? undefined
+            : await context
+                  .read(installationRevision)
+                  .findFirst({ where: { id: target.appliedRevisionId } });
+    if (revision === undefined) {
+        throw StackError.of(
+            "PERMISSION_UNDECLARED",
+            `${target.installation.name} applies no revision declaring ${key}`,
+        );
+    }
+    const built = await Build.require(context, target.scope, revision.buildId);
+    const declared = await PackageDescription.of(await options.builds.contents(built.manifest));
+
+    // keep the permission where the package asks it on use or on first use, refusing one it never asks
+    const sets = (["user", "optional"] as const).map((delegator) =>
+        Rollout.permissions(target.installation, declared, delegator),
+    );
+    const asked: PermissionSet = Object.fromEntries(
+        PermissionScope.options.flatMap((scope) => {
+            const found = sets
+                .flatMap((set) => set[scope] ?? [])
+                .find((each) => PermissionReference.key(each) === key);
+
+            return found === undefined ? [] : [[scope, [found]]];
+        }),
+    );
+    if (Object.keys(asked).length === 0) {
+        throw StackError.of(
+            "PERMISSION_UNDECLARED",
+            `${target.installation.name} never asks a person for ${key}`,
+        );
+    }
+
+    return (await describeAsked(context, target, asked, options)).permissions;
+}
+
+/** Describe what an installation asks its opener for, in the space, their home and the account. */
+async function describeAsked(
+    context: MethodContextOf<typeof rollout, "open" | "request">,
+    target: InstallationRollout,
+    asked: PermissionSet,
+    options: Pick<InstallationOptions, "accounts" | "known">,
+) {
+    // read the opening person's home
+    const opener = present(
+        context.caller.subject,
+        `the person opening ${target.installation.name}`,
+    );
+    if (!principal.user.is(opener)) {
+        throw StackError.of("HOME_MISSING", `${Subject.key(opener)} has no home`);
+    }
+    const { homeId: home } = await options.accounts.user.get({
+        id: schema.identifier("user").parse(opener.id),
+    });
+
+    // grant them in the space, the opener's home and the space's account, each as the opener reads it
+    const placed = await Space.read(context, target.scope);
+    const permissions = Rollout.describe(
+        asked,
+        { space: target.scope, home: [opener.id, home], account: placed.scope },
+        [...context.objects, ...options.known],
+    );
+
+    return { home, permissions };
+}
+
 /** Open a view the installation's applied revision declares at a location, in the opener's home. */
 async function open(
     context: MethodContextOf<typeof rollout, "open">,
     target: InstallationRollout,
-    options: Pick<InstallationOptions, "accounts" | "builds">,
+    options: Pick<InstallationOptions, "accounts" | "builds" | "known">,
 ): Promise<ResultOf<typeof rollout, "open">> {
     // require the revision the installation applies, whose build serves its views
     const { view, path } = context.input;
@@ -834,29 +920,20 @@ async function open(
         );
     }
 
-    // read the opening person's home
-    const opener = present(
-        context.caller.subject,
-        `the person opening ${target.installation.name}`,
-    );
-    if (!principal.user.is(opener)) {
-        throw StackError.of("HOME_MISSING", `${Subject.key(opener)} has no home`);
-    }
-    const { homeId: home } = await options.accounts.user.get({
-        id: schema.identifier("user").parse(opener.id),
-    });
-
-    // read what the opening person lends the installation, as its package and enabled capabilities ask
+    // describe what the opening person lends the installation, as its package and enabled capabilities ask
     const declared = await PackageDescription.of(reader);
+    const asked = Rollout.permissions(target.installation, declared, "user");
+    const { home, permissions } = await describeAsked(context, target, asked, options);
 
     return {
         installationId: target.installationId,
         revisionId: revision.id,
         manifest: built.manifest,
         view,
+        package: reader.manifest.package.name,
         description: mounted,
         path,
         home,
-        permissions: Rollout.permissions(target.installation, declared, "user"),
+        permissions,
     };
 }

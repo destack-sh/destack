@@ -1,12 +1,15 @@
+import { RequestedPermission } from "@destack/account/authentication";
 import { StackDefinition } from "../declare/index.ts";
 import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
     Caller,
+    Manager,
     none,
     PermissionReference,
     type GrantRequest,
     PermissionScope,
+    type GrantContext,
     PermissionSet,
 } from "@destack/access";
 import {
@@ -21,13 +24,16 @@ import {
 } from "@destack/db";
 import {
     changeRequest,
+    type Condition,
     defineObject,
     field,
     Installation,
     installation,
     type MethodContext,
+    ObjectDescription,
     Observation,
     type ObjectOf,
+    type ObjectType,
     PackageDescription,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -35,7 +41,13 @@ import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@d
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
 import { Plan, ResourceDescription } from "@destack/resource";
 import { Digest, type DigestCrypto, Identifier, present, schema, type Uuid } from "@destack/schema";
-import { ObjectReference, RequestId, Scope, type Subject } from "@destack/sync";
+import {
+    ObjectReference,
+    ObjectTypeReference,
+    RequestId,
+    Scope,
+    type Subject,
+} from "@destack/sync";
 import { build, Build } from "./build.ts";
 import type { BuildStore } from "@destack/build/store";
 import { space, Space } from "@destack/account/object";
@@ -82,14 +94,16 @@ export const InstallationView = schema.object({
     manifest: Digest,
     /** The view's name. */
     view: DeclarationName,
+    /** The installed package's name, such as @acme/notes. */
+    package: schema.string().min(1),
     /** The view as the build's output mounts it. */
     description: ViewDescription,
     /** The location within the view. */
     path: ViewPath,
     /** The opening person's home space, where the view's home types open. */
     home: schema.identifier("space"),
-    /** What the opening person lends the installation on use, by the scope it applies in. */
-    permissions: PermissionSet,
+    /** What the opening person lends the installation on use, each as they read it. */
+    permissions: schema.array(RequestedPermission),
 });
 /** A view of an installation's revision, as a client opens it. */
 export type InstallationView = schema.Infer<typeof InstallationView>;
@@ -217,6 +231,16 @@ export const rollout = defineObject(
                 path: ViewPath,
             }),
             output: InstallationView,
+        }),
+
+        /** Describe a permission the installation may ask a person for, as they read it. */
+        request: method.query({
+            permission: "open",
+            input: schema.object({
+                /** The permission a call of the installation needs. */
+                permission: PermissionReference,
+            }),
+            output: schema.array(RequestedPermission),
         }),
 
         /** Target the revision applied before the current one again. */
@@ -379,8 +403,35 @@ export type InstallationRollout = Omit<Rollout, "id"> & {
     readonly installation: Installation & { readonly name: string };
 };
 
+/** Why an installation is not ready yet, as a Kubernetes condition's reason. */
+export const WaitingReason = schema.enum([
+    "WaitingForResources",
+    "WaitingForSettings",
+    "WaitingForSpace",
+    "WaitingForStack",
+    "WaitingForBuild",
+]);
+/** Why an installation is not ready yet. */
+export type WaitingReason = schema.Infer<typeof WaitingReason>;
+
 /** The verbs of rollouts and their installations: reads, access, relations and releases. */
 export const Rollout = {
+    /** Describe an installation's condition waiting for a reason. */
+    waiting(reason: WaitingReason, message: string): Condition {
+        return { status: "false", reason, message };
+    },
+
+    /** Report whether a stack's host installation pins a build this machine does not run. */
+    isSuperseded(
+        installed: Pick<Installation, "isolation"> & Parameters<typeof Manager.isManaged>[0],
+        manifest: Digest,
+        trusted: ReadonlySet<Digest>,
+    ): boolean {
+        return (
+            installed.isolation === "host" && Manager.isManaged(installed) && !trusted.has(manifest)
+        );
+    },
+
     /** Read the rollouts of some installations joined with them, none of a base installation. */
     async installed(
         snapshot: Pick<Snapshot, "read">,
@@ -537,6 +588,41 @@ export const Rollout = {
                 (name) => description?.capabilities[name]?.sandbox ?? {},
             ),
         );
+    },
+
+    /** Grant a set in the context's scopes and describe each permission as a person reads it. */
+    describe(
+        set: PermissionSet,
+        context: GrantContext,
+        objects: readonly ObjectType[],
+    ): RequestedPermission[] {
+        // key the known types by their policy: their own, or the principal kind they represent
+        const described = new Map(
+            objects.map((type) => {
+                const description = ObjectDescription.of(type);
+
+                return [ObjectDescription.key(description), description] as const;
+            }),
+        );
+
+        // describe each by its type's policy, refusing one of a policy no known type keys
+        return PermissionSet.grant(set, context).map(({ within, permission }) => {
+            // find the type keyed by the permission's policy
+            const key = ObjectTypeReference.key({
+                packageId: permission.packageId,
+                type: permission.type,
+            });
+            const declaring = described.get(key);
+            if (declaring === undefined) {
+                throw StackError.of("DEFINITION_INVALID", `the space serves no type of ${key}`);
+            }
+
+            return {
+                ...permission,
+                within,
+                description: ObjectDescription.describe(declaring, permission.name),
+            };
+        });
     },
 
     /** Merge what a delegator lends an installation: its package's and capabilities' sets. */

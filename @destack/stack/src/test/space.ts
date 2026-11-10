@@ -1,5 +1,5 @@
 import { pathToFileURL } from "node:url";
-import { KERNEL_TYPES } from "../stack/kernel.ts";
+import { KNOWN_TYPES } from "../stack/kernel.ts";
 import { copyRequest, Crypto } from "@destack/environment";
 import { InstallationDefinition, STACK_KIND, StackDefinition } from "../declare/index.ts";
 import type { Environment, HostCapability } from "@destack/environment";
@@ -1062,6 +1062,7 @@ export class TestSpace implements AsyncDisposable {
             send: (request) => simulation.network.of(machine.id).fetch(request),
             builds,
             linked,
+            shipped: new Map(),
             trusted,
         };
 
@@ -1475,7 +1476,7 @@ export class TestSpace implements AsyncDisposable {
             builds: await this.builds(),
             registry: this.registry,
             blobs: this.blobs,
-            kernel: KERNEL_TYPES,
+            known: KNOWN_TYPES,
         };
 
         return RolloutTarget.describe(target, reader, store.objects, options);

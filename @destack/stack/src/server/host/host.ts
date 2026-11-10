@@ -152,6 +152,8 @@ export interface SpaceMachine {
     readonly builds: Pick<SpaceBuildStore, "contents">;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
+    /** The releases the machine ships, by package. */
+    readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
     /** The manifests of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
 }
@@ -415,6 +417,7 @@ export class SpaceHost {
             | "publisherAt"
             | "keystore"
             | "linked"
+            | "shipped"
             | "trusted"
         >
     > {
@@ -452,6 +455,7 @@ export class SpaceHost {
             },
             environment: this.machine.environment,
             linked: this.machine.linked,
+            shipped: this.machine.shipped,
             trusted: this.machine.trusted,
             publisher: this.uplink(),
             publisherAt: (home, partition) => this.publisherAt(home, partition),
@@ -483,6 +487,10 @@ export class SpaceHost {
                     return kept.load;
                 } else if (row.installation.isolation !== "host" && !isLinked) {
                     return { kind: "sandbox" } as const;
+                }
+                // leave unserved a stack's host installation on a build this machine no longer runs
+                else if (Rollout.isSuperseded(row.installation, manifest, this.machine.trusted)) {
+                    return { kind: "unserved" } as const;
                 }
                 try {
                     return { kind: "host", server: await start.server(manifest) } as const;

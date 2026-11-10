@@ -8,6 +8,7 @@ import { type SpaceOptions, SpaceStore } from "../index.ts";
 import { pathToFileURL } from "node:url";
 import { PACKAGE_KIND, PackageHandle, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
+import { testHost } from "@destack/test/host";
 import { and, databaseProvider, defineDatabase, eq, isNotNull, Snapshot } from "@destack/db";
 import * as sqlite from "@destack/db/bun";
 import { implementPackage, ObjectStore } from "@destack/object/server";
@@ -40,6 +41,7 @@ import {
 import {
     evaluateStack,
     fixtureOutputs,
+    fixtureBuild,
     readStack,
     reconcile,
     settle,
@@ -371,6 +373,108 @@ test("leave a declared installation whose fields are unchanged as it is when its
         (await readStack(database)).installation.conditions["Ready"]?.reason,
         await revisions(),
     ]).toEqual(["Applied", before]);
+});
+
+test("move a stack's host installation pinned to a release the machine no longer runs to the release it links", async () => {
+    // link a newer release of the fixture package, as a machine shipping it does
+    const linked = await fixtureBuild(ids.package, "2026.10.0", testHost().crypto);
+    const fixture = await TestSpace.open({ linked: [linked] });
+    const { database } = fixture;
+
+    // apply a stack declaring the package on the host, pinned to an older release
+    const notes = {
+        packageId: ids.package,
+        selection: { kind: "release", version: "2026.9.0" },
+        status: "enabled",
+        name: "notes",
+        bindings: {},
+        compute: {},
+        capabilities: [],
+        directories: [],
+        isolation: "host",
+        tags: {},
+    };
+    const store = await serve(fixture);
+    await submit(fixture, store, await readStack(database), {
+        selection: {
+            kind: "checkout" as const,
+            machine: ids.machine,
+            checkout: ids.checkout,
+            directory: "." as const,
+        },
+        stack: {
+            export: "personal",
+            parameters: {},
+            definition: { ...evaluatePersonal(), installations: { notes } },
+        },
+    });
+
+    // read the release the installation's revision runs
+    const [revised] = await database
+        .select({ manifest: object.build.table.manifest, source: object.build.table.source })
+        .from(installation.table)
+        .innerJoin(
+            object.installationRevision.table,
+            eq(object.installationRevision.table.id, installation.table.revisionId),
+        )
+        .innerJoin(
+            object.build.table,
+            eq(object.build.table.id, object.installationRevision.table.buildId),
+        )
+        .where(eq(installation.table.name, "notes"));
+    expect(revised).toEqual({
+        manifest: await fixture.registry.find(ids.package, "2026.10.0"),
+        source: {
+            kind: "release",
+            package: ids.package,
+            version: "2026.10.0",
+            manifest: await fixture.registry.find(ids.package, "2026.10.0"),
+        },
+    });
+});
+
+test("hold a stack's host installation pinned to a release the machine neither ships nor links until its stack moves it", async () => {
+    // apply a stack declaring the package on the host at a release this machine does not run
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const notes = {
+        packageId: ids.package,
+        selection: { kind: "release", version: "2026.9.0" },
+        status: "enabled",
+        name: "notes",
+        bindings: {},
+        compute: {},
+        capabilities: [],
+        directories: [],
+        isolation: "host",
+        tags: {},
+    };
+    const store = await serve(fixture);
+    await submit(fixture, store, await readStack(database), {
+        selection: {
+            kind: "checkout" as const,
+            machine: ids.machine,
+            checkout: ids.checkout,
+            directory: "." as const,
+        },
+        stack: {
+            export: "personal",
+            parameters: {},
+            definition: { ...evaluatePersonal(), installations: { notes } },
+        },
+    });
+
+    // read its readiness and its deployments, waiting with none
+    const [installed] = await database
+        .select({ id: installation.table.id, conditions: installation.table.conditions })
+        .from(installation.table)
+        .where(eq(installation.table.name, "notes"));
+    const found = present(installed, "the notes installation");
+    const deployments = await database
+        .select({ id: object.deployment.table.id })
+        .from(object.deployment.table)
+        .where(eq(object.deployment.table.installationId, found.id));
+    expect([found.conditions["Ready"]?.reason, deployments]).toEqual(["WaitingForStack", []]);
 });
 
 test("replace an installation's own binding once its stack binds the declaration as a bucket next to its roles, releasing its previously owned bucket", async () => {
