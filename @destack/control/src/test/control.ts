@@ -47,7 +47,7 @@ import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import type { UniverseDefinition } from "../control/definition.ts";
 import { type ReleaseRegistry } from "@destack/account/server";
-import { Control, CONTROL_PACKAGES, type ControlOptions } from "../control/control.ts";
+import { Control, type ControlOptions, UNIVERSE_PACKAGES } from "../control/control.ts";
 import { TestMachine } from "./machine.ts";
 
 /** The installation a residency's space provides entitlements as in tests, as finance does. */
@@ -201,7 +201,7 @@ export class TestControl implements AsyncDisposable {
     /** The object types the universe serves by name, each with its package. */
     readonly #types: ReadonlyMap<
         string,
-        { readonly type: ObjectType; readonly handle: (typeof CONTROL_PACKAGES)[number] }
+        { readonly type: ObjectType; readonly handle: (typeof UNIVERSE_PACKAGES)[number] }
     >;
 
     /** Keep a started universe and its adapters. */
@@ -233,7 +233,7 @@ export class TestControl implements AsyncDisposable {
             new Bookmark(),
         );
         this.#types = new Map(
-            CONTROL_PACKAGES.flatMap((handle) =>
+            UNIVERSE_PACKAGES.flatMap((handle) =>
                 Object.values(handle.objects)
                     .filter((declared) => declared instanceof ObjectType)
                     .map((type) => [type.name, { type, handle }] as const),

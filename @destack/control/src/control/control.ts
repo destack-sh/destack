@@ -20,18 +20,11 @@ import {
 import type { Bucket } from "@destack/bucket";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { type Keyring } from "@destack/identity";
-import {
-    call,
-    type CallKey,
-    type Fetch,
-    Installation,
-    PackageMount,
-    tablesOf,
-} from "@destack/object";
+import { call, type CallKey, type Fetch, PackageMount, tablesOf } from "@destack/object";
 import { Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
 import { Package, type PackageId, PackageRelease } from "@destack/package";
-import { AccessContext, Authorization, Caller, type Policy } from "@destack/access";
+import { type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
@@ -44,9 +37,6 @@ import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
 import { ControlError } from "../error/error.ts";
 import type { Environment } from "@destack/environment";
-
-/** The packages the control's store serves. */
-export const CONTROL_PACKAGES = [objectPackage, accountPackage, settingPackage, controlPackage];
 
 /** The schema the universe's tables live in, PostgreSQL's default. */
 export const UNIVERSE_SCHEMA = "public";
@@ -98,13 +88,16 @@ export interface ControlLink {
     readonly connect: (audience: PackageId) => Fetch;
 }
 
+/** The packages of the universe itself, which its store serves acting as the universe. */
+export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, controlPackage];
+
 /** The control running a universe: its packages over one store, each below its mount. */
 export class Control implements AsyncDisposable {
     /** The universe's database: the packages its store serves. */
     static readonly database = defineDatabase({
         name: "account",
         ...tablesOf({
-            packages: CONTROL_PACKAGES,
+            packages: UNIVERSE_PACKAGES,
             follows: [],
             tables: [],
         }),
@@ -184,7 +177,7 @@ export class Control implements AsyncDisposable {
             }
         });
 
-        // serve the account, setting and control packages over one store, each as its base installation
+        // serve the object, account, setting and control packages over one store, acting as the universe
         const implementations = [
             objectServer,
             accountServer({
@@ -199,7 +192,6 @@ export class Control implements AsyncDisposable {
                 cursors: applied.cursors,
             }),
         ];
-        const { crypto } = options.environment;
         const store: ObjectStore = new ObjectStore({
             // open the version a value names, else the release the universe runs: the distribution's
             release: async (_view, _scope, packageId, version) => {
@@ -208,9 +200,7 @@ export class Control implements AsyncDisposable {
 
                 return named === undefined ? undefined : await releases.open(packageId, named);
             },
-            servers: await Promise.all(
-                implementations.map((server) => server.base(Scope.universe, crypto)),
-            ),
+            servers: implementations,
             // follow no chain at the universe, the root of every chain
             chain: async () => undefined,
             principal: Scope.universe,
@@ -230,16 +220,6 @@ export class Control implements AsyncDisposable {
 
         // apply the platform through the universe's store
         const platform = new Platform(store, definition.platform);
-
-        // receive the universe at its first start
-        await Authorization.run(
-            store.authorizer,
-            store.database,
-            () => AccessContext.of(Caller.of(Scope.universe), now),
-            store.environment,
-            (authorization) =>
-                Installation.receive(authorization, Scope.universe, [], CONTROL_PACKAGES),
-        );
 
         // apply the definition unless its latest run completed and the operator stays invited
         const digest = await Digest.json(definition, options.environment.crypto);
