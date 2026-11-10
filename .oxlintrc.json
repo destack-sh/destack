@@ -427,7 +427,7 @@
                 "@destack/workflow": "builtin",
                 "@platform/pricing": "library",
                 "@platform/release": "library",
-                "@platform/site": "library",
+                "@platform/site": "app",
                 "@platform/stack": "library",
                 "@destack/build-library-fixture": "library",
                 "@destack/build-unit-application-fixture": "library",
