@@ -131,6 +131,24 @@ Text the components write themselves renders in the reader's locale through `use
 import { binX } from "@destack/ui/chart/transform/bin"; // each TanStack Charts entry point
 ```
 
+## Consent
+
+`ConsentPrompt` asks a person to allow what an application asks, its `PermissionList` grouped by place, and `GrantList` lists what they allowed with Remove access, as Google's and GitHub's consent screens and app settings do.
+
+```tsx
+<ConsentPrompt onAllow={allow} onAllowOnce={once} onDeny={deny}>
+    <PermissionList>
+        <PermissionGroup title="In your home">
+            <Permission description="See settings" isGranted />
+        </PermissionGroup>
+    </PermissionList>
+</ConsentPrompt>;
+<GrantList>
+    <Grant name="notes" description="@acme/notes in work--ada" onRemove={remove} />
+</GrantList>;
+<Button variant="link" size="inline">change</Button>; // a link inside running text
+```
+
 ## Examples and scenarios
 
 Each component declares an example per visible state with `defineExample` and a scenario per keyboard or focus behavior with `defineScenario`.

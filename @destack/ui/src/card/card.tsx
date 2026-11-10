@@ -27,10 +27,12 @@ const styles = style.create({
         paddingInline: space[5],
     },
     title: {
+        gridColumnStart: 1,
         fontWeight: weight.semibold,
         lineHeight: 1,
     },
     description: {
+        gridColumnStart: 1,
         color: color.mutedForeground,
     },
     action: {

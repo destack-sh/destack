@@ -113,7 +113,7 @@ export function SignUpResidency(properties: SignUpResidencyProperties): JSX.Elem
                         residency: residency().name,
                     })}{" "}
                     ·{" "}
-                    <Button variant="link" onClick={() => setChoosing(true)}>
+                    <Button variant="link" size="inline" onClick={() => setChoosing(true)}>
                         {locale.render(t`change`)}
                     </Button>
                 </p>

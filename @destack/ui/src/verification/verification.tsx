@@ -1,4 +1,4 @@
-import { argument, t } from "@destack/locale";
+import { t } from "@destack/locale";
 import { createSignal, type JSX, Match, Switch, useLocale } from "@destack/view";
 import { Button } from "../button/index.ts";
 import { Field, FieldLabel } from "../field/index.ts";
@@ -23,13 +23,11 @@ export interface VerificationProperties {
     readonly isPending?: boolean | undefined;
     /** Look a code up. */
     readonly onSubmit: (userCode: string) => void;
-    /** Sign the device in. */
-    readonly onApprove: (request: VerificationRequest) => void;
-    /** Refuse it. */
-    readonly onDeny: (request: VerificationRequest) => void;
+    /** The consent to the device's sign-in, shown while it is pending. */
+    readonly children?: JSX.Element;
 }
 
-/** Render a device's sign-in by the code it shows: enter it, then approve or deny the device. */
+/** Render a device's sign-in by the code it shows: enter it, consent, then see the outcome. */
 export function Verification(properties: VerificationProperties): JSX.Element {
     // keep the typed code
     const locale = useLocale();
@@ -66,38 +64,7 @@ export function Verification(properties: VerificationProperties): JSX.Element {
                         </Stack>
                     </form>
                 </Match>
-                <Match
-                    when={properties.request?.status === "pending" ? properties.request : undefined}
-                >
-                    {(request) => (
-                        <>
-                            <p>
-                                {locale.render(
-                                    t`Sign in to ${argument("client")} with the code ${argument("code")}?`,
-                                    {
-                                        client: request().client,
-                                        code: request().userCode,
-                                    },
-                                )}
-                            </p>
-                            <Stack space="2">
-                                <Button
-                                    disabled={isPending()}
-                                    onClick={() => properties.onApprove(request())}
-                                >
-                                    {locale.render(t`Approve`)}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    disabled={isPending()}
-                                    onClick={() => properties.onDeny(request())}
-                                >
-                                    {locale.render(t`Deny`)}
-                                </Button>
-                            </Stack>
-                        </>
-                    )}
-                </Match>
+                <Match when={properties.request?.status === "pending"}>{properties.children}</Match>
                 <Match when={properties.request?.status === "approved"}>
                     <p>{locale.render(t`Device signed in. Return to it to continue.`)}</p>
                 </Match>

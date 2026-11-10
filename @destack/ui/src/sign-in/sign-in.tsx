@@ -200,6 +200,7 @@ function CodeInput(properties: {
         <InputOTP
             maxLength={CODE_LENGTH}
             autocomplete="one-time-code"
+            autofocus
             disabled={properties.isPending}
             onComplete={properties.onComplete}
         >

@@ -108,6 +108,7 @@ const variants = style.create({
 
 /** The height and padding of each size. */
 const sizes = style.create({
+    inline: { height: "auto", paddingInline: 0, verticalAlign: "baseline" },
     default: { height: size[3], paddingInline: space[4] },
     xs: {
         height: size[1],
@@ -125,8 +126,9 @@ const sizes = style.create({
 /** The look of a button, from most to least prominent. */
 export type ButtonVariant = "default" | "destructive" | "outline" | "secondary" | "ghost" | "link";
 
-/** The height and padding of a button, with square sizes for a lone icon. */
+/** The height and padding of a button, square for a lone icon, none inside running text. */
 export type ButtonSize =
+    | "inline"
     | "default"
     | "xs"
     | "sm"
