@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
 import { MachineIdentity } from "@destack/account/client";
-import { connectPostgres, PostgresPool } from "@destack/db/postgres";
+import { PostgresPool } from "@destack/db/postgres";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
 import { KeyPair, type Keychain, LocalKeyring, MemoryKeychain } from "@destack/identity";
 import { BunKeychain } from "@destack/identity/bun";
@@ -19,7 +19,7 @@ import { Device, type MachineEnrollment } from "@destack/machine/device";
 import { PrintTransport } from "@destack/mail/print";
 import { present } from "@destack/schema";
 import { Stage } from "@destack/update/release";
-import { UNIVERSE_SCHEMA, Control } from "@destack/control";
+import { Toolchain } from "@destack/check/toolchain";
 import { BunUniverse } from "./universe.ts";
 import { Custody, PlatformBuild } from "../deployment/index.ts";
 import { DISTRIBUTION_LAYER, DistributionManifest } from "@destack/package";
@@ -117,18 +117,12 @@ export class LocalUniverse implements AsyncDisposable {
         this.#stack = stack;
     }
 
-    /** Migrate the database, and start the universe and its cloud machines. */
+    /** Create the database, and start the universe and its cloud machines. */
     static async start(options: DevelopmentOptions): Promise<LocalUniverse> {
-        // migrate the database, created once
+        // create the database once
         const local = Deployment.loopback(options.layout, options.environment);
         await using stack = new AsyncDisposableStack();
         await LocalUniverse.#create(options);
-        const url = `${options.server}/${options.database}`;
-        await using connection = await connectPostgres(url, Control.database, {
-            environment: options.environment,
-            schema: UNIVERSE_SCHEMA,
-        });
-        await connection.migrate(Control.database.tables);
 
         // build the local releases from the checkout, a package's version moving on only where it changed
         const publication = await Publication.read(options.directory, options.environment.files);
@@ -186,7 +180,7 @@ export class LocalUniverse implements AsyncDisposable {
                 environment: options.environment,
                 definition: declaration,
                 origin: local.universeOrigin,
-                database: url,
+                database: `${options.server}/${options.database}`,
                 rootKey: UNIVERSE_ROOT_KEY,
                 providers: local.providers(
                     (id) => options.environment.process.variables[Deployment.providerSecret(id)],
@@ -447,6 +441,7 @@ export class LocalUniverse implements AsyncDisposable {
                 localObjects: DESKTOP_OBJECTS,
                 ...distribution,
                 keychain,
+                toolchain: async () => Toolchain.workspace(),
                 machineId: id,
                 enrollment: LocalUniverse.#enrollment(residency, local),
                 process: {
