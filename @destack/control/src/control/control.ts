@@ -38,15 +38,15 @@ import { RequestId, Scope } from "@destack/sync";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import objectPackage from "@destack/object/package";
-import universePackage from "../package.ts";
+import controlPackage from "../package.ts";
 import { Run } from "@destack/workflow";
 import { apply } from "./apply.ts";
 import { UniverseDefinition } from "./definition.ts";
-import { UniverseError } from "../error/error.ts";
+import { ControlError } from "../error/error.ts";
 import type { Environment } from "@destack/environment";
 
-/** The packages a universe's store serves. */
-export const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage, universePackage];
+/** The packages the control's store serves. */
+export const CONTROL_PACKAGES = [objectPackage, accountPackage, settingPackage, controlPackage];
 
 /** The schema the universe's tables live in, PostgreSQL's default. */
 export const UNIVERSE_SCHEMA = "public";
@@ -55,7 +55,7 @@ export const UNIVERSE_SCHEMA = "public";
 const DRAIN_MILLISECONDS = 5000;
 
 /** What a host runs a universe with. */
-export interface UniverseOptions {
+export interface ControlOptions {
     /** The universe's definition. */
     readonly definition: UniverseDefinition;
     /** The universe's origin, below which each package answers at its mount. */
@@ -83,7 +83,7 @@ export interface UniverseOptions {
     /** Report a failure the universe answers to no one. */
     readonly report: (error: unknown) => void;
     /** Open the registry of packages' releases over the universe's directory and signed fetch. */
-    readonly releases: (universe: UniverseLink) => ReleaseRegistry;
+    readonly releases: (universe: ControlLink) => ReleaseRegistry;
     /** The policies of other packages the universe decides access for, such as the forge's. */
     readonly policies: readonly Policy[];
     /** The access token lifetimes longer than the default minute, by audience. */
@@ -91,20 +91,20 @@ export interface UniverseOptions {
 }
 
 /** What a universe lends a registry of releases: its directory and its fetch signed as itself. */
-export interface UniverseLink {
+export interface ControlLink {
     /** The universe's directory, its own rows read live. */
     readonly directory: Directory;
     /** Create a fetch calling a package as the universe. */
     readonly connect: (audience: PackageId) => Fetch;
 }
 
-/** A running universe: the object, account, setting and universe packages, each below its mount. */
-export class Universe implements AsyncDisposable {
+/** The control running a universe: its packages over one store, each below its mount. */
+export class Control implements AsyncDisposable {
     /** The universe's database: the packages its store serves. */
     static readonly database = defineDatabase({
         name: "account",
         ...tablesOf({
-            packages: UNIVERSE_PACKAGES,
+            packages: CONTROL_PACKAGES,
             follows: [],
             tables: [],
         }),
@@ -119,7 +119,7 @@ export class Universe implements AsyncDisposable {
     /** The account package's server, which answers as the universe's issuer. */
     readonly issuer: Server;
 
-    /** Create a started universe. */
+    /** Create a started control. */
     private constructor(
         definition: UniverseDefinition,
         servers: ReadonlyMap<string, Server>,
@@ -134,7 +134,7 @@ export class Universe implements AsyncDisposable {
     }
 
     /** Start the universe's packages over its database. */
-    static async start(options: UniverseOptions): Promise<Universe> {
+    static async start(options: ControlOptions): Promise<Control> {
         // read the universe's options at the start time
         const { origin, database, keyring, callKey, definition } = options;
         const { clock, network } = options.environment;
@@ -153,7 +153,7 @@ export class Universe implements AsyncDisposable {
         //  through the store, and the universe's signed fetch registers its identity there
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const connected = Promise.withResolvers<(audience: PackageId) => Fetch>();
-        const serving = Promise.withResolvers<Universe>();
+        const serving = Promise.withResolvers<Control>();
 
         // call residency homes as the universe once its identity exists
         const connect =
@@ -181,7 +181,7 @@ export class Universe implements AsyncDisposable {
             }
         });
 
-        // serve the account, setting and universe packages over one store, each as its base installation
+        // serve the account, setting and control packages over one store, each as its base installation
         const implementations = [
             objectServer,
             accountServer({
@@ -191,7 +191,7 @@ export class Universe implements AsyncDisposable {
                 releases,
             }),
             settingServer({ after: [] }),
-            implementPackage(universePackage, {
+            implementPackage(controlPackage, {
                 objects: applied.objects,
                 cursors: applied.cursors,
             }),
@@ -235,7 +235,7 @@ export class Universe implements AsyncDisposable {
             () => AccessContext.of(Caller.of(Scope.universe), now),
             store.environment,
             (authorization) =>
-                Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES),
+                Installation.receive(authorization, Scope.universe, [], CONTROL_PACKAGES),
         );
 
         // apply the definition unless its latest run completed and the operator stays invited
@@ -297,7 +297,7 @@ export class Universe implements AsyncDisposable {
         const ready = async (signal: AbortSignal) => {
             const run = await applying.ended(database, signal);
             if (run.row.state !== "completed") {
-                throw UniverseError.of(
+                throw ControlError.of(
                     "DEFINITION_NOT_APPLIED",
                     `the run applying the definition ${digest} is ${run.row.state}`,
                     { cause: run.row.failure },
@@ -334,12 +334,12 @@ export class Universe implements AsyncDisposable {
         // serve the issuer through the account package's server, which every universe serves
         const accounts = servers.get(accountPackage.id);
         if (accounts === undefined) {
-            throw UniverseError.of("ISSUER_MISSING", "the universe serves no account package");
+            throw ControlError.of("ISSUER_MISSING", "the universe serves no account package");
         }
-        const universe = new Universe(definition, servers, store, accounts);
-        serving.resolve(universe);
+        const control = new Control(definition, servers, store, accounts);
+        serving.resolve(control);
 
-        return universe;
+        return control;
     }
 
     /** Serve a request at the universe's origin: the issuer, else a package's mount. */

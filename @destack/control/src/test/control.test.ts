@@ -3,11 +3,11 @@ import accountPackage from "@destack/account/package";
 import { DOMAINS, MachineAddress } from "@destack/account/address";
 import { expect, test } from "@destack/test";
 import { TestMachine } from "./machine.ts";
-import { TestUniverse } from "./universe.ts";
+import { TestControl } from "./control.ts";
 
 test("sign a person up through the mailed code a native client redeems, make an example's calls in their account, and refuse an example it cannot make", async () => {
     // start the universe and sign ada up, as a native client signs a new person in
-    await using universe = await TestUniverse.open();
+    await using universe = await TestControl.open();
     const ada = await universe.signIn("ada@example.test");
 
     // make a group in her personal account through the example's calls, then settle
@@ -33,7 +33,7 @@ test("sign a person up through the mailed code a native client redeems, make an 
 
 test("place a person's home on their residency's cloud machine, as the machine's directory replica reads it", async () => {
     // sign ada up and follow the directory as the residency's machine
-    await using universe = await TestUniverse.open();
+    await using universe = await TestControl.open();
     const ada = await universe.signIn("ada@example.test");
     const machine = await universe.machine();
     await universe.simulation.idle();
@@ -46,7 +46,7 @@ test("place a person's home on their residency's cloud machine, as the machine's
 
 test("enroll a person's machine of their account, published at its name through its residency's relay, as the directory reads it", async () => {
     // enroll ada's machine in her personal account behind a relay, and follow the directory as it
-    await using universe = await TestUniverse.open();
+    await using universe = await TestControl.open();
     const ada = await universe.signIn("ada@example.test");
     const machine = await universe.enroll(ada, ada.account, "https://eu.relay.test");
     await universe.simulation.idle();

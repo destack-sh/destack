@@ -6,7 +6,7 @@ import type { ProviderClients } from "@destack/account/better-auth";
 import type { Jurisdiction } from "@destack/db/cloudflare";
 import { Stage } from "@destack/update/release";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
-import type { UniverseDefinition } from "@destack/universe";
+import type { UniverseDefinition } from "@destack/control";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -31,7 +31,7 @@ import { Bookmark } from "@destack/object/client";
 import { VERSION_HEADER } from "@destack/object";
 import type { Fetch } from "@destack/object";
 import * as relay from "@destack/relay/declare";
-import { UNIVERSE_SCHEMA, Universe } from "@destack/universe";
+import { UNIVERSE_SCHEMA, Control } from "@destack/control";
 import { resolve } from "node:path";
 import { connectPostgres, PostgresPool } from "@destack/db/postgres";
 import {
@@ -364,11 +364,11 @@ export class Deployment {
 
         // migrate it as a release migrates the universe's
         const url = `${server}/${database}`;
-        await using connection = await connectPostgres(url, Universe.database, {
+        await using connection = await connectPostgres(url, Control.database, {
             environment,
             schema: UNIVERSE_SCHEMA,
         });
-        await connection.migrate(Universe.database.tables);
+        await connection.migrate(Control.database.tables);
 
         // connect local Hyperdrive with the password it requires
         const hyperdrive = new URL(url);
@@ -757,11 +757,11 @@ export class Deployment {
         );
 
         // migrate the universe's database
-        await using connection = await connectPostgres(outputs.database, Universe.database, {
+        await using connection = await connectPostgres(outputs.database, Control.database, {
             environment,
             schema: UNIVERSE_SCHEMA,
         });
-        await connection.migrate(Universe.database.tables);
+        await connection.migrate(Control.database.tables);
 
         // write the releases the Workers ship as their static assets
         await build.writeAssets(this.releases);

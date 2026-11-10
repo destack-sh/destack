@@ -14,8 +14,8 @@ import { CallKey } from "@destack/object";
 import { TelemetryScope } from "@destack/telemetry";
 import { DistributionManifest, Package } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
-import { UNIVERSE_SCHEMA, Universe, UniverseDefinition } from "@destack/universe";
-import universePackage from "@destack/universe/package";
+import { UNIVERSE_SCHEMA, Control, UniverseDefinition } from "@destack/control";
+import controlPackage from "@destack/control/package";
 import { WorkerdEnvironment } from "@destack/environment/workerd";
 import { present } from "@destack/schema";
 import { PlatformUniverse } from "../universe.ts";
@@ -73,7 +73,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
     const connector = new PostgresConnector(new URL(bindings.DATABASE.connectionString));
     const database = await connector.connect(
         { reference: UNIVERSE_SCHEMA },
-        Universe.database,
+        Control.database,
         environment,
     );
     const envelope = new Envelope(
@@ -99,10 +99,10 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
 
     // read the declaration the deploy supplied, then start the universe, calling the machines and forges,
     //  and capture the failures no request answers on the environment's telemetry
-    const instruments = TelemetryScope.of(Package.of(universePackage), environment.telemetry);
+    const instruments = TelemetryScope.of(Package.of(controlPackage), environment.telemetry);
     const declared: { readonly default: unknown } = await import("destack:universe");
     const releases = await BuildLayer.assets(bindings.RELEASES, environment.crypto);
-    const universe = await Universe.start({
+    const universe = await Control.start({
         ...PlatformUniverse.options(environment, {
             releases: DistributionManifest.releases(await WorkerdDistribution.read()),
             open: (manifest) =>

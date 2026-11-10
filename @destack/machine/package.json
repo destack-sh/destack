@@ -60,7 +60,7 @@
         "@destack/message": "workspace:*",
         "@cloudflare/workers-types": "5.20260917.1",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
+        "@destack/control": "workspace:*",
         "@types/node": "26.6.1",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",

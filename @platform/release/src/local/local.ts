@@ -19,7 +19,7 @@ import { Device, type MachineEnrollment } from "@destack/machine/device";
 import { PrintTransport } from "@destack/mail/print";
 import { present } from "@destack/schema";
 import { Stage } from "@destack/update/release";
-import { UNIVERSE_SCHEMA, Universe } from "@destack/universe";
+import { UNIVERSE_SCHEMA, Control } from "@destack/control";
 import { BunUniverse } from "./universe.ts";
 import { Custody, PlatformBuild } from "../deployment/index.ts";
 import { DISTRIBUTION_LAYER, DistributionManifest } from "@destack/package";
@@ -124,11 +124,11 @@ export class LocalUniverse implements AsyncDisposable {
         await using stack = new AsyncDisposableStack();
         await LocalUniverse.#create(options);
         const url = `${options.server}/${options.database}`;
-        await using connection = await connectPostgres(url, Universe.database, {
+        await using connection = await connectPostgres(url, Control.database, {
             environment: options.environment,
             schema: UNIVERSE_SCHEMA,
         });
-        await connection.migrate(Universe.database.tables);
+        await connection.migrate(Control.database.tables);
 
         // build the local releases from the checkout, a package's version moving on only where it changed
         const publication = await Publication.read(options.directory, options.environment.files);

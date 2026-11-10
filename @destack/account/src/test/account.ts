@@ -106,7 +106,7 @@ const WORLD_START = Date.UTC(2026, 9, 1);
 const WORLD_NODE = "universe";
 
 /** The packages the fixture's universe serves, each with its base installation. */
-const UNIVERSE_PACKAGES = [objectPackage, accountPackage, settingPackage];
+const CONTROL_PACKAGES = [objectPackage, accountPackage, settingPackage];
 
 /** The universe's issuer. */
 export const ISSUER = UniverseOrigin.issuer(ORIGIN);
@@ -1198,7 +1198,7 @@ export class TestAccountStore implements AsyncDisposable {
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const events = await testEvents(database, environment);
         const opening = options.openRelease ?? TestAccountStore.#opening(releases);
-        const base = (handle: (typeof UNIVERSE_PACKAGES)[number]) =>
+        const base = (handle: (typeof CONTROL_PACKAGES)[number]) =>
             Installation.base(Scope.universe, handle, environment.crypto);
         const store = new ObjectStore({
             blobs: new MemoryBlobStorage(environment.crypto),
@@ -1235,7 +1235,7 @@ export class TestAccountStore implements AsyncDisposable {
                 () => AccessContext.of(Caller.of(Scope.universe), clock.now()),
                 store.environment,
                 (authorization) =>
-                    Installation.receive(authorization, Scope.universe, [], UNIVERSE_PACKAGES),
+                    Installation.receive(authorization, Scope.universe, [], CONTROL_PACKAGES),
             );
             await Residency.apply(store, RESIDENCIES);
             await new Platform(store, platform).apply(clock.now());

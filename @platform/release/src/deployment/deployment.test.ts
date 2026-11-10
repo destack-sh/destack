@@ -1,7 +1,7 @@
 import { DeclarationReference } from "@destack/package/declare";
 import * as relay from "@destack/relay/declare";
 import { type JsonValue, present } from "@destack/schema";
-import { UniverseDefinition } from "@destack/universe";
+import { UniverseDefinition } from "@destack/control";
 import { expect, test } from "@destack/test";
 import { RESIDENCY_STACK, STACKS } from "@destack/account/test";
 

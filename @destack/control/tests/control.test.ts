@@ -5,17 +5,17 @@ import { Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { testSimulation } from "@destack/object/test";
 import { expect, onTestFinished, test } from "@destack/test";
-import { TestUniverse, type TestUniverseOptions, UNIVERSE_NODE } from "../src/test/index.ts";
-import { apply, Universe } from "../src/universe/index.ts";
+import { TestControl, type TestControlOptions, UNIVERSE_NODE } from "../src/test/index.ts";
+import { apply, Control } from "../src/control/index.ts";
 
 test("start a universe over its definition, serving its issuer at the issuer's path and nothing at its root or elsewhere", async () => {
     // start the universe with a cloud machine serving its residency
-    await using started = await TestUniverse.open();
-    const { universe, origin } = started;
+    await using started = await TestControl.open();
+    const { control, origin } = started;
 
     // read the issuer's discovery at its path
     const issuer = UniverseOrigin.issuer(origin);
-    const discovery = await universe.fetch(
+    const discovery = await control.fetch(
         new Request(`${issuer}/.well-known/openid-configuration`),
     );
     const { issuer: discovered } = schema
@@ -23,8 +23,8 @@ test("start a universe over its definition, serving its issuer at the issuer's p
         .parse(await discovery.json());
 
     // refuse the root and any other path, which the routes of the universe's hostname serve
-    const outside = await universe.fetch(new Request(`${origin}/sign-in`));
-    const root = await universe.fetch(new Request(`${origin}/`));
+    const outside = await control.fetch(new Request(`${origin}/sign-in`));
+    const root = await control.fetch(new Request(`${origin}/`));
     await started.simulation.idle();
     expect([discovery.status, discovered, outside.status, root.status]).toEqual([
         200,
@@ -39,20 +39,20 @@ test("apply a definition once across starts, again once the operator's invitatio
     const simulation = testSimulation();
     onTestFinished(() => simulation[Symbol.asyncDispose]());
     const environment = simulation.environment(UNIVERSE_NODE);
-    const storage = await TestDatabase.create(Universe.database, { environment, isMigrated: true });
+    const storage = await TestDatabase.create(Control.database, { environment, isMigrated: true });
     onTestFinished(() => storage.close());
     const counts = async () => ({
         runs: (await Snapshot.live(storage.database).read(apply.run.table).findMany()).length,
         invitations: (await Snapshot.live(storage.database).read(accessInvitation).findMany())
             .length,
     });
-    const start = async (options: Pick<TestUniverseOptions, "residencies"> = {}) =>
-        (await TestUniverse.open({ simulation, storage, world, ...options }))[
+    const start = async (options: Pick<TestControlOptions, "residencies"> = {}) =>
+        (await TestControl.open({ simulation, storage, world, ...options }))[
             Symbol.asyncDispose
         ]();
 
     // start again, then once the operator's invitation lapsed, then over a changed definition
-    const first = await TestUniverse.open({ simulation, storage });
+    const first = await TestControl.open({ simulation, storage });
     const world = await first.world();
     await first[Symbol.asyncDispose]();
     await start();

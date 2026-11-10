@@ -4,7 +4,7 @@ import objectPackage from "@destack/object/package";
 import { schema } from "@destack/schema";
 import settingPackage from "@destack/setting/package";
 import stackPackage from "@destack/stack/package";
-import universePackage from "@destack/universe/package";
+import controlPackage from "@destack/control/package";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 
@@ -68,7 +68,7 @@ test("switch to a space as this computer's space setting, which --space override
             ["universe", accountPackage.id],
             ["universe", objectPackage.id],
             ["universe", settingPackage.id],
-            ["universe", universePackage.id],
+            ["universe", controlPackage.id],
         ],
         lines: [
             { code: 0, output: whoami(terminal, null), error: "" },

@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { LocalBlobStorage, LocalBucketHost } from "@destack/bucket/bun";
 import {
     BlobStore,
-    type Control,
+    type ControllerSet,
     ControlLoop,
     type DatabaseConnection,
     databaseProvider,
@@ -103,15 +103,15 @@ import {
     type StoreProvider,
     type SpaceProvider,
 } from "../server/index.ts";
-import { Universe } from "@destack/universe";
+import { Control } from "@destack/control";
 import {
     MachineWorld,
     TestMachine,
-    TestUniverse,
-    type TestUniverseOptions,
-    UniverseWorld,
+    TestControl,
+    type TestControlOptions,
+    ControlWorld,
     UNIVERSE_NODE,
-} from "@destack/universe/test";
+} from "@destack/control/test";
 import type { TestPerson } from "@destack/account/test";
 import type { ClientOf } from "@destack/object/client";
 import { spaceReplicated, spaceTables } from "../stack/index.ts";
@@ -176,7 +176,7 @@ const WORLD_OPTIONS = [
 function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
     return schema.object({
         /** The universe's keys and its people's sign-ins. */
-        universe: UniverseWorld,
+        universe: ControlWorld,
         /** The machine's keyring secrets. */
         machine: MachineWorld,
         /** The directory of the machine's buckets and the spaces' databases, copied per test. */
@@ -250,7 +250,7 @@ export type WorldSpace =
 
 /** The databases of a space world: the universe's, the machine's replica and each space's by id. */
 type SpaceDatabases = {
-    readonly universe: typeof Universe.database;
+    readonly universe: typeof Control.database;
     readonly machine: typeof TestMachine.database;
 } & Readonly<Record<string, ReturnType<typeof defineDatabase>>>;
 
@@ -311,7 +311,7 @@ export class TestSpace implements AsyncDisposable {
     /** The account the space belongs to. */
     readonly account: Identifier<"account">;
     /** The universe the space lives in. */
-    readonly universe: TestUniverse;
+    readonly universe: TestControl;
     /** The space's owner, signed up at the universe. */
     readonly owner: TestPerson;
     /** The residency's cloud machine hosting the space. */
@@ -379,7 +379,7 @@ export class TestSpace implements AsyncDisposable {
     private constructor(fields: {
         readonly id: Identifier<"space">;
         readonly account: Identifier<"account">;
-        readonly universe: TestUniverse;
+        readonly universe: TestControl;
         readonly owner: TestPerson;
         readonly machine: TestMachine;
         readonly simulation: Simulation;
@@ -545,7 +545,7 @@ export class TestSpace implements AsyncDisposable {
         return new TestTemplate({
             name: `stack.world ${new Date(start).toISOString()} ${world.name} ${tables}`,
             databases: {
-                universe: Universe.database,
+                universe: Control.database,
                 machine: TestMachine.database,
                 ...Object.fromEntries(spaces.map((each) => [TestSpace.#key(each), database])),
             },
@@ -833,7 +833,7 @@ export class TestSpace implements AsyncDisposable {
 
     /** Create the fixture's account as its owner, answering the owner's account client. */
     static async account(
-        universe: TestUniverse,
+        universe: TestControl,
         owner: TestPerson,
         created: { readonly id: Identifier<"account">; readonly handle: string } = FIXTURE_ACCOUNT,
     ): Promise<ClientOf<typeof accountPackage>> {
@@ -970,7 +970,7 @@ export class TestSpace implements AsyncDisposable {
         defer: Defer,
         simulation: Simulation,
         storage?: TestDatabase,
-        world?: UniverseWorld,
+        world?: ControlWorld,
     ): Promise<TestSpaceWorld> {
         // join the given world
         if (options.world !== undefined) {
@@ -983,7 +983,7 @@ export class TestSpace implements AsyncDisposable {
         const packages = await TestBuildStore.create(environment);
         defer(() => packages[Symbol.asyncDispose]());
         const registry = new TestRegistry(packages, ids.package);
-        const universe = await TestUniverse.open({
+        const universe = await TestControl.open({
             stacks: { home: source, space: source },
             home: source,
             releases: registry,
@@ -2105,11 +2105,11 @@ export interface TestSpaceOptions {
     /** The world the space joins: its simulation, universe and registry, a new one by default. */
     readonly world?: TestSpaceWorld;
     /** The policies a new universe decides with its own, such as the forge's, none by default. */
-    readonly policies?: TestUniverseOptions["policies"];
+    readonly policies?: TestControlOptions["policies"];
     /** The residencies a new universe declares, Europe alone by default. */
-    readonly residencies?: TestUniverseOptions["residencies"];
+    readonly residencies?: TestControlOptions["residencies"];
     /** The handles a new universe's platform publishes under, none by default. */
-    readonly publishers?: TestUniverseOptions["publishers"];
+    readonly publishers?: TestControlOptions["publishers"];
     /** The owner of the space, a new sign-up by default, such as a move's source's owner. */
     readonly owner?: TestPerson;
     /** The origin the test serves the hosting machine at, its published one by default. */
@@ -2236,7 +2236,7 @@ export async function reconcileResources(store: ObjectStore, spaceId: string): P
 }
 
 /** Run some controllers and cursors until they idle, failing on any report. */
-export async function settle(database: DatabaseConnection, control: Control): Promise<void> {
+export async function settle(database: DatabaseConnection, control: ControllerSet): Promise<void> {
     // run the loop until it idles, collecting its reports
     const stopping = new AbortController();
     const reported: unknown[] = [];

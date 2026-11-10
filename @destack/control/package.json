@@ -1,5 +1,5 @@
 {
-    "name": "@destack/universe",
+    "name": "@destack/control",
     "version": "2026.11.0",
     "type": "module",
     "license": "Apache-2.0",

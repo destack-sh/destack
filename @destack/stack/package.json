@@ -53,20 +53,20 @@
     },
     "peerDependencies": {
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*"
+        "@destack/control": "workspace:*"
     },
     "peerDependenciesMeta": {
         "@destack/test": {
             "optional": true
         },
-        "@destack/universe": {
+        "@destack/control": {
             "optional": true
         }
     },
     "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
+        "@destack/control": "workspace:*",
         "@destack/template-stack": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",

@@ -1,4 +1,4 @@
-import type { UniverseDefinition } from "@destack/universe";
+import type { UniverseDefinition } from "@destack/control";
 import { testSimulation } from "@destack/test/world";
 import { Failure } from "@destack/error";
 import type { Environment } from "@destack/environment";
@@ -13,7 +13,7 @@ import { Identifier, present } from "@destack/schema";
 import { RequestId, type Subject } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
 import { TestTelemetry } from "@destack/telemetry/test";
-import { type TestMachine, TestUniverse } from "@destack/universe/test";
+import { type TestMachine, TestControl } from "@destack/control/test";
 import relayPackage from "../package.ts";
 import { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "../package.ts";
 import { type Renewal, TunnelClient, type TunnelClientOptions } from "@destack/tunnel";
@@ -53,7 +53,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     /** The simulation the universe, the relays and the computer run in. */
     readonly simulation: Simulation;
     /** The universe whose names the relays route. */
-    readonly universe: TestUniverse;
+    readonly universe: TestControl;
     /** The owner of the computer's account. */
     readonly owner: TestPerson;
     /** The computer, enrolled as a personal machine of the account. */
@@ -85,7 +85,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     /** Wrap an enrolled computer and the space it serves. */
     private constructor(fields: {
         readonly simulation: Simulation;
-        readonly universe: TestUniverse;
+        readonly universe: TestControl;
         readonly owner: TestPerson;
         readonly machine: TestMachine;
         readonly accountId: Identifier<"account">;
@@ -118,7 +118,7 @@ export class TestTunnelMachine implements AsyncDisposable {
     ): Promise<TestTunnelMachine> {
         // open the universe, closed again should the enrollment fail
         await using opening = new AsyncDisposableStack();
-        const universe = await TestUniverse.open({
+        const universe = await TestControl.open({
             residencies: RESIDENCIES,
             simulation,
             lifetimes: new Map([[relayPackage.id, TUNNEL_TOKEN_LIFETIME_MILLISECONDS]]),

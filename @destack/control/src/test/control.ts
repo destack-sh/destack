@@ -45,9 +45,9 @@ import objectPackage from "@destack/object/package";
 import type { Example } from "@destack/package/declare";
 import { Identifier, present, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
-import type { UniverseDefinition } from "../universe/definition.ts";
+import type { UniverseDefinition } from "../control/definition.ts";
 import { type ReleaseRegistry } from "@destack/account/server";
-import { Universe, UNIVERSE_PACKAGES, type UniverseOptions } from "../universe/universe.ts";
+import { Control, CONTROL_PACKAGES, type ControlOptions } from "../control/control.ts";
 import { TestMachine } from "./machine.ts";
 
 /** The installation a residency's space provides entitlements as in tests, as finance does. */
@@ -105,7 +105,7 @@ const TUNNEL_MILLISECONDS = 3_600_000;
 const TEST_LOCATION = { providerCode: "test", location: "test-1" } as const;
 
 /** What a test universe declares and runs at. */
-export interface TestUniverseOptions {
+export interface TestControlOptions {
     /** The universe's residencies, Europe alone by default, each served by one cloud machine. */
     readonly residencies?: Readonly<UniverseDefinition["residencies"]>;
     /** The handles the platform publishes first-party packages under, none by default. */
@@ -119,17 +119,17 @@ export interface TestUniverseOptions {
     /** The stack every residency's home runs, the account test fixture's stand-in by default. */
     readonly home?: StackRelease;
     /** The policies of other packages it decides access for, none by default. */
-    readonly policies?: UniverseOptions["policies"];
+    readonly policies?: ControlOptions["policies"];
     /** The access token lifetimes longer than a minute, by audience, none by default. */
-    readonly lifetimes?: UniverseOptions["lifetimes"];
+    readonly lifetimes?: ControlOptions["lifetimes"];
     /** The migrated database it starts over, which the caller closes, a new one by default. */
     readonly storage?: TestDatabase;
     /** The keys and sign-ins a template wrote over the given database, new ones by default. */
-    readonly world?: UniverseWorld;
+    readonly world?: ControlWorld;
 }
 
 /** A test universe's state beside its database: its keys and its people's sign-ins. */
-export const UniverseWorld = schema.object({
+export const ControlWorld = schema.object({
     /** The universe keyring's secret. */
     keyring: schema.string(),
     /** Each residency's declared cloud machine and its keychain's secrets, by residency. */
@@ -150,7 +150,7 @@ export const UniverseWorld = schema.object({
     authenticators: schema.record(schema.string(), schema.string()),
 });
 /** A test universe's state beside its database: its keys and its people's sign-ins. */
-export type UniverseWorld = schema.Infer<typeof UniverseWorld>;
+export type ControlWorld = schema.Infer<typeof ControlWorld>;
 
 /** A residency's declared cloud machine, with the keychain keeping its key. */
 interface DeclaredMachine {
@@ -165,9 +165,9 @@ interface DeclaredMachine {
 }
 
 /** The universe served in process over a test database, signed in to as its native clients do. */
-export class TestUniverse implements AsyncDisposable {
-    /** The universe. */
-    readonly universe: Universe;
+export class TestControl implements AsyncDisposable {
+    /** The control running the universe. */
+    readonly control: Control;
     /** The test database. */
     readonly storage: TestDatabase;
     /** The mail the universe sends. */
@@ -201,22 +201,22 @@ export class TestUniverse implements AsyncDisposable {
     /** The object types the universe serves by name, each with its package. */
     readonly #types: ReadonlyMap<
         string,
-        { readonly type: ObjectType; readonly handle: (typeof UNIVERSE_PACKAGES)[number] }
+        { readonly type: ObjectType; readonly handle: (typeof CONTROL_PACKAGES)[number] }
     >;
 
     /** Keep a started universe and its adapters. */
     private constructor(
-        universe: Universe,
+        control: Control,
         storage: TestDatabase,
         mail: TestMail,
         environment: Environment,
         machines: ReadonlyMap<ResidencyCode, DeclaredMachine>,
         disposables: AsyncDisposableStack,
-        world: Pick<UniverseWorld, "keyring" | "people" | "authenticators">,
+        world: Pick<ControlWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
     ) {
-        // keep the universe and the adapters standing in for mail, storage and time
-        this.universe = universe;
+        // keep the control and the adapters standing in for mail, storage and time
+        this.control = control;
         this.storage = storage;
         this.mail = mail;
         this.environment = environment;
@@ -233,7 +233,7 @@ export class TestUniverse implements AsyncDisposable {
             new Bookmark(),
         );
         this.#types = new Map(
-            UNIVERSE_PACKAGES.flatMap((handle) =>
+            CONTROL_PACKAGES.flatMap((handle) =>
                 Object.values(handle.objects)
                     .filter((declared) => declared instanceof ObjectType)
                     .map((type) => [type.name, { type, handle }] as const),
@@ -251,15 +251,15 @@ export class TestUniverse implements AsyncDisposable {
     }
 
     /** Start a universe over a database of the project's target, mail and storage in memory. */
-    static async open(options: TestUniverseOptions = {}): Promise<TestUniverse> {
+    static async open(options: TestControlOptions = {}): Promise<TestControl> {
         // take the given database or migrate one, closed again should the start fail, and keep its mail, keys and call events in memory
         await using opening = new AsyncDisposableStack();
-        const simulation = options.simulation ?? TestUniverse.#simulate(opening);
+        const simulation = options.simulation ?? TestControl.#simulate(opening);
         const environment = simulation.environment(UNIVERSE_NODE);
         const { clock } = environment;
         const storage =
             options.storage ??
-            (await TestDatabase.create(Universe.database, { environment, isMigrated: true }));
+            (await TestDatabase.create(Control.database, { environment, isMigrated: true }));
         if (options.storage === undefined) {
             opening.defer(() => storage.close());
         }
@@ -323,7 +323,7 @@ export class TestUniverse implements AsyncDisposable {
 
         // start the universe, refusing requests to other origins
         const universe = opening.use(
-            await Universe.start({
+            await Control.start({
                 definition,
                 origin: TEST_ORIGIN,
                 database: storage.database,
@@ -371,7 +371,7 @@ export class TestUniverse implements AsyncDisposable {
             authenticators: options.world?.authenticators ?? {},
         };
 
-        return new TestUniverse(
+        return new TestControl(
             universe,
             storage,
             mail,
@@ -443,7 +443,7 @@ export class TestUniverse implements AsyncDisposable {
     }
 
     /** Read the universe's keys and its people's sign-ins, as a template's value keeps them. */
-    async world(): Promise<UniverseWorld> {
+    async world(): Promise<ControlWorld> {
         // read each person's sign-in with their client's current tokens
         const people = await Promise.all(
             [...this.#people].map(
@@ -452,7 +452,7 @@ export class TestUniverse implements AsyncDisposable {
         );
 
         // read each declared machine's keychain
-        const machines: UniverseWorld["machines"] = {};
+        const machines: ControlWorld["machines"] = {};
         for (const [code, declared] of this.#machines) {
             const secrets = Object.fromEntries(declared.keychain.secrets);
             machines[code] = { id: declared.id, secrets, key: declared.key };
@@ -522,7 +522,7 @@ export class TestUniverse implements AsyncDisposable {
             const snapshot = Snapshot.live(this.storage.database);
             const served = await Residency.require(snapshot, residencyId);
             const home = await Scope.object(snapshot, Residency.requireSpace(served));
-            const crypto = this.universe.store.environment.crypto;
+            const crypto = this.control.store.environment.crypto;
             const id = await InstallationId.of(home, BILLING_INSTALLATION, crypto);
             const installed = principal.installation.reference(home.id, id);
 
@@ -530,7 +530,7 @@ export class TestUniverse implements AsyncDisposable {
             const operator = await this.operator();
             await operator.client(objectPackage).relationship.create({
                 scope: Scope.universe.id,
-                requestId: RequestId.create(this.universe.store.environment),
+                requestId: RequestId.create(this.control.store.environment),
                 object: residency.reference(Scope.universe.id, served.id),
                 relation: "installation",
                 subject: installed,
@@ -556,7 +556,7 @@ export class TestUniverse implements AsyncDisposable {
                 : { ...granted.feature, resource: null };
 
         // act as the billing installation of the account's residency space, as finance does
-        const { store } = this.universe;
+        const { store } = this.control;
         const snapshot = Snapshot.live(this.storage.database);
         const owner = await Account.of(snapshot, accountId);
         const provider = await this.#entitler(owner.residencyId);
@@ -593,7 +593,7 @@ export class TestUniverse implements AsyncDisposable {
         target: { readonly accountId: Identifier<"account">; readonly id: Identifier<"space"> },
         stack: StackRelease,
     ): Promise<void> {
-        const { store } = this.universe;
+        const { store } = this.control;
         const now = this.clock.now();
         await store.mutate(store.as(space, now), {
             id: RequestId.create(store.environment),
@@ -749,7 +749,7 @@ export class TestUniverse implements AsyncDisposable {
         const id = Identifier.create("machine", this.environment);
         const keychain = new MemoryKeychain();
         const { publicKey } = await new MachineIdentity(id, keychain, this.environment).generate();
-        const { store } = this.universe;
+        const { store } = this.control;
         const now = this.clock.now();
         await store.mutate(store.as(machine, now), {
             id: RequestId.create(store.environment),
@@ -798,8 +798,8 @@ export class TestUniverse implements AsyncDisposable {
                 .read(account.table)
                 .findFirst({ where: { id: accountId } });
             const relay = await this.relay(present(owning, `account ${accountId}`).residencyId);
-            await this.universe.store.mutate(AccessContext.of(Caller.of(relay), now), {
-                id: RequestId.create(this.universe.store.environment),
+            await this.control.store.mutate(AccessContext.of(Caller.of(relay), now), {
+                id: RequestId.create(this.control.store.environment),
                 calls: [
                     machine.call("relay", {
                         ...machine.target({ scope: accountId, id }),

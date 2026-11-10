@@ -22,8 +22,8 @@ import type { Installation } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { RequestId, Scope } from "@destack/sync";
 import { inject, onTestFinished } from "@destack/test";
-import { Universe } from "@destack/universe";
-import { TestUniverse, UniverseWorld } from "@destack/universe/test";
+import { Control } from "@destack/control";
+import { TestControl, ControlWorld } from "@destack/control/test";
 import relayPackage, { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/package";
 import { TestRelay } from "@destack/relay/test";
 import type { MachineEnrollment } from "../device/object/index.ts";
@@ -86,7 +86,7 @@ type Defer = (cleanup: () => Promise<void> | void) => void;
 /** The world the universe template wrote: the universe's keys. */
 const UniverseTemplate = schema.object({
     /** The universe's keys and its people's sign-ins. */
-    universe: UniverseWorld,
+    universe: ControlWorld,
 });
 /** The world the universe template wrote. */
 type UniverseTemplate = schema.Infer<typeof UniverseTemplate>;
@@ -94,7 +94,7 @@ type UniverseTemplate = schema.Infer<typeof UniverseTemplate>;
 /** The world a home template wrote: the universe, the cloud computer's state, the login. */
 const HomeWorld = schema.object({
     /** The universe's keys and its people's sign-ins. */
-    universe: UniverseWorld,
+    universe: ControlWorld,
     /** The cloud computer's state directory in the run's directory. */
     directory: schema.string(),
     /** The secrets of the cloud computer's keychains, by service and name. */
@@ -142,7 +142,7 @@ export interface TestWorld {
     /** The simulation whose clock and network every node runs on. */
     readonly simulation: Simulation;
     /** The universe, answering at its origin on the simulated network. */
-    readonly universe: TestUniverse;
+    readonly universe: TestControl;
     /** What the computers ship. */
     readonly distribution: TestDistribution;
     /** The owner, signed up at the universe. */
@@ -273,7 +273,7 @@ export class TestComputer implements AsyncDisposable {
         simulation: Simulation,
         restored: {
             readonly storage?: TestDatabase;
-            readonly world?: UniverseWorld;
+            readonly world?: ControlWorld;
         },
         defer: Defer,
     ): Promise<TestWorld> {
@@ -283,7 +283,7 @@ export class TestComputer implements AsyncDisposable {
         defer(() => telemetry[Symbol.dispose]());
 
         // start the universe on the simulation, answering at its origin on the network
-        const universe = await TestUniverse.open({
+        const universe = await TestControl.open({
             simulation,
             releases: distribution,
             stacks: distribution.stacks,
@@ -307,11 +307,11 @@ export class TestComputer implements AsyncDisposable {
     /** Describe the run's universe with its owner signed up, which the run writes once. */
     static #universe(): TestTemplate<
         UniverseTemplate,
-        { readonly universe: typeof Universe.database }
+        { readonly universe: typeof Control.database }
     > {
         return new TestTemplate({
             name: "machine.universe",
-            databases: { universe: Universe.database },
+            databases: { universe: Control.database },
             value: UniverseTemplate,
             world: { seed: SEED, start: START },
             write: async (databases, _directory, simulation) => {
@@ -428,7 +428,7 @@ export class TestComputer implements AsyncDisposable {
         const declared =
             cloud === undefined
                 ? undefined
-                : universe.universe.definition.platform.machines.find(
+                : universe.control.definition.platform.machines.find(
                       (machine) => machine.id === cloud.id,
                   )?.origin;
         if (cloud !== undefined && declared === undefined) {
@@ -572,13 +572,13 @@ export class TestComputer implements AsyncDisposable {
     static homeTemplate(
         organizations: readonly TestOrganization[],
         installs: readonly TestInstall[] = [],
-    ): TestTemplate<HomeWorld, { readonly universe: typeof Universe.database }> {
+    ): TestTemplate<HomeWorld, { readonly universe: typeof Control.database }> {
         const handles = organizations.map((organization) => organization.handle);
         const installed = installs.map((install) => `${install.fixture}@${install.name}`);
 
         return new TestTemplate({
             name: ["machine.home", ...handles, ...installed].join("."),
-            databases: { universe: Universe.database },
+            databases: { universe: Control.database },
             value: HomeWorld,
             world: { seed: SEED, start: START },
             write: async (databases, directory, simulation) => {

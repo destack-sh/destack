@@ -24,7 +24,7 @@ import { TestObjectStore } from "@destack/object/test";
 import { Package, type PackageId } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import universePackage from "../package.ts";
+import controlPackage from "../package.ts";
 
 /** A test machine's state beside its database: the keyring secrets of the spaces' keys. */
 export const MachineWorld = schema.object({
@@ -154,7 +154,7 @@ export class TestMachine implements AsyncDisposable {
         // follow the directory, the identities and the machine's assignments as the machine, into the given database or a new one
         const follows = TestMachine.#follows(id);
         const objects: Readonly<Record<string, ObjectType>> = {};
-        const handle = PackageHandle.of(Package.of(universePackage), { objects });
+        const handle = PackageHandle.of(Package.of(controlPackage), { objects });
         const storage =
             options.storage ??
             (await TestDatabase.create(TestMachine.database, {
@@ -176,7 +176,7 @@ export class TestMachine implements AsyncDisposable {
             }),
             database: storage.database,
             environment,
-            origin: { package: Package.of(universePackage), machineId: id },
+            origin: { package: Package.of(controlPackage), machineId: id },
             machine: id,
         });
 

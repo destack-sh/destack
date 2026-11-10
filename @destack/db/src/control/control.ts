@@ -145,7 +145,7 @@ export interface Cursor extends LogCursor {
 }
 
 /** What a loop runs: controllers over rows, and cursors over the log. */
-export interface Control {
+export interface ControllerSet {
     /** The controllers converging or following rows. */
     readonly controllers: readonly Controller[];
     /** The cursors taking changes past their checkpoints. */
@@ -247,7 +247,7 @@ export class ControlLoop {
     /** The database with the controllers' rows and the log that selects keys. */
     readonly database: DatabaseConnection;
     /** The controllers and cursors run. */
-    readonly control: Control;
+    readonly control: ControllerSet;
     /** The controllers and cursors as one list of jobs. */
     readonly #jobs: readonly Job[];
     /** Each row controller compiled, by controller. */
@@ -320,7 +320,7 @@ export class ControlLoop {
     /** Create the loop. */
     constructor(
         database: DatabaseConnection,
-        control: Control,
+        control: ControllerSet,
         options: {
             /** Report a failed reconciliation, beside the loop recording it. */
             readonly report: (controller: Controller | Cursor, key: string, error: unknown) => void;

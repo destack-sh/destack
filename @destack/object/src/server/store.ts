@@ -35,7 +35,7 @@ import {
     and,
     BlobStore,
     Change,
-    type Control,
+    type ControllerSet,
     type Controller,
     type DatabaseConnection,
     DatabaseError,
@@ -1045,7 +1045,7 @@ export class ObjectStore {
     implement(
         handle: PackageHandle,
         routed: readonly ObjectType[],
-        control: Control,
+        control: ControllerSet,
     ): PackageHandler & { readonly objects: ObjectStore } {
         const { subscriber } = this;
 
@@ -2259,7 +2259,7 @@ export class ObjectStore {
     }
 
     /** List what the served objects need: the store's controllers, then each type's. */
-    control(): Control {
+    control(): ControllerSet {
         const syncing = this.syncing();
         const objects = this.#objectControl(() => true);
 
@@ -2274,7 +2274,7 @@ export class ObjectStore {
     }
 
     /** List the cursor and controller syncing the store's replicas. */
-    syncing(): Control {
+    syncing(): ControllerSet {
         const { subscriber } = this;
 
         return subscriber === undefined
@@ -2286,7 +2286,7 @@ export class ObjectStore {
     }
 
     /** List the controllers and projections of the types a filter selects by their package's id. */
-    #objectControl(isSelected: (packageId: PackageId) => boolean): Control {
+    #objectControl(isSelected: (packageId: PackageId) => boolean): ControllerSet {
         const selected = [...this.objects, ...this.#catalog.provisioned].filter((object) =>
             isSelected(object.package.id),
         );

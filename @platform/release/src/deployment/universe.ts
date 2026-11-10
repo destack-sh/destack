@@ -7,7 +7,7 @@ import { type PackageId, PackageRelease } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import type { Digest } from "@destack/schema";
 import relayPackage, { TUNNEL_TOKEN_LIFETIME_MILLISECONDS } from "@destack/relay/package";
-import type { UniverseOptions } from "@destack/universe";
+import type { ControlOptions } from "@destack/control";
 
 /** The releases a deploy shipped beside the universe, which it opens before any forge's. */
 export interface ShippedReleases {
@@ -23,7 +23,7 @@ export const PlatformUniverse = {
     options(
         environment: Environment,
         shipped: ShippedReleases,
-    ): Pick<UniverseOptions, "releases" | "policies" | "lifetimes"> {
+    ): Pick<ControlOptions, "releases" | "policies" | "lifetimes"> {
         return {
             // open a shipped release first, as forges publish none before the platform runs, else the forges' through the directory
             releases: ({ directory, connect }) => {

@@ -193,11 +193,11 @@
         "@destack/view": "workspace:*",
       },
       "devDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/machine-board-fixture": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4",
       },
     },
@@ -246,6 +246,32 @@
         "@destack/stack",
         "@destack/test",
       ],
+    },
+    "@destack/control": {
+      "name": "@destack/control",
+      "version": "2026.11.0",
+      "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/account": "workspace:*",
+        "@destack/bucket": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/environment": "workspace:*",
+        "@destack/error": "workspace:*",
+        "@destack/event": "workspace:*",
+        "@destack/identity": "workspace:*",
+        "@destack/mail": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/resource": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+        "@destack/sync": "workspace:*",
+        "@destack/workflow": "workspace:*",
+      },
+      "devDependencies": {
+        "@destack/test": "workspace:*",
+        "@types/bun": "1.4.4",
+      },
     },
     "@destack/db": {
       "name": "@destack/db",
@@ -575,6 +601,7 @@
       },
       "devDependencies": {
         "@cloudflare/workers-types": "5.20260917.1",
+        "@destack/control": "workspace:*",
         "@destack/finance": "workspace:*",
         "@destack/forge": "workspace:*",
         "@destack/home": "workspace:*",
@@ -586,7 +613,6 @@
         "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
         "@destack/theme": "workspace:*",
-        "@destack/universe": "workspace:*",
         "@destack/vault": "workspace:*",
         "@types/bun": "1.4.4",
         "@types/node": "26.6.1",
@@ -875,8 +901,8 @@
         "@destack/tunnel": "workspace:*",
       },
       "devDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4",
       },
     },
@@ -1013,20 +1039,20 @@
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
+        "@destack/control": "workspace:*",
         "@destack/template-stack": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
         "@types/bun": "1.4.4",
         "miniflare": "4.20260730.0",
         "rolldown": "1.2.16",
       },
       "peerDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
       },
       "optionalPeers": [
+        "@destack/control",
         "@destack/test",
-        "@destack/universe",
       ],
     },
     "@destack/style": {
@@ -1196,32 +1222,6 @@
         "@destack/test": "workspace:*",
       },
     },
-    "@destack/universe": {
-      "name": "@destack/universe",
-      "version": "2026.11.0",
-      "dependencies": {
-        "@destack/access": "workspace:*",
-        "@destack/account": "workspace:*",
-        "@destack/bucket": "workspace:*",
-        "@destack/db": "workspace:*",
-        "@destack/environment": "workspace:*",
-        "@destack/error": "workspace:*",
-        "@destack/event": "workspace:*",
-        "@destack/identity": "workspace:*",
-        "@destack/mail": "workspace:*",
-        "@destack/object": "workspace:*",
-        "@destack/package": "workspace:*",
-        "@destack/resource": "workspace:*",
-        "@destack/schema": "workspace:*",
-        "@destack/setting": "workspace:*",
-        "@destack/sync": "workspace:*",
-        "@destack/workflow": "workspace:*",
-      },
-      "devDependencies": {
-        "@destack/test": "workspace:*",
-        "@types/bun": "1.4.4",
-      },
-    },
     "@destack/update": {
       "name": "@destack/update",
       "version": "2026.11.0",
@@ -1260,19 +1260,19 @@
         "@destack/sync": "workspace:*",
       },
       "devDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
       },
       "peerDependencies": {
+        "@destack/control": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
       },
       "optionalPeers": [
+        "@destack/control",
         "@destack/environment",
         "@destack/test",
-        "@destack/universe",
       ],
     },
     "@destack/view": {
@@ -1393,6 +1393,7 @@
         "@destack/build": "workspace:*",
         "@destack/check": "workspace:*",
         "@destack/connection": "workspace:*",
+        "@destack/control": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/desktop": "workspace:*",
         "@destack/environment": "workspace:*",
@@ -1415,7 +1416,6 @@
         "@destack/stack": "workspace:*",
         "@destack/sync": "workspace:*",
         "@destack/telemetry": "workspace:*",
-        "@destack/universe": "workspace:*",
         "@destack/update": "workspace:*",
         "@destack/vault": "workspace:*",
         "@platform/brand": "workspace:*",
@@ -1679,6 +1679,8 @@
 
     "@destack/connection": ["@destack/connection@workspace:@destack/connection"],
 
+    "@destack/control": ["@destack/control@workspace:@destack/control"],
+
     "@destack/db": ["@destack/db@workspace:@destack/db"],
 
     "@destack/desktop": ["@destack/desktop@workspace:@destack/desktop"],
@@ -1762,8 +1764,6 @@
     "@destack/tunnel": ["@destack/tunnel@workspace:@destack/tunnel"],
 
     "@destack/ui": ["@destack/ui@workspace:@destack/ui"],
-
-    "@destack/universe": ["@destack/universe@workspace:@destack/universe"],
 
     "@destack/update": ["@destack/update@workspace:@destack/update"],
 

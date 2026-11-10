@@ -13,7 +13,7 @@ import { refusal, reportError } from "../error/report.ts";
 import { BOOKMARK_HEADER, type Bookmark } from "../procedure/bookmark.ts";
 import { LINK_SECRET_HEADER, RequestContext, type ServerAccess } from "./context.ts";
 import type { ProcedureContext } from "./procedure.ts";
-import { type Alarm, type Control, ControlLoop } from "@destack/db";
+import { type Alarm, type ControllerSet, ControlLoop } from "@destack/db";
 import { copyRequest, type Environment, LONGEST_DELAY } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
@@ -94,7 +94,7 @@ export class Server implements AsyncDisposable {
     }
 
     /** Create the loop of a package's control over the access database, absent for none. */
-    static #loopOf(control: Control, options: ServerOptions): ControlLoop | undefined {
+    static #loopOf(control: ControllerSet, options: ServerOptions): ControlLoop | undefined {
         // run no loop without work, and refuse work without an access database
         const { access } = options;
         if (control.controllers.length === 0 && control.cursors.length === 0) {
@@ -629,9 +629,9 @@ export interface PackageHandler extends Omit<
     /** The routes of each protocol the package implements, by the protocol's package. */
     readonly protocols?: ReadonlyMap<string, ReadonlySet<string>>;
     /** The package's controllers and cursors, started once its replicas are synced. */
-    readonly control?: Control;
+    readonly control?: ControllerSet;
     /** The controllers and cursors syncing the package's replicas, started at once. */
-    readonly syncing?: Control;
+    readonly syncing?: ControllerSet;
     /** Wait until the package's replicas are synced, at once when absent. */
     readonly synced?: (signal: AbortSignal) => Promise<void>;
     /** Wait until the package can answer before it serves. */

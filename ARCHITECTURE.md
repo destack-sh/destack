@@ -85,4 +85,4 @@ Where it all runs.
 | [`@destack/update`](@destack/update) | Check, download, stage and activate signed releases, and publish them | TUF |
 | [`@destack/relay`](@destack/relay) | Route requests for a space's or a machine's name through a tunnel to the machine serving it | Cloudflare Tunnel, ngrok |
 | [`@destack/machine`](@destack/machine) | Run spaces on any host, on Bun or Cloudflare, with placement, builds, a request gateway and metering | — |
-| [`@destack/universe`](@destack/universe) | Run the account, setting and directory packages over one database, on Bun or as a Cloudflare Worker | — |
+| [`@destack/control`](@destack/control) | Run the universe: the object, account and setting packages over one database, on Bun or as a Cloudflare Worker | Kubernetes control plane |

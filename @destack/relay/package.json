@@ -36,7 +36,7 @@
     },
     "devDependencies": {
         "@destack/test": "workspace:*",
-        "@destack/universe": "workspace:*",
+        "@destack/control": "workspace:*",
         "@types/bun": "1.4.4"
     }
 }

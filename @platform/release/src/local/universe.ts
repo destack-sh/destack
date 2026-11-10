@@ -6,7 +6,7 @@ import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/mail/transport";
 import type { ProviderClients } from "@destack/account/better-auth";
 import { CallKey } from "@destack/object";
-import { UNIVERSE_SCHEMA, Universe, type UniverseDefinition } from "@destack/universe";
+import { UNIVERSE_SCHEMA, Control, type UniverseDefinition } from "@destack/control";
 import { UniverseOrigin } from "@destack/account/address";
 import { PlatformUniverse, type ShippedReleases } from "../deployment/universe.ts";
 
@@ -54,7 +54,7 @@ export class BunUniverse implements AsyncDisposable {
         // open the database, the call events' bucket, the blobs and the root keys
         await using stack = new AsyncDisposableStack();
         const database = stack.use(
-            await connectPostgres(options.database, Universe.database, {
+            await connectPostgres(options.database, Control.database, {
                 environment: options.environment,
                 schema: UNIVERSE_SCHEMA,
             }),
@@ -70,7 +70,7 @@ export class BunUniverse implements AsyncDisposable {
         const key = CallKey.of(keyring, options.environment.crypto);
 
         // start the universe's packages, sending to other origins over the network and calling the forges through it
-        const universe = await Universe.start({
+        const universe = await Control.start({
             ...PlatformUniverse.options(options.environment, options.shipped),
             definition: options.definition,
             origin: options.origin,

@@ -4,7 +4,7 @@ import { Identifier, present, Digest, nth } from "@destack/schema";
 import { RequestId, Scope, type Subject } from "@destack/sync";
 import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
 import { account, residency } from "@destack/account/object";
-import { UNIVERSE_NODE } from "@destack/universe/test";
+import { UNIVERSE_NODE } from "@destack/control/test";
 import {
     installation,
     type ObjectType,

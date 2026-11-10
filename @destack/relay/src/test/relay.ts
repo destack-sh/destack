@@ -25,7 +25,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
 import { Replica, Scope, type Subject, type Uplink } from "@destack/sync";
 import { TelemetryScope } from "@destack/telemetry";
-import type { TestMachine, TestUniverse } from "@destack/universe/test";
+import type { TestMachine, TestControl } from "@destack/control/test";
 import relayPackage from "../package.ts";
 import { issuer, origin, relayWorkload, TUNNELS_PATH } from "../server/index.ts";
 import { residency } from "../declare/setting.ts";
@@ -50,7 +50,7 @@ interface Instance {
 /** What a test relay is served with: its host, its node's environment and its relays' number. */
 export interface TestRelayOptions {
     /** The universe whose names the relay routes. */
-    readonly universe: TestUniverse;
+    readonly universe: TestControl;
     /** The residency's cloud machine hosting the relay in the residency's home. */
     readonly host: TestMachine;
     /** The clock and server of the relay's node. */
@@ -70,7 +70,7 @@ export class TestRelay implements AsyncDisposable {
     /** The origin the relay answers at. */
     readonly origin: string;
     /** The universe whose rows the relay follows. */
-    readonly #universe: TestUniverse;
+    readonly #universe: TestControl;
     /** The memory databases of the instances, the root's under no partition. */
     readonly #memories: ReadonlyMap<string | undefined, Promise<DatabaseConnection>>;
     /** The instances started so far, the root's under no partition. */
@@ -88,7 +88,7 @@ export class TestRelay implements AsyncDisposable {
 
     /** Keep a started relay's instances and listeners. */
     private constructor(
-        universe: TestUniverse,
+        universe: TestControl,
         installation: Subject,
         relayOrigin: string,
         running: {
@@ -152,7 +152,7 @@ export class TestRelay implements AsyncDisposable {
                 // run the relay's changes at the universe as their signer, as the home's machine sends them
                 const caller = Caller.of(signer ?? installation);
 
-                return universe.universe.store.mutate(
+                return universe.control.store.mutate(
                     AccessContext.of(caller, environment.clock.now()),
                     mutation,
                 );
