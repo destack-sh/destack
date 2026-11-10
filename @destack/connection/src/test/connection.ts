@@ -23,7 +23,6 @@ import {
     Egress,
     PackageHandle,
     PackageMount,
-    Installation,
 } from "@destack/object";
 import {
     Health,
@@ -62,7 +61,7 @@ import {
 } from "../server/index.ts";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { ConnectionRequest } from "../credential/request.ts";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { integrationTables, connectionTables } from "../stack/index.ts";
 import type { Environment } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
@@ -381,7 +380,7 @@ export interface ConnectionFixtureOptions {
         /** Open a client of the primary of a scope's integrations, signed as a subject. */
         readonly primary: (scope: string, signer?: Subject) => ClientOf<typeof connectionPackage>;
         /** Call the primary's connections as the space's connection installation. */
-        readonly at: InstalledServerContext["at"];
+        readonly at: ServerContext["at"];
         /** The space replicating the primary's integrations. */
         readonly space: string;
         /** The account enclosing the space, where its primary placed it. */
@@ -623,7 +622,7 @@ export class TestConnection {
         // read the space's primary
         const { primary } = options;
 
-        // serve the connections as the space's connection installation, and the vaults at their base installation
+        // serve the connections as the space's connection installation, and the vaults as the scope's own
         const serving = principal.space.reference(
             Scope.universe.id,
             TestConnection.#principal(scope).id,
@@ -632,7 +631,6 @@ export class TestConnection {
             ...(await testServerContext(Package.of(connectionPackage), serving.id, environment)),
             installation: INSTALLATION,
         };
-        const vaults = await Installation.base(serving, vaultPackage, environment.crypto);
 
         // primary the account's integrations at the universe, where an account's inside lives, else serve the space
         return new ObjectStore({
@@ -651,7 +649,7 @@ export class TestConnection {
                 }).at(installed),
                 implementPackage(vaultPackage, {
                     objects: [implementVault(), implementSecret(), implementSecretVersion()],
-                }).at(vaults),
+                }),
             ],
             policies: [account, space, placement],
             database,

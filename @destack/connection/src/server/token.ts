@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import type { Call } from "@destack/sync";
 import { type ClientOf, createClient, DynamicObjectClient } from "@destack/object/client";
 import { Egress, PackageMount } from "@destack/object";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { Account, account } from "@destack/account/object";
 import connectionPackage, { CONNECTION_INSTALLATION } from "../package.ts";
 import { Snapshot } from "@destack/db";
@@ -58,7 +58,7 @@ export interface ConnectionCredentialOptions {
     /** Send requests to authorization servers. */
     readonly fetch: Fetch;
     /** Call the packages at an address through the host's egress as the installation. */
-    readonly at: InstalledServerContext["at"];
+    readonly at: ServerContext["at"];
     /** The environment the installation runs in. */
     readonly environment: Environment;
 }
