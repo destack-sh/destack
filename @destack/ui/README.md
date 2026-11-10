@@ -146,7 +146,9 @@ import { binX } from "@destack/ui/chart/transform/bin"; // each TanStack Charts 
 <GrantList>
     <Grant name="notes" description="@acme/notes in work--ada" onRemove={remove} />
 </GrantList>;
-<Button variant="link" size="inline">change</Button>; // a link inside running text
+<Button variant="link" size="inline">
+    change
+</Button>; // a link inside running text
 ```
 
 ## Examples and scenarios
