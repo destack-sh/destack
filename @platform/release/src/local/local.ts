@@ -2,7 +2,7 @@ import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { inspect } from "node:util";
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
 import { PostgresPool } from "@destack/db/postgres";
 import { DESKTOP_OBJECTS } from "@destack/desktop/object";
 import { KeyPair, type Keychain, LocalKeyring, MemoryKeychain } from "@destack/identity";
@@ -342,7 +342,7 @@ export class LocalUniverse implements AsyncDisposable {
                 const { id } = residency.machine;
                 const rootKey = LocalUniverse.#rootKey(residency);
                 const keychain = new MemoryKeychain();
-                await MachineIdentity.save(
+                await MachineKey.save(
                     id,
                     await LocalKeyring.read(rootKey, environment),
                     keychain,

@@ -10,7 +10,7 @@ import type { UniverseDefinition } from "@destack/control";
 import type { PlatformDefinition } from "@destack/account/server";
 import type { StackRelease } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
-import { TokenSource, MachineIdentity } from "@destack/account/client";
+import { IssuerCredential, MachineKey, Session } from "@destack/account/client";
 import { Envelope } from "@destack/identity/aws";
 import { MemoryKeychain } from "@destack/identity";
 import { createClient } from "@destack/object/client";
@@ -601,7 +601,7 @@ export class Deployment {
         const envelope = new Envelope(keys.envelope, Envelope.machine(id), undefined, environment);
         const keychain = new MemoryKeychain();
         await keychain.save(id, await envelope.open(keys.key));
-        const identity = new MachineIdentity(
+        const identity = new MachineKey(
             schema.identifier("machine").parse(id),
             keychain,
             environment,
@@ -610,14 +610,16 @@ export class Deployment {
         const send = (request: Request) => environment.network.fetch(request);
 
         // send as the machine toward a package, bound to a space when given
+        const session = new Session(identity.at(issuer, send), {
+            universe: this.universeOrigin,
+            send,
+            bookmark: new Bookmark(),
+            environment,
+        });
+
         return {
             fetch: (audience, partition) =>
-                identity.fetch(
-                    send,
-                    audience,
-                    issuer,
-                    partition === undefined ? {} : { partition },
-                ),
+                session.fetch(audience, partition === undefined ? {} : { partition }),
         };
     }
 
@@ -760,20 +762,17 @@ export class Deployment {
     async publish(print: (name: string, line: string) => void): Promise<void> {
         // sign in as the workflow's trusted publisher, by the job's OIDC token for the token endpoint
         const { environment } = this;
-        const tokens = new TokenSource(
-            (endpoint) => ActionsToken.request(endpoint, environment),
-            environment,
-        );
-        const issuer = this.issuer;
         const send = (request: Request) => environment.network.fetch(request);
-        const accounts = createClient(
-            accountPackage,
-            {
-                url: PackageMount.url(this.universeOrigin, accountPackage.id),
-                fetch: tokens.fetch(send, accountPackage.id, issuer),
-            },
+        const signer = {
+            assert: (endpoint: string) => ActionsToken.request(endpoint, environment),
+        };
+        const session = new Session(new IssuerCredential(signer, this.issuer, send, environment), {
+            universe: this.universeOrigin,
+            send,
+            bookmark: new Bookmark(),
             environment,
-        );
+        });
+        const accounts = session.accounts();
 
         // find each handle's account, and the platform account's home, which serves its forge
         const owner = async (handle: string) => {
@@ -797,7 +796,7 @@ export class Deployment {
             FORGE_INSTALLATION,
         );
         const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-        const fetch = tokens.fetch(send, registryPackage.id, issuer, { partition: home });
+        const fetch = session.fetch(registryPackage.id, { partition: home });
         const registry = new Registry(async () => ({ url, space: home, fetch }), environment);
 
         // release each build under the stage's tag, in the account of its handle
