@@ -29,8 +29,8 @@ export const TestDirectory = {
         const access = new TestAccess(database, environment, Scope.universe.id);
         await access.bindOwner(Scope.universe, owner, clock.now());
 
-        // serve the claims over their table, at the account package's base installation in the universe
-        const store = await TestObjectStore.at(Scope.universe, {
+        // serve the claims over their table, acting as the store's principal
+        const store = TestObjectStore.of({
             chain: async () => undefined,
             environment,
             principal: owner,
@@ -52,9 +52,9 @@ export const TestDirectory = {
         sender: Identifier<"machine">,
         environment: Environment,
     ): Promise<Uplink> {
-        // serve placements, assignments and spaces as the universe, at the account package's base installation
+        // serve placements, assignments and spaces, acting as the store's principal
         const { clock } = environment;
-        const store = await TestObjectStore.at(Scope.universe, {
+        const store = TestObjectStore.of({
             chain: async () => undefined,
             environment,
             principal: universe.reference(Scope.universe.id, Scope.universe.id),

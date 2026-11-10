@@ -84,7 +84,7 @@ const SIGNED_IN_ROLE = {
 /** The component name of the platform's calls. */
 const PLATFORM_COMPONENT = "platform";
 
-/** The store the platform's definition applies through, as account's base installation. */
+/** The store the platform's definition applies through, as the universe. */
 export type PlatformStore = Pick<
     ObjectStore,
     "database" | "principal" | "as" | "mutate" | "authorize" | "clock" | "environment"
@@ -187,7 +187,7 @@ export const UniverseRole = {
 
 /** The organization operating the universe, applied with the stacks of its homes. */
 export class Platform {
-    /** The universe's store the platform is applied through, as account's base installation. */
+    /** The universe's store the platform is applied through, as the universe. */
     readonly store: PlatformStore;
     /** The operating organization, its homes and its machines as declared. */
     readonly definition: PlatformDefinition;
@@ -280,7 +280,7 @@ export class Platform {
         );
     }
 
-    /** Create the operating organization with its account once, as account's base installation. */
+    /** Create the operating organization with its account once, as the universe. */
     async upsertOrganization(now: number): Promise<void> {
         // take the organization with its handle, created once
         const organizationId =
@@ -690,7 +690,7 @@ export class Platform {
             return;
         }
 
-        // invite the operator as account's base installation
+        // invite the operator as the universe
         const relationship = this.#ownership(organizationId);
         await this.#authorize(organizationId, now, (authorization) =>
             Invitation.create({ relationship }, authorization),
@@ -728,7 +728,7 @@ export class Platform {
         );
     }
 
-    /** Run calls as account's base installation in one request. */
+    /** Run calls as the universe in one request. */
     #mutate<const Calls extends readonly Call[]>(calls: Calls): Promise<ResultsOf<Calls>> {
         return this.store.mutate(
             this.store.as(account),
@@ -737,7 +737,7 @@ export class Platform {
         );
     }
 
-    /** Run work in one transaction, authorized as account's base installation in a scope. */
+    /** Run work in one transaction, authorized as the universe in a scope. */
     #authorize<Value>(
         scope: string,
         now: number,

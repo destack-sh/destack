@@ -7,7 +7,6 @@ import { type ImageIndex, TestDatabase, TestTemplate } from "@destack/db/test";
 import { Scope, Subject, RequestId } from "@destack/sync";
 import {
     AccessContext,
-    Authorization,
     Caller,
     InstallationId,
     type Policy,
@@ -38,13 +37,7 @@ import { Package, PackageId } from "@destack/package";
 import { ENTITLED_PACKAGE } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { Digest, found, Identifier, type JsonValue, present, schema } from "@destack/schema";
-import {
-    CallError,
-    type FeatureReference,
-    type Fetch,
-    Installation,
-    PackageMount,
-} from "@destack/object";
+import { CallError, type FeatureReference, type Fetch, PackageMount } from "@destack/object";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
 import {
@@ -104,9 +97,6 @@ const WORLD_START = Date.UTC(2026, 9, 1);
 
 /** The node the universe's calls run as in the fixture's world. */
 const WORLD_NODE = "universe";
-
-/** The packages the fixture's universe serves, each with its base installation. */
-const CONTROL_PACKAGES = [objectPackage, accountPackage, settingPackage];
 
 /** The universe's issuer. */
 export const ISSUER = UniverseOrigin.issuer(ORIGIN);
@@ -1198,19 +1188,17 @@ export class TestAccountStore implements AsyncDisposable {
         const signIn = Promise.withResolvers<BetterAuthAuthenticator>();
         const events = await testEvents(database, environment);
         const opening = options.openRelease ?? TestAccountStore.#opening(releases);
-        const base = (handle: (typeof CONTROL_PACKAGES)[number]) =>
-            Installation.base(Scope.universe, handle, environment.crypto);
         const store = new ObjectStore({
             blobs: new MemoryBlobStorage(environment.crypto),
             servers: [
-                objectServer.at(await base(objectPackage)),
+                objectServer,
                 accountServer({
                     resolver: options.resolver ?? new TestDns(),
                     stacks: options.stacks,
                     signIn: signIn.promise,
                     releases: { open: opening, distribution: [] },
-                }).at(await base(accountPackage)),
-                settingServer({ after: [] }).at(await base(settingPackage)),
+                }),
+                settingServer({ after: [] }),
             ],
             // open the version a value names, as the universe installs no release
             release: async (_view, _scope, packageId, version) =>
@@ -1227,16 +1215,8 @@ export class TestAccountStore implements AsyncDisposable {
             origin: { package: Package.of(accountPackage) },
         });
 
-        // receive the universe with its base installations and store the platform before its identity
+        // store the platform before the universe's identity
         if (platform !== undefined) {
-            await Authorization.run(
-                store.authorizer,
-                store.database,
-                () => AccessContext.of(Caller.of(Scope.universe), clock.now()),
-                store.environment,
-                (authorization) =>
-                    Installation.receive(authorization, Scope.universe, [], CONTROL_PACKAGES),
-            );
             await Residency.apply(store, RESIDENCIES);
             await new Platform(store, platform).apply(clock.now());
         }

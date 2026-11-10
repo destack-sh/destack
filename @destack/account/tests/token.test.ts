@@ -103,6 +103,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             scope: owner.id,
             ...ObjectReference.columns("delegator", owner.subject),
             ...ObjectReference.columns("delegate", token),
+            delegateSpaceId: null,
             permissions,
             expiresAt,
             sessionId: null,

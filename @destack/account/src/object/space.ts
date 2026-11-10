@@ -83,7 +83,7 @@ export const space = defineObject(
             rotate: permission("manage"),
             // let the platform move a space it declares to another stack
             upgrade: none(),
-            // leave the space's resources to its own stack, which its base installations declare
+            // leave the space's resources to its own stack, which declares them
             provision: none(),
             // let the platform relate the machine a move targets
             receive: none(),

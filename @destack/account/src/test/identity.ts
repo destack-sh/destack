@@ -2,7 +2,6 @@ import { principal } from "@destack/access";
 import { type DatabaseConnection } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { TestAccess } from "@destack/access/test";
-import { Installation } from "@destack/object";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
 import { Package } from "@destack/package";
@@ -51,16 +50,13 @@ export const TestIdentityRegistry = {
             clock.now(),
         );
 
-        // serve the identities as the machine, the account package as its base installation at the universe
-        const base = await Installation.base(Scope.universe, accountPackage, environment.crypto);
+        // serve the identities as the machine, the account package as the universe's own
         const store = new ObjectStore({
             blobs: new MemoryBlobStorage(environment.crypto),
             chain: async () => undefined,
             environment,
             principal: serving,
-            servers: serversOf([implementIdentity(), implementOperation()]).map((server) =>
-                server.at(base),
-            ),
+            servers: serversOf([implementIdentity(), implementOperation()]),
             policies: [placement, machine],
             database,
             callKey: testCallKey,

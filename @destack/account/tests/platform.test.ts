@@ -4,7 +4,6 @@ import {
     accessRelationship,
     accessRole,
     Contact,
-    InstallationId,
     INVITATION_LIFETIME_MILLISECONDS,
     principal,
     Relationship,
@@ -440,12 +439,9 @@ test("invite a new operator as the platform's owner beside the first", async () 
     const platformId = await new Platform(fixture.store, successor).apply(fixture.clock.now());
     const stranger = await fixture.signIn(STRANGER_EMAIL);
     const operator = await fixture.signIn(SUCCESSOR_EMAIL);
-    const inviter = principal.installation.reference(
-        Scope.universe.id,
-        await InstallationId.base(Scope.universe, accountPackage.id, fixture.environment.crypto),
-    );
+    const inviter = Scope.universe;
 
-    // list the invitation to the new operator alone, from account's base installation, and accept it
+    // list the invitation to the new operator alone, from the universe itself, and accept it
     const invited = (await operator.client(accountPackage).user.invited({ id: operator.id })).items;
     const { id } = nth(invited, 0);
     await operator.client(objectPackage).invitation.accept({

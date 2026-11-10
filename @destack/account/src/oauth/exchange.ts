@@ -168,7 +168,7 @@ async function describe(
 
     return options.database.transaction(async (transaction) => {
         // describe a person acting through a delegate under a grant, outside a space toward a universe package
-        const isInstallation = principal.installation.is(verified.caller.subject);
+        const isDelegate = Delegate.is(verified.caller.subject);
         const granted = await readGrants(
             transaction,
             verified.caller,
@@ -179,7 +179,7 @@ async function describe(
                     ? {}
                     : { requested: asked.authorization_details[0] }),
             },
-            isInstallation,
+            isDelegate,
             now,
         );
         const expiries = granted.map((grant) => grant.expiresAt ?? Number.POSITIVE_INFINITY);
@@ -351,18 +351,18 @@ class PartitionVerification {
         this.environment = environment;
     }
 
-    /** Describe a user or an installation of the account's spaces in the space. */
+    /** Describe a user, a space of the account or an installation in one, in the space. */
     async authentication(
         verified: Authentication,
         authorizer: Authorizer,
         subject: Subject = verified.caller.subject,
     ): Promise<Authentication> {
-        // select the account the space belongs to, of which an installation acting as itself is one
+        // select the account the space belongs to, of which a delegate acting as itself is part
         const { caller, credential } = verified;
         const acting = caller.subject;
         const accountId = await this.#account();
         if (subject === acting) {
-            await this.#requireInstalled(acting, accountId);
+            await this.#requireInAccount(acting, accountId);
         }
 
         // resolve the subject's memberships and groups in the account and the scopes enclosing it
@@ -507,21 +507,21 @@ class PartitionVerification {
         };
     }
 
-    /** Require an acting installation to live in a space of the account. */
-    async #requireInstalled(acting: Subject, accountId: Account["id"]): Promise<void> {
+    /** Require an acting space, or an installation's space, to be a space of the account. */
+    async #requireInAccount(acting: Subject, accountId: Account["id"]): Promise<void> {
         // leave every other principal to its credential
-        if (!principal.installation.is(acting)) {
+        if (!Delegate.is(acting)) {
             return;
         }
 
-        // locate the installation's space within the account
+        // locate the space within the account
         const [placement] = await Placement.find(Snapshot.live(this.transaction), [
-            schema.identifier("space").parse(acting.scope),
+            schema.identifier("space").parse(Grant.spaceId(acting)),
         ]);
         if (placement?.scope !== accountId) {
             throw AccountError.of(
                 "INSTALLATION_FOREIGN",
-                "the installation belongs to another account",
+                `the ${acting.type} belongs to another account`,
             );
         }
     }
@@ -646,16 +646,16 @@ async function readGrants(
         readonly grants?: readonly Identifier<"grant">[];
         readonly requested?: GrantRequest;
     },
-    isInstallation: boolean,
+    isDelegate: boolean,
     now: number,
 ): Promise<Grant[]> {
-    // require a person's chain of the given grants to the calling installation
+    // require a person's chain of the given grants to the calling delegate
     const snapshot = Snapshot.live(transaction);
-    if (isInstallation && input.subject !== undefined && input.grants !== undefined) {
+    if (isDelegate && input.subject !== undefined && input.grants !== undefined) {
         return requireChain(snapshot, input.grants, input.subject, caller.subject, now);
     }
-    // require the person's only live grant to the calling installation
-    else if (isInstallation && input.subject !== undefined) {
+    // require the person's only live grant to the calling delegate
+    else if (isDelegate && input.subject !== undefined) {
         const parties = { delegator: input.subject, delegate: caller.subject };
         const grants = await snapshot.read(accessGrant).findMany({
             where: {
@@ -666,10 +666,10 @@ async function readGrants(
         const live = grants.filter((grant) => grant.expiresAt === null || grant.expiresAt > now);
         const [only, ...others] = live;
 
-        // refuse a grant asked for another delegate than the calling installation
+        // refuse a grant asked for another delegate than the caller
         const { requested } = input;
         if (requested !== undefined && !Subject.same(requested.delegate, caller.subject)) {
-            throw OAuthError.of("INVALID_REQUEST", "an installation asks grants for itself alone");
+            throw OAuthError.of("INVALID_REQUEST", "a delegate asks grants for itself alone");
         }
 
         // ask the person's consent for the asked permissions no live grant gives
@@ -807,3 +807,11 @@ async function sessionEnd(
 
     return found.expiresAt;
 }
+
+/** The principals acting for a person under a grant: an installation, or a space as itself. */
+const Delegate = {
+    /** Report whether a subject acts for people under their grants. */
+    is(subject: Subject): boolean {
+        return Grant.spaceId(subject) !== null;
+    },
+};
