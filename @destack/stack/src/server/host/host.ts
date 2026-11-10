@@ -1,11 +1,7 @@
 import { type Authentication, CONTAINED, Grant, principal } from "@destack/access";
 import { Exchange, PartitionId } from "@destack/access/token";
 import type { Directory } from "@destack/account/address";
-import {
-    IdentityKeystore,
-    type IdentityRegistry,
-    type WorkloadIdentity,
-} from "@destack/account/identity";
+import { IdentityKeystore, type IdentityRegistry, type Identity } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import {
@@ -59,7 +55,8 @@ import {
     type PackageImplementation,
     RemoteStore,
 } from "@destack/object/server";
-import { type ClientOf, createClient } from "@destack/object/client";
+import { Bookmark, type ClientOf, createClient } from "@destack/object/client";
+import { type Credential, Session } from "@destack/account/client";
 import objectPackage from "@destack/object/package";
 import { type graph, type PackageId, type PackageRelease, Sandbox } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
@@ -225,7 +222,7 @@ export class SpaceHost {
     /** The keystore of the space's keys under the machine's keyring. */
     readonly keystore: IdentityKeystore;
     /** The identities of the space and its installations, reusing their tokens, by subject. */
-    readonly #identities = new Map<string, WorkloadIdentity>();
+    readonly #identities = new Map<string, Identity>();
     /** The current start's servers, by installation and revision, kept while they stay served. */
     #served:
         | { readonly signal: AbortSignal; readonly entries: ReadonlyMap<string, ServedEntry> }
@@ -300,7 +297,7 @@ export class SpaceHost {
     }
 
     /** Act as the space or one of its installations, calling out as it, reusing its tokens. */
-    identityOf(subject: Subject): WorkloadIdentity {
+    identityOf(subject: Subject): Identity {
         // reuse the subject's identity and its tokens
         const key = Subject.key(subject);
         const existing = this.#identities.get(key);
@@ -319,6 +316,16 @@ export class SpaceHost {
         return opened;
     }
 
+    /** Call packages with a credential through the machine's network, toward its universe. */
+    session(credential: Credential): Session {
+        return new Session(credential, {
+            universe: new URL(this.machine.universe.issuer).origin,
+            send: (request) => this.machine.send(request),
+            bookmark: new Bookmark(),
+            environment: this.machine.environment,
+        });
+    }
+
     /** Call the account package as the machine, or as a principal of the space. */
     accounts(subject?: Subject): ClientOf<typeof accountPackage> {
         return createClient(
@@ -328,7 +335,9 @@ export class SpaceHost {
                 fetch:
                     subject === undefined
                         ? this.machine.fetch(accountPackage.id)
-                        : this.identityOf(subject).fetchGranted(accountPackage.id),
+                        : this.session(
+                              this.identityOf(subject).granted,
+                          ).fetch(accountPackage.id),
             },
             this.machine.environment,
         );
@@ -382,8 +391,12 @@ export class SpaceHost {
         const bound = PartitionId.parse(partition);
         const fetchOf = (subject: Subject | undefined) =>
             subject !== undefined && principal.installation.is(subject)
-                ? this.identityOf(subject).fetchSigned(objectPackage.id, bound)
-                : this.identityOf(this.principal).fetchGranted(objectPackage.id, bound);
+                ? this.session(this.identityOf(subject)).fetch(objectPackage.id, {
+                      partition: bound,
+                  })
+                : this.session(
+                      this.identityOf(this.principal).granted,
+                  ).fetch(objectPackage.id, { partition: bound });
         const at = (subscription: Subscription) =>
             this.machine.directory.publisher(
                 home,
