@@ -10,7 +10,6 @@ import { type Publisher, Scope } from "@destack/sync";
 import machinePackage from "../package.ts";
 import type { MachineIdentity } from "@destack/account/client";
 import type {} from "@destack/package/import-meta";
-import { machine } from "@destack/account/object";
 import { Machine } from "../machine/index.ts";
 
 /** What a cloud machine's object follows its replicas with. */
@@ -44,14 +43,10 @@ export const directoryWorkload = defineWorkload({
         const { machineId } = configuration.machine;
 
         // serve the machine package's follows without its types, which only computers serve
-        const machineScope = machine.reference(Scope.universe.id, machineId);
         const objects: Readonly<Record<string, ObjectType>> = {};
         const handle = PackageHandle.of(Package.of(machinePackage), { objects });
         const follows = Machine.follows(machineId);
-        const server = await implementPackage(handle, { follows }).base(
-            machineScope,
-            context.environment.crypto,
-        );
+        const server = implementPackage(handle, { follows });
         const store = new ObjectStore({
             servers: [server],
             chain: async () => ({ kind: "follower", parent: Scope.universe.id }),

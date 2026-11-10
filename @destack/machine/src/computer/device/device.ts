@@ -26,7 +26,7 @@ import { connectBunSqlite, openBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { EventStore } from "@destack/event";
 import type { Keychain } from "@destack/identity";
-import { call, device, Installation, type ObjectType, tablesOf } from "@destack/object";
+import { call, device, type ObjectType, tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
@@ -382,13 +382,12 @@ export class Device<
         callKey: CallKey,
         events: EventStore,
     ): Promise<ObjectStore> {
-        // serve each package as its base installation in the device's partition
+        // serve each package as the device's own, acting as the device
         const { clock } = this;
         const { crypto } = this.environment;
-        const based = await Promise.all(servers.map((server) => server.base(this.subject, crypto)));
         const store = new ObjectStore({
             blobs: new MemoryBlobStorage(crypto),
-            servers: based,
+            servers,
             chain: async () => undefined,
             database: this.database,
             principal: this.subject,
@@ -399,9 +398,8 @@ export class Device<
             origin: { package: Package.of(machinePackage) },
         });
 
-        // receive the device's scope once, a root no other home knows, with its base installations
+        // receive the device's scope once, a root no other home knows
         const now = clock.now();
-        const packages = servers.map((server) => server.package);
         await Authorization.run(
             store.authorizer,
             this.database,
@@ -412,7 +410,7 @@ export class Device<
                     this.subject.id,
                 ]);
                 if (received === undefined) {
-                    await Installation.receive(authorization, this.subject, [], packages);
+                    await authorization.receive(this.subject, []);
                 }
             },
         );

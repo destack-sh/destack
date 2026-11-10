@@ -1281,14 +1281,11 @@ test(
         expect({
             traded: traded.status,
             document: document.status,
-            named: installations.items
-                .flatMap((row) => (row.name === null ? [] : [row.name]))
-                .toSorted(),
-            base: installations.items.filter((row) => row.name === null).length,
+            installations: installations.items.map((row) => row.name).toSorted(),
         }).toEqual({
             traded: 303,
             document: 200,
-            named: [
+            installations: [
                 "connection",
                 "inbox",
                 "message",
@@ -1298,7 +1295,6 @@ test(
                 "start",
                 "vault",
             ],
-            base: 7,
         });
     },
     SCENARIO_MILLISECONDS,

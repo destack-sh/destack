@@ -7,6 +7,7 @@ import { gitStorage } from "@destack/stack/object";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
+import socialPackage from "@destack/social/package";
 import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
 import { defineVault } from "@destack/vault/declare";
@@ -36,6 +37,7 @@ export const HOME_STACK = defineStack([vaultPackage], {
             {},
             { isolation: "host", name: "inbox", capabilities: ["deliver"] },
         ),
+        social: install(socialPackage, {}, { isolation: "host", name: "social" }),
         observability: install(
             observabilityPackage,
             {},
@@ -44,9 +46,13 @@ export const HOME_STACK = defineStack([vaultPackage], {
     },
 });
 
-/** The stack of every other space, as the platform's: observability. */
+/** The stack of every other space, as the platform's: vault and observability with what it uses. */
 export const SPACE_STACK = defineStack([], {
     installations: {
+        vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
+        social: install(socialPackage, {}, { isolation: "host", name: "social" }),
+        message: install(messagePackage, {}, { isolation: "host", name: "message" }),
+        inbox: install(notificationPackage, {}, { isolation: "host", name: "inbox" }),
         observability: install(
             observabilityPackage,
             {},
@@ -57,7 +63,11 @@ export const SPACE_STACK = defineStack([], {
 
 /** The stack of a residency's home that runs the forge. */
 export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStorage], {
-    vaults: { platform: platformVault.declare(), credentials: credentialVault.declare() },
+    vaults: {
+        platform: platformVault.declare(),
+        credentials: credentialVault.declare(),
+        connections: connectionVault.declare(),
+    },
     gitStorages: { repositories: repositoryStorage.declare() },
     issuers: { github: {} },
     secrets: {
@@ -66,6 +76,11 @@ export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStora
     },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
+        connection: install(
+            connectionPackage,
+            { credentials: "connections" },
+            { isolation: "host", name: CONNECTION_INSTALLATION },
+        ),
         forge: install(
             forgePackage,
             {

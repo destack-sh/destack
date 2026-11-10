@@ -13,6 +13,7 @@
         "@destack/notification": "workspace:*",
         "@destack/observability": "workspace:*",
         "@destack/package": "workspace:*",
+        "@destack/social": "workspace:*",
         "@destack/stack": "workspace:*",
         "@destack/vault": "workspace:*"
     }

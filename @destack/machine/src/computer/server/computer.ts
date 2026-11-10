@@ -23,7 +23,6 @@ import objectServer, {
 import type { WorkloadContext } from "@destack/object/workload";
 import type { EventStore } from "@destack/event";
 import { DistributionHost, distributionServer } from "@destack/update/server";
-import * as accountObject from "@destack/account/object";
 import type { Device } from "../device/device.ts";
 import type { NativeClient } from "@destack/account/native";
 import { PEOPLE_PATH } from "../device/credential.ts";
@@ -168,14 +167,8 @@ export class ComputerServer {
         // serve the machine's checkouts, previews and replicas over its store, home of its partition
         const machine = this.machine.id;
 
-        // serve each package as its base installation in the machine's scope
-        const machineScope = accountObject.machine.reference(Scope.universe.id, machine);
-        const { crypto } = context.environment;
-        const servers = await Promise.all(
-            [this.#implementMachine(), objectServer].map((server) =>
-                server.base(machineScope, crypto),
-            ),
-        );
+        // serve each package as the machine's own, acting as the machine
+        const servers = [this.#implementMachine(), objectServer];
 
         // open the store, home of the machine's partition
         const store = new ObjectStore({

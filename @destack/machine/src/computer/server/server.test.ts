@@ -16,7 +16,7 @@ import * as accountObject from "@destack/account/object";
 import { type DatabaseConnection, eq, or, Snapshot } from "@destack/db";
 import { PackageManifest } from "@destack/package/manifest";
 import { nth, Identifier, present, schema } from "@destack/schema";
-import { CallError, Installation } from "@destack/object";
+import { CallError } from "@destack/object";
 import observabilityPackage from "@destack/observability/package";
 import { createClient } from "@destack/object/client";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
@@ -217,13 +217,8 @@ test("record the computer at each start under the same identifier", async () => 
         undefined,
     );
 
-    // store one machine record in the device, written by the machine package's base installation in order
-    const { installation } = await Installation.base(
-        device,
-        machinePackage,
-        opened.environment.crypto,
-    );
-    const writer = principal.installation.reference(deviceId, installation);
+    // store one machine record in the device, written by the device's own packages in order
+    const writer = device;
     const { createdAt, updatedAt, ...status } = await client.computer.get({
         deviceId,
         id: machineId,
@@ -507,7 +502,7 @@ test(
     },
 );
 
-test("receive the machine scope in its partition with its packages' base installations alone, letting the machine register checkouts and writing nothing at the universe", async () => {
+test("receive the machine scope in its partition with its own packages, letting the machine register checkouts and writing nothing at the universe", async () => {
     // enroll a computer, and register a checkout as its local owner
     const opened = await TestComputer.open();
     const { machine, world } = opened;

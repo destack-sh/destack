@@ -1,15 +1,9 @@
 import { AccessContext, Authorization, Caller } from "@destack/access";
 import * as accountObject from "@destack/account/object";
 import { type Controller, type Select, Snapshot } from "@destack/db";
-import { Installation } from "@destack/object";
-import objectPackage from "@destack/object/package";
 import type { ObjectStore } from "@destack/object/server";
 import type { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
-import machinePackage from "../../package.ts";
-
-/** The packages a machine's scope is born with, each as its base installation. */
-const MACHINE_PACKAGES = [machinePackage, objectPackage];
 
 /** Receive this machine's scope at its primary, the machine's own store, once its row arrives. */
 export const ScopeReceiver = {
@@ -54,8 +48,7 @@ export const ScopeReceiver = {
             database,
             () => AccessContext.of(Caller.of(principal), now),
             environment,
-            (authorization) =>
-                Installation.receive(authorization, scope, ancestors, MACHINE_PACKAGES),
+            (authorization) => authorization.receive(scope, ancestors),
         );
     },
 };

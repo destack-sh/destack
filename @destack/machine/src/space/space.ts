@@ -53,7 +53,6 @@ import { SpaceMeter, Reading } from "../meter/index.ts";
 import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import type { PackageRelease } from "@destack/package";
-import { Installation } from "@destack/object";
 
 /** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
 const OTLP_ADAPTER = "otlp";
@@ -550,21 +549,19 @@ export class Space {
         caller: Caller,
         requested: GrantRequest,
     ): Promise<readonly PackageRelease[]> {
-        // act as the space's stack installation for the caller, refusing a caller it cannot act for
+        // act as the space for the caller, refusing a caller it cannot act for
         const space = principal.space.reference(Scope.universe.id, this.id);
         const { environment } = this.machine;
-        const base = await Installation.base(space, stackPackage, environment.crypto);
-        const stack = principal.installation.reference(this.id, base.installation);
         const acting = Exchange.of(caller);
         if (acting === undefined) {
             throw MachineError.of("PUBLISHER_UNKNOWN", "a publish acts for a person or a delegate");
         }
 
-        // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the stack asks
+        // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the space asks
         const forges = Registry.of(
             this.machine.directory,
             (owner) => this.#residencyHome(owner),
-            (audience) => this.host.identityOf(stack).fetchExchanged(audience, acting, requested),
+            (audience) => this.host.identityOf(space).fetchExchanged(audience, acting, requested),
             environment,
             this.machine.registry,
             [...this.machine.shipped.values()],

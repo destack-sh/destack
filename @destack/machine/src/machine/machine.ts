@@ -790,8 +790,8 @@ export class Machine {
                 const current = await this.#replicated();
                 replicated = canonicalize(current);
 
-                // open the tunnel peers reach a personal machine through before its spaces start
-                if (current.status !== undefined) {
+                // open the tunnel peers reach a personal machine through before its spaces start, while enrolled
+                if (current.status !== undefined && (await this.isEnrolled())) {
                     tunnel ??= await this.#relay();
                 }
 

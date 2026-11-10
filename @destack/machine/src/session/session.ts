@@ -640,12 +640,12 @@ export class Session {
     static async #views(store: ReturnType<typeof ObjectClient.store>): Promise<SpaceView[]> {
         const description = await ObjectStoreDescription.read(store);
 
-        return description.installations.flatMap((installation) => {
-            const { name } = installation;
+        return description.packages.flatMap((served) => {
+            const name = served.installation?.name;
 
             return name === undefined
                 ? []
-                : description.declarations(installation, VIEW_KIND).map((declared) => ({
+                : description.declarations(served, VIEW_KIND).map((declared) => ({
                       installation: name,
                       view: declared.name,
                       description: declared.description,
