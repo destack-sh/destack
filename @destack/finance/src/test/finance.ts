@@ -18,7 +18,7 @@ import { TestNotification } from "@destack/notification/test";
 import { EventView, PACKAGE_KIND, PACKAGE_EXPORT } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { implementPackage, type ObjectStore } from "@destack/object/server";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { serversOf, type TestObjectStore } from "@destack/object/test";
 import { describeMeter } from "@destack/telemetry/inspect";
 import { Meter, METER_KIND } from "@destack/telemetry/meter";
@@ -657,10 +657,7 @@ function financeServer(
 }
 
 /** Meter usage in a home against the published releases. */
-function metering(
-    context: InstalledServerContext,
-    published: ReadonlyMap<string, BuildReader>,
-): Metering {
+function metering(context: ServerContext, published: ReadonlyMap<string, BuildReader>): Metering {
     return new Metering(
         RELEASE_TAG,
         async (_packageId, manifest) =>

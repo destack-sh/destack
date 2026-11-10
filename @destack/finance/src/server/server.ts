@@ -12,7 +12,7 @@ import type { Metering } from "./metering.ts";
 import { account, entitlementShape } from "@destack/account/object";
 import { Scope, RequestId } from "@destack/sync";
 import type { ImplementationInput } from "@destack/object/server";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { stripeWebhook } from "../declare/webhook.ts";
 import financePackage from "../package.ts";
 import { type PaymentProvider, ProviderEvent } from "../provider/provider.ts";
@@ -26,7 +26,7 @@ export function implementFinance(
     home: string,
     metering: Metering,
     charging: PaymentProvider | undefined,
-    server: Pick<InstalledServerContext, "resources">,
+    server: Pick<ServerContext, "resources">,
 ): ImplementationInput<typeof financePackage> {
     // take the provider's verified deliveries, and refuse them without a provider
     const billing = new Billing(charging, home);
