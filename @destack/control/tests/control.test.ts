@@ -47,9 +47,7 @@ test("apply a definition once across starts, again once the operator's invitatio
             .length,
     });
     const start = async (options: Pick<TestControlOptions, "residencies"> = {}) =>
-        (await TestControl.open({ simulation, storage, world, ...options }))[
-            Symbol.asyncDispose
-        ]();
+        (await TestControl.open({ simulation, storage, world, ...options }))[Symbol.asyncDispose]();
 
     // start again, then once the operator's invitation lapsed, then over a changed definition
     const first = await TestControl.open({ simulation, storage });

@@ -133,12 +133,15 @@ export class Control implements AsyncDisposable {
         this.issuer = issuer;
     }
 
-    /** Start the universe's packages over its database. */
+    /** Migrate the universe's database to this release, then start its packages over it. */
     static async start(options: ControlOptions): Promise<Control> {
         // read the universe's options at the start time
         const { origin, database, keyring, callKey, definition } = options;
         const { clock, network } = options.environment;
         const now = clock.now();
+
+        // migrate the universe's tables
+        await database.migrate(Control.database.tables);
 
         // record the universe's calls as call events, their segments in the bucket
         const events = new EventStore({

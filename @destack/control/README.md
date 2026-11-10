@@ -3,7 +3,6 @@
 `@destack/control` runs a universe: the object, account, setting and control packages over one store, each answering below its mount at the universe's origin.
 
 ```ts
-await database.migrate(universeDatabase.tables); // the account database's tables and the apply runs
 await using control = await Control.start({
     definition, // applied by one `apply` run per digest, again while the operator is uninvited; the packages answer once it completes
     origin,
