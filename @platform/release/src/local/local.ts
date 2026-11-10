@@ -342,11 +342,7 @@ export class LocalUniverse implements AsyncDisposable {
                 const { id } = residency.machine;
                 const rootKey = LocalUniverse.#rootKey(residency);
                 const keychain = new MemoryKeychain();
-                await MachineKey.save(
-                    id,
-                    await LocalKeyring.read(rootKey, environment),
-                    keychain,
-                );
+                await MachineKey.save(id, await LocalKeyring.read(rootKey, environment), keychain);
                 const key = present(await keychain.load(id), `the key of ${id}`);
                 const { publicKey } = await KeyPair.read(key, environment.crypto);
 
