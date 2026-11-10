@@ -80,16 +80,9 @@ export interface ExecutableOptions {
     stage?: Stage;
 }
 
-/** Write the options of a program loading native tools, such as rolldown, from its toolchain. */
+/** Write the options of a program loading native tools, such as rolldown, from their copies. */
 export function toolchainOptions(files: FileSystem): Required<Pick<ExecutableOptions, "plugins">> {
     return { plugins: [toolchainPlugin(files)] };
-}
-
-/** Write the compiler's options: native tools from its toolchain, the formatter loaded apart. */
-export function compilerOptions(
-    files: FileSystem,
-): Pick<ExecutableOptions, "external" | "plugins"> {
-    return { ...toolchainOptions(files), external: ["oxfmt"] };
 }
 
 /** Build a program as a launcher at `outfile`, with its bundle and the runtime beside it. */

@@ -47,7 +47,7 @@ export async function signPlatform(
         if (signer === undefined) {
             throw new Error(`${release.target} has no platform signer`);
         }
-        await Signer.certify(directory, platform, signer);
+        await Signer.certify(directory, platform, signer, environment);
 
         // run the signed distribution, as signing and the hardened runtime can stop it from starting
         await checkDistribution(directory, release.target, release.version, environment);

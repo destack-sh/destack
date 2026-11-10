@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { basename, dirname, join, sep } from "node:path";
-import type { Environment, FileSystem } from "@destack/environment";
+import type { Architecture, Environment, FileSystem } from "@destack/environment";
+import { Distribution, Manifest } from "@destack/update";
 import type { Target } from "@destack/update/release";
 import { schema } from "@destack/schema";
 import { parseSync, Visitor } from "rolldown/utils";
@@ -8,11 +9,15 @@ import MagicString from "magic-string";
 import { Platform } from "./platform.ts";
 import { run } from "./command.ts";
 
-/** The name rewritten modules bind the executable's `Toolchain` to. */
-const TOOLCHAIN_BINDING = "__destackToolchain";
+/** The bundled packages reading their own files at run time, by where their copies are. */
+const RUNTIME_FILES: ReadonlyMap<string, PackagePlace> = new Map([
+    ["rolldown", "resources"],
+    ["vite", "toolchain"],
+    ["lightningcss", "toolchain"],
+]);
 
-/** The bundled packages reading their own files at run time from their toolchain copies. */
-const RUNTIME_FILES: ReadonlySet<string> = new Set(["vite", "lightningcss", "rolldown"]);
+/** The expression a rewritten module reads its toolchain directory from, refusing a missing one. */
+const TOOLCHAIN_EXPRESSION = `(process.env.DESTACK_TOOLCHAIN ?? (() => { throw new Error("DESTACK_TOOLCHAIN is not set"); })())`;
 
 /** The fields of a package.json the toolchain reads. */
 const PackageManifest = schema
@@ -22,26 +27,33 @@ const PackageManifest = schema
     })
     .strip();
 
+/** Where a package goes: beside the programs, which load it at run time, or in the toolchain. */
+type PackagePlace = "resources" | "toolchain";
+
 /** A package the compiler reads at run time, found through its chain of dependents. */
 interface ToolchainPackage {
     /** The chain of packages from the workspace package to the package itself. */
     readonly chain: readonly string[];
     /** Whether the package's dependencies come along, or only its package.json and destack.json. */
     readonly contents: "dependencies" | "metadata";
+    /** Where the package goes. */
+    readonly place: PackagePlace;
 }
 
-/** Lay out the compiler's flat run time packages and lint rules for a target. */
+/** Lay out the packages beside the programs, and the compiler's packages and lint rules. */
 export async function buildToolchain(
     root: string,
     target: Target,
-    destination: string,
+    directories: Readonly<Record<PackagePlace, string>>,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // copy each toolchain package into one flat node_modules
+    // copy each package into its place's flat node_modules, the programs' first, so the toolchain leaves theirs out
     const { files } = environment;
-    const modules = join(destination, "node_modules");
     const copied = new Map<string, string>();
-    for (const entry of toolchainPackages(target)) {
+    const packages = toolchainPackages(target).toSorted(
+        (left, right) => Number(left.place === "toolchain") - Number(right.place === "toolchain"),
+    );
+    for (const entry of packages) {
         // locate the package through its chain of dependents
         const [workspace, ...names] = entry.chain;
         let directory = join(root, workspace ?? "");
@@ -49,6 +61,7 @@ export async function buildToolchain(
             directory = await locate(name, directory, files);
         }
         const name = names.at(-1) ?? "";
+        const modules = join(directories[entry.place], "node_modules");
 
         // copy only the manifests of a metadata package
         if (entry.contents === "metadata") {
@@ -70,13 +83,32 @@ export async function buildToolchain(
             "build",
             join(root, "@destack/check/src/lint/index.ts"),
             "--target=bun",
-            `--outfile=${join(destination, "lint.js")}`,
+            `--outfile=${join(directories.toolchain, "lint.js")}`,
         ],
         environment,
     );
 }
 
-/** Point modules reading their own files at run time to their toolchain copies. */
+/** Write a toolchain's manifest into a release's resources, keeping recorded modes. */
+export async function writeToolchainManifest(
+    toolchain: string,
+    resources: string,
+    architecture: Architecture,
+    environment: Environment<"files">,
+): Promise<void> {
+    // read the toolchain's files, and the manifest written before, such as the build's before signing
+    const { files } = environment;
+    const read = await Manifest.read(toolchain, environment);
+    const path = join(resources, Distribution.toolchainManifest(architecture));
+    const written = (await files.exists(path))
+        ? Manifest.parse(await files.readTextFile(path))
+        : read;
+
+    // keep each file's recorded mode, as artifacts between release jobs drop the modes
+    await files.writeTextFile(path, read.withModesOf(written).encode());
+}
+
+/** Point modules reading their own files at run time to their copies. */
 export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
     return {
         name: "destack-executable-toolchain",
@@ -84,13 +116,18 @@ export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
             build.onLoad({ filter: /[\\/]node_modules[\\/].+\.[cm]?js$/u }, async ({ path }) => {
                 // leave every package but those reading their own files
                 const installed = installation(path);
-                if (installed === undefined || !RUNTIME_FILES.has(installed.name)) {
+                const place =
+                    installed === undefined ? undefined : RUNTIME_FILES.get(installed.name);
+                if (installed === undefined || place === undefined) {
                     return;
                 }
 
-                // locate the module's copy in the executable's toolchain
+                // locate the module's copy beside the programs, one directory above the bundle, else in the named toolchain
                 const copy = `node_modules/${installed.name}/${installed.path}`;
-                const url = `Bun.pathToFileURL(${TOOLCHAIN_BINDING}.of(process.execPath) + ${JSON.stringify(`/${copy}`)}).href`;
+                const url =
+                    place === "resources"
+                        ? `new URL(${JSON.stringify(`../${copy}`)}, Bun.pathToFileURL(Bun.main)).href`
+                        : `Bun.pathToFileURL(${TOOLCHAIN_EXPRESSION} + ${JSON.stringify(`/${copy}`)}).href`;
                 const source = await files.readTextFile(path);
 
                 // require from the copy in a CommonJS module, its source taking that require as a parameter
@@ -101,14 +138,14 @@ export function toolchainPlugin(files: FileSystem): Bun.BunPlugin {
                     const copied = `process.getBuiltinModule("node:module").createRequire(${url})`;
 
                     return {
-                        contents: `var ${TOOLCHAIN_BINDING} = require("@destack/check/toolchain").Toolchain;\n(function (require) {\n${source}\n})(${copied});`,
+                        contents: `(function (require) {\n${source}\n})(${copied});`,
                         loader: "js",
                     };
                 }
 
                 // read the copy's URL as the module's own
                 return {
-                    contents: `import { Toolchain as ${TOOLCHAIN_BINDING} } from "@destack/check/toolchain";\n${replaceModuleUrl(path, source, url)}`,
+                    contents: replaceModuleUrl(path, source, url),
                     loader: "js",
                 };
             });
@@ -130,34 +167,54 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
         {
             chain: [build, "typescript", `@typescript/typescript-${os}-${cpu}`],
             contents: "dependencies",
+            place: "toolchain",
         },
-        // the rolldown binding
-        { chain: [build, "rolldown", `@rolldown/binding-${native}`], contents: "dependencies" },
+        // the bundler and its binding, which the programs load at run time
+        { chain: [build, "rolldown"], contents: "dependencies", place: "resources" },
+        {
+            chain: [build, "rolldown", `@rolldown/binding-${native}`],
+            contents: "dependencies",
+            place: "resources",
+        },
         // the vite client files
-        { chain: [build, "vite"], contents: "dependencies" },
+        { chain: [build, "vite"], contents: "dependencies", place: "toolchain" },
         // the CSS transformer
         {
             chain: [build, "vite", "lightningcss", `lightningcss-${native}`],
             contents: "dependencies",
+            place: "toolchain",
         },
 
         // the runtime declarations
-        { chain: [build, "@types/bun"], contents: "dependencies" },
-        { chain: [build, "@cloudflare/workers-types"], contents: "dependencies" },
+        { chain: [build, "@types/bun"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [build, "@cloudflare/workers-types"],
+            contents: "dependencies",
+            place: "toolchain",
+        },
 
         // the packages builds name
-        { chain: [build, "@destack/test"], contents: "metadata" },
-        { chain: [build, "@destack/package"], contents: "metadata" },
-        { chain: [build, "@destack/resource"], contents: "metadata" },
+        { chain: [build, "@destack/test"], contents: "metadata", place: "toolchain" },
+        { chain: [build, "@destack/package"], contents: "metadata", place: "toolchain" },
+        { chain: [build, "@destack/resource"], contents: "metadata", place: "toolchain" },
 
         // the linter, the formatter and the type-aware linter
-        { chain: [check, "oxlint"], contents: "dependencies" },
-        { chain: [check, "oxlint", `@oxlint/binding-${native}`], contents: "dependencies" },
-        { chain: [check, "oxfmt"], contents: "dependencies" },
-        { chain: [check, "oxfmt", `@oxfmt/binding-${native}`], contents: "dependencies" },
+        { chain: [check, "oxlint"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [check, "oxlint", `@oxlint/binding-${native}`],
+            contents: "dependencies",
+            place: "toolchain",
+        },
+        { chain: [check, "oxfmt"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [check, "oxfmt", `@oxfmt/binding-${native}`],
+            contents: "dependencies",
+            place: "toolchain",
+        },
         {
             chain: [check, "oxlint-tsgolint", `@oxlint-tsgolint/${os}-${cpu}`],
             contents: "dependencies",
+            place: "toolchain",
         },
     ];
 }

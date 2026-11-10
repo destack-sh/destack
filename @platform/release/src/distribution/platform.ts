@@ -1,5 +1,6 @@
 import { InstallerFormat } from "./catalog.ts";
 import type { Target } from "@destack/update/release";
+import type { Architecture } from "@destack/environment";
 
 /** The code signers of the platforms that sign their applications. */
 export const SIGNERS = ["apple"] as const;
@@ -85,7 +86,7 @@ export interface Platform {
     /** The operating system, as Node's `process.platform` gives it. */
     readonly system: NodeJS.Platform;
     /** The architecture, as Node's `process.arch` gives it. */
-    readonly architecture: NodeJS.Architecture;
+    readonly architecture: Architecture;
     /** The layout of the native desktop in the distribution. */
     readonly bundle: Bundle;
     /** The code signer of the application, or none when TUF and digests alone authenticate it. */
