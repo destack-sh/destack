@@ -110,6 +110,8 @@ export async function openHome(): Promise<Home> {
             space: scenario.scope.spaceId,
             account: "account-019f5530-8000-7000-8000-0000000000ac",
             view: "notes",
+            universe: "https://destack.test",
+            catalogs: [],
             base: "",
             user: scenario.subject("bob"),
             home: home.space.id,
