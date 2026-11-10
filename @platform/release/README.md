@@ -39,7 +39,7 @@ github        credential                                 src/github
 The OpenTofu roots and their modules live under `src/deployment`, and `deployment/*.tfvars` configures each root per stage.
 
 ```text
-src/deployment/roots     global | universe | residency
+src/deployment/roots     access | global | universe | residency
 src/deployment/modules   kms | database
 deployment/*.tfvars      each root's configuration per stage
 ```
@@ -154,6 +154,7 @@ How each root's state stays encrypted.
 Each root's state and plans are encrypted under the KMS key `alias/destack-state` in `eu-central-1` (OpenTofu's `aes_gcm` over `aws_kms`), which only the deploy role and the operator may use.
 A state written before encryption moves under the key once, by the operator: add `method "unencrypted" "migrate" {}` and `fallback { method = method.unencrypted.migrate }` beside `state` in the root's `encryption.tf`, apply, then remove both; the next plan reads the state encrypted.
 The universe and residency roots are applied first by the operator, which creates their keys; the deploy role applies them afterwards.
+The access root holds every platform identity, the workflows' roles and the people's permission sets, and only an operator applies it.
 ```
 
 ## Publication

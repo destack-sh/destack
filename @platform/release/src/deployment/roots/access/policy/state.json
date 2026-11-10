@@ -1,0 +1,17 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "StateKey",
+            "Effect": "Allow",
+            "Action": ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"],
+            "Resource": "arn:aws:kms:eu-central-1:${account}:key/f10116fc-1f48-4bc7-ac44-3c17086b46be"
+        },
+        {
+            "Sid": "StateKeyUntouchable",
+            "Effect": "Deny",
+            "NotAction": ["kms:Encrypt", "kms:Decrypt", "kms:GenerateDataKey", "kms:DescribeKey"],
+            "Resource": "arn:aws:kms:eu-central-1:${account}:key/f10116fc-1f48-4bc7-ac44-3c17086b46be"
+        }
+    ]
+}

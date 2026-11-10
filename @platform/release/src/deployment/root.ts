@@ -111,6 +111,9 @@ export interface ResidencyOutputs {
     readonly kms: KmsOutputs;
 }
 
+/** The roots no stage selects: the platform's identities and its global infrastructure. */
+export const STAGELESS_ROOTS = ["access", "global"] as const;
+
 /** An action over one deployment's state, plans and credentials, OpenTofu's verbs. */
 export type RootAction = "init" | "diff" | "deploy";
 
@@ -129,15 +132,17 @@ export class Root {
     /** The host the tools run on. */
     readonly environment: Environment<HostCapability>;
 
-    /** Select the global infrastructure or one stage and scope. */
+    /** Select the platform's identities, the global infrastructure, or one stage and scope. */
     constructor(selection: readonly string[], environment: Environment<HostCapability>) {
-        // select the global root, or one stage and scope
+        // select a stageless root, or one stage and scope
         const [stage, scope] = selection;
-        if (selection.length === 1 && stage === "global") {
-            this.name = "global";
-            this.directory = resolve(ROOT, "src/deployment/roots/global");
-            this.state = "global.tfstate";
-        } else if (
+        if (selection.length === 1 && Root.isStageless(stage)) {
+            this.name = stage;
+            this.directory = resolve(ROOT, "src/deployment/roots", stage);
+            this.state = `${stage}.tfstate`;
+        }
+        // select one stage and scope
+        else if (
             selection.length === 2 &&
             stage === "production" &&
             (scope === "universe" || RESIDENCIES.some((residency) => residency.code === scope))
@@ -149,15 +154,24 @@ export class Root {
                 scope === "universe" ? "universe" : "residency",
             );
             this.state = `${stage}/${scope}.tfstate`;
-        } else {
+        }
+        // refuse anything else
+        else {
             const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
-            throw new Error(`select global, or production followed by ${scopes.join("|")}`);
+            throw new Error(
+                `select ${STAGELESS_ROOTS.join(", ")}, or production followed by ${scopes.join("|")}`,
+            );
         }
 
         // derive paths after validating the deployment selection
         this.variables = [`-var-file=${resolve(ROOT, "deployment", `${this.name}.tfvars`)}`];
         this.cache = resolve(ROOT, ".terraform", this.name);
         this.environment = environment;
+    }
+
+    /** Report whether a name selects a root no stage selects. */
+    static isStageless(name: string | undefined): name is (typeof STAGELESS_ROOTS)[number] {
+        return STAGELESS_ROOTS.some((stageless) => stageless === name);
     }
 
     /** List a stage's roots in dependency order: global, the universe, then each residency. */
@@ -169,9 +183,10 @@ export class Root {
         );
     }
 
-    /** Validate each production root with its own variables, without opening remote state. */
+    /** Validate the access root and each production root, without opening remote state. */
     static async validate(environment: Environment<HostCapability>): Promise<void> {
-        for (const deployment of Root.all("production", environment)) {
+        const access = new Root(["access"], environment);
+        for (const deployment of [access, ...Root.all("production", environment)]) {
             const directory = `-chdir=${deployment.directory}`;
             const variables = {
                 ...Root.inherited(environment.process.variables, TOFU_VARIABLES),

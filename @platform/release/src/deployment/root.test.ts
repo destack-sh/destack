@@ -6,7 +6,7 @@ import { Root, ROOT, TOFU_VARIABLES, WRANGLER_VARIABLES } from "./index.ts";
 test("select each tier's root and keep each deployment's remote state key", () => {
     // read the root, state key and data directory of every deployment kind
     const environment = testSimulation().environment("operator");
-    const selected = [["global"], ["production", "universe"], ["production", "eu"]].map(
+    const selected = [["access"], ["global"], ["production", "universe"], ["production", "eu"]].map(
         (selection) => {
             const { name, directory, state, cache } = new Root(selection, environment);
 
@@ -16,6 +16,12 @@ test("select each tier's root and keep each deployment's remote state key", () =
 
     // select each root's directory, state key and cache
     expect(selected).toEqual([
+        {
+            name: "access",
+            directory: resolve(ROOT, "src/deployment/roots/access"),
+            state: "access.tfstate",
+            cache: resolve(ROOT, ".terraform/access"),
+        },
         {
             name: "global",
             directory: resolve(ROOT, "src/deployment/roots/global"),
@@ -40,7 +46,7 @@ test("select each tier's root and keep each deployment's remote state key", () =
 test("refuse a scope outside the universe and the residencies", () => {
     const environment = testSimulation().environment("operator");
     expect(() => new Root(["production", "global"], environment)).toThrow(
-        new Error("select global, or production followed by universe|eu|us"),
+        new Error("select access, global, or production followed by universe|eu|us"),
     );
 });
 

@@ -1,0 +1,16 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "DecryptRootKeysOnly",
+            "Effect": "Allow",
+            "Action": "kms:Decrypt",
+            "Resource": "arn:aws:kms:*:${account}:key/*",
+            "Condition": {
+                "StringLike": {
+                    "aws:ResourceTag/destack-root": "destack-production-*"
+                }
+            }
+        }
+    ]
+}

@@ -46,7 +46,7 @@ build:
 
 # plan a stack deployment
 diff +deployment:
-    just stack/diff {{deployment}}
+    just release/diff {{deployment}}
 
 # clean the site's outputs
 clean:
