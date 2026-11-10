@@ -3,7 +3,13 @@ import type { GrantClaim, PermissionReference } from "@destack/access";
 import { HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
 import { GrantPermission, principal } from "@destack/access";
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
-import { RequestedPermission } from "@destack/account/authentication";
+import {
+    ConsentRequest,
+    type Decision,
+    type GrantRequest,
+    RequestedPermission,
+} from "@destack/account/authentication";
+import { Failure } from "@destack/error";
 import type { PlacementEndpoint } from "@destack/account/object";
 import type { Person } from "@destack/account/client";
 import type { Environment } from "@destack/environment";
@@ -60,6 +66,12 @@ export interface SessionMachine {
     ) => Promise<Response>;
 }
 
+/** How a session's endpoint sends: deciding the grant requests its calls need, if asked. */
+export interface SessionEndpointOptions {
+    /** Decide a grant request a call needs, as the person's consent page does. */
+    readonly decide?: (request: GrantRequest) => Promise<Decision>;
+}
+
 /** A person's session: their calls to spaces and the views they open, from a device or machine. */
 export class Session {
     /** The machine the session acts from. */
@@ -73,12 +85,55 @@ export class Session {
         this.person = person;
     }
 
-    /** Read the endpoint of a package: at the person's issuer, or in a space. */
-    endpoint(packageId: PackageId, at: "universe" | PlacementEndpoint): ClientOptions {
+    /** Read the endpoint of a package at the issuer or in a space, deciding its grant requests. */
+    endpoint(
+        packageId: PackageId,
+        at: "universe" | PlacementEndpoint,
+        options: SessionEndpointOptions = {},
+    ): ClientOptions {
+        const { decide } = options;
+
         return {
             url: UNRESOLVED_ORIGIN,
-            fetch: (request) => this.send(request, packageId, at),
+            fetch: (request) =>
+                decide === undefined
+                    ? this.send(request, packageId, at)
+                    : this.#sendDeciding(request, packageId, at, decide),
         };
+    }
+
+    /** Send a call, granting and sending it again once the person approves what it asks. */
+    async #sendDeciding(
+        request: Request,
+        packageId: PackageId,
+        at: "universe" | PlacementEndpoint,
+        decide: NonNullable<SessionEndpointOptions["decide"]>,
+    ): Promise<Response> {
+        // send the call, keeping its body to send it again
+        const body = await request.arrayBuffer();
+        const copy = () =>
+            new Request(request.url, {
+                method: request.method,
+                headers: request.headers,
+                ...(body.byteLength === 0 ? {} : { body }),
+            });
+        const response = await this.send(copy(), packageId, at);
+
+        // leave a response asking no consent, and one the person declines
+        const refusal = response.ok ? undefined : await Failure.read(response.clone());
+        const [asked] =
+            refusal?.reason === "CONSENT_REQUIRED"
+                ? ConsentRequest.parse(refusal.data).authorization_details
+                : [];
+        if (asked === undefined || (await decide(asked)) === "deny") {
+            return response;
+        }
+
+        // grant the installation what it asks, then send the call again
+        const permissions = asked.permissions.map((each) => RequestedPermission.permission(each));
+        await this.person.grant(asked.delegate, permissions);
+
+        return await this.send(copy(), packageId, at);
     }
 
     /** Read the home of the residency an account stores its data in. */
