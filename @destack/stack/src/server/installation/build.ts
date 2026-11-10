@@ -1,11 +1,22 @@
 import type { PackageFile } from "@destack/package/file";
-import { principal } from "@destack/access";
+import { type Caller, principal } from "@destack/access";
+import { LATEST_TAG } from "@destack/registry/object";
 import { and, eq, Projection, Snapshot } from "@destack/db";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "../../setting/index.ts";
 import { type ImportClosure, type ManifestRead, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
-import type { MethodContextOf, NextOf, ResultOf } from "@destack/object";
+import {
+    Installation,
+    type MethodContextOf,
+    type NextOf,
+    ObjectDescription,
+    type ResultOf,
+} from "@destack/object";
+import { account, Space } from "@destack/account/object";
+import { SpaceAddress } from "@destack/account/address";
+import type { GrantRequest } from "@destack/account/authentication";
+import stackPackage from "../../package.ts";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
 import { DependencyRelease, PackageId, type PackageRelease } from "@destack/package";
@@ -62,6 +73,15 @@ export interface BuildOptions {
     readonly builds: SpaceBuildStore;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
+    /** Publish a stored build and its account's unpublished dependencies for a caller. */
+    readonly publish: (
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        account: Identifier<"account">,
+        tag: string,
+        caller: Caller,
+        requested: GrantRequest,
+    ) => Promise<readonly PackageRelease[]>;
 }
 
 /** A machine's cache of the builds it runs: pulled releases and copies of its spaces' builds. */
@@ -607,6 +627,22 @@ export function implementBuild(options: BuildOptions) {
             },
             cancel,
             start,
+            publish: {
+                // publish a succeeded build and its account's unpublished dependencies for the caller before the transaction, asking their person for the account's publish
+                prepare: async (context) => ({
+                    releases: [
+                        ...(await options.publish(
+                            options.builds,
+                            Build.manifest(context.target),
+                            context.input.account,
+                            context.input.tag ?? LATEST_TAG,
+                            context.caller,
+                            await publishRequest(context),
+                        )),
+                    ],
+                }),
+                handle: async (context) => context.prepared,
+            },
             push: {
                 // push a succeeded build with its npm units and referrers to its package's forge before the transaction
                 prepare: async (context) => ({
@@ -737,4 +773,39 @@ function requireRunning(target: Pick<Build, "id" | "state">): void {
     if (target.state !== "running") {
         throw StackError.of("BUILD_STATE_CONFLICT", `build ${target.id} is ${target.state}`);
     }
+}
+
+/** Describe the grant the space's stack asks its caller's person for to publish. */
+async function publishRequest(
+    context: Pick<
+        MethodContextOf<typeof build, "publish">,
+        "scope" | "environment" | "read" | "input"
+    >,
+): Promise<GrantRequest> {
+    // derive the space's stack installation, and read the space and its account's replica, which has its handle
+    const spaceId = schema.identifier("space").parse(context.scope);
+    const space = principal.space.reference(Scope.universe.id, spaceId);
+    const base = await Installation.base(space, stackPackage, context.environment.crypto);
+    const placed = await Space.read(context, spaceId);
+    const owner = present(
+        await context.read(account).findFirst({ where: { id: placed.scope } }),
+        `the account of ${spaceId}`,
+    );
+
+    // ask for the publish on the account by its identifier, as the account's type describes it
+    const description = ObjectDescription.describe(ObjectDescription.of(account), "publish");
+
+    return {
+        delegate: principal.installation.reference(spaceId, base.installation),
+        package: stackPackage.name,
+        space: SpaceAddress.of({ space: placed.name, handle: owner.handle }),
+        permissions: [
+            {
+                ...account.permission("publish"),
+                objectId: context.input.account,
+                within: "account",
+                description,
+            },
+        ],
+    };
 }

@@ -12,7 +12,7 @@ import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
 import { PackageFile } from "@destack/package/file";
 import { PackageManifest } from "@destack/package/manifest";
-import { PackageId } from "@destack/package";
+import { PackageId, PackageRelease } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
 import { Commit, Digest, type Identifier, present, schema, Version } from "@destack/schema";
@@ -269,6 +269,18 @@ export const build = defineObject(
             permission: "push",
             output: schema.object({ manifest: Digest }),
             prepared: schema.object({ manifest: Digest }),
+        }),
+        /** Publish the succeeded build and its unpublished dependencies for the caller. */
+        publish: method.mutation({
+            permission: "push",
+            input: schema.object({
+                /** The account publishing the build's package. */
+                account: schema.identifier("account"),
+                /** The tag the release takes, latest by default. */
+                tag: schema.string().min(1).exactOptional(),
+            }),
+            output: schema.object({ releases: schema.array(PackageRelease) }),
+            prepared: schema.object({ releases: schema.array(PackageRelease) }),
         }),
         progress: method.mutation({
             permission: "run",

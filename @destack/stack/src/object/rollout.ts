@@ -7,7 +7,7 @@ import {
     Manager,
     none,
     PermissionReference,
-    type GrantRequest,
+    type GrantDeclaration,
     PermissionScope,
     type GrantContext,
     PermissionSet,
@@ -629,7 +629,7 @@ export const Rollout = {
     permissions(
         row: Pick<Installation, "capabilities" | "allowed">,
         description: Pick<PackageDescription, "permissions" | "capabilities"> | undefined,
-        delegator: keyof GrantRequest,
+        delegator: keyof GrantDeclaration,
     ): PermissionSet {
         // gather the package's set and each enabled capability's
         const enabled = Rollout.enabled(row, description);

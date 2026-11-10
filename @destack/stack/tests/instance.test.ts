@@ -50,7 +50,7 @@ import {
     accessRole,
     accessRolePermission,
     Caller,
-    type GrantRequest,
+    type GrantDeclaration,
     principal,
 } from "@destack/access";
 import accountPackage from "@destack/account/package";
@@ -152,7 +152,7 @@ const tasks: Declared = {
 };
 
 /** The notes package's declaration, requesting permissions by scope. */
-function requesting(permissions: GrantRequest): Declared {
+function requesting(permissions: GrantDeclaration): Declared {
     return {
         kind: "package",
         definer: objectPackage,
