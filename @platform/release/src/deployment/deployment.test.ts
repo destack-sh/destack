@@ -233,11 +233,7 @@ test("sign people in through GitHub, Google and Microsoft with each secret a sta
         universe: bound({ kind: "universe" }),
         machine: bound({ kind: "machine", residency }) ?? null,
     }).toEqual({
-        secrets: [
-            "SIGN_IN_GITHUB_CLIENT_SECRET",
-            "SIGN_IN_GOOGLE_CLIENT_SECRET",
-            "SIGN_IN_MICROSOFT_CLIENT_SECRET",
-        ],
+        secrets: ["GH_CLIENT_SECRET", "GOOGLE_CLIENT_SECRET", "MICROSOFT_CLIENT_SECRET"],
         none: {},
         every: {
             github: { clientId: "Iv23li2jZs0kDg8Bc3sg", clientSecret: "github-secret" },

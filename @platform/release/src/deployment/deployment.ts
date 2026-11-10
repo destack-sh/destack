@@ -98,6 +98,13 @@ const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
 /** The global root's outputs a rehearsal and a local run bind. */
 const PLACEHOLDER_GLOBAL: GlobalOutputs = { mail: PLACEHOLDER_KEY };
 
+/** The variable holding each sign-in provider's client secret, GitHub's as Actions allows. */
+const PROVIDER_SECRETS: Readonly<Record<ProviderId, string>> = {
+    github: "GH_CLIENT_SECRET",
+    google: "GOOGLE_CLIENT_SECRET",
+    microsoft: "MICROSOFT_CLIENT_SECRET",
+};
+
 /** The client identifier of Destack's application at each sign-in provider, for every stage. */
 const PROVIDER_CLIENT_IDS: Readonly<Record<ProviderId, string>> = {
     github: "Iv23li2jZs0kDg8Bc3sg",
@@ -926,7 +933,7 @@ export class Deployment {
 
     /** Name the variable a deploy reads a sign-in provider's client secret from. */
     static providerSecret(id: ProviderId): string {
-        return `SIGN_IN_${id.toUpperCase()}_CLIENT_SECRET`;
+        return PROVIDER_SECRETS[id];
     }
 
     /** Read the applications at the sign-in providers, leaving out one without a secret. */
