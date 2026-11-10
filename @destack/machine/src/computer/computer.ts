@@ -8,6 +8,8 @@ import { BUILD_STORE_TABLES } from "@destack/build/store";
 import { build } from "@destack/stack/object";
 import { join } from "node:path";
 import { inspect } from "node:util";
+import { Distribution, DISTRIBUTION_DIRECTORY } from "@destack/update";
+import { Toolchain } from "@destack/check/toolchain";
 import { distribution } from "@destack/update/object";
 import { MachineIdentity } from "@destack/account/client";
 import { login, type NativeClient } from "@destack/account/native";
@@ -23,7 +25,6 @@ import type { Server } from "@destack/object/server";
 import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
 import { CompilerPool, LocalBuildStore } from "@destack/build";
 import { BuildLayer } from "@destack/build/store";
-import { Toolchain } from "@destack/check/toolchain";
 import { BlobStore, type DatabaseConnection, Snapshot, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
@@ -155,6 +156,8 @@ export interface ComputerOptions {
     readonly releases?: Registry;
     /** The installed distribution the machine stages and activates. */
     readonly distribution?: DistributionHost;
+    /** Read the toolchain the compilers run, once they first need it. */
+    readonly toolchain: () => Promise<Toolchain>;
     /** Report a failure no request answers, by the event it ended. */
     readonly report: (event: string, error: unknown) => void;
     /** Stop the machine at a client's request. */
@@ -294,7 +297,7 @@ export class Computer implements AsyncDisposable {
                 ),
             options.environment.process.loader,
         );
-        const compilers = await CompilerPool.open(builds.packages);
+        const compilers = await CompilerPool.open(builds.packages, options.toolchain);
         stack.defer(() => compilers[Symbol.asyncDispose]());
         const spaces = stack.use(
             await LocalSpaceStorage.open({
@@ -952,12 +955,16 @@ export class Computer implements AsyncDisposable {
                   ? { kind: "residency" }
                   : undefined;
 
-        // ship the distribution the environment names, else the toolchain's
-        const shipped = environment["DESTACK_DISTRIBUTION"] ?? Toolchain.directory(host.process);
+        // ship the distribution the environment names, else the one in a release's resources
+        const { executable, runtime } = host.process;
+        const bundled = runtime.isStandalone
+            ? join(Distribution.resources(executable), DISTRIBUTION_DIRECTORY)
+            : undefined;
+        const shipped = environment["DESTACK_DISTRIBUTION"] ?? bundled;
         if (shipped === undefined) {
             throw MachineError.of(
                 "CONFIGURATION_INVALID",
-                "DESTACK_DISTRIBUTION is not set and there is no toolchain directory",
+                "DESTACK_DISTRIBUTION is not set outside a release",
             );
         }
 
@@ -1014,9 +1021,13 @@ export class Computer implements AsyncDisposable {
         const instruments = TelemetryScope.of(MACHINE_PACKAGE, telemetry);
         const recorded = { ...environment, telemetry };
 
-        // compose the machine with the system's keychains and this channel's distribution
+        // compose the machine with the system's keychains, this channel's distribution and its toolchain
         const stopping = new AbortController();
         const home = StageHome.current(environment);
+        const installed = home.distribution(environment);
+        const toolchain = environment.process.runtime.isStandalone
+            ? () => installed.distribution.toolchain()
+            : async () => Toolchain.workspace();
         const started = await Computer.start({
             isolation: "sandbox",
             directory,
@@ -1034,9 +1045,8 @@ export class Computer implements AsyncDisposable {
                 pid: environment.process.id,
                 startedAt: environment.clock.now(),
             },
-            ...(home.stage.name === "local"
-                ? {}
-                : { distribution: home.distribution(environment) }),
+            ...(home.stage.name === "local" ? {} : { distribution: installed }),
+            toolchain,
             report: (event, error) =>
                 instruments.captureException(error, { isEscaped: true, tags: { event } }),
             shutdown: () => stopping.abort(),
