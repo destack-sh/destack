@@ -1,7 +1,7 @@
 import type { Environment, OperatingSystem } from "@destack/environment";
 import { principal, type TableMapping } from "@destack/access";
 import { assignment, placement, Platform } from "@destack/account/object";
-import type { Session } from "../../session/index.ts";
+import type { Launcher } from "../../launcher/index.ts";
 import {
     defineAdapter,
     type CallKey,
@@ -52,8 +52,8 @@ export class ComputerServer {
 
     /** This machine, enrolling and revoking itself at the universe. */
     readonly machine: Machine;
-    /** Open the session of a person signed in on this computer. */
-    readonly session: (login: Identifier<"login">) => Promise<Session>;
+    /** Open the launcher of a person signed in on this computer. */
+    readonly launcher: (login: Identifier<"login">) => Promise<Launcher>;
     /** Request graceful shutdown. */
     readonly shutdown: () => void;
     /** The computer the machine runs on: its system, architecture, release and name. */
@@ -89,7 +89,7 @@ export class ComputerServer {
         fields: Pick<
             ComputerServer,
             | "machine"
-            | "session"
+            | "launcher"
             | "shutdown"
             | "platform"
             | "runner"
@@ -107,7 +107,7 @@ export class ComputerServer {
     ) {
         // set the machine, its verbs, its platform, its runner and its builds
         this.machine = fields.machine;
-        this.session = fields.session;
+        this.launcher = fields.launcher;
         this.shutdown = fields.shutdown;
         this.platform = fields.platform;
         this.runner = fields.runner;
@@ -275,7 +275,7 @@ export class ComputerServer {
 
         // answer the person's account token for this computer's programs
         if (kind === "token") {
-            return Response.json({ token: await login.person.accountToken() });
+            return Response.json({ token: await login.user.accountToken() });
         }
         // answer a proof of the person's client
         else if (kind === "proof") {
@@ -289,7 +289,7 @@ export class ComputerServer {
         }
         // forward anything else to its target
         else {
-            return (await this.device.session(loginId.data)).forward(request, target);
+            return (await this.device.launcher(loginId.data)).forward(request, target);
         }
     }
 
@@ -442,9 +442,9 @@ export class ComputerServer {
 
         // enroll as the approving person at their issuer
         const { input } = context;
-        const { person } = await this.session(input.login);
+        const { session, user } = await this.launcher(input.login);
 
-        return this.machine.enroll(person.accounts(), new URL(person.issuer.url).origin, {
+        return this.machine.enroll(session.accounts(), new URL(user.issuer.url).origin, {
             accountId: schema.identifier("account").parse(input.accountId),
             name: input.name ?? ComputerServer.#label(this.platform.hostname),
             version: target.version,

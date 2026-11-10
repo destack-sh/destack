@@ -22,7 +22,7 @@ test(
         await laptop.enroll(signedIn, world.owner.account);
 
         // replicate the home's installations on the laptop as the owner
-        const session = await laptop.device.session(signedIn.id);
+        const session = await laptop.device.launcher(signedIn.id);
         const space = `home--${world.owner.handle}`;
         await using stack = new AsyncDisposableStack();
         const replica = await laptop.device.open(session, { space }, { installation }, stack);
@@ -34,7 +34,7 @@ test(
         const restarted = await home.restart();
         await restarted.ready(world.owner.home);
         const ready = world.simulation.clock.now();
-        const owner = await restarted.device.session(login);
+        const owner = await restarted.device.launcher(login);
         const objects = createClient(
             objectPackage,
             owner.endpoint(objectPackage.id, await restarted.device.locate(world.owner.home)),

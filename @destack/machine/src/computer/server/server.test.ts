@@ -95,7 +95,7 @@ async function stackOf(
 
     return createClient(
         stackPackage,
-        (await device.session(login)).endpoint(stackPackage.id, await device.locate(spaceId)),
+        (await device.launcher(login)).endpoint(stackPackage.id, await device.locate(spaceId)),
         device.environment,
     );
 }
@@ -321,7 +321,7 @@ test(
     async () => {
         const { home: computer, login } = await TestComputer.home();
         const { device: native, machine } = computer;
-        const home = await (await native.session(login)).person.home();
+        const home = accountObject.Account.home(await (await native.launcher(login)).account());
 
         // export a desktop's failure log to the home's observability as its person
         const now = computer.clock.now();
@@ -338,7 +338,7 @@ test(
             ],
         };
         const exported = await (
-            await native.session(login)
+            await native.launcher(login)
         ).send(
             new Request("http://127.0.0.1/v1/logs", {
                 method: "POST",
@@ -476,7 +476,7 @@ test(
         const service = await stackOf(opened, signedIn.id, created);
 
         // drain or enable the machine as the owner, and list the space's sockets
-        const accounts = (await device.session(signedIn.id)).person.accounts();
+        const accounts = (await device.launcher(signedIn.id)).session.accounts();
         const change = (name: "drain" | "enable") =>
             accounts.machine[name]({
                 scope: owner.account,

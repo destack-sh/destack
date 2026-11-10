@@ -10,10 +10,10 @@ import {
     REQUEST_PATH,
     SpaceAddress,
 } from "@destack/account/address";
-import { Issuer, Person } from "@destack/account/client";
+import { Issuer, Session, UserIdentity } from "@destack/account/client";
 import type { GrantRequest } from "@destack/account/authentication";
 import { TokenCache } from "@destack/access/token";
-import { Session, type SessionMachine } from "../session/index.ts";
+import { Launcher, type LauncherMachine } from "../launcher/index.ts";
 import {
     InstallationMount,
     PACKAGE_PATH,
@@ -369,22 +369,26 @@ export class ViewOrigin {
         const redirect = `${url.origin}${OPEN_PATH}`;
         const signedIn = await issuer.redeem(url.origin, code, attempt.verifier, redirect);
         const { environment } = this.#space.machine;
-        const person = new Person(
+        const user = new UserIdentity(
             signedIn.userId,
             issuer,
-            { tokens: new TokenCache(), issue: () => Promise.resolve(signedIn.tokens.accessToken) },
-            (sent) => this.#space.machine.send(sent),
+            { cache: new TokenCache(), issue: () => Promise.resolve(signedIn.tokens.accessToken) },
             environment,
-            new Bookmark(),
         );
+        const session = new Session(user, {
+            universe: new URL(issuer.url).origin,
+            send: (sent) => this.#space.machine.send(sent),
+            bookmark: new Bookmark(),
+            environment,
+        });
 
         // launch the view the path asks for as the person, from this machine
         const page = await this.#page(request, url, found, mount);
-        const session = new Session(this.#machine(person), person);
+        const launcher = new Launcher(this.#machine(user), session);
         try {
             // send the person on to trade the launch for the origin's session, forgetting the attempt
             const address = this.#address(url, found, page, attempt.path);
-            const launched = await session.launch(address, attempt.requested);
+            const launched = await launcher.launch(address, attempt.requested);
 
             return new Response(null, {
                 status: 303,
@@ -421,8 +425,8 @@ export class ViewOrigin {
         );
     }
 
-    /** Act for a person's session from this machine, serving its own spaces in process. */
-    #machine(person: Person): SessionMachine {
+    /** Launch for a person from this machine, serving its own spaces in process. */
+    #machine(user: UserIdentity): LauncherMachine {
         const { machine } = this.#space;
 
         return {
@@ -436,7 +440,7 @@ export class ViewOrigin {
                 const path = `${SpaceMount.path(space)}${PackageMount.path(packageId)}`;
                 const target = new URL(`${path}${asked.pathname}${asked.search}`, place.url);
                 const headers = new Headers(sent.headers);
-                const token = await person.token(packageId, { partition: space });
+                const token = await user.token(packageId, { partition: space });
                 headers.set("authorization", `Bearer ${token}`);
 
                 return machine.serve(new Request(target.href, new Request(sent, { headers })));

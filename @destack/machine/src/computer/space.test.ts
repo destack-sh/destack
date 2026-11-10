@@ -257,7 +257,7 @@ async function objectsOf(served: Served) {
 
     return createClient(
         objectPackage,
-        (await device.session(served.login.id)).endpoint(
+        (await device.launcher(served.login.id)).endpoint(
             objectPackage.id,
             await device.locate(served.space),
         ),
@@ -478,12 +478,12 @@ function stackAt(served: Served, spaceId: Identifier<"space">, token: string) {
 async function steppedUp(served: Served) {
     const { computer, space } = served;
     const elevated = await computer.elevate(MOVE_STEP_UP);
-    const { person } = await computer.device.session(elevated.id);
+    const { user } = await computer.device.launcher(elevated.id);
 
     return stackAt(
         served,
         space,
-        await person.token(stackPackage.id, { partition: space }, MOVE_STEP_UP),
+        await user.token(stackPackage.id, { partition: space }, MOVE_STEP_UP),
     );
 }
 
@@ -766,12 +766,9 @@ test(
         // grant the peer tokens in the universe, the moving space and the other space it does not receive
         const issuer = UniverseOrigin.issuer(world.universe.origin);
         const grant = (binding: { readonly partition?: Identifier<"space"> }) =>
-            peer.machine.identity.token(
-                stackPackage.id,
-                issuer,
-                (request) => peer.device.environment.network.fetch(request),
-                binding,
-            );
+            peer.machine.identity
+                .at(issuer, (request) => peer.device.environment.network.fetch(request))
+                .token(stackPackage.id, binding);
         const unbound = await grant({});
         const bound = await grant({ partition: space });
         const elsewhere = await grant({ partition: other });
@@ -848,10 +845,8 @@ test(
             });
 
         // challenge the person's token for a second factor
-        const { person } = await computer.device.session(login.id);
-        const challenge = await move(
-            await person.token(stackPackage.id, { partition: space }),
-        ).then(
+        const { user } = await computer.device.launcher(login.id);
+        const challenge = await move(await user.token(stackPackage.id, { partition: space })).then(
             () => undefined,
             (error: unknown) => {
                 const known = CallError.of(error);
@@ -862,9 +857,9 @@ test(
 
         // exchange the token again after a second factor, then move the space
         const stepUp = StepUp.schema.parse(Array.isArray(challenge) ? challenge[1] : undefined);
-        const elevated = await computer.device.session((await computer.elevate(stepUp)).id);
+        const elevated = await computer.device.launcher((await computer.elevate(stepUp)).id);
         const moved = await move(
-            await elevated.person.token(stackPackage.id, { partition: space }, stepUp),
+            await elevated.user.token(stackPackage.id, { partition: space }, stepUp),
         );
         expect({ challenge, moved: [moved.sourceId, moved.targetId] }).toEqual({
             challenge: ["UNAUTHORIZED", { assurance: 2, maxAge: 900_000 }],
@@ -890,11 +885,7 @@ test(
             accountPackage,
             {
                 url: PackageMount.url(world.universe.origin, accountPackage.id),
-                fetch: machine.identity.fetch(
-                    (request) => device.environment.network.fetch(request),
-                    accountPackage.id,
-                    UniverseOrigin.issuer(world.universe.origin),
-                ),
+                fetch: machine.fetch(accountPackage.id),
             },
             device.environment,
         );

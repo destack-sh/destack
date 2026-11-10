@@ -561,7 +561,10 @@ export class Space {
         const forges = Registry.of(
             this.machine.directory,
             (owner) => this.#residencyHome(owner),
-            (audience) => this.host.identityOf(space).fetchExchanged(audience, acting, requested),
+            (audience) =>
+                this.host
+                    .session(this.host.identityOf(space).acting(acting, requested))
+                    .fetch(audience),
             environment,
             this.machine.registry,
             [...this.machine.shipped.values()],
@@ -577,7 +580,7 @@ export class Space {
         const forges = Registry.of(
             this.machine.directory,
             (account) => this.#residencyHome(account),
-            () => this.host.identityOf(self).fetchSigned(stackPackage.id),
+            () => this.host.session(this.host.identityOf(self)).fetch(stackPackage.id),
             this.machine.environment,
             this.machine.registry,
         );
@@ -630,7 +633,7 @@ export class Space {
             connectionPackage,
             home,
             CONNECTION_INSTALLATION,
-            identity.fetchSigned(connectionPackage.id),
+            this.host.session(identity).fetch(connectionPackage.id),
             environment,
         );
 

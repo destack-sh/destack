@@ -42,7 +42,7 @@ import { deviceSetting, setting, SettingValue } from "@destack/setting/object";
 import settingPackage from "@destack/setting/package";
 import machinePackage from "../../package.ts";
 import { MachineError } from "../../error/index.ts";
-import { Session, type SessionMachine } from "../../session/index.ts";
+import { Launcher, type LauncherMachine } from "../../launcher/index.ts";
 import { MachineCredential } from "./credential.ts";
 import {
     computer,
@@ -497,7 +497,7 @@ export class Device<
     /** Sign a person out on this computer, revoking this computer's client and their session. */
     async signOut(login: Login): Promise<void> {
         // revoke the client the person's sign-in registered, which ends its sessions there
-        await login.person.accounts().client.revoke({
+        await login.session.accounts().client.revoke({
             userId: schema.identifier("user").parse(login.row.subjectId),
             id: schema.identifier("client").parse(login.row.clientId),
             requestId: RequestId.create(this.environment),
@@ -570,10 +570,10 @@ export class Device<
             }
 
             // follow the person's values at the universe as the person
-            const session = await this.session(signedIn.id);
-            const userScope = session.person.subject.id;
+            const launcher = await this.launcher(signedIn.id);
+            const userScope = launcher.user.subject.id;
             await using stack = new AsyncDisposableStack();
-            const settings = await this.open(session, { scope: userScope }, { setting }, stack);
+            const settings = await this.open(launcher, { scope: userScope }, { setting }, stack);
 
             // wait until the follow holds them, as a query's first answer does, then resolve along the chain
             await settings.query.setting.findMany({});
@@ -635,10 +635,10 @@ export class Device<
         if (signedIn === undefined) {
             throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
         }
-        const { person } = await this.session(signedIn.id);
+        const { session } = await this.launcher(signedIn.id);
         const values = createClient(
             settingPackage,
-            person.universe(settingPackage.id),
+            session.endpoint(settingPackage.id),
             this.environment,
         );
         const placed = signedIn.subjectId;
@@ -722,8 +722,8 @@ export class Device<
 
     /** Open a scope's objects as a person into memory here, until the stack closes. */
     async open<const Objects extends Readonly<Record<string, ObjectType>>>(
-        session: Pick<Session, "follow">,
-        location: Parameters<Session["follow"]>[0],
+        launcher: Pick<Launcher, "follow">,
+        location: Parameters<Launcher["follow"]>[0],
         objects: Objects,
         stack: AsyncDisposableStack,
     ): Promise<ObjectClient<Objects>> {
@@ -733,29 +733,29 @@ export class Device<
         });
         stack.defer(() => database.close());
 
-        return session.follow(location, objects, database, stack);
+        return launcher.follow(location, objects, database, stack);
     }
 
     /** Launch a view from this device, recording a visit of an object it opens. */
     async launch(
-        session: Pick<Session, "url" | "person">,
+        launcher: Pick<Launcher, "url" | "user">,
         address: Address,
-    ): ReturnType<Session["url"]> {
+    ): ReturnType<Launcher["url"]> {
         // address its page, then record the person's visit of the object it opens
-        const launched = await session.url(address);
+        const launched = await launcher.url(address);
         if ("object" in address) {
-            await Visit.record(this.visits, session.person.subject, launched.space, address.object);
+            await Visit.record(this.visits, launcher.user.subject, launched.space, address.object);
         }
 
         return launched;
     }
 
-    /** Act as a signed-in person from this device, proving their client to its own machine. */
-    async session(loginId: Identifier<"login">): Promise<Session> {
+    /** Launch for a signed-in person from this device, proving their client to its own machine. */
+    async launcher(loginId: Identifier<"login">): Promise<Launcher> {
         // find spaces through this machine's directory, and reach this machine itself with the client's proof
         const login = await this.signedIn(loginId);
         const own = await this.loopback.computer();
-        const machine: SessionMachine = {
+        const machine: LauncherMachine = {
             id: own.machineId,
             environment: this.environment,
             locate: (space) => this.locate(space),
@@ -773,7 +773,7 @@ export class Device<
             },
         };
 
-        return new Session(machine, login.person);
+        return new Launcher(machine, login.session);
     }
 
     /** Read the account this computer's machine is enrolled in, refusing an unenrolled one. */
@@ -852,13 +852,13 @@ export class Device<
         }
 
         // enroll it in the person's own account as the person
-        const { person } = await this.session(signedIn.id);
+        const launcher = await this.launcher(signedIn.id);
         await this.machine().computer.enroll({
             deviceId: recorded.scope,
             requestId: RequestId.create(this.environment),
             id: recorded.id,
             login: signedIn.id,
-            accountId: await person.account(),
+            accountId: await launcher.account(),
         });
     }
 }

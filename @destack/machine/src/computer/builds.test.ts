@@ -4,7 +4,7 @@ import { PackageManifest } from "@destack/package/manifest";
 import type { FileSystem } from "@destack/environment";
 import { join } from "node:path";
 import { and, type DatabaseConnection, eq, Snapshot } from "@destack/db";
-import type { Session } from "../session/index.ts";
+import type { Launcher } from "../launcher/index.ts";
 import { PackageId } from "@destack/package";
 import { reference, referenceShape } from "@destack/registry/object";
 import forgePackage from "@destack/forge/package";
@@ -48,7 +48,7 @@ async function pushHome() {
     onTestFinished(() => files.remove(directory, { recursive: true, force: true }));
 
     // create a platform repository as the owner on the residency's forge
-    const person = await device.session(login);
+    const person = await device.launcher(login);
     const residency = await person.residency(world.owner.account);
     const owner = await servedForge(home, residency, person);
     const created = await owner.repository.create({
@@ -108,7 +108,7 @@ async function pushHome() {
 }
 
 /** Wait until the residency's home serves its forge in its store, answering it as the owner. */
-async function servedForge(home: TestComputer, residency: Identifier<"space">, person: Session) {
+async function servedForge(home: TestComputer, residency: Identifier<"space">, person: Launcher) {
     // wait until the residency's home deployed the forge's revision
     const { machine, device } = home;
     const database = (await machine.space(residency)).database;

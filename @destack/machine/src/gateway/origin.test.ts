@@ -375,7 +375,7 @@ async function openShared(
 
     // invite them to own the space with the owner, and accept as them from their own listing
     const object = space.reference(computer.world.owner.account, spaceId);
-    const inviting = (await computer.device.session(opened.login)).person;
+    const inviting = (await computer.device.launcher(opened.login)).session;
     const invitation = await inviting.objects().invitation.create({
         scope: computer.world.owner.account,
         requestId: RequestId.create(computer.environment),
@@ -385,7 +385,7 @@ async function openShared(
             subject: principal.user.reference(Scope.universe.id, member.subjectId),
         },
     });
-    const accepting = (await computer.device.session(member.id)).person;
+    const accepting = (await computer.device.launcher(member.id)).session;
     const { items } = await accepting.accounts().user.invited({ id: member.subjectId });
     expect(items.map((each) => each.id)).toEqual([invitation.id]);
     await accepting.objects().invitation.accept({
@@ -416,13 +416,11 @@ async function openPage(served: Served, address: Address) {
     // launch it under the owner's grant, and trade its token for the session cookie
     const { device: native, computer } = served.computer;
     const listener = computer;
-    const session = await native.session(served.login);
+    const session = await native.launcher(served.login);
     const signedIn = await native.signedIn(served.login);
     const launched = await session.launch(address);
     const grant = present(
-        await session.person.granted(
-            principal.installation.reference(launched.space, launched.target),
-        ),
+        await session.granted(principal.installation.reference(launched.space, launched.target)),
         "the owner's grant to the view's installation",
     );
     const traded = await listener.fetch(new Request(launched.url));
@@ -511,12 +509,12 @@ test(
             await notesBuild(computer.environment.crypto),
             "notes",
         );
-        const login = await native.session(opened.login);
+        const login = await native.launcher(opened.login);
         const address = { space: opened.address, installation: "notes", view: "home", path: "/" };
 
         // launch it, granting what the view asks at once, and trade the launch's token for the session cookie
         const launched = await login.launch(address);
-        const granted = await login.person.granted(
+        const granted = await login.granted(
             principal.installation.reference(spaceId, installation.id),
         );
         const traded = await listener.fetch(new Request(launched.url));
@@ -1005,7 +1003,7 @@ test(
         const { device: native } = opened.computer;
         const listener = opened.computer.computer;
         await install(opened, await notesBuild(opened.computer.environment.crypto), "notes");
-        const login = await native.session(opened.login);
+        const login = await native.launcher(opened.login);
         const note = ObjectReference.parse({
             packageId: notes.id,
             type: "note",
@@ -1185,11 +1183,11 @@ test(
         const before = await list(page);
 
         // revoke the grant, grant it again, then revoke the launching client
-        const accounts = page.session.person.accounts();
+        const accounts = page.session.session.accounts();
         const objects = createClient(
             objectPackage,
             {
-                ...page.session.person.universe(PackageId.parse(objectPackage.id)),
+                ...page.session.session.endpoint(PackageId.parse(objectPackage.id)),
                 bookmark,
             },
             home.computer.device.environment,
@@ -1266,7 +1264,7 @@ test(
         const installations = await objects.installation.list({ scope: home.spaceId });
 
         // launch the start page afresh after the restart from the browser keeping its cookie, as a window the desktop restores does
-        const login = await restarted.device.session(home.login);
+        const login = await restarted.device.launcher(home.login);
         const launched = await login.launch({
             space: home.address,
             installation: "start",
@@ -1416,7 +1414,7 @@ test(
         });
 
         // register a browser client from the start page, granted it, then from the board, granted none
-        const person = (await home.computer.device.session(home.login)).person.subject.id;
+        const person = (await home.computer.device.launcher(home.login)).user.subject.id;
         const client = Identifier.create("client", home.computer.device.environment);
         const registered = await registerClient(homePage, client);
         const refused = await registerClient(
@@ -1502,7 +1500,7 @@ test(
         const elsewhere = await bind(`${page.origin}/.destack/client/elsewhere`);
 
         // remove the client as the person, and bind again
-        await page.session.person.accounts().client.revoke({
+        await page.session.session.accounts().client.revoke({
             userId: home.computer.world.owner.id,
             id: client,
             requestId: RequestId.create(environment),
@@ -1546,7 +1544,7 @@ test(
 
         // launch the work space's board from this computer and open it at the work machine
         const { device: native } = home.computer;
-        const login = await native.session(home.login);
+        const login = await native.launcher(home.login);
         const address = { space: work.address, installation: "tasks", view: "board", path: "/" };
         const launched = await login.launch(address);
         const traded = await home.computer.browse(new Request(launched.url));
@@ -1585,7 +1583,7 @@ test(
             objects: [task],
             scope: work.spaceId,
             endpoint: await (
-                await native.session(home.login)
+                await native.launcher(home.login)
             ).installation(work.spaceId, "tasks", tasks.id),
             environment: home.computer.device.environment,
         });
@@ -1787,7 +1785,7 @@ async function createRoute(
 ): Promise<void> {
     // create the route as the owner, at the machine serving the space
     const { device: native, environment } = served.computer;
-    const login = await native.session(served.login);
+    const login = await native.launcher(served.login);
     const place = await native.locate(served.spaceId);
     const stacks = createClient(stackPackage, login.endpoint(stackPackage.id, place), environment);
     await stacks.route.create({

@@ -89,7 +89,7 @@ test("route a describe call without a scope in its body to the stack package of 
     const stack = new DynamicObjectClient({
         objects: [rollout],
         scope: world.owner.home,
-        endpoint: (await device.session(login)).endpoint(
+        endpoint: (await device.launcher(login)).endpoint(
             stackPackage.id,
             await device.locate(world.owner.home),
         ),
@@ -119,7 +119,7 @@ test("push a person's mutation through a scope the session opens, confirmed once
     const computer = await TestComputer.open();
     const { device } = computer;
     const signedIn = await computer.signIn(OWNER_EMAIL);
-    const session = await device.session(signedIn.id);
+    const session = await device.launcher(signedIn.id);
     await using stack = new AsyncDisposableStack();
     const settings = await device.open(session, { scope: signedIn.subjectId }, { setting }, stack);
 
@@ -176,9 +176,9 @@ test("resolve the owner's spaces by address, identifier, home and residency, ref
     // resolve the owner's home three ways, their residency's space, and a space they have none of
     const { home, login } = await TestComputer.home();
     const { device, world } = home;
-    const session = await device.session(login);
+    const session = await device.launcher(login);
     const address = await session.address(world.owner.home);
-    const residency = await session.residency(await session.person.account());
+    const residency = await session.residency(await session.account());
 
     // expect each name of the home to resolve to its space, and the other refused
     expect({

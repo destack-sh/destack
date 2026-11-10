@@ -1,5 +1,5 @@
 import type * as Cloudflare from "@cloudflare/workers-types";
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey, Session } from "@destack/account/client";
 import * as accountObject from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { UniverseOrigin } from "@destack/account/address";
@@ -23,7 +23,7 @@ import { BucketBlobStorage } from "@destack/bucket/blob";
 import { BuildLayer, type LayerAssets } from "@destack/build/store";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
-import { createClient } from "@destack/object/client";
+import { Bookmark, createClient } from "@destack/object/client";
 import { WorkloadInstance } from "@destack/object/workload";
 import { ResourceContext } from "@destack/resource/context";
 import type { Publisher } from "@destack/sync";
@@ -150,7 +150,7 @@ export class CloudMachine {
     /** The machine's root keys. */
     readonly keyring: LocalKeyring;
     /** The machine's identity, proven with its unsealed key. */
-    readonly identity: MachineIdentity;
+    readonly identity: MachineKey;
     /** The isolate's environment, sending account package requests through the universe. */
     readonly environment: Environment;
     /** The directory replica in the machine's object. */
@@ -211,7 +211,7 @@ export class CloudMachine {
         const keyring = await envelope.keyring(bindings.DESTACK_ROOT_KEY, environment);
         const keychain = new MemoryKeychain();
         await keychain.save(id, await envelope.open(bindings.DESTACK_MACHINE_KEY));
-        const identity = new MachineIdentity(id, keychain, environment);
+        const identity = new MachineKey(id, keychain, environment);
 
         // read the directory from the replica in the machine's object, through a stub per request as the isolate outlives each
         const objects = Jurisdiction.narrow(bindings.PARTITION, bindings.DESTACK_JURISDICTION);
@@ -292,11 +292,17 @@ export class CloudMachine {
             accountPackage,
             {
                 url: PackageMount.url(this.bindings.DESTACK_UNIVERSE, accountPackage.id),
-                fetch: this.identity.fetch(
-                    (request) => this.environment.network.fetch(request),
-                    accountPackage.id,
-                    this.issuer,
-                ),
+                fetch: new Session(
+                    this.identity.at(this.issuer, (request) =>
+                        this.environment.network.fetch(request),
+                    ),
+                    {
+                        universe: this.bindings.DESTACK_UNIVERSE,
+                        send: (request) => this.environment.network.fetch(request),
+                        bookmark: new Bookmark(),
+                        environment: this.environment,
+                    },
+                ).fetch(accountPackage.id),
             },
             this.environment,
         );

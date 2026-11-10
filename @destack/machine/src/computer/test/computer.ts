@@ -751,8 +751,8 @@ export class TestComputer implements AsyncDisposable {
         name: string,
     ): Promise<Identifier<"space">> {
         // create the space on the machine as the person
-        const session = await this.device.session(login.id);
-        const created = await session.person.accounts().space.create({
+        const session = await this.device.launcher(login.id);
+        const created = await session.session.accounts().space.create({
             accountId,
             requestId: RequestId.create(this.environment),
             name,
@@ -784,7 +784,7 @@ export class TestComputer implements AsyncDisposable {
         const { device } = this;
         const service = createClient(
             objectPackage,
-            (await device.session(login)).endpoint(
+            (await device.launcher(login)).endpoint(
                 objectPackage.id,
                 await device.locate(spaceId).catch((error: unknown) => {
                     throw this.#failure(`space ${spaceId} did not locate`, error);

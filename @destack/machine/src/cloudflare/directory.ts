@@ -8,7 +8,7 @@ import { ResourceHandle } from "@destack/resource";
 import { defineWorkload } from "@destack/object/workload";
 import { type Publisher, Scope } from "@destack/sync";
 import machinePackage from "../package.ts";
-import type { MachineIdentity } from "@destack/account/client";
+import type { MachineKey } from "@destack/account/client";
 import type {} from "@destack/package/import-meta";
 import { Machine } from "../machine/index.ts";
 
@@ -19,7 +19,7 @@ interface DirectoryConfiguration {
     /** The storage of the replicas' blobs. */
     readonly blobs: BlobStorage;
     /** The machine following them, proven by its key. */
-    readonly machine: MachineIdentity;
+    readonly machine: MachineKey;
     /** Stream the account package's replicas as the machine. */
     readonly publisher: Publisher;
 }

@@ -11,7 +11,7 @@ import { inspect } from "node:util";
 import { Distribution, DISTRIBUTION_DIRECTORY } from "@destack/update";
 import { Toolchain } from "@destack/check/toolchain";
 import { distribution } from "@destack/update/object";
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
 import { login, type NativeClient } from "@destack/account/native";
 import {
     call,
@@ -266,7 +266,7 @@ export class Computer implements AsyncDisposable {
             machineId,
             options.environment,
         );
-        const identity = new MachineIdentity(
+        const identity = new MachineKey(
             machineId,
             options.keychain(MACHINE_KEYS),
             options.environment,
@@ -800,7 +800,7 @@ export class Computer implements AsyncDisposable {
         return new ComputerServer({
             device,
             callKey: () => Computer.#callKey(machine),
-            session: (loginId) => device.session(loginId),
+            launcher: (loginId) => device.launcher(loginId),
             machine,
             runner: opened.runner,
             shutdown: () => options.shutdown(),
@@ -865,7 +865,7 @@ export class Computer implements AsyncDisposable {
         const signedIn = await opened.device.signedIn(loginId);
         const located = await opened.machine.locate(spaceId);
         if (located.placement.machine !== opened.machine.id) {
-            return signedIn.person.package(handle, located.url, spaceId);
+            return signedIn.session.client(handle, located.url, { partition: spaceId });
         }
 
         // call the package mounted here as the person's own client

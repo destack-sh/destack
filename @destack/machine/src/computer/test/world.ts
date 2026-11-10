@@ -313,7 +313,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
             ({ packageId }) => packageId !== stackPackage.id,
         );
         const packageId = present(installed[0], "an installed package").packageId;
-        const endpoint = (await device.session(login.id)).endpoint(
+        const endpoint = (await device.launcher(login.id)).endpoint(
             packageId,
             await device.locate(world.owner.home),
         );
@@ -682,7 +682,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         const client = new DynamicObjectClient({
             objects: [type],
             scope: world.owner.home,
-            endpoint: (await device.session(login)).endpoint(
+            endpoint: (await device.launcher(login)).endpoint(
                 packageId,
                 await device.locate(world.owner.home),
             ),

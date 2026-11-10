@@ -1,8 +1,13 @@
 import { Authentication, Caller, type ChainOptions, principal } from "@destack/access";
 import { Directory, DOMAINS, UniverseOrigin } from "@destack/account/address";
 import { AccountError } from "@destack/account/error";
-import type { Enrollment, MachineIdentity } from "@destack/account/client";
-import type { TokenBinding } from "@destack/account/client";
+import {
+    type Enrollment,
+    type MachineKey,
+    Session,
+    type TokenBinding,
+} from "@destack/account/client";
+import { Bookmark } from "@destack/object/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import * as accountObject from "@destack/account/object";
 import { Identity, Key, placement } from "@destack/account/object";
@@ -156,7 +161,7 @@ export class Machine {
     /** The clock the machine runs at, and the network it sends through. */
     readonly environment: Environment;
     /** The identity the machine proves with the key the universe enrolled. */
-    readonly identity: MachineIdentity;
+    readonly identity: MachineKey;
     /** The machine's root keys, wrapping vault and space keys. */
     readonly keyring: Keyring;
     /** The machine's own database, with its replicas. */
@@ -1006,7 +1011,7 @@ export class Machine {
             fetch: relayed.fetch,
             environment: this.environment,
             token: (audience) =>
-                this.identity.token(audience, issuer, (request) => this.send(request)),
+                this.identity.at(issuer, (request) => this.send(request)).token(audience, {}),
             renewed: ({ name }) => {
                 this.#origin = `https://${name}`;
             },
@@ -1027,12 +1032,15 @@ export class Machine {
         audience: PackageId,
         binding: Pick<TokenBinding, "partition"> = {},
     ): Fetch {
-        return this.identity.fetch(
-            (request) => this.send(request),
-            audience,
-            Machine.#issuer(enrollment),
-            binding,
-        );
+        const send: Fetch = (request) => this.send(request);
+        const session = new Session(this.identity.at(Machine.#issuer(enrollment), send), {
+            universe: enrollment.universe,
+            send,
+            bookmark: new Bookmark(),
+            environment: this.environment,
+        });
+
+        return session.fetch(audience, binding);
     }
 
     /** Read the issuer of this machine's tokens: its universe's. */

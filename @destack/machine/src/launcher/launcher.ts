@@ -1,8 +1,9 @@
 import type { DatabaseConnection } from "@destack/db";
 import type { GrantClaim, PermissionReference } from "@destack/access";
-import { HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
+import { Account, HOME_SPACE, RESIDENCY_SPACE } from "@destack/account/object";
 import { GrantPermission, principal } from "@destack/access";
 import { InstallationOrigin, SpaceAddress } from "@destack/account/address";
+import { AccountError } from "@destack/account/error";
 import {
     ConsentRequest,
     type Decision,
@@ -11,12 +12,14 @@ import {
 } from "@destack/account/authentication";
 import { Failure } from "@destack/error";
 import type { PlacementEndpoint } from "@destack/account/object";
-import type { Person } from "@destack/account/client";
+import type { Session, UserIdentity } from "@destack/account/client";
 import type { Environment } from "@destack/environment";
 import accountPackage from "@destack/account/package";
 import {
     type Installation,
+    type Fetch,
     InstallationMount,
+    ListPage,
     type ObjectType,
     PackageMount,
     SpaceMount,
@@ -35,7 +38,7 @@ import {
     ViewPresentationPriority,
 } from "@destack/package/manifest";
 import { type Identifier, nth, schema, Text } from "@destack/schema";
-import { ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, RequestId, Subject } from "@destack/sync";
 import { InstallationView } from "@destack/stack/object";
 import stackPackage from "@destack/stack/package";
 import {
@@ -50,8 +53,14 @@ import { MachineError } from "../error/index.ts";
 /** The origin of a client before the machine it calls, never resolving (RFC 2606). */
 const UNRESOLVED_ORIGIN = "https://unresolved.invalid";
 
-/** The machine a person's session acts from: it finds spaces and serves its own to the person. */
-export interface SessionMachine {
+/** How a launcher's calls answer a grant request: deciding it as the person's consent page does. */
+export interface LauncherConsent {
+    /** Decide a grant request a call needs, absent to answer the call's consent error. */
+    readonly decide?: (request: GrantRequest) => Promise<Decision>;
+}
+
+/** The machine a launcher acts from: it finds spaces and serves its own to the person. */
+export interface LauncherMachine {
     /** The machine. */
     readonly id: Identifier<"machine">;
     /** The environment the person's calls run in. */
@@ -66,79 +75,78 @@ export interface SessionMachine {
     ) => Promise<Response>;
 }
 
-/** How a session's endpoint sends: deciding the grant requests its calls need, if asked. */
-export interface SessionEndpointOptions {
-    /** Decide a grant request a call needs, as the person's consent page does. */
-    readonly decide?: (request: GrantRequest) => Promise<Decision>;
-}
+/** A signed-in user's launcher: it routes their calls and opens the views they address. */
+export class Launcher {
+    /** The machine the launcher acts from. */
+    readonly machine: LauncherMachine;
+    /** The user's calls to packages, with their tokens. */
+    readonly session: Session<UserIdentity>;
 
-/** A person's session: their calls to spaces and the views they open, from a device or machine. */
-export class Session {
-    /** The machine the session acts from. */
-    readonly machine: SessionMachine;
-    /** The person acting through their account tokens. */
-    readonly person: Person;
-
-    /** Act as a person from a machine. */
-    constructor(machine: SessionMachine, person: Person) {
+    /** Launch for a signed-in user from a machine, calling through their session. */
+    constructor(machine: LauncherMachine, session: Session<UserIdentity>) {
         this.machine = machine;
-        this.person = person;
+        this.session = session;
+    }
+
+    /** The signed-in user's tokens. */
+    get user(): UserIdentity {
+        return this.session.credential;
+    }
+
+    /** Find the user's personal account, which they signed up with. */
+    async account(): Promise<Identifier<"account">> {
+        // list the user's accounts of kind personal
+        const { items } = await this.session.accounts().account.list({
+            scope: this.user.userId,
+            where: { kind: "personal" },
+        });
+        const [personal] = items;
+        if (personal === undefined) {
+            throw AccountError.of("PERSONAL_ACCOUNT_MISSING", "the person has no personal account");
+        }
+
+        return personal.id;
+    }
+
+    /** List the addresses of the spaces of every account the user belongs to. */
+    async spaces(): Promise<SpaceAddress[]> {
+        // list the user's accounts, then each account's spaces
+        const accounts = this.session.accounts();
+        const owned = await Array.fromAsync(
+            ListPage.all(accounts.account.list, { scope: this.user.userId }),
+        );
+        const spaces = await Promise.all(
+            owned.map(async (account) => {
+                const listed = await Array.fromAsync(
+                    ListPage.all(accounts.space.list, { accountId: account.id }),
+                );
+
+                return listed.map((entry) =>
+                    SpaceAddress.parse(
+                        SpaceAddress.of({ space: entry.name, handle: account.handle }),
+                    ),
+                );
+            }),
+        );
+
+        return spaces.flat().toSorted();
     }
 
     /** Read the endpoint of a package at the issuer or in a space, deciding its grant requests. */
     endpoint(
         packageId: PackageId,
         at: "universe" | PlacementEndpoint,
-        options: SessionEndpointOptions = {},
+        consent: LauncherConsent = {},
     ): ClientOptions {
-        const { decide } = options;
-
         return {
             url: UNRESOLVED_ORIGIN,
-            fetch: (request) =>
-                decide === undefined
-                    ? this.send(request, packageId, at)
-                    : this.#sendDeciding(request, packageId, at, decide),
+            fetch: (request) => this.send(request, packageId, at, consent),
         };
-    }
-
-    /** Send a call, granting and sending it again once the person approves what it asks. */
-    async #sendDeciding(
-        request: Request,
-        packageId: PackageId,
-        at: "universe" | PlacementEndpoint,
-        decide: NonNullable<SessionEndpointOptions["decide"]>,
-    ): Promise<Response> {
-        // send the call, keeping its body to send it again
-        const body = await request.arrayBuffer();
-        const copy = () =>
-            new Request(request.url, {
-                method: request.method,
-                headers: request.headers,
-                ...(body.byteLength === 0 ? {} : { body }),
-            });
-        const response = await this.send(copy(), packageId, at);
-
-        // leave a response asking no consent, and one the person declines
-        const refusal = response.ok ? undefined : await Failure.read(response.clone());
-        const [asked] =
-            refusal?.reason === "CONSENT_REQUIRED"
-                ? ConsentRequest.parse(refusal.data).authorization_details
-                : [];
-        if (asked === undefined || (await decide(asked)) === "deny") {
-            return response;
-        }
-
-        // grant the installation what it asks, then send the call again
-        const permissions = asked.permissions.map((each) => RequestedPermission.permission(each));
-        await this.person.grant(asked.delegate, permissions);
-
-        return await this.send(copy(), packageId, at);
     }
 
     /** Read the home of the residency an account stores its data in. */
     residency(accountId: Identifier<"account">): Promise<Identifier<"space">> {
-        return this.person.accounts().residency.locate({ account: accountId });
+        return this.session.accounts().residency.locate({ account: accountId });
     }
 
     /** Connect to the home of a scope: its machine for a space, else the person's issuer. */
@@ -166,7 +174,7 @@ export class Session {
         // send the universe's token for the installation's package bound to the space, which its machine verifies
         const { url, partition } = await this.#mount(space, name, packageId);
 
-        return { url, fetch: (request) => this.person.send(request, packageId, { partition }) };
+        return { url, fetch: this.session.fetch(packageId, { partition }) };
     }
 
     /** Find an installation's package below the machine serving its space, and the space. */
@@ -187,7 +195,7 @@ export class Session {
     async address(spaceId: Identifier<"space">): Promise<SpaceAddress> {
         // find the space's account, then read its name and the account's handle
         const located = await this.machine.locate(spaceId);
-        const { address } = await this.person.accounts().space.address({
+        const { address } = await this.session.accounts().space.address({
             accountId: located.placement.scope,
             id: spaceId,
         });
@@ -197,7 +205,7 @@ export class Session {
 
     /** Read the address of the home of the person's own account. */
     async home(): Promise<SpaceAddress> {
-        return this.address(await this.person.home());
+        return this.address(Account.home(await this.account()));
     }
 
     /** Find the view of a category in the person's home, at a path. */
@@ -205,7 +213,7 @@ export class Session {
         // read the views the home's installations declare, as the person
         const home = await this.home();
         const { store } = this.#clients(await this.machine.locate(home));
-        const views = await Session.#views(store);
+        const views = await Launcher.#views(store);
 
         // take the view of the category, the first by installation and name
         const [found] = views
@@ -259,7 +267,7 @@ export class Session {
         // call a scope at the person's universe, such as their account, with an access token
         else {
             scopeId = location.scope;
-            reached = this.person.universe(serving.id);
+            reached = this.session.endpoint(serving.id);
         }
 
         // call the objects through the person's installation, or where the space or scope moved
@@ -293,7 +301,7 @@ export class Session {
                 database,
                 objects,
                 scope: scopeId,
-                caller: this.person.subject,
+                caller: this.user.subject,
                 endpoint,
                 reconnect,
                 homes: (scope) => this.store(scope),
@@ -317,8 +325,8 @@ export class Session {
         let grant: GrantClaim;
         if (granted !== undefined && GrantPermission.includes(granted.permissions, permissions)) {
             grant = granted;
-        } else if (Session.#isDecided(requested, this.person.subject)) {
-            grant = await this.person.grant(delegate, permissions);
+        } else if (Launcher.#isDecided(requested, this.user.subject)) {
+            grant = await this.grant(delegate, permissions);
         }
         // ask the person otherwise, each permission as they read it
         else {
@@ -338,12 +346,12 @@ export class Session {
         }
 
         // exchange the person's token for the installation's package acting under the grant in the space
-        const token = await this.person.token(PackageId.parse(found.packageId), {
+        const token = await this.user.token(PackageId.parse(found.packageId), {
             partition: place.placement.space,
             grants: [grant.id],
         });
         const url = new URL(
-            ViewAddress.url(view, Session.#origin(view.space, view.installation, place.url)),
+            ViewAddress.url(view, Launcher.#origin(view.space, view.installation, place.url)),
         );
         url.searchParams.set(TOKEN_PARAMETER, token);
 
@@ -357,7 +365,7 @@ export class Session {
     }> {
         // find where the space serves and the view the address opens
         const { view, place } = await this.#locate(address);
-        const origin = Session.#origin(view.space, view.installation, place.url);
+        const origin = Launcher.#origin(view.space, view.installation, place.url);
 
         return { url: ViewAddress.url(view, origin), space: place.placement.space };
     }
@@ -384,13 +392,13 @@ export class Session {
 
         // take the person's home and their residency's space
         if (name === HOME_SPACE) {
-            return this.person.home();
+            return Account.home(await this.account());
         } else if (name === RESIDENCY_SPACE) {
-            return this.person.residency();
+            return this.residency(await this.account());
         }
 
         // find the person's one space of that name among every account's
-        const matching = (await this.person.spaces()).filter(
+        const matching = (await this.spaces()).filter(
             (each) => SpaceAddress.origin(each).space === name,
         );
         if (matching.length === 1) {
@@ -425,7 +433,7 @@ export class Session {
         // send to a package in a space, at the machine serving it
         else if (kind === "space") {
             const placed = await this.machine.locate(
-                Session.#space(schema.string().parse(rest[0])),
+                Launcher.#space(schema.string().parse(rest[0])),
             );
             const packageId = PackageId.parse(rest[1]);
 
@@ -433,12 +441,12 @@ export class Session {
         }
         // send to an installation's package at its origin, with the token bound to its space
         else if (kind === "installation") {
-            const space = Session.#space(schema.string().parse(rest[0]));
+            const space = Launcher.#space(schema.string().parse(rest[0]));
             const name = schema.string().parse(rest[1]);
             const packageId = PackageId.parse(rest[2]);
             const { url, partition } = await this.#mount(space, name, packageId);
 
-            return this.person.send(below(rest.slice(3), url), packageId, { partition });
+            return this.session.fetch(packageId, { partition })(below(rest.slice(3), url));
         }
         // refuse any other target
         else {
@@ -449,8 +457,57 @@ export class Session {
         }
     }
 
-    /** Send a request to a package: at the person's issuer, or in a space. */
+    /** Send a request to a package at the issuer or in a space, deciding its grant requests. */
     async send(
+        request: Request,
+        packageId: PackageId,
+        at: "universe" | PlacementEndpoint,
+        consent: LauncherConsent = {},
+    ): Promise<Response> {
+        const { decide } = consent;
+        const send: Fetch = (sent) => this.#route(sent, packageId, at);
+
+        return decide === undefined ? send(request) : this.#deciding(request, send, decide);
+    }
+
+    /** Read the person's unexpiring grant to a delegate, absent without one. */
+    async granted(delegate: Subject): Promise<GrantClaim | undefined> {
+        // read the person's one grant to the delegate, an expiring one asking again
+        const scope = this.user.subject.id;
+        const { items } = await this.session.objects().grant.list({
+            scope,
+            where: ObjectReference.columns("delegate", delegate),
+        });
+        const [found] = items;
+
+        return found === undefined || found.expiresAt !== null
+            ? undefined
+            : { id: found.id, scope, permissions: found.permissions };
+    }
+
+    /** Grant a delegate some permissions, growing the person's grant to it to include them. */
+    async grant(delegate: Subject, permissions: readonly GrantPermission[]): Promise<GrantClaim> {
+        // reuse the person's grant when it includes them
+        const found = await this.granted(delegate);
+        if (found !== undefined && GrantPermission.includes(found.permissions, permissions)) {
+            return found;
+        }
+
+        // grant them together with what the person granted already
+        const scope = this.user.subject.id;
+        const merged = GrantPermission.merge(found?.permissions ?? [], permissions);
+        const created = await this.session.objects().grant.create({
+            scope,
+            requestId: RequestId.create(this.machine.environment),
+            delegate,
+            permissions: merged,
+        });
+
+        return { id: created.id, scope, permissions: merged };
+    }
+
+    /** Route a request to a package: the issuer, this machine's own space, or another machine. */
+    #route(
         request: Request,
         packageId: PackageId,
         at: "universe" | PlacementEndpoint,
@@ -460,23 +517,54 @@ export class Session {
 
         // send to a universe package at the person's issuer
         if (at === "universe") {
-            return this.person.send(
-                new Request(new URL(below, this.person.issuer.url).href, request),
-                packageId,
-            );
+            const target = new URL(below, this.user.issuer.url).href;
+
+            return this.session.fetch(packageId)(new Request(target, request));
         }
-        // serve a space of the session's own machine there
+        // serve a space of the launcher's own machine there
         else if (at.placement.machine === this.machine.id) {
             return this.machine.serve(at, packageId, request);
         }
         // send another machine the universe's token bound to the space
         else {
             const target = new URL(`${SpaceMount.path(at.placement.space)}${below}`, at.url);
+            const binding = { partition: at.placement.space };
 
-            return this.person.send(new Request(target.href, request), packageId, {
-                partition: at.placement.space,
-            });
+            return this.session.fetch(packageId, binding)(new Request(target.href, request));
         }
+    }
+
+    /** Send a call, granting and sending it again once the person approves what it asks. */
+    async #deciding(
+        request: Request,
+        send: Fetch,
+        decide: NonNullable<LauncherConsent["decide"]>,
+    ): Promise<Response> {
+        // send the call, keeping its body to send it again
+        const body = await request.arrayBuffer();
+        const copy = () =>
+            new Request(request.url, {
+                method: request.method,
+                headers: request.headers,
+                ...(body.byteLength === 0 ? {} : { body }),
+            });
+        const response = await send(copy());
+
+        // leave a response asking no consent, and one the person declines
+        const refusal = response.ok ? undefined : await Failure.read(response.clone());
+        const [asked] =
+            refusal?.reason === "CONSENT_REQUIRED"
+                ? ConsentRequest.parse(refusal.data).authorization_details
+                : [];
+        if (asked === undefined || (await decide(asked)) === "deny") {
+            return response;
+        }
+
+        // grant the delegate what it asks, then send the call again
+        const permissions = asked.permissions.map((each) => RequestedPermission.permission(each));
+        await this.grant(asked.delegate, permissions);
+
+        return await send(copy());
     }
 
     /** Call a space's stack and object packages as the person. */
@@ -536,7 +624,7 @@ export class Session {
         const permissions = described.map((permission) =>
             RequestedPermission.permission(permission),
         );
-        const granted = await this.person.granted(delegate);
+        const granted = await this.granted(delegate);
 
         return {
             view,
@@ -563,8 +651,8 @@ export class Session {
         // choose the view presenting an object among the views the space serves
         let view: ViewAddress;
         if ("object" in address) {
-            const views = await Session.#views(store);
-            const presented = Session.#present(views, address.object, address.view);
+            const views = await Launcher.#views(store);
+            const presented = Launcher.#present(views, address.object, address.view);
             const query = new URLSearchParams({
                 [TARGET_PARAMETER]: JSON.stringify(address.object),
             });
