@@ -64,7 +64,7 @@ export interface WorkloadContext {
     /** The installation's resource and package clients. */
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
-    readonly server?: InstalledServerContext;
+    readonly server?: ServerContext;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** The environment the workload runs in: its clock, randomness, crypto and network. */
@@ -87,57 +87,29 @@ export interface WorkloadContext {
     readonly defer: (dispose: () => void | PromiseLike<void>) => void;
 }
 
-/** The context a package's server runs in: a base installation's, or an installed one's. */
-export type ServerContext = BaseServerContext | InstalledServerContext;
-
-/** Tell a base installation's server context from an installed one's. */
-export const ServerContext = {
-    /** Report whether a context is a named installation's, which a base one is not. */
-    isInstalled<Context extends ServerContext>(
-        context: Context,
-    ): context is Extract<Context, InstalledServerContext> {
-        return "name" in context;
-    },
-};
-
-/** An installed package server's context, with its partition's database and blobs. */
-export interface PackageContext extends InstalledServerContext {
+/** An installation's server context, with its partition's database and blobs. */
+export interface PackageContext extends ServerContext {
     /** The installation's database, with the tables the package declares beside its objects. */
     readonly database: DatabaseConnection;
     /** The partition's blobs, which the package's blob columns keep alive. */
     readonly blobs: BlobStore;
 }
 
-/** Give an installed installation's server context the database its store serves. */
+/** Give an installation's server context the database its store serves. */
 export const PackageContext = {
-    /** Add the store's database and blobs to an installed context, leaving others as they are. */
-    of(
-        context: ServerContext | undefined,
-        blobs: BlobStore,
-    ): PackageContext | BaseServerContext | undefined {
-        return context !== undefined && ServerContext.isInstalled(context)
-            ? { ...context, database: blobs.database, blobs }
-            : context;
+    /** Add the store's database and blobs to an installation's context, none for own packages. */
+    of(context: ServerContext | undefined, blobs: BlobStore): PackageContext | undefined {
+        return context === undefined ? undefined : { ...context, database: blobs.database, blobs };
     },
 };
 
-/** The context of a base installation, born with its scope and shipped with the platform. */
-export interface BaseServerContext {
-    /** The installation's identifier. */
-    readonly installation: Identifier<"installation">;
-    /** The installation's partition scope: its space, machine, device or the universe. */
-    readonly scope: string;
-    /** The package's required capabilities, which a base installation runs with. */
-    readonly capabilities: readonly string[];
-}
-
-/** The context of a named installation: its build, bindings, keys and egress. */
-export interface InstalledServerContext {
+/** The context an installation's server runs in: its build, bindings, keys and egress. */
+export interface ServerContext {
     /** The installation's identifier. */
     readonly installation: Identifier<"installation">;
     /** The installation's name in its scope, its address there as `<name>--<scope>`. */
     readonly name: string;
-    /** The installation's partition scope: its space, machine, device or the universe. */
+    /** The installation's space. */
     readonly scope: string;
     /** The one partition of the installation's database the instance serves. */
     readonly partition?: string;

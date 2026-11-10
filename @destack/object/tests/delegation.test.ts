@@ -8,7 +8,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { ResourceContext } from "@destack/resource/context";
 import { definePackage } from "@destack/object";
 import { testCallKey, testKeys } from "@destack/object/test";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -85,7 +85,7 @@ test("act with the space's delegation to its installation, refusing without one,
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const server: InstalledServerContext = {
+    const server: ServerContext = {
         installation: INSTALLATION,
         name: "probes",
         scope: spaceId,

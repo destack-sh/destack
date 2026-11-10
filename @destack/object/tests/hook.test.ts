@@ -972,12 +972,11 @@ test("describe a sandboxed installation that serves no objects, such as one ship
     });
 
     // describe it with no types and the view it declares
-    const described = await store.describeInstallations();
+    const described = await store.describePackages();
     expect(described.find((each) => each.packageId === pages.id)).toEqual({
-        id: installed.installation,
-        scope: spaceId,
-        name: installed.name,
         packageId: pages.id,
+        scope: spaceId,
+        installation: { id: installed.installation, name: installed.name },
         types: [],
         declarations: [view],
     });

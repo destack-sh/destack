@@ -4,7 +4,7 @@ import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Package } from "@destack/package";
 import { CallError } from "@destack/object";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { schema, Uuid } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
@@ -104,7 +104,7 @@ test("reveal a type's sensitive field to its package's handler, and withhold it 
     );
     onTestFinished(() => storage.close());
     const spaceId = `space-${Uuid.v7(world)}`;
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),

@@ -131,7 +131,7 @@ const MEMBERS = defineShape({
 
 /** Serve people and profiles over a database, following them at the universe with an uplink. */
 async function serve(world: Environment, database: DatabaseConnection, uplink?: Uplink) {
-    return await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
+    return TestObjectStore.of({
         chain: async () =>
             uplink === undefined ? undefined : { kind: "follower", parent: Scope.universe.id },
         environment: world,
@@ -340,7 +340,7 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     );
 
     // let the space read ada, and show it the first and the last badge
-    const served = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
+    const served = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
@@ -362,33 +362,30 @@ test("replicate the badges a space is shown from the scopes of teams without rep
     }
 
     // replicate the universe the space reads into its database, which serves only people and badges
-    const replicating: ObjectStore = await TestObjectStore.at(
-        principal.space.reference(Scope.universe.id, spaceId),
-        {
-            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-            environment: world,
-            principal: principal.space.reference(Scope.universe.id, spaceId),
-            servers: serversOf([person, badge], { follows: [SHOWN] }),
-            database: space.database,
-            uplink: {
-                receive: refuseChanges,
-                call: refuseQueries,
-                request: async () => {},
-                stream: (asked, signal) =>
-                    served.source.replicate(
-                        asked,
-                        asked.after,
-                        {
-                            subject: principal.space.reference(Scope.universe.id, asked.target),
-                        },
-                        signal,
-                    ),
-            },
-            callKey: testCallKey,
-            events: await testEvents(space.database, world),
-            origin: { package: person.package },
+    const replicating: ObjectStore = TestObjectStore.of({
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        environment: world,
+        principal: principal.space.reference(Scope.universe.id, spaceId),
+        servers: serversOf([person, badge], { follows: [SHOWN] }),
+        database: space.database,
+        uplink: {
+            receive: refuseChanges,
+            call: refuseQueries,
+            request: async () => {},
+            stream: (asked, signal) =>
+                served.source.replicate(
+                    asked,
+                    asked.after,
+                    {
+                        subject: principal.space.reference(Scope.universe.id, asked.target),
+                    },
+                    signal,
+                ),
         },
-    );
+        callKey: testCallKey,
+        events: await testEvents(space.database, world),
+        origin: { package: person.package },
+    });
     await follow(replicating, home.database, space.database);
 
     // list the shown badges of the team and of ada, and withhold the hidden one
@@ -445,7 +442,7 @@ test("replicate a guarded type's rows whole to a space that reads them past the 
     );
 
     // serve the cards at home and replicate what the space lists
-    const served = await TestObjectStore.at(spaceSubject, {
+    const served = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spaceSubject,
@@ -455,7 +452,7 @@ test("replicate a guarded type's rows whole to a space that reads them past the 
         events: await testEvents(home.database, world),
         origin: { package: card.package },
     });
-    const replicating: ObjectStore = await TestObjectStore.at(spaceSubject, {
+    const replicating: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spaceSubject,
@@ -532,7 +529,7 @@ test("replicate each person once the space may read them at the change's positio
     const joined = await join(home.database, ada);
 
     // serve the people and their relationships as objects, and replica what the space reads
-    const served = await TestObjectStore.at(spaceSubject, {
+    const served = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spaceSubject,
@@ -542,7 +539,7 @@ test("replicate each person once the space may read them at the change's positio
         events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const replicating: ObjectStore = await TestObjectStore.at(spaceSubject, {
+    const replicating: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spaceSubject,

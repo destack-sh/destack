@@ -5,7 +5,7 @@ import { InstallationRoot } from "../workload/root.ts";
 import { MemoryBuild } from "@destack/package/test";
 import type { Package } from "@destack/package";
 import type { Uplink } from "@destack/sync";
-import type { InstalledServerContext } from "../workload/workload.ts";
+import type { ServerContext } from "../workload/workload.ts";
 import { waitAborted, type Environment } from "@destack/environment";
 
 /** An uplink that streams nothing until stopped and refuses changes. */
@@ -32,7 +32,7 @@ export async function testServerContext(
     owner: Package,
     space: string,
     environment: Environment,
-): Promise<InstalledServerContext> {
+): Promise<ServerContext> {
     return {
         installation: schema
             .identifier("installation")

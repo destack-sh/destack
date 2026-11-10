@@ -7,7 +7,7 @@ import { reconciliation } from "@destack/db/test";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { EventTime } from "@destack/event";
@@ -80,7 +80,7 @@ test("hand a claimed page of ticks to the read one scope at a time, the same pag
         );
         onTestFinished(() => storage.close());
         const { database } = storage;
-        const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+        const store = TestObjectStore.of({
             chain: async () => undefined,
             environment: world,
             principal: spacePrincipal(SPACE_ID),

@@ -54,7 +54,7 @@ import { Observation, type ObservationReport, type ObservedRecord } from "../obj
 import type { OptionOf, Method, MethodConfiguration } from "./method.ts";
 import { CallSite } from "./site.ts";
 import type { MethodKind } from "./kind.ts";
-import type { InstalledServerContext } from "../workload/workload.ts";
+import type { ServerContext } from "../workload/workload.ts";
 import type { Settled, SettlementContext } from "./settlement.ts";
 import { type IsSum, RecordMethod } from "./record.ts";
 import type { list } from "../query/list.ts";
@@ -987,41 +987,33 @@ export class MethodContext<
         return this.object.isDeclarable();
     }
 
-    /** Report whether the installation serving the call's type has a capability of its package. */
+    /** Report whether what serves the call's type has a capability of its package. */
     enabled(capability: string): boolean {
         // read the capabilities of the installation serving the type, in its store or its sandbox
         const location = this.#location;
-        const server =
+        const capabilities =
             location.kind === "store"
-                ? location.store.readServer(this.object)
+                ? location.store.implementation(this.object).capabilities
                 : location.kind === "sandbox"
-                  ? location.server
+                  ? location.server.capabilities
                   : undefined;
-        if (server === undefined) {
-            throw new TypeError(
-                `${this.object.name}.${this.name} does not run in an installation with capabilities`,
-            );
+        if (capabilities === undefined) {
+            throw new TypeError(`${this.object.name}.${this.name} runs outside its server`);
         }
 
-        return server.capabilities.includes(capability);
+        return capabilities.includes(capability);
     }
 
-    /** Act with the delegation the call's partition grants the installation running the call. */
+    /** Act with the delegation the space grants the installation running the call. */
     async delegated(): Promise<AccessContext> {
-        // find the principal of the partition the installation lives in
+        // refuse a scope's own package, which acts as the scope already
         const installation = this.self.subject;
-        const delegators = [principal.space, principal.machine, principal.device];
-        const kind = delegators.find(
-            (each) => schema.identifier(each.name).safeParse(installation.scope).success,
-        );
-        if (kind === undefined) {
-            throw new TypeError(
-                `${this.object.name}.${this.name} runs in ${installation.scope}, which delegates to no installation`,
-            );
+        if (installation.type !== principal.installation.name) {
+            throw new TypeError(`${this.object.name}.${this.name} runs in no installation`);
         }
 
-        // act as the partition with the installation acting for it, within the partition's live grant
-        const delegator = kind.reference(sync.Scope.universe.id, installation.scope);
+        // act as the installation's space with the installation acting for it, within the space's live grant
+        const delegator = principal.space.reference(sync.Scope.universe.id, installation.scope);
         const reader = { read: <Read extends Table>(table: Read) => this.read(table) };
         const parties = { delegator, delegate: installation };
         const caller = await Grant.act(reader, parties, this.now);
@@ -1087,7 +1079,7 @@ export type CallLocation =
           /** The hook's session with the store in its mutation. */
           readonly session: Session;
           /** The server context of the installation the sandbox runs as. */
-          readonly server: InstalledServerContext;
+          readonly server: ServerContext;
           /** The log position the call's mutation started at, absent for a query and a prepare. */
           readonly base?: LogPosition;
       };

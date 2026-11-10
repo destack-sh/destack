@@ -106,7 +106,7 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -164,7 +164,7 @@ test("list and follow the mentions a home has as replicas of another space, from
     const other = Identifier.create("space", world);
     await openSpace(database, world, spaceId);
     await openSpace(database, world, other);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -289,7 +289,7 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     const home = Identifier.create("space", world);
     const stranger = Identifier.create("space", world);
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -374,7 +374,7 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -474,7 +474,7 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -528,7 +528,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -640,7 +640,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     );
 
     // serve the notes, which make the enclosing realm known
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, realmId), {
+    const store = TestObjectStore.of({
         servers: [implementPackage(definePackage({ objects: { note } }), {})],
         chain: async () => undefined,
         environment: world,
@@ -722,7 +722,7 @@ test("list and replicate only the rows a query's permission allows, drop a row o
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -858,7 +858,7 @@ test("answer a follow of a type the scope does not install with a complete page 
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -909,7 +909,7 @@ test("answer a query follow of a type the store does not serve with a complete p
     onTestFinished(() => storage.close());
     const { database } = storage;
     await openSpace(database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),

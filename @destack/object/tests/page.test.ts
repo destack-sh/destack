@@ -264,6 +264,7 @@ test("share page trees with members and links, and move pages within them", asyn
             [`${parent} / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
             ...installed("page write"),
             [`page write / role ${Role.OWNER} bound on space ${spaceId}`, "subject"],
+            ["scope universe universe", "subject"],
         ],
     ]);
 

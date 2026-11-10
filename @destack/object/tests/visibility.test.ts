@@ -105,7 +105,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
     );
 
     // serve the documents to the user each call refers to, through the delegates it lists
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -207,7 +207,7 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     );
 
     // serve documents and desks to alice, unpinned to any scope
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),

@@ -1,7 +1,7 @@
 import type { Clock } from "@destack/environment";
 import { MemoryBlobStorage } from "@destack/resource";
 import { testSimulation } from "../src/test/index.ts";
-import { defineObject, device, field, Installation, ObjectDescription } from "../src/index.ts";
+import { defineObject, device, field, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { AccessContext, accessTables, Caller, CONTAINED, principal } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
@@ -20,7 +20,7 @@ import { BrowserTab, type BrowserTabWorker } from "../src/browser/index.ts";
 import { ObjectClient, type ObjectAccess } from "../src/client/index.ts";
 import { ObjectStore, implementPackage } from "../src/server/index.ts";
 import { serveNotes, spaceId } from "./fixture/device.ts";
-import { spacePrincipal, unmoved, space } from "./fixture/space.ts";
+import { spacePrincipal, unmoved } from "./fixture/space.ts";
 import { draft, panel, sticky, user } from "./fixture/local.ts";
 import { note, notebook } from "./fixture/note.ts";
 import { tablesOf } from "../src/index.ts";
@@ -143,16 +143,11 @@ test("refuse to serve local objects at another principal's store, and refuse loc
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
     const draftPackage = definePackage({ objects: { draft } });
-    const drafts = await Installation.base(
-        space.reference(Scope.universe.id, spaceId),
-        draftPackage,
-        world.crypto,
-    );
     expect([
         failure(() =>
             nth(
                 new ObjectStore({
-                    servers: [implementPackage(draftPackage, {}).at(drafts)],
+                    servers: [implementPackage(draftPackage, {})],
                     chain: async () => undefined,
                     environment: environment,
                     blobs: new MemoryBlobStorage(environment.crypto),
@@ -246,19 +241,16 @@ test("serve a device's local objects at its store to the people signed in on it 
     await new TestAccess(storage.database, world).replicateScope(laptop, device.policy);
 
     // serve them at the laptop's store
-    const store = await TestObjectStore.at(
-        principal.device.reference(Scope.universe.id, laptop.id),
-        {
-            chain: async () => undefined,
-            environment: world,
-            principal: principal.device.reference(Scope.universe.id, laptop.id),
-            servers: serversOf([sticky]),
-            database: storage.database,
-            callKey: testCallKey,
-            events: await testEvents(storage.database, world),
-            origin: { package: sticky.package },
-        },
-    );
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: principal.device.reference(Scope.universe.id, laptop.id),
+        servers: serversOf([sticky]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: sticky.package },
+    });
 
     // call as ada signed in on the laptop, who lives inside it, and as bob signed in elsewhere
     const callers = {
@@ -312,7 +304,7 @@ test("let a device see and use the local objects of its scope as itself, and hid
 
     // serve them at the laptop's store, as the laptop
     const itself = principal.device.reference(Scope.universe.id, laptop.id);
-    const store = await TestObjectStore.at(itself, {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: itself,

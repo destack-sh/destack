@@ -151,30 +151,27 @@ async function serveHomes(world: Environment, options: { readonly isFollowing?: 
         [...accessTables, person.table, room.table, preference.table],
         {},
     );
-    const replica: ObjectStore = await TestObjectStore.at(
-        space.reference(Scope.universe.id, roomId),
-        {
-            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-            environment: world,
-            principal: spacePrincipal(roomId),
-            servers: serversOf([preference], {
-                follows: [HOME_FOLLOW],
-            }),
-            policies: [person, room],
-            database: replicateStorage.database,
-            uplink: {
-                ...FeedPublisher.of(
-                    feed,
-                    (subscription) => replica.source.buildReplica(subscription).queries,
-                ),
-                receive: refuseChanges,
-                call: refuseQueries,
-            },
-            callKey: testCallKey,
-            events: await testEvents(replicateStorage.database, world),
-            origin: { package: preference.package },
+    const replica: ObjectStore = TestObjectStore.of({
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        environment: world,
+        principal: spacePrincipal(roomId),
+        servers: serversOf([preference], {
+            follows: [HOME_FOLLOW],
+        }),
+        policies: [person, room],
+        database: replicateStorage.database,
+        uplink: {
+            ...FeedPublisher.of(
+                feed,
+                (subscription) => replica.source.buildReplica(subscription).queries,
+            ),
+            receive: refuseChanges,
+            call: refuseQueries,
         },
-    );
+        callKey: testCallKey,
+        events: await testEvents(replicateStorage.database, world),
+        origin: { package: preference.package },
+    });
     const follow = () => followChain(replica, replicateStorage.database, homeStorage.database);
     if (options.isFollowing !== false) {
         await follow();
@@ -559,7 +556,7 @@ test("enter a scope after its replica reaches a commit its chain's scope wrote a
 
     // serve the person's preferences through a store of the universe over the home's database
     const served = await serveHomes(world);
-    const universal = await TestObjectStore.at(Scope.universe, {
+    const universal = TestObjectStore.of({
         chain: async () => undefined,
         environment: served.home.environment,
         principal: Scope.universe,

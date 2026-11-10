@@ -4,7 +4,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { TestDatabase } from "@destack/db/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { AccessContext, Caller, InstallationId, none, principal, relation } from "@destack/access";
+import { AccessContext, Caller, none, principal, relation } from "@destack/access";
 
 import { Scope, RequestId } from "@destack/sync";
 import { asc, ControlLoop, eq, defineDatabase, now } from "@destack/db";
@@ -328,7 +328,7 @@ test("reconcile a pending object again as a watched table's change selects it", 
     ]);
 });
 
-test("run a controller's calls as its package's base installation, audited with the controller's name, and refuse principals lacking the method's permission", async () => {
+test("run a controller's calls as the space, audited with the controller's name, and refuse principals lacking the method's permission", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
     const storage = await TestDatabase.create(reminderDatabase, {
@@ -376,18 +376,13 @@ test("run a controller's calls as its package's base installation, audited with 
             ),
         );
 
-    // record the send as the reminder package's base installation and the controller, and refuse both users
-    const installationId = await InstallationId.base(
-        space.reference(Scope.universe.id, spaceId),
-        reminder.package.id,
-        world.crypto,
-    );
+    // record the send as the space and the controller, and refuse both users
     expect([
         sends.map((call) => [call.execution.context.caller, call.execution.context.component]),
         await send(users.frank),
         await send(users.grace),
     ]).toEqual([
-        [[{ subject: principal.installation.reference(spaceId, installationId) }, "reminder"]],
+        [[{ subject: spacePrincipal(spaceId) }, "reminder"]],
         ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: send"],
         ["NOT_FOUND", "NOT_FOUND", `reminder ${due.id} not found`],
     ]);

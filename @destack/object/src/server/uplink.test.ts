@@ -140,7 +140,7 @@ async function serveHome(world: Environment) {
     );
 
     // serve people at home, and replicate them into the space over the home's uplink
-    const universe = await TestObjectStore.at(Scope.universe, {
+    const universe = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: Scope.universe,
@@ -150,7 +150,7 @@ async function serveHome(world: Environment) {
         events: await testEvents(home.database, world),
         origin: { package: person.package },
     });
-    const store: ObjectStore = await TestObjectStore.at(space, {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: space,

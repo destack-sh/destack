@@ -6,7 +6,7 @@ import { type Authorizer, decisionTables, Policy, type TableMapping } from "@des
 import { ObjectTypeReference, type Subject } from "@destack/sync";
 import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@destack/db";
 import type { Identifier } from "@destack/schema";
-import { PackageContext, ServerContext } from "../workload/workload.ts";
+import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
 import { PackageHandle } from "../declare/package.ts";
 import type { Follow } from "../replica/shape.ts";
@@ -35,12 +35,14 @@ type CatalogPolicy = Policy | ObjectType | TableMapping;
 /** A served package: its handle, its code, its types and the installation serving it. */
 type Served = Catalog["served"][number];
 
-/** A served type's installation and the package whose code implements it. */
-export interface ServedType {
-    /** The installation serving the type. */
-    readonly server: ServerContext;
+/** How a store implements an object type: its package, installation and capabilities. */
+export interface ObjectTypeImplementation {
+    /** The installation serving the type, absent for its scope's own package. */
+    readonly server: ServerContext | undefined;
     /** The package implementing the type. */
     readonly package: Package;
+    /** The capabilities it runs with: its installation's, else its package's required ones. */
+    readonly capabilities: readonly string[];
 }
 
 /** What a catalog compiles from: a store's servers and sandboxes over its database. */
@@ -87,7 +89,7 @@ export class Catalog {
         readonly definition: ImplementationInput;
         /** The package's types, its handled ones in place of their declared defaults. */
         readonly objects: readonly ObjectType[];
-        /** The installation serving the package, absent for the platform's store. */
+        /** The installation serving the package, absent for its scope's own package. */
         readonly server: ServerContext | undefined;
         /** The server or sandbox the package was read from, which a later compile reuses it for. */
         readonly source: PackageImplementation | HookSandbox;
@@ -103,7 +105,7 @@ export class Catalog {
     /** The policies authorized beside the objects: the given, the referenced and the followed. */
     readonly policies: readonly CatalogPolicy[];
     /** The installations serving objects and their implementing packages, by type key. */
-    readonly installed: ReadonlyMap<string, ServedType>;
+    readonly installed: ReadonlyMap<string, ObjectTypeImplementation>;
     /** The shapes the served code reads replicated, with the keys it follows them at. */
     readonly follows: readonly Follow[];
     /** The on-demand follows of the rows standing for callers. */
@@ -244,15 +246,20 @@ export class Catalog {
             each.definition.external === undefined ? [] : [each.definition.external],
         );
 
-        // serve each type at its package's installation, else at the store's, refusing one served at none
+        // serve each type at its package's installation, else the store's, else as the scope's own
         const installed = new Map(
-            [...routes].map(([key, { type, entry }]) => {
+            [...routes].map(([key, { entry }]) => {
                 const context = entry.server ?? server;
-                if (context === undefined) {
-                    throw new TypeError(`${type.name} is served at no installation`);
-                }
+                const capabilities =
+                    context?.capabilities ??
+                    Object.entries(entry.package.capabilities)
+                        .filter(([, capability]) => capability.optional !== true)
+                        .map(([name]) => name);
 
-                return [key, { server: context, package: Package.of(entry.package) }] as const;
+                return [
+                    key,
+                    { server: context, package: Package.of(entry.package), capabilities },
+                ] as const;
             }),
         );
 
@@ -390,7 +397,7 @@ export class Catalog {
         options: {
             readonly database: DatabaseConnection;
             readonly policies: readonly CatalogPolicy[];
-            readonly installed: ReadonlyMap<string, ServedType>;
+            readonly installed: ReadonlyMap<string, ObjectTypeImplementation>;
             readonly partition?: string;
         },
     ): Authorizer {
@@ -567,11 +574,11 @@ export class Catalog {
         return routes;
     }
 
-    /** Describe who serves a package: its installation, else the package itself. */
+    /** Describe who serves a package: its installation, else its scope as its own. */
     static #servedBy(entry: Served): string {
-        return entry.server === undefined
-            ? `package ${entry.package.name}`
-            : `installation ${entry.server.installation}`;
+        return entry.server !== undefined
+            ? `installation ${entry.server.installation}`
+            : `the scope's own ${entry.package.name}`;
     }
 
     /** Serve an installation's package, running the code of its types in its sandbox. */

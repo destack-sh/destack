@@ -230,12 +230,12 @@ rollout.implement({
 
 ## Installations
 
-`installation` is the principal of software in a space, machine, device or the universe: born with its scope, or created by a person, an agent or a stack.
+`installation` is the principal of a package installed in a space under a name, created by a person, an agent or a stack; a scope's own packages serve without one and act as the scope.
 
 ```ts
-// a scope's base installations, born in the act that receives it, each bound to its package's role
-const contexts = await Installation.receive(authorization, scope, ancestors, [stackPackage]);
-const served = stackServer.at(nth(contexts, 0)); // { installation, scope, capabilities }
+// serve a scope's own package acting as the scope, or a package at its installation
+const own = stackServer; // { installation: undefined }
+const served = notesServer.at(context); // { installation: { installation, name, scope, capabilities, ... } }
 
 // a named installation, created by its caller and rolled out by the stack package's controller
 const created = await client.installation.create({ scope: spaceId, packageId, selection, name });

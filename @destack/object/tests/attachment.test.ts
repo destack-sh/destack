@@ -320,24 +320,28 @@ test("attach remarks to articles and photos, counting them and deleting them wit
 test("let the attaching package's installation attach tags to a poster it cannot read, and refuse another package's", async () => {
     const { storage, environment, store, call, host } = await serveObjects({ poster, tag });
 
-    // write alice's poster, and an installation of another package beside the tags' own
+    // write alice's poster, and an installation of the tags' package beside another package's
     const drawn = await call(poster, "create", {});
     const scope = space.reference(Scope.universe.id, spaceId);
-    const own = await InstallationId.base(scope, TAGS.id, environment.crypto);
-    const other = await InstallationId.base(scope, OTHER_PACKAGE, environment.crypto);
+    const own = await InstallationId.of(scope, "tags", environment.crypto);
+    const other = await InstallationId.of(scope, "other", environment.crypto);
     const at = environment.clock.now();
-    const row = Table.complete(installation.table, {
-        id: other,
-        scope: spaceId,
-        packageId: OTHER_PACKAGE,
-        selection: { kind: "release", version: "2026.9.0" },
-        createdAt: at,
-        updatedAt: at,
-        ...ObjectReference.columns("createdBy", spacePrincipal(spaceId)),
-        ...ObjectReference.columns("updatedBy", spacePrincipal(spaceId)),
-    });
+    const rows = [
+        { id: own, name: "tags", packageId: TAGS.id },
+        { id: other, name: "other", packageId: OTHER_PACKAGE },
+    ].map((installed) =>
+        Table.complete(installation.table, {
+            ...installed,
+            scope: spaceId,
+            selection: { kind: "release", version: "2026.9.0" },
+            createdAt: at,
+            updatedAt: at,
+            ...ObjectReference.columns("createdBy", spacePrincipal(spaceId)),
+            ...ObjectReference.columns("updatedBy", spacePrincipal(spaceId)),
+        }),
+    );
     await storage.database.transaction(
-        async (transaction) => await transaction.insert(installation.table).values(row),
+        async (transaction) => await transaction.insert(installation.table).values(rows),
     );
 
     // tag as each installation, which reads no poster, closing its servers after

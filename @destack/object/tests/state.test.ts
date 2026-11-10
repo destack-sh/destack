@@ -4,7 +4,7 @@ import type { Call } from "@destack/sync";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { defineObject, field } from "../src/index.ts";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -80,7 +80,7 @@ test("record a transition's declared fields with its state, refusing a call with
     );
     onTestFinished(() => storage.close());
     const { database } = storage;
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(SPACE_ID),

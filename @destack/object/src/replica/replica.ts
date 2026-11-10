@@ -1,5 +1,6 @@
 import { present, schema } from "@destack/schema";
 import { DeclarationName, Package, PackageId } from "@destack/package";
+import { InstallationName } from "../installation/name.ts";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "../procedure/index.ts";
 import {
@@ -82,19 +83,24 @@ export const PUSH_MUTATIONS = 100;
 /** The most object types one description request lists: every type of a large platform. */
 export const DESCRIBED_TYPES = 1000;
 
-/** An installation a store runs: its identity, its package, its listed types and declarations. */
-export const InstallationDescription = schema.object({
-    /** The installation. */
-    id: schema.identifier("installation"),
-    /** The scope it is installed in. */
-    scope: schema.string(),
-    /** The scope-local name, absent for a base installation. */
-    name: schema.string().exactOptional(),
-    /** The installed package. */
+/** A package a store runs: at an installation of it, or as its host's own code. */
+export const PackageImplementationDescription = schema.object({
+    /** The package. */
     packageId: PackageId,
+    /** The scope serving it. */
+    scope: schema.string(),
+    /** The installation serving it, absent for the scope's own package. */
+    installation: schema
+        .object({
+            /** The installation. */
+            id: schema.identifier("installation"),
+            /** Its name in the space, its address there. */
+            name: InstallationName,
+        })
+        .exactOptional(),
     /** The object types it lists, its own and those of other packages it serves. */
     types: schema.array(ObjectTypeReference),
-    /** Its declarations: an installed build's listed ones, a base package's commands. */
+    /** Its declarations: an installed build's listed ones, an own package's commands. */
     declarations: schema.array(
         schema.object({
             /** The declaration kind, such as `setting` or `command`. */
@@ -108,8 +114,10 @@ export const InstallationDescription = schema.object({
         }),
     ),
 });
-/** An installation a store runs. */
-export type InstallationDescription = schema.Infer<typeof InstallationDescription>;
+/** A package a store runs. */
+export type PackageImplementationDescription = schema.Infer<
+    typeof PackageImplementationDescription
+>;
 
 /** The identifier an object client generates for itself as the writer of its ephemeral objects. */
 export const WriterId = schema.string().min(1).max(64);
@@ -319,8 +327,8 @@ export const storeProcedures = {
             schema.object({
                 /** The descriptions, each type once, as `ObjectDescription` reads them. */
                 objects: schema.array(schema.jsonObject()),
-                /** The installations the store runs. */
-                installations: schema.array(InstallationDescription),
+                /** The packages the store serves, at installations or as its scope's own. */
+                packages: schema.array(PackageImplementationDescription),
             }),
         ),
 };

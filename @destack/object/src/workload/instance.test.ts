@@ -9,7 +9,7 @@ import { expect, onTestFinished, test } from "@destack/test";
 import type { Controller } from "@destack/db";
 import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
-import { defineWorkload, type InstalledServerContext } from "./workload.ts";
+import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
 import { Package } from "@destack/package";
 import { PackageHandle } from "../declare/index.ts";
@@ -55,7 +55,7 @@ const publisher = {
 } satisfies Uplink;
 
 /** Read the fixture installation's server context in a test's world, with its empty build. */
-const serverIn = async (world: Environment): Promise<InstalledServerContext> => ({
+const serverIn = async (world: Environment): Promise<ServerContext> => ({
     installation: schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-000000000002"),
@@ -311,7 +311,7 @@ test("give a starting workload its server context", async () => {
     const server = await serverIn(world);
 
     // start a workload that records its server context
-    let received: InstalledServerContext | undefined;
+    let received: ServerContext | undefined;
     await using instance = await WorkloadInstance.start(
         defineWorkload({
             name: "fixture",

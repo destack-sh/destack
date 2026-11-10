@@ -241,7 +241,7 @@ async function serveSpace(world: Environment, partition?: string) {
                 .insert(space.table)
                 .values({ id: SPACE_ID, scope: Scope.universe.id, createdAt: 1, updatedAt: 1 }),
     );
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         ...(partition === undefined ? {} : { partitions: [partition] }),

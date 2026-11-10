@@ -101,7 +101,7 @@ test("serve a call in the store's partition or in any partition, and point one i
     await openSpace(storage.database, world, spaceId);
     const events = await testEvents(storage.database, world);
     const serve = async (partition?: string) =>
-        await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+        TestObjectStore.of({
             chain: async () => undefined,
             environment: world,
             principal: spacePrincipal(spaceId),

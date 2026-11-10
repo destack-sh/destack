@@ -11,7 +11,7 @@ import { defineShape } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { page, pageDatabase, pagesPackage } from "./fixture/page.ts";
-import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
+import { openSpace, spacePrincipal } from "./fixture/space.ts";
 import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
 
@@ -56,7 +56,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
     const publishers = new Map<string, Publisher>();
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         servers: [implementPackage(pagesPackage, { follows: [plans, icons] })],
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,

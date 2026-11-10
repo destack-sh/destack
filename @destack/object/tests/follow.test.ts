@@ -261,7 +261,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
 
     // serve the documents of one space over the installation's database to each call's user, replicating its chain from the home database
     const feed = new Feed(home.database, accessTables);
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -371,7 +371,7 @@ test("record the reads of a replica listing, so only a change of a followed sour
         objects: [annotation],
         queries: () => [annotation.query()],
     });
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -654,7 +654,7 @@ test("report a follow its source refuses, and drop its replica once a change of 
 
         return refused;
     };
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -789,7 +789,7 @@ test("finish a wait through a store's replica of a scope once it stops following
     };
 
     // follow the other space's activity, and its documents while the document asks for them
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -906,7 +906,7 @@ test("replicate a person's grant to an installation of the space from the univer
 
     // follow the space's replicas from home
     const feed = new Feed(home.database, accessTables);
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -968,7 +968,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
             feed,
             (subscription) => store.source.buildReplica(subscription).queries,
         );
-        const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+        const store: ObjectStore = TestObjectStore.of({
             chain: async () => ({ kind: "follower", parent: accountId }),
             environment: world,
             principal: spacePrincipal(spaceId),
@@ -1074,7 +1074,7 @@ test("follow replicates as a server without methods, journal or call key", async
 
     // follow the universe's rows the space reads, without a journal
     const feed = new Feed(home.database, accessTables);
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -1180,31 +1180,28 @@ test("replicate the chains of an installation's two served spaces in one replica
 
     // replicate the universe's spaces to the installation, decided at home for it
     const follower = { subject, parent: Scope.universe.id };
-    const replicating: ObjectStore = await TestObjectStore.at(
-        space.reference(Scope.universe.id, spaceId),
-        {
-            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-            // serve the documents in both spaces, the installation's partitions
-            partitions: [spaceId, otherSpaceId],
-            environment: world,
-            principal: spacePrincipal(spaceId),
-            servers: serversOf([document], {
-                follows: [SPACES.at({ key: { scope: Scope.universe.id } })],
-            }),
-            policies: [space],
-            database: installed.database,
-            uplink: {
-                receive: refuseChanges,
-                call: refuseQueries,
-                request: (asked) => source.source.request(asked),
-                stream: (asked, signal) =>
-                    source.source.replicate(asked, asked.after, follower, signal),
-            },
-            callKey: testCallKey,
-            events: await testEvents(installed.database, world),
-            origin: { package: document.package },
+    const replicating: ObjectStore = TestObjectStore.of({
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        // serve the documents in both spaces, the installation's partitions
+        partitions: [spaceId, otherSpaceId],
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([document], {
+            follows: [SPACES.at({ key: { scope: Scope.universe.id } })],
+        }),
+        policies: [space],
+        database: installed.database,
+        uplink: {
+            receive: refuseChanges,
+            call: refuseQueries,
+            request: (asked) => source.source.request(asked),
+            stream: (asked, signal) =>
+                source.source.replicate(asked, asked.after, follower, signal),
         },
-    );
+        callKey: testCallKey,
+        events: await testEvents(installed.database, world),
+        origin: { package: document.package },
+    });
     const controller = await followUniverse(replicating, home.database);
 
     // request the universe's rows and one replica of both spaces' chains via them
@@ -1563,7 +1560,7 @@ test("request no via chain for the rows a subject's follow brought, which their 
     });
 
     // list the installation's chains below its space
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, followingSpaceId), {
+    const store = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spacePrincipal(followingSpaceId),
@@ -1621,7 +1618,7 @@ test("wait before serving for the store's chain replicas, never for its followed
     const { database } = installed;
 
     // serve the installation's store, whose publisher refuses every follow, with an accounts key a use acquired
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, followingSpaceId), {
+    const store = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spacePrincipal(followingSpaceId),
@@ -1679,7 +1676,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
     // serve the space, its chain from home and its followed documents from a source that never answers
     const feed = new Feed(home.database, accessTables, { heartbeat: 3_600_000 });
     const chain = ObjectSink.chainName(spaceId);
-    const store: ObjectStore = await TestObjectStore.at(space.reference(accountId, spaceId), {
+    const store: ObjectStore = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: accountId }),
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -1930,7 +1927,7 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
     );
 
     // replicate the universe's accounts to the installation, decided at home for it
-    const source = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const source = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -1941,29 +1938,26 @@ test("replicate the chains of the accounts an installation's rows relate to, bes
         origin: { package: account.package },
     });
     const follower = { subject, parent: Scope.universe.id };
-    const replicating: ObjectStore = await TestObjectStore.at(
-        space.reference(Scope.universe.id, followingSpaceId),
-        {
-            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-            environment: world,
-            principal: spacePrincipal(followingSpaceId),
-            servers: serversOf([annotation], {
-                follows: [ACCOUNTS.at({ key: { scope: Scope.universe.id } })],
-            }),
-            policies: [account],
-            database: installed.database,
-            uplink: {
-                receive: refuseChanges,
-                call: refuseQueries,
-                request: (asked) => source.source.request(asked),
-                stream: (asked, signal) =>
-                    source.source.replicate(asked, asked.after, follower, signal),
-            },
-            callKey: testCallKey,
-            events: await testEvents(installed.database, world),
-            origin: { package: annotation.package },
+    const replicating: ObjectStore = TestObjectStore.of({
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        environment: world,
+        principal: spacePrincipal(followingSpaceId),
+        servers: serversOf([annotation], {
+            follows: [ACCOUNTS.at({ key: { scope: Scope.universe.id } })],
+        }),
+        policies: [account],
+        database: installed.database,
+        uplink: {
+            receive: refuseChanges,
+            call: refuseQueries,
+            request: (asked) => source.source.request(asked),
+            stream: (asked, signal) =>
+                source.source.replicate(asked, asked.after, follower, signal),
         },
-    );
+        callKey: testCallKey,
+        events: await testEvents(installed.database, world),
+        origin: { package: annotation.package },
+    });
     await followUniverse(replicating, home.database);
 
     // request one replica of the readable account's chain and the installation's space
@@ -2031,7 +2025,7 @@ test("replicate the chain of an account another replica brought first, once the 
     );
 
     // serve the accounts at home, and record the first chain request via the account
-    const source = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const source = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -2065,21 +2059,18 @@ test("replicate the chain of an account another replica brought first, once the 
     };
 
     // replicate the universe's rows under another name first, as a residents replica does
-    const replicating: ObjectStore = await TestObjectStore.at(
-        space.reference(Scope.universe.id, followingSpaceId),
-        {
-            chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
-            environment: world,
-            principal: spacePrincipal(followingSpaceId),
-            servers: serversOf([annotation], { follows: [ACCOUNTS_FOLLOW] }),
-            policies: [account],
-            database: installed.database,
-            uplink: publisher,
-            callKey: testCallKey,
-            events: await testEvents(installed.database, world),
-            origin: { package: annotation.package },
-        },
-    );
+    const replicating: ObjectStore = TestObjectStore.of({
+        chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
+        environment: world,
+        principal: spacePrincipal(followingSpaceId),
+        servers: serversOf([annotation], { follows: [ACCOUNTS_FOLLOW] }),
+        policies: [account],
+        database: installed.database,
+        uplink: publisher,
+        callKey: testCallKey,
+        events: await testEvents(installed.database, world),
+        origin: { package: annotation.package },
+    });
     const residents = {
         ...Shape.subscription(
             Scope.universe.id,

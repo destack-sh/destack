@@ -12,7 +12,6 @@ import {
 } from "@destack/access";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { TestAccess } from "@destack/access/test";
-import { ServerContext } from "../workload/workload.ts";
 import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, type Environment, waitAborted } from "@destack/environment";
@@ -38,7 +37,6 @@ import {
 } from "../server/implementation.ts";
 import { EphemeralStorage } from "../server/ephemeral.ts";
 import { ObjectStore, type ObjectStoreOptions } from "../server/store.ts";
-import { Installation } from "../installation/installation.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestBearer } from "./bearer.ts";
@@ -237,28 +235,17 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         );
     }
 
-    /** Serve packages at their base installations in a scope, its blobs in memory. */
-    static async at(scope: ObjectReference, options: TestStoreOptions): Promise<ObjectStore> {
-        // serve each package at its base installation in the scope
-        const { environment } = options;
-        const servers = await Promise.all(
-            options.servers.map(async (server) =>
-                server.installation === undefined
-                    ? server.at(await Installation.base(scope, server.package, environment.crypto))
-                    : server,
-            ),
-        );
-
+    /** Open a store of packages, its blobs in memory. */
+    static of(options: TestStoreOptions): ObjectStore {
         return new ObjectStore({
             ...options,
-            blobs: new MemoryBlobStorage(environment.crypto),
-            servers,
+            blobs: new MemoryBlobStorage(options.environment.crypto),
         });
     }
 
-    /** Open a store of packages in a scope born with their base installations. */
+    /** Open a store of a scope's own packages, the scope's row written. */
     static async receive(scope: ObjectReference, options: TestStoreOptions): Promise<ObjectStore> {
-        // serve the packages at their base installations, homing a partition scope's partition
+        // serve the packages as the scope's own, homing a partition scope's partition
         const types = options.servers.flatMap((server) => Object.values(server.package.objects));
         const policies = [
             principal.space,
@@ -268,40 +255,37 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         const isPartition =
             scope.id !== Scope.universe.id &&
             policies.some((policy) => policy.is(scope) && policy.definition.partition === true);
-        const store = await TestObjectStore.at(scope, {
+        const store = TestObjectStore.of({
             ...(isPartition ? { partitions: [scope.id] } : {}),
             ...options,
         });
 
-        // install the base installations of the packages served at one
-        await TestObjectStore.install(store, scope, options.servers);
+        // write the scope's row below its parent
+        await TestObjectStore.#receiveScope(store, scope);
 
         return store;
     }
 
-    /** Install the base installations a store serves, each bound to its role. */
-    static async install(
-        store: ObjectStore,
-        scope: ObjectReference,
-        servers: readonly PackageImplementation[],
-    ): Promise<void> {
-        // receive the base-served packages, each installation bound to its role
+    /** Write the row of the scope a store serves, below its parent, unless it has it already. */
+    static async #receiveScope(store: ObjectStore, scope: ObjectReference): Promise<void> {
+        // write the scope's row once, which the universe has without storing it
         const { environment } = store;
         const ancestors = scope.scope === Scope.universe.id ? [] : [scope.scope];
-        const bases = servers.filter(
-            (server) =>
-                server.installation === undefined ||
-                !ServerContext.isInstalled(server.installation),
-        );
-        const packages = [...new Set(bases.map((server) => server.package))];
         await Transaction.run(store.database, async (transaction) => {
+            // leave a scope received already, and the universe
+            const [received] = await Scope.read(transaction.view(), [scope.id]);
+            if (received !== undefined || scope.id === Scope.universe.id) {
+                return;
+            }
+
+            // receive it as the store's principal
             const authorization = new Authorization(
                 store.authorizer,
                 transaction,
                 () => AccessContext.of(Caller.of(store.principal), environment.clock.now()),
                 environment,
             );
-            await Installation.receive(authorization, scope, ancestors, packages);
+            await authorization.receive(scope, ancestors);
         });
     }
 
@@ -360,7 +344,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
             },
         );
 
-        // serve the packages through one store as the scope, or as the universe a user's scope lives at, the scope born with their bases
+        // serve the packages through one store as the scope, or as the universe a user's scope lives at, the scope's row written
         const store = await TestObjectStore.receive(scope, {
             servers: implementations,
             chain: async () => undefined,

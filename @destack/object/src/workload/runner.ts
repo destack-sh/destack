@@ -27,7 +27,7 @@ import {
     type SocketHost,
 } from "./socket.ts";
 import type { Alarm } from "@destack/db";
-import type { EphemeralHost, InstalledServerContext, Workload } from "./workload.ts";
+import type { EphemeralHost, ServerContext, Workload } from "./workload.ts";
 import { CallKey } from "../audit/key.ts";
 import type { Environment } from "@destack/environment";
 
@@ -208,7 +208,7 @@ export class WorkloadRunner implements AsyncDisposable {
             readonly resources: ResourceContext;
             readonly keys: Deriver;
         },
-    ): InstalledServerContext {
+    ): ServerContext {
         const { build, stack, resources, keys } = bound;
 
         return {

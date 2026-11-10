@@ -9,6 +9,7 @@ import {
     accessRole,
     Authorization,
     Caller,
+    Grant,
     none,
     Policy,
     principal,
@@ -28,7 +29,7 @@ import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installation } from "../src/installation/index.ts";
 
-/** The package the space installs beside its base installations. */
+/** The package the space installs beside its own. */
 const DEPLOY_PACKAGE_ID = schema
     .identifier("package")
     .parse("package-01996ab0-0000-7000-8000-0000000000d1");
@@ -59,7 +60,7 @@ test("follow a space's roles and the members bound to them as the owner defines 
     const object = space.reference("universe", SPACE_ID);
 
     // serve the space's roles and relationships to the owner
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(SPACE_ID),
@@ -350,7 +351,7 @@ test("delete the grants of an installation as its uninstall finalizes", async ()
     const { database } = storage;
     const owner = principal.user.reference("universe", users.owner);
 
-    // bear the space at its home with its base installations, its owner bound in the universe and replicated here
+    // bear the space at its home, its owner bound in the universe and replicated here
     const store = await TestObjectStore.receive(principal.space.reference("universe", SPACE_ID), {
         chain: async () => undefined,
         environment: world,
@@ -393,6 +394,7 @@ test("delete the grants of an installation as its uninstall finalizes", async ()
         scope: "universe",
         ...ObjectReference.columns("delegator", owner),
         ...ObjectReference.columns("delegate", to),
+        delegateSpaceId: Grant.spaceId(to),
         permissions: [],
         expiresAt: world.clock.now() + 60_000,
         createdAt: 1,

@@ -4,7 +4,7 @@ import { call, journal, defineObject, field } from "../src/index.ts";
 import { defineDatabase, TABLE, ControlLoop } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema, Uuid } from "@destack/schema";
-import { RequestId, Scope } from "@destack/sync";
+import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
@@ -74,7 +74,7 @@ test("leave a sensitive input out of the rows, the journal, the audit events, th
     onTestFinished(() => telemetry.shutdown());
     const traced = { ...world, telemetry };
     const spaceId = `space-${Uuid.v7(world)}`;
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: traced,
         principal: spacePrincipal(spaceId),

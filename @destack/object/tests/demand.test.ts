@@ -143,7 +143,7 @@ async function openStores(): Promise<{
         stream: (asked: Subscription, signal: AbortSignal) =>
             home.source.replicate(asked, asked.after, decided, signal),
     };
-    const follower = await TestObjectStore.at(space.reference(Scope.universe.id, followerId), {
+    const follower = TestObjectStore.of({
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
         principal: spacePrincipal(followerId),

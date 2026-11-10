@@ -11,7 +11,7 @@ import { Health } from "../server/health.ts";
 import type {
     EphemeralHost,
     HookHandler,
-    InstalledServerContext,
+    ServerContext,
     Workload,
     WorkloadContext,
 } from "./workload.ts";
@@ -497,7 +497,7 @@ export interface WorkloadInstanceOptions {
     /** The installation's resources. */
     readonly resources: ResourceContext;
     /** The server context of the installation the workload runs as, absent outside a space. */
-    readonly server?: InstalledServerContext;
+    readonly server?: ServerContext;
     /** Read the key the workload's journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
     /** Set a wake-up for the packages' earliest due controller key. */

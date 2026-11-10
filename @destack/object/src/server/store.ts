@@ -74,7 +74,7 @@ import {
     Uuid,
     type UuidEnvironment,
 } from "@destack/schema";
-import { type InstalledServerContext, ServerContext } from "../workload/workload.ts";
+import type { ServerContext } from "../workload/workload.ts";
 import { COMMAND_KIND } from "../declare/command.ts";
 import type { Watermark } from "@destack/sync";
 import { refuseInput } from "../error/error.ts";
@@ -95,7 +95,7 @@ import {
     storeProcedures,
     type PushResult,
     type StoreProcedures,
-    type InstallationDescription,
+    type PackageImplementationDescription,
 } from "../replica/replica.ts";
 import { Branch, type BranchEntry, type BranchType } from "../branch/index.ts";
 import { MethodContext, type ResultsOf, type Run } from "../method/context.ts";
@@ -115,7 +115,7 @@ import { EphemeralStorage } from "./ephemeral.ts";
 import { ExternalStorage } from "./external.ts";
 import { ObjectSource } from "./source.ts";
 import { ObjectSink } from "./sink.ts";
-import { Catalog, type CatalogOptions, type ServedType } from "./catalog.ts";
+import { Catalog, type CatalogOptions, type ObjectTypeImplementation } from "./catalog.ts";
 import type { ResourceControllerOptions } from "./provisioned.ts";
 import { TrackedHistory } from "./tracked.ts";
 import { Settlement } from "./settlement.ts";
@@ -373,7 +373,7 @@ export type ObjectStoreOptions = Omit<
           }
         | {
               /** The installation the store serves as, running its work and replicas. */
-              readonly server: InstalledServerContext;
+              readonly server: ServerContext;
               /** No principal: the store runs as the installation. */
               readonly principal?: never;
           }
@@ -415,7 +415,7 @@ interface StoreComposition {
     /** The claim type recording the names of unique indexes, and the store serving it. */
     readonly claims?: ClaimPrimary;
     /** The installations serving objects and their implementing packages, by type key. */
-    readonly installed?: ReadonlyMap<string, ServedType>;
+    readonly installed?: ReadonlyMap<string, ObjectTypeImplementation>;
     /** The memory store with the served ephemeral objects. */
     readonly ephemeral?: EphemeralStorage;
     /** Open a principal's live link for one of its streams, answering its close. */
@@ -819,29 +819,27 @@ export class ObjectStore {
         };
     }
 
-    /** Describe the installations the store runs, with their listed types and declarations. */
-    async describeInstallations(): Promise<InstallationDescription[]> {
-        // describe each served package's installation with its listed types
+    /** Describe the packages the store serves, with their listed types and declarations. */
+    async describePackages(): Promise<PackageImplementationDescription[]> {
+        // describe each served package by its installation or as its scope's own, with its listed types
         const served = await Promise.all(
             this.#catalog.served.map(async ({ package: packaged, objects, server }) => {
-                // require the installation every store runs its packages in
-                const installation = present(server, `the installation of ${packaged.name}`);
-
-                // read an installed build's listed declarations, else the base package's commands
-                const isInstalled = ServerContext.isInstalled(installation);
-                const declarations = isInstalled
-                    ? await ObjectStore.#declarations(installation)
-                    : Object.values(packaged.commands).map((command) => ({
-                          ...COMMAND_KIND.identity,
-                          name: command.name,
-                          description: command.describe(),
-                      }));
+                // read an installed build's listed declarations, else an own package's commands
+                const declarations =
+                    server !== undefined
+                        ? await ObjectStore.#declarations(server)
+                        : Object.values(packaged.commands).map((command) => ({
+                              ...COMMAND_KIND.identity,
+                              name: command.name,
+                              description: command.describe(),
+                          }));
 
                 return {
-                    id: installation.installation,
-                    scope: installation.scope,
-                    ...(isInstalled ? { name: installation.name } : {}),
                     packageId: packaged.id,
+                    scope: server?.scope ?? this.principal.id,
+                    ...(server !== undefined
+                        ? { installation: { id: server.installation, name: server.name } }
+                        : {}),
                     types: objects
                         .filter((type) => type.listing !== undefined)
                         .map((type) => type.typeReference),
@@ -851,15 +849,14 @@ export class ObjectStore {
         );
 
         // describe each sandboxed installation serving no package here, such as one shipping views alone, without types
-        const described = new Set(served.map((each) => each.id));
+        const described = new Set(served.map((each) => each.installation?.id));
         const unserved = await Promise.all(
             this.#catalog.sandboxes
                 .filter((sandbox) => !described.has(sandbox.server.installation))
                 .map(async ({ server }) => ({
-                    id: server.installation,
-                    scope: server.scope,
-                    name: server.name,
                     packageId: PackageManifest.package(server.build.manifest).id,
+                    scope: server.scope,
+                    installation: { id: server.installation, name: server.name },
                     types: [],
                     declarations: await ObjectStore.#declarations(server),
                 })),
@@ -870,8 +867,8 @@ export class ObjectStore {
 
     /** Read an installed build's declarations as a description lists them. */
     static async #declarations(
-        installation: InstalledServerContext,
-    ): Promise<InstallationDescription["declarations"]> {
+        installation: ServerContext,
+    ): Promise<PackageImplementationDescription["declarations"]> {
         return (await installation.build.declarations()).map(
             ({ kind, kindPackageId, name, description }) => ({
                 kind,
@@ -1015,14 +1012,14 @@ export class ObjectStore {
         return undefined;
     }
 
-    /** Act as the installation serving a type, refusing a type none serves. */
+    /** Act as what serves a type: its installation, else the scope whose own package it is. */
     as(object: ObjectType, now = this.clock.now()): AccessContext {
-        // require the installation serving the type, which every served type has
-        const served = this.readServer(object);
-        if (served === undefined) {
-            throw new TypeError(`no installation serves ${object.name} in this store`);
-        }
-        const subject = principal.installation.reference(served.scope, served.installation);
+        // require the type served here
+        const { server } = this.implementation(object);
+        const subject =
+            server !== undefined
+                ? principal.installation.reference(server.scope, server.installation)
+                : this.principal;
 
         return AccessContext.of(Caller.of(subject), now);
     }
@@ -1338,7 +1335,7 @@ export class ObjectStore {
             }),
             describe: store.describe.handler(async ({ input }) => ({
                 objects: this.describe(input.types),
-                installations: await this.describeInstallations(),
+                packages: await this.describePackages(),
             })),
         });
     }
@@ -2593,19 +2590,24 @@ export class ObjectStore {
         }
     }
 
-    /** Read the server context serving a type inside the store, absent for a type it serves. */
-    readServer(object: ObjectType): ServerContext | undefined {
-        return this.#catalog.installed.get(ObjectTypeReference.key(object.typeReference))?.server;
+    /** Find how this store implements a type, absent for a type it does not serve. */
+    findImplementation(object: ObjectType): ObjectTypeImplementation | undefined {
+        return this.#catalog.installed.get(ObjectTypeReference.key(object.typeReference));
+    }
+
+    /** Read how this store implements a type, refusing one it does not serve. */
+    implementation(object: ObjectType): ObjectTypeImplementation {
+        const served = this.findImplementation(object);
+        if (served === undefined) {
+            throw new TypeError(`nothing serves ${object.name} in this store`);
+        }
+
+        return served;
     }
 
     /** Read the package whose code implements a served type, refusing an unserved one. */
     implementer(object: ObjectType): PackageId {
-        const served = this.#catalog.installed.get(ObjectTypeReference.key(object.typeReference));
-        if (served === undefined) {
-            throw new TypeError(`no installation serves ${object.name} in this store`);
-        }
-
-        return served.package.id;
+        return this.implementation(object).package.id;
     }
 
     /** Read the package implementing a type here, as its calls' audit records it. */
@@ -3609,7 +3611,7 @@ export class ObjectStore {
 
     /** Publish a partition at its installation's root, and other scopes as given. */
     static #partitionPublisher(
-        server: InstalledServerContext,
+        server: ServerContext,
         store: () => ObjectStore,
         publisher: ((scope: string) => sync.Publisher) | undefined,
     ): (scope: string) => sync.Publisher {
@@ -3667,12 +3669,9 @@ export class ObjectStore {
             ]),
         );
 
-        // run the controllers of a package served at an installed installation once its host activates it, a base one's at once
+        // run an installation's controllers once its host activates it, an own package's at once
         const { server } = entry;
-        const activation =
-            server !== undefined && ServerContext.isInstalled(server)
-                ? server.activation
-                : undefined;
+        const activation = server?.activation;
 
         return {
             ...implemented,

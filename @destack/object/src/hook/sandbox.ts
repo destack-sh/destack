@@ -7,7 +7,7 @@ import { DatabaseError, type DatabaseReason, type Row, TABLE } from "@destack/db
 import type { EventKeyFields } from "@destack/event";
 import { type JsonValue, schema, Uuid } from "@destack/schema";
 
-import type { InstalledServerContext } from "../workload/workload.ts";
+import type { ServerContext } from "../workload/workload.ts";
 import { type ObjectReference, Subject } from "@destack/sync";
 import type { graph } from "@destack/package";
 import type { MethodContext, MethodHooks } from "../method/context.ts";
@@ -42,7 +42,7 @@ const SANDBOXED: readonly Phase[] = PHASES.filter((phase) => phase !== "settle")
 /** An installation's object hooks, run in its sandbox and answered in their sessions. */
 export class HookSandbox {
     /** The server context of the installation the sandbox runs as. */
-    readonly server: InstalledServerContext;
+    readonly server: ServerContext;
     /** The declarations of the installation's followed build, its object types among them. */
     readonly declarations: readonly Pick<
         graph.Declaration,
@@ -58,7 +58,7 @@ export class HookSandbox {
     /** Run an installation's hooks in its sandbox. */
     constructor(options: {
         /** The server context of the installation the sandbox runs as. */
-        readonly server: InstalledServerContext;
+        readonly server: ServerContext;
         /** The declarations of the installation's followed build. */
         readonly declarations: readonly Pick<
             graph.Declaration,

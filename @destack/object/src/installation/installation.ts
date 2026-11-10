@@ -1,30 +1,19 @@
-import {
-    type Authorization,
-    InstallationId,
-    none,
-    principal,
-    resource,
-    Role,
-    self,
-} from "@destack/access";
-import { Expression, type Select, type Snapshot, Table } from "@destack/db";
+import { none, principal, self } from "@destack/access";
+import { Expression, type Select, type Snapshot } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
-import { type DigestCrypto, type Identifier, schema } from "@destack/schema";
-import { ObjectReference, Scope } from "@destack/sync";
+import { type Identifier, schema } from "@destack/schema";
 import { InstallationName } from "./name.ts";
 import { InstallationBindings, InstallationSelection } from "./selection.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";
-import type { ObjectPackage } from "../server/implementation.ts";
-import type { BaseServerContext } from "../workload/workload.ts";
 import type { PackageDescription } from "../declare/description.ts";
 
-/** A package installed in a partition scope: born with it, or installed at a selection. */
+/** A package installed in a space at a selection, under a name. */
 export const installation = defineObject(
     {
         name: "installation",
         plural: "installations",
-        scope: [principal.space, principal.machine, principal.device, "universe"],
+        scope: [principal.space],
         represents: principal.installation,
         key: "name",
         // let its controller roll it out, apply its plans once approved, and finalize an uninstall
@@ -44,8 +33,8 @@ export const installation = defineObject(
             export: field.string().optional(),
             /** The arguments of the exported stack, absent for an application. */
             parameters: field.json(schema.jsonObject()).optional(),
-            /** The scope-local address, absent for a base installation, reached by its package. */
-            name: field.string(InstallationName).optional(),
+            /** The space-local address. */
+            name: field.string(InstallationName),
             /** Whether the installation should serve requests. */
             status: field.enum(["enabled", "suspended"]).default("enabled"),
             /** Workload compute settings checked against package and machine policy. */
@@ -63,8 +52,7 @@ export const installation = defineObject(
         attributes: { scope: "string" },
         permissions: {
             read: none(),
-            // let every scope list the universe's installations, the platform services it runs on
-            list: resource({ scope: Scope.universe.id }),
+            list: none(),
             install: none(),
             update: none(),
             delete: none(),
@@ -98,11 +86,6 @@ export const installation = defineObject(
             scopeId: { kind: "unique", on: ["scope", "id"] },
             scopeIdPackage: { kind: "unique", on: ["scope", "id", "packageId"] },
             package: { kind: "index", on: ["packageId"] },
-            // keep a base installation enabled, as its scope bore it
-            base: {
-                kind: "check",
-                condition: { OR: [{ name: { isNotNull: true } }, { status: "enabled" }] },
-            },
             // evaluate an exported stack with its arguments, one stack per space
             stack: {
                 kind: "check",
@@ -178,7 +161,7 @@ export const installation = defineObject(
 /** A persisted installation record. */
 export type Installation = Select<typeof installation.table>;
 
-/** The installations of a scope: born with it, or installed through a rollout. */
+/** The installations of a space. */
 export const Installation = {
     /** Read which of some installations are applications: the ones without a stack's export. */
     async applications(
@@ -190,88 +173,6 @@ export const Installation = {
         });
 
         return new Set(rows.map((row) => row.id));
-    },
-
-    /** Receive a scope with its base installations, each born once and bound to its role. */
-    async receive(
-        authorization: Authorization,
-        scope: ObjectReference,
-        ancestors: readonly string[],
-        packages: readonly ObjectPackage[],
-    ): Promise<BaseServerContext[]> {
-        // write the scope's row once, which the universe has without storing it
-        const { transaction, environment } = authorization;
-        const [received] = await Scope.read(transaction.view(), [scope.id]);
-        if (received === undefined) {
-            await authorization.receive(scope, ancestors);
-        }
-        const { subject: author, now } = authorization.context();
-
-        // write each package's base installation once, binding it to its role each time
-        const contexts: BaseServerContext[] = [];
-        for (const handle of packages) {
-            // name the installation by its scope and package, its row authored as the scope's receiver
-            const based = await Installation.base(scope, handle, environment.crypto);
-            const id = based.installation;
-
-            // write the installation once the scope lacks it
-            const born = await transaction.read(installation.table).findFirst({ where: { id } });
-            if (born === undefined) {
-                const row = Table.complete(installation.table, {
-                    id,
-                    scope: scope.id,
-                    packageId: handle.id,
-                    selection: { kind: "release", version: handle.version },
-                    createdAt: now,
-                    updatedAt: now,
-                    ...ObjectReference.columns("createdBy", author),
-                    ...ObjectReference.columns("updatedBy", author),
-                });
-                const change = { table: installation.table, before: null, after: row };
-                await transaction.write(change);
-            }
-
-            // bind the installation to its package's role in the scope
-            const subject = principal.installation.reference(scope.id, id);
-            await Role.applyInherent(
-                scope,
-                Installation.role(scope, handle),
-                subject,
-                authorization,
-            );
-            contexts.push(based);
-        }
-
-        return contexts;
-    },
-
-    /** Describe a package's base installation in a scope, identified by the scope and package. */
-    async base(
-        scope: ObjectReference,
-        handle: Pick<ObjectPackage, "id" | "name" | "capabilities">,
-        crypto: DigestCrypto,
-    ): Promise<BaseServerContext> {
-        // identify it by its scope and package, which reach it in place of a name, running its required capabilities
-        const installed = await InstallationId.base(scope, handle.id, crypto);
-        const capabilities = Object.entries(handle.capabilities)
-            .filter(([, capability]) => capability.optional !== true)
-            .map(([name]) => name);
-
-        return { installation: installed, scope: scope.id, capabilities };
-    },
-
-    /** Describe a base installation's role: what its package requests in its scope. */
-    role(scope: ObjectReference, handle: ObjectPackage) {
-        // take what the package's installations request in their scope, its own types going by its policies
-        const requested = handle.permissions.space ?? {};
-        const permissions =
-            scope.id === Scope.universe.id ? (requested.universe ?? []) : (requested.space ?? []);
-
-        return {
-            name: `base:${handle.name}`,
-            description: `What ${handle.name} does in its scope, as it was born with it`,
-            permissions,
-        };
     },
 
     /** List the packages only a package's optional capabilities need installed. */

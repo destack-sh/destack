@@ -67,7 +67,7 @@ test("report a create's conflicts only to callers the create permission allows, 
 
     // serve the handles to the user each call refers to
     let level = 2;
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -179,7 +179,7 @@ test("answer the object a creation's unique constraint matches on a conflict, to
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -240,7 +240,7 @@ test("create an object the caller has the permission on only as the creator its 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -279,7 +279,7 @@ test("run only the one method a one-method grant includes, refusing every other 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -389,7 +389,7 @@ test("create each variant of a sum type from its fields beside the shared ones, 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -481,7 +481,7 @@ test("create an object without a field its creation fills, taking the field the 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -569,7 +569,7 @@ test("create an object under a natural key the creator chooses, read it by that 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),
@@ -649,7 +649,7 @@ test("create an object once for a request two transactions run, the one reading 
         );
         onTestFinished(() => storage.close());
         await openSpace(storage.database, world, spaceId);
-        const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+        const store = TestObjectStore.of({
             chain: async () => undefined,
             environment: world,
             principal: spacePrincipal(spaceId),
@@ -725,7 +725,7 @@ test("fill a subject field from the caller, and write all its columns in a serve
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(spaceId),

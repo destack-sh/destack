@@ -135,7 +135,7 @@ test("decide again after changes of the caller's access, and leave other identit
     );
 
     // follow the space as ada
-    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
@@ -288,7 +288,7 @@ test("decide again once a relationship an arrow follows changes, and leave anoth
     await database.transaction(
         async (transaction) => await transaction.insert(album.table).values({ ...at, id: albumId }),
     );
-    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
@@ -387,7 +387,7 @@ test("drop a notebook from a live replica once the relationship sharing it expir
     );
 
     // follow the notebooks as ada on the test's clock, with a second identical audience deciding alike
-    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, spaceId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: principal.space.reference(Scope.universe.id, spaceId),
@@ -523,7 +523,7 @@ test("decide the keys an account propagates to its space like its own rows, by t
     }
 
     // decide the propagated keys for ada in the room, by listing and by her use of them
-    const store = await TestObjectStore.at(principal.space.reference(Scope.universe.id, roomId), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: principal.space.reference(Scope.universe.id, roomId),

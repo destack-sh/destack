@@ -3,7 +3,7 @@ import { principal, relation, through } from "@destack/access";
 import { Change, defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
-import { ObjectReference, RequestId, Scope } from "@destack/sync";
+import { ObjectReference, RequestId } from "@destack/sync";
 import { refusal, expect, onTestFinished, test } from "@destack/test";
 import { defineObject, field, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
@@ -92,7 +92,7 @@ test("insert an object of the calling package's type from another method, as its
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const store = await TestObjectStore.at(space.reference(Scope.universe.id, SPACE_ID), {
+    const store = TestObjectStore.of({
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(SPACE_ID),

@@ -211,8 +211,8 @@ test("refuse serving history that reads through an object recording none", async
     );
     onTestFinished(() => storage.close());
     const events = await testEvents(storage.database, world);
-    await expect(
-        TestObjectStore.at(space.reference(Scope.universe.id, spaceId), {
+    expect(() =>
+        TestObjectStore.of({
             chain: async () => undefined,
             environment: world,
             principal: spacePrincipal(spaceId),
@@ -222,7 +222,7 @@ test("refuse serving history that reads through an object recording none", async
             events,
             origin: { package: activity.package },
         }),
-    ).rejects.toThrow(
+    ).toThrow(
         new TypeError(
             "object sheet records history but reads through folder, which has no history",
         ),

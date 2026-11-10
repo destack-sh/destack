@@ -11,7 +11,7 @@ import { createClient } from "@destack/object/client";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testKeys } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import type { InstalledServerContext } from "@destack/object/workload";
+import type { ServerContext } from "@destack/object/workload";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 import { spaceId } from "./fixture/device.ts";
 import { notebook, note, notesDatabase, notesPackage } from "./fixture/note.ts";
@@ -45,7 +45,7 @@ async function serveInstalledNotes(world: Environment) {
     await openSpace(database, world, spaceId);
 
     // serve them as the notes installation, which sees nothing beyond its database here
-    const server: InstalledServerContext = {
+    const server: ServerContext = {
         installation: schema
             .identifier("installation")
             .parse("installation-01996ab0-0000-7000-8000-000000000003"),

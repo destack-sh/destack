@@ -59,6 +59,8 @@ export class ObjectCursor implements Cursor {
     readonly #read: CursorRead;
     /** How long the log retains events past the cursor, in milliseconds. */
     readonly #hold: number;
+    /** Whether this cursor placed its checkpoint, which stays placed. */
+    #isPlaced = false;
 
     /** Read a type's events under a name of the reading package, page by page. */
     constructor(
@@ -80,14 +82,22 @@ export class ObjectCursor implements Cursor {
 
     /** Claim the page through the log's end unless another host claimed it, and take it. */
     readonly take = async (reconciliation: Reconciliation): Promise<void> => {
-        // place the cursor at the log's oldest retained change unless placed
+        // place the cursor at the log's oldest retained change once
         const { database, clock } = this.#store;
         const now = clock.now();
-        await database.log.place(this, now + this.#hold);
+        if (!this.#isPlaced) {
+            await database.log.place(this, now + this.#hold);
+            this.#isPlaced = true;
+        }
 
-        // claim the page through the log's end, leaving one another host moved past
+        // leave a cursor at the log's end, with nothing to take
         const after = (await database.log.checkpoint(this.name)) ?? 0;
         const { sequence } = await database.log.position();
+        if (sequence <= after) {
+            return;
+        }
+
+        // claim the page through the log's end, leaving one another host moved past
         const claim = await database.log.claim(this, after, sequence, now, now + this.#hold);
         if (claim !== undefined) {
             await this.#take(now, reconciliation.signal);

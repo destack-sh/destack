@@ -3,7 +3,7 @@ import { Package } from "@destack/package";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { defineObject, definePackage, field, Installation } from "../src/index.ts";
+import { defineObject, definePackage, field } from "../src/index.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { TestObjectStore, testSimulation } from "../src/test/index.ts";
 import { notesPackage } from "./fixture/note.ts";
@@ -47,11 +47,8 @@ test("serve a package applied after the store started, keeping the handlers of t
     });
     const [, pages] = objects.store.packages;
 
-    // install labels at their base installation, then apply them beside the others
-    const labels = implementPackage(labelsPackage, {}).at(
-        await Installation.base(scope, labelsPackage, objects.environment.crypto),
-    );
-    await TestObjectStore.install(objects.store, scope, [labels]);
+    // serve labels as the scope's own, then apply them beside the others
+    const labels = implementPackage(labelsPackage, {});
     objects.apply([...objects.store.servers, labels]);
 
     // create a label through the applied package, pages keeping its handler
