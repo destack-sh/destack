@@ -6,7 +6,9 @@
             "Effect": "Allow",
             "Action": "kms:Decrypt",
             "Resource": "arn:aws:kms:*:${account}:key/*",
-            "Condition": { "StringLike": { "aws:ResourceTag/destack-root": "destack-production-*" } }
+            "Condition": {
+                "StringLike": { "aws:ResourceTag/destack-root": "destack-production-*" }
+            }
         },
         {
             "Sid": "Mail",
@@ -29,7 +31,10 @@
                 "s3:ListBucket",
                 "s3:ListBucketMultipartUploads"
             ],
-            "Resource": ["arn:aws:s3:::destack-production-files-*", "arn:aws:s3:::destack-production-files-*/*"]
+            "Resource": [
+                "arn:aws:s3:::destack-production-files-*",
+                "arn:aws:s3:::destack-production-files-*/*"
+            ]
         }
     ]
 }

@@ -64,7 +64,12 @@ import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
-import { type BuildOptions, SpaceBuildStore, type Registry, implementBuild } from "./installation/build.ts";
+import {
+    type BuildOptions,
+    SpaceBuildStore,
+    type Registry,
+    implementBuild,
+} from "./installation/build.ts";
 import type { Forge } from "./installation/follow.ts";
 import { SpaceTransfer } from "./host/transfer.ts";
 import type { SpaceHost } from "./host/host.ts";

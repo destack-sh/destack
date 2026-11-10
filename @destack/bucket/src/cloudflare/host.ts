@@ -129,7 +129,11 @@ export class R2BucketHost extends CatalogueBucketHost {
         }
 
         // open the bucket, its blobs indexed in the catalogue, reconnecting both over the tables beside its own
-        const storage = new BucketBlobStorage(this.#files, `${bucketId}/`, this.#environment.random);
+        const storage = new BucketBlobStorage(
+            this.#files,
+            `${bucketId}/`,
+            this.#environment.random,
+        );
         const environment = this.#environment;
         let blobs = new BlobStore({ storage, database, environment });
         const opened = CatalogueBucket.create({

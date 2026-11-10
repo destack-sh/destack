@@ -24,7 +24,9 @@ import {
     Invitation,
     INVITATION_LIFETIME_MILLISECONDS,
     none,
-    principal, type GrantClaim } from "@destack/access";
+    principal,
+    type GrantClaim,
+} from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { auditedActions, settleControl } from "../src/test/index.ts";

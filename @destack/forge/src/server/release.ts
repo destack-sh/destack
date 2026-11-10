@@ -142,7 +142,9 @@ export const ReleaseMethod = {
         for (const dependency of dependencies) {
             // read the release of its pinned build among the packages hosted here
             const { id } = dependency.package;
-            const [hosted] = await context.read(packageObject).findMany({ where: { id }, limit: 1 });
+            const [hosted] = await context
+                .read(packageObject)
+                .findMany({ where: { id }, limit: 1 });
             const [released] = await context.read(release).findMany({
                 where: { parentId: id, manifest: dependency.manifest },
                 limit: 1,

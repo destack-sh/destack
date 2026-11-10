@@ -5,7 +5,9 @@ import {
     Relationship,
     relation,
     union,
-    universe, type GrantClaim } from "@destack/access";
+    universe,
+    type GrantClaim,
+} from "@destack/access";
 import { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { Package } from "@destack/package";
