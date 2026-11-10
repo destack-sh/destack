@@ -86,12 +86,10 @@ jobs:
                   persist-credentials: false
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
-            - name: Install the gates' system tools
-              # bubblewrap needs unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install --yes bubblewrap socat ripgrep zsh age
-                  sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+            - name: Set up the sandbox
+              uses: ./.github/actions/setup-sandbox
+            - name: Install the gates' other system tools
+              run: sudo apt-get install --yes zsh age
             - name: Run the gates
               env:
                   PACKAGE: ${{ matrix.package }}
