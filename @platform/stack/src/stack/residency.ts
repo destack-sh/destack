@@ -1,4 +1,4 @@
-import { DOMAINS } from "@destack/account/address";
+import { DOMAINS, UNIVERSE_PAGES } from "@destack/account/address";
 import type { ResidencyCode } from "@destack/account/object";
 import { install } from "@destack/stack/declare";
 import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/package";
@@ -13,6 +13,9 @@ import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
 import relayPackage from "@destack/relay/package";
 import { defineStack, type StackInput } from "@destack/stack";
+import homePackage from "@destack/home/package";
+import sitePackage from "@platform/site/package";
+import { HOME_APPLICATION } from "@destack/account/object";
 import { defineVault } from "@destack/vault/declare";
 import vaultPackage from "@destack/vault/package";
 import { CREDIT_PRICES, PLANS } from "@platform/pricing";
@@ -32,8 +35,11 @@ function relayRoute(hostname: string): NonNullable<StackInput["routes"]>[string]
     };
 }
 
-/** Declare a residency home's stack: the registry, billing, and its relay at some routes. */
-function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayRoute>>>) {
+/** Declare a residency home's stack: the registry, billing, its relay, and the edge it serves. */
+function residencyStack(edge: {
+    readonly routes: NonNullable<StackInput["routes"]>;
+    readonly installations: NonNullable<StackInput["installations"]>;
+}) {
     return defineStack(
         [financePackage, vaultPackage, connectionPackage, forgePackage, gitStorage],
         {
@@ -87,33 +93,69 @@ function residencyStack(routes: Readonly<Record<string, ReturnType<typeof relayR
                     { isolation: "host", name: "notification" },
                 ),
                 relay: install(relayPackage, {}, { name: "relay" }),
+                home: install(homePackage, {}, { name: HOME_APPLICATION }),
+                ...edge.installations,
                 observability: install(
                     observabilityPackage,
                     {},
                     { isolation: "host", name: "observability" },
                 ),
             },
-            routes,
+            routes: edge.routes,
         },
     );
 }
 
-/** Route a relay's own host, and on the platform residency's home every edge name. */
-function edgeRoutes(code: ResidencyCode) {
+/** Route one of the universe's pages to Home's view of the same name. */
+function pageRoute(page: keyof typeof UNIVERSE_PAGES): NonNullable<StackInput["routes"]>[string] {
+    return {
+        hostname: DOMAINS.universe,
+        path: UNIVERSE_PAGES[page],
+        match: "prefix",
+        installation: "home",
+        rules: [{ entry: { kind: "view", view: UNIVERSE_PAGES[page].slice(1) } }],
+    };
+}
+
+/** Route a relay's own host, and on the platform residency's home the edge and the site. */
+function edgeOf(code: ResidencyCode) {
     const own = { [`relay-${code}`]: relayRoute(`relay-${code}.${DOMAINS.machine}`) };
     const edge = {
         spaces: relayRoute(`*.${DOMAINS.space}`),
         machines: relayRoute(`*.${DOMAINS.machine}`),
-    };
+        // serve the universe's root and its pages from Home
+        start: {
+            hostname: DOMAINS.universe,
+            path: "/",
+            match: "prefix",
+            installation: "home",
+            rules: [{ entry: { kind: "view", view: "start" } }],
+        },
+        "sign-in": pageRoute("signIn"),
+        "sign-up": pageRoute("signUp"),
+        consent: pageRoute("consent"),
+        verification: pageRoute("verification"),
+        apps: pageRoute("apps"),
+        // serve the site's static pages at its own domain
+        site: {
+            hostname: DOMAINS.site,
+            path: "/",
+            match: "prefix",
+            installation: "site",
+            rules: [{ entry: { kind: "view", view: "site" } }],
+        },
+    } satisfies NonNullable<StackInput["routes"]>;
 
-    return code === PLATFORM.residencyId ? { ...own, ...edge } : own;
+    return code === PLATFORM.residencyId
+        ? {
+              routes: { ...own, ...edge },
+              installations: { site: install(sitePackage, {}, { name: "site" }) },
+          }
+        : { routes: own, installations: {} };
 }
 
-/** The stack of a residency's home reached through no public names, as in development. */
-export const RESIDENCY_STACK = residencyStack({});
-
 /** The stack of the European Union's home, the platform residency's, taking the edge's names. */
-export const RESIDENCY_STACK_EU = residencyStack(edgeRoutes("eu"));
+export const RESIDENCY_STACK_EU = residencyStack(edgeOf("eu"));
 
 /** The stack of the United States' home. */
-export const RESIDENCY_STACK_US = residencyStack(edgeRoutes("us"));
+export const RESIDENCY_STACK_US = residencyStack(edgeOf("us"));
