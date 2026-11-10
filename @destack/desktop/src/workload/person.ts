@@ -2,7 +2,7 @@ import type { Login } from "@destack/account/native";
 import { inspect } from "node:util";
 import { t } from "@destack/locale";
 import { machine, placement, space } from "@destack/account/object";
-import type { Device, Session } from "@destack/machine/device";
+import type { Device, Launcher } from "@destack/machine/device";
 import type { Address } from "@destack/view/declare";
 import type { ObjectClient } from "@destack/object/client";
 import { setting } from "@destack/setting/object";
@@ -32,7 +32,7 @@ import type { Event } from "../shell/index.ts";
 import { DesktopError } from "../error/index.ts";
 import type { Desktop } from "./desktop.ts";
 
-/** The origin the telemetry exporter addresses, which the session routes to the home. */
+/** The origin the telemetry exporter addresses, which the launcher routes to the home. */
 const TELEMETRY_ORIGIN = "http://observability.localhost";
 
 /** The shortcut floating the command palette, as the person's `shortcut` setting binds it. */
@@ -67,13 +67,13 @@ export type PersonDesktop = Pick<
     };
 };
 
-/** What a person uses of their session: their calls and views. */
-export type PersonSession = Pick<Session, "person" | "url" | "address" | "follow" | "view">;
+/** What a person uses of their launcher: their calls and views. */
+export type PersonLauncher = Pick<Launcher, "user" | "url" | "address" | "follow" | "view">;
 
 /** The person signed in on this computer, and the windows and icons showing what is theirs. */
 export class Person {
-    /** The person's session on this computer. */
-    readonly session: PersonSession;
+    /** The person's launcher on this computer. */
+    readonly launcher: PersonLauncher;
     /** The person's sign-in on this computer: its client, name and keychain entry. */
     readonly login: Login;
     /** The banners the shell shows, by message. */
@@ -121,19 +121,19 @@ export class Person {
     /** The follows of the badge, tray, shortcut, windows and banners, running until stopped. */
     #running: Promise<unknown>;
 
-    /** Show a person on a desktop from their session, clients and telemetry. */
+    /** Show a person on a desktop from their launcher, clients and telemetry. */
     constructor(
         desktop: PersonDesktop,
         fields: Pick<
             Person,
-            "session" | "login" | "inbox" | "account" | "settings" | "telemetry"
+            "launcher" | "login" | "inbox" | "account" | "settings" | "telemetry"
         > & {
             readonly machineId: Identifier<"machine">;
             readonly capabilities: BannerCapabilities;
         },
     ) {
-        // set the session, the clients and the telemetry
-        this.session = fields.session;
+        // set the launcher, the clients and the telemetry
+        this.launcher = fields.launcher;
         this.login = fields.login;
         this.inbox = fields.inbox;
         this.account = fields.account;
@@ -150,7 +150,7 @@ export class Person {
         this.tray = new Tray({
             account: fields.account,
             computers: desktop.computers,
-            session: fields.session,
+            launcher: fields.launcher,
             machineId: fields.machineId,
             menu,
             shell,
@@ -174,21 +174,21 @@ export class Person {
     /** Open what a signed-in person sees on this machine of their account, and follow it. */
     static async open(
         desktop: PersonDesktop & Pick<Desktop, "native" | "environment">,
-        session: Session,
+        launcher: Launcher,
         login: Login,
         machineId: Identifier<"machine">,
         accountId: Identifier<"account">,
     ): Promise<Person> {
         // close what opened before a failure
         await using opened = new AsyncDisposableStack();
-        const home = { space: await session.home() };
+        const home = { space: await launcher.home() };
 
         // export the desktop's telemetry to the observability of the person's home
         const exporter = OtlpExporter.http(
             {
                 endpoint: TELEMETRY_ORIGIN,
                 fetch: async (request) =>
-                    session.send(
+                    launcher.send(
                         request,
                         OBSERVABILITY_PACKAGE.id,
                         await desktop.native.locate(home.space),
@@ -205,27 +205,27 @@ export class Person {
 
         // replicate the person's inbox, the account's spaces and their settings
         const inbox = await desktop.native.open(
-            session,
+            launcher,
             home,
             { notification, activity, message },
             opened,
         );
         const account = await desktop.native.open(
-            session,
+            launcher,
             { scope: accountId },
             { machine, placement, space },
             opened,
         );
         const settings = await desktop.native.open(
-            session,
-            { scope: session.person.subject.id },
+            launcher,
+            { scope: launcher.user.subject.id },
             { setting },
             opened,
         );
 
         // show the person, who closes what opened once they leave
         const person = new Person(desktop, {
-            session,
+            launcher,
             login,
             inbox,
             account,
@@ -271,7 +271,7 @@ export class Person {
         else if (event.action === "banner.acted") {
             await this.banners
                 .get(event.id)
-                ?.act(this.session, this.#desktop.native, event.name, event.text);
+                ?.act(this.launcher, this.#desktop.native, event.name, event.text);
         }
         // leave a dismissed banner's notification unread
         else {
@@ -508,7 +508,7 @@ export class Person {
             this.#windows.set(row.id, { kind: "launching" });
             try {
                 const launching = {
-                    launch: (asked: Address) => this.#desktop.native.launch(this.session, asked),
+                    launch: (asked: Address) => this.#desktop.native.launch(this.launcher, asked),
                 };
                 const opened = await Window.open(row, address, title, launching, this.#context);
                 await this.#record(row.id, opened);

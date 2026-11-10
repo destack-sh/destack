@@ -18,7 +18,10 @@ bun run dev
 ```ts
 await Desktop.start(environment);
 await new DesktopLock(native.home, environment).isHeld(); // whether a desktop runs
-await new Application(home, environment).launch(application, "destack://notes--personal--florian/home");
+await new Application(home, environment).launch(
+    application,
+    "destack://notes--personal--florian/home",
+);
 ```
 
 ## Person
@@ -26,7 +29,7 @@ await new Application(home, environment).launch(application, "destack://notes--p
 Each native item is one noun named after its shell actions, and the signed-in `Person` has the windows, banners, badge, tray and shortcut showing what is theirs.
 
 ```ts
-const person = await Person.open(desktop, session, machineId, accountId);
+const person = await Person.open(desktop, launcher, login, machineId, accountId);
 await person.answer({ action: "window.focused", id }); // the shell's window, dialog, banner and shortcut events
 await person.badge.show(3); // badge.set { count: 3 }
 await person.shortcut.register("alt+space"); // shortcut.register { id: "palette", shortcut: "alt+space" }
@@ -68,7 +71,9 @@ links.parse("destack://notes--personal--florian/home/drafts");
 `Menu` fills the tray and the application menu section by section with entries, and `menu.offer` offers a declared command on a target meeting its condition.
 
 ```ts
-await menu.set("autostart", [{ kind: "toggle", id: "toggle", title: "Open at Login", isChecked: true, run }]);
+await menu.set("autostart", [
+    { kind: "toggle", id: "toggle", title: "Open at Login", isChecked: true, run },
+]);
 await menu.offer({ command: checkForUpdates }, client, distributionId); // [{ kind: "action", id: "checkForUpdates", title: "Check for Updates…", run }], or []
 await menu.choose("autostart.toggle"); // the shell's menu.chosen, by the item's stable id
 ```
@@ -113,10 +118,15 @@ await desktop.openPalette(); // window.open { kind: "palette", url: "http://home
 The update section follows the machine's distribution and offers update's `checkForUpdates` while the release is current and `restartToUpdate` once one is staged.
 
 ```ts
-await menu.follow("update", distributions, distributions.query.distribution.findFirst().watch(signal), [
-    { command: checkForUpdates, after: tellCurrent }, // banner "Destack is up to date" once nothing staged
-    { command: restartToUpdate },
-]);
+await menu.follow(
+    "update",
+    distributions,
+    distributions.query.distribution.findFirst().watch(signal),
+    [
+        { command: checkForUpdates, after: tellCurrent }, // banner "Destack is up to date" once nothing staged
+        { command: restartToUpdate },
+    ],
+);
 ```
 
 ## Language

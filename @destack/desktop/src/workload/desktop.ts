@@ -368,7 +368,7 @@ export class Desktop implements AsyncDisposable {
     /** Open Home's settings view of the person in a window. */
     async openSettings(): Promise<void> {
         // open it as a window row
-        const view = await this.#requirePerson().session.view("home");
+        const view = await this.#requirePerson().launcher.view("home");
         await this.#windows().open({ link: this.links.format({ ...view, view: SETTINGS_VIEW }) })
             .confirmed;
     }
@@ -391,7 +391,7 @@ export class Desktop implements AsyncDisposable {
                 focus.link === undefined
                     ? "/"
                     : `/?${FOCUS_PARAMETER}=${encodeURIComponent(focus.link)}`;
-            const view = await person.session.view("command", path);
+            const view = await person.launcher.view("command", path);
             await person.closePalettes();
             await this.#windows().open({ link: this.links.format(view), kind: "palette" })
                 .confirmed;
@@ -538,11 +538,11 @@ export class Desktop implements AsyncDisposable {
         // stop a browser sign-in made stale by another program's, then show the login's person
         else {
             this.#signingIn?.stopping.abort();
-            const session = await this.native.session(login.id);
+            const launcher = await this.native.launcher(login.id);
             const signedIn = await this.native.signedIn(login.id);
             this.#person = await Person.open(
                 this,
-                session,
+                launcher,
                 signedIn,
                 record.machineId,
                 enrollment.accountId,
@@ -561,7 +561,7 @@ export class Desktop implements AsyncDisposable {
         // read the setting first
         const link = await this.native.setting(start);
 
-        return link ?? this.links.format(await person.session.view("home"));
+        return link ?? this.links.format(await person.launcher.view("home"));
     }
 
     /** Read the person signed in, refusing while nobody is. */

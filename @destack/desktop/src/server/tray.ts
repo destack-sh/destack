@@ -2,7 +2,7 @@ import { argument, type Localization, plural, t, verbatim } from "@destack/local
 import type { SpaceAddress } from "@destack/account/address";
 import { machine, placement, type Space, space } from "@destack/account/object";
 import type { Select } from "@destack/db";
-import type { COMPUTER_TUNNELS, computer, Session } from "@destack/machine/device";
+import type { COMPUTER_TUNNELS, computer, Launcher } from "@destack/machine/device";
 import { type ObjectClient, RelationalQuery } from "@destack/object/client";
 import { type Identifier, present } from "@destack/schema";
 import type { Shell } from "../shell/index.ts";
@@ -59,8 +59,8 @@ export class Tray {
         readonly placement: typeof placement;
         readonly space: typeof space;
     }>;
-    /** The session of the person signed in, finding the spaces to open. */
-    readonly #session: Pick<Session, "address">;
+    /** The launcher of the person signed in, finding the spaces to open. */
+    readonly #launcher: Pick<Launcher, "address">;
     /** This computer's machine. */
     readonly #machineId: Identifier<"machine">;
     /** This computer's record, stating its tunnel. */
@@ -82,17 +82,17 @@ export class Tray {
             readonly space: typeof space;
         }>;
         readonly computers: ObjectClient<{ readonly computer: typeof computer }>;
-        readonly session: Pick<Session, "address">;
+        readonly launcher: Pick<Launcher, "address">;
         readonly machineId: Identifier<"machine">;
         readonly menu: Menu;
         readonly shell: Shell;
         readonly localization: Localization;
         readonly open: (space: SpaceAddress) => Promise<void>;
     }) {
-        // set the clients, the session, the machine, the menus, the shell, the language and the palette
+        // set the clients, the launcher, the machine, the menus, the shell, the language and the palette
         this.#account = options.account;
         this.#computers = options.computers;
-        this.#session = options.session;
+        this.#launcher = options.launcher;
         this.#machineId = options.machineId;
         this.#menu = options.menu;
         this.#shell = options.shell;
@@ -193,7 +193,7 @@ export class Tray {
     async show(read: TrayRead): Promise<void> {
         // send the section and the tooltip
         const open = async (spaceId: Identifier<"space">) =>
-            this.#open(await this.#session.address(spaceId));
+            this.#open(await this.#launcher.address(spaceId));
         const view = Tray.view(read, open, this.#localization);
         await this.#menu.set("serving", view.entries);
         await this.#shell.send({ action: "tray.set", tooltip: view.tooltip });

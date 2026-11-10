@@ -1,4 +1,4 @@
-import type { Device, Session } from "@destack/machine/device";
+import type { Device, Launcher } from "@destack/machine/device";
 import { type ObjectClient, RelationalQuery } from "@destack/object/client";
 import { type Message, message } from "@destack/message/client";
 import { activity, type Activity, Inbox, notification } from "@destack/notification/client";
@@ -141,17 +141,17 @@ export class Banner {
 
     /** Answer the banner's action as the person on the activity it tells of. */
     async act(
-        session: Pick<Session, "address" | "follow">,
+        launcher: Pick<Launcher, "address" | "follow">,
         native: Pick<Device, "open">,
         name: string,
         text?: string,
     ): Promise<void> {
         // find the installation declaring the notification in the activity's space
         const shown = this.activity;
-        const address = await session.address(shown.scope);
+        const address = await launcher.address(shown.scope);
         await using stack = new AsyncDisposableStack();
         const installations = await native.open(
-            session,
+            launcher,
             { space: address },
             { installation },
             stack,
@@ -168,7 +168,7 @@ export class Banner {
 
         // run the action there as the person
         const activities = await native.open(
-            session,
+            launcher,
             {
                 space: address,
                 installation: present(declaring.name, `the name of installation ${declaring.id}`),

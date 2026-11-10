@@ -16,7 +16,7 @@ import { Link } from "../link/index.ts";
 import { window } from "../object/index.ts";
 import { BannerCapabilities, Menu, PERSON_PROFILE } from "../server/index.ts";
 import { desktopObjects, localObjects, recordShell } from "../test/index.ts";
-import { Person, type PersonSession } from "./person.ts";
+import { Person, type PersonLauncher } from "./person.ts";
 
 /** The links of the stable desktop. */
 const links = new Link("destack");
@@ -43,7 +43,7 @@ function refuse(): Promise<never> {
 /** Show a person launching and granting views as given, on a separate desktop. */
 async function signedIn(
     simulation: ReturnType<typeof testSimulation>,
-    session: Pick<PersonSession, "url">,
+    launcher: Pick<PersonLauncher, "url">,
 ) {
     // store the windows and the person's login in memory, and record what the shell is sent
     const environment = simulation.environment("desktop");
@@ -113,9 +113,9 @@ async function signedIn(
                 }),
         },
         {
-            session: {
-                ...session,
-                person: signedInLogin.person,
+            launcher: {
+                ...launcher,
+                user: signedInLogin.user,
                 address: refuse,
                 follow: refuse,
                 view: refuse,
