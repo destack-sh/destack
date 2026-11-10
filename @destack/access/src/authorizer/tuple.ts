@@ -5,6 +5,7 @@ import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
+import { principal, universe } from "../declare/principal.ts";
 import { type PermissionReference } from "../declare/policy.ts";
 import { accepts, type RelationDescription } from "../declare/subject.ts";
 import { Relationship } from "../relationship/relationship.ts";
@@ -13,6 +14,9 @@ import type { Access } from "./access.ts";
 import type { Authorizer } from "./authorizer.ts";
 import { TupleCondition } from "./condition.ts";
 import { TableMapping } from "./mapping.ts";
+
+/** The scope principals people act as, which never pass as themselves. */
+const PERSON_SCOPES = [principal.user, principal.group];
 
 /** The most identifiers per bulk read: well within the parameter budget, and a page of rows. */
 const PREFETCH_CHUNK = 500;
@@ -181,12 +185,45 @@ export class Reader {
         const trail = { arrows: [], path: [] };
 
         return Promise.all(
-            rows.map(async (row) =>
-                isSameType
-                    ? this.#permission(permission, mapping, row, trail)
-                    : this.#held(permission, mapping, row, trail),
-            ),
+            rows.map(async (row) => {
+                // pass the scopes the row lives in as themselves beside its grants
+                const granted = isSameType
+                    ? await this.#permission(permission, mapping, row, trail)
+                    : await this.#held(permission, mapping, row, trail);
+                const scopes = await this.#scopes(mapping, row, trail);
+
+                return Tree.some([granted, Tree.any(scopes)]);
+            }),
         );
+    }
+
+    /** Collect the scopes a row lives in that hold every permission inside themselves. */
+    async #scopes(mapping: TableMapping, row: Row, trail: Trail): Promise<Tuple[]> {
+        // read the scopes of the row's chain
+        const chain = await this.#chain(TableMapping.scope(mapping, row));
+
+        return chain.flatMap((object) => {
+            // pass a principal scope as itself, never one people act as
+            const kind = [universe, ...Object.values(principal)].find((each) => each.is(object));
+            if (kind === undefined || PERSON_SCOPES.some((each) => each.is(object))) {
+                return [];
+            }
+
+            // pass a global scope's principal by its universe reference
+            const subject =
+                kind.definition.isGlobal === true
+                    ? { ...object, scope: Scope.universe.id }
+                    : object;
+
+            return [
+                {
+                    subject,
+                    object,
+                    arrows: trail.arrows,
+                    path: [...trail.path, `scope ${object.type} ${object.id}`],
+                },
+            ];
+        });
     }
 
     /** Collect the tree of another type's permission on a row: its bindings and chain sets. */

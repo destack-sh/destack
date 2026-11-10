@@ -7,6 +7,7 @@ import { accessRelationship } from "../relationship/table.ts";
 import type { GrantPermission } from "../grant/permission.ts";
 import type { GrantClaim } from "../context/context.ts";
 import type { Policy } from "../declare/policy.ts";
+import { Grant } from "../grant/grant.ts";
 import { accessGrant } from "../grant/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
 import { AccessContext, Caller } from "../context/context.ts";
@@ -197,6 +198,7 @@ export class TestAccess {
                     scope: delegator.id,
                     ...ObjectReference.columns("delegator", delegator),
                     ...ObjectReference.columns("delegate", delegate),
+                    delegateSpaceId: Grant.spaceId(delegate),
                     permissions: [...permissions],
                     expiresAt: null,
                 }),

@@ -259,9 +259,11 @@ export const Caller = {
         return { subject, actors: [], groups: [], contacts: [], grants: [] };
     },
 
-    /** The caller of a principal that trusted code acts for, the code its one actor. */
+    /** The caller of a principal that trusted code acts for, the code its actor unless itself. */
     acting(subject: Subject, actor: Subject): Caller {
-        return { ...Caller.of(subject), actors: [actor] };
+        return Subject.same(subject, actor)
+            ? Caller.of(subject)
+            : { ...Caller.of(subject), actors: [actor] };
     },
 
     /** The caller who proves no identity, one visitor apart from the others when keyed. */

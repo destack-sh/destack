@@ -1113,9 +1113,11 @@ export class Authorizer {
             OR: decided.map(({ packageId, type }) => ({ packageId, type })),
         });
 
-        // read the grants to the target from every scope, at the universe of the target's chain
+        // read the grants to the principals in the target and to delegates acting in it, from every scope
         if (isGranting) {
-            where.set(accessGrant, { delegateScope: target });
+            where.set(accessGrant, {
+                OR: [{ delegateScope: target }, { delegateSpaceId: target }],
+            });
         }
         const access = [...decisionTables, ...(isGranting ? [accessGrant] : [])];
 

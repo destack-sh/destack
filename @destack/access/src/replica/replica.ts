@@ -114,7 +114,7 @@ export const ACCESS_MAPPINGS: readonly TableMapping[] = [
                     scope: "delegateScope",
                 },
             },
-            "delegate-space": { column: "delegateScope", scope: Scope.universe.id },
+            "delegate-space": { column: "delegateSpaceId", scope: Scope.universe.id },
         },
     },
 ];

@@ -35,10 +35,12 @@ export const accessGrant = defineTable(
         delegatePackageId: identifier("delegate_package_id", "package").notNull(),
         /** The type of the delegate. */
         delegateType: text("delegate_type").notNull(),
-        /** The scope of the delegate, listing the grants to the principals of a scope. */
+        /** The scope of the delegate. */
         delegateScope: text("delegate_scope").notNull(),
         /** The identifier of the delegate. */
         delegateId: text("delegate_id").notNull(),
+        /** The space the delegate acts in: its own or an installation's, none for others. */
+        delegateSpaceId: text("delegate_space_id"),
         /** The permissions the delegate may use for the delegator. */
         permissions: json("permissions", schema.array(GrantPermission.schema)).notNull(),
         /** The exclusive time the grant lapses, in Unix milliseconds, null for none. */
@@ -66,6 +68,7 @@ export const accessGrant = defineTable(
                 grant.delegateType,
                 grant.delegateId,
             ),
+            index("grant_delegate_space_id").on(grant.delegateSpaceId),
             check("grant_expiry", {
                 OR: [
                     { expiresAt: { isNull: true } },

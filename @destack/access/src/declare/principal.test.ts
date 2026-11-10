@@ -1,37 +1,32 @@
 import { testSimulation } from "@destack/test/world";
-import { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
 import { InstallationId, principal } from "./principal.ts";
 
-/** A package a scope's base installation runs. */
-const STACK = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
-
-/** Another package. */
-const FORGE = PackageId.parse("package-01996ab0-0000-7000-8000-000000000002");
-
-test("derive each scope's base installation ids by package and its other installation ids by name, the same every time", async () => {
-    // name installations in the universe and in a space
+test("derive each space's installation ids by name, the same every time", async () => {
+    // name installations in two spaces
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("access");
     const space = principal.space.reference(
         Scope.universe.id,
         "space-01996ab0-0000-7000-8000-0000000000a1",
     );
+    const other = principal.space.reference(
+        Scope.universe.id,
+        "space-01996ab0-0000-7000-8000-0000000000a2",
+    );
     const named = [
-        await InstallationId.base(Scope.universe, STACK, crypto),
-        await InstallationId.base(Scope.universe, STACK, crypto),
-        await InstallationId.base(space, STACK, crypto),
-        await InstallationId.base(space, FORGE, crypto),
         await InstallationId.of(space, "forge", crypto),
+        await InstallationId.of(space, "forge", crypto),
+        await InstallationId.of(space, "notes", crypto),
+        await InstallationId.of(other, "forge", crypto),
     ];
 
-    // name one installation per scope and package or name, each a UUIDv8 installation identifier
+    // name one installation per space and name, each a UUIDv8 installation identifier
     expect(named).toEqual([
-        "installation-80b408be-76e7-8a29-9f28-28e197dfe7f6",
-        "installation-80b408be-76e7-8a29-9f28-28e197dfe7f6",
-        "installation-09835d9a-c231-80dd-80b6-28f94e0a336a",
-        "installation-950fbc12-0095-83b7-8e74-b368806f598b",
         "installation-c6412782-d076-82c0-9a4f-a332d35320b7",
+        "installation-c6412782-d076-82c0-9a4f-a332d35320b7",
+        "installation-2bc6d84c-22ef-86a6-ac28-6c77e89bb3c7",
+        "installation-75f63512-6025-8ca0-873b-f90beda5e609",
     ]);
 });

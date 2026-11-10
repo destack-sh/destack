@@ -1,6 +1,6 @@
 import { Table } from "@destack/db";
 import { Caller } from "../context/context.ts";
-import { isPrincipal } from "../declare/principal.ts";
+import { isPrincipal, principal } from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
 import type { Select, Snapshot } from "@destack/db";
 import { Identifier, Instant, nth, schema } from "@destack/schema";
@@ -29,6 +29,15 @@ export type Grant = Select<typeof accessGrant>;
 export const Grant = {
     /** The schema of what a delegator grants: delegate, permissions and lapse. */
     input: grantInputSchema,
+
+    /** Read the id of the space a delegate acts in: its own or its installation's, else none. */
+    spaceId(delegate: Subject): string | null {
+        return principal.space.is(delegate)
+            ? delegate.id
+            : principal.installation.is(delegate)
+              ? delegate.scope
+              : null;
+    },
 
     /** Read the claim a token includes for a grant. */
     claim(grant: Grant): GrantClaim {
@@ -198,6 +207,7 @@ export const Grant = {
             scope: scope.id,
             ...ObjectReference.columns("delegator", delegator),
             ...ObjectReference.columns("delegate", delegate),
+            delegateSpaceId: Grant.spaceId(delegate),
             permissions: [...input.permissions],
             expiresAt: input.expiresAt ?? null,
             sessionId: input.sessionId ?? null,

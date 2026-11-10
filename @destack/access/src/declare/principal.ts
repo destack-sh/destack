@@ -1,5 +1,5 @@
 import type {} from "@destack/package/import-meta";
-import type { DeclarationName, PackageId } from "@destack/package";
+import type { DeclarationName } from "@destack/package";
 import { type DigestCrypto, Identifier, type Uuid } from "@destack/schema";
 import { type ObjectReference, Scope, SYNC_PACKAGE, type Subject } from "@destack/sync";
 import { grantersOf, none, relation, readersOf, union } from "./expression.ts";
@@ -181,23 +181,9 @@ export const INTRINSIC_POLICIES: readonly Policy[] = [
     grant,
 ];
 
-/** The identifiers of installations, from the scope that has them. */
+/** The identifiers of installations, from the space that has them. */
 export const InstallationId = {
-    /** Identify the base installation of a package in a scope, born with the scope. */
-    base(
-        scope: Pick<ObjectReference, "id">,
-        packageId: PackageId,
-        crypto: DigestCrypto,
-    ): Promise<Identifier<"installation">> {
-        return Identifier.hash(
-            "installation",
-            INSTALLATION_NAMESPACE,
-            `${scope.id}/base/${packageId}`,
-            crypto,
-        );
-    },
-
-    /** Identify a scope's installation by its name, as readers derive it. */
+    /** Identify a space's installation by its name, as readers derive it. */
     of(
         scope: Pick<ObjectReference, "id">,
         name: DeclarationName,

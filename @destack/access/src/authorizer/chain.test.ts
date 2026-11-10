@@ -207,7 +207,7 @@ test("replicate at the universe the relationships of the chain's objects alone, 
                     { objectId: { in: ["universe", "personal", "account-1"] } },
                 ],
             },
-            { delegateScope: "personal" },
+            { OR: [{ delegateScope: "personal" }, { delegateSpaceId: "personal" }] },
         ],
         [
             false,
