@@ -25,6 +25,7 @@ import {
     INVITATION_LIFETIME_MILLISECONDS,
     none,
     principal,
+    type GrantClaim,
 } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -1378,15 +1379,16 @@ async function serveTasks(simulation: Simulation) {
     // decide as the current user, through the current delegate
     let current = users.frank;
     let agent: Subject | undefined;
+    let granted: GrantClaim | undefined;
     const sign = () =>
         userContext(current, spaceId, {
             environment: world,
             assurance: { level: 1, authenticatedAt: world.clock.now() },
-            ...(agent === undefined
+            ...(agent === undefined || granted === undefined
                 ? {}
                 : {
                       actors: [agent],
-                      grants: [{ id: grantId, scope: current }],
+                      grants: [granted],
                   }),
         });
     let context = sign();
@@ -1437,7 +1439,7 @@ async function serveTasks(simulation: Simulation) {
             agent = delegate;
             if (delegate !== undefined) {
                 const delegator = principal.user.reference("universe", current);
-                await new TestAccess(database, world).replicateGrant(
+                granted = await new TestAccess(database, world).replicateGrant(
                     delegator,
                     delegate,
                     permissions,

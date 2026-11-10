@@ -11,7 +11,7 @@ import { Expression, type Select, type Snapshot, Table } from "@destack/db";
 import { ComputeDefinition, DeclarationName, DirectoryGrant, PackageId } from "@destack/package";
 import { type DigestCrypto, type Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope } from "@destack/sync";
-import { InstallationName } from "../declare/egress.ts";
+import { InstallationName } from "./name.ts";
 import { InstallationBindings, InstallationSelection } from "./selection.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";

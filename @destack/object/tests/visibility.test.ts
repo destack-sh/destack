@@ -160,7 +160,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
     const delegate = principal.installation.reference(spaceId, `installation-${Uuid.v7(world)}`);
-    const grantId = await new TestAccess(storage.database, world).replicateGrant(
+    const granted = await new TestAccess(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         delegate,
         [{ ...document.permission("write"), scope: spaceId }],
@@ -168,7 +168,7 @@ test("show a private space to readers of one object in it, forbid their writes, 
     context = userContext(users.alice, spaceId, {
         environment: world,
         actors: [delegate],
-        grants: [{ id: grantId, scope: users.alice }],
+        grants: [granted],
     });
     expect((await attempts()).slice(0, 3)).toEqual(["FORBIDDEN", [], "NOT_FOUND"]);
 });

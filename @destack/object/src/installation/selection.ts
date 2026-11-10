@@ -2,7 +2,7 @@ import { DeclarationName, PackageId } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { Digest, schema, Version } from "@destack/schema";
 import { AccessName } from "@destack/sync";
-import { InstallationName } from "../declare/egress.ts";
+import { InstallationName } from "./name.ts";
 
 /** A package directory within a repository or checkout, or its root. */
 export const PackageDirectory = schema.union([schema.literal("."), PackagePath]);

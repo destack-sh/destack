@@ -1,5 +1,5 @@
 import { DeclarationName } from "@destack/package";
-import { InstallationName } from "../declare/egress.ts";
+import { InstallationName } from "../installation/name.ts";
 import { ResourceBinding } from "@destack/resource";
 import { schema } from "@destack/schema";
 

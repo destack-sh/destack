@@ -1,6 +1,6 @@
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
-import { GrantRequest } from "@destack/access";
+import { GrantDeclaration } from "@destack/access";
 import {
     defineDeclarationKind,
     DeclarationName,
@@ -105,7 +105,7 @@ export const Capability = schema
         /** Whether an installation may go without it, asking for it once its code needs it. */
         optional: schema.boolean().exactOptional(),
         /** The permissions it needs of the installation's space and of each user. */
-        permissions: GrantRequest.exactOptional(),
+        permissions: GrantDeclaration.exactOptional(),
         /** The sandbox abilities it unlocks for the package's workloads and views. */
         sandbox: Sandbox.exactOptional(),
         /** The features the account's plan must include for it, as finance sells them. */
@@ -142,7 +142,7 @@ const packageDescription = schema.object({
     /** The names of the views it offers. */
     views: schema.array(DeclarationName),
     /** The permissions its installations always request, by delegator. */
-    permissions: GrantRequest,
+    permissions: GrantDeclaration,
     /** What its installations can do beyond its request, by name. */
     capabilities: schema.record(DeclarationName, Capability),
     /** The reasons it fails with, by domain, reason and call error code. */
