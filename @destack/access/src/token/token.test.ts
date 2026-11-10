@@ -264,6 +264,14 @@ test("verify scoped tokens and reject invalid claims and signatures", async () =
     const grant = {
         id: schema.identifier("grant").parse("grant-019f7480-0000-7000-8000-000000000005"),
         scope: subject.id,
+        permissions: [
+            {
+                packageId: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
+                type: "note",
+                name: "read",
+                scope: subject.id,
+            },
+        ],
     };
     const delegated = {
         caller: {

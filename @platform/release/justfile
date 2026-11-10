@@ -78,10 +78,6 @@ deploy +deployment:
 custody verb stage:
     {{bun}} run src/main.ts custody {{verb}} {{stage}}
 
-# bundle the universe and cloud machine Workers and build their uploads without deploying
-rehearse stage:
-    {{bun}} run src/main.ts platform rehearse {{stage}}
-
 # serve the local universe and cloud machine Workers under workerd over a fresh database, and check they answer
 e2e:
     {{bun}} run src/main.ts platform e2e

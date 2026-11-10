@@ -145,19 +145,23 @@ export class Publication {
         released: (reader: BuildReader, digest: Digest) => Promise<void>,
     ): Promise<void> {
         const forges = new Map<string, Promise<ReleaseForge>>();
+        const readers = new Map<Digest, BuildReader>();
         for (const reader of build.readers) {
             // open the forge of the release's account once per handle
             const { name } = PackageManifest.package(reader.manifest);
             const digest = await BuildStore.digest(reader.manifest, build.store.environment.crypto);
+            readers.set(digest, reader);
             const { handle } = PackageName.split(name);
             const opened = forges.get(handle) ?? open(handle);
             forges.set(handle, opened);
             const { accountId, registry } = await opened;
 
-            // release the build under the tag, recording a version the forge lacked
-            const outcome = await registry.release(build.store, digest, accountId, tag);
-            if (outcome === "released") {
-                await released(reader, digest);
+            // publish the build and the account's builds it pins, recording each version a forge lacked
+            for (const release of await registry.publish(build.store, digest, accountId, tag)) {
+                await released(
+                    present(readers.get(release.manifest), `the build ${release.manifest}`),
+                    release.manifest,
+                );
             }
         }
     }

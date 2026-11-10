@@ -12,6 +12,7 @@ import {
     lintSettings,
 } from "../src/check/configuration.ts";
 import { readExpectations, applyExpectations } from "../src/check/expectation.ts";
+import { Toolchain } from "../src/toolchain/index.ts";
 
 /** The language libraries every package compiles against. */
 const LANGUAGE = [
@@ -121,7 +122,7 @@ test("refuse a hand-edited tsconfig.json", async () => {
     const { files } = simulation.environment("test");
     const directory = await writePackage(files, ["bun"], { name: "@example/server" }, {});
     // accept the written configuration and refuse an edited option
-    await configurePackage(directory, files);
+    await configurePackage(directory, Toolchain.workspace(), files);
     await checkConfiguration(directory, files);
     const path = join(directory, "tsconfig.json");
     const source = await files.readTextFile(path);
@@ -172,7 +173,7 @@ test("write lint and format settings at the workspace root and compiler settings
     );
 
     // configure both, the member taking only its compiler settings
-    await configurePackage(member, files);
+    await configurePackage(member, Toolchain.workspace(), files);
     expect([
         await files.exists(join(member, "tsconfig.json")),
         await files.exists(join(member, ".oxlintrc.json")),

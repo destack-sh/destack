@@ -29,7 +29,23 @@ const { shares = [] } = PackageDefinition.parse(own.default);
 // link their modules known before loading, so the extensions the compiler imports share them
 await program.link(program.specifiers.filter((each) => shares.includes(DependencyName.of(each))));
 
+/** The toolchain directory the compiler's starter names, required in a release. */
+const directory = BunEnvironment.system.process.variables["DESTACK_TOOLCHAIN"];
+
+// refuse a release started without its toolchain
+if (BunEnvironment.system.process.runtime.isStandalone && directory === undefined) {
+    throw new Error("DESTACK_TOOLCHAIN is not set");
+}
+
+/** The tools on disk: a checked-out toolchain, or a workspace's packages. */
+const { Toolchain } = await import("@destack/check/toolchain");
+
+/** The tools the compiler runs: the named toolchain, else the workspace's. */
+const toolchain = directory === undefined ? Toolchain.workspace() : Toolchain.at(directory);
+
 // answer the host's requests on this machine
-await (await import("./build/worker.ts")).CompilerWorker.run(BunEnvironment.system, program);
+await (
+    await import("./build/worker.ts")
+).CompilerWorker.run(program, toolchain, BunEnvironment.system);
 
 export {};

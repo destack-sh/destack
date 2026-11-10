@@ -39,7 +39,7 @@ export interface RenewalKeys {
     timestamp: SigningKey;
 }
 
-/** One distribution to publish: a release's files, which updates check out, or an installer. */
+/** One distribution to publish: a release's or a toolchain's files, or an installer. */
 export type Distribution = {
     /** Operating system and architecture, or the installer's name. */
     target: string;
@@ -53,6 +53,14 @@ export type Distribution = {
           kind: "release";
           /** The directory with the release's files, as an installation keeps them. */
           directory: string;
+      }
+    | {
+          /** A toolchain, published as its files' blobs, which the manifest in a release lists. */
+          kind: "toolchain";
+          /** The directory with the toolchain's files, whose modes the manifest records. */
+          directory: string;
+          /** The manifest a release's resources list. */
+          manifest: Manifest;
       }
     | {
           /** An installer people download. */
@@ -185,6 +193,12 @@ async function createRepository(
         }),
     );
     for (const distribution of distributions) {
+        // publish a toolchain's blobs alone, as its manifest ships inside the signed release
+        if (distribution.kind === "toolchain") {
+            await writeToolchain(distribution, archives, environment);
+            continue;
+        }
+
         // publish a release's manifest and blobs, else the installer itself
         const format = distribution.kind === "release" ? "json" : distribution.format;
         const path = `${distribution.target}.${format}`;
@@ -193,7 +207,13 @@ async function createRepository(
         }
         const source =
             distribution.kind === "release"
-                ? await writeRelease(distribution.directory, archives, path, environment)
+                ? await writeManifest(
+                      await Manifest.read(distribution.directory, environment),
+                      distribution.directory,
+                      archives,
+                      path,
+                      environment,
+                  )
                 : distribution.archive;
 
         // address the target by its digest and describe its release in signed metadata
@@ -229,16 +249,60 @@ async function createRepository(
     return await writeMetadata(directory, revision, root, keys, targets, environment);
 }
 
-/** Write a release's blobs, each file gzip-compressed at its digest, and its manifest's file. */
-async function writeRelease(
+/** Write a toolchain's blobs, refusing files other than its manifest lists. */
+async function writeToolchain(
+    toolchain: Extract<Distribution, { kind: "toolchain" }>,
+    targets: string,
+    environment: Environment<"files">,
+): Promise<void> {
+    // compare the files by path, digest and size, as the manifest's modes are the ones published
+    const read = await Manifest.read(toolchain.directory, environment);
+    if (describeFiles(read) !== describeFiles(toolchain.manifest)) {
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            `the toolchain's files differ from its manifest: ${toolchain.directory}`,
+        );
+    }
+
+    await writeBlobs(toolchain.manifest, toolchain.directory, targets, environment);
+}
+
+/** Describe a manifest's files by path, digest and size, and its links, leaving the modes out. */
+function describeFiles(manifest: Manifest): string {
+    const files = manifest.files.map((file) => ({
+        path: file.path,
+        digest: file.digest,
+        size: file.size,
+    }));
+
+    return JSON.stringify({ files, links: manifest.links });
+}
+
+/** Write a manifest's blobs from a directory, each file gzipped at its digest, and its file. */
+async function writeManifest(
+    manifest: Manifest,
     directory: string,
     targets: string,
     name: string,
     environment: Environment<"files">,
 ): Promise<string> {
+    // write the files' blobs, then the manifest under its name, until the target's digest addresses it
+    await writeBlobs(manifest, directory, targets, environment);
+    const path = join(targets, name);
+    await environment.files.writeTextFile(path, manifest.encode());
+
+    return path;
+}
+
+/** Write a manifest's files from a directory as blobs, each gzipped at its digest. */
+async function writeBlobs(
+    manifest: Manifest,
+    directory: string,
+    targets: string,
+    environment: Environment<"files">,
+): Promise<void> {
     // write each file's blob once, compressed beside its address and renamed in when complete
     const { files } = environment;
-    const manifest = await Manifest.read(directory, environment);
     const blobs = join(targets, "blobs");
     await files.mkdir(blobs, { recursive: true });
     for (const file of manifest.files) {
@@ -258,12 +322,6 @@ async function writeRelease(
             await files.rename(staging, blob);
         }
     }
-
-    // write the manifest under its name, until the target's digest addresses it
-    const path = join(targets, name);
-    await files.writeTextFile(path, manifest.encode());
-
-    return path;
 }
 
 /** Authorize targets, write the matching snapshot and timestamp, and return the signed targets. */

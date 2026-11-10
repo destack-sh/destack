@@ -1,4 +1,5 @@
 import type { Environment } from "@destack/environment";
+import type { WantedPermission } from "../authentication/token.ts";
 import { type Fetch, PackageMount } from "@destack/object";
 import { ListPage } from "@destack/object";
 import type { StepUp } from "@destack/access";
@@ -126,6 +127,8 @@ export interface TokenBinding {
     readonly subject?: Subject;
     /** The chain of grants the token acts under. */
     readonly grants?: readonly Identifier<"grant">[];
+    /** The permissions the token must carry for its subject, refused until a grant gives them. */
+    readonly wanted?: readonly WantedPermission[];
     /** The person's session or client the token lives within, refused once it ends. */
     readonly credential?: Identifier<"session"> | Identifier<"client">;
 }
@@ -400,6 +403,9 @@ export class Issuer {
             ...(bound.subject === undefined ? {} : { subject: Subject.key(bound.subject) }),
             ...(bound.grants === undefined ? {} : { grants: bound.grants.join(" ") }),
             ...(bound.credential === undefined ? {} : { credential: bound.credential }),
+            ...(bound.wanted === undefined
+                ? {}
+                : { authorization_details: JSON.stringify(bound.wanted) }),
         });
         if (!response.ok) {
             throw await TokenResponse.refusal(response);

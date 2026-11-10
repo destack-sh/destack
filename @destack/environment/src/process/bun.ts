@@ -92,7 +92,13 @@ export class BunProcess implements Process {
 
     /** The path of the script the runtime runs, a release program's bundle. */
     get script(): string {
-        return Bun.main;
+        // read the script's path from the arguments, which Bun.main and Node's entry both equal
+        const [, script] = process.argv;
+        if (script === undefined) {
+            throw ProcessError.of("NOT_FOUND", "the process runs no script");
+        }
+
+        return script;
     }
 
     /** The module loader, resolving as Bun does and defining modules through its plugins. */

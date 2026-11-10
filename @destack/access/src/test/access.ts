@@ -5,6 +5,7 @@ import { AccessError } from "../error/index.ts";
 import { Relationship } from "../relationship/relationship.ts";
 import { accessRelationship } from "../relationship/table.ts";
 import type { GrantPermission } from "../grant/permission.ts";
+import type { GrantClaim } from "../context/context.ts";
 import type { Policy } from "../declare/policy.ts";
 import { accessGrant } from "../grant/table.ts";
 import { Role, type RoleRequest } from "../role/role.ts";
@@ -169,14 +170,14 @@ export class TestAccess {
         return id;
     }
 
-    /** Grant a delegate some of a principal's authority in its scope, as its home does. */
+    /** Grant a delegate some of a principal's authority, as its home does, answering its claim. */
     async replicateGrant(
         delegator: Subject,
         delegate: Subject,
         permissions: readonly GrantPermission[],
         now = this.environment.clock.now(),
         id = Identifier.create("grant", this.environment),
-    ): Promise<Identifier<"grant">> {
+    ): Promise<GrantClaim> {
         // replace the parties' earlier grant in one transaction
         await this.database.transaction(async (transaction) => {
             await transaction
@@ -202,7 +203,7 @@ export class TestAccess {
             );
         });
 
-        return id;
+        return { id, scope: delegator.id, permissions: [...permissions] };
     }
 
     /** Mark a replicated scope suspended or active again, as its home's suspension replicates. */

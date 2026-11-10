@@ -12,6 +12,7 @@ const installation = principal.installation.reference("space-home", "installatio
 const grant = {
     id: schema.identifier("grant").parse("grant-019a0000-0000-7000-8000-000000000001"),
     scope: person.id,
+    permissions: [],
 };
 
 test("ask the egress to act as a served person, or as a subject under the grants its delegates include, and as nothing else", () => {

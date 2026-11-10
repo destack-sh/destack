@@ -7,6 +7,7 @@ import { Workspace, CompilerPool } from "../src/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { writeThing } from "./fixture.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** One Bun module output of the app. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
@@ -80,7 +81,7 @@ async function read(path: string): Promise<string> {
 
     // see no user, a refused file and the sandbox proxy's refusal
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     expect(await thingNames(build)).toEqual([
         `_${DENIED_READ[environment.host.os] ?? "unsupported"}_403`,
@@ -104,7 +105,7 @@ export const THINGS = [first, second];
 
     // declare all three things once
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     expect(await thingNames(build)).toEqual(["first", "second", "third"]);
 });
@@ -127,7 +128,7 @@ test("reinspect edited modules a declaration imports in a retained compiler", as
         '/** Log a name and return it. */\nexport function noisy(name: string): string {\n    console.info("inspecting", name);\n\n    return name;\n}\n',
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = async () =>
         await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     const first = await build();
@@ -173,7 +174,7 @@ test("refuse a declared kind function its module does not export, by its package
 
     // refuse the build while it evaluates the declaration
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
 
     expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([
@@ -306,7 +307,7 @@ export const wheeled = defineThing({ name: "wheeled", part: "wheel" });
 
     // describe the part of the thing with one alone
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = await (await Workspace.open(directory, compilers)).build({ outputs: OUTPUTS });
     const declarations = await build.declarations();
 
@@ -333,7 +334,7 @@ void hidden;
 
     // refuse it by the thing kind's name, the part kind reading none
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
 
     expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([

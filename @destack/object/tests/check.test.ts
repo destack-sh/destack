@@ -34,10 +34,10 @@ test("check the caller's access under its grant, and another subject's for grant
 
     // check as alice, as bob, and as a token acting for alice under a grant to read the space
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new TestAccess(storage.database, world).replicateGrant(alice, token, [
+    const granted = await new TestAccess(storage.database, world).replicateGrant(alice, token, [
         { ...space.permission("read"), scope: SPACE_ID },
     ]);
-    const delegated = { actors: [token], grants: [{ id: grantId, scope: users.alice }] };
+    const delegated = { actors: [token], grants: [granted] };
     const check = async (
         caller: Subject,
         subject: Subject,

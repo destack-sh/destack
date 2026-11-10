@@ -93,7 +93,7 @@ export const Failure = Object.assign(failureSchema, {
     },
 
     /** Read the failure a failed response answers: its body's, else its status's with the text. */
-    async read(response: Response): Promise<Failure> {
+    async read(response: Pick<Response, "text" | "status">): Promise<Failure> {
         // read the body's failure
         const text = await response.text();
         const answered = failureSchema

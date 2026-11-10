@@ -184,7 +184,7 @@ export class Person {
     /** Read the person's unexpiring grant to a delegate, absent without one. */
     async granted(
         delegate: Subject,
-    ): Promise<(GrantClaim & { readonly permissions: GrantPermission[] }) | undefined> {
+    ): Promise<GrantClaim | undefined> {
         // read the person's one grant to the delegate, an expiring one asking again
         const { items } = await this.objects().grant.list({
             scope: this.subject.id,
@@ -202,18 +202,19 @@ export class Person {
         // reuse the person's grant when it includes them
         const found = await this.granted(delegate);
         if (found !== undefined && GrantPermission.includes(found.permissions, permissions)) {
-            return { id: found.id, scope: found.scope };
+            return found;
         }
 
         // grant them together with what the person granted already
+        const merged = GrantPermission.merge(found?.permissions ?? [], permissions);
         const created = await this.objects().grant.create({
             scope: this.subject.id,
             requestId: RequestId.create(this.#environment),
             delegate,
-            permissions: GrantPermission.merge(found?.permissions ?? [], permissions),
+            permissions: merged,
         });
 
-        return { id: created.id, scope: this.subject.id };
+        return { id: created.id, scope: this.subject.id, permissions: merged };
     }
 
     /** Send a request with the person's access token for a package under a binding. */

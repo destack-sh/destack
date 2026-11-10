@@ -31,9 +31,8 @@ import { Bookmark } from "@destack/object/client";
 import { VERSION_HEADER } from "@destack/object";
 import type { Fetch } from "@destack/object";
 import * as relay from "@destack/relay/declare";
-import { UNIVERSE_SCHEMA, Control } from "@destack/control";
 import { resolve } from "node:path";
-import { connectPostgres, PostgresPool } from "@destack/db/postgres";
+import { PostgresPool } from "@destack/db/postgres";
 import {
     type SuppliedModules,
     UNIVERSE_MODULE,
@@ -44,10 +43,12 @@ import {
     Root,
     ROOT,
     type ResidencyOutputs,
-    type GlobalOutputs,
     type UniverseOutputs,
+    type WorkerOutputs,
     WRANGLER_VARIABLES,
 } from "./root.ts";
+import { S3Server } from "@destack/bucket/s3";
+import { LocalBucket } from "@destack/bucket/bun";
 import { LocalProcess } from "../local/process.ts";
 import { DIRECTORY_SYNC_MILLISECONDS, HOME_SERVE_MILLISECONDS } from "../local/publication.ts";
 import { type LocalBuild, PlatformBuild } from "./build.ts";
@@ -59,8 +60,8 @@ import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
 import type { Environment, HostCapability } from "@destack/environment";
 
-/** The identifier a rehearsal binds where a deployment's state has a real one. */
-const REHEARSAL_IDENTIFIER = "0".repeat(32);
+/** The identifier an end-to-end run binds where a deployment's state has a real one. */
+const PLACEHOLDER_IDENTIFIER = "0".repeat(32);
 
 /** The offset of a script's inspector port from its own port, clear of the loopback ports. */
 const INSPECTOR_OFFSET = 5000;
@@ -86,17 +87,14 @@ const HYPERDRIVE_PASSWORD = "local";
 /** The line wrangler prints once local workerd serves a script. */
 const READY_LINE = "Ready on";
 
-/** The database a rehearsal's universe binds, which it never reaches. */
-const REHEARSAL_DATABASE = "postgresql://rehearsal.invalid/postgres";
+/** The region an end-to-end run's files bucket signs for. */
+const PLACEHOLDER_REGION = "local";
 
 /** The repository's root, two levels above the release package. */
 export const REPOSITORY = resolve(ROOT, "../..");
 
-/** The access key a rehearsal and a local run bind in place of a provisioned one. */
+/** The access key a local run binds in place of a provisioned one. */
 const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
-
-/** The global root's outputs a rehearsal and a local run bind. */
-const PLACEHOLDER_GLOBAL: GlobalOutputs = { mail: PLACEHOLDER_KEY };
 
 /** The variable holding each sign-in provider's client secret, GitHub's as Actions allows. */
 const PROVIDER_SECRETS: Readonly<Record<ProviderId, string>> = {
@@ -113,13 +111,13 @@ const PROVIDER_CLIENT_IDS: Readonly<Record<ProviderId, string>> = {
 };
 
 /** The AWS region SES sends Destack's mail from, where the global root verifies destack.app. */
-const MAIL_REGION = "eu-central-1";
+const MAIL_REGION = "eu-central-2";
 
 /** The mailbox Destack's mail comes from, on the domain SES verifies. */
 const MAIL_FROM = "Destack <notices@destack.app>";
 
-/** The KMS outputs a rehearsal binds, whose local custody envelopes nothing. */
-const PLACEHOLDER_KMS = { envelope: { kind: "local" }, access: PLACEHOLDER_KEY } as const;
+/** What a local run's roots provision for a Worker, whose local custody envelopes nothing. */
+const PLACEHOLDER_WORKER: WorkerOutputs = { envelope: { kind: "local" }, access: PLACEHOLDER_KEY };
 
 /** The loopback interface the local stage's processes listen on. */
 const LOOPBACK = "127.0.0.1";
@@ -305,46 +303,6 @@ export class Deployment {
         };
     }
 
-    /** Bundle the universe and every cloud machine of the stage, deploying nothing. */
-    async rehearse(print: (name: string, line: string) => void): Promise<void> {
-        // declare the universe over keys in the clear with the stacks built from the checkout
-        const { environment } = this;
-        await using build = await this.#build();
-        const custody = await Custody.local(this.#machineIds(), environment);
-        const declaration = await this.universe(
-            Operator.LOCAL,
-            custody,
-            build.stacks(this.stage.tag),
-            await this.homes(build),
-        );
-
-        // configure every script over placeholder outputs
-        const scripts = this.#scripts(this.#placeholderUniverse(REHEARSAL_DATABASE), (residency) =>
-            this.#placeholderResidency(residency),
-        );
-
-        // write the releases the Workers ship as their static assets
-        await build.writeAssets(this.releases);
-        const modules = await Deployment.#modules(build, declaration);
-
-        // build each upload as wrangler deploys it, with the secrets it reads
-        const placeholders = this.providers(() => PLACEHOLDER_KEY.secretAccessKey);
-        for (const [script, configuration] of scripts) {
-            const path = await script.write(configuration, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL, placeholders);
-            print("rehearse", `${script.name} reads ${Object.keys(secrets).join(", ")}`);
-            await Root.execute(
-                resolve(ROOT, "node_modules/.bin/wrangler"),
-                ["deploy", "--dry-run", "--outdir", resolve(path, "..", "dist"), "--config", path],
-                {
-                    ...Root.inherited(environment.process.variables, WRANGLER_VARIABLES),
-                    WRANGLER_SEND_METRICS: "false",
-                },
-                environment,
-            );
-        }
-    }
-
     /** Serve the local universe and cloud machines under workerd, and check they answer. */
     async e2e(server: string, print: (name: string, line: string) => void): Promise<void> {
         // create a fresh database on the server's maintenance connection
@@ -362,13 +320,8 @@ export class Deployment {
             await administration.end();
         }
 
-        // migrate it as a release migrates the universe's
+        // address the empty database
         const url = `${server}/${database}`;
-        await using connection = await connectPostgres(url, Control.database, {
-            environment,
-            schema: UNIVERSE_SCHEMA,
-        });
-        await connection.migrate(Control.database.tables);
 
         // connect local Hyperdrive with the password it requires
         const hyperdrive = new URL(url);
@@ -390,8 +343,29 @@ export class Deployment {
             await this.homes(build),
         );
 
-        // configure the universe and the cloud machines over placeholder outputs and the fresh database
-        const scripts = this.#scripts(this.#placeholderUniverse(url), (residency) =>
+        // serve the universe's files from a local bucket over S3
+        await using files = await LocalBucket.open(
+            resolve(REPOSITORY, "target", this.stage.name, E2E_DIRECTORY, "files"),
+            "universe",
+            environment,
+        );
+        const s3 = new S3Server({
+            region: PLACEHOLDER_REGION,
+            credentials: async (id) =>
+                id === PLACEHOLDER_KEY.accessKeyId ? PLACEHOLDER_KEY : undefined,
+            open: async (name) => (name === this.#files ? files : undefined),
+            environment,
+        });
+        const listener = environment.server.http({
+            hostname: LOOPBACK,
+            port: 0,
+            fetch: (request) => s3.fetch(request),
+        });
+        await using serving = new AsyncDisposableStack();
+        serving.defer(() => listener.stop(true));
+
+        // configure the scripts over placeholder outputs
+        const scripts = this.#scripts(this.#placeholderUniverse(listener.url), (residency) =>
             this.#placeholderResidency(residency),
         ).filter(([script]) => script.target.kind !== "tail");
 
@@ -409,7 +383,7 @@ export class Deployment {
                 Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
             );
             const path = await script.write(local, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL, placeholders);
+            const secrets = script.secrets(custody, PLACEHOLDER_KEY, placeholders);
             const variables = Object.entries(secrets).map(([name, value]) => `${name}=${value}\n`);
             await environment.files.writeTextFile(
                 resolve(path, "..", ".dev.vars"),
@@ -740,7 +714,7 @@ export class Deployment {
         // read the operator, the roots' outputs and the custody record the operator sealed
         const { environment } = this;
         const operator = Root.required("DESTACK_OPERATOR", environment);
-        const { global, outputs, outputsOf } = await this.#outputs();
+        const { outputs, outputsOf } = await this.#outputs();
         const custody = await Custody.read(
             Custody.file(this.stage.name),
             Deployment.#envelopes(outputs, outputsOf),
@@ -756,13 +730,6 @@ export class Deployment {
             await this.homes(build),
         );
 
-        // migrate the universe's database
-        await using connection = await connectPostgres(outputs.database, Control.database, {
-            environment,
-            schema: UNIVERSE_SCHEMA,
-        });
-        await connection.migrate(Control.database.tables);
-
         // write the releases the Workers ship as their static assets
         await build.writeAssets(this.releases);
         print("release", `the Workers ship ${build.readers.length} releases`);
@@ -774,13 +741,10 @@ export class Deployment {
             Root.required(Deployment.providerSecret(id), environment),
         );
         for (const [script, configuration] of scripts) {
-            const kms =
-                script.target.kind === "universe"
-                    ? outputs.kms.access
-                    : script.target.kind === "machine"
-                      ? outputsOf(script.target.residency).kms.access
-                      : undefined;
-            const secrets = script.secrets(custody, kms, global, providers);
+            const { target } = script;
+            const access =
+                target.kind === "universe" ? outputs.access : outputsOf(target.residency).access;
+            const secrets = script.secrets(custody, access, providers);
             await script.deploy(configuration, secrets, modules);
         }
 
@@ -871,16 +835,13 @@ export class Deployment {
         print("custody", `sealed ${file}: commit it before the next deploy`);
     }
 
-    /** Read the applied global, universe and residency roots' outputs. */
+    /** Read the applied universe and residency roots' outputs. */
     async #outputs(): Promise<{
-        readonly global: GlobalOutputs;
         readonly outputs: UniverseOutputs;
         readonly outputsOf: (residency: PlatformResidency) => ResidencyOutputs;
     }> {
-        // read the global and the universe root's outputs
+        // read the universe root's outputs
         const { environment } = this;
-        const globalRoot = new Root(["global"], environment);
-        const global = await globalRoot.global(await globalRoot.initialize());
         const universe = new Root([this.stage.name, "universe"], environment);
         const outputs = await universe.universe(await universe.initialize());
 
@@ -894,7 +855,7 @@ export class Deployment {
         const outputsOf = (residency: PlatformResidency) =>
             present(residencies.get(residency.code), `the outputs of ${residency.code}`);
 
-        return { global, outputs, outputsOf };
+        return { outputs, outputsOf };
     }
 
     /** List the KMS envelopes the custody record seals under: the universe's and each machine's. */
@@ -903,11 +864,11 @@ export class Deployment {
         outputsOf: (residency: PlatformResidency) => ResidencyOutputs,
     ): CustodyEnvelopes {
         return {
-            universe: outputs.kms.envelope,
+            universe: outputs.envelope,
             machines: new Map(
                 RESIDENCIES.map((residency) => [
                     residency.machine.id,
-                    outputsOf(residency).kms.envelope,
+                    outputsOf(residency).envelope,
                 ]),
             ),
         };
@@ -964,27 +925,32 @@ export class Deployment {
         );
     }
 
-    /** Write the universe root's outputs a rehearsal binds, over a database. */
-    #placeholderUniverse(database: string): UniverseOutputs {
+    /** Write the universe root's outputs an end-to-end run binds, its files at an S3 endpoint. */
+    #placeholderUniverse(endpoint: URL): UniverseOutputs {
         return {
-            account: REHEARSAL_IDENTIFIER,
-            hyperdrive: REHEARSAL_IDENTIFIER,
-            history: `destack-${this.stage.name}-history`,
-            database,
-            kms: PLACEHOLDER_KMS,
+            account: PLACEHOLDER_IDENTIFIER,
+            hyperdrive: PLACEHOLDER_IDENTIFIER,
+            files: { endpoint, bucket: this.#files, region: PLACEHOLDER_REGION },
+            ...PLACEHOLDER_WORKER,
         };
     }
 
-    /** Write a residency root's outputs a rehearsal binds. */
+    /** The name of the stage's universe files bucket. */
+    get #files(): string {
+        return `destack-${this.stage.name}-files-universe`;
+    }
+
+    /** Write a residency root's outputs an end-to-end run binds. */
     #placeholderResidency(residency: PlatformResidency): ResidencyOutputs {
         const host = new URL(this.machineOrigin(residency)).host;
 
         return {
-            account: REHEARSAL_IDENTIFIER,
+            account: PLACEHOLDER_IDENTIFIER,
             files: `destack-${this.stage.name}-files-${residency.code}`,
             packages: `destack-${this.stage.name}-packages-${residency.code}`,
             host,
-            kms: PLACEHOLDER_KMS,
+            hyperdrive: PLACEHOLDER_IDENTIFIER,
+            ...PLACEHOLDER_WORKER,
         };
     }
 

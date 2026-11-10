@@ -1,5 +1,6 @@
 import type { PackageFile } from "@destack/package/file";
-import { principal } from "@destack/access";
+import { type Caller, principal } from "@destack/access";
+import { LATEST_TAG } from "@destack/registry/object";
 import { and, eq, Projection, Snapshot } from "@destack/db";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "../../setting/index.ts";
@@ -62,6 +63,14 @@ export interface BuildOptions {
     readonly builds: SpaceBuildStore;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
+    /** Publish a stored build and its account's unpublished dependencies for a caller. */
+    readonly publish: (
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        account: Identifier<"account">,
+        tag: string,
+        caller: Caller,
+    ) => Promise<readonly PackageRelease[]>;
 }
 
 /** A machine's cache of the builds it runs: pulled releases and copies of its spaces' builds. */
@@ -607,6 +616,21 @@ export function implementBuild(options: BuildOptions) {
             },
             cancel,
             start,
+            publish: {
+                // publish a succeeded build and its account's unpublished dependencies for the caller before the transaction
+                prepare: async (context) => ({
+                    releases: [
+                        ...(await options.publish(
+                            options.builds,
+                            Build.manifest(context.target),
+                            context.input.account,
+                            context.input.tag ?? LATEST_TAG,
+                            context.caller,
+                        )),
+                    ],
+                }),
+                handle: async (context) => context.prepared,
+            },
             push: {
                 // push a succeeded build with its npm units and referrers to its package's forge before the transaction
                 prepare: async (context) => ({

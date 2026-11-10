@@ -6,12 +6,14 @@ import type { AuthorizationEnvironment } from "../authorizer/authorization.ts";
 import { type ObjectReference, Scope } from "@destack/sync";
 import {
     accessTables,
+    ANY_SCOPE,
     Authorizer,
     permission,
     Policy,
     principal,
     relation,
     through,
+    union,
     type AccessContext,
     GrantPermission,
     type PermissionReference,
@@ -40,6 +42,23 @@ const piece = new Policy(module1.package, {
     name: "piece",
     relations: { parent: { subjects: [page, sheet], grantedBy: null } },
     permissions: { read: through("parent", "text") },
+});
+
+/** Notes in any scope on a page in another, read through the page's text or by their editors. */
+const note = new Policy(module1.package, {
+    name: "note",
+    relations: {
+        page: { subjects: [page], grantedBy: null },
+        editor: { subjects: [principal.user] },
+    },
+    permissions: { read: union(through("page", "text"), relation("editor")) },
+});
+
+/** Comments on a note, read through the note. */
+const comment = new Policy(module1.package, {
+    name: "comment",
+    relations: { note: { subjects: [note], grantedBy: null } },
+    permissions: { read: through("note", "read") },
 });
 
 /** Profiles in the universe, read by their owner. */
@@ -77,6 +96,20 @@ const pieceTable = defineTable("example_piece", {
     parentId: text("parent_id").notNull(),
     parentPackageId: text("parent_package_id").notNull(),
     parentType: text("parent_type").notNull(),
+});
+
+/** Notes that refer to their page in any scope. */
+const noteTable = defineTable("example_note", {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    pageId: text("page_id").notNull(),
+});
+
+/** Comments that refer to their note in their own scope. */
+const commentTable = defineTable("example_comment", {
+    id: text("id").primaryKey(),
+    scope: text("scope").notNull(),
+    noteId: text("note_id").notNull(),
 });
 
 /** Define a table of owned objects: their identifier, scope and owner. */
@@ -130,9 +163,12 @@ async function restricted(
     // store alice's grant to the token
     const alice = principal.user.reference("universe", "alice");
     const client = principal.client.reference(Scope.universe.id, token);
-    const id = await new TestAccess(database, environment).replicateGrant(alice, client, [
-        { ...source, ...entry },
-    ]);
+    const gives = [{ ...source, ...entry }];
+    const granted = await new TestAccess(database, environment).replicateGrant(
+        alice,
+        client,
+        gives,
+    );
 
     return {
         subject: alice,
@@ -140,7 +176,7 @@ async function restricted(
         actors: [client],
         attributes: {},
         now: 1000,
-        grants: [{ id, scope: "alice" }],
+        grants: [granted],
         contacts: [],
         linkSecrets: [],
     };
@@ -213,6 +249,84 @@ test("allow a derived permission exactly where a grant allows its source, in mem
     ]);
 });
 
+test("allow a permission through objects, one in another scope, where a grant gives the last source on its object anywhere", async () => {
+    await using simulation = testSimulation();
+    const environment = simulation.environment("access");
+    const storage = await TestDatabase.create(
+        [pageTable, noteTable, commentTable, ...accessTables],
+        {
+            environment,
+            isMigrated: true,
+        },
+    );
+    onTestFinished(() => storage.close());
+    const database = storage.database;
+    const authorizer = new Authorizer(
+        [page, note, comment],
+        [
+            ownerMapping(page, pageTable),
+            {
+                policy: note,
+                table: noteTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: { page: { column: "pageId", scope: ANY_SCOPE } },
+            },
+            {
+                policy: comment,
+                table: commentTable,
+                id: "id",
+                scope: "scope",
+                attributes: {},
+                relations: { note: { column: "noteId" } },
+            },
+        ],
+    );
+
+    // insert two of alice's pages in her scope, and a note on each in a shared one
+    await database.insert(pageTable).values([
+        { id: "one", scope: "personal", owner: "alice" },
+        { id: "two", scope: "personal", owner: "alice" },
+    ]);
+    await database.insert(noteTable).values([
+        { id: "on-one", scope: "shared", pageId: "one" },
+        { id: "on-two", scope: "shared", pageId: "two" },
+    ]);
+    await database.insert(commentTable).values([
+        { id: "reply-one", scope: "shared", noteId: "on-one" },
+        { id: "reply-two", scope: "shared", noteId: "on-two" },
+    ]);
+
+    // grant reading page one by its identifier alone, and once within its scope
+    const read = page.permission("read");
+    const anywhere = await restricted(database, environment, "client-1", read, { objectId: "one" });
+    const scoped = await restricted(database, environment, "client-2", read, {
+        scope: "personal",
+        objectId: "one",
+    });
+
+    // allow the note on page one and its comment under the grant anywhere, none where a scope is unprovable
+    const snapshot = Snapshot.live(database);
+    const allowed = async (context: AccessContext) => {
+        const access = await authorizer.resolve(snapshot, "shared", context);
+        const targets = [
+            ...["on-one", "on-two"].map((id) => note.reference("shared", id)),
+            ...["reply-one", "reply-two"].map((id) => comment.reference("shared", id)),
+        ];
+        const checked: string[] = [];
+        for (const target of targets) {
+            const reading = { packageId: target.packageId, type: target.type, name: "read" };
+            if ((await authorizer.check(snapshot, reading, target, access)).isAllowed) {
+                checked.push(target.id);
+            }
+        }
+
+        return checked;
+    };
+    expect([await allowed(anywhere), await allowed(scoped)]).toEqual([["on-one", "reply-one"], []]);
+});
+
 test("cap every permission by the grant, lending a global type's permission in every scope, as relations decide", async () => {
     await using simulation = testSimulation();
     const environment = simulation.environment("access");
@@ -241,17 +355,19 @@ test("cap every permission by the grant, lending a global type's permission in e
     // lend alice's token reading her pages and, in every scope, reading people
     const alice = principal.user.reference(universe, "alice");
     const client = principal.client.reference(universe, "client-1");
-    const id = await new TestAccess(database, environment).replicateGrant(alice, client, [
-        { ...page.permission("read"), scope: "personal" },
-        person.permission("read"),
-    ]);
+    const gives = [{ ...page.permission("read"), scope: "personal" }, person.permission("read")];
+    const granted = await new TestAccess(database, environment).replicateGrant(
+        alice,
+        client,
+        gives,
+    );
     const context: AccessContext = {
         subject: alice,
         groups: [],
         actors: [client],
         attributes: {},
         now: 1000,
-        grants: [{ id, scope: "alice" }],
+        grants: [granted],
         contacts: [],
         linkSecrets: [],
     };

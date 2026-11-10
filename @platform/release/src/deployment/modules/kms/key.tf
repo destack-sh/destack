@@ -7,16 +7,6 @@ locals {
   account = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
 }
 
-# give the Worker an IAM user of its own, bounded to decrypting root keys, which the key policy narrows to its keys
-resource "aws_iam_user" "worker" {
-  name                 = "${var.name}-kms"
-  permissions_boundary = "arn:aws:iam::903685415634:policy/destack-kms-decrypt-boundary"
-}
-
-resource "aws_iam_access_key" "worker" {
-  user = aws_iam_user.worker.name
-}
-
 data "aws_iam_policy_document" "key" {
   # let the account administer the key without decrypting under it
   statement {
@@ -61,7 +51,7 @@ data "aws_iam_policy_document" "key" {
     sid = "Unseal"
     principals {
       type        = "AWS"
-      identifiers = [aws_iam_user.worker.arn]
+      identifiers = [var.worker]
     }
     actions   = ["kms:Decrypt"]
     resources = ["*"]
@@ -85,7 +75,7 @@ data "aws_iam_policy_document" "key" {
     condition {
       test     = "StringNotEquals"
       variable = "aws:PrincipalArn"
-      values   = [aws_iam_user.worker.arn]
+      values   = [var.worker]
     }
   }
 
@@ -114,7 +104,7 @@ data "aws_iam_policy_document" "key" {
   }
 }
 
-# seal the Worker's keys under an HSM-backed key, replicated in the same jurisdiction
+# seal the Worker's keys under an HSM-backed key
 resource "aws_kms_key" "root" {
   description             = "The root keys of ${var.name}."
   key_usage               = "ENCRYPT_DECRYPT"
@@ -128,13 +118,4 @@ resource "aws_kms_key" "root" {
 resource "aws_kms_alias" "root" {
   name          = "alias/${var.name}"
   target_key_id = aws_kms_key.root.key_id
-}
-
-resource "aws_kms_replica_key" "root" {
-  provider                = aws.replica
-  description             = "The replica of the root keys of ${var.name}."
-  primary_key_arn         = aws_kms_key.root.arn
-  deletion_window_in_days = 30
-  policy                  = data.aws_iam_policy_document.key.json
-  tags                    = { "destack-root" = var.name }
 }

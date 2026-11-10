@@ -146,6 +146,6 @@ test("act with the space's delegation to its installation, refusing without one,
     // refuse acting for the space without a grant, then act as the space with the installation acting
     expect([before, await ask()]).toEqual([
         `GRANT_REQUIRED: installation ${INSTALLATION} has no grant to act for space ${spaceId}`,
-        { subject: spaceId, actors: [INSTALLATION], grant, capabilities: [true, false] },
+        { subject: spaceId, actors: [INSTALLATION], grant: grant.id, capabilities: [true, false] },
     ]);
 });

@@ -18,6 +18,7 @@ import {
 } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type JsonValue, present, schema, type Version } from "@destack/schema";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The package declaring the homes' stacks, by its directory below the checkout's root. */
 const STACK = "@platform/stack";
@@ -76,7 +77,7 @@ export class PlatformBuild implements AsyncDisposable {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
         const store = opened.use(await LocalBuildStore.open(directory, host));
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
         // read the workspaces of the stacks and of the desktop, which runs the machine
         const workspaces = [

@@ -1,5 +1,6 @@
 import { Forge, Registry } from "@destack/registry/client";
-import { type Authentication, principal } from "@destack/access";
+import { type Authentication, type Caller, principal } from "@destack/access";
+import { Exchange } from "@destack/access/token";
 import * as accountObject from "@destack/account/object";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { S3Credentials, type S3Server } from "@destack/bucket/s3";
@@ -29,7 +30,7 @@ import { type Lease, ResourceHandle } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { Health, type PackageHandler } from "@destack/object/server";
 import { defineWorkload, type WorkloadContext, WorkloadInstance } from "@destack/object/workload";
-import { type Identifier, present } from "@destack/schema";
+import { type Digest, type Identifier, present } from "@destack/schema";
 import { Database, Rollout, rollout } from "@destack/stack/object";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
@@ -50,6 +51,9 @@ import { Traffic } from "../gateway/traffic.ts";
 import { DRAIN_TIMEOUT_MILLISECONDS, type Machine } from "../machine/index.ts";
 import { SpaceMeter, Reading } from "../meter/index.ts";
 import { MachineError } from "../error/index.ts";
+import { PERMISSION_DETAIL } from "@destack/account/authentication";
+import type { PackageRelease } from "@destack/package";
+import { Installation } from "@destack/object";
 
 /** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
 const OTLP_ADAPTER = "otlp";
@@ -537,6 +541,47 @@ export class Space {
         return this.#current().adapters.filter((each) => each.installationId === installationId);
     }
 
+    /** Publish a build and its account's unpublished dependencies for a caller. */
+    async #publish(
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        account: Identifier<"account">,
+        tag: string,
+        caller: Caller,
+    ): Promise<readonly PackageRelease[]> {
+        // act as the space's stack installation for the caller, refusing a caller it cannot act for
+        const space = principal.space.reference(Scope.universe.id, this.id);
+        const { environment } = this.machine;
+        const base = await Installation.base(space, stackPackage, environment.crypto);
+        const stack = principal.installation.reference(this.id, base.installation);
+        const acting = Exchange.of(caller);
+        if (acting === undefined) {
+            throw MachineError.of(
+                "CALLER_UNDELEGATED",
+                "a publish acts for a person or a delegate",
+            );
+        }
+
+        // publish through the forges in the accounts' residency homes, calling each for the caller with the account's publish
+        const forges = Registry.of(
+            this.machine.directory,
+            (owner) => this.#residencyHome(owner),
+            (audience, home) =>
+                this.host.identityOf(stack).fetchExchanged(audience, acting, [
+                    {
+                        type: PERMISSION_DETAIL,
+                        permission: accountObject.account.permission("publish"),
+                        object: accountObject.account.reference(home, account),
+                    },
+                ]),
+            environment,
+            this.machine.registry,
+            [...this.machine.shipped.values()],
+        );
+
+        return await forges.publish(store, manifest, account, tag);
+    }
+
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
     async lease(repositoryId: Identifier<"repository">): Promise<Lease> {
         // call the forge of the space's account as the space, a peer call to its home's stack
@@ -662,6 +707,8 @@ export class Space {
             isServingHostnames: machine.isServingHostnames,
             runtimes: machine.runtimes,
             registry: machine.releases,
+            publish: (store, manifest, account, tag, caller) =>
+                this.#publish(store, manifest, account, tag, caller),
             buckets,
             builds: this.builds,
             blobs: this.blobs,

@@ -16,6 +16,7 @@ import {
 } from "./distribution.ts";
 import { SCENARIO_FIXTURES, TestFixture, WORLD_FIXTURES } from "./fixture.ts";
 import { WorldDriver } from "./world.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The module of machine's test templates, which the run writes once. */
 const TEMPLATES = new URL("./templates.ts", import.meta.url);
@@ -27,7 +28,7 @@ export default async function setup(project: TestProject): Promise<() => Promise
     const scenario: Record<string, string> = {};
     {
         await using store = await testStore();
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
         const { crypto, files } = store.environment;
         const versions = await TestFixture.versions(files);
         const builds = [

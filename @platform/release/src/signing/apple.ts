@@ -4,7 +4,7 @@ import type { Environment } from "@destack/environment";
 import { run } from "../distribution/command.ts";
 import { APPLE_BUNDLE } from "../distribution/platform.ts";
 import type { Signer } from "./signer.ts";
-import { Toolchain } from "@destack/check/toolchain";
+import { Distribution } from "@destack/update";
 
 /** The first bytes of 64-bit and universal Mach-O files (mach-o/loader.h, mach-o/fat.h). */
 const MACH_O_MAGICS: readonly (readonly number[])[] = [
@@ -44,16 +44,22 @@ export class MacSigning implements Signer {
         }
     }
 
-    /** Sign each nested executable before signing its containing application. */
+    /** Sign each nested executable and native package before signing its containing application. */
     async sign(application: string): Promise<void> {
-        // sign the commands, the toolchain's native code and the desktop before the outer bundle
+        // sign the commands, the native code of the packages they load and the desktop before the outer bundle
         const helpers = join(application, APPLE_BUNDLE.helpers);
         await this.executables(helpers, true);
-        for (const path of await this.#machO(Toolchain.of(join(helpers, "destack")))) {
-            await this.signFile(path, true);
-        }
+        const resources = Distribution.resources(join(helpers, "destack"));
+        await this.signNative(join(resources, "node_modules"));
         await this.executables(join(application, dirname(APPLE_BUNDLE.executable)), false);
         await this.signFile(application, false);
+    }
+
+    /** Sign the native code below a directory: a toolchain's, or the packages the programs load. */
+    async signNative(directory: string): Promise<void> {
+        for (const path of await this.#machO(directory)) {
+            await this.signFile(path, true);
+        }
     }
 
     /** List the Mach-O files below a directory, which code signing signs one by one. */

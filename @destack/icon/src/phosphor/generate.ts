@@ -3,6 +3,7 @@ import { BunEnvironment } from "@destack/environment/bun";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatSource } from "@destack/check";
+import { Toolchain } from "@destack/check/toolchain";
 import { icons } from "@phosphor-icons/core";
 
 /** The Phosphor weights, each a directory of SVG files whose names carry the weight as a suffix. */
@@ -84,7 +85,7 @@ async function generate(files: FileSystem): Promise<void> {
 
 /** Write one generated module in the package's format. */
 async function writeModule(files: FileSystem, path: string, source: string): Promise<void> {
-    await files.writeTextFile(path, await formatSource(path, source));
+    await files.writeTextFile(path, await formatSource(path, source, Toolchain.workspace()));
 }
 
 /** Read the SVG body of each icon of one weight, keyed by the icon name. */

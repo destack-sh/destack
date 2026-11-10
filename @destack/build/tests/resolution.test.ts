@@ -9,6 +9,7 @@ import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { resolutionPlugin } from "../src/compile/dependency.ts";
 import { PackageSource } from "../src/source/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -155,7 +156,7 @@ test("refuse an unsupported dependency in a build as the development server does
         'export { server } from "./server.ts";\n',
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
     const build = await workspace.build({
         outputs: { bun: { kind: "module", runtime: "bun" } },
@@ -248,7 +249,7 @@ test("build a browser-safe export whose entry re-exports a sibling of a package 
         0,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
     const build = await workspace.build({
         outputs: { browser: { kind: "module", runtime: "browser" } },
@@ -288,7 +289,10 @@ test("refuse indexing star exports that lead back into a module, listing the cyc
         'export * from "./left.ts";\nexport const right = 2;\n',
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store });
+    await using compiler = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     expect(await refusal(compiler.index({ directory, runtime: "bun", dependencies: {} }))).toEqual([
         "UNPROCESSABLE_CONTENT",
         "INSPECTION_FAILED",

@@ -15,7 +15,7 @@ import { found, present, schema } from "@destack/schema";
 import type { BuildExtension, TransformCache } from "@destack/package/build";
 import { type SourceMapReference } from "@destack/package/source";
 import { PackageLocator } from "@destack/package/locator";
-import { Toolchain } from "@destack/check";
+import type { Toolchain } from "@destack/check/toolchain";
 import { type TypeScriptInspection, TypeScriptCompiler } from "../typescript/index.ts";
 import { inspectModules, type InspectOptions } from "../inspection/inspection.ts";
 import { ConstructorCatalog, Evaluation, type EvaluatedDeclaration } from "../declaration/index.ts";
@@ -77,6 +77,8 @@ interface CompileContext {
 export class CompilerWorker implements AsyncDisposable {
     /** The files, process and platform the compiler runs on. */
     readonly environment: Environment<"files" | "process" | "host">;
+    /** The tools the compiler runs: TypeScript, runtime declarations and named packages. */
+    readonly toolchain: Toolchain;
     /** The last build's module transformer, with the inputs every stamp depends on. */
     #transformed: { readonly inputs: string; readonly transformer: ModuleTransformer } | undefined;
     /** The native TypeScript compiler of the last requested package. */
@@ -88,12 +90,17 @@ export class CompilerWorker implements AsyncDisposable {
     /** The modules the compiler shares with the code it loads. */
     readonly #program: Program;
 
-    /** Compile on an environment's files, process and platform, sharing the linked modules. */
-    constructor(environment: Environment<"files" | "process" | "host">, program: Program) {
-        // keep the environment and the program, then open the runtimes' types and the package locator
+    /** Compile with a toolchain on an environment, sharing the linked modules. */
+    constructor(
+        program: Program,
+        toolchain: Toolchain,
+        environment: Environment<"files" | "process" | "host">,
+    ) {
+        // keep the environment, the program and the toolchain, then open the runtimes' types and the package locator
         this.environment = environment;
         this.#program = program;
-        this.runtimes = new RuntimeCompiler(environment);
+        this.toolchain = toolchain;
+        this.runtimes = new RuntimeCompiler(toolchain, environment);
         this.#packages = new PackageLocator(environment.files);
     }
 
@@ -109,15 +116,20 @@ export class CompilerWorker implements AsyncDisposable {
         await current?.[Symbol.asyncDispose]();
 
         // start the package's compiler
-        this.#typescript = await TypeScriptCompiler.start(directory, this.environment);
+        this.#typescript = await TypeScriptCompiler.start(
+            directory,
+            this.toolchain,
+            this.environment,
+        );
 
         return this.#typescript;
     }
 
-    /** Answer the host's requests on stdin with one retained compiler. */
+    /** Answer the host's requests on stdin with one retained compiler of a toolchain. */
     static async run(
-        environment: Environment<"files" | "process" | "host">,
         program: Program,
+        toolchain: Toolchain,
+        environment: Environment<"files" | "process" | "host">,
     ): Promise<void> {
         // reserve stdout for framed build results and send package logs to diagnostics
         const { stdin, stdout, stderr } = environment.process;
@@ -136,7 +148,7 @@ export class CompilerWorker implements AsyncDisposable {
             },
         );
         const cache = new HostCache(stdout);
-        await using compiler = new CompilerWorker(environment, program);
+        await using compiler = new CompilerWorker(program, toolchain, environment);
 
         // read the host's messages while requests run
         let responding = Promise.resolve();
@@ -182,7 +194,7 @@ export class CompilerWorker implements AsyncDisposable {
         const examples = await Evaluation.examples(project, inspection.examples, transformer);
         const source = project.packageJson.package;
         const tests = {
-            package: await findPackage("@destack/test", this.#packages, this.environment),
+            package: await findPackage("@destack/test", this.#packages, this.toolchain),
             declarations: inspection.tests,
         };
 
@@ -190,7 +202,7 @@ export class CompilerWorker implements AsyncDisposable {
         return {
             code: describeCode(source, inspection.modules, declarations, tests),
             modules: describeGraph(source, inspection.modules, declarations, tests, {
-                package: await findPackage("@destack/package", this.#packages, this.environment),
+                package: await findPackage("@destack/package", this.#packages, this.toolchain),
                 examples,
                 scenarios: inspection.scenarios,
             }),
@@ -803,10 +815,10 @@ function joinResolutions(
 async function findPackage(
     name: string,
     locator: PackageLocator,
-    environment: Environment<"process">,
+    toolchain: Toolchain,
 ): Promise<Package> {
     // find the package among the tools, refusing a missing one
-    const directory = Toolchain.locate([name], PACKAGE, environment.process);
+    const directory = toolchain.locate([name], PACKAGE);
     const owner = await locator.find(join(directory, "package.json"));
     if (!owner) {
         throw BuildError.of("INVARIANT_VIOLATED", `missing Destack package: ${name}`);

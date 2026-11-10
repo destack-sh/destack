@@ -292,7 +292,7 @@ test("run only the one method a one-method grant includes, refusing every other 
 
     // create through a token granted only the create method, then read
     const token = principal.client.reference(Scope.universe.id, "client-alice");
-    const grantId = await new TestAccess(storage.database, world).replicateGrant(
+    const claim = await new TestAccess(storage.database, world).replicateGrant(
         principal.user.reference("universe", users.alice),
         token,
         [
@@ -303,7 +303,7 @@ test("run only the one method a one-method grant includes, refusing every other 
     const granted = userContext(users.alice, spaceId, {
         environment: world,
         actors: [token],
-        grants: [{ id: grantId, scope: users.alice }],
+        grants: [claim],
     });
     const created = await store
         .mutate(granted.access(), {
@@ -320,7 +320,7 @@ test("run only the one method a one-method grant includes, refusing every other 
         [
             "FORBIDDEN",
             "GRANT_REFUSES_METHOD",
-            `grant ${grantId} does not allow team.get in ${spaceId}`,
+            `grant ${claim.id} does not allow team.get in ${spaceId}`,
         ],
     ]);
 });

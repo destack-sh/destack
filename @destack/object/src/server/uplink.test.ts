@@ -71,7 +71,7 @@ async function delegated(
 ): Promise<AccessContext> {
     // store the space's grant to its installation
     const installation = principal.installation.reference(spaceId, "installation-a");
-    const id = await new TestAccess(database, environment).replicateGrant(
+    const granted = await new TestAccess(database, environment).replicateGrant(
         space,
         installation,
         permissions.map((name) => person.permission(name)),
@@ -80,7 +80,7 @@ async function delegated(
     );
 
     return AccessContext.of(
-        { ...Caller.of(space), actors: [installation], grants: [{ id, scope: spaceId }] },
+        { ...Caller.of(space), actors: [installation], grants: [granted] },
         environment.clock.now(),
     );
 }

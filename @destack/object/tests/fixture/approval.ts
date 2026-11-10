@@ -5,8 +5,7 @@ import {
     Relationship,
     relation,
     union,
-    universe,
-} from "@destack/access";
+    universe, type GrantClaim } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
 import { Package } from "@destack/package";
@@ -111,12 +110,12 @@ export interface TestApproval {
     readonly served: TestObjectStore;
     /** The world the space's store runs in. */
     readonly environment: Environment;
-    /** Let a delegate act for a person, as the person grants at the universe. */
+    /** Let a delegate act for a person, granted at the universe, answering its claim. */
     readonly grant: (
         delegator: Subject,
         delegate: Subject,
         permissions: readonly GrantPermission[],
-    ) => Promise<Identifier<"grant">>;
+    ) => Promise<GrantClaim>;
     /** Run the world until a condition holds, failing on the controllers' errors. */
     readonly when: (isMet: () => Promise<boolean>) => Promise<void>;
     /** Write a note as alice, which bob and carol approve as members, answering its identifier. */
@@ -252,7 +251,7 @@ export async function openApprovals(): Promise<TestApproval> {
             throw new Error(`the space did not follow grant ${created.id}`);
         }
 
-        return created.id;
+        return { id: created.id, scope: delegator.id, permissions: [...permissions] };
     };
 
     // run the world idle, then until the condition holds, the controllers' reports failing it

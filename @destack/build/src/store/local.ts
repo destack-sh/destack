@@ -9,7 +9,6 @@ import { BuildStore } from "./store.ts";
 import { BuildError } from "../error/index.ts";
 import { BuildReader, MANIFEST_PATH, PackageManifest } from "@destack/package/manifest";
 import { BuildLayer, LAYER_BLOBS, LAYER_INDEX, LAYER_TREES, LayerIndex } from "./layer.ts";
-import { Toolchain } from "../cache/cache.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
@@ -100,8 +99,6 @@ export class LocalBuildStore
     readonly directory: string;
     /** The directory of the dependency trees its builds are materialized in, one per manifest. */
     readonly trees: string;
-    /** The toolchain this process loaded, which the keys of its builds read. */
-    readonly toolchain: Toolchain;
     /** What disposal releases: the database the store opened, and a temporary store's directory. */
     readonly #disposables: AsyncDisposableStack;
     /** The store that renews the builds' retention, absent when this one does. */
@@ -119,7 +116,6 @@ export class LocalBuildStore
         super(options);
         this.directory = options.directory;
         this.trees = join(options.directory, TREES_DIRECTORY);
-        this.toolchain = Toolchain.of(options.environment);
         this.#disposables = disposables;
         this.#maintainer = maintainer;
     }

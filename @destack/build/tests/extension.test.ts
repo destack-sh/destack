@@ -9,6 +9,7 @@ import { Compiler, Workspace, CompilerPool } from "../src/index.ts";
 import { loadExtensions } from "../src/compile/extension.ts";
 import { readPackageJson } from "../src/source/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The schema every package definition names. */
 const SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
@@ -208,7 +209,10 @@ test("apply the extensions of a package's runtime dependency closure, its depend
         files,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store });
+    await using compiler = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const transformed = await compiler.build({ directory, dependencies: {}, outputs });
     expect([
         loaded.map((entry) => entry.directory),
@@ -253,7 +257,10 @@ test("compile a package through a listed extension and leave a development depen
     // build without the development dependency's extension
     const developed = await extensions();
     await using store = await LocalBuildStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store });
+    await using compiler = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const untouched = await compiler.build({ directory, dependencies: {}, outputs });
 
     // list the leaf's extension, then build again through it
@@ -321,7 +328,7 @@ test("load a listed package's extension without walking its dependencies, and bu
             files,
         );
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const units = async () =>
         (await Workspace.open(directory, compilers)).units.map((unit) => unit.name);
     // build the development dependencies as no units
@@ -399,7 +406,10 @@ test("refuse what a module an extension generates imports until the package decl
         outputs: { bun: { kind: "module", runtime: "bun" } },
     } as const;
     await using refusing = await LocalBuildStore.temporary(environment);
-    await using compiler = await Compiler.start(directory, { store: refusing });
+    await using compiler = await Compiler.start(directory, {
+        store: refusing,
+        toolchain: async () => Toolchain.workspace(),
+    });
     expect(await refusal(compiler.build(request))).toEqual([
         "UNPROCESSABLE_CONTENT",
         "DEPENDENCY_UNRESOLVED",
@@ -413,7 +423,7 @@ test("refuse what a module an extension generates imports until the package decl
         0,
     );
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
     const build = await workspace.build({ outputs: request.outputs });
 
@@ -527,7 +537,7 @@ test("compile each output with its own exports' declarations alone", async () =>
 
     // build both outputs
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const build = await (
         await Workspace.open(directory, compilers)
     ).build({

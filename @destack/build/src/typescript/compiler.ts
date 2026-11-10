@@ -2,7 +2,7 @@ import { join, resolve } from "node:path";
 import type { Environment, FileSystem } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { API, type Diagnostic, type Project } from "typescript/unstable/async";
-import { Toolchain } from "@destack/check/toolchain";
+import type { Toolchain } from "@destack/check/toolchain";
 import { BuildError } from "../error/index.ts";
 import { TypeScriptInspection } from "./module.ts";
 import { isAuthored, linkDependencies } from "../source/dependency.ts";
@@ -32,10 +32,11 @@ export class TypeScriptCompiler implements AsyncDisposable {
         this.#configurations = configurations;
     }
 
-    /** Start the native compiler for a source package. */
+    /** Start a toolchain's native compiler for a source package. */
     static async start(
         directory: string,
-        environment: Environment<"files" | "process" | "host">,
+        toolchain: Toolchain,
+        environment: Environment<"files" | "host">,
     ): Promise<TypeScriptCompiler> {
         // resolve explicit type packages from the same installation as authored modules
         const { files } = environment;
@@ -46,18 +47,18 @@ export class TypeScriptCompiler implements AsyncDisposable {
         // start the compiler process
         const api = new API({
             cwd: real,
-            tsserverPath: TypeScriptCompiler.executable(environment),
+            tsserverPath: TypeScriptCompiler.executable(toolchain, environment),
         });
 
         return new TypeScriptCompiler(real, api, files, configurations);
     }
 
-    /** Find this platform's native TypeScript compiler among the tools. */
-    static executable(environment: Environment<"process" | "host">): string {
+    /** Find this platform's native TypeScript compiler among a toolchain's packages. */
+    static executable(toolchain: Toolchain, environment: Environment<"host">): string {
         // find the platform's native package beside TypeScript
         const { os, architecture } = environment.host;
         const native = `@typescript/typescript-${os}-${architecture}`;
-        const directory = Toolchain.locate(["typescript", native], PACKAGE, environment.process);
+        const directory = toolchain.locate(["typescript", native], PACKAGE);
 
         return join(directory, "lib", "tsc");
     }

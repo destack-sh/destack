@@ -217,13 +217,13 @@ test("refuse alice's agent a call her grant gives once approved, and make it thr
     const id = await fixture.write();
     const scope = fixture.served.scope;
     const agent = agentOf(scope);
-    const grantId = await fixture.grant(alice, agent, [
+    const granted = await fixture.grant(alice, agent, [
         { ...note.permission("read"), scope },
         { ...note.permission("publish"), scope, mode: "approval" as const },
         { ...changeRequest.permission("open"), scope },
     ]);
     const acting = AccessContext.of(
-        { ...Caller.of(alice), actors: [agent], grants: [{ id: grantId, scope: alice.id }] },
+        { ...Caller.of(alice), actors: [agent], grants: [granted] },
         fixture.served.store.clock.now(),
     );
 
@@ -260,13 +260,13 @@ test("gate alice's agent archiving her note on her step-up, refuse her approval 
     const id = await fixture.write();
     const scope = fixture.served.scope;
     const agent = agentOf(scope);
-    const grantId = await fixture.grant(alice, agent, [
+    const granted = await fixture.grant(alice, agent, [
         { ...note.permission("archive"), scope },
         { ...changeRequest.permission("open"), scope },
     ]);
     const now = fixture.served.store.clock.now();
     const acting = AccessContext.of(
-        { ...Caller.of(alice), actors: [agent], grants: [{ id: grantId, scope: alice.id }] },
+        { ...Caller.of(alice), actors: [agent], grants: [granted] },
         now,
     );
 
@@ -338,12 +338,12 @@ test("let bob's agent ask bob to make a call as himself in a space he cannot rea
     const id = await fixture.write();
     const scope = fixture.served.scope;
     const agent = agentOf(scope);
-    const grantId = await fixture.grant(bob, agent, [
+    const granted = await fixture.grant(bob, agent, [
         { ...note.permission("publish"), scope },
         { ...changeRequest.permission("open"), scope },
     ]);
     const acting = AccessContext.of(
-        { ...Caller.of(bob), actors: [agent], grants: [{ id: grantId, scope: bob.id }] },
+        { ...Caller.of(bob), actors: [agent], grants: [granted] },
         fixture.served.store.clock.now(),
     );
 
@@ -456,14 +456,14 @@ test("fail an agent's change its delegator alone approves toward the delegator's
     });
     await fixture.bind(id, reviewed.id, bob);
     const agent = agentOf(scope);
-    const grantId = await fixture.grant(bob, agent, [
+    const granted = await fixture.grant(bob, agent, [
         { ...note.permission("read"), scope },
         { ...note.permission("publish"), scope },
         { ...note.permission("approve"), scope },
         { ...changeRequest.permission("open"), scope },
     ]);
     const acting = AccessContext.of(
-        { ...Caller.of(bob), actors: [agent], grants: [{ id: grantId, scope: bob.id }] },
+        { ...Caller.of(bob), actors: [agent], grants: [granted] },
         fixture.served.store.clock.now(),
     );
 
@@ -533,14 +533,14 @@ test("refuse an agent deciding its delegator's approval, which the delegator the
     const change = await openChange(fixture, alice, { id, call: rename, approvers: [bob] });
     const asking = await asked(fixture, change, bob);
     const agent = agentOf(scope);
-    const grantId = await fixture.grant(bob, agent, [
+    const granted = await fixture.grant(bob, agent, [
         { ...note.permission("read"), scope },
         { ...note.permission("approve"), scope },
         { ...changeRequest.permission("approve"), scope },
         { ...approval.permission("decide"), scope },
     ]);
     const acting = AccessContext.of(
-        { ...Caller.of(bob), actors: [agent], grants: [{ id: grantId, scope: bob.id }] },
+        { ...Caller.of(bob), actors: [agent], grants: [granted] },
         fixture.served.store.clock.now(),
     );
 

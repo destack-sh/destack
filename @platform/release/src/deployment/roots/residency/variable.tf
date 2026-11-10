@@ -47,3 +47,17 @@ variable "kms_operators" {
   description = "The roles that create, repolicy, grant and replicate the root key, as ARN patterns."
   type        = list(string)
 }
+
+variable "database" {
+  description = "The residency's PostgreSQL instance, keeping its home's main database."
+  type = object({
+    instance_class = string
+    multi_az       = bool
+    major_version  = string
+  })
+}
+
+variable "mail_region" {
+  description = "The region the global root's SES identity sends from."
+  type        = string
+}

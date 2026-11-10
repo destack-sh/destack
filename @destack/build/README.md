@@ -3,11 +3,11 @@
 `@destack/build` compiles a package into one module output per runtime with Vite on Rolldown, and keeps builds by content as an OCI registry does.
 
 ```ts
-// vite build, in a sandboxed compiler building into a store
-await using compiler = await Compiler.start(directory, { store });
+// vite build, in a sandboxed compiler building into a store with a toolchain read on first use
+await using compiler = await Compiler.start(directory, { store, toolchain });
 await using build = await compiler.build({ directory, dependencies, outputs });
 // warm compilers, like vite build --watch, building a workspace's units into one store
-await using compilers = await CompilerPool.open(store);
+await using compilers = await CompilerPool.open(store, toolchain);
 await using build = await (await Workspace.open(directory, compilers)).build({ outputs });
 // Vite plugins
 export const viewExtension: BuildExtension = {
@@ -25,7 +25,7 @@ await PackageBuild.read(destination, environment); // every file checked against
 ```ts
 import { Compiler } from "@destack/build";
 
-await using compiler = await Compiler.start(directory, { store });
+await using compiler = await Compiler.start(directory, { store, toolchain });
 await using build = await compiler.build({
     directory,
     dependencies,
@@ -43,13 +43,14 @@ await PackageBuild.write(build.reader, destination, environment.files);
 `Compiler.start` keeps one sandboxed compiler warm across a workspace's builds into a store, and `CompilerPool` leases warm compilers one package at a time.
 
 ```ts
-await using compiler = await Compiler.start(directory, { store });
+const toolchain = async () => Toolchain.workspace(); // a release's: () => distribution.toolchain()
+await using compiler = await Compiler.start(directory, { store, toolchain });
 const inspection = await compiler.inspect({ directory, runtime: "bun", dependencies });
 const code = await compiler.index({ directory, runtime: "bun", dependencies }); // graph.Document[]
 // warm.reused: ["bun"]
 await using warm = await compiler.build({ directory, dependencies, outputs, timeout: 60_000 });
 
-await using compilers = await CompilerPool.open(store);
+await using compilers = await CompilerPool.open(store, toolchain);
 const built = await compilers.use(directory, (leased) =>
     leased.build({ directory, dependencies, outputs }),
 );

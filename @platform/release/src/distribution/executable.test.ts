@@ -9,8 +9,10 @@ import machinePackage from "@destack/machine/package";
 import { Loopback } from "@destack/machine/computer";
 import { RESIDENCIES } from "@platform/stack";
 import { Stage } from "@destack/update/release";
-import { buildExecutable, compilerOptions, toolchainOptions } from "./executable.ts";
+import { buildExecutable, toolchainOptions } from "./executable.ts";
 import { buildToolchain } from "./toolchain.ts";
+import { Toolchain } from "@destack/check/toolchain";
+import { DISTRIBUTION_DIRECTORY, TOOLCHAIN_DIRECTORY } from "@destack/update";
 import { schema } from "@destack/schema";
 import { TestDatabase } from "@destack/db/test";
 import { LocalUniverse } from "../local/index.ts";
@@ -126,14 +128,24 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
                 runtime: "bun-darwin-arm64",
                 version: machinePackage.version,
                 stage: Stage.of("local"),
-                ...compilerOptions(files),
+                ...toolchainOptions(files),
             },
             HOST,
         );
-        await buildToolchain(ROOT, "aarch64-apple-darwin", join(directory, "toolchain"), HOST);
+        const tools = join(directory, TOOLCHAIN_DIRECTORY);
+        const toolchain = Toolchain.at(tools);
+        await buildToolchain(
+            ROOT,
+            "aarch64-apple-darwin",
+            { resources: directory, toolchain: tools },
+            HOST,
+        );
 
         // ship the distribution the universe's machines ship, the desktop's own release among it
-        await files.copy(join(directory, "universe", "distribution"), join(directory, "toolchain"));
+        await files.copy(
+            join(directory, "universe", "distribution"),
+            join(directory, DISTRIBUTION_DIRECTORY),
+        );
 
         // run commands with no checkout, inherited credentials or installed runtime on PATH
         expect(JSON.parse(await run([cli, "--version", "--json"], directory, variables))).toEqual({
@@ -178,19 +190,22 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
         expect(checkouts).toEqual([created]);
 
         // build a package with the released compiler and its toolchain alone
-        const compiler = CompilerCommand.beside(join(directory, "destack-build"), HOST);
+        const compiler = CompilerCommand.beside(join(directory, "destack-build"), toolchain, HOST);
         let built: unknown;
 
         // check and compile the package on its closure's unit builds and evaluate its outputs
         {
             await using store = await testStore();
-            await using compilers = await CompilerPool.open(store);
+            await using compilers = await CompilerPool.open(store, async () =>
+                Toolchain.workspace(),
+            );
             const workspace = await Workspace.open(TEMPLATE_STACK, compilers);
             const outputs = outputsOf(workspace.root.packageJson);
             const dependencies = await workspace.storeDependencies({});
             await using builder = await Compiler.start(TEMPLATE_STACK, {
                 command: compiler,
                 store,
+                toolchain: async () => toolchain,
             });
             const build = await builder.build({
                 directory: TEMPLATE_STACK,

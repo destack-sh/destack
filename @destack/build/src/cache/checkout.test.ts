@@ -81,7 +81,7 @@ test("key a package by the files git lists, reading linked files through their l
     });
 });
 
-test("key a package by the files a build reads, keeping the key across test and doc edits", async () => {
+test("key a package by the files a build reads, keeping the key across test and recipe edits", async () => {
     // write a package with a module and its test kit in a git checkout
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -95,12 +95,11 @@ test("key a package by the files a build reads, keeping the key across test and 
     const key = async () => await (await Checkout.list(root, environment)).identify(root);
     const initial = await key();
 
-    // write a test, a tests folder with a fixture, a readme and a justfile
+    // write a test, a tests folder with a fixture and a justfile
     await files.mkdir(join(root, "tests", "fixtures"), { recursive: true });
     await files.writeTextFile(join(root, "src", "index.test.ts"), "export {};\n");
     await files.writeTextFile(join(root, "tests", "build.ts"), "export {};\n");
     await files.writeTextFile(join(root, "tests", "fixtures", "note.json"), "{}\n");
-    await files.writeTextFile(join(root, "README.md"), "# Production\n");
     await files.writeTextFile(join(root, "justfile"), "test:\n");
     const tested = await key();
 
@@ -110,8 +109,18 @@ test("key a package by the files a build reads, keeping the key across test and 
     await files.writeTextFile(join(root, "src", "index.ts"), "export const answer = 43;\n");
     const changed = await key();
 
-    // keep the key across files no build reads, and change it for the kit and the module
-    expect([tested === initial, kit === tested, changed === kit]).toEqual([true, false, false]);
+    // write a Markdown source, which a module may import
+    await files.mkdir(join(root, "content"));
+    await files.writeTextFile(join(root, "content", "post.md"), "# Post\n");
+    const written = await key();
+
+    // keep the key across files no build reads, and change it for the kit, the module and the source
+    expect([tested === initial, kit === tested, changed === kit, written === changed]).toEqual([
+        true,
+        false,
+        false,
+        false,
+    ]);
 });
 
 test("list a checkout once and key each package by the git blobs below its directory", async () => {

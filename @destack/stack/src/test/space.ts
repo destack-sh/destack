@@ -1171,6 +1171,9 @@ export class TestSpace implements AsyncDisposable {
             handoff: async (source) => {
                 throw new TypeError(`the fixture knows no handoff of ${source}`);
             },
+            publish: async (_store, manifest) => {
+                throw new TypeError(`the fixture publishes no build, such as ${manifest}`);
+            },
             buildRunner: this.machine.id,
             main: spaceDatabase,
             sandboxes: [],

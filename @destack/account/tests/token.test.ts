@@ -133,7 +133,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         iat: issuedAt,
         exp: issuedAt + TOKEN_LIFETIME_MILLISECONDS / 1000,
         act: [token],
-        grants: [{ id: grantId, scope: owner.id }],
+        grants: [{ id: grantId, scope: owner.id, permissions }],
         caller: {
             subject: owner.subject,
             groups,

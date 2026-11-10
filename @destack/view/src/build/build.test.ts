@@ -10,6 +10,7 @@ import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
 import { viewExtension } from "./build.ts";
 import { viewPlugins } from "./plugin.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The notebook package, whose view module declares its notebooks view. */
 const NOTEBOOK = fileURLToPath(new URL("../../tests/fixture/notebook/", import.meta.url));
@@ -58,7 +59,7 @@ test(
         // build the notebook package's browser output on its stored dependency builds, the router's JSX on view's runtime
         await using simulation = testSimulation();
         await using store = await testStore();
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
         const workspace = await Workspace.open(NOTEBOOK, compilers);
         const dependencies = await workspace.storeDependencies({});
         const build = await compilers.use(NOTEBOOK, (compiler) =>

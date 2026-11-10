@@ -423,7 +423,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     // limit an owner's token to one object by their stored grant to it
     const now = world.clock.now();
     const token = principal.client.reference(Scope.universe.id, "client-restricted");
-    const grantId = await new TestAccess(database, world).replicateGrant(owner, token, [
+    const granted = await new TestAccess(database, world).replicateGrant(owner, token, [
         { ...note.permission("read"), scope: spaceId, objectId: "one" },
     ]);
     const restricted = await issuer.issue(
@@ -431,7 +431,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             caller: {
                 ...Caller.of(owner),
                 actors: [token],
-                grants: [{ id: grantId, scope: owner.id }],
+                grants: [granted],
             },
             credential: {
                 kind: "personal",

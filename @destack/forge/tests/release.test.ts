@@ -163,6 +163,48 @@ test("release a stored build under a tag once, point another tag at the release,
     ]);
 });
 
+test("publish a build after its account's unpublished dependency, each released once", async () => {
+    // keep greeting and the answer build it pins in one store
+    const forge = await TestForge.open();
+    const releases = new Registry(async () => forge.registry(), forge.environment);
+    const { crypto } = forge.environment;
+    const answer = (await fixtureBuild("answer")).reader;
+    const greeting = (await fixtureBuild("greeting")).reader;
+    const store = await storedBuilds([answer, greeting], crypto);
+    const manifest = await BuildStore.digest(greeting.manifest, crypto);
+
+    // publish greeting, which releases answer first, then again, which releases nothing
+    const first = await releases.publish(store, manifest, ACCOUNT_ID, LATEST_TAG);
+    const again = await releases.publish(store, manifest, ACCOUNT_ID, LATEST_TAG);
+
+    expect([versionsOf(first), versionsOf(again)]).toEqual([
+        ["@example/answer@2026.9.0", "@example/greeting@2026.9.0"],
+        [],
+    ]);
+});
+
+test("refuse releasing a build that pins an unreleased build of a package the forge hosts", async () => {
+    // host answer's package without releasing it, and push greeting, which pins answer's build
+    const forge = await TestForge.open();
+    const answer = (await fixtureBuild("answer")).reader;
+    const greeting = (await fixtureBuild("greeting")).reader;
+    const owner = forge.client(forge.owner);
+    await owner.package.create({
+        spaceId: forge.space,
+        accountId: ACCOUNT_ID,
+        id: PackageManifest.package(answer.manifest).id,
+        requestId: RequestId.create(forge.environment),
+        name: "answer",
+    });
+
+    // refuse greeting's release while answer's build is unpublished
+    expect(await refusal(forge.publish(greeting))).toEqual([
+        "PRECONDITION_FAILED",
+        "DEPENDENCY_UNPUBLISHED",
+        "@example/answer@2026.9.0 is not published",
+    ]);
+});
+
 test("store a pushed build in the forge's store by digest as its release's manifest", async () => {
     // push and release the build
     const forge = await TestForge.open();
@@ -594,4 +636,25 @@ test("publish a builtin under the platform's organization, which owns the forge'
 /** Store a build as the registry reads one: its contents, and no units. */
 function stored(reader: BuildReader) {
     return { contents: async () => reader, units: async () => [] };
+}
+
+/** List releases as their package names and versions. */
+function versionsOf(published: readonly { readonly package: Package }[]): string[] {
+    return published.map((release) => `${release.package.name}@${release.package.version}`);
+}
+
+/** Store builds by their digests, with no npm units. */
+async function storedBuilds(
+    readers: readonly BuildReader[],
+    crypto: Parameters<typeof BuildStore.digest>[1],
+) {
+    const byDigest = new Map<Digest, BuildReader>();
+    for (const reader of readers) {
+        byDigest.set(await BuildStore.digest(reader.manifest, crypto), reader);
+    }
+
+    return {
+        contents: async (digest: Digest) => present(byDigest.get(digest), `the build ${digest}`),
+        units: async () => [],
+    };
 }

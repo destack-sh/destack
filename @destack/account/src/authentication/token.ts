@@ -1,5 +1,7 @@
 import { defineErrorFamily, type FamilyError, type ReasonOf } from "@destack/error";
 import { schema } from "@destack/schema";
+import { PermissionReference } from "@destack/access";
+import { ObjectReference } from "@destack/sync";
 import type {} from "@destack/package/import-meta";
 import { AccountError, type AccountReason } from "../error/error.ts";
 
@@ -11,6 +13,31 @@ const JSON_TYPE = "application/json";
 
 /** The JWT type of a request object (RFC 9101 10.8). */
 export const REQUEST_OBJECT_TYPE = "oauth-authz-req+jwt";
+
+/** The authorization detail type of a permission a delegated token must carry (RFC 9396 2). */
+export const PERMISSION_DETAIL = "destack_permission";
+
+/** A permission on an object a delegated token must carry, as an authorization detail. */
+export const WantedPermission = schema.object({
+    /** The detail's type. */
+    type: schema.literal(PERMISSION_DETAIL),
+    /** The permission the call needs. */
+    permission: PermissionReference,
+    /** The object the permission applies to. */
+    object: ObjectReference,
+});
+/** A permission on an object a delegated token must carry. */
+export type WantedPermission = schema.Infer<typeof WantedPermission>;
+
+/** The permissions a person must grant before a delegate's token carries them. */
+export const ConsentRequest = schema.object({
+    /** The permissions the call needs that no live grant gives. */
+    authorization_details: schema.array(WantedPermission),
+    /** The delegate the person's grant would let act for them, absent outside a delegation. */
+    delegate: ObjectReference.exactOptional(),
+});
+/** The permissions a person must grant before a delegate's token carries them. */
+export type ConsentRequest = schema.Infer<typeof ConsentRequest>;
 
 /** The OAuth refusals, each reason the wire code its RFC spells, transcribed in upper case. */
 export const OAuthError = defineErrorFamily(
@@ -32,7 +59,7 @@ export const OAuthError = defineErrorFamily(
         // the authorization endpoint's (RFC 6749 4.1.2.1, OIDC Core 3.1.2.6, RFC 9126 2.2)
         UNSUPPORTED_RESPONSE_TYPE: { code: "BAD_REQUEST" },
         LOGIN_REQUIRED: { code: "BAD_REQUEST" },
-        CONSENT_REQUIRED: { code: "BAD_REQUEST" },
+        CONSENT_REQUIRED: { code: "BAD_REQUEST", data: ConsentRequest },
         UNMET_AUTHENTICATION_REQUIREMENTS: { code: "BAD_REQUEST" },
         INVALID_REQUEST_URI: { code: "BAD_REQUEST" },
         INVALID_REQUEST_OBJECT: { code: "BAD_REQUEST" },
@@ -100,15 +127,21 @@ export const TokenResponse = Object.assign(
                 );
             }
 
-            // refuse with the OAuth error and its description
+            // refuse with the OAuth error and its description, a consent with the permissions it needs
             const { error, error_description: description } = oauth.data;
-
-            return OAuthError.of(
-                reason.data,
+            const message =
                 description === undefined
                     ? `the token endpoint refused the request: ${error}`
-                    : `the token endpoint refused the request: ${error}: ${description}`,
-            );
+                    : `the token endpoint refused the request: ${error}: ${description}`;
+
+            return reason.data === "CONSENT_REQUIRED"
+                ? OAuthError.of("CONSENT_REQUIRED", message, {
+                      data: ConsentRequest.parse({
+                          authorization_details: oauth.data["authorization_details"],
+                          delegate: oauth.data["delegate"],
+                      }),
+                  })
+                : OAuthError.of(reason.data, message);
         },
     },
 );

@@ -11,6 +11,7 @@ import { comparePath } from "../src/build/serialization.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { linkDependencies } from "../src/source/index.ts";
 import { copySource } from "../src/test/source.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The kind package's constructor, inspector and manifests, and the app declaring one thing. */
 export const THING_FILES: Readonly<Record<string, string>> = {
@@ -228,7 +229,10 @@ export class Fixture implements AsyncDisposable {
             await linkDependencies(fileURLToPath(new URL("source/", fixture)), source, files);
 
             const store = await LocalBuildStore.temporary(environment);
-            const compiler = await Compiler.start(source, { store });
+            const compiler = await Compiler.start(source, {
+                store,
+                toolchain: async () => Toolchain.workspace(),
+            });
 
             return new Fixture(fixture, directory, source, { store, compiler }, files);
         } catch (error) {

@@ -15,6 +15,7 @@ import { and, type DatabaseConnection, eq, isNull, Snapshot, Transaction } from 
 import { PackageId } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
 import { PartitionId, TokenVerifier } from "@destack/access/token";
+import { GrantPermission } from "@destack/access";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
 import { account, type Account } from "../object/account.ts";
@@ -27,7 +28,7 @@ import { Placement } from "../object/placement.ts";
 import { machine } from "../object/machine.ts";
 import { space } from "../object/space.ts";
 import accountPackage from "../package.ts";
-import { OAuthError } from "../authentication/token.ts";
+import { OAuthError, WantedPermission } from "../authentication/token.ts";
 import { TokenEndpoint, type GrantType } from "./token.ts";
 import { PackageResource } from "./resource.ts";
 import type { Environment } from "@destack/environment";
@@ -72,6 +73,13 @@ const ExchangeRequest = schema.looseObject({
     /** The person's session or client the token lives within, refused once it ends. */
     credential: schema
         .union([schema.identifier("session"), schema.identifier("client")])
+        .exactOptional(),
+    /** The permissions the token must carry for its caller, as RFC 9396 authorization details. */
+    authorization_details: schema
+        .string()
+        .min(1)
+        .transform((value): unknown => JSON.parse(value))
+        .pipe(schema.array(WantedPermission))
         .exactOptional(),
     /** The chain of grants to act under, space-delimited. */
     grants: schema
@@ -161,6 +169,7 @@ async function describe(
             {
                 ...(subject === undefined ? {} : { subject }),
                 ...(asked.grants === undefined ? {} : { grants: asked.grants }),
+                wanted: asked.authorization_details ?? [],
             },
             isInstallation,
             now,
@@ -624,7 +633,11 @@ function describeDelegation(
 async function readGrants(
     transaction: DatabaseConnection,
     caller: Caller,
-    input: { readonly subject?: Subject; readonly grants?: readonly Identifier<"grant">[] },
+    input: {
+        readonly subject?: Subject;
+        readonly grants?: readonly Identifier<"grant">[];
+        readonly wanted: readonly WantedPermission[];
+    },
     isInstallation: boolean,
     now: number,
 ): Promise<Grant[]> {
@@ -644,6 +657,20 @@ async function readGrants(
         });
         const live = grants.filter((grant) => grant.expiresAt === null || grant.expiresAt > now);
         const [only, ...others] = live;
+
+        // ask the person's consent where no live grant gives the wanted permissions
+        const uncovered = input.wanted.filter(
+            (wanted) =>
+                only === undefined ||
+                !GrantPermission.allows(wanted.permission, wanted.object, only.permissions),
+        );
+        if (others.length === 0 && uncovered.length > 0) {
+            throw OAuthError.of(
+                "CONSENT_REQUIRED",
+                `${parties.delegator.id} has not granted ${caller.subject.id} what the call needs`,
+                { data: { authorization_details: uncovered, delegate: caller.subject } },
+            );
+        }
 
         // refuse none or several
         if (only === undefined || others.length > 0) {

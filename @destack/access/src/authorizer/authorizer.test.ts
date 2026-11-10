@@ -636,7 +636,7 @@ databaseTest(
 );
 
 databaseTest(
-    "narrow a delegate to what its subject may and its grant gives, until the grant is revoked or lapses",
+    "narrow a delegate to what its subject may and its signed grant gives",
     async ({ fixture }) => {
         const { database, authorizer, alice, bob, environment } = fixture;
         const assistant = principal.installation.reference("personal", "assistant");
@@ -699,38 +699,16 @@ databaseTest(
             ["a", "b", "c"],
         );
 
-        // refuse the grant to another delegate, once lapsed, and once revoked
-        const resolve = (context: AccessContext) =>
-            outcome(authorizer.resolve(Snapshot.live(database), "personal", context));
-        const elsewhere = await resolve({
-            ...delegated(alice, forAlice),
-            grants: [Grant.claim(forBob)],
-        });
-        const lapsed = await resolve({ ...delegated(alice, forAlice), now: 2000 });
-        await Authorization.run(
-            authorizer,
-            database,
-            () => alice,
-            environment,
-            (authorization) => Grant.revoke(scopeOf("alice"), forAlice.id, authorization),
-        );
+        // refuse granting another's authority and a grant without a delegate
         expect({
             delegateScopes: [forAlice.delegateScope, forBob.delegateScope],
             refusals,
-            elsewhere,
-            lapsed,
-            revoked: await resolve(delegated(alice, forAlice)),
-            remaining: await resolve(delegated(bob, forBob)),
         }).toEqual({
             delegateScopes: ["personal", "personal"],
             refusals: [
                 "FOREIGN_AUTHORITY: a principal can grant only its own authority",
                 "DELEGATE_REQUIRED: a grant needs one other principal as delegate",
             ],
-            elsewhere: `GRANT_DELEGATE_MISMATCH: grant ${forBob.id} belongs to another delegate`,
-            lapsed: `GRANT_EXPIRED: grant ${forAlice.id} expired`,
-            revoked: `GRANT_REVOKED: grant ${forAlice.id} is revoked`,
-            remaining: "resolved",
         });
     },
 );
@@ -793,7 +771,7 @@ databaseTest(
 );
 
 databaseTest(
-    "give a chain what every live grant of it gives, approval-mode permissions only to a call whose change its delegator approved",
+    "give a chain what every grant it carries gives, approval-mode permissions only to a call whose change its delegator approved",
     async ({ fixture }) => {
         // let alice's agent edit a and b, share once approved, and its sub-agent edit b and c
         const { database, alice, environment } = fixture;
@@ -805,12 +783,8 @@ databaseTest(
             mode: "approval" as const,
         };
         const access = new TestAccess(database, environment);
-        const toAgent = await access.replicateGrant(
-            alice.subject,
-            agent,
-            [editing("a"), editing("b"), sharing],
-            1,
-        );
+        const agentGives = [editing("a"), editing("b"), sharing];
+        const toAgent = await access.replicateGrant(alice.subject, agent, agentGives, 1);
         const toSubagent = await access.replicateGrant(
             agent,
             subagent,
@@ -822,10 +796,7 @@ databaseTest(
                 {
                     ...Caller.of(alice.subject),
                     actors: [agent, subagent],
-                    grants: [
-                        { id: toAgent, scope: alice.subject.id },
-                        { id: toSubagent, scope: agent.id },
-                    ],
+                    grants: [toAgent, toSubagent],
                 },
                 1000,
                 { approvers },
@@ -835,7 +806,7 @@ databaseTest(
                 {
                     ...Caller.of(alice.subject),
                     actors: [agent],
-                    grants: [{ id: toAgent, scope: alice.subject.id }],
+                    grants: [toAgent],
                 },
                 1000,
                 { approvers },
@@ -843,11 +814,10 @@ databaseTest(
         const bob = principal.user.reference("universe", "bob");
 
         // give the sub-agent what both give, and the agent its sharing once applying an approved change
-        const snapshot = Snapshot.live(database);
         expect([
-            await Grant.permissions(snapshot, caller()),
-            await Grant.permissions(snapshot, agentAlone([alice.subject])),
-            await Grant.permissions(snapshot, agentAlone([bob])),
+            Grant.permissions(caller()),
+            Grant.permissions(agentAlone([alice.subject])),
+            Grant.permissions(agentAlone([bob])),
         ]).toEqual([
             [editing("b")],
             [editing("a"), editing("b"), { ...node.permission("share"), scope: "personal" }],

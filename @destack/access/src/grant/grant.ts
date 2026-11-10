@@ -32,7 +32,7 @@ export const Grant = {
 
     /** Read the claim a token includes for a grant. */
     claim(grant: Grant): GrantClaim {
-        return { id: grant.id, scope: grant.scope };
+        return { id: grant.id, scope: grant.scope, permissions: grant.permissions };
     },
 
     /** Read a grant by identifier as a snapshot shows it, absent once revoked. */
@@ -43,24 +43,18 @@ export const Grant = {
         return reader.read(accessGrant).findFirst({ where: { id } });
     },
 
-    /** Read what a delegated caller may use: its chain's live grants intersected, all when none. */
-    async permissions(
-        reader: Pick<Snapshot, "read">,
-        context: AccessContext,
-    ): Promise<GrantPermission[] | undefined> {
-        // require each link's grant live, and intersect what they give
+    /** Read what a delegated caller may use: its chain's signed grants intersected. */
+    permissions(context: AccessContext): GrantPermission[] | undefined {
+        // intersect what each link's grant gives
         let given: GrantPermission[] | undefined;
-        for (const { grant, delegator, delegate } of Caller.links(context)) {
-            const stored = await Grant.read(reader, grant.id);
-            const live = Grant.require(stored, grant.id, { delegator, delegate }, context.now);
-
+        for (const { grant, delegator } of Caller.links(context)) {
             // use a link's approval-mode permissions once its delegator approved the call's change
             const isApproved = (context.approvers ?? []).some((each) =>
                 Subject.same(each, delegator),
             );
             const usable = isApproved
-                ? live.permissions.map(({ mode: _mode, ...entry }) => entry)
-                : live.permissions;
+                ? grant.permissions.map(({ mode: _mode, ...entry }) => entry)
+                : grant.permissions;
             given = GrantPermission.intersect(given, usable);
         }
 

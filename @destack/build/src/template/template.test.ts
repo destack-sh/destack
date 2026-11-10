@@ -3,6 +3,7 @@ import type { TemplateInput } from "@destack/package/template";
 import { test } from "@destack/test";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { Toolchain } from "@destack/check/toolchain";
 import { Template } from "./template.ts";
 import { PackageId } from "@destack/package";
 import { expectDirectory } from "../../tests/fixture.ts";
@@ -34,7 +35,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
     try {
         // instantiate the package into a new directory
         const destination = join(directory, name);
-        await template.write(destination, parameters, files);
+        await template.write(destination, parameters, Toolchain.workspace(), files);
 
         // compare every written file against the fixture
         const entries = await files.readDirectory(destination, { recursive: true });

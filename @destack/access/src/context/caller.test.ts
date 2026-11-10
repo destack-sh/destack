@@ -91,6 +91,7 @@ test("require a grant per actor or none, and actors to act for an identified sub
     const grant: GrantClaim = {
         id: schema.identifier("grant").parse("grant-019f5530-8000-7000-8000-0000000000c1"),
         scope: "user-alice",
+        permissions: [],
     };
 
     // accept a grant per actor and an impersonation, refuse a chain short of grants or for no one
@@ -131,7 +132,7 @@ test("link each grant of a chain to its delegator, the actor before it, and its 
 
 /** Claim a grant stored in the agents' space. */
 function claimOf(id: string): GrantClaim {
-    return { id: schema.identifier("grant").parse(id), scope: "space-1" };
+    return { id: schema.identifier("grant").parse(id), scope: "space-1", permissions: [] };
 }
 
 /** Require a caller's delegation chain, reading its refusal. */

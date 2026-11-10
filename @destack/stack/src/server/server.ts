@@ -64,7 +64,7 @@ import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
 import { type Handoff, handoffAdapter } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
-import { SpaceBuildStore, type Registry, implementBuild } from "./installation/build.ts";
+import { type BuildOptions, SpaceBuildStore, type Registry, implementBuild } from "./installation/build.ts";
 import type { Forge } from "./installation/follow.ts";
 import { SpaceTransfer } from "./host/transfer.ts";
 import type { SpaceHost } from "./host/host.ts";
@@ -144,6 +144,8 @@ export interface SpaceOptions {
     readonly sandboxes: readonly HookSandbox[];
     /** The registry of published releases. */
     readonly registry: Registry;
+    /** Publish a stored build and its account's unpublished dependencies for a caller. */
+    readonly publish: BuildOptions["publish"];
     /** The release the machine links of each package, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */

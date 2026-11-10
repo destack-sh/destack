@@ -31,6 +31,7 @@ import machinePackage from "../../package.ts";
 import { Computer, type ComputerOptions, MACHINE_KEYS } from "../computer.ts";
 import { LoopbackEndpoint, ENDPOINT_FILE, ENDPOINT_MODE } from "../process/index.ts";
 import { TestDistribution, type TestPublisher } from "./distribution.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** How long a scenario of machines in a universe takes at most. */
 export const SCENARIO_MILLISECONDS = 30_000;
@@ -467,6 +468,7 @@ export class TestComputer implements AsyncDisposable {
             ...(options.relay === undefined ? {} : { relay: { kind: "url", url: options.relay } }),
             localObjects: options.localObjects ?? {},
             keychain,
+            toolchain: async () => Toolchain.workspace(),
             ...(cloud === undefined ? {} : { machineId: cloud.id }),
             process: {
                 version: machinePackage.version,

@@ -17,6 +17,7 @@ import {
     usage,
 } from "./object/index.ts";
 import { StackError } from "./error/error.ts";
+import { account } from "@destack/account/object";
 
 export { STACK_INSTALLATION } from "./object/rollout.ts";
 
@@ -67,6 +68,8 @@ export default definePackage({
                 installation.permission("approve"),
             ],
         },
+        // publish a person's builds under their account, asked on their first publish
+        optional: { account: [account.permission("publish")] },
     },
     errors: StackError,
 });

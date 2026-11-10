@@ -11,7 +11,7 @@ import {
     settingsRoot,
 } from "./configuration.ts";
 import { runTool } from "./tool.ts";
-import { Toolchain } from "../toolchain/index.ts";
+import type { Toolchain } from "../toolchain/index.ts";
 import { CheckResult, type Diagnostic } from "../diagnostic/diagnostic.ts";
 import { checkMarkdown, fixMarkdown } from "../markdown/index.ts";
 import { CheckError } from "../error/index.ts";
@@ -34,6 +34,8 @@ export interface CheckOptions {
     signal?: AbortSignal;
     /** Additional trusted plugins selected by the host, with every rule enabled. */
     plugins?: readonly Plugin[];
+    /** The tools the check runs. */
+    toolchain: Toolchain;
     /** The files, process and machine the tools run on. */
     environment: Environment<"files" | "process" | "host">;
 }
@@ -159,14 +161,12 @@ async function listFiles(directory: string, files: FileSystem): Promise<string[]
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */
 async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // find the linter and the type checker of this platform among the tools
-    const { files, process, host } = options.environment;
-    const executable = join(Toolchain.locate(["oxlint"], PACKAGE, process), "bin", "oxlint");
+    const { toolchain } = options;
+    const { files, host } = options.environment;
+    const executable = join(toolchain.locate(["oxlint"], PACKAGE), "bin", "oxlint");
     const checker = `@oxlint-tsgolint/${host.os}-${host.architecture}`;
     const binary = host.os === "win32" ? "tsgolint.exe" : "tsgolint";
-    const typeChecker = join(
-        Toolchain.locate(["oxlint-tsgolint", checker], PACKAGE, process),
-        binary,
-    );
+    const typeChecker = join(toolchain.locate(["oxlint-tsgolint", checker], PACKAGE), binary);
 
     // isolate the generated lint configuration
     const temporary = await files.makeTemporaryDirectory("destack-check-");
@@ -176,7 +176,7 @@ async function lintSources(options: CheckOptions, fix: boolean): Promise<CheckRe
         const settings = await lintSettings(await settingsRoot(options.directory, files), files);
         const lint = lintConfiguration(settings, {
             ...(options.plugins === undefined ? {} : { plugins: options.plugins }),
-            builtin: Toolchain.lint(process),
+            builtin: toolchain.lint(),
         });
         await files.writeTextFile(configuration, JSON.stringify(lint));
         const ignore = await writeIgnore(temporary, files);

@@ -5,6 +5,9 @@ locals {
   # read everything in the platform account, which holds the platform alone
   read_only = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 
+  # change everything but identities
+  power_user = "arn:aws:iam::aws:policy/PowerUserAccess"
+
   # render each persona's policy for the platform account, alike for roles and permission sets
   state  = templatefile("${path.module}/policy/state.json", { account = var.platform_account_id })
   deploy = templatefile("${path.module}/policy/deploy.json", { account = var.platform_account_id })
@@ -72,7 +75,7 @@ resource "aws_iam_role_policy_attachments_exclusive" "plan" {
   policy_arns = [local.read_only]
 }
 
-# deploy from the production environment, never creating root keys or the Workers' users
+# deploy from the production environment
 resource "aws_iam_role" "deploy" {
   name                 = "destack-platform-deploy"
   assume_role_policy   = data.aws_iam_policy_document.workflow["production"].json
@@ -98,17 +101,11 @@ resource "aws_iam_role_policies_exclusive" "deploy" {
 
 resource "aws_iam_role_policy_attachments_exclusive" "deploy" {
   role_name   = aws_iam_role.deploy.name
-  policy_arns = []
+  policy_arns = [local.power_user]
 }
 
-# bound the Workers' users: decrypting their own root keys, and sending the platform's mail
-resource "aws_iam_policy" "kms_decrypt_boundary" {
-  name        = "destack-kms-decrypt-boundary"
-  description = "Maximum permissions for Destack production KMS worker users"
-  policy      = templatefile("${path.module}/policy/kms-decrypt-boundary.json", { account = var.platform_account_id })
-}
-
-resource "aws_iam_policy" "mail_send_boundary" {
-  name   = "destack-mail-send-boundary"
-  policy = templatefile("${path.module}/policy/mail-send-boundary.json", { account = var.platform_account_id })
+# bound every Worker's user
+resource "aws_iam_policy" "worker_boundary" {
+  name   = "destack-worker-boundary"
+  policy = templatefile("${path.module}/policy/worker-boundary.json", { account = var.platform_account_id })
 }

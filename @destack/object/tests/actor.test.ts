@@ -39,7 +39,7 @@ test("persist verified caller identities with their delegates and grant, record 
                     { subject: actor, id: deploymentId },
                 ],
                 actors: [actor],
-                grants: [{ id: grantId, scope: represented.id }],
+                grants: [{ id: grantId, scope: represented.id, permissions: [] }],
             },
             { subject: principal.installation.reference("space-example", "share") },
         ];

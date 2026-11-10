@@ -18,6 +18,7 @@
     },
     "dependencies": {
         "@destack/access": "workspace:*",
+        "@destack/check": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",

@@ -3,6 +3,7 @@ import { CompilerPool, type LocalBuildStore, Workspace } from "@destack/build";
 import { PackageCopy, testStore } from "@destack/build/test";
 import { testHost } from "@destack/test/host";
 import { DevelopmentServer } from "./server.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The site fixture, a package declaring one static view. */
 const SITE = new URL("../../tests/fixture/site/source/", import.meta.url);
@@ -19,7 +20,7 @@ let source: PackageCopy;
 
 beforeAll(async () => {
     store = await testStore();
-    compilers = await CompilerPool.open(store);
+    compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     source = await PackageCopy.open(SITE, compilers);
 }, START_MILLISECONDS);
 

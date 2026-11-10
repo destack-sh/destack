@@ -14,6 +14,7 @@ import {
     PRERELEASE_VERSION,
 } from "./fixture/package.ts";
 import { testHost } from "@destack/test/host";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The test runner with provided values that pass the builds to each test. */
 declare module "vitest" {
@@ -52,7 +53,7 @@ async function build(builds: string): Promise<void> {
     const sources = await host.files.makeTemporaryDirectory("destack-forge-sources-");
     try {
         await using store = await testStore();
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
         // build answer's releases, then greeting's on answer's first
         const answer = await FixtureSource.open("answer", sources, compilers);

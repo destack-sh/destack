@@ -44,6 +44,7 @@ export class RecordingTokenExchange implements TokenExchange {
                               {
                                   id: Identifier.create("grant", this.#environment),
                                   scope: asked.subject.id,
+                                  permissions: [],
                               },
                           ],
             },

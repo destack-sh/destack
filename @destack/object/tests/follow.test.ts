@@ -298,7 +298,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
     const create = async (user: Identifier<"user">, title: string, restricted?: string) => {
         // limit the caller's token to one scope by its grant when asked
         const token = principal.client.reference(Scope.universe.id, `client-${user}`);
-        const grantId =
+        const granted =
             restricted === undefined
                 ? undefined
                 : await new TestAccess(installed.database, world).replicateGrant(
@@ -311,12 +311,12 @@ test("decide calls over a relayed replica of access as the holder does, through 
         const context = userContext(
             user,
             spaceId,
-            grantId === undefined
+            granted === undefined
                 ? { environment: world }
                 : {
                       environment: world,
                       actors: [token],
-                      grants: [{ id: grantId, scope: user }],
+                      grants: [granted],
                   },
         );
 
@@ -936,7 +936,7 @@ test("replicate a person's grant to an installation of the space from the univer
 
     // retain only the grant to the space's installation
     const remaining = await machine.database.select({ id: accessGrant.id }).from(accessGrant);
-    expect(remaining.map((row) => row.id)).toEqual([granted]);
+    expect(remaining.map((row) => row.id)).toEqual([granted.id]);
 });
 
 test("serve a woken store only once the replicas it stored are live again", async () => {

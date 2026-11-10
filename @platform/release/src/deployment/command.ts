@@ -95,21 +95,6 @@ export async function sealCustody(
     );
 }
 
-/** Bundle a stage's Workers and build their uploads without deploying. */
-export async function rehearsePlatform(
-    environment: Environment<HostCapability>,
-    arguments_: readonly string[],
-): Promise<void> {
-    // refuse arguments beyond the stage
-    const [name, ...rest] = arguments_;
-    if (rest.length > 0) {
-        throw new Error(`platform rehearse takes a stage, then nothing more: ${rest.join(" ")}`);
-    }
-    await Deployment.deployed(name, environment).rehearse((title, line) =>
-        printStatus(title, line, environment),
-    );
-}
-
 /** Serve the local Workers under workerd over a fresh database, and check they answer. */
 export async function testPlatform(
     environment: Environment<HostCapability>,

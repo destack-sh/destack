@@ -36,8 +36,10 @@ export const GrantRefusal = schema.object({
     permission: PermissionReference,
     /** The object the permission applies to. */
     object: ObjectReference,
-    /** The grant that refused it. */
-    grant: schema.identifier("grant"),
+    /** The grant that refused it, absent where the delegate has no grant at all. */
+    grant: schema.identifier("grant").exactOptional(),
+    /** The delegate a person's grant would let act, absent where the caller's grant refused it. */
+    delegate: ObjectReference.exactOptional(),
 });
 /** A grant's refusal of a permission on an object. */
 export type GrantRefusal = schema.Infer<typeof GrantRefusal>;

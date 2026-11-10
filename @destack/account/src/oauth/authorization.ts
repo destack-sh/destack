@@ -468,7 +468,9 @@ export class AuthorizationEndpoint {
         }
         // refuse to ask for consent when the client asked for no prompt
         else if (stored.prompts.includes("none") && isConsentDue) {
-            throw OAuthError.of("CONSENT_REQUIRED", "the person must consent");
+            throw OAuthError.of("CONSENT_REQUIRED", "the person must consent", {
+                data: { authorization_details: [] },
+            });
         }
         // send the person to sign in, then back to the request
         else if (isLoginDue || session === undefined) {

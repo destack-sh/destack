@@ -111,6 +111,7 @@
         "@destack/resource": "workspace:*",
         "@destack/sandbox": "workspace:*",
         "@destack/schema": "workspace:*",
+        "@destack/update": "workspace:*",
         "cjs-module-lexer": "2.3.0",
         "magic-string": "1.4.1",
         "rolldown": "1.2.16",
@@ -458,6 +459,7 @@
         "semver": "7.8.5",
       },
       "devDependencies": {
+        "@destack/check": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
@@ -1227,6 +1229,7 @@
       "version": "2026.11.0",
       "dependencies": {
         "@destack/access": "workspace:*",
+        "@destack/check": "workspace:*",
         "@destack/db": "workspace:*",
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
@@ -1307,6 +1310,7 @@
       },
       "devDependencies": {
         "@destack/build": "workspace:*",
+        "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@fontsource/ibm-plex-mono": "5.3.0",
         "rolldown": "1.2.16",

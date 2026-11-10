@@ -24,6 +24,7 @@ export const ForgeError = defineErrorFamily(import.meta.destack.package, {
     // not found
     BUILD_NOT_FOUND: { code: "NOT_FOUND" },
     BUILD_NOT_PUSHED: { code: "NOT_FOUND" },
+    DEPENDENCY_UNPUBLISHED: { code: "PRECONDITION_FAILED" },
     GITHUB_WEBHOOK_MISSING: { code: "NOT_FOUND" },
     PACKAGE_NOT_FOUND: { code: "NOT_FOUND" },
     RELEASE_NOT_FOUND: { code: "NOT_FOUND" },

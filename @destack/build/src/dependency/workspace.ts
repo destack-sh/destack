@@ -3,7 +3,13 @@ import { dirname, join, resolve } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
-import { type DependencyResolution, type Package, PackageJson, type graph } from "@destack/package";
+import {
+    type DependencyResolution,
+    type Package,
+    PackageJson,
+    PackageName,
+    type graph,
+} from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { PackageLocator } from "@destack/package/locator";
 import type { Runtime } from "@destack/package/runtime";
@@ -44,10 +50,13 @@ export type WorkspaceBuildOptions = Omit<PackageBuildOptions, "directory" | "dep
 export type WorkspaceUnitOptions = Pick<WorkspaceBuildOptions, "signal" | "timeout" | "versions">;
 
 /** The compilers a workspace builds with, and the store they build into. */
-export type WorkspaceCompilers = Pick<CompilerPool, "store" | "use">;
+export type WorkspaceCompilers = Pick<CompilerPool, "store" | "identity" | "use">;
 
 /** Find the release of a Destack package outside the workspace, storing it with its closure. */
 export type ReleaseResolver = (dependency: Package) => Promise<DependencyBuild>;
+
+/** Which workspace members a build compiles from source: every member, or only its publisher's. */
+export type WorkspaceSources = "workspace" | "publisher";
 
 /** The Destack packages of a checkout as read once, each built on its dependencies' builds. */
 export class Workspace {
@@ -97,6 +106,7 @@ export class Workspace {
         directory: string,
         compilers: WorkspaceCompilers,
         resolver?: ReleaseResolver,
+        sources: WorkspaceSources = "workspace",
     ): Promise<Workspace> {
         // read the workspace's members by their real directories, refusing a missing one
         const { environment } = compilers.store;
@@ -125,14 +135,20 @@ export class Workspace {
         // walk the Destack members the root requires through their installed links
         const units = new Map<string, WorkspaceUnit>();
         const locator = new PackageLocator(files);
-        const walk = { locator, files, members, units, visiting: new Set<string>() };
-        await Workspace.#visit(await files.realPath(directory), walk);
+        const root = await files.realPath(directory);
+        const publisher = PackageName.split(
+            (await readPackageJson(root, files)).package.name,
+        ).handle;
+        const compiled = (name: string) =>
+            sources === "workspace" || PackageName.split(name).handle === publisher;
+        const walk = { locator, files, members, compiled, units, visiting: new Set<string>() };
+        await Workspace.#visit(root, walk);
 
         // read the toolchain, the checkout and the locked npm releases the units' keys read
-        const toolchain = await compilers.store.toolchain.digest();
+        const toolchain = await compilers.identity.digest();
         const checkout = await Checkout.list(workspace, environment);
         const locked = readLockedReleases(lockfile);
-        const conversion = await compilers.store.toolchain.conversion();
+        const conversion = await compilers.identity.conversion();
         const npm = new NpmInstallation(locked, compilers.store, conversion, environment);
 
         return new Workspace([...units.values()], compilers, toolchain, checkout, npm, resolver);
@@ -183,6 +199,7 @@ export class Workspace {
             readonly locator: PackageLocator;
             readonly files: FileSystem;
             readonly members: ReadonlySet<string>;
+            readonly compiled: (name: string) => boolean;
             readonly units: Map<string, WorkspaceUnit>;
             readonly visiting: Set<string>;
         },
@@ -213,9 +230,12 @@ export class Workspace {
                 installed === undefined ? undefined : await walk.files.realPath(installed);
             const isOptional =
                 !listed.includes(dependency) && PackageJson.isOptional(packageJson, dependency);
-            const isMember = resolved !== undefined && walk.members.has(resolved);
             const isDestack =
                 resolved !== undefined && (await walk.files.exists(join(resolved, "destack.json")));
+            const isMember =
+                resolved !== undefined &&
+                walk.members.has(resolved) &&
+                (!isDestack || walk.compiled(dependency));
             // refuse a missing dependency the package cannot build without
             if (resolved === undefined && !isOptional) {
                 throw BuildError.of(

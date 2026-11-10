@@ -8,8 +8,8 @@ import { BucketError } from "../error/index.ts";
 /** The bytes of each part of a blob written in parts: 8 MiB. */
 const PART_BYTES = 8 * 1024 * 1024;
 
-/** A bucket's blobs in packs, files of a residency's R2 bucket below the bucket's prefix. */
-export class R2BlobStorage implements BlobStorage {
+/** Blobs in packs, files of any bucket below a prefix, such as an R2 or S3 bucket's. */
+export class BucketBlobStorage implements BlobStorage {
     /** The residency's bucket. */
     readonly #files: Bucket;
     /** The prefix of the bucket's packs, such as `bucket-…/`. */

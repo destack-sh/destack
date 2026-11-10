@@ -44,6 +44,7 @@ test("assure a principal's own code by its key, a person by their sign-in, and c
     const grant = {
         id: schema.identifier("grant").parse("grant-01996ab0-0000-7000-8000-000000000002"),
         scope: ada.id,
+        permissions: [],
     };
     const session = {
         kind: "session",

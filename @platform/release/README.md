@@ -28,7 +28,7 @@ installer     build                                      src/installer
 signing       sign | credential                          src/signing
 update        sign | publish | renew | verify | expiry   src/repository
 key           ceremony | enroll | generate | rehearse | attest | backup   src/key
-platform      validate | format | format-check | init | diff | deploy | rehearse | e2e   src/deployment
+platform      validate | format | format-check | init | diff | deploy | e2e   src/deployment
 custody       seal                                       src/deployment
 local         serve | reset                              src/local
 github        credential                                 src/github
@@ -40,7 +40,7 @@ The OpenTofu roots and their modules live under `src/deployment`, and `deploymen
 
 ```text
 src/deployment/roots     access | global | universe | residency
-src/deployment/modules   kms | database
+src/deployment/modules   database | kms | worker
 deployment/*.tfvars      each root's configuration per stage
 ```
 
@@ -82,8 +82,6 @@ DESTACK_STAGE=local bun run src/main.ts login \
 `WorkerScript` deploys the entries: the universe's `@platform/release/deployment/universe`, and per residency `@destack/machine/cloudflare/worker` with its Tail Worker `@destack/machine/cloudflare/tail`, which posts each space's traced CPU time and Durable Object fetches to the space's object.
 
 ```sh
-# bundle every script and build its upload with wrangler --dry-run
-just @platform/release/rehearse production
 # serve the local universe and cloud machines under workerd over a fresh database, smoke
 just @platform/release/e2e
 # seal the keys custody/production.json lacks under each root's KMS key, once per key, then commit the record
@@ -297,11 +295,9 @@ production:
     secrets:
         [
             CLOUDFLARE_COMPANY_API_TOKEN,
-            PLANETSCALE_SERVICE_TOKEN_ID,
-            PLANETSCALE_SERVICE_TOKEN,
-            SIGN_IN_GITHUB_CLIENT_SECRET,
-            SIGN_IN_GOOGLE_CLIENT_SECRET,
-            SIGN_IN_MICROSOFT_CLIENT_SECRET,
+            GH_CLIENT_SECRET,
+            GOOGLE_CLIENT_SECRET,
+            MICROSOFT_CLIENT_SECRET,
         ]
     variables: [DESTACK_OPERATOR]
 build:

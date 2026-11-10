@@ -57,7 +57,6 @@ const OPERATOR = {
     CI: "true",
     TF_LOG: "info",
     AWS_ACCESS_KEY_ID: "AKIA",
-    PLANETSCALE_SERVICE_TOKEN: "pscale",
     WRANGLER_LOG: "debug",
     CLOUDFLARE_ACCOUNT_ID: "account",
     CLOUDFLARE_COMPANY_API_TOKEN: "company",
@@ -75,7 +74,6 @@ test("run each tool with the host's variables and its own, leaving out the compa
             CI: "true",
             TF_LOG: "info",
             AWS_ACCESS_KEY_ID: "AKIA",
-            PLANETSCALE_SERVICE_TOKEN: "pscale",
         },
         wrangler: {
             HOME: "/home/operator",

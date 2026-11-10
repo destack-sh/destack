@@ -733,7 +733,13 @@ test("send an instance's call for its subject under their grant with the token t
     const person = principal.user.reference(Scope.universe.id, "user-ada");
     const asked = {
         subject: person,
-        grants: [{ id: Identifier.create("grant", space.machine.environment), scope: person.id }],
+        grants: [
+            {
+                id: Identifier.create("grant", space.machine.environment),
+                scope: person.id,
+                permissions: [],
+            },
+        ],
     };
     const path = `${PackageMount.path(REMOTE_PACKAGE)}/note/get`;
     await gateway.egress(egress(ids.space, path, { headers: Exchange.ask(asked) }));

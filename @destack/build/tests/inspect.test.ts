@@ -8,6 +8,7 @@ import { TestDeclaration } from "../src/typescript/test.ts";
 import { Workspace, CompilerPool } from "../src/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { THING_FILES } from "./fixture.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The installed vitest, whose test function the inspected tests import. */
 const VITEST = dirname(fileURLToPath(import.meta.resolve("vitest/package.json")));
@@ -28,7 +29,7 @@ test("inspect test bodies and fixture extensions without declaring what they con
         (await environment.process.spawn(["git", "init", "--quiet", directory]).output()).code,
     ).toBe(0);
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const workspace = await Workspace.open(directory, compilers);
     const dependencies = await workspace.storeDependencies({});
     const inspect = async () =>
@@ -90,7 +91,7 @@ async function inspectApp(app: string): Promise<readonly string[]> {
 
     // inspect it on its dependencies' builds
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const dependencies = await (await Workspace.open(directory, compilers)).storeDependencies({});
     const inspected = await compilers.use(directory, (compiler) =>
         compiler.inspect({ directory, runtime: "bun", dependencies }),

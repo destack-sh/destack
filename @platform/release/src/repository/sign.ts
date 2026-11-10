@@ -3,12 +3,14 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { join } from "node:path";
 import { readReleaseKeys } from "../key/key.ts";
 import { RootHistory } from "./renewal.ts";
-import { Release } from "@destack/update/release";
-import { Installer, readCommit, releaseVersion } from "../distribution/index.ts";
+import { Release, type Target } from "@destack/update/release";
+import { Installer, Platform, readCommit, releaseVersion } from "../distribution/index.ts";
+import { Distribution, Manifest, TOOLCHAIN_DIRECTORY } from "@destack/update";
 import { run } from "../distribution/command.ts";
 import { RepositoryConfiguration } from "./index.ts";
 import { writeBootstrap } from "./bootstrap.ts";
-import { type Distribution, SignedRepository } from "@destack/update/publish";
+import { SignedRepository } from "@destack/update/publish";
+import type * as publish from "@destack/update/publish";
 import { print } from "../distribution/output.ts";
 import { Version } from "@destack/schema";
 
@@ -37,23 +39,25 @@ export async function signUpdate(
         throw new Error(`the feed publishes no dev build: ${version}`);
     }
 
-    // sign each selected target's release from its signed archive, and the archive for install.sh
+    // sign each selected target's release from its signed archive, the archive for install.sh, and its toolchain
     if (selected.length === 0) {
         throw new Error("select the targets to publish");
     }
     const directory = join(CHECKOUT, "dist", version);
     const commit = await readCommit(CHECKOUT, environment);
     const unpacked = await environment.files.makeTemporaryDirectory("destack-release-");
-    const distributions: Distribution[] = [];
+    const distributions: publish.Distribution[] = [];
     for (const target of selected) {
         const release = new Release(version, target);
         const archive = join(directory, `destack-${release.directory}.tar.gz`);
         const files = join(unpacked, target);
         await environment.files.mkdir(files);
         await run("tar", ["-xzf", archive, "-C", files], environment);
+        const toolchain = await readToolchain(directory, files, release.target, environment);
         distributions.push(
             { kind: "release", target, version, commit, directory: files },
             { kind: "installer", target, version, commit, archive, format: "tar.gz" },
+            { kind: "toolchain", target, version, commit, ...toolchain },
         );
     }
 
@@ -105,4 +109,24 @@ export async function signUpdate(
         );
     }
     print(`Signed Destack ${version} for ${distributions.length} targets.`, environment);
+}
+
+/** Read a target's toolchain: its files from its CI artifact, its manifest from its release. */
+async function readToolchain(
+    directory: string,
+    release: string,
+    target: Target,
+    environment: Environment<"files">,
+): Promise<{ readonly directory: string; readonly manifest: Manifest }> {
+    // read the manifest the release's resources list for its architecture
+    const { bundle, architecture, signer } = Platform.of(target);
+    const helpers = join(release, bundle.application, bundle.helpers);
+    const resources = Distribution.resources(join(helpers, "destack"));
+    const listed = join(resources, Distribution.toolchainManifest(architecture));
+    const manifest = Manifest.parse(await environment.files.readTextFile(listed));
+
+    // take the files from the artifact of the job that signed them, else the build's
+    const artifact = `${TOOLCHAIN_DIRECTORY}-${signer === undefined ? "unsigned" : "signed"}-${target}`;
+
+    return { directory: join(directory, TOOLCHAIN_DIRECTORY, artifact), manifest };
 }

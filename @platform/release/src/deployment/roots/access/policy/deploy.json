@@ -2,150 +2,41 @@
     "Version": "2012-10-17",
     "Statement": [
         {
-            "Sid": "RootKeyRead",
+            "Sid": "IdentityRead",
             "Effect": "Allow",
-            "Action": [
-                "kms:DescribeKey",
-                "kms:GetKeyPolicy",
-                "kms:GetKeyRotationStatus",
-                "kms:ListResourceTags",
-                "kms:Encrypt",
-                "kms:GenerateDataKeyWithoutPlaintext"
-            ],
-            "Resource": "arn:aws:kms:*:${account}:key/*",
-            "Condition": {
-                "StringLike": {
-                    "aws:ResourceTag/destack-root": "destack-production-*"
-                }
-            }
-        },
-        {
-            "Sid": "KeyListing",
-            "Effect": "Allow",
-            "Action": ["kms:ListAliases", "kms:ListKeys"],
+            "Action": ["iam:Get*", "iam:List*"],
             "Resource": "*"
         },
         {
-            "Sid": "RootKeyAdministrationRefused",
+            "Sid": "IdentityUntouched",
+            "Effect": "Deny",
+            "NotAction": ["iam:Get*", "iam:List*", "iam:CreateServiceLinkedRole"],
+            "Resource": "arn:aws:iam::${account}:*"
+        },
+        {
+            "Sid": "RootKeysUntouched",
             "Effect": "Deny",
             "Action": [
                 "kms:CreateKey",
                 "kms:PutKeyPolicy",
                 "kms:ReplicateKey",
-                "kms:TagResource",
-                "kms:UntagResource",
                 "kms:CreateGrant",
                 "kms:DisableKey",
                 "kms:ScheduleKeyDeletion",
                 "kms:UpdatePrimaryRegion",
                 "kms:CreateAlias",
                 "kms:UpdateAlias",
-                "kms:DeleteAlias"
+                "kms:DeleteAlias",
+                "kms:TagResource",
+                "kms:UntagResource"
             ],
             "Resource": "*"
         },
         {
-            "Sid": "ManagedUsersRead",
-            "Effect": "Allow",
-            "Action": [
-                "iam:GetUser",
-                "iam:ListUserTags",
-                "iam:ListAccessKeys",
-                "iam:GetUserPolicy",
-                "iam:ListUserPolicies",
-                "iam:ListAttachedUserPolicies",
-                "iam:ListGroupsForUser"
-            ],
-            "Resource": [
-                "arn:aws:iam::${account}:user/destack-production-*-kms",
-                "arn:aws:iam::${account}:user/destack-mail-send"
-            ]
-        },
-        {
-            "Sid": "MailUserBounded",
-            "Effect": "Allow",
-            "Action": ["iam:CreateUser", "iam:PutUserPolicy"],
-            "Resource": "arn:aws:iam::${account}:user/destack-mail-send",
-            "Condition": {
-                "StringEquals": {
-                    "iam:PermissionsBoundary": "arn:aws:iam::${account}:policy/destack-mail-send-boundary"
-                }
-            }
-        },
-        {
-            "Sid": "MailAccessKeys",
-            "Effect": "Allow",
-            "Action": ["iam:CreateAccessKey", "iam:DeleteAccessKey"],
-            "Resource": "arn:aws:iam::${account}:user/destack-mail-send"
-        },
-        {
-            "Sid": "WorkerUsersUntouched",
+            "Sid": "DataKept",
             "Effect": "Deny",
-            "Action": [
-                "iam:CreateUser",
-                "iam:DeleteUser",
-                "iam:PutUserPolicy",
-                "iam:DeleteUserPolicy",
-                "iam:CreateAccessKey",
-                "iam:DeleteAccessKey"
-            ],
-            "Resource": "arn:aws:iam::${account}:user/destack-production-*-kms"
-        },
-        {
-            "Sid": "BoundariesFixed",
-            "Effect": "Deny",
-            "Action": [
-                "iam:PutUserPermissionsBoundary",
-                "iam:DeleteUserPermissionsBoundary",
-                "iam:AttachUserPolicy",
-                "iam:AddUserToGroup",
-                "iam:CreatePolicyVersion",
-                "iam:SetDefaultPolicyVersion",
-                "iam:DeletePolicy",
-                "iam:DeletePolicyVersion"
-            ],
+            "Action": ["rds:DeleteDBInstance", "rds:DeleteDBSnapshot", "s3:DeleteBucket"],
             "Resource": "*"
-        },
-        {
-            "Sid": "MailIdentity",
-            "Effect": "Allow",
-            "Action": [
-                "ses:CreateEmailIdentity",
-                "ses:GetEmailIdentity",
-                "ses:PutEmailIdentityMailFromAttributes",
-                "ses:PutEmailIdentityConfigurationSetAttributes",
-                "ses:TagResource",
-                "ses:UntagResource",
-                "ses:ListTagsForResource"
-            ],
-            "Resource": "arn:aws:ses:eu-central-1:${account}:identity/destack.app"
-        },
-        {
-            "Sid": "MailConfigurationSet",
-            "Effect": "Allow",
-            "Action": [
-                "ses:CreateConfigurationSet",
-                "ses:GetConfigurationSet",
-                "ses:PutConfigurationSetDeliveryOptions",
-                "ses:PutConfigurationSetReputationOptions",
-                "ses:PutConfigurationSetSendingOptions",
-                "ses:PutConfigurationSetSuppressionOptions",
-                "ses:TagResource",
-                "ses:UntagResource",
-                "ses:ListTagsForResource"
-            ],
-            "Resource": "arn:aws:ses:eu-central-1:${account}:configuration-set/destack-mail"
-        },
-        {
-            "Sid": "MailAccount",
-            "Effect": "Allow",
-            "Action": ["ses:GetAccount", "ses:PutAccountSuppressionAttributes"],
-            "Resource": "*",
-            "Condition": {
-                "StringEquals": {
-                    "aws:RequestedRegion": "eu-central-1"
-                }
-            }
         }
     ]
 }

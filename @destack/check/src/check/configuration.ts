@@ -10,6 +10,7 @@ import { CheckError } from "../error/index.ts";
 import { expectationOverrides, readExpectations, workspaceMembers } from "./expectation.ts";
 import { type Manifest, readManifest } from "./manifest.ts";
 import { formatSource } from "./format.ts";
+import type { Toolchain } from "../toolchain/index.ts";
 import { present } from "@destack/schema";
 
 /** A bunfig.toml preload list, its quoted modules captured. */
@@ -428,9 +429,10 @@ async function readSources(directory: string, files: FileSystem) {
     return { hasViews, packages: packages.toSorted() };
 }
 
-/** Write editor and direct-tool configuration from the canonical settings. */
+/** Write editor and direct-tool configuration from the canonical settings with a toolchain. */
 export async function configurePackage(
     directory: string,
+    toolchain: Toolchain,
     files: FileSystem,
     plugins: readonly Plugin[] = [],
 ): Promise<void> {
@@ -439,6 +441,7 @@ export async function configurePackage(
         await writeJson(
             resolve(directory, "tsconfig.json"),
             await typescriptConfiguration(directory, files),
+            toolchain,
             files,
         );
     }
@@ -449,9 +452,10 @@ export async function configurePackage(
             writeJson(
                 resolve(directory, ".oxlintrc.json"),
                 await editorLintConfiguration(directory, files, plugins),
+                toolchain,
                 files,
             ),
-            writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration, files),
+            writeJson(resolve(directory, ".oxfmtrc.json"), formatConfiguration, toolchain, files),
         ]);
     }
 }
@@ -468,8 +472,14 @@ async function editorLintConfiguration(
 }
 
 /** Write a configuration as formatted JSON, as the formatter writes package files. */
-async function writeJson(path: string, value: unknown, files: FileSystem): Promise<void> {
-    await files.writeTextFile(path, await formatSource(path, `${JSON.stringify(value)}\n`));
+async function writeJson(
+    path: string,
+    value: unknown,
+    toolchain: Toolchain,
+    files: FileSystem,
+): Promise<void> {
+    const formatted = await formatSource(path, `${JSON.stringify(value)}\n`, toolchain);
+    await files.writeTextFile(path, formatted);
 }
 
 /** Reject existing tool configuration that differs from the generated settings. */

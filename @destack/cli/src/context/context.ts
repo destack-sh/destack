@@ -14,6 +14,7 @@ import { type Identifier, schema, Version } from "@destack/schema";
 
 import { Catalog } from "../object/catalog.ts";
 import { Terminal } from "../output/index.ts";
+import { TerminalAuthorization } from "./authorization.ts";
 import type {} from "@destack/package/import-meta";
 import { CliError } from "../error/index.ts";
 
@@ -186,11 +187,15 @@ export class Context {
 
     /** Open a client of a package of the machine serving a space, as the person. */
     async package<Handle extends PackageHandle>(handle: Handle, location: PlacementEndpoint) {
+        // send as the person, asking them for a grant a delegate lacks
         const client = await this.native();
+        const session = await this.person();
+        const authorization = new TerminalAuthorization(session.person, this.terminal.prompt);
+        const fetch = authorization.fetch((request) => session.send(request, handle.id, location));
 
         return createClient<Handle["router"]>(
             handle,
-            (await this.person()).endpoint(handle.id, location),
+            { ...session.endpoint(handle.id, location), fetch },
             client.environment,
         );
     }

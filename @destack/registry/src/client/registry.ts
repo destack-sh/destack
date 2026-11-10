@@ -7,6 +7,7 @@ import { BuildReader, type PackageLocation, PackageManifest } from "@destack/pac
 import { type Digest, type Identifier, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { createClient } from "@destack/object/client";
+import { Failure } from "@destack/error";
 import { RegistryError } from "../error/index.ts";
 import { packageObject } from "../object/index.ts";
 import registryPackage from "../package.ts";
@@ -205,6 +206,76 @@ export class Registry {
             });
 
             return "pointed";
+        }
+    }
+
+    /** Publish a stored build under a tag, after the account's unpublished builds it pins. */
+    async publish(
+        store: Pick<BuildStore, "contents" | "units">,
+        manifest: Digest,
+        account: Identifier<"account">,
+        tag: string,
+    ): Promise<readonly PackageRelease[]> {
+        // order the build's closure with each dependency before the builds pinning it
+        const root = PackageManifest.package((await store.contents(manifest)).manifest);
+        const { handle } = PackageName.split(root.name);
+        const ordered = await Registry.#ordered(store, manifest, new Set());
+
+        // release the account's builds the forge lacks, and require every other one published
+        const released: PackageRelease[] = [];
+        for (const digest of ordered) {
+            const built = PackageManifest.package((await store.contents(digest)).manifest);
+            if (PackageName.split(built.name).handle === handle) {
+                const outcome = await this.release(store, digest, account, tag);
+                released.push(
+                    ...(outcome === "released" ? [{ package: built, manifest: digest }] : []),
+                );
+            } else {
+                await this.#requirePublished(built, digest);
+            }
+        }
+
+        return released;
+    }
+
+    /** List a build's Destack closure, each build after the builds it pins. */
+    static async #ordered(
+        store: Pick<BuildStore, "contents">,
+        manifest: Digest,
+        visited: Set<Digest>,
+    ): Promise<Digest[]> {
+        // visit each build once
+        if (visited.has(manifest)) {
+            return [];
+        }
+        visited.add(manifest);
+
+        // list its dependencies' closures, then the build
+        const ordered: Digest[] = [];
+        for (const dependency of await (await store.contents(manifest)).releases()) {
+            ordered.push(...(await Registry.#ordered(store, dependency.manifest, visited)));
+        }
+
+        return [...ordered, manifest];
+    }
+
+    /** Refuse a build of another account that its forge has not released at its version. */
+    async #requirePublished(built: PackageRelease["package"], manifest: Digest): Promise<void> {
+        // read the published build of its version, none where its forge has no such release
+        const published = await this.find(built.id, built.version).catch((error: unknown) => {
+            if (Failure.of(error).code !== "NOT_FOUND") {
+                throw error;
+            }
+
+            return undefined;
+        });
+
+        // refuse a version unpublished, or published from another build
+        if (published !== manifest) {
+            throw RegistryError.of(
+                "DEPENDENCY_UNPUBLISHED",
+                `${built.name}@${built.version} is not published`,
+            );
         }
     }
 

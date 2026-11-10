@@ -1,5 +1,5 @@
 import { Bookmark } from "@destack/object/client";
-import { Uuid } from "@destack/schema";
+import { present, schema, Uuid } from "@destack/schema";
 import { type Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
@@ -18,6 +18,8 @@ import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
 import { SECOND_MILLISECONDS, REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
+import { type ConsentRequest, OAuthError, type WantedPermission } from "../authentication/token.ts";
+import { CallError, ObjectError } from "@destack/object";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
 
@@ -122,6 +124,71 @@ export class WorkloadIdentity {
 
             return this.send(WorkloadIdentity.#bearer(request, accessToken));
         };
+    }
+
+    /** Create a fetch calling a package for a caller, exchanging the subject's token for theirs. */
+    fetchExchanged(
+        audience: PackageId,
+        caller: Pick<Caller, "subject" | "grants">,
+        wanted: readonly WantedPermission[],
+    ): Fetch {
+        return async (request) => {
+            // act in the space below the request's mount, refusing a request to no space
+            const spaceId = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
+            if (spaceId === undefined) {
+                throw AccountError.of(
+                    "SPACE_REQUIRED",
+                    `${this.subject.id} can only act for its caller in spaces, not ${request.url}`,
+                );
+            }
+
+            // exchange for the caller's token carrying what the call needs, answering a consent it lacks as the grant gate
+            const exchanged = await this.exchange(audience, {
+                subject: caller.subject,
+                partition: schema.identifier("space").parse(spaceId),
+                ...(caller.grants.length === 0
+                    ? {}
+                    : { grants: caller.grants.map((grant) => grant.id) }),
+                wanted,
+            }).then(
+                (token) => ({ token }),
+                (error: unknown) => {
+                    if (!OAuthError.is(error, "CONSENT_REQUIRED")) {
+                        throw error;
+                    }
+
+                    return { refusal: WorkloadIdentity.#gate(error.data, error.message) };
+                },
+            );
+            if ("refusal" in exchanged) {
+                return Response.json(exchanged.refusal.toJSON(), {
+                    status: exchanged.refusal.status,
+                });
+            }
+            const { token } = exchanged;
+
+            return this.send(WorkloadIdentity.#bearer(request, token));
+        };
+    }
+
+    /** Describe a consent a token exchange lacks as the grant gate its caller resolves. */
+    static #gate(consent: ConsentRequest, message: string): CallError<string, unknown> {
+        // refuse the first permission no grant gives, naming the delegate the person grants
+        const [needed] = consent.authorization_details;
+        if (needed === undefined) {
+            throw OAuthError.of("CONSENT_REQUIRED", message, { data: consent });
+        }
+
+        // answer it as an object's refusal of the call
+        const gate = ObjectError.of("GRANT_INSUFFICIENT", message, {
+            data: {
+                permission: needed.permission,
+                object: needed.object,
+                ...(consent.delegate === undefined ? {} : { delegate: consent.delegate }),
+            },
+        });
+
+        return present(CallError.of(gate), "the call error of the grant gate");
     }
 
     /** Create a fetch calling a package with the subject's granted tokens, bound to a partition. */

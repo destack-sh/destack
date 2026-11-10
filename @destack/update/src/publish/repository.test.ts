@@ -1,11 +1,12 @@
 import { TestUpdate } from "../test/index.ts";
-import { expect, test } from "@destack/test";
+import { expect, refusal, test } from "@destack/test";
 import { Metadata, MetadataKind, Targets } from "@tufjs/models";
 import { join } from "node:path";
 import { SigningKey } from "./key.ts";
 import { TrustedRoot } from "./root.ts";
 import { parseObject } from "./json.ts";
-import { SignedRepository } from "./repository.ts";
+import { type Distribution, SignedRepository } from "./repository.ts";
+import { Manifest } from "../manifest/manifest.ts";
 import { COMMIT } from "../test/index.ts";
 
 test("renew freshness while preserving exact targets authorization", async () => {
@@ -110,6 +111,98 @@ test("renew freshness while preserving exact targets authorization", async () =>
                 world,
             ),
         ).rejects.toThrow("targets was signed by 0/1 keys");
+    } finally {
+        await world.files.remove(directory, { recursive: true });
+    }
+});
+
+test("publish a toolchain's files as blobs and no target, refusing files its manifest lacks", async () => {
+    // sign a root over disposable ed25519 keys in a world paused near the wall clock
+    const world = TestUpdate.world().environment("test");
+    const roots = await Promise.all(
+        Array.from({ length: 3 }, () => SigningKey.generate("ed25519", world.crypto)),
+    );
+    const keys = {
+        targets: await SigningKey.generate("ed25519", world.crypto),
+        snapshot: await SigningKey.generate("ed25519", world.crypto),
+        timestamp: await SigningKey.generate("ed25519", world.crypto),
+    };
+    const root = TrustedRoot.create(
+        1,
+        roots.map((key) => key.public),
+        {
+            targets: keys.targets.public,
+            snapshot: keys.snapshot.public,
+            timestamp: keys.timestamp.public,
+        },
+        new Date(world.clock.now() + 365 * 86_400_000).toISOString(),
+        world,
+    );
+    for (const key of roots.slice(0, 2)) {
+        await key.sign(root);
+    }
+
+    // lay out a toolchain whose files lost their modes, which its manifest records
+    const directory = await world.files.makeTemporaryDirectory("destack-repository-");
+    const toolchain = join(directory, "toolchain");
+    await world.files.mkdir(join(toolchain, "bin"), { recursive: true });
+    await world.files.writeTextFile(join(toolchain, "bin", "tsc"), "compile");
+    await world.files.writeTextFile(join(toolchain, "lint.js"), "lint");
+    const read = await Manifest.read(toolchain, world);
+    const manifest = new Manifest(
+        read.files.map((file) => (file.path === "bin/tsc" ? { ...file, mode: 0o755 } : file)),
+        read.links,
+    );
+    const published: Extract<Distribution, { kind: "toolchain" }> = {
+        kind: "toolchain",
+        target: "aarch64-apple-darwin",
+        version: "2026.9.1",
+        commit: COMMIT,
+        directory: toolchain,
+        manifest,
+    };
+    try {
+        // publish the toolchain, then refuse a manifest of other files
+        const targets = await SignedRepository.create(
+            join(directory, "feed"),
+            1,
+            root,
+            keys,
+            [published],
+            world,
+        );
+        const other = new Manifest(
+            manifest.files.map((file) => ({ ...file, size: file.size + 1 })),
+            [],
+        );
+        const refused = await refusal(
+            SignedRepository.create(
+                join(directory, "refused"),
+                1,
+                root,
+                keys,
+                [{ ...published, manifest: other }],
+                world,
+            ),
+        );
+
+        // expect each file's blob, no signed target, and the refusal
+        const feed = join(directory, "feed", "targets");
+        expect({
+            targets: Object.keys(targets.signed.targets),
+            blobs: (await world.files.readDirectory(join(feed, "blobs")))
+                .map((entry) => entry.name)
+                .toSorted(),
+            refused,
+        }).toEqual({
+            targets: [],
+            blobs: manifest.files.map((file) => file.digest).toSorted(),
+            refused: [
+                "BAD_REQUEST",
+                "METADATA_INVALID",
+                `the toolchain's files differ from its manifest: ${toolchain}`,
+            ],
+        });
     } finally {
         await world.files.remove(directory, { recursive: true });
     }
