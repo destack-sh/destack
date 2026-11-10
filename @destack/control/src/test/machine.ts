@@ -3,7 +3,8 @@ import { principal } from "@destack/access";
 import { defineDatabase, type LogPosition, Snapshot } from "@destack/db";
 import { MemoryBlobStorage } from "@destack/resource";
 import { Directory, UniverseOrigin } from "@destack/account/address";
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey, Session } from "@destack/account/client";
+import { Bookmark } from "@destack/object/client";
 import { IdentityRegistry } from "@destack/account/identity";
 import { directoryShape, identityShape, machineShape } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
@@ -49,7 +50,7 @@ export class TestMachine implements AsyncDisposable {
     /** The account package's URL at the universe, and the universe's issuer. */
     readonly universe: { readonly accounts: string; readonly issuer: string };
     /** The machine's proven identity, signing its calls to the universe. */
-    readonly #identity: MachineIdentity;
+    readonly #identity: MachineKey;
     /** Send a request to the universe in process. */
     readonly #send: Fetch;
     /** The store following the directory, its identities and the machine's assignments. */
@@ -73,7 +74,7 @@ export class TestMachine implements AsyncDisposable {
 
     /** Keep a machine's identity and its directory replica. */
     private constructor(fields: {
-        readonly identity: MachineIdentity;
+        readonly identity: MachineKey;
         readonly keyring: LocalKeyring;
         readonly environment: Environment;
         readonly origin: string;
@@ -137,7 +138,7 @@ export class TestMachine implements AsyncDisposable {
     }): Promise<TestMachine> {
         // prove the machine by its declared key, and keep the keys of the spaces it hosts in memory, the world's when restored
         const { id, keychain, origin, send, environment } = options;
-        const identity = new MachineIdentity(id, keychain, environment);
+        const identity = new MachineKey(id, keychain, environment);
         const kept = new MemoryKeychain(options.world?.secrets);
         const keyring = await LocalKeyring.open(kept, id, environment);
         const accounts = PackageMount.url(origin, accountPackage.id);
@@ -146,7 +147,9 @@ export class TestMachine implements AsyncDisposable {
             accountPackage,
             {
                 url: accounts,
-                fetch: identity.fetch(send, accountPackage.id, issuer),
+                fetch: TestMachine.#session(identity, issuer, origin, send, environment).fetch(
+                    accountPackage.id,
+                ),
             },
             environment,
         ).store;
@@ -195,12 +198,36 @@ export class TestMachine implements AsyncDisposable {
 
     /** Create a fetch calling a universe package as the machine. */
     fetch(audience: PackageId): Fetch {
-        return this.#identity.fetch(this.#send, audience, this.universe.issuer);
+        const { issuer } = this.universe;
+
+        return TestMachine.#session(
+            this.#identity,
+            issuer,
+            issuer,
+            this.#send,
+            this.environment,
+        ).fetch(audience);
     }
 
     /** Read the machine's access token for a package, as the universe grants it. */
     token(audience: PackageId): Promise<string> {
-        return this.#identity.token(audience, this.universe.issuer, this.#send);
+        return this.#identity.at(this.universe.issuer, this.#send).token(audience, {});
+    }
+
+    /** Call packages as a machine, with the tokens the universe's issuer grants its key. */
+    static #session(
+        identity: MachineKey,
+        issuer: string,
+        universe: string,
+        send: Fetch,
+        environment: Environment,
+    ): Session {
+        return new Session(identity.at(issuer, send), {
+            universe: new URL(universe).origin,
+            send,
+            bookmark: new Bookmark(),
+            environment,
+        });
     }
 
     /** Send a request to another origin as it is, in process. */

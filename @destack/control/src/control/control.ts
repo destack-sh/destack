@@ -8,6 +8,8 @@ import {
 } from "@destack/account/better-auth";
 import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
+import { Session } from "@destack/account/client";
+import { Bookmark } from "@destack/object/client";
 import { claim, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
@@ -274,7 +276,13 @@ export class Control implements AsyncDisposable {
                     ? await (await serving.promise).fetch(request)
                     : await network.fetch(request),
         });
-        connected.resolve((audience) => identity.fetchSigned(audience));
+        const session = new Session(identity, {
+            universe: origin,
+            send: identity.send,
+            bookmark: new Bookmark(),
+            environment: options.environment,
+        });
+        connected.resolve((audience) => session.fetch(audience));
 
         // serve once the run applied the definition, refusing a run that did not complete
         const ready = async (signal: AbortSignal) => {

@@ -22,7 +22,7 @@ import type { Clock, Environment } from "@destack/environment";
 import { testSimulation } from "@destack/object/test";
 import type { Simulation } from "@destack/environment/simulation";
 import { LocalKeyring, MemoryKeychain, PublicKey } from "@destack/identity";
-import { MachineIdentity } from "@destack/account/client";
+import { MachineKey } from "@destack/account/client";
 import {
     Account,
     type Allowance,
@@ -82,7 +82,7 @@ const PERSONAL_MACHINE = {
 } as const;
 
 /** What a machine declares of itself as it enrolls: personal, or a cloud machine of a residency. */
-export type MachineDeclaration = Parameters<MachineIdentity["enroll"]>[1] extends infer Enrolled
+export type MachineDeclaration = Parameters<MachineKey["enroll"]>[1] extends infer Enrolled
     ? Enrolled extends unknown
         ? Omit<Enrolled, "scope" | "requestId" | "name">
         : never
@@ -286,7 +286,7 @@ export class TestControl implements AsyncDisposable {
                 const keychain = new MemoryKeychain(restored?.secrets);
                 const publicKey =
                     restored?.key ??
-                    (await new MachineIdentity(id, keychain, environment).generate()).publicKey;
+                    (await new MachineKey(id, keychain, environment).generate()).publicKey;
                 const origin = `https://${declaredResidency.code}.machine.test/`;
                 machines.set(declaredResidency.code, { id, keychain, key: publicKey, origin });
 
@@ -728,7 +728,7 @@ export class TestControl implements AsyncDisposable {
         // enroll the machine with a new key as the person
         const id = Identifier.create("machine", this.environment);
         const keychain = new MemoryKeychain();
-        const identity = new MachineIdentity(id, keychain, this.environment);
+        const identity = new MachineKey(id, keychain, this.environment);
         await identity.enroll(person.client(accountPackage), {
             ...declared,
             scope: accountId,
@@ -748,7 +748,7 @@ export class TestControl implements AsyncDisposable {
         // declare the machine with a new key at the universe, as the universe trusting the platform
         const id = Identifier.create("machine", this.environment);
         const keychain = new MemoryKeychain();
-        const { publicKey } = await new MachineIdentity(id, keychain, this.environment).generate();
+        const { publicKey } = await new MachineKey(id, keychain, this.environment).generate();
         const { store } = this.control;
         const now = this.clock.now();
         await store.mutate(store.as(machine, now), {
