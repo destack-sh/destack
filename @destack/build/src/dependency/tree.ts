@@ -76,6 +76,18 @@ export interface TreeRun {
     readonly closure: ReadonlySet<string>;
 }
 
+/** A build a materialization visited: where its tree goes and the builds it links. */
+interface TreeVisit {
+    /** The build. */
+    readonly dependency: DependencyBuild;
+    /** The dependencies the build was compiled with, by name. */
+    readonly recorded: Readonly<Record<string, DependencyRelease>>;
+    /** The directory its tree goes in. */
+    readonly root: string;
+    /** The Destack builds it links that the tree places. */
+    readonly linked: readonly DependencyBuild[];
+}
+
 /** The builds of a package's Destack dependencies, materialized as a node_modules tree. */
 export class DependencyTree {
     /** The directory of each dependency's build or npm unit, by package name. */
@@ -154,6 +166,7 @@ export class DependencyTree {
             (each): each is DependencyBuild => each.kind === "destack",
         );
         const manifests = new Map<string, string>();
+        const visits = new Map<string, TreeVisit>();
         const named = new Set(builds.map((dependency) => dependency.package.name));
         const pending = [...builds];
         for (let dependency = pending.pop(); dependency !== undefined; dependency = pending.pop()) {
@@ -197,28 +210,33 @@ export class DependencyTree {
                     }
                 }
             }
-            pending.push(
-                ...Object.values(recorded).filter(
-                    (each): each is DependencyBuild =>
-                        each.kind === "destack" && (closure?.has(each.manifest) ?? true),
-                ),
+            const linked = Object.values(recorded).filter(
+                (each): each is DependencyBuild =>
+                    each.kind === "destack" && (closure?.has(each.manifest) ?? true),
             );
+            pending.push(...linked);
 
-            // use a build an earlier materialization moved into place, else link or place it
+            // record where the build goes and the builds it links
             const root = join(directory, DependencyTree.#rootName(dependency.manifest, run));
             directories[dependency.package.name] = join(
                 root,
                 "node_modules",
                 dependency.package.name,
             );
-            const shipped = store.layeredTree(basename(root));
+            visits.set(dependency.manifest, { dependency, recorded, root, linked });
+        }
+
+        // place each build after the builds it links
+        const roots = builds.map((each) => each.manifest);
+        for (const visit of DependencyTree.#linkedFirst(visits, roots)) {
             // clone what the store still lacks of a tree the store's layer ships
+            const shipped = store.layeredTree(basename(visit.root));
             if (shipped !== undefined) {
-                await DependencyTree.#adopt(shipped, root, files);
+                await DependencyTree.#adopt(shipped, visit.root, files);
             }
             // place a tree outside the layer
-            else if (!(await files.exists(root))) {
-                await DependencyTree.#place(store, dependency, recorded, directory, {
+            else if (!(await files.exists(visit.root))) {
+                await DependencyTree.#place(store, visit.dependency, visit.recorded, directory, {
                     installation,
                     named,
                     run,
@@ -230,6 +248,33 @@ export class DependencyTree {
         const tree = await DependencyTree.read(directories, files);
 
         return new DependencyTree({ ...placedNpm, ...tree.directories }, tree.roles, tree.#exports);
+    }
+
+    /** Order visited builds from some roots so each follows the builds it links, each once. */
+    static #linkedFirst(
+        visits: ReadonlyMap<string, TreeVisit>,
+        roots: readonly string[],
+    ): TreeVisit[] {
+        // walk depth first, taking a build once every build it links is taken
+        const ordered: TreeVisit[] = [];
+        const seen = new Set<string>();
+        const pending = roots.toReversed().map((manifest) => ({ manifest, isExpanded: false }));
+        for (let entry = pending.pop(); entry !== undefined; entry = pending.pop()) {
+            // take an expanded build, else expand a first visit with its links on top
+            const visit = visits.get(entry.manifest);
+            if (visit !== undefined && entry.isExpanded) {
+                ordered.push(visit);
+            } else if (visit !== undefined && !seen.has(entry.manifest)) {
+                seen.add(entry.manifest);
+                const links = visit.linked.map((each) => ({
+                    manifest: each.manifest,
+                    isExpanded: false,
+                }));
+                pending.push({ manifest: entry.manifest, isExpanded: true }, ...links.toReversed());
+            }
+        }
+
+        return ordered;
     }
 
     /** Write one build into its place below a directory: its files, links and package.json. */

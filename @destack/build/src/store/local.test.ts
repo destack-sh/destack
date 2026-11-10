@@ -341,6 +341,63 @@ test("link a running tree's build to the dependencies its closure places alone, 
     });
 });
 
+test("move a build's tree into place after the trees it links", async () => {
+    // record each tree the store moves into its trees, over a store pinning an app to a library
+    await using simulation = testSimulation();
+    const base = simulation.environment("test");
+    const moved: string[] = [];
+    const rename = async (from: string, to: string) => {
+        await base.files.rename(from, to);
+        moved.push(to.slice(to.lastIndexOf("/") + 1));
+    };
+    const files = new Proxy(base.files, {
+        get: (target, key): unknown => {
+            // record renames, and call every other method on the file system itself
+            const value: unknown = Reflect.get(target, key);
+            if (key === "rename") {
+                return rename;
+            } else if (typeof value === "function") {
+                const bound: unknown = value.bind(target);
+
+                return bound;
+            } else {
+                return value;
+            }
+        },
+    });
+    const environment = { ...base, files };
+    const { crypto } = environment;
+    await using store = await LocalBuildStore.temporary(environment);
+    const library = await written("export const library = 1;", crypto, {
+        id: "package-00000000-0000-7000-8000-00000000a002",
+        name: "@example/library",
+    });
+    const pinned = {
+        kind: "destack" as const,
+        package: PackageManifest.package(library.manifest),
+        manifest: await store.put(library),
+    };
+    const app = await written("export const app = 1;", crypto, ANSWER, {
+        "@example/library": pinned,
+    });
+    const built = {
+        kind: "destack" as const,
+        package: PackageManifest.package(app.manifest),
+        manifest: await store.put(app),
+    };
+
+    // materialize the app running on Bun
+    await DependencyTree.materialize(store, [built], store.trees, {
+        run: { runtime: "bun", closure: new Set([built.manifest, pinned.manifest]) },
+    });
+
+    // move the library's tree in before the app's, which links it
+    expect(moved.filter((name) => name.endsWith(".bun"))).toEqual([
+        `${pinned.manifest}.bun`,
+        `${built.manifest}.bun`,
+    ]);
+});
+
 test("leave the builtins out of a run tree, as the runtime links them", async () => {
     // store an app importing a library and a builtin
     await using simulation = testSimulation();
