@@ -125,6 +125,7 @@
     },
     "devDependencies": {
         "@destack/build": "workspace:*",
+        "@destack/check": "workspace:*",
         "@destack/test": "workspace:*",
         "@fontsource/ibm-plex-mono": "5.3.0",
         "rolldown": "1.2.16",
