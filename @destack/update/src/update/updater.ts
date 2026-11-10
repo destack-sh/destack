@@ -21,7 +21,7 @@ export class Updater implements AsyncDisposable {
     /** Distribution files and activation records. */
     private readonly installer: Installer;
     /** Verified update repository. */
-    private readonly repository: UpdateRepository;
+    readonly repository: UpdateRepository;
     /** Exclusive metadata and installation lock. */
     readonly lock: FileLock;
     /** Platform and application selected by the caller. */

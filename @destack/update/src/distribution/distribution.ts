@@ -1,6 +1,12 @@
 import { dlopen } from "bun:ffi";
-import { type Environment, FileSystemError, type Process } from "@destack/environment";
-import { schema, Uuid } from "@destack/schema";
+import {
+    type Architecture,
+    type Environment,
+    FileSystemError,
+    type Process,
+} from "@destack/environment";
+import { Digest, schema, Uuid } from "@destack/schema";
+import { Toolchain } from "@destack/check/toolchain";
 import { verifyApplication } from "../apple/install.ts";
 import { ShellPath } from "../install/path.ts";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
@@ -8,6 +14,7 @@ import type { StagedRelease } from "../install/installer.ts";
 import { RELEASE_ROOT, Release, type Stage } from "../release/index.ts";
 import { UpdateError } from "../error/index.ts";
 import { Updater } from "../update/index.ts";
+import { Manifest } from "../manifest/manifest.ts";
 
 /** The permissions of the installation directory and its launchers: the person's alone. */
 const PRIVATE_MODE = 0o700;
@@ -26,6 +33,15 @@ const ST_RDONLY = 1n;
 
 /** The command's executable inside a native Windows package's application directory. */
 const WINDOWS_COMMAND = "helpers/destack.exe";
+
+/** The directory in a release's resources with the first-party releases it ships. */
+export const DISTRIBUTION_DIRECTORY = "distribution";
+
+/** The name of a toolchain directory: a local release's in its resources, or below the home. */
+export const TOOLCHAIN_DIRECTORY = "toolchain";
+
+/** The checked-out toolchains a checkout keeps: the current one and the one before. */
+const KEPT_TOOLCHAINS = 2;
 
 /** The system libraries the native Linux desktop needs. */
 const DESKTOP_LIBRARIES = ["libgtk-3.so.0", "libwebkit2gtk-4.1.so.0"] as const;
@@ -490,6 +506,93 @@ export class Distribution {
         }
 
         return undefined;
+    }
+
+    /** Find an executable's resources: its Mac application's, else the executable's directory. */
+    static resources(executable: string): string {
+        const application = Distribution.bundle(executable);
+
+        return application === undefined
+            ? dirname(resolve(executable))
+            : join(application, "Contents", "Resources");
+    }
+
+    /** Name the file in a release's resources with an architecture's toolchain manifest. */
+    static toolchainManifest(architecture: Architecture): string {
+        return `toolchain-${architecture}.json`;
+    }
+
+    /** Find the toolchain: a local release's in its resources, else one checked out by manifest. */
+    async toolchain(): Promise<Toolchain> {
+        // take a local release's toolchain from its resources, as no feed publishes it
+        const { environment, executable, stage, home } = this.options;
+        const resources = Distribution.resources(executable);
+        if (stage.name === "local") {
+            return Toolchain.at(join(resources, TOOLCHAIN_DIRECTORY));
+        }
+
+        // read the host's toolchain manifest from the resources, its digest naming its directory
+        const { files, crypto, host } = environment;
+        const manifest = join(resources, Distribution.toolchainManifest(host.architecture));
+        const text = await files.readTextFile(manifest);
+        const root = join(home, TOOLCHAIN_DIRECTORY);
+        const directory = join(root, await Digest.of(text, crypto));
+
+        // reuse a checked-out toolchain
+        if (await files.exists(directory)) {
+            return Toolchain.at(directory);
+        }
+
+        // check the manifest out under the update lock, unless another process did while it waited
+        await using updater = await this.open();
+        if (await files.exists(directory)) {
+            return Toolchain.at(directory);
+        }
+
+        // check out into a temporary directory beside the others, copying their unchanged files, then move it in
+        await files.mkdir(root, { recursive: true });
+        const others = await Distribution.#toolchains(root, files);
+        const staging = await files.makeTemporaryDirectory(".toolchain-", { directory: root });
+        try {
+            await Manifest.parse(text).checkout(
+                staging,
+                { blobs: updater.repository.blobs, sources: others.map(({ path }) => path) },
+                environment,
+            );
+            await files.rename(staging, directory);
+        } finally {
+            await files.remove(staging, { recursive: true, force: true });
+        }
+
+        // remove every toolchain but this one and the latest before it
+        const removed = others
+            .toSorted((left, right) => right.modifiedAt - left.modifiedAt)
+            .slice(KEPT_TOOLCHAINS - 1);
+        for (const { path } of removed) {
+            await files.remove(path, { recursive: true });
+        }
+
+        return Toolchain.at(directory);
+    }
+
+    /** List the checked-out toolchains below a directory, with when each last changed. */
+    static async #toolchains(
+        root: string,
+        files: DistributionEnvironment["files"],
+    ): Promise<{ readonly path: string; readonly modifiedAt: number }[]> {
+        // take the directories named by a digest, passing over checkouts in progress
+        const entries = await files.readDirectory(root);
+        const named = entries.filter(
+            (entry) => entry.kind === "directory" && Digest.safeParse(entry.name).success,
+        );
+
+        return await Promise.all(
+            named.map(async (entry) => {
+                const path = join(root, entry.name);
+
+                return { path, modifiedAt: (await files.stat(path)).modifiedAt };
+            }),
+        );
     }
 
     /** Open a locked update session, refusing an installation that changed under it. */

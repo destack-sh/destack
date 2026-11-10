@@ -133,6 +133,37 @@ export class Manifest {
         return new Manifest(read, links);
     }
 
+    /** Report whether another manifest lists the same files and links, whatever their modes. */
+    hasSameFiles(other: Manifest): boolean {
+        return this.#contents() === other.#contents();
+    }
+
+    /** Describe the files by path, digest and size, and the links, leaving the modes out. */
+    #contents(): string {
+        const files = this.files.map(({ path, digest, size }) => ({ path, digest, size }));
+
+        return JSON.stringify({ files, links: this.links });
+    }
+
+    /** Take the modes another manifest records for the same files, refusing a file it lacks. */
+    withModesOf(recorded: Manifest): Manifest {
+        // keep each file's recorded mode, as copies between machines may drop the modes
+        const modes = new Map(recorded.files.map((file) => [file.path, file.mode]));
+        const files = this.files.map((file) => {
+            const mode = modes.get(file.path);
+            if (mode === undefined) {
+                throw UpdateError.of(
+                    "METADATA_INVALID",
+                    `the manifest records no mode of ${file.path}`,
+                );
+            }
+
+            return { ...file, mode };
+        });
+
+        return new Manifest(files, this.links);
+    }
+
     /** Encode the manifest as the feed signs it, one way for one manifest. */
     encode(): string {
         return JSON.stringify({ files: this.files, links: this.links });

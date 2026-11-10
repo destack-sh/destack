@@ -38,7 +38,7 @@ export class UpdateRepository {
     /** The clock, network and files metadata requests and downloads run on. */
     private readonly environment: Environment<"files">;
     /** The feed's blobs, each file's gzip bytes at its digest. */
-    private readonly blobs: URL;
+    readonly blobs: URL;
     /** The directory with the downloaded manifests and each release's checked-out files. */
     private readonly downloads: string;
 
