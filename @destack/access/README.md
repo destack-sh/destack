@@ -160,7 +160,7 @@ definePackage({
         user: { home: [notification.permission("read")] },
     },
 });
-PermissionSet.grant(set, { space, home: [userId, homeId], account }); // the grant permissions in a context
+PermissionSet.grant(set, { space, home: [userId, homeId], account }); // [{ within: "home", permission }, …]
 ```
 
 ## Tokens

@@ -15,7 +15,11 @@ test("grant a permission set in its scopes, the home's in each home scope and th
         universe: [{ packageId, type: "user", name: "recipient" }],
     });
 
-    // grant each in its scope, and only the space's and universe's without a home or an account
+    // grant each in its scope with its scope in the set, and none of an unknown home or account
+    const note = { packageId, type: "note", name: "read" };
+    const member = { packageId, type: "member", name: "read" };
+    const recipient = { packageId, type: "user", name: "recipient" };
+    const notification = { packageId, type: "notification", name: "read" };
     expect([
         PermissionSet.grant(request, {
             space: "space-a",
@@ -25,15 +29,15 @@ test("grant a permission set in its scopes, the home's in each home scope and th
         PermissionSet.grant(request, { space: "space-a", home: [], account: undefined }),
     ]).toEqual([
         [
-            { packageId, type: "note", name: "read", scope: "space-a" },
-            { packageId, type: "member", name: "read", scope: "account-a" },
-            { packageId, type: "user", name: "recipient" },
-            { packageId, type: "notification", name: "read", scope: "user-a" },
-            { packageId, type: "notification", name: "read", scope: "space-home" },
+            { within: "space", permission: { ...note, scope: "space-a" } },
+            { within: "account", permission: { ...member, scope: "account-a" } },
+            { within: "universe", permission: recipient },
+            { within: "home", permission: { ...notification, scope: "user-a" } },
+            { within: "home", permission: { ...notification, scope: "space-home" } },
         ],
         [
-            { packageId, type: "note", name: "read", scope: "space-a" },
-            { packageId, type: "user", name: "recipient" },
+            { within: "space", permission: { ...note, scope: "space-a" } },
+            { within: "universe", permission: recipient },
         ],
     ]);
 });

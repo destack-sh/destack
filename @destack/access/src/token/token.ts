@@ -2,11 +2,12 @@ import { Bearer } from "./bearer.ts";
 import { PackageId } from "@destack/package";
 import type { Environment } from "@destack/environment";
 import { Jwks, type JwkSet, Jwt, type KeyLookup } from "@destack/identity";
-import { type Identifier, schema } from "@destack/schema";
+import { schema } from "@destack/schema";
 import { Scope, Subject } from "@destack/sync";
 import {
     type Authentication,
     Caller,
+    ClientId,
     CLOCK_TOLERANCE_MILLISECONDS,
     Credential,
     GrantClaim,
@@ -97,9 +98,9 @@ export const AccessToken = schema
         sub: schema.string(),
         /** The receiving packages, each as its resource URI. */
         aud: schema.union([schema.string(), schema.array(schema.string()).min(1)]),
-        /** The key holder the token was issued to: the sending principal, or a user's client. */
+        /** The client the token was issued to: the sender, a user's client, or a client's URL. */
         client_id: schema.union([
-            schema.identifier("client"),
+            ClientId,
             schema.identifier("machine"),
             schema.identifier("installation"),
             schema.identifier("space"),
@@ -310,10 +311,10 @@ export const TokenIssuerAuthority = {
 };
 
 /** Read a token's client: none for the sender's key, else a user's client. */
-function clientOf(token: AccessToken): { readonly client?: Identifier<"client"> } | undefined {
+function clientOf(token: AccessToken): { readonly client?: ClientId } | undefined {
     // take the sender's key, the last delegate or else the subject, else require a client
     const sender = token.act?.at(-1)?.id ?? token.sub;
-    const client = schema.identifier("client").safeParse(token.client_id);
+    const client = ClientId.safeParse(token.client_id);
     if (token.client_id === sender) {
         return {};
     } else if (client.success) {

@@ -18,6 +18,8 @@ const grantInputSchema = schema.object({
     permissions: schema.array(GrantPermission.schema),
     /** The exclusive time the grant lapses, in Unix milliseconds, absent for none. */
     expiresAt: Instant.exactOptional(),
+    /** The delegator's session the grant ends with, absent for none. */
+    sessionId: schema.identifier("session").exactOptional(),
 });
 
 /** A delegator's grant of permissions to a delegate acting for it. */
@@ -204,6 +206,7 @@ export const Grant = {
             ...ObjectReference.columns("delegate", delegate),
             permissions: [...input.permissions],
             expiresAt: input.expiresAt ?? null,
+            sessionId: input.sessionId ?? null,
         });
         await authorization.transaction.write({ table: accessGrant, before: null, after: grant });
 

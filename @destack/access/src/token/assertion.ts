@@ -1,6 +1,6 @@
 import type { Crypto, Environment } from "@destack/environment";
 import type { DatabaseConnection } from "@destack/db";
-import { IdentityError, Jws, Jwt, PublicKey } from "@destack/identity";
+import { IdentityError, Jws, Jwt, type JwtClaims, PublicKey } from "@destack/identity";
 import type { PackageId } from "@destack/package";
 import { Digest, schema, Uuid } from "@destack/schema";
 import type { Subject } from "@destack/sync";
@@ -85,8 +85,11 @@ export class AssertionVerifier {
         this.options = options;
     }
 
-    /** Verify and spend an assertion at a time, answering its principal as the caller. */
-    async verify(assertion: string, now: number): Promise<Authentication> {
+    /** Verify and spend a key-signed token at a time, answering its principal and its claims. */
+    async verify(
+        assertion: string,
+        now: number,
+    ): Promise<{ readonly authentication: Authentication; readonly claims: JwtClaims }> {
         // find the standing key of the claimed issuer the header refers to
         const { kid } = refused(() => Jws.header(assertion));
         const { iss } = refused(() => Jwt.claims(assertion));
@@ -105,7 +108,7 @@ export class AssertionVerifier {
             await PublicKey.import(key.publicKey, crypto),
             {
                 algorithms: PublicKey.algorithms(key.publicKey),
-                typ: ASSERTION_TYPE,
+                typ: this.options.type,
                 issuer: key.subject.id,
                 audience: this.options.endpoint,
                 requiredClaims: ["iat", "exp", "jti"],
@@ -132,13 +135,18 @@ export class AssertionVerifier {
         const digest = await Digest.of(JSON.stringify([key.id, jti]), this.options.crypto);
         await new Nonce(digest, expiresAt).spend(this.options.database, now);
 
-        return asserted(key, sub, this.options.audience, now, expiresAt);
+        return {
+            authentication: asserted(key, sub, this.options.audience, now, expiresAt),
+            claims,
+        };
     }
 }
 
 /** The configuration of an assertion verifier. */
 export interface AssertionVerifierOptions {
-    /** The token endpoint's URL, every assertion's audience (RFC 7523 3). */
+    /** The tokens' type: assertions (RFC 7523) or request objects (RFC 9101). */
+    readonly type: string;
+    /** The URL every token is addressed to: the token endpoint's or the issuer's. */
     readonly endpoint: string;
     /** The package serving the token endpoint, the audience of the callers it verifies. */
     readonly audience: PackageId;

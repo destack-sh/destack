@@ -43,6 +43,8 @@ export const accessGrant = defineTable(
         permissions: json("permissions", schema.array(GrantPermission.schema)).notNull(),
         /** The exclusive time the grant lapses, in Unix milliseconds, null for none. */
         expiresAt: integer("expires_at"),
+        /** The delegator's session the grant ends with, null for none. */
+        sessionId: identifier("session_id", "session"),
     },
     {
         log: { retention: "history" },

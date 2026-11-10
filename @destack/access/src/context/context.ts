@@ -80,14 +80,22 @@ export const GrantClaim = schema.object({
 /** The grant a delegated caller acts under. */
 export type GrantClaim = schema.Infer<typeof GrantClaim>;
 
+/** A client its URL identifies, such as an installation's origin, bound by no key. */
+const UrlClient = schema.string().regex(/^https?:\/\/[^/?#\s]+$/u);
+
+/** The OAuth client a credential was issued to: a device's client, or one its URL identifies. */
+export const ClientId = schema.union([schema.identifier("client"), UrlClient]);
+/** The OAuth client a credential was issued to. */
+export type ClientId = schema.Infer<typeof ClientId>;
+
 /** The schema of the credential a request presented. */
 const credentialSchema = schema.object({
     /** The credential kind, such as session. */
     kind: schema.string().min(1),
     /** The credential identifier. */
     id: schema.string().min(1),
-    /** The client whose key the credential is bound to, absent for an unbound one. */
-    client: schema.identifier("client").exactOptional(),
+    /** The client the credential was issued to, a device's bound by its key, absent for none. */
+    client: ClientId.exactOptional(),
     /** The package the credential was verified for. */
     audience: PackageId,
     /** The credential's scope with the scopes inside it, absent for an unscoped one. */

@@ -9,7 +9,7 @@ import { PackageId } from "@destack/package";
 import { Identifier } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { Jwt, PublicKey } from "@destack/identity";
-import { Assertion, AssertionVerifier, type AssertionKey } from "./assertion.ts";
+import { Assertion, ASSERTION_TYPE, AssertionVerifier, type AssertionKey } from "./assertion.ts";
 import { MACHINE_KEY } from "./token.ts";
 import { nonce } from "./nonce.ts";
 
@@ -36,6 +36,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
     };
     const verifier = new AssertionVerifier({
         crypto: world.crypto,
+        type: ASSERTION_TYPE,
         endpoint,
         audience,
         keys: async (id) => (id === key.id ? key : undefined),
@@ -68,7 +69,7 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
     ];
 
     // verify the first once, then replay it and verify the others
-    const authentication = await verifier.verify(signed, now);
+    const { authentication } = await verifier.verify(signed, now);
     const refusals = [];
     for (const [token, at] of refused) {
         refusals.push(await refusal(verifier.verify(token, at)));
@@ -111,6 +112,7 @@ test("authenticate a space and its installation by the space's key, refusing a s
     };
     const verifier = new AssertionVerifier({
         crypto: world.crypto,
+        type: ASSERTION_TYPE,
         endpoint,
         audience,
         keys: async (id, issuer) => (id === key.id && issuer === spaceId ? key : undefined),
@@ -122,8 +124,8 @@ test("authenticate a space and its installation by the space's key, refusing a s
     const installationId = Identifier.create("installation", world);
     const sign = (subject: string) =>
         Assertion.sign(pair.privateKey, key, endpoint, now, world, subject);
-    const installation = await verifier.verify(await sign(installationId), now);
-    const itself = await verifier.verify(await sign(spaceId), now);
+    const installation = (await verifier.verify(await sign(installationId), now)).authentication;
+    const itself = (await verifier.verify(await sign(spaceId), now)).authentication;
     const refused = await refusal(
         verifier.verify(await sign(Identifier.create("machine", world)), now),
     );

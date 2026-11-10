@@ -23,33 +23,50 @@ const permissionSetSchema = schema
 
 /** Permissions by the scope they apply in, relative to the delegator's context. */
 export const PermissionSet = Object.assign(permissionSetSchema, {
-    /** Grant a set's permissions in the context's scopes, the universe's in every scope. */
-    grant(
-        set: PermissionSet,
-        scopes: {
-            readonly space: string;
-            readonly home: readonly string[];
-            readonly account: string | undefined;
-        },
-    ): GrantPermission[] {
-        return PermissionScope.options.flatMap((name) => {
+    /** Grant a set's permissions in the context's scopes, each with its scope in the set. */
+    grant(set: PermissionSet, context: GrantContext): PermissionEntry[] {
+        return PermissionScope.options.flatMap((within): PermissionEntry[] => {
             // grant the universe's permissions in every scope of the delegator
-            if (name === "universe") {
-                return (set.universe ?? []).map((permission) => ({ ...permission }));
+            if (within === "universe") {
+                return (set.universe ?? []).map((permission) => ({
+                    within,
+                    permission: { ...permission },
+                }));
             }
 
             // grant the scope's permissions in each matching scope of the context
-            const named = scopes[name];
+            const named = context[within];
             const each = named === undefined ? [] : typeof named === "string" ? [named] : named;
 
             return each.flatMap((scope) =>
-                (set[name] ?? []).map((permission) => ({ ...permission, scope })),
+                (set[within] ?? []).map((permission) => ({
+                    within,
+                    permission: { ...permission, scope },
+                })),
             );
         });
     },
 });
 /** Permissions by the scope they apply in. */
-export type PermissionSet = schema.Infer<typeof PermissionSet>;
+export type PermissionSet = schema.Infer<typeof permissionSetSchema>;
+
+/** A permission granted from a set, with the set's scope it came from. */
+export interface PermissionEntry {
+    /** The set's scope: the space, the person's home, the account, or the universe. */
+    readonly within: PermissionScope;
+    /** The permission, granted in a scope of the context. */
+    readonly permission: GrantPermission;
+}
+
+/** The scopes of a delegator's context a permission set is granted in. */
+export interface GrantContext {
+    /** The space. */
+    readonly space: string;
+    /** The person's home scopes: their user and their home space. */
+    readonly home: readonly string[];
+    /** The space's account, absent when unknown. */
+    readonly account: string | undefined;
+}
 
 /** What a space grants an installation at install: in the space, account and universe. */
 const SpaceSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
