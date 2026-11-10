@@ -335,9 +335,7 @@ export class SpaceHost {
                 fetch:
                     subject === undefined
                         ? this.machine.fetch(accountPackage.id)
-                        : this.session(
-                              this.identityOf(subject).granted,
-                          ).fetch(accountPackage.id),
+                        : this.session(this.identityOf(subject).granted).fetch(accountPackage.id),
             },
             this.machine.environment,
         );
@@ -394,9 +392,9 @@ export class SpaceHost {
                 ? this.session(this.identityOf(subject)).fetch(objectPackage.id, {
                       partition: bound,
                   })
-                : this.session(
-                      this.identityOf(this.principal).granted,
-                  ).fetch(objectPackage.id, { partition: bound });
+                : this.session(this.identityOf(this.principal).granted).fetch(objectPackage.id, {
+                      partition: bound,
+                  });
         const at = (subscription: Subscription) =>
             this.machine.directory.publisher(
                 home,
