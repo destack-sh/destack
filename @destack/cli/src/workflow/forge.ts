@@ -20,12 +20,12 @@ export async function openForge(
 }> {
     // find the account of the name's handle and its residency's home
     const native = await context.native();
-    const person = await context.person();
+    const launcher = await context.launcher();
     const accountId = await native.resolve(PackageName.split(name).handle);
-    const home = await person.residency(accountId);
+    const home = await launcher.residency(accountId);
 
     // call the home's forge
-    const endpoint = await person.installation(home, FORGE_INSTALLATION, registryPackage.id);
+    const endpoint = await launcher.installation(home, FORGE_INSTALLATION, registryPackage.id);
 
     return { client: createClient(registryPackage, endpoint, native.environment), home, accountId };
 }

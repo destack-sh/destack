@@ -58,12 +58,12 @@ export async function* followInstallation(
 ): AsyncGenerator<InstallationStatus> {
     // open the space's installations, rollouts and resources as the person until the follow ends
     const space = await context.requireSpace();
-    const person = await context.person();
+    const launcher = await context.launcher();
     const stack = await context.package(stackPackage, await context.locate());
     await using opened = new AsyncDisposableStack();
     const native = await context.native();
     const { query } = await native.open(
-        person,
+        launcher,
         { space },
         { installation, rollout, database, bucket, vault, approval },
         opened,

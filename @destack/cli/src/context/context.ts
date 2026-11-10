@@ -7,7 +7,7 @@ import { type ObjectType, type PackageHandle } from "@destack/object";
 import { type ObjectClient, createClient } from "@destack/object/client";
 import { Setting } from "@destack/setting";
 import type { PlacementEndpoint } from "@destack/account/object";
-import { type Session, type Device, type MachineCredential } from "@destack/machine/device";
+import { type Launcher, type Device, type MachineCredential } from "@destack/machine/device";
 import { checkout, type Checkout } from "@destack/machine/checkout";
 import { RequestId } from "@destack/sync";
 import { type Identifier, schema, Version } from "@destack/schema";
@@ -42,8 +42,8 @@ export class Context {
     #native: Promise<Device<MachineCredential>> | undefined;
     /** The login the terminal acts as, read once. */
     #login: Promise<Login["row"] | undefined> | undefined;
-    /** The person signed in, read once. */
-    #person: Promise<Session> | undefined;
+    /** The launcher of the person signed in, opened once. */
+    #launcher: Promise<Launcher> | undefined;
     /** The space the command line acts in, read once. */
     #space: Promise<Identifier<"space"> | undefined> | undefined;
     /** Where the space lives, found once. */
@@ -88,11 +88,11 @@ export class Context {
         return [...BUILT_IN_SETTINGS, ...(await this.catalog()).settings];
     }
 
-    /** Read the person the terminal acts as, refusing a computer nobody signed in on. */
-    person(): Promise<Session> {
-        this.#person ??= (async () => (await this.native()).session(await this.#loginId()))();
+    /** Open the launcher of the person the terminal acts as, refusing one nobody signed in on. */
+    launcher(): Promise<Launcher> {
+        this.#launcher ??= (async () => (await this.native()).launcher(await this.#loginId()))();
 
-        return this.#person;
+        return this.#launcher;
     }
 
     /** Read the login the terminal acts through, refusing a computer nobody signed in on. */
@@ -132,7 +132,7 @@ export class Context {
     async resolve(name: string): Promise<Identifier<"space">> {
         const aliases = await (await this.native()).setting(spaceAliases);
 
-        return (await this.person()).resolve(name, aliases);
+        return (await this.launcher()).resolve(name, aliases);
     }
 
     /** Read the space the command line acts in, refusing a command line acting in none. */
@@ -160,7 +160,7 @@ export class Context {
         // read the person's own account outside a space
         const space = await this.space();
         if (space === undefined) {
-            return (await this.person()).person.account();
+            return (await this.launcher()).account();
         }
 
         // read the account of the space
@@ -171,9 +171,9 @@ export class Context {
 
     /** Read the residency home serving finance for the account, else for the person's account. */
     async residency(): Promise<Identifier<"space">> {
-        const person = await this.person();
+        const launcher = await this.launcher();
 
-        return await person.residency(await this.account());
+        return await launcher.residency(await this.account());
     }
 
     /** Open some local object types of a package as this computer's client, closed with a stack. */
@@ -193,7 +193,7 @@ export class Context {
     async package<Handle extends PackageHandle>(handle: Handle, location: PlacementEndpoint) {
         // send as the person, asking them at the terminal for a consent a call needs
         const client = await this.native();
-        const session = await this.person();
+        const session = await this.launcher();
         const decide = (request: GrantRequest) => this.#decide(request);
 
         return createClient<Handle["router"]>(

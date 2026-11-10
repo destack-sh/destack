@@ -12,14 +12,14 @@ export function switchCommand(context: Context): Verb {
             {
                 name: "space",
                 // offer the spaces of the person's accounts
-                complete: async () => (await context.person()).person.spaces(),
+                complete: async () => (await context.launcher()).spaces(),
             },
         ],
         json: true,
         async run({ arguments: { space: named }, json }) {
             // resolve the space as the person names it, requiring one they can open
             const resolved = await context.resolve(present(named, "the space argument"));
-            const space = await (await context.person()).address(resolved);
+            const space = await (await context.launcher()).address(resolved);
             const client = await context.native();
 
             // set it as this computer's space

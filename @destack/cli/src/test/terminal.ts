@@ -158,7 +158,7 @@ export class TerminalFixture {
     async object(type: ObjectType, installation: string, id: string): Promise<JsonObject> {
         // follow the installation's objects as the owner, until the object replicates
         await using stack = new AsyncDisposableStack();
-        const session = await this.native.session(this.login.id);
+        const session = await this.native.launcher(this.login.id);
         const { home } = this.computer.world.owner;
         const objects = await this.wait(
             this.native.open(session, { space: home, installation }, { type }, stack),

@@ -204,7 +204,7 @@ export class Noun {
         }
         // read the person signed in
         else if (level === "user") {
-            return (await context.person()).person.subjectId;
+            return (await context.launcher()).user.userId;
         }
         // read this computer's device
         else if (level === "device") {
@@ -250,17 +250,17 @@ export class Noun {
         }
 
         // call the universe at the person's issuer
-        const person = await context.person();
+        const launcher = await context.launcher();
         if (store === "universe") {
-            return person.endpoint(packageId, "universe");
+            return launcher.endpoint(packageId, "universe");
         }
         // call a named installation of the space at its origin
         else if (name !== undefined) {
-            return person.installation(await context.requireSpace(), name, packageId);
+            return launcher.installation(await context.requireSpace(), name, packageId);
         }
         // call the space's own package at the machine serving it
         else {
-            return person.endpoint(packageId, await context.locate());
+            return launcher.endpoint(packageId, await context.locate());
         }
     }
 
@@ -272,9 +272,9 @@ export class Noun {
         }
 
         // call each scope's home as the person
-        const person = await context.person();
+        const launcher = await context.launcher();
 
-        return { homes: (scope) => person.store(scope) };
+        return { homes: (scope) => launcher.store(scope) };
     }
 }
 

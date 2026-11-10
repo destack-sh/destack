@@ -1,5 +1,5 @@
 import { currentLogin, currentSpace, type Login } from "@destack/account/native";
-import { DisplayName, NAME_LENGTH, type Residency } from "@destack/account/object";
+import { Account, DisplayName, NAME_LENGTH, type Residency } from "@destack/account/object";
 import type { SignUp } from "@destack/account/better-auth";
 import type { schema } from "@destack/schema";
 
@@ -179,10 +179,10 @@ export function whoamiCommand(context: Context): Verb {
         json: true,
         async run({ json }) {
             // read the person and the address of the space
-            const person = await context.person();
+            const launcher = await context.launcher();
             const { row } = await context.signedIn();
             const acting = await context.space();
-            const space = acting === undefined ? null : await person.address(acting);
+            const space = acting === undefined ? null : await launcher.address(acting);
             await context.terminal.print(
                 json ? JSON.stringify({ ...row, space }) : render(row, space),
             );
@@ -257,11 +257,11 @@ async function switchHome(
     }
 
     // switch to the home of the person's account
-    const session = await client.session(login.id);
-    const home = await session.person.home();
+    const launcher = await client.launcher(login.id);
+    const home = Account.home(await launcher.account());
     await client.set(currentSpace, home);
 
-    return session.address(home);
+    return launcher.address(home);
 }
 
 /** Render a login with its issuer and state, and the space the terminal acts in. */

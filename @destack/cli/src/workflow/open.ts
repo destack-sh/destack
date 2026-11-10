@@ -41,9 +41,9 @@ export function openCommand(context: Context): Verb {
 
             // open its page on its origin in the browser, which signs the person in at the universe
             if (options["browser"] === true) {
-                const person = await context.person();
+                const launcher = await context.launcher();
                 const native = await context.native();
-                const { url } = await native.launch(person, address);
+                const { url } = await native.launch(launcher, address);
                 await context.terminal.printDiagnostic(`Opening ${url}`);
                 await context.environment.opener.openUrl(url);
                 await context.terminal.print(json ? JSON.stringify({ url }) : `Opened ${url}.`);
@@ -72,7 +72,7 @@ async function objectAddress(
     context: Context,
 ): Promise<Address> {
     const catalog = await context.catalog();
-    const space = await (await context.person()).address(await context.requireSpace());
+    const space = await (await context.launcher()).address(await context.requireSpace());
 
     return catalog.select(id, space, view, context);
 }

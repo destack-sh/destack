@@ -176,9 +176,9 @@ async function follow(
 
     // copy the space's builds, cancelling the build on an interrupt
     const client = await context.native();
-    const person = await context.person();
+    const launcher = await context.launcher();
     await using opened = new AsyncDisposableStack();
-    const builds = await client.open(person, { space }, { build: stackObject.build }, opened);
+    const builds = await client.open(launcher, { space }, { build: stackObject.build }, opened);
     using interrupt = new Interrupt(context.environment.process);
     const cancelled = new Promise<unknown>((resolve) => {
         interrupt.signal.addEventListener("abort", () => {
