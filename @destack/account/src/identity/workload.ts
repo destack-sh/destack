@@ -1,5 +1,5 @@
 import { Bookmark } from "@destack/object/client";
-import { Uuid } from "@destack/schema";
+import { present, schema, Uuid } from "@destack/schema";
 import { type Environment } from "@destack/environment";
 import { type Authentication, Caller, principal, universe } from "@destack/access";
 import type { DatabaseConnection } from "@destack/db";
@@ -18,6 +18,9 @@ import accountPackage from "../package.ts";
 import type { Subject } from "@destack/sync";
 import { SECOND_MILLISECONDS, REQUEST_OBJECT_TYPE } from "../authentication/token.ts";
 import { ACCESS_TOKEN_TYPE } from "../oauth/exchange.ts";
+import { OAuthError } from "../authentication/token.ts";
+import type { GrantRequest } from "../authentication/request.ts";
+import { CallError } from "@destack/object";
 import type { IdentityKeystore } from "./keystore.ts";
 import { AccountError } from "../error/error.ts";
 
@@ -121,6 +124,51 @@ export class WorkloadIdentity {
             );
 
             return this.send(WorkloadIdentity.#bearer(request, accessToken));
+        };
+    }
+
+    /** Create a fetch calling a package for a caller, exchanging the subject's token for theirs. */
+    fetchExchanged(
+        audience: PackageId,
+        caller: Pick<Caller, "subject" | "grants">,
+        requested: GrantRequest,
+    ): Fetch {
+        return async (request) => {
+            // act in the space below the request's mount, refusing a request to no space
+            const spaceId = SpaceMount.parse(new URL(request.url).pathname)?.spaceId;
+            if (spaceId === undefined) {
+                throw AccountError.of(
+                    "SPACE_REQUIRED",
+                    `${this.subject.id} can only act for its caller in spaces, not ${request.url}`,
+                );
+            }
+
+            // exchange for the caller's token carrying the grant the installation asks, answering a consent it lacks
+            const exchanged = await this.exchange(audience, {
+                subject: caller.subject,
+                partition: schema.identifier("space").parse(spaceId),
+                ...(caller.grants.length === 0
+                    ? {}
+                    : { grants: caller.grants.map((grant) => grant.id) }),
+                requested,
+            }).then(
+                (token) => ({ token }),
+                (error: unknown) => {
+                    if (!OAuthError.is(error, "CONSENT_REQUIRED")) {
+                        throw error;
+                    }
+
+                    return { consent: present(CallError.of(error), "the call error of a consent") };
+                },
+            );
+            if ("consent" in exchanged) {
+                return Response.json(exchanged.consent.toJSON(), {
+                    status: exchanged.consent.status,
+                });
+            }
+            const { token } = exchanged;
+
+            return this.send(WorkloadIdentity.#bearer(request, token));
         };
     }
 

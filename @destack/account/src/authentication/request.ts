@@ -42,11 +42,11 @@ export const RequestedPermission = Object.assign(
 export type RequestedPermission = schema.Infer<typeof RequestedPermission>;
 
 /** The schema of a grant an installation asks a person for. */
-const requestedGrantSchema = schema.object({
+const grantRequestSchema = schema.object({
     /** The installation the grant goes to. */
     delegate: Subject,
-    /** The installation's name in its space. */
-    installation: schema.string().min(1),
+    /** The installation's address in its space, absent for a base one, which its package names. */
+    installation: schema.string().min(1).exactOptional(),
     /** The installed package's name, such as @acme/notes. */
     package: schema.string().min(1),
     /** The address of the installation's space. */
@@ -55,9 +55,9 @@ const requestedGrantSchema = schema.object({
     permissions: schema.array(RequestedPermission).min(1),
 });
 /** The grant an installation asks a person for, signed by its space (RFC 9396). */
-export const RequestedGrant = Object.assign(requestedGrantSchema, {
+export const GrantRequest = Object.assign(grantRequestSchema, {
     /** Merge what a person granted a delegate before with what they grant it now. */
-    merge(standing: RequestedGrant | null, granted: RequestedGrant): RequestedGrant {
+    merge(standing: GrantRequest | null, granted: GrantRequest): GrantRequest {
         // keep the standing permissions the new grant does not repeat
         const kept = (standing?.permissions ?? []).filter(
             (permission) =>
@@ -73,7 +73,15 @@ export const RequestedGrant = Object.assign(requestedGrantSchema, {
     },
 });
 /** The grant an installation asks a person for. */
-export type RequestedGrant = schema.Infer<typeof requestedGrantSchema>;
+export type GrantRequest = schema.Infer<typeof grantRequestSchema>;
+
+/** The authorization detail type of a grant an installation asks (RFC 9396 2). */
+export const GRANT_DETAIL = "destack_grant";
+
+/** A grant an installation asks, as an authorization detail (RFC 9396 2). */
+export const GrantDetail = GrantRequest.extend({ type: schema.literal(GRANT_DETAIL) });
+/** A grant an installation asks, as an authorization detail. */
+export type GrantDetail = schema.Infer<typeof GrantDetail>;
 
 /** The application asking, by its client identifier and the name people read. */
 const RequestClient = schema.object({
@@ -92,7 +100,7 @@ export const AuthorizationRequestReview = schema.object({
     /** Whether the person signs in again before deciding. */
     isLoginDue: schema.boolean(),
     /** The grant it asks for, its permissions marked once granted before, null for none. */
-    grant: RequestedGrant.extend({
+    grant: GrantRequest.extend({
         /** The permissions, each marked once the person granted it before. */
         permissions: schema.array(RequestedPermission.extend({ isGranted: schema.boolean() })),
     }).nullable(),
@@ -107,7 +115,7 @@ export const Consent = schema.object({
     /** When they first consented. */
     grantedAt: schema.number(),
     /** The live grant the consent gave an installation, null for none. */
-    grant: RequestedGrant.extend({
+    grant: GrantRequest.extend({
         /** How long it lasts: until the person removes it, or until this sign-in ends. */
         lifetime: schema.enum(["lasting", "sign-in"]),
     }).nullable(),

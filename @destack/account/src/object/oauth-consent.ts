@@ -1,4 +1,4 @@
-import { RequestedGrant } from "../authentication/request.ts";
+import { GrantRequest } from "../authentication/request.ts";
 import { type Select, type Transaction } from "@destack/db";
 import { type MethodContext, defineObject, field } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -20,7 +20,7 @@ export const oauthConsent = defineObject(
             /** When the user granted the consent, before which no refresh token of it stands. */
             grantedAt: field.time(),
             /** The grant the consent gave an installation, as the person read it. */
-            grant: field.json(RequestedGrant).optional(),
+            grant: field.json(GrantRequest).optional(),
         },
         permissions: ["read", "revoke", "grant"],
         constraints: {
@@ -61,7 +61,7 @@ export const OAuthConsent = {
             /** The scopes the person approved. */
             readonly scopes: readonly string[];
             /** The lasting grant the person approved, absent for none. */
-            readonly grant: RequestedGrant | undefined;
+            readonly grant: GrantRequest | undefined;
         },
         now: number,
         transaction: Transaction,
@@ -79,7 +79,7 @@ export const OAuthConsent = {
         const granted =
             terms.grant === undefined
                 ? (standing?.grant ?? null)
-                : RequestedGrant.merge(standing?.grant ?? null, terms.grant);
+                : GrantRequest.merge(standing?.grant ?? null, terms.grant);
 
         // leave a consent covering the scopes and the grant as it is
         if (

@@ -16,7 +16,8 @@ import {
     AuthorizationRequestOutcome,
     AuthorizationRequestReview,
     type Decision,
-    RequestedGrant,
+    GrantDetail,
+    GrantRequest,
     RequestedPermission,
 } from "../authentication/request.ts";
 import { AccountAuthentication } from "../better-auth/authentication.ts";
@@ -86,13 +87,8 @@ const AuthorizationQuery = schema.looseObject({
         .exactOptional(),
 });
 
-/** The authorization detail type of a grant an installation asks (RFC 9396 2). */
-const GRANT_DETAIL = "destack_grant";
-
 /** A request object's authorization details: the one grant an installation asks. */
-const AuthorizationDetails = schema
-    .array(RequestedGrant.extend({ type: schema.literal(GRANT_DETAIL) }))
-    .length(1);
+const AuthorizationDetails = schema.array(GrantDetail).length(1);
 
 /** A code redemption: the code, its redirect and the verifier (RFC 6749 4.1.3, RFC 7636 4.5). */
 const CodeRequest = schema.looseObject({
@@ -278,7 +274,7 @@ export class AuthorizationEndpoint {
 
     /** Grant a delegate what the person approved beside what they granted it before. */
     async #grant(
-        asked: RequestedGrant,
+        asked: GrantRequest,
         session: ActiveSession,
         isOnce: boolean,
         standing: Grant | undefined,
@@ -363,7 +359,7 @@ export class AuthorizationEndpoint {
         party: OAuthClient,
     ): Promise<{
         readonly parameters: URLSearchParams;
-        readonly grant: RequestedGrant | undefined;
+        readonly grant: GrantRequest | undefined;
     }> {
         // verify it as signed by a space for this issuer
         const { registration } = party;
@@ -422,7 +418,7 @@ export class AuthorizationEndpoint {
 
         return {
             parameters,
-            grant: detail === undefined ? undefined : RequestedGrant.parse(requested),
+            grant: detail === undefined ? undefined : GrantRequest.parse(requested),
         };
     }
 
@@ -468,7 +464,9 @@ export class AuthorizationEndpoint {
         }
         // refuse to ask for consent when the client asked for no prompt
         else if (stored.prompts.includes("none") && isConsentDue) {
-            throw OAuthError.of("CONSENT_REQUIRED", "the person must consent");
+            throw OAuthError.of("CONSENT_REQUIRED", "the person must consent", {
+                data: { authorization_details: [] },
+            });
         }
         // send the person to sign in, then back to the request
         else if (isLoginDue || session === undefined) {
@@ -510,7 +508,7 @@ export class AuthorizationEndpoint {
         query: URLSearchParams,
         party: OAuthClient,
         redirectUri: string,
-        requested: RequestedGrant | undefined,
+        requested: GrantRequest | undefined,
     ): Promise<AuthorizationRequest> {
         // refuse another flow than the code's with S256 (RFC 7636 4.4.1)
         const parsed = AuthorizationQuery.safeParse(Object.fromEntries(query));

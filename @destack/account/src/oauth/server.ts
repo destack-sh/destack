@@ -22,7 +22,7 @@ import {
     TOKEN_PATH,
     USER_INFO_PATH,
 } from "../authentication/path.ts";
-import { OAuthError } from "../authentication/token.ts";
+import { ConsentRequest, OAuthError } from "../authentication/token.ts";
 import { OAUTH_CLIENT_AUTHENTICATIONS } from "../object/application.ts";
 import { Prompt } from "../object/authorization-request.ts";
 import { AuthorizationEndpoint, AuthorizationRequestEndpoint, codeGrant } from "./authorization.ts";
@@ -202,7 +202,7 @@ export class AuthorizationServer {
         }
 
         // answer the error, with the challenge of a refused token or client (RFC 6750 3, RFC 6749 5.2)
-        const { reason, code, message } = Failure.of(error);
+        const { reason, code, message, data } = Failure.of(error);
         const wire = reason.toLowerCase();
         const challenge =
             reason === "INVALID_TOKEN"
@@ -211,8 +211,11 @@ export class AuthorizationServer {
                   ? { "www-authenticate": `Basic error="${wire}"` }
                   : undefined;
 
+        // answer a consent with the permissions it needs (RFC 9396)
+        const details = reason === "CONSENT_REQUIRED" ? ConsentRequest.parse(data) : {};
+
         return Response.json(
-            { error: wire, error_description: message },
+            { error: wire, error_description: message, ...details },
             {
                 status: CALL_ERROR_STATUSES[code],
                 ...(challenge === undefined ? {} : { headers: challenge }),

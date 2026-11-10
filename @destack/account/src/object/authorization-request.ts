@@ -1,4 +1,4 @@
-import { RequestedGrant } from "../authentication/request.ts";
+import { GrantRequest } from "../authentication/request.ts";
 import { none } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
@@ -38,7 +38,7 @@ export const authorizationRequest = defineObject(
             /** The lowest assurance level the person's sign-in meets, from its acr_values. */
             assurance: field.integer().optional(),
             /** The grant its client asks for, absent for none. */
-            grant: field.json(RequestedGrant).optional(),
+            grant: field.json(GrantRequest).optional(),
             /** When the request lapses. */
             expiresAt: field.time(),
         },
