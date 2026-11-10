@@ -13,6 +13,7 @@
         "./bun": "./src/bun/index.ts",
         "./cloudflare": "./src/cloudflare/index.ts",
         "./s3": "./src/s3/index.ts",
+        "./blob": "./src/blob/index.ts",
         "./provider": "./src/provider/index.ts",
         "./test": "./src/test/index.ts"
     },

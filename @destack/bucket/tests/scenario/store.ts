@@ -2,7 +2,7 @@ import type { Random } from "@destack/environment";
 import assert from "node:assert/strict";
 import { Digest } from "@destack/schema";
 import type { Bucket } from "../../src/bucket/index.ts";
-import { R2BlobStorage } from "../../src/cloudflare/store.ts";
+import { BucketBlobStorage } from "../../src/blob/index.ts";
 
 /** The bytes of one stored part, as the store splits long bodies. */
 const PART_BYTES = 8 * 1024 * 1024;
@@ -40,7 +40,7 @@ async function joined(chunks: AsyncIterable<Uint8Array>): Promise<Uint8Array> {
 /** Store blobs in packs below a prefix, and read, list and delete them. */
 export async function exerciseBlobStorage(bucket: Bucket, random: Random): Promise<void> {
     // store a short body alone under its digest, and a long one in two parts
-    const store = new R2BlobStorage(bucket, "bucket-source/", random);
+    const store = new BucketBlobStorage(bucket, "bucket-source/", random);
     const short = new TextEncoder().encode("short body");
     const long = new Uint8Array(PART_BYTES + 1024).map((_, index) => index % 251);
     const [alone] = await store.write([

@@ -33,6 +33,9 @@
         "./s3": {
             "runtimes": ["bun", "workerd"]
         },
+        "./blob": {
+            "runtimes": ["bun", "workerd"]
+        },
         "./provider": {
             "runtimes": ["bun", "workerd"]
         },
