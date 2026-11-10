@@ -101,11 +101,11 @@ export class SpaceCatalog {
         );
 
         // list each named installation's commands, views and types, by name
-        const installations = description.installations
-            .flatMap((installation) => {
+        const installations = description.packages
+            .flatMap((implementation) => {
                 // find the view its origin opens at its root
-                const { name } = installation;
-                const declared = description.declarations(installation, VIEW_KIND);
+                const name = implementation.installation?.name;
+                const declared = description.declarations(implementation, VIEW_KIND);
                 const main = ViewDescription.main(
                     Object.fromEntries(declared.map((view) => [view.name, view.description])),
                 );
@@ -115,11 +115,11 @@ export class SpaceCatalog {
                     : [
                           {
                               name: DeclarationName.parse(name),
-                              packageId: installation.packageId,
-                              commands: description.commands(installation),
+                              packageId: implementation.packageId,
+                              commands: description.commands(implementation),
                               views: declared.map((view) => DeclarationName.parse(view.name)),
                               main: main === undefined ? undefined : DeclarationName.parse(main),
-                              objects: description.types(installation),
+                              objects: description.types(implementation),
                           },
                       ];
             })
