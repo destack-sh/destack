@@ -184,8 +184,9 @@ export class Step<Waits extends ObjectType = ObjectType> {
         error: unknown,
         call: sync.Call,
     ): ObjectCall<typeof changeRequest, { readonly id: string }> | undefined {
-        // open it in the run's scope, about the call
+        // open it in the run's scope, about the call, asking the person the run acts for
         const asked = { ...changeRequest.in(this.#run.row.scope), call };
+        const person = ObjectReference.columns("as", this.#caller.subject);
 
         // ask the approvers an approval names, refusing a role's count, which names nobody to ask
         const refused = CallError.of(error);
@@ -213,7 +214,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             const { packageId, type, name } = permission;
             const grant = { packageId, type, name, scope: object.scope };
 
-            return changeRequest.call("create", { ...asked, as: "approver", grant });
+            return changeRequest.call("create", { ...asked, ...person, grant });
         }
         // ask the person a delegate acts for to make the call as themselves, signed in again
         else if (
@@ -222,7 +223,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
         ) {
             const stepUp = StepUp.schema.parse(refused.data);
 
-            return changeRequest.call("create", { ...asked, as: "approver", stepUp });
+            return changeRequest.call("create", { ...asked, ...person, stepUp });
         } else {
             return undefined;
         }

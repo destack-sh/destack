@@ -208,8 +208,13 @@ test("wait at a call alice's grant lacks, ask her to make it as herself, and ans
 
     // expect a change run as alice, naming the permission allowing it from now on adds
     const request = single(await fixture.served.database.select().from(changeRequest.table));
-    expect([request.as, request.grant, request.state, run?.["output"]]).toEqual([
-        "approver",
+    expect([
+        ObjectReference.at("as", request),
+        request.grant,
+        request.state,
+        run?.["output"],
+    ]).toEqual([
+        alice,
         { ...note.permission("publish"), scope: spaceId },
         "applied",
         { title: "Final" },
@@ -266,8 +271,13 @@ test("wait at a call alice must sign in again for, ask her to make it as herself
 
     // expect a change run as alice asking her step-up, and the run answering the archived title
     const request = single(await fixture.served.database.select().from(changeRequest.table));
-    expect([request.as, request.stepUp, asked.stepUp, run?.["output"]]).toEqual([
-        "approver",
+    expect([
+        ObjectReference.at("as", request),
+        request.stepUp,
+        asked.stepUp,
+        run?.["output"],
+    ]).toEqual([
+        alice,
         { assurance: 2, maxAge: 15 * 60 * 1000 },
         { assurance: 2, maxAge: 15 * 60 * 1000 },
         { title: "Archived" },
