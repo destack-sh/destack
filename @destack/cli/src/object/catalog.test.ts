@@ -23,18 +23,20 @@ function declared(name: string, identity = name) {
     });
 }
 
-/** A noun of an object type at an installation of a name, or a base installation of its package. */
+/** A noun of an object type at an installation of a name. */
 function noun(installation: string, name: string, identity = name): Noun {
     const type = declared(name, identity);
 
     return new Noun(
         {
-            id: schema
-                .identifier("installation")
-                .parse("installation-01996ab0-0000-7000-8000-0000000000c2"),
-            scope: "space-01996ab0-0000-7000-8000-0000000000c3",
-            name: installation,
             packageId: PACKAGE_ID,
+            scope: "space-01996ab0-0000-7000-8000-0000000000c3",
+            installation: {
+                id: schema
+                    .identifier("installation")
+                    .parse("installation-01996ab0-0000-7000-8000-0000000000c2"),
+                name: installation,
+            },
             types: [type.typeReference],
             declarations: [],
         },

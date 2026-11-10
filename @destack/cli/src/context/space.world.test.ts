@@ -1,10 +1,5 @@
 import { currentSpace } from "@destack/account/native";
-import accountPackage from "@destack/account/package";
-import objectPackage from "@destack/object/package";
 import { schema } from "@destack/schema";
-import settingPackage from "@destack/setting/package";
-import stackPackage from "@destack/stack/package";
-import controlPackage from "@destack/control/package";
 import { expect, test } from "@destack/test";
 import { TerminalFixture } from "../test/terminal.ts";
 
@@ -14,9 +9,8 @@ const Created = schema.looseObject({ id: schema.identifier("space") });
 /** The printed installations: each one's name, scope and package. */
 const Installed = schema.array(
     schema.looseObject({
-        name: schema.string().nullable(),
+        name: schema.string(),
         scope: schema.string(),
-        packageId: schema.string(),
     }),
 );
 
@@ -36,12 +30,6 @@ test("switch to a space as this computer's space setting, which --space override
 
         return { code, output: output.trim(), error: error.trim() };
     };
-
-    // list the universe's installations outside a space, by scope and package
-    const outside = schema
-        .array(schema.looseObject({ scope: schema.string(), packageId: schema.string() }))
-        .parse(JSON.parse((await terminal.printed(["installations", "--json"])).output))
-        .map((row) => [row.scope, row.packageId]);
 
     // act in no space, switch to the desk, then give another space for one command line
     const lines = [
@@ -63,13 +51,7 @@ test("switch to a space as this computer's space setting, which --space override
 
     // set the space switched to as this computer's setting, resolving names and refusing a space nobody can open
     const { login } = terminal;
-    expect({ outside, lines, setting: await terminal.native.setting(currentSpace) }).toEqual({
-        outside: [
-            ["universe", accountPackage.id],
-            ["universe", objectPackage.id],
-            ["universe", settingPackage.id],
-            ["universe", controlPackage.id],
-        ],
+    expect({ lines, setting: await terminal.native.setting(currentSpace) }).toEqual({
         lines: [
             { code: 0, output: whoami(terminal, null), error: "" },
             { code: 0, output: `Switched to ${deskAddress}.`, error: "" },
@@ -148,7 +130,7 @@ test("act in the space DESTACK_SPACE gives when the command line gives no --spac
     ]);
 });
 
-test("create a space on this computer's machine, switch to it, and list the installations its base stack applied", async () => {
+test("create a space on this computer's machine, switch to it, and list the installations its stack applied", async () => {
     // create the space on this computer's machine, and wait until it serves its stack
     const terminal = await TerminalFixture.open();
     const machine = terminal.computer.machine.id;
@@ -164,15 +146,11 @@ test("create a space on this computer's machine, switch to it, and list the inst
         (row) => row.scope === space,
     );
 
-    // install the base packages unnamed, and the base stack's installations and their dependencies by name
+    // list the installations the space's stack declares
     expect({
         created: [created.code, created.error],
         switched,
-        base: own
-            .filter((row) => row.name === null)
-            .map((row) => row.packageId)
-            .toSorted(),
-        named: own.flatMap((row) => (row.name === null ? [] : [row.name])).toSorted(),
+        installations: own.map((row) => row.name).toSorted(),
     }).toEqual({
         created: [0, ""],
         switched: {
@@ -180,7 +158,6 @@ test("create a space on this computer's machine, switch to it, and list the inst
             output: `Switched to ${terminal.address("projects")}.\n`,
             error: "",
         },
-        base: [objectPackage.id, settingPackage.id, stackPackage.id].toSorted(),
-        named: ["message", "notification", "observability", "social", "stack", "vault"],
+        installations: ["inbox", "message", "observability", "social", "stack", "vault"],
     });
 });

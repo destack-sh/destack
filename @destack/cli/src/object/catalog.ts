@@ -7,7 +7,7 @@ import type { ObjectAddress } from "@destack/view/declare";
 import type { SpaceAddress } from "@destack/account/address";
 import {
     type Command,
-    type InstallationDescription,
+    type PackageImplementationDescription,
     type MethodKind,
     ObjectType,
     type PackageHandle,
@@ -42,7 +42,7 @@ const BUILT_IN_PACKAGES: readonly PackageHandle[] = [
     objectPackage,
 ];
 
-/** The package each store describes itself at: a base installation in it. */
+/** The package each store describes itself at: one of its scope's own. */
 const DESCRIBING = {
     device: machinePackage.id,
     machine: machinePackage.id,
@@ -64,10 +64,10 @@ const OWN_LEVELS = {
 /** A store the command line reads nouns from: the device, machine, universe or space. */
 export type Store = (typeof STORES)[number];
 
-/** A noun of the command line: an object type at the installation listing it. */
+/** A noun of the command line: an object type of a package its store serves. */
 export class Noun {
-    /** The installation listing the type, as its store describes it. */
-    readonly installation: InstallationDescription;
+    /** The package listing the type, as its store describes it. */
+    readonly package: PackageImplementationDescription;
     /** The store running the installation. */
     readonly store: Store;
     /** The object type. */
@@ -75,15 +75,15 @@ export class Noun {
     /** The commands the installation declares on the type. */
     readonly commands: readonly Command[];
 
-    /** Keep an object type at the installation listing it, in a store, with its commands. */
+    /** Keep an object type of the package listing it, in a store, with its commands. */
     constructor(
-        installation: InstallationDescription,
+        implementation: PackageImplementationDescription,
         store: Store,
         type: ObjectType,
         commands: readonly Command[],
     ) {
         // keep the type, where it is listed, and its commands
-        this.installation = installation;
+        this.package = implementation;
         this.store = store;
         this.type = type;
         this.commands = commands;
@@ -101,7 +101,7 @@ export class Noun {
 
     /** Read the qualifier: the installation's name, else its package's name without the scope. */
     get qualifier(): string {
-        const { name } = this.installation;
+        const name = this.package.installation?.name;
         const packageName = this.type.package.name;
 
         return name ?? packageName.slice(packageName.lastIndexOf("/") + 1);
@@ -157,7 +157,7 @@ export class Noun {
         return new DynamicObjectClient({
             objects: [this.type],
             scope: await this.#locate(context),
-            endpoint: await Noun.options(context, this.store, this.installation),
+            endpoint: await Noun.options(context, this.store, this.package),
             ...(await this.#homes(context)),
             environment: (await context.native()).environment,
         });
@@ -222,14 +222,15 @@ export class Noun {
         }
     }
 
-    /** Read an installation's client options in a store, as the person or the machine's owner. */
+    /** Read a package implementation's client options, as the person or the machine's owner. */
     static async options(
         context: Context,
         store: Store,
-        installation: Pick<InstallationDescription, "packageId" | "name">,
+        implementation: Pick<PackageImplementationDescription, "packageId" | "installation">,
     ): Promise<ClientOptions> {
         // call this computer's device, and its machine's partition by the partition header
-        const { packageId, name } = installation;
+        const { packageId } = implementation;
+        const name = implementation.installation?.name;
         const native = await context.native();
         if (store === "device") {
             return native.loopback.options(packageId);
@@ -257,7 +258,7 @@ export class Noun {
         else if (name !== undefined) {
             return person.installation(await context.requireSpace(), name, packageId);
         }
-        // call a base installation of the space at the machine serving it
+        // call the space's own package at the machine serving it
         else {
             return person.endpoint(packageId, await context.locate());
         }
@@ -300,7 +301,7 @@ export class Catalog {
                 store === "device" ||
                 (store === "machine" || store === "universe" ? isSignedIn : isSpace),
         );
-        const described = await Promise.all(
+        const descriptions = await Promise.all(
             stores.map(async (store) => ({
                 store,
                 description: await Catalog.describe(context, store),
@@ -308,14 +309,14 @@ export class Catalog {
         );
 
         // make a noun of each listed type with its commands, kept at the innermost store keeping its objects
-        const nouns = described.flatMap(({ store, description }) =>
-            description.installations.flatMap((installation) => {
-                const commands = description.commands(installation);
+        const nouns = descriptions.flatMap(({ store, description }) =>
+            description.packages.flatMap((implementation) => {
+                const commands = description.commands(implementation);
 
-                return description.types(installation).map((type) => {
+                return description.types(implementation).map((type) => {
                     const own = commands.filter((command) => command.object === type);
 
-                    return new Noun(installation, store, type, own);
+                    return new Noun(implementation, store, type, own);
                 });
             }),
         );
@@ -331,11 +332,11 @@ export class Catalog {
             return same.every((other) => STORES.indexOf(other.store) <= STORES.indexOf(noun.store));
         });
 
-        // read the settings the installations declare
-        const settings = described.flatMap(({ description }) =>
-            description.installations.flatMap((installation) =>
+        // read the settings the packages declare
+        const settings = descriptions.flatMap(({ description }) =>
+            description.packages.flatMap((implementation) =>
                 description
-                    .declarations(installation, SETTING_KIND)
+                    .declarations(implementation, SETTING_KIND)
                     .map((declared) => Setting.of(declared.description)),
             ),
         );
