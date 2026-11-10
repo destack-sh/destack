@@ -5,6 +5,7 @@ import type { Scalar } from "@destack/db";
 import { AccessError } from "../error/index.ts";
 import { ANONYMOUS, principal } from "../declare/principal.ts";
 import { Attribute } from "../declare/expression.ts";
+import { GrantPermission } from "../grant/permission.ts";
 
 /** The assurance of a principal proven by its server's key: phishing-resistant, as level 3 is. */
 export const KEY_ASSURANCE = 3;
@@ -76,6 +77,8 @@ export const GrantClaim = schema.object({
     id: schema.identifier("grant"),
     /** The scope storing the grant: its delegator's. */
     scope: schema.string().min(1),
+    /** What the grant gives, as the universe read it when it signed the caller in. */
+    permissions: schema.array(GrantPermission.schema),
 });
 /** The grant a delegated caller acts under. */
 export type GrantClaim = schema.Infer<typeof GrantClaim>;

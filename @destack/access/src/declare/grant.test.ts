@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
-import { GrantRequest, PermissionSet } from "./request.ts";
+import { GrantDeclaration, PermissionSet } from "./grant.ts";
 
 /** The package declaring the requested types. */
 const NOTES = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
@@ -46,13 +46,13 @@ test("accept a package's request of each delegator's scopes, refusing a scope th
     // request the scopes a space grants at install and a user's on use, their profile in the universe among them
     const packageId = NOTES;
     const read = (type: string) => [{ packageId, type, name: "read" }];
-    const accepted = GrantRequest.safeParse({
+    const accepted = GrantDeclaration.safeParse({
         space: { space: read("note"), universe: read("user") },
         user: { home: read("notification"), universe: read("user") },
     });
 
     // refuse a home the space cannot lend
-    const home = GrantRequest.safeParse({ space: { home: read("notification") } });
+    const home = GrantDeclaration.safeParse({ space: { home: read("notification") } });
     expect([
         accepted.success,
         home.error?.issues.map((issue) => [issue.code, issue.path.join(".")]),

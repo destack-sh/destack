@@ -113,13 +113,16 @@ test("decide a relation that names its subject by key, in memory and in SQL alik
     // grant the keeper's client opening the royal vault alone
     const keeper = principal.user.reference("universe", "keeper");
     const client = principal.client.reference(Scope.universe.id, "client");
-    const granted = await new TestAccess(database, environment).replicateGrant(keeper, client, [
-        { ...vault.permission("open"), scope: "crown", objectId: "vault-1" },
-    ]);
+    const gives = [{ ...vault.permission("open"), scope: "crown", objectId: "vault-1" }];
+    const granted = await new TestAccess(database, environment).replicateGrant(
+        keeper,
+        client,
+        gives,
+    );
     const credential: AccessContext = {
         ...AccessContext.of(Caller.of(keeper), simulation.clock.now()),
         actors: [client],
-        grants: [{ id: granted, scope: "keeper" }],
+        grants: [granted],
     };
 
     // decide breaking a seal in memory and in SQL, reporting a disagreement between the two

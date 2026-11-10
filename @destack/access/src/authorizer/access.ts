@@ -26,6 +26,9 @@ import { type FieldRelation, TableMapping } from "./mapping.ts";
 /** The permission key that lists the owner roles, granting every unreserved permission. */
 export const OWNING = "*";
 
+/** The objects rows' field relations refer to, by referring object and relation. */
+export type Related = ReadonlyMap<string, ReadonlyMap<string, ObjectReference>>;
+
 /** A caller's access in one scope: authority, scope chain, roles along it and validity time. */
 export class Access {
     /** The scope every protected row of a query belongs to. */
@@ -193,9 +196,9 @@ export class Access {
             );
         }
 
-        // read what the chain's live grants give, refusing a link whose grant is gone
+        // read what the chain's grants give, as the universe signed them into the caller
         Caller.requireChain(context);
-        const permissions = await Grant.permissions(snapshot, context);
+        const permissions = Grant.permissions(context);
 
         // read the subject sets of the caller with their containing scopes, beside the chain's roles
         const [, represented, chained] = await Promise.all([
@@ -599,37 +602,46 @@ export class Access {
         permission: PermissionReference,
         mapping: TableMapping,
         row: Row,
-        related: ObjectReference | undefined,
+        related: Related | undefined,
     ): Gate | undefined {
-        return this.allows(permission, TableMapping.text(row, mapping.id), related)
-            ? this.blocked(permission)
-            : "grant";
+        const object = { scope: this.scope, id: TableMapping.text(row, mapping.id) };
+
+        return this.allows(permission, object, related) ? this.blocked(permission) : "grant";
     }
 
-    /** Decide whether the credential allows a permission on an object, directly or by source. */
-    allows(permission: PermissionReference, id: string, related?: ObjectReference): boolean {
+    /** Decide whether the credential allows a permission on an object, directly or by a source. */
+    allows(
+        permission: PermissionReference,
+        object: Pick<ObjectReference, "scope" | "id">,
+        related?: Related,
+    ): boolean {
         // allow a permission the credential lists
-        if (GrantPermission.allows(permission, { scope: this.scope, id }, this.permissions)) {
+        if (GrantPermission.allows(permission, object, this.permissions)) {
             return true;
         }
 
-        // allow a derived permission when its source is allowed, on the same object or the related one
-        const source = this.#authorizer.source(permission);
-        if (source === undefined) {
-            return false;
-        } else if (source.relation === undefined) {
-            return this.allows({ ...permission, name: source.permission }, id, related);
-        }
+        // allow a derived permission when a source is allowed, on the same object or the related one in its scope
+        return this.#authorizer.sources(permission).some((source) => {
+            const target =
+                source.relation === undefined
+                    ? undefined
+                    : related?.get(object.id)?.get(source.relation);
 
-        // allow it through the object its field relation refers to
-        return (
-            related !== undefined &&
-            related.scope === this.scope &&
-            this.allows(
-                { packageId: related.packageId, type: related.type, name: source.permission },
-                related.id,
-            )
-        );
+            // allow a source on the same object
+            if (source.relation === undefined) {
+                return this.allows({ ...permission, name: source.permission }, object, related);
+            }
+            // allow a source on the object the row's field relation refers to
+            else if (target !== undefined) {
+                const { packageId, type } = target;
+
+                return this.allows({ packageId, type, name: source.permission }, target, related);
+            }
+            // refuse a source on an object the row refers to none of
+            else {
+                return false;
+            }
+        });
     }
 
     /** Read the same access with its scope chain active, as a resume would leave it. */

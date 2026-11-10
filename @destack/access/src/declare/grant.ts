@@ -72,7 +72,7 @@ export interface GrantContext {
 const SpaceSet = permissionSetSchema.pick({ space: true, account: true, universe: true });
 
 /** What a package or its capability may be granted by each delegator, at install or on use. */
-export const GrantRequest = schema
+export const GrantDeclaration = schema
     .object({
         /** What the installation's space grants it at install. */
         space: SpaceSet.exactOptional(),
@@ -83,4 +83,4 @@ export const GrantRequest = schema
     })
     .strict();
 /** What a package may be granted, by delegator. */
-export type GrantRequest = schema.Infer<typeof GrantRequest>;
+export type GrantDeclaration = schema.Infer<typeof GrantDeclaration>;

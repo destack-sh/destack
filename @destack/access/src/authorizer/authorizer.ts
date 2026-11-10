@@ -56,7 +56,7 @@ import type { Creation } from "./authorization.ts";
 import { accessRole, accessRolePermission, OWNER_ROLE } from "../role/table.ts";
 import { accessTables, decisionTables } from "../replica/replica.ts";
 import { accessGrant } from "../grant/table.ts";
-import { earliest, Access } from "./access.ts";
+import { earliest, Access, type Related } from "./access.ts";
 import { TupleCondition } from "./condition.ts";
 import type { Decision, Explanation } from "./decision.ts";
 import { Reader, Tree, type Tuple } from "./tuple.ts";
@@ -870,22 +870,26 @@ export class Authorizer {
         ];
     }
 
-    /** Read the permission another purely derives from, on its object or by a field relation. */
-    source(
+    /** Read the permissions another derives from, on its object or by a field relation. */
+    sources(
         permission: PermissionReference,
-    ): { readonly permission: string; readonly relation?: string } | undefined {
+    ): readonly { readonly permission: string; readonly relation?: string }[] {
+        // read a union's branches, else the expression alone
         const expression = this.expression(permission);
-        if (expression.kind === "permission") {
-            return { permission: expression.name };
-        } else if (
-            expression.kind === "through" &&
-            !expression.transitive &&
-            this.mapping(permission)?.relations[expression.relation] !== undefined
-        ) {
-            return { permission: expression.permission, relation: expression.relation };
-        }
+        const branches = expression.kind === "union" ? expression.expressions : [expression];
 
-        return undefined;
+        // take each branch deriving from a permission on the object or through a mapped field relation
+        const relations = this.mapping(permission)?.relations ?? {};
+
+        return branches.flatMap((branch) =>
+            branch.kind === "permission"
+                ? [{ permission: branch.name }]
+                : branch.kind === "through" &&
+                    !branch.transitive &&
+                    relations[branch.relation] !== undefined
+                  ? [{ permission: branch.permission, relation: branch.relation }]
+                  : [],
+        );
     }
 
     /** Read the object a row's field relation references, absent when the field is empty. */
@@ -1549,7 +1553,7 @@ export class Authorizer {
 
         return (
             Object.hasOwn(permissions, permission.name) &&
-            access.allows(permission, target.id) &&
+            access.allows(permission, target) &&
             access.blocked(permission) === undefined &&
             Authorizer.#states(this.expression(permission), target, access.authority)
         );
@@ -1957,22 +1961,66 @@ export class Authorizer {
         return isChained && isTyped;
     }
 
-    /** Read the object a permission derives from through a row's field relation, none for none. */
+    /** Read the objects a permission derives from through field relations. */
     async #derived(
         snapshot: Snapshot,
         permission: PermissionReference,
         mapping: TableMapping,
         row: Row,
-    ): Promise<ObjectReference | undefined> {
-        // follow the permission's sources on the row to the first through a field relation
-        let source = this.source(permission);
-        while (source !== undefined && source.relation === undefined) {
-            source = this.source({ ...permission, name: source.permission });
+    ): Promise<Related> {
+        // walk the permission's sources across objects, each permission on each object once
+        const related = new Map<string, Map<string, ObjectReference>>();
+        const visited = new Set<string>();
+        const pending = [{ permission, mapping, row }];
+        for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
+            const id = TableMapping.text(next.row, next.mapping.id);
+            const visit = `${id} ${next.permission.name}`;
+            if (!visited.has(visit)) {
+                visited.add(visit);
+                for (const source of this.sources(next.permission)) {
+                    pending.push(...(await this.#followed(snapshot, next, source, related)));
+                }
+            }
         }
 
-        return source?.relation === undefined
-            ? undefined
-            : await this.related(snapshot, mapping, source.relation, row);
+        return related;
+    }
+
+    /** Follow one source of a permission on a row, to the same row or a related one. */
+    async #followed(
+        snapshot: Snapshot,
+        from: {
+            readonly permission: PermissionReference;
+            readonly mapping: TableMapping;
+            readonly row: Row;
+        },
+        source: { readonly permission: string; readonly relation?: string },
+        related: Map<string, Map<string, ObjectReference>>,
+    ): Promise<{ permission: PermissionReference; mapping: TableMapping; row: Row }[]> {
+        // follow a source on the same row
+        if (source.relation === undefined) {
+            return [{ ...from, permission: { ...from.permission, name: source.permission } }];
+        }
+
+        // record the object the relation refers to, none for an empty field
+        const target = await this.related(snapshot, from.mapping, source.relation, from.row);
+        if (target === undefined) {
+            return [];
+        }
+        const id = TableMapping.text(from.row, from.mapping.id);
+        const relations = related.get(id) ?? new Map<string, ObjectReference>();
+        relations.set(source.relation, target);
+        related.set(id, relations);
+
+        // read the target's row where its permission derives further
+        const derived = { packageId: target.packageId, type: target.type, name: source.permission };
+        const mapping = this.mapping(derived);
+        if (mapping === undefined || this.sources(derived).length === 0) {
+            return [];
+        }
+        const [found] = await TableMapping.read(snapshot, mapping, target.scope, [target.id]);
+
+        return found === undefined ? [] : [{ permission: derived, mapping, row: found }];
     }
 
     /** Require a mapping to supply the trees and reference columns its expressions need. */
