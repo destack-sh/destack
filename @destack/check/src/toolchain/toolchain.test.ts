@@ -27,13 +27,11 @@ test("resolve each package of a chain from the one before in a workspace", async
 
     expect({
         directory: toolchain.directory,
-        digest: toolchain.digest,
         linter: await name(linter),
         checker: await name(checker),
         lint: toolchain.lint(),
     }).toEqual({
         directory: undefined,
-        digest: undefined,
         linter: "oxlint-tsgolint",
         checker: native,
         lint: fileURLToPath(new URL("../lint/index.ts", import.meta.url)),
@@ -54,7 +52,6 @@ test("resolve the last package of a chain among a toolchain directory's flat pac
     try {
         expect({
             directory: toolchain.directory,
-            digest: toolchain.digest,
             checker: toolchain.locate(
                 ["oxlint-tsgolint", "@oxlint-tsgolint/darwin-arm64"],
                 PACKAGE,
@@ -62,7 +59,6 @@ test("resolve the last package of a chain among a toolchain directory's flat pac
             lint: toolchain.lint(),
         }).toEqual({
             directory,
-            digest: DIGEST,
             checker: native,
             lint: join(directory, "lint.js"),
         });

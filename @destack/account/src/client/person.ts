@@ -182,9 +182,7 @@ export class Person {
     }
 
     /** Read the person's unexpiring grant to a delegate, absent without one. */
-    async granted(
-        delegate: Subject,
-    ): Promise<GrantClaim | undefined> {
+    async granted(delegate: Subject): Promise<GrantClaim | undefined> {
         // read the person's one grant to the delegate, an expiring one asking again
         const { items } = await this.objects().grant.list({
             scope: this.subject.id,

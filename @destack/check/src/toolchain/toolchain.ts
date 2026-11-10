@@ -1,8 +1,7 @@
 import { createRequire } from "node:module";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Host } from "@destack/environment";
-import { Digest } from "@destack/schema";
 
 /** The compilers and lint rules on disk: a checked-out toolchain, or a workspace's packages. */
 export class Toolchain {
@@ -29,11 +28,6 @@ export class Toolchain {
         const { os, architecture } = host;
 
         return `${os}-${architecture}${os === "linux" ? "-gnu" : ""}`;
-    }
-
-    /** The digest of the toolchain's manifest, which names its directory, absent in a workspace. */
-    get digest(): Digest | undefined {
-        return this.directory === undefined ? undefined : Digest.parse(basename(this.directory));
     }
 
     /** Find an installed package's directory among the toolchain's packages. */

@@ -1978,9 +1978,7 @@ export class Authorizer {
             if (!visited.has(visit)) {
                 visited.add(visit);
                 for (const source of this.sources(next.permission)) {
-                    pending.push(
-                        ...(await this.#followed(snapshot, next, source, related.get(id), related)),
-                    );
+                    pending.push(...(await this.#followed(snapshot, next, source, related)));
                 }
             }
         }
@@ -1997,7 +1995,6 @@ export class Authorizer {
             readonly row: Row;
         },
         source: { readonly permission: string; readonly relation?: string },
-        known: Map<string, ObjectReference> | undefined,
         related: Map<string, Map<string, ObjectReference>>,
     ): Promise<{ permission: PermissionReference; mapping: TableMapping; row: Row }[]> {
         // follow a source on the same row
@@ -2011,7 +2008,7 @@ export class Authorizer {
             return [];
         }
         const id = TableMapping.text(from.row, from.mapping.id);
-        const relations = known ?? new Map<string, ObjectReference>();
+        const relations = related.get(id) ?? new Map<string, ObjectReference>();
         relations.set(source.relation, target);
         related.set(id, relations);
 

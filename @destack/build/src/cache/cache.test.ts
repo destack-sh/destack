@@ -1,15 +1,15 @@
 import { Simulation } from "@destack/environment/simulation";
-import { Toolchain } from "@destack/check/toolchain";
+import { Distribution } from "@destack/update";
 import { expect, test } from "@destack/test";
 import { CompilerIdentity } from "./cache.ts";
 
+/** The resources of a release's application, beside its helpers. */
+const RESOURCES = "/Applications/Destack.app/Contents/Resources";
+
 /** The bundle a release's compiler runs, as its launcher starts it. */
-const SCRIPT = "/Applications/Destack.app/Contents/Resources/program/destack-build.js";
+const SCRIPT = `${RESOURCES}/program/destack-build.js`;
 
-/** The directory of the checked-out toolchains, each named by its manifest's digest. */
-const TOOLCHAINS = "/Users/ada/.destack/toolchain";
-
-/** Identify a release compiler running a bundle on a runtime build with a toolchain. */
+/** Identify a release compiler by its runtime build, its bundle and its toolchain manifest. */
 async function identify(revision: string, bundle: string, manifest: string): Promise<string> {
     // start a release's compiler process on the runtime build, its bundle written in place
     await using simulation = new Simulation({
@@ -27,13 +27,14 @@ async function identify(revision: string, bundle: string, manifest: string): Pro
         },
     });
     const environment = simulation.environment("compiler");
-    await environment.files.mkdir("/Applications/Destack.app/Contents/Resources/program", {
+    await environment.files.mkdir(`${RESOURCES}/program`, {
         recursive: true,
     });
     await environment.files.writeTextFile(SCRIPT, bundle);
-    const toolchain = async () => Toolchain.at(`${TOOLCHAINS}/${manifest}`);
+    const shipped = Distribution.toolchainManifest(environment.host.architecture);
+    await environment.files.writeTextFile(`${RESOURCES}/${shipped}`, manifest);
 
-    return await CompilerIdentity.of(environment, toolchain).digest();
+    return await CompilerIdentity.of(environment).digest();
 }
 
 test("identify a release compiler by its runtime build, its bundle and its toolchain, the same alike", async () => {

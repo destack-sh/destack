@@ -10,7 +10,7 @@ import { Loopback } from "@destack/machine/computer";
 import { RESIDENCIES } from "@platform/stack";
 import { Stage } from "@destack/update/release";
 import { buildExecutable, toolchainOptions } from "./executable.ts";
-import { buildToolchain } from "./toolchain.ts";
+import { buildToolchain, writeToolchainManifest } from "./toolchain.ts";
 import { Toolchain } from "@destack/check/toolchain";
 import { DISTRIBUTION_DIRECTORY, TOOLCHAIN_DIRECTORY } from "@destack/update";
 import { schema } from "@destack/schema";
@@ -140,6 +140,7 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
             { resources: directory, toolchain: tools },
             HOST,
         );
+        await writeToolchainManifest(tools, directory, HOST.host.architecture, HOST);
 
         // ship the distribution the universe's machines ship, the desktop's own release among it
         await files.copy(

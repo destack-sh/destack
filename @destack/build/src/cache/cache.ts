@@ -2,9 +2,9 @@ import { fileURLToPath } from "node:url";
 import { version } from "typescript";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { Digest } from "@destack/schema";
-import type { Toolchain } from "@destack/check/toolchain";
+import { Distribution } from "@destack/update";
+import { join } from "node:path";
 import { ModuleClosure } from "./closure.ts";
-import { BuildError } from "../error/index.ts";
 
 /** The entry a compiler process starts from, whose module closure identifies the compiler. */
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
@@ -36,29 +36,20 @@ const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-modul
 /** The identity of this process's compiler and npm conversion, which build keys read. */
 export class CompilerIdentity {
     /** The files and process the compiler is read through. */
-    readonly environment: Environment<"files" | "process">;
-    /** Read the tools the compiler runs, whose manifest a release's identity includes. */
-    readonly toolchain: () => Promise<Toolchain>;
+    readonly environment: Environment<"files" | "process" | "host">;
     /** The digest of the compiler, read once. */
     #digest: Promise<Digest> | undefined;
     /** The digest of the npm conversion, read once. */
     #conversion: Promise<Digest> | undefined;
 
-    /** Read the compiler through an environment, running a toolchain read once it is needed. */
-    private constructor(
-        environment: Environment<"files" | "process">,
-        toolchain: () => Promise<Toolchain>,
-    ) {
+    /** Read the compiler through an environment. */
+    private constructor(environment: Environment<"files" | "process" | "host">) {
         this.environment = environment;
-        this.toolchain = toolchain;
     }
 
-    /** Read the compiler through an environment, running a toolchain read once it is needed. */
-    static of(
-        environment: Environment<"files" | "process">,
-        toolchain: () => Promise<Toolchain>,
-    ): CompilerIdentity {
-        return new CompilerIdentity(environment, toolchain);
+    /** Read the compiler through an environment. */
+    static of(environment: Environment<"files" | "process" | "host">): CompilerIdentity {
+        return new CompilerIdentity(environment);
     }
 
     /** Digest a file's bytes, null for a missing file. */
@@ -120,23 +111,18 @@ export class CompilerIdentity {
 
     /** Identify the compiler by runtime, bundle and toolchain, else Bun, TypeScript and modules. */
     async #identifyCompiler(): Promise<Digest> {
-        // identify a release's compiler by its runtime's build, its program's bundle and its toolchain's manifest
-        const { runtime, script } = this.environment.process;
+        // identify a release's compiler by its runtime's build, its program's bundle and the toolchain manifest it ships
+        const { runtime, script, executable } = this.environment.process;
         if (runtime.isStandalone) {
-            const { digest } = await this.toolchain();
-            if (digest === undefined) {
-                throw BuildError.of(
-                    "INVARIANT_VIOLATED",
-                    "a release's compiler runs without a toolchain",
-                );
-            }
+            const resources = Distribution.resources(executable);
+            const manifest = Distribution.toolchainManifest(this.environment.host.architecture);
 
             return await Digest.json(
                 {
                     layout: KEY_LAYOUT,
                     bun: runtime.revision,
                     program: await this.#file(script),
-                    toolchain: digest,
+                    toolchain: await this.#file(join(resources, manifest)),
                 },
                 this.environment.crypto,
             );

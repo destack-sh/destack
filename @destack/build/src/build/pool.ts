@@ -66,7 +66,7 @@ export class CompilerPool implements AsyncDisposable {
     private constructor(store: LocalBuildStore, toolchain: () => Promise<Toolchain>) {
         this.store = store;
         this.#read = toolchain;
-        this.identity = CompilerIdentity.of(store.environment, () => this.toolchain());
+        this.identity = CompilerIdentity.of(store.environment);
     }
 
     /** Open a pool starting the current compiler with a toolchain, building into a store. */

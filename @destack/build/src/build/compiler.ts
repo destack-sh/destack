@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
 import { Distribution } from "@destack/update";
-import { createRequire } from "node:module";
 import { CompilerIdentity } from "../cache/cache.ts";
 import { FamilyError } from "@destack/error";
 import type { EvaluatedDeclaration } from "../declaration/evaluation.ts";
@@ -82,12 +81,11 @@ export const CompilerCommand = {
             throw BuildError.of("INVARIANT_VIOLATED", "a release's compiler needs a toolchain");
         }
 
-        // load rolldown's native binding from the resources, as the compiler has none of its own
+        // load rolldown's native binding from where the release lays it out in its resources
         const compiler = join(dirname(executable), EXECUTABLE);
         const resources = Distribution.resources(executable);
         const platform = Toolchain.platform(environment.host);
-        const require = createRequire(join(resources, "package.json"));
-        const binding = dirname(require.resolve(`@rolldown/binding-${platform}/package.json`));
+        const binding = join(resources, "node_modules", "@rolldown", `binding-${platform}`);
 
         return {
             executable: compiler,
@@ -213,7 +211,7 @@ export class Compiler implements AsyncDisposable {
         const { store } = options;
         const { environment } = store;
         const { files } = environment;
-        const identity = CompilerIdentity.of(environment, options.toolchain);
+        const identity = CompilerIdentity.of(environment);
         const started =
             options.command ??
             (await CompilerCommand.current(await options.toolchain(), environment));
