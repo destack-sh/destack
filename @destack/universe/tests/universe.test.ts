@@ -62,8 +62,18 @@ test("apply a definition once across starts, again once the operator's invitatio
     const later = await counts();
     await start({
         residencies: [
-            { code: "eu", name: "Europe", relay: "https://relay-eu.machine.test" },
-            { code: "us", name: "United States", relay: "https://relay-us.machine.test" },
+            {
+                code: "eu",
+                name: "Europe",
+                relay: "https://relay-eu.machine.test",
+                countries: ["DE"],
+            },
+            {
+                code: "us",
+                name: "United States",
+                relay: "https://relay-us.machine.test",
+                countries: ["US"],
+            },
         ],
     });
     expect({ again, later, changed: await counts() }).toEqual({

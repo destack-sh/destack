@@ -66,8 +66,10 @@ export interface UniverseOptions {
     readonly keyring: Keyring;
     /** The key the journals fingerprint sensitive inputs under. */
     readonly callKey: CallKey;
-    /** The transport mailing sign-in links and codes. */
+    /** The transport mailing sign-in codes. */
     readonly mail: MailTransport;
+    /** The applications at the providers people sign in through, none where the host has none. */
+    readonly providers: BetterAuthAuthenticatorOptions["providers"];
     /** The bucket with the segments of the universe's call events. */
     readonly events: Bucket;
     /** The storage of the universe's blobs, which its rows' blob columns reference. */
@@ -272,7 +274,7 @@ export class Universe implements AsyncDisposable {
                 trustedOrigins: [origin],
                 ipAddress: options.ipAddress,
                 database,
-                providers: {},
+                providers: options.providers,
                 objects: store,
                 events,
                 lifetime: new TokenLifetime(options.lifetimes),

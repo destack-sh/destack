@@ -1,6 +1,6 @@
 import { UniverseOrigin } from "@destack/account/address";
 import { Bookmark } from "@destack/object/client";
-import { Issuer } from "@destack/account/native";
+import { DEVICE_SCOPES, Issuer } from "@destack/account/client";
 import { MemoryBlobStorage } from "@destack/resource";
 import accountPackage from "@destack/account/package";
 import { sudo } from "@destack/account/authentication";
@@ -69,12 +69,6 @@ const TEST_RESIDENCY = "eu";
 
 /** The loopback redirect a stepped-up native client returns to, which the step-up stops at. */
 const STEP_UP_REDIRECT = "http://127.0.0.1:53682/callback";
-
-/** The redirects a browser follows at most, the Fetch standard's limit. */
-const FETCH_REDIRECTS = 20;
-
-/** The button a person presses on each page a step-up passes. */
-const STEP_UP_ACTIONS = [["/consent", "approve"]] as const;
 
 /** The language the universe's browsers ask for. */
 const BROWSER_LANGUAGE = "en";
@@ -194,6 +188,8 @@ export class TestUniverse implements AsyncDisposable {
     readonly #issuer: Issuer;
     /** The authenticator each stepped-up person enrolled, by person. */
     readonly #authenticators: Map<string, string>;
+    /** The browser each person approves sign-ins in, by person. */
+    readonly #browsers = new Map<string, TestBrowser>();
     /** The universe keyring's secret. */
     readonly #keyring: string;
     /** Each person signed in, by email. */
@@ -278,6 +274,7 @@ export class TestUniverse implements AsyncDisposable {
                 code: TEST_RESIDENCY,
                 name: "Europe",
                 relay: `https://relay-${TEST_RESIDENCY}.machine.test`,
+                countries: ["DE"],
             },
         ];
         const machines = new Map<ResidencyCode, DeclaredMachine>();
@@ -333,6 +330,7 @@ export class TestUniverse implements AsyncDisposable {
                 keyring,
                 callKey: () => key,
                 mail,
+                providers: {},
                 events: new MemoryBucket(clock),
                 blobs: new MemoryBlobStorage(environment.crypto),
                 ipAddress: { disableIpTracking: true },
@@ -488,6 +486,7 @@ export class TestUniverse implements AsyncDisposable {
             clientId,
             STEP_UP_REDIRECT,
             "step-up",
+            DEVICE_SCOPES,
             this.clock.now(),
             sudo,
         );
@@ -604,49 +603,30 @@ export class TestUniverse implements AsyncDisposable {
 
     /** Approve a sign-in at the issuer as a person stepped up, answering where it sends back. */
     async approve(url: string, person: TestPerson): Promise<string> {
-        // enroll an authenticator the first time, in a browser the person's link signs in
-        const browser = this.#browser();
+        // enroll an authenticator the first time, then use the person's own browser, which keeps its sign-in
         const enrolled =
             this.#authenticators.get(person.id) ?? (await this.#enroll(person, this.#browser()));
-        const asked = new URL(TestBrowser.location(await browser.fetch(url)));
+        const browser = this.#browsers.get(person.id) ?? this.#browser();
+        this.#browsers.set(person.id, browser);
 
-        // sign in by the mailed link, and answer the second-factor challenge with the authenticator's code
-        await browser.fetch(
-            asked.href,
-            new URLSearchParams({ action: "link", email: person.email }),
+        // follow the issuer back to the client, signing in by the mailed and authenticator's codes where asked
+        const next = await browser.authorize(
+            url,
+            {
+                email: person.email,
+                code: () => this.#code(),
+                authenticator: () => authenticatorCode(enrolled, this.environment),
+            },
+            (page) => page.origin !== TEST_ORIGIN,
         );
-        const linked = await browser.fetch(await this.#link());
-        const verified = await browser.fetch(
-            TestBrowser.location(linked),
-            new URLSearchParams({
-                action: "totp",
-                code: await authenticatorCode(enrolled, this.environment),
-            }),
-        );
-
-        // follow the issuer until it sends the browser back to the client, continuing the sign-in and approving its consent
-        let next = TestBrowser.location(verified);
-        for (let passed = 0; new URL(next).origin === TEST_ORIGIN; passed += 1) {
-            if (passed >= FETCH_REDIRECTS) {
-                throw new TypeError(`the sign-in redirected more than ${FETCH_REDIRECTS} times`);
-            }
-            const page = new URL(next);
-            const action = STEP_UP_ACTIONS.find(([path]) => page.pathname.endsWith(path))?.[1];
-            const answered = await browser.fetch(
-                page.href,
-                action === undefined ? undefined : new URLSearchParams({ action }),
-            );
-            next = TestBrowser.location(answered);
-        }
 
         return next;
     }
 
-    /** Enroll a person's authenticator in a browser their link signs in, returning its URI. */
+    /** Enroll a person's authenticator in a browser their code signs in, returning its URI. */
     async #enroll(person: TestPerson, browser: TestBrowser): Promise<string> {
-        // sign the browser in by the person's link
-        await browser.fetch("/sign-in/magic-link", { email: person.email, callbackURL: "/" });
-        await browser.fetch(await this.#link());
+        // sign the browser in by the person's code
+        await browser.signIn(person.email, () => this.#code());
 
         // enable an authenticator and verify the code it showed a step ago
         const enabled = Enrollment.parse(
@@ -669,11 +649,11 @@ export class TestUniverse implements AsyncDisposable {
         );
     }
 
-    /** Read the last link the universe mailed. */
-    async #link(): Promise<string> {
-        const links = await this.mail.links();
+    /** Read the last code the universe mailed. */
+    async #code(): Promise<string> {
+        const codes = await this.mail.codes();
 
-        return present(links.at(-1), "a mailed link").url;
+        return present(codes.at(-1), "a mailed code").otp;
     }
 
     /** Make an example's calls in the person's account as the person, each through their client. */
