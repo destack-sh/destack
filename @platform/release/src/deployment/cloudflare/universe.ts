@@ -7,6 +7,7 @@ import type { DurableObjectNamespace } from "@destack/db/cloudflare";
 import { PostgresConnector } from "@destack/db/postgres";
 import { Envelope, EnvelopeConfiguration, UNIVERSE_OWNER } from "@destack/identity/aws";
 import { MailSender } from "@destack/mail/sender";
+import { ProviderClients } from "@destack/account/better-auth";
 import { type DurableObjectState, DurableObjectWorkload } from "@destack/object/cloudflare";
 import type { Alarm } from "@destack/db";
 import { CallKey } from "@destack/object";
@@ -49,6 +50,8 @@ export interface UniverseBindings {
     readonly DESTACK_KMS_SECRET_ACCESS_KEY?: string;
     /** Where sign-in mail goes, as `MailSender` JSON. */
     readonly DESTACK_MAIL: string;
+    /** The applications at the sign-in providers, as `ProviderClients` JSON. */
+    readonly DESTACK_PROVIDERS: string;
     /** The access key of the universe's own SES credentials. */
     readonly AWS_ACCESS_KEY_ID: string;
     /** The secret key of the universe's own SES credentials. */
@@ -111,6 +114,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
         keyring,
         callKey: () => key,
         mail,
+        providers: ProviderClients.parse(JSON.parse(bindings.DESTACK_PROVIDERS)),
         events: new R2Bucket(bindings.EVENTS),
         blobs: new R2BlobStorage(new R2Bucket(bindings.EVENTS), BLOBS_PREFIX, environment.random),
         ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },

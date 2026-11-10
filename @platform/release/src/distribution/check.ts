@@ -4,6 +4,7 @@ import type { Environment, HostCapability } from "@destack/environment";
 import { Device } from "@destack/machine/device";
 import { schema } from "@destack/schema";
 import type { Target } from "@destack/update/release";
+import { SANDBOX_TOOLS, SandboxTool } from "@destack/sandbox";
 
 /** How long one checked command may run, in milliseconds: a machine start with its keychain. */
 const COMMAND_TIMEOUT_MILLISECONDS = 10_000;
@@ -92,14 +93,19 @@ async function checkExecutables(
     target: Target,
     environment: Environment<"files">,
 ): Promise<void> {
-    // select the packaged application and its platform-specific executable paths
-    const { bundle } = Platform.of(target);
+    // select the packaged application and its platform-specific executable paths, with the Linux sandbox's tools
+    const { bundle, system } = Platform.of(target);
     const application = join(root, bundle.application);
     const helpers = join(application, bundle.helpers);
+    const tools =
+        system === "linux"
+            ? SANDBOX_TOOLS.map((tool) => join(helpers, SandboxTool.file(tool)))
+            : [];
     const paths = [
         join(application, bundle.executable),
         join(helpers, RUNTIME),
         join(helpers, "destack-desktop-host"),
+        ...tools,
     ];
 
     // require each command in the application, and its link from bin

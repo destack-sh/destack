@@ -1,4 +1,4 @@
-import { Issuer, type TokenBinding } from "@destack/account/native";
+import { Issuer, type TokenBinding, TokenSet } from "@destack/account/client";
 import { ACCESS_TOKEN_TYPE } from "@destack/account/oauth";
 import { TokenCache } from "@destack/access/token";
 import type { Environment } from "@destack/environment";
@@ -60,7 +60,7 @@ export class Operator {
             timeZone: "UTC",
             locale: "en",
         });
-        const operator = new Operator(issuer, clientId, tokens.refreshToken, environment);
+        const operator = new Operator(issuer, clientId, TokenSet.refreshToken(tokens), environment);
 
         // accept each pending invitation, the platform organization's ownership among them
         const { items } = await issuer.accounts(tokens.accessToken).user.invited({ id: userId });
@@ -89,7 +89,7 @@ export class Operator {
         return this.#tokens.token("session", this.#environment.clock.now(), async () => {
             // refresh, keeping the rotated refresh token
             const tokens = await this.#issuer.refresh(this.#clientId, this.#refreshToken);
-            this.#refreshToken = tokens.refreshToken;
+            this.#refreshToken = TokenSet.refreshToken(tokens);
 
             return tokens.accessToken;
         });

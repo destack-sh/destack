@@ -1,4 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
+import type { ProviderClients } from "@destack/account/better-auth";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { resolve } from "node:path";
@@ -118,11 +119,12 @@ export class WorkerScript {
         return fileURLToPath(import.meta.resolve(SCRIPT_ENTRIES[kind]));
     }
 
-    /** Write the script's secrets by binding: its sealed keys, its KMS key and the mail key. */
+    /** Write the script's secrets by binding: its sealed keys, KMS key, mail key and providers. */
     secrets(
         custody: Custody,
         kms: AccessKey | undefined,
         global: GlobalOutputs,
+        providers: ProviderClients,
     ): Readonly<Record<string, string>> {
         // keep no secrets in a tail
         const target = this.target;
@@ -159,10 +161,14 @@ export class WorkerScript {
             };
         }
 
-        // send mail with the global root's key
+        // send mail with the global root's key, and sign people in through the providers at the universe
+        const signIn =
+            target.kind === "universe" ? { DESTACK_PROVIDERS: JSON.stringify(providers) } : {};
+
         return {
             ...sealed,
             ...decrypting,
+            ...signIn,
             AWS_ACCESS_KEY_ID: global.mail.accessKeyId,
             AWS_SECRET_ACCESS_KEY: global.mail.secretAccessKey,
         };

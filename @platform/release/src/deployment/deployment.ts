@@ -1,6 +1,8 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type { ResidencyCode } from "@destack/account/object";
 import { DOMAINS, UniverseOrigin } from "@destack/account/address";
+import { ProviderId } from "@destack/account/authentication";
+import type { ProviderClients } from "@destack/account/better-auth";
 import type { Jurisdiction } from "@destack/db/cloudflare";
 import { Stage } from "@destack/update/release";
 import { Identifier, type JsonValue, present, schema } from "@destack/schema";
@@ -16,7 +18,7 @@ import { provider, tag } from "@destack/finance/declare";
 import { github } from "@destack/forge/stack";
 import forgePackage, { FORGE_INSTALLATION } from "@destack/forge/package";
 import type { MailSender } from "@destack/mail/sender";
-import { Issuer } from "@destack/account/native";
+import { Issuer } from "@destack/account/client";
 import { Account, account } from "@destack/account/object";
 import { Claim, SpaceMount } from "@destack/object";
 import registryPackage from "@destack/registry/package";
@@ -95,6 +97,13 @@ const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
 
 /** The global root's outputs a rehearsal and a local run bind. */
 const PLACEHOLDER_GLOBAL: GlobalOutputs = { mail: PLACEHOLDER_KEY };
+
+/** The client identifier of Destack's application at each sign-in provider, for every stage. */
+const PROVIDER_CLIENT_IDS: Readonly<Record<ProviderId, string>> = {
+    github: "Iv23li2jZs0kDg8Bc3sg",
+    google: "969772309074-tqcvgqsuj4mt3u6au8t2vbonmch2f40t.apps.googleusercontent.com",
+    microsoft: "13d4b01a-bf0e-4ede-8fa6-1fcced42ad05",
+};
 
 /** The AWS region SES sends Destack's mail from, where the global root verifies destack.app. */
 const MAIL_REGION = "eu-central-1";
@@ -214,8 +223,7 @@ export class Deployment {
     async homes(build: Pick<PlatformBuild, "pinned">): Promise<Record<string, StackRelease>> {
         const homes: Record<string, StackRelease> = {};
         for (const residency of RESIDENCIES) {
-            const exported = this.stage.name === "local" ? "RESIDENCY_STACK" : residency.stack;
-            homes[residency.code] = await build.pinned(exported, {
+            homes[residency.code] = await build.pinned(residency.stack, {
                 ...this.settings,
                 [DeclarationReference.key(relay.origin.reference)]: this.relayOrigin(residency),
                 [DeclarationReference.key(relay.residency.reference)]: residency.code,
@@ -277,6 +285,7 @@ export class Deployment {
                 code: residency.code,
                 name: residency.name,
                 relay: this.relayOrigin(residency),
+                countries: [...residency.countries],
             })),
             platform: {
                 ...PLATFORM,
@@ -312,9 +321,10 @@ export class Deployment {
         const modules = await Deployment.#modules(build, declaration);
 
         // build each upload as wrangler deploys it, with the secrets it reads
+        const placeholders = this.providers(() => PLACEHOLDER_KEY.secretAccessKey);
         for (const [script, configuration] of scripts) {
             const path = await script.write(configuration, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL);
+            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL, placeholders);
             print("rehearse", `${script.name} reads ${Object.keys(secrets).join(", ")}`);
             await Root.execute(
                 resolve(ROOT, "node_modules/.bin/wrangler"),
@@ -385,13 +395,14 @@ export class Deployment {
         // serve each script on its own ports with placeholder secrets and its root key, and check it answers, keeping the universe's lines
         await using children = new AsyncDisposableStack();
         const mail = new PrintedMail();
+        const placeholders = this.providers(() => PLACEHOLDER_KEY.secretAccessKey);
         for (const [script, configuration] of scripts) {
             // write the configuration without what only a deployment binds
             const local = Object.fromEntries(
                 Object.entries(configuration).filter(([key]) => !DEPLOYED_KEYS.has(key)),
             );
             const path = await script.write(local, modules);
-            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL);
+            const secrets = script.secrets(custody, undefined, PLACEHOLDER_GLOBAL, placeholders);
             const variables = Object.entries(secrets).map(([name, value]) => `${name}=${value}\n`);
             await environment.files.writeTextFile(
                 resolve(path, "..", ".dev.vars"),
@@ -752,6 +763,9 @@ export class Deployment {
         // deploy every script in order, the universe first and each machine before its tail
         const scripts = this.#scripts(outputs, outputsOf);
         const modules = await Deployment.#modules(build, declaration);
+        const providers = this.providers((id) =>
+            Root.required(Deployment.providerSecret(id), environment),
+        );
         for (const [script, configuration] of scripts) {
             const kms =
                 script.target.kind === "universe"
@@ -759,7 +773,8 @@ export class Deployment {
                     : script.target.kind === "machine"
                       ? outputsOf(script.target.residency).kms.access
                       : undefined;
-            await script.deploy(configuration, script.secrets(custody, kms, global), modules);
+            const secrets = script.secrets(custody, kms, global, providers);
+            await script.deploy(configuration, secrets, modules);
         }
 
         // check every deployed origin answers, a tail answering none
@@ -893,16 +908,8 @@ export class Deployment {
 
     /** Declare the platform's domains and its residency accounts' hostnames, none locally. */
     #edge(): Pick<PlatformDefinition, "domains" | "hostnames"> {
-        // declare no public names locally
-        if (this.stage.name === "local") {
-            return {
-                domains: [],
-                hostnames: Object.fromEntries(RESIDENCIES.map((residency) => [residency.code, []])),
-            };
-        }
-
-        // declare the space and machine domains, each relay's host, and the edge's names at the platform's
-        const edge = [`*.${DOMAINS.space}`, `*.${DOMAINS.machine}`];
+        // declare the space, machine, universe and site domains, each relay's host, and the edge's names at the platform's
+        const edge = [`*.${DOMAINS.space}`, `*.${DOMAINS.machine}`, DOMAINS.universe, DOMAINS.site];
         const hostnames = RESIDENCIES.map((residency): [string, string[]] => [
             residency.code,
             [
@@ -912,9 +919,27 @@ export class Deployment {
         ]);
 
         return {
-            domains: [DOMAINS.space, DOMAINS.machine],
+            domains: [DOMAINS.space, DOMAINS.machine, DOMAINS.universe, DOMAINS.site],
             hostnames: Object.fromEntries(hostnames),
         };
+    }
+
+    /** Name the variable a deploy reads a sign-in provider's client secret from. */
+    static providerSecret(id: ProviderId): string {
+        return `SIGN_IN_${id.toUpperCase()}_CLIENT_SECRET`;
+    }
+
+    /** Read the applications at the sign-in providers, leaving out one without a secret. */
+    providers(secret: (id: ProviderId) => string | undefined): ProviderClients {
+        return Object.fromEntries(
+            ProviderId.options.flatMap((id) => {
+                const clientSecret = secret(id);
+
+                return clientSecret === undefined
+                    ? []
+                    : [[id, { clientId: PROVIDER_CLIENT_IDS[id], clientSecret }]];
+            }),
+        );
     }
 
     /** List the cloud machines of every residency. */

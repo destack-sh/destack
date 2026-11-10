@@ -27,10 +27,11 @@ import { BunDistribution } from "@destack/package/bun";
 import { BuildLayer } from "@destack/build/store";
 import { Deployment, type LoopbackLayout } from "../deployment/index.ts";
 import { PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
+import { DOMAINS } from "@destack/account/address";
 import type { Environment, HostCapability } from "@destack/environment";
 import { LocalProcess } from "./process.ts";
 import { Publication } from "./publication.ts";
-import { Issuer } from "@destack/account/native";
+import { Issuer } from "@destack/account/client";
 import { Bookmark } from "@destack/object/client";
 import { PrintedMail } from "./mail.ts";
 import { Operator } from "./operator.ts";
@@ -153,13 +154,43 @@ export class LocalUniverse implements AsyncDisposable {
             build.stacks(STAGE.tag),
             await local.homes(build),
         );
+        // serve the origin's other paths from the platform residency's machine once it started, as the edge does
+        const clouds = new Map<string, Computer>();
+        const edge = async (request: Request) => {
+            // address the request at the universe's domain, which the platform's routes name
+            const platform = clouds.get(PLATFORM.residencyId);
+            const requested = new URL(request.url);
+            const path = `${requested.pathname}${requested.search}`;
+            const routed = new URL(path, `https://${DOMAINS.universe}`);
+
+            // present the browser's own origin as the universe's, as a reverse proxy changing the origin does
+            const headers = new Headers(request.headers);
+            if (headers.get("origin") === requested.origin) {
+                headers.set("origin", routed.origin);
+            }
+            const referer = headers.get("referer");
+            if (referer?.startsWith(`${requested.origin}/`) === true) {
+                headers.set("referer", `${routed.origin}${referer.slice(requested.origin.length)}`);
+            }
+
+            return platform === undefined
+                ? new Response("the platform residency's machine is still starting", {
+                      status: 503,
+                      headers: { "retry-after": "1" },
+                  })
+                : await platform.fetch(new Request(new Request(routed, request), { headers }));
+        };
         const universe = stack.use(
             await BunUniverse.start({
+                edge,
                 environment: options.environment,
                 definition: declaration,
                 origin: local.universeOrigin,
                 database: url,
                 rootKey: UNIVERSE_ROOT_KEY,
+                providers: local.providers(
+                    (id) => options.environment.process.variables[Deployment.providerSecret(id)],
+                ),
                 mail: new PrintTransport((text) => {
                     mail.push(text);
                     options.print("mail", text);
@@ -188,7 +219,6 @@ export class LocalUniverse implements AsyncDisposable {
             layer: await BuildLayer.open(join(directory, DISTRIBUTION_LAYER), environment),
         };
         options.print("build", "wrote the distribution the machines ship");
-        const clouds = new Map<string, Computer>();
         for (const residency of RESIDENCIES) {
             const started = await LocalUniverse.#startCloud(
                 residency,

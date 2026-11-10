@@ -293,7 +293,15 @@ renewal:
             CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY,
         ]
 production:
-    secrets: [CLOUDFLARE_COMPANY_API_TOKEN, PLANETSCALE_SERVICE_TOKEN_ID, PLANETSCALE_SERVICE_TOKEN]
+    secrets:
+        [
+            CLOUDFLARE_COMPANY_API_TOKEN,
+            PLANETSCALE_SERVICE_TOKEN_ID,
+            PLANETSCALE_SERVICE_TOKEN,
+            SIGN_IN_GITHUB_CLIENT_SECRET,
+            SIGN_IN_GOOGLE_CLIENT_SECRET,
+            SIGN_IN_MICROSOFT_CLIENT_SECRET,
+        ]
     variables: [DESTACK_OPERATOR]
 build:
     secrets: []

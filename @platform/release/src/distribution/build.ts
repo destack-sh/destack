@@ -1,6 +1,7 @@
 import { CHECKOUT } from "./distribution.ts";
 import { Stage } from "@destack/update/release";
 import { checkDistribution } from "./check.ts";
+import { buildSandboxTools } from "./tools.ts";
 import { DESKTOP_ENTRY, PlatformBuild } from "../deployment/index.ts";
 import { basename, dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -73,7 +74,17 @@ export async function buildDistribution(
     // compile the commands, bundle the desktop and place the commands inside it
     await compileExecutables(directory, platform, stage, version, environment);
     const application = await bundleDesktop(directory, platform, stage, version, environment);
-    await placeCommands(directory, join(application, platform.bundle.helpers), environment);
+    const helpers = join(application, platform.bundle.helpers);
+    await placeCommands(directory, helpers, environment);
+
+    // build the sandbox's tools beside its launcher on Linux, where the sandbox runs them
+    if (platform.system === "linux") {
+        const scratch = await files.makeTemporaryDirectory(`${target}-tools-`, {
+            directory: staging,
+        });
+        await buildSandboxTools(helpers, scratch, environment);
+        await files.remove(scratch, { recursive: true });
+    }
 
     // sign distributions of signed platforms before they replace the previous build
     const signer = Signer.of(platform, environment);

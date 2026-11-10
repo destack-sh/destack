@@ -4,8 +4,10 @@ import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
 import { connectPostgres } from "@destack/db/postgres";
 import { LocalKeyring } from "@destack/identity";
 import type { MailTransport } from "@destack/mail/transport";
+import type { ProviderClients } from "@destack/account/better-auth";
 import { CallKey } from "@destack/object";
 import { UNIVERSE_SCHEMA, Universe, type UniverseDefinition } from "@destack/universe";
+import { UniverseOrigin } from "@destack/account/address";
 import { PlatformUniverse, type ShippedReleases } from "../deployment/universe.ts";
 
 /** What a Bun process runs a universe with. */
@@ -20,14 +22,18 @@ export interface BunUniverseOptions {
     readonly database: string;
     /** The universe's root keys, as `LocalKeyring.generate` writes them. */
     readonly rootKey: string;
-    /** The transport mailing sign-in links and codes. */
+    /** The transport mailing sign-in codes. */
     readonly mail: MailTransport;
+    /** The applications at the sign-in providers whose secrets the operator's environment holds. */
+    readonly providers: ProviderClients;
     /** The directory of the bucket of the universe's call events. */
     readonly directory: string;
     /** Report a failure the universe answers to no one. */
     readonly report: (error: unknown) => void;
     /** The releases the dev build shipped, which the universe opens before any forge's. */
     readonly shipped: ShippedReleases;
+    /** Answer what the origin serves besides the universe, as production's edge does. */
+    readonly edge: (request: Request) => Promise<Response>;
 }
 
 /** A universe served by a Bun process at its origin, its controllers looping in process. */
@@ -72,6 +78,7 @@ export class BunUniverse implements AsyncDisposable {
             keyring,
             callKey: () => key,
             mail: options.mail,
+            providers: options.providers,
             events,
             blobs,
             ipAddress: { disableIpTracking: true },
@@ -85,7 +92,11 @@ export class BunUniverse implements AsyncDisposable {
         const listener = options.environment.server.http({
             hostname: origin.hostname,
             port: Number(origin.port),
-            fetch: (request) => universe.fetch(request),
+            // hand the universe its issuer and package mounts, and the edge every other path
+            fetch: (request) =>
+                UniverseOrigin.path(new URL(request.url).pathname) === undefined
+                    ? options.edge(request)
+                    : universe.fetch(request),
         });
         stack.defer(async () => listener.stop(true));
 

@@ -132,3 +132,10 @@ resource "cloudflare_ruleset" "redirects" {
     }
   }]
 }
+
+# add the visitor's country to destack.app's requests, which sign-up suggests a residency from
+resource "cloudflare_zone_setting" "geolocation" {
+  zone_id    = cloudflare_zone.domains["destack.app"].id
+  setting_id = "ip_geolocation"
+  value      = "on"
+}

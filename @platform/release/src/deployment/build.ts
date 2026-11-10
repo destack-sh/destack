@@ -28,11 +28,10 @@ const EXPORTS = {
     space: "SPACE_STACK",
 } as const satisfies Record<keyof PlatformDefinition["stacks"], keyof typeof stacks>;
 
-/** The exports declaring the residency homes' stacks: the local stage's, and each residency's. */
-const STACK_EXPORTS = [
-    "RESIDENCY_STACK",
-    ...RESIDENCIES.map((residency) => residency.stack),
-] as const satisfies readonly (keyof typeof stacks)[];
+/** The exports declaring each residency home's stack, the same on every stage. */
+const STACK_EXPORTS = RESIDENCIES.map(
+    (residency) => residency.stack,
+) satisfies readonly (keyof typeof stacks)[];
 
 /** A stack definition's installations, by name. */
 const INSTALLATIONS = schema.record(schema.string(), InstallationDefinition);

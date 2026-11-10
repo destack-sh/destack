@@ -179,7 +179,7 @@ export class Publication {
             // wait until the home serves its forge, printing the home's steps and refusing at the bound with the one it waits for
             const space = await machine.space(home);
             const waiting = new AbortController();
-            void (async () => {
+            const printing = (async () => {
                 for await (const { status, reason } of space.health.watch(waiting.signal)) {
                     print(`${space.health.name} ${status}: ${reason}`);
                 }
@@ -191,6 +191,7 @@ export class Publication {
                 );
             } finally {
                 waiting.abort();
+                await printing;
             }
 
             // call the forge below its installation in the home, as the operator bound to the home

@@ -34,7 +34,18 @@ export async function serveLocal(
         printStatus(endpoint.name, endpoint.url, environment);
     }
     printStatus("machine", `http://127.0.0.1:${LOOPBACK_LAYOUT.machine}`, environment);
+    // print how to open the stage in a browser, the desktop app and the cli, each on this state
     const device = options.home.isCustom ? ` DESTACK_DIRECTORY=${options.home.directory}` : "";
+    printStatus(
+        "ready",
+        `http://127.0.0.1:${LOOPBACK_LAYOUT.universe}/ opens Destack in a browser`,
+        environment,
+    );
+    printStatus(
+        "ready",
+        `cd @destack/desktop &&${device} bun run dev runs the desktop app`,
+        environment,
+    );
     printStatus(
         "ready",
         `cd @destack/cli && DESTACK_STAGE=local${device} bun run src/main.ts runs the cli`,
