@@ -12,6 +12,7 @@ import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
 import relayPackage from "@destack/relay/package";
+import socialPackage from "@destack/social/package";
 import { defineStack, type StackInput } from "@destack/stack";
 import homePackage from "@destack/home/package";
 import sitePackage from "@platform/site/package";
@@ -95,6 +96,7 @@ function residencyStack(edge: {
                 relay: install(relayPackage, {}, { name: "relay" }),
                 home: install(homePackage, {}, { name: HOME_APPLICATION }),
                 ...edge.installations,
+                social: install(socialPackage, {}, { isolation: "host", name: "social" }),
                 observability: install(
                     observabilityPackage,
                     {},

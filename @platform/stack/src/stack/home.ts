@@ -5,11 +5,12 @@ import homePackage from "@destack/home/package";
 import messagePackage from "@destack/message/package";
 import notificationPackage from "@destack/notification/package";
 import observabilityPackage from "@destack/observability/package";
+import socialPackage from "@destack/social/package";
 import { defineStack } from "@destack/stack";
 import { install } from "@destack/stack/declare";
 import vaultPackage from "@destack/vault/package";
 
-/** The stack of every account's home: Home, its inbox, connections and observability. */
+/** The stack of every account's home: Home, its inbox, connections, comments and observability. */
 export const HOME_STACK = defineStack([vaultPackage], {
     vaults: { credentials: connectionVault.declare() },
     installations: {
@@ -30,6 +31,7 @@ export const HOME_STACK = defineStack([vaultPackage], {
             {},
             { isolation: "host", name: "inbox", capabilities: ["deliver"] },
         ),
+        social: install(socialPackage, {}, { isolation: "host", name: "social" }),
         observability: install(
             observabilityPackage,
             {},
