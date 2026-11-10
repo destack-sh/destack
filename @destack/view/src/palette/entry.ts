@@ -1,9 +1,9 @@
-import { InstallationOrigin } from "@destack/account/address";
+import { InstallationOrigin, OPEN_PATH } from "@destack/account/address";
 import { DeclarationName, PackageId } from "@destack/package";
 import { type Identifier, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { Shortcut, CommandReference } from "@destack/object";
-import { OBJECT_PARAMETER, OPEN_PATH, TARGET_PARAMETER } from "../declare/context.ts";
+import { OBJECT_PARAMETER, TARGET_PARAMETER } from "../declare/context.ts";
 
 /** How strongly a title matching the query from its start ranks. */
 const MATCHES = { start: 3, word: 2, inside: 1 } as const;

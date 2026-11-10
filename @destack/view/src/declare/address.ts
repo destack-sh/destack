@@ -1,8 +1,8 @@
 import { DeclarationName } from "@destack/package";
 import { schema } from "@destack/schema";
-import { SpaceAddress } from "@destack/account/address";
+import { SpaceAddress, OPEN_PATH } from "@destack/account/address";
 import { ObjectReference } from "@destack/sync";
-import { OBJECT_PARAMETER, OPEN_PATH, TOKEN_PARAMETER, VIEW_PARAMETER } from "./context.ts";
+import { OBJECT_PARAMETER, VIEW_PARAMETER } from "./context.ts";
 
 /** A location within a view, with its query, excluding another origin. */
 export const ViewPath = schema.string().regex(/^\/(?:[^/\\\r\n][^\\\r\n]*)?$/u);
@@ -22,14 +22,11 @@ const viewAddress = schema.object({
 });
 /** A view of an installation in a space. */
 export const ViewAddress = Object.assign(viewAddress, {
-    /** Write the address launching the view at its installation's origin with a token. */
-    url(address: ViewAddress, origin: string, token: string): string {
-        // place the view's path below the origin with the token
+    /** Write the address of the view's page at its installation's origin. */
+    url(address: ViewAddress, origin: string): string {
         const path = address.path === "/" ? "" : address.path;
-        const url = new URL(`${origin}/${address.view}${path}`);
-        url.searchParams.set(TOKEN_PARAMETER, token);
 
-        return url.href;
+        return new URL(`${origin}/${address.view}${path}`).href;
     },
 });
 /** A view of an installation in a space. */

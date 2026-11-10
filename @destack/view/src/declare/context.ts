@@ -4,9 +4,6 @@ import { schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { ViewError } from "../error/error.ts";
 
-/** The same-origin host path opening an object, a view or the command palette. */
-export const OPEN_PATH = "/.destack/open";
-
 /** The same-origin host path below which a browser registers its client. */
 export const CLIENT_PATH = "/.destack/client";
 
@@ -72,6 +69,10 @@ const viewContext = schema.object({
     device: schema.string().min(1).exactOptional(),
     /** The object the view opens for, from its address. */
     target: ObjectReference.exactOptional(),
+    /** The universe's origin, whose pages keep the person's account. */
+    universe: schema.url(),
+    /** The catalogs the page's builds serve, by path below its base. */
+    catalogs: schema.array(schema.string()),
 });
 
 /** What the host gives a view: where and for whom it runs. */

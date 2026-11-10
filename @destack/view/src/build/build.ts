@@ -102,10 +102,14 @@ export const viewExtension: BuildExtension = {
                 sandbox,
                 presents: view.presents,
                 categories: view.categories,
+                audience: view.audience,
                 packages: view.packages,
                 render: { mode: view.render.mode === "static" ? "static" : "client" },
             };
         }
+
+        // refuse a second main view, which the package's origin opens at its root
+        ViewDescription.main(views);
 
         return { views };
     },
@@ -253,6 +257,8 @@ export interface LocatedView extends DeclarationModule {
     readonly presents: ViewDescription["presents"];
     /** The roles clients open the view in. */
     readonly categories: ViewDescription["categories"];
+    /** Who the view serves. */
+    readonly audience: ViewDescription["audience"];
     /** The packages the view calls. */
     readonly packages: ViewDescription["packages"];
     /** How the view renders. */
@@ -290,6 +296,7 @@ export function locate(compilation: ViewPackage): LocatedView[] {
             ...compilation.locate(declaration),
             presents: ViewDescription.shape.presents.parse(description["presents"]),
             categories: ViewDescription.shape.categories.parse(description["categories"]),
+            audience: ViewDescription.shape.audience.parse(description["audience"]),
             packages: ViewDescription.shape.packages.parse(description["packages"]),
             render,
         });

@@ -62,6 +62,8 @@ const CONTEXT = {
     account: "account-01996ab0-0000-7000-8000-000000000002",
     view: "cards",
     base: "",
+    universe: "https://destack.app",
+    catalogs: [],
     user: principal.user.reference(Scope.universe.id, "user-01996ab0-0000-7000-8000-000000000003"),
 };
 

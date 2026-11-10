@@ -13,6 +13,7 @@ export function describeView(view: View): schema.Infer<typeof ViewDescription.de
             priority,
         })),
         categories: [...view.categories],
+        audience: view.audience,
         packages: view.packages.map((handle) => handle.id),
         render: renderedOf(view),
     };

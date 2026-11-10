@@ -5,6 +5,7 @@ import {
     type Package,
 } from "@destack/package";
 import {
+    type ViewAudience,
     type ViewCategory,
     ViewDescription,
     type ViewPresentationPriority,
@@ -74,6 +75,8 @@ export interface ViewDefinition {
     readonly presents?: readonly Presentation[];
     /** The roles clients open the view in, such as a person's start view. */
     readonly categories?: readonly ViewCategory[];
+    /** Who the view serves: a signed-in person by default, or anyone. */
+    readonly audience?: ViewAudience;
     /** The packages the view calls as its user, such as observability. */
     readonly packages?: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
@@ -102,6 +105,8 @@ export class View {
     readonly presents: readonly Presentation[];
     /** The roles clients open the view in. */
     readonly categories: readonly ViewCategory[];
+    /** Who the view serves. */
+    readonly audience: ViewAudience;
     /** The packages the view calls as its user. */
     readonly packages: readonly PackageHandle[];
     /** Load the module whose default export is the root component. */
@@ -117,6 +122,7 @@ export class View {
         this.objects = definition.objects ?? [];
         this.presents = definition.presents ?? [];
         this.categories = definition.categories ?? [];
+        this.audience = definition.audience ?? "person";
         this.packages = definition.packages ?? [];
         this.component = definition.component;
         this.render = definition.render ?? { mode: "client" };

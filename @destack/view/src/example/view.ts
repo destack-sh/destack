@@ -22,6 +22,9 @@ const SAMPLE_SPACE = "space-01996ab0-0000-7000-8000-00000000e001";
 /** The sample person's home. */
 const SAMPLE_HOME = "space-01996ab0-0000-7000-8000-00000000e002";
 
+/** The sample universe's origin, the platform's own. */
+const SAMPLE_UNIVERSE = "https://destack.app";
+
 /** The account of the sample space. */
 const SAMPLE_ACCOUNT = "account-01996ab0-0000-7000-8000-00000000e003";
 
@@ -78,6 +81,8 @@ async function openSample(
         home: SAMPLE_HOME,
         view: view.name,
         base: "",
+        universe: SAMPLE_UNIVERSE,
+        catalogs: [],
         user: principal.user.reference(Scope.universe.id, SAMPLE_USER),
     };
 

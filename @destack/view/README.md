@@ -31,6 +31,8 @@ import { defineView } from "@destack/view/declare";
 
 export const notes = defineView({
     name: "notes",
+    categories: ["main"], // the view the installation's origin opens at its root, one per package
+    audience: "person", // a signed-out page load signs in at the universe first; "anyone" serves visitors
     objects: [notebook, note, notification, member], // each opened where it lives
     presents: [{ object: note, priority: "default" }],
     component: () => import("./app.tsx"),
@@ -117,14 +119,15 @@ createClient(settings, origin(`${HOME_PATH}/${userId}`)); // where a change of t
 
 ## Launches
 
-A host launches a view at its installation's origin with the person's token, which the origin trades for its session cookie; `ViewAddress` and `ObjectAddress` are what a launch opens.
+A view's page lives at its installation's origin, which signs a signed-out person in at the universe and trades the launch for its session cookie; `ViewAddress` and `ObjectAddress` are what a launch opens, and `ViewState` answers a page load the view cannot.
 
 ```ts
-import { ViewAddress, type Address } from "@destack/view/declare";
+import { ViewAddress, ViewState, type Address } from "@destack/view/declare";
 
 const board: Address = { space: "home--acme", installation: "tasks", view: "board", path: "/" };
 const note: Address = { space: "home--acme", object: note.reference(spaceId, id) }; // the view presenting it
-ViewAddress.url(board, "https://tasks--home--acme.destack.space", token); // …/board?token=…
+ViewAddress.url(board, "https://tasks--home--acme.destack.space"); // …/board
+await ViewState.document(refused); // starting (reloading), not found or error, as a page
 ```
 
 ## Mounting
@@ -138,7 +141,7 @@ await mount(
     { commands: [{ packageId, name: "archive", keybinding: "mod+e" }], theme },
     BrowserEnvironment.system,
 ); // generated
-// catalogs load by package from the build: /locale/de.json, /locale/<package>/de.json
+// catalogs load by package from the build, only those context.catalogs lists: /locale/de.json, /locale/<package>/de.json
 ```
 
 ## Registered commands
@@ -190,7 +193,7 @@ createShortcut(Shortcut.keys("mod+k", isCommandPlatform()), openPalette);
 ```tsx
 import { useView } from "@destack/view";
 
-const { space, user, home, locale, target } = useView();
+const { space, user, home, locale, target, universe } = useView(); // universe: the origin of the person's account pages
 ```
 
 ## Routing

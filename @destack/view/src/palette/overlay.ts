@@ -1,3 +1,4 @@
+import { OPEN_PATH } from "@destack/account/address";
 import type { PackageId } from "@destack/package";
 import { present } from "@destack/schema";
 import { Shortcut, CommandReference } from "@destack/object";
@@ -5,7 +6,7 @@ import { isCommandPlatform, type Keybinding } from "./keybinding.ts";
 import { Palette } from "./entry.ts";
 import { PaletteMessage } from "./message.ts";
 import type { CommandRegistry, RegisteredCommand } from "./registry.ts";
-import { COMMAND_PARAMETER, FOCUS_PARAMETER, OPEN_PATH } from "../declare/context.ts";
+import { COMMAND_PARAMETER, FOCUS_PARAMETER } from "../declare/context.ts";
 import { type Localization, t } from "@destack/locale";
 import * as style from "@destack/style";
 import { color, radius, shadow } from "@destack/theme/tokens.stylex";

@@ -31,6 +31,7 @@ test("describe a static view by its origin and hydration, never loading its comp
         name: "site",
         presents: [],
         categories: [],
+        audience: "person",
         packages: [],
         render: { mode: "static", origin: "https://example.test", hydrate: "page" },
     });

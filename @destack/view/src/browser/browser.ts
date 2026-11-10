@@ -27,6 +27,7 @@ import { CONTEXT_SCOPES } from "../declare/context.ts";
 import { renderView } from "../page/mount.ts";
 import { recordVisits } from "./visit.ts";
 import { mountPackages } from "../page/view.ts";
+import { PageAuthorization } from "./authorization.ts";
 import { PaletteOverlay } from "../palette/overlay.ts";
 import { CommandRegistry } from "../palette/registry.ts";
 import { ViewError } from "../error/error.ts";
@@ -40,6 +41,11 @@ export async function mount(
     },
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<() => Promise<void>> {
+    // answer the page that authorizes in this window, rendering nothing
+    if (PageAuthorization.answer(environment)) {
+        return async () => {};
+    }
+
     // read the view's context from the page, and the release its package's build serves
     const element = document.getElementById(CONTEXT_ELEMENT);
     if (element === null) {
@@ -75,7 +81,8 @@ export async function mount(
               environment,
           }).device()
         : undefined;
-    const call = pageOrigin(root);
+    const authorization = new PageAuthorization(root, environment);
+    const call = pageOrigin(root, authorization);
     const tabs = await openTabs(context, view, device, call, environment);
     const clients = new Map([...tabs].map(([scope, tab]) => [scope, tab.client]));
     const packages = mountPackages(view.packages, call);
@@ -120,6 +127,7 @@ export async function mount(
             signal: stopping.signal,
             environment,
             origin: root,
+            catalogs: new Set(context.catalogs),
         },
     );
 
@@ -179,6 +187,8 @@ interface RenderingOptions {
     readonly environment: Pick<BrowserEnvironment, "network">;
     /** The page's origin with its base, below which its build serves the catalogs. */
     readonly origin: string;
+    /** The catalogs the page's builds serve, by path below its base. */
+    readonly catalogs: ReadonlySet<string>;
 }
 
 /** A view rendered in its person's language, loading each package's catalogs on first use. */
@@ -189,8 +199,8 @@ class LocalizedRendering {
     readonly #owner: PackageId;
     /** Abort the loads once the page goes. */
     readonly #signal: AbortSignal;
-    /** The page's network and origin its catalogs load through. */
-    readonly #source: Pick<RenderingOptions, "environment" | "origin">;
+    /** The page's network and origin its catalogs load through, and the catalogs served. */
+    readonly #source: Pick<RenderingOptions, "environment" | "origin" | "catalogs">;
     /** The packages whose messages the page renders, whose catalogs each language loads. */
     readonly #packages: Set<PackageId>;
     /** The loaded catalogs by language and package, none for a package without a translation. */
@@ -378,19 +388,19 @@ async function fetchCatalogs(
     packageId: PackageId,
     locale: LocaleTag,
     owner: PackageId,
-    options: Pick<RenderingOptions, "environment" | "origin">,
+    options: Pick<RenderingOptions, "environment" | "origin" | "catalogs">,
 ): Promise<Catalog[]> {
+    // fetch only the catalogs the page's builds serve
+    const served = Locale.fallback(locale, SOURCE_LOCALE).filter((tag) =>
+        options.catalogs.has(Catalog.path({ package: packageId, locale: tag }, owner)),
+    );
     const fetched = await Promise.all(
-        Locale.fallback(locale, SOURCE_LOCALE).map(async (tag) => {
-            // fetch the catalog at its build path, a package without one answering not found
+        served.map(async (tag) => {
+            // fetch the catalog at its build path
             const path = `/${Catalog.path({ package: packageId, locale: tag }, owner)}`;
             const request = new Request(`${options.origin}${path}`);
             const response = await options.environment.network.fetch(request);
-            if (response.status === 404) {
-                await response.body?.cancel();
-
-                return [];
-            } else if (!response.ok) {
+            if (!response.ok) {
                 throw ViewError.of(
                     "CATALOG_UNAVAILABLE",
                     `the catalog at ${path} responded with ${response.status}`,
@@ -476,6 +486,9 @@ async function openTabs(
 }
 
 /** Call a path below the page's origin and base, which its session cookie authenticates. */
-function pageOrigin(root: string): (path: string) => ClientOptions {
-    return (path) => ({ url: `${root}${path}` });
+function pageOrigin(
+    root: string,
+    authorization: PageAuthorization,
+): (path: string) => ClientOptions {
+    return (path) => ({ url: `${root}${path}`, fetch: (request) => authorization.fetch(request) });
 }

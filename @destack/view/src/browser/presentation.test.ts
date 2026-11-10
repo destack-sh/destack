@@ -33,6 +33,8 @@ const page: Page = {
         account: schema.identifier("account").parse("account-01996ab0-0000-7000-8000-0000000000e5"),
         view: "home",
         base: "",
+        universe: "https://destack.app",
+        catalogs: [],
         user: principal.user.reference("universe", PERSON),
         home: schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e6"),
     },
