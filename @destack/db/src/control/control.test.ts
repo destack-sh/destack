@@ -926,8 +926,9 @@ test("project the keys of changes past one log page in one take, through the log
         },
     });
 
-    // take once, projecting every space and moving the checkpoint to the head
+    // take once, projecting every space, then settle, moving the checkpoint to the head
     await projection.take({ signal: new AbortController().signal, changed: async () => {} });
+    await projection.settle();
     const { sequence } = await database.log.position();
     expect({
         projected: projected.toSorted(),

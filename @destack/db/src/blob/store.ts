@@ -245,6 +245,12 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
         digests: readonly Digest[],
         until: number = this.environment.clock.now() + this.leaseMilliseconds,
     ): Promise<void> {
+        // lease nothing for no blobs, without a transaction
+        if (digests.length === 0) {
+            return;
+        }
+
+        // lease each batch in one transaction
         await this.database.transaction(async (transaction) => {
             for (let start = 0; start < digests.length; start += BATCH_DIGESTS) {
                 // lease the batch, leaving a later lease, and take it out of retirement

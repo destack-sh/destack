@@ -142,6 +142,8 @@ export interface Cursor extends LogCursor {
     readonly batch?: number;
     /** Take the changes past its checkpoint, moving the checkpoint past them. */
     readonly take: (reconciliation: Reconciliation) => Promise<void>;
+    /** Write what it deferred once the loop goes idle or stops, such as its checkpoint. */
+    readonly settle?: () => Promise<void>;
 }
 
 /** What a loop runs: controllers over rows, and cursors over the log. */
@@ -429,6 +431,11 @@ export class ControlLoop {
             for (const waiter of this.#idle.splice(0)) {
                 this.#settleIdle(waiter);
             }
+            // write what the cursors deferred while this instance still holds their locks
+            if (!this.database.state.isClosing) {
+                await this.#settleCursors();
+            }
+
             // leave a closing database's locks for the next instance to take over
             if (tracker !== undefined && !this.database.state.isClosing) {
                 for (const [controller, leading] of this.#leading) {
@@ -971,7 +978,10 @@ export class ControlLoop {
                     }
                 }
 
-                // sleep until the next key or wake is due
+                // write what the cursors deferred once nothing runs, then sleep until the next key or wake is due
+                if (this.#unsettled.size === 0 && skipped === undefined) {
+                    await this.#settleCursors();
+                }
                 await this.#sleep(next === undefined ? undefined : Math.max(0, next - at), signal);
             }
         }
@@ -983,6 +993,13 @@ export class ControlLoop {
             }
         }
         await Promise.all(this.#reconciling);
+    }
+
+    /** Write what the cursors deferred, each in turn. */
+    async #settleCursors(): Promise<void> {
+        for (const cursor of this.control.cursors) {
+            await cursor.settle?.();
+        }
     }
 
     /** Read the earliest wake of any controller, absent for none. */

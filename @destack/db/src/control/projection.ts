@@ -37,6 +37,8 @@ export class Projection implements Cursor {
     readonly #options: ProjectionOptions;
     /** The position the projection took changes through, read from its checkpoint once. */
     #after: number | undefined;
+    /** The checkpoint as the projection last read or wrote it, none before the first. */
+    #checkpointed: number | undefined;
 
     /** Project rows over a database's input tables. */
     constructor(database: DatabaseConnection, options: ProjectionOptions) {
@@ -50,19 +52,46 @@ export class Projection implements Cursor {
 
     /** Project the keys the changes past the checkpoint touch, page by page until caught up. */
     readonly take = async (reconciliation: Reconciliation): Promise<void> => {
+        // take the changes past the position, page by page
         for (
             let touched = await this.#touched();
             touched !== undefined;
             touched = touched.isLast ? undefined : await this.#touched()
         ) {
-            // project each key, then move the checkpoint past them
+            // project each key, then move the position past them
             for (const key of touched.keys) {
                 await this.project(key, reconciliation);
             }
-            const now = this.#database.state.environment.clock.now();
-            const reader = { name: this.name, tables: this.tables };
-            await this.#database.log.advance(reader, touched.through, now + HOLD_MILLISECONDS);
             this.#after = touched.through;
+        }
+    };
+
+    /** Write the position as the checkpoint once it moved, as the loop goes idle or stops. */
+    readonly settle = async (): Promise<void> => {
+        // leave a position never taken or written already
+        const after = this.#after;
+        if (after === undefined || after === this.#checkpointed) {
+            return;
+        }
+
+        // move the checkpoint from where it was read, holding the log's changes past it
+        const now = this.#database.state.environment.clock.now();
+        try {
+            await this.#database.log.move(
+                this,
+                this.#checkpointed ?? 0,
+                after,
+                now + HOLD_MILLISECONDS,
+            );
+            this.#checkpointed = after;
+        }
+        // forget a position another instance moved past, reading the checkpoint again on the next take
+        catch (error) {
+            if (!DatabaseError.is(error, "CONCURRENT_UPDATE")) {
+                throw error;
+            }
+            this.#after = undefined;
+            this.#checkpointed = undefined;
         }
     };
 
@@ -78,7 +107,10 @@ export class Projection implements Cursor {
     > {
         // read the changes past the checkpoint, read from the log once and kept since
         const database = this.#database;
-        this.#after ??= await database.log.checkpoint(this.name);
+        if (this.#after === undefined) {
+            this.#after = await database.log.checkpoint(this.name);
+            this.#checkpointed = this.#after;
+        }
         const after = this.#after;
         if (after !== undefined) {
             try {
