@@ -1,4 +1,4 @@
-import type { AccessContext } from "@destack/access";
+import { type AccessContext, AccessError, StepUp } from "@destack/access";
 import { and, eq, type Select, TABLE, Transaction } from "@destack/db";
 import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -10,6 +10,7 @@ import {
     type ApprovalState,
     CallError,
     changeRequest,
+    GrantRefusal,
     ObjectError,
 } from "@destack/object";
 import objectPackage from "@destack/object/package";
@@ -166,14 +167,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
 
             return made;
         } catch (error) {
-            // ask for the approvals a call waits for in a change request, which suspends the run
-            const refused = CallError.of(error);
-            const failed =
-                refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name
-                    ? await this.#request(name, call, ApprovalRefusal.parse(refused.data)).catch(
-                          (asking: unknown) => asking,
-                      )
-                    : error;
+            // open the change request a gate's refusal needs, which suspends the run
+            const failed = await this.#open(name, error, call).catch((refused: unknown) => refused);
 
             // record a final refusal as the call's answer, and let anything else retry the advance
             if (CallError.refusal(failed) !== undefined) {
@@ -184,30 +179,69 @@ export class Step<Waits extends ObjectType = ObjectType> {
         }
     }
 
-    /** Open a change request asking the approvers a refusal names, and suspend the run on it. */
-    async #request(name: string, call: sync.Call, refusal: ApprovalRefusal): Promise<never> {
-        // refuse a role's count, which names nobody for the run to ask
-        const { approvals, approvers } = refusal;
-        if (approvers.length === 0) {
-            throw ObjectError.of(
-                "APPROVERS_MISSING",
-                `${refusal.permission.name} waits for a role's approvals, which name nobody to ask`,
-            );
+    /** Write the change request lifting a call's gate: approvals, a grant or a step-up. */
+    #changeRequestOf(
+        error: unknown,
+        call: sync.Call,
+    ): ObjectCall<typeof changeRequest, { readonly id: string }> | undefined {
+        // open it in the run's scope, about the call
+        const asked = { ...changeRequest.in(this.#run.row.scope), call };
+
+        // ask the approvers an approval names, refusing a role's count, which names nobody to ask
+        const refused = CallError.of(error);
+        if (refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name) {
+            const { approvals, approvers, permission } = ApprovalRefusal.parse(refused.data);
+            if (approvers.length === 0) {
+                throw ObjectError.of(
+                    "APPROVERS_MISSING",
+                    `${permission.name} waits for a role's approvals, which name nobody to ask`,
+                );
+            }
+
+            return changeRequest.call("create", {
+                ...asked,
+                approvers: [...approvers],
+                count: approvals,
+            });
+        }
+        // ask the grant's delegator to make the call as themselves, or to allow it from now on
+        else if (
+            refused?.reason === "GRANT_INSUFFICIENT" &&
+            refused.domain === objectPackage.name
+        ) {
+            const { permission, object } = GrantRefusal.parse(refused.data);
+            const { packageId, type, name } = permission;
+            const grant = { packageId, type, name, scope: object.scope };
+
+            return changeRequest.call("create", { ...asked, as: "approver", grant });
+        }
+        // ask the person a delegate acts for to make the call as themselves, signed in again
+        else if (
+            refused?.reason === "AUTHENTICATION_INSUFFICIENT" &&
+            refused.domain === AccessError.domain
+        ) {
+            const stepUp = StepUp.schema.parse(refused.data);
+
+            return changeRequest.call("create", { ...asked, as: "approver", stepUp });
+        } else {
+            return undefined;
+        }
+    }
+
+    /** Open the change request a gate's refusal needs and suspend, answering other refusals. */
+    async #open(name: string, error: unknown, call: sync.Call): Promise<unknown> {
+        // answer a refusal no change request lifts
+        const opening = this.#changeRequestOf(error, call);
+        if (opening === undefined) {
+            return error;
         }
         await Transaction.run(this.#store.database, async (transaction) => {
-            // open the change request as the run's actor, asking the refusal's approvers
+            // open the change request as the run's actor
             const [opened] = await this.#store.mutate(
                 this.#caller,
                 {
                     id: RequestId.create(this.#store.environment),
-                    calls: [
-                        changeRequest.call("create", {
-                            ...changeRequest.in(this.#run.row.scope),
-                            call,
-                            approvers: [...approvers],
-                            count: approvals,
-                        }),
-                    ],
+                    calls: [opening],
                 },
                 { site: CallSite.store, transaction },
             );

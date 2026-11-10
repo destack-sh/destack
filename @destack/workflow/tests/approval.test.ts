@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
-import { principal } from "@destack/access";
+import { AccessContext, Caller, principal } from "@destack/access";
 import objectPackage from "@destack/object/package";
 import { expect, single, test } from "@destack/test";
 import { type Approval, approval, changeRequest } from "@destack/object";
@@ -173,6 +173,104 @@ test("wait at a call alice's grant gives once approved, ask her in a change requ
         alice,
         "applied",
         { title: "Final" },
+    ]);
+});
+
+test("wait at a call alice's grant lacks, ask her to make it as herself, and answer the call once she approves", async () => {
+    // publish a note in a run alice starts, her grant to the serving installation giving no publish
+    const fixture: TestWorkflow = await openWorkflow(release, async (step, input) => {
+        const publish = note.call("publish", {
+            spaceId: fixture.served.scope,
+            id: input.id,
+            title: "Final",
+        });
+        const published = await step.call("publish", publish);
+
+        return { title: published.title };
+    });
+    const spaceId = fixture.served.scope;
+    const { id } = await fixture.served
+        .as(alice)
+        .client(notesPackage)
+        .note.create({ spaceId, requestId: RequestId.create(fixture.environment), title: "Plan" });
+    await fixture.grant(alice, fixture.served.store.as(release.run).subject, [
+        { ...note.permission("read"), scope: spaceId },
+        { ...changeRequest.permission("open"), scope: spaceId },
+    ]);
+
+    // start the run, and approve as alice once the change request asks her
+    await fixture.start(() => release.start({ id }, actor()));
+    const approvals = () => fixture.served.database.select().from(approval.table);
+    await fixture.when(async () => (await approvals()).length > 0);
+    const asked = single(await approvals());
+    await decideApproval(fixture, alice, asked, "approve");
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
+
+    // expect a change run as alice, naming the permission allowing it from now on adds
+    const request = single(await fixture.served.database.select().from(changeRequest.table));
+    expect([request.as, request.grant, request.state, run?.["output"]]).toEqual([
+        "approver",
+        { ...note.permission("publish"), scope: spaceId },
+        "applied",
+        { title: "Final" },
+    ]);
+});
+
+/** Archive a note in a run, answering its title once archived. */
+const tidy = defineWorkflow(
+    {
+        name: "tidy",
+        input: schema.object({ id: schema.string() }),
+        output: schema.object({ title: schema.string() }),
+    },
+    NOTES,
+);
+
+test("wait at a call alice must sign in again for, ask her to make it as herself, and answer the call once she approves", async () => {
+    // archive a note in a run alice starts, archiving asking her own recent sign-in
+    const fixture: TestWorkflow = await openWorkflow(tidy, async (step, input) => {
+        const archive = note.call("archive", { spaceId: fixture.served.scope, id: input.id });
+        const archived = await step.call("archive", archive);
+
+        return { title: archived.title };
+    });
+    const spaceId = fixture.served.scope;
+    const { id } = await fixture.served
+        .as(alice)
+        .client(notesPackage)
+        .note.create({ spaceId, requestId: RequestId.create(fixture.environment), title: "Plan" });
+    await fixture.grant(alice, fixture.served.store.as(tidy.run).subject, [
+        { ...note.permission("archive"), scope: spaceId },
+        { ...changeRequest.permission("open"), scope: spaceId },
+    ]);
+
+    // start the run, and approve as alice signed in with two factors once the change request asks her
+    await fixture.start(() => tidy.start({ id }, actor()));
+    const approvals = () => fixture.served.database.select().from(approval.table);
+    await fixture.when(async () => (await approvals()).length > 0);
+    const asked = single(await approvals());
+    const at = fixture.served.store.clock.now();
+    const credential = {
+        kind: "session",
+        id: "session-alice",
+        audience: objectPackage.id,
+        verifiedAt: at,
+        expiresAt: at + MINUTE,
+        assurance: { level: 2, authenticatedAt: at },
+    };
+    await fixture.served.store.mutate(AccessContext.of(Caller.of(alice), at, { credential }), {
+        id: RequestId.create(fixture.environment),
+        calls: [approval.call("approve", approval.target(asked))],
+    });
+    const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
+
+    // expect a change run as alice asking her step-up, and the run answering the archived title
+    const request = single(await fixture.served.database.select().from(changeRequest.table));
+    expect([request.as, request.stepUp, asked.stepUp, run?.["output"]]).toEqual([
+        "approver",
+        { assurance: 2, maxAge: 15 * 60 * 1000 },
+        { assurance: 2, maxAge: 15 * 60 * 1000 },
+        { title: "Archived" },
     ]);
 });
 
