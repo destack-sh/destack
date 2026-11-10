@@ -11,10 +11,11 @@ const SCRIPT = `${RESOURCES}/program/destack-build.js`;
 
 /** Identify a release compiler by its runtime build, its bundle and its toolchain manifest. */
 async function identify(revision: string, bundle: string, manifest: string): Promise<string> {
-    // start a release's compiler process on the runtime build, its bundle written in place
+    // start a release's compiler process on the runtime build, its bundle written in place in memory
     await using simulation = new Simulation({
         seed: 1,
         start: 0,
+        files: "memory",
         process: {
             arguments: [],
             variables: {},
