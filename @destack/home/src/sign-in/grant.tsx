@@ -1,5 +1,5 @@
 import { OAUTH_SCOPES } from "@destack/account/object";
-import type { RequestedGrant, RequestedPermission } from "@destack/account/authentication";
+import type { GrantRequest, RequestedPermission } from "@destack/account/authentication";
 import { argument, type Message, t } from "@destack/locale";
 import { Permission, PermissionGroup, PermissionList } from "@destack/ui/consent";
 import { For, Show, useLocale } from "@destack/view";
@@ -25,7 +25,7 @@ type ShownPermission = RequestedPermission & { readonly isGranted?: boolean };
 export function GrantPermissions(properties: {
     /** The grant, null for an application asking scopes alone. */
     readonly grant:
-        | (Omit<RequestedGrant, "permissions"> & {
+        | (Omit<GrantRequest, "permissions"> & {
               readonly permissions: readonly ShownPermission[];
           })
         | null;
