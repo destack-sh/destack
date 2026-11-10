@@ -557,10 +557,7 @@ export class Space {
         const stack = principal.installation.reference(this.id, base.installation);
         const acting = Exchange.of(caller);
         if (acting === undefined) {
-            throw MachineError.of(
-                "PUBLISHER_UNKNOWN",
-                "a publish acts for a person or a delegate",
-            );
+            throw MachineError.of("PUBLISHER_UNKNOWN", "a publish acts for a person or a delegate");
         }
 
         // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the stack asks
