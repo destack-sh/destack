@@ -1,8 +1,8 @@
 import type { FamilyError } from "@destack/error";
 import { join } from "node:path";
-import type { Environment, Process } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
-import { Toolchain } from "@destack/check/toolchain";
+import type { Toolchain } from "@destack/check/toolchain";
 import { API, type Program } from "typescript/unstable/async";
 import type { GlobalReference, ModuleDescription } from "@destack/package/code";
 import { LISTED_MODULE_RUNTIMES, type Runtime } from "@destack/package/runtime";
@@ -19,14 +19,17 @@ const PACKAGE = fileURLToPath(new URL("../..", import.meta.url));
 export class RuntimeCompiler implements AsyncDisposable {
     /** The files, process and platform the compilers run on. */
     readonly environment: Environment<"files" | "process" | "host">;
+    /** The tools with the compiler and the runtimes' declarations. */
+    readonly toolchain: Toolchain;
     /** Initialized runtime configurations and their native compilers. */
     readonly #environments = new Map<
         Runtime,
         { directory: string; configuration: string; api: API }
     >();
 
-    /** Check runtimes on an environment's files and tools. */
-    constructor(environment: Environment<"files" | "process" | "host">) {
+    /** Check runtimes with a toolchain's declarations on an environment's files. */
+    constructor(toolchain: Toolchain, environment: Environment<"files" | "process" | "host">) {
+        this.toolchain = toolchain;
         this.environment = environment;
     }
 
@@ -143,12 +146,12 @@ export class RuntimeCompiler implements AsyncDisposable {
                 configuration,
                 JSON.stringify({
                     compilerOptions: { ...TYPESCRIPT_OPTIONS, types: [], lib: libraries },
-                    files: [entry, ...declarationFiles(runtime, this.environment.process)],
+                    files: [entry, ...declarationFiles(runtime, this.toolchain)],
                 }),
             );
 
             // retain the compiler with its temporary configuration
-            const executable = TypeScriptCompiler.executable(this.environment);
+            const executable = TypeScriptCompiler.executable(this.toolchain, this.environment);
             const api = new API({ cwd: directory, tsserverPath: executable });
             const environment = { directory, configuration, api };
             this.#environments.set(runtime, environment);
@@ -241,16 +244,16 @@ async function checkEnvironment(program: Program, runtime: Runtime): Promise<voi
 }
 
 /** List the declaration files of a runtime's global APIs, none for the browser's built-in ones. */
-function declarationFiles(runtime: Runtime, process: Process): string[] {
+function declarationFiles(runtime: Runtime, toolchain: Toolchain): string[] {
     // load the Workers types
     if (runtime === "workerd") {
-        const directory = Toolchain.locate(["@cloudflare/workers-types"], PACKAGE, process);
+        const directory = toolchain.locate(["@cloudflare/workers-types"], PACKAGE);
 
         return [join(directory, "index.d.ts")];
     }
     // load the Bun types
     else if (runtime === "bun") {
-        return [join(Toolchain.locate(["@types/bun"], PACKAGE, process), "index.d.ts")];
+        return [join(toolchain.locate(["@types/bun"], PACKAGE), "index.d.ts")];
     }
     // load nothing beyond the libraries
     else {

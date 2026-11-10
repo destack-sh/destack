@@ -1,8 +1,11 @@
 import { resolve, sep } from "node:path";
 import { locateWorkspace } from "@destack/check/workspace";
 import { nth } from "@destack/schema";
-import { Compiler, CompilerCommand } from "./compiler.ts";
+import type { Toolchain } from "@destack/check/toolchain";
+import { Once } from "@destack/environment";
+import { Compiler } from "./compiler.ts";
 import type { LocalBuildStore } from "../store/local.ts";
+import { CompilerFingerprint } from "../cache/cache.ts";
 
 /** The warm compilers a machine runs at once: 4, each a TypeScript program of a few hundred MB. */
 const MAX_WARM_COMPILERS = 4;
@@ -40,8 +43,12 @@ interface Waiter {
 export class CompilerPool implements AsyncDisposable {
     /** The store every compiler builds into. */
     readonly store: LocalBuildStore;
-    /** The command the pool starts each compiler with. */
-    readonly #command: CompilerCommand;
+    /** The fingerprint of the compilers, which build keys read. */
+    readonly fingerprint: CompilerFingerprint;
+    /** Read the toolchain the compilers run. */
+    readonly #read: () => Promise<Toolchain>;
+    /** The toolchain the compilers run, read on first use and again after a failure. */
+    readonly #toolchain = new Once<Toolchain>();
     /** The warm compilers. */
     #warm: Warm[] = [];
     /** The closes of compilers in flight, which count against the cap and the disposal awaits. */
@@ -55,15 +62,24 @@ export class CompilerPool implements AsyncDisposable {
     /** The failures of compilers closing with no lease to answer, thrown on disposal. */
     readonly #failures: unknown[] = [];
 
-    /** Store compilers started with a command into a store. */
-    private constructor(store: LocalBuildStore, command: CompilerCommand) {
+    /** Store compilers running a toolchain into a store. */
+    private constructor(store: LocalBuildStore, toolchain: () => Promise<Toolchain>) {
         this.store = store;
-        this.#command = command;
+        this.#read = toolchain;
+        this.fingerprint = CompilerFingerprint.of(store.environment);
     }
 
-    /** Open a pool starting the current compiler, building into a store. */
-    static async open(store: LocalBuildStore): Promise<CompilerPool> {
-        return new CompilerPool(store, await CompilerCommand.current(store.environment));
+    /** Open a pool starting the current compiler with a toolchain, building into a store. */
+    static async open(
+        store: LocalBuildStore,
+        toolchain: () => Promise<Toolchain>,
+    ): Promise<CompilerPool> {
+        return new CompilerPool(store, toolchain);
+    }
+
+    /** Read the toolchain the compilers run, once it is first needed. */
+    toolchain(): Promise<Toolchain> {
+        return this.#toolchain.get(this.#read);
     }
 
     /** Run work with a package's compiler, taken for the package alone until the work settles. */
@@ -158,7 +174,10 @@ export class CompilerPool implements AsyncDisposable {
     /** Start a workspace's compiler, forgetting it when it fails to start. */
     #start(workspace: string, directory: string): Warm {
         // start the compiler, closing it once it idles
-        const compiler = Compiler.start(workspace, { command: this.#command, store: this.store });
+        const compiler = Compiler.start(workspace, {
+            toolchain: () => this.toolchain(),
+            store: this.store,
+        });
         const idle = new AbortController();
         const warm: Warm = { compiler, workspace, directory, isBusy: false, use: this.#uses, idle };
         this.#warm.push(warm);

@@ -2,16 +2,18 @@ import { fileURLToPath } from "node:url";
 import { version } from "typescript";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { Digest } from "@destack/schema";
+import { Distribution } from "@destack/update";
+import { join } from "node:path";
 import { ModuleClosure } from "./closure.ts";
 
-/** The entry a compiler process starts from, whose module closure identifies the toolchain. */
+/** The entry a compiler process starts from, whose module closure identifies the compiler. */
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The layout of cache keys, changed whenever keys derive from different inputs. */
 const KEY_LAYOUT = 4;
 
 /** The workspace sources that shape build output and keys: the compiler, digests and catalogs. */
-const TOOLCHAIN_SOURCES: ReadonlySet<string> = new Set([
+const COMPILER_SOURCES: ReadonlySet<string> = new Set([
     "@destack/build/",
     "@destack/package/",
     "@destack/schema/src/digest/",
@@ -31,23 +33,23 @@ const MANIFEST_WRITER = new URL("../../../package/src/manifest/writer.ts", impor
 /** The npm releases converting npm packages: the bundler and the CommonJS lexer. */
 const CONVERSION_RELEASES: ReadonlySet<string> = new Set(["rolldown", "cjs-module-lexer"]);
 
-/** The toolchain this process loaded: its compiler and npm conversion, which build keys read. */
-export class Toolchain {
-    /** The files and process the toolchain is read through. */
-    readonly environment: Environment<"files" | "process">;
-    /** The digest of the toolchain, read once. */
+/** The fingerprint of this process's compiler and npm conversion, which build keys read. */
+export class CompilerFingerprint {
+    /** The files and process the compiler is read through. */
+    readonly environment: Environment<"files" | "process" | "host">;
+    /** The digest of the compiler, read once. */
     #digest: Promise<Digest> | undefined;
     /** The digest of the npm conversion, read once. */
     #conversion: Promise<Digest> | undefined;
 
-    /** Read the toolchain through an environment. */
-    private constructor(environment: Environment<"files" | "process">) {
+    /** Read the compiler through an environment. */
+    private constructor(environment: Environment<"files" | "process" | "host">) {
         this.environment = environment;
     }
 
-    /** Read the toolchain through an environment. */
-    static of(environment: Environment<"files" | "process">): Toolchain {
-        return new Toolchain(environment);
+    /** Read the compiler through an environment. */
+    static of(environment: Environment<"files" | "process" | "host">): CompilerFingerprint {
+        return new CompilerFingerprint(environment);
     }
 
     /** Digest a file's bytes, null for a missing file. */
@@ -65,9 +67,9 @@ export class Toolchain {
         }
     }
 
-    /** Identify the toolchain running this compiler, once, as its code stays loaded. */
+    /** Identify the compiler, once, as its code stays loaded. */
     digest(): Promise<Digest> {
-        this.#digest ??= this.#identifyToolchain();
+        this.#digest ??= this.#identifyCompiler();
 
         return this.#digest;
     }
@@ -81,7 +83,7 @@ export class Toolchain {
 
     /** Identify the npm conversion by its executable, else Bun, its modules and their releases. */
     async #identifyConversion(): Promise<Digest> {
-        // identify a release's conversion as its toolchain
+        // identify a release's conversion as its compiler
         if (this.environment.process.runtime.isStandalone) {
             return await this.digest();
         }
@@ -107,13 +109,21 @@ export class Toolchain {
         );
     }
 
-    /** Identify the toolchain by its runtime and bundle, else Bun, TypeScript and the compiler. */
-    async #identifyToolchain(): Promise<Digest> {
-        // identify a release's compiler by its runtime's build and its program's bundle
-        const { runtime, script } = this.environment.process;
+    /** Identify the compiler by runtime, bundle and toolchain, else Bun, TypeScript and modules. */
+    async #identifyCompiler(): Promise<Digest> {
+        // identify a release's compiler by its runtime's build, its program's bundle and the toolchain manifest it ships
+        const { runtime, script, executable } = this.environment.process;
         if (runtime.isStandalone) {
+            const resources = Distribution.resources(executable);
+            const manifest = Distribution.toolchainManifest(this.environment.host.architecture);
+
             return await Digest.json(
-                { layout: KEY_LAYOUT, bun: runtime.revision, program: await this.#file(script) },
+                {
+                    layout: KEY_LAYOUT,
+                    bun: runtime.revision,
+                    program: await this.#file(script),
+                    toolchain: await this.#file(join(resources, manifest)),
+                },
                 this.environment.crypto,
             );
         }
@@ -121,7 +131,7 @@ export class Toolchain {
         // identify Bun, TypeScript and the compiler's modules that shape output, with every release
         const entry = fileURLToPath(COMPILER_ENTRY);
         const compiler = (await ModuleClosure.read(entry, this.environment)).select(
-            TOOLCHAIN_SOURCES,
+            COMPILER_SOURCES,
         );
 
         return await Digest.json(

@@ -12,6 +12,7 @@ import { BuildStore } from "../src/store/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
 import { countObjects, exported, importBuilt, property } from "./fixture.ts";
 import { copySource } from "../src/test/source.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** One module output per unit, its dependencies external. */
 const OUTPUTS = { bun: { kind: "module", runtime: "bun" } } as const;
@@ -84,7 +85,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
     const { files } = environment;
     const { directory, workspace, library, application } = await layOut(environment);
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const units = await Workspace.open(application, compilers);
     const build = async () =>
         await (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS });
@@ -199,7 +200,7 @@ test("refuse to cache a unit whose committed sources changed after the workspace
         ),
     ];
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const stale = await Workspace.open(application, compilers);
     const greeting = join(library, "src", "greeting.ts");
     const edited = (await files.readTextFile(greeting)).replace("hello", "hi");
@@ -237,7 +238,7 @@ test("build a package against the release of a Destack package installed from ou
     await copyUnit("unit-library", library, files);
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const released = await (
         await Workspace.open(library, compilers)
     ).build({
@@ -315,7 +316,7 @@ test("record a builtin dependency by its release, which every runtime links", as
     await declareBuiltin(library, files);
     await initializeWorkspace(join(directory, "library"), { library: LIBRARY }, environment);
     await using store = await LocalBuildStore.temporary(environment);
-    const compilers = await CompilerPool.open(store);
+    const compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
     const released = await (await Workspace.open(library, compilers)).build({ outputs: OUTPUTS });
     const release = {
         kind: "destack",
@@ -353,7 +354,7 @@ test("record a builtin member of the workspace by its release, as its source dec
     const { library, application } = await layOut(environment);
     await declareBuiltin(library, environment.files);
     await using store = await LocalBuildStore.temporary(environment);
-    await using compilers = await CompilerPool.open(store);
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
     // build both units, recording the library by its package and version alone
     const built = await (await Workspace.open(application, compilers)).build({ outputs: OUTPUTS });

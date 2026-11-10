@@ -4,6 +4,7 @@ import { expect, test } from "@destack/test";
 import { dirname, join } from "node:path";
 import { Workspace } from "../dependency/workspace.ts";
 import { LocalBuildStore } from "../store/local.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** The workspace's packages: an app declaring a document, and a dependency augmenting it. */
 const FILES: Readonly<Record<string, string>> = {
@@ -63,7 +64,7 @@ test("describe a symbol by the package's declarations, leaving a linked dependen
 
         // inspect the app
         await using store = await LocalBuildStore.temporary(environment);
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
         const workspace = await Workspace.open(join(directory, "app"), compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);
@@ -121,7 +122,7 @@ test("describe a class's private members by the names their declarations write",
 
         // inspect the app
         await using store = await LocalBuildStore.temporary(environment);
-        await using compilers = await CompilerPool.open(store);
+        await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
         const workspace = await Workspace.open(join(directory, "app"), compilers);
         const inspection = await workspace.inspect({ runtime: "bun" });
         const symbols = inspection.code.flatMap((module) => module.symbols);

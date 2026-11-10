@@ -5,6 +5,8 @@ import type { Environment } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import { Sandbox } from "@destack/sandbox";
 import { Toolchain } from "@destack/check/toolchain";
+import { Distribution } from "@destack/update";
+import { CompilerFingerprint } from "../cache/cache.ts";
 import { FamilyError } from "@destack/error";
 import type { EvaluatedDeclaration } from "../declaration/evaluation.ts";
 import { BuildError } from "../error/index.ts";
@@ -29,7 +31,8 @@ import {
     writeMessage,
 } from "./message.ts";
 import type { InspectOptions } from "../inspection/inspection.ts";
-import { BuildReader, BuildWriter, Once } from "@destack/package/manifest";
+import { BuildReader, BuildWriter } from "@destack/package/manifest";
+import { Once } from "@destack/environment";
 
 /** A package compiled into a directory, before its link pins its outputs' npm imports. */
 interface CompilerOutput {
@@ -67,54 +70,68 @@ export interface CompilerCommand {
 
 /** The commands that start the compiler: a release's beside its executables, or from source. */
 export const CompilerCommand = {
-    /** Find the released `destack-build` beside an executable, reading its toolchain directory. */
-    beside(executable: string, environment: Environment<"process" | "host">): CompilerCommand {
-        // load rolldown's native binding from the toolchain, as the compiler has none of its own
+    /** Find the released `destack-build` beside an executable, running a toolchain. */
+    beside(
+        executable: string,
+        toolchain: Toolchain,
+        environment: Environment<"host">,
+    ): CompilerCommand {
+        // refuse a release's compiler without a toolchain directory, which it reads its tools from
+        const { directory } = toolchain;
+        if (directory === undefined) {
+            throw BuildError.of("INVARIANT_VIOLATED", "a release's compiler needs a toolchain");
+        }
+
+        // load rolldown's native binding from where the release lays it out in its resources
         const compiler = join(dirname(executable), EXECUTABLE);
-        const toolchain = Toolchain.of(executable);
+        const resources = Distribution.resources(executable);
         const platform = Toolchain.platform(environment.host);
-        const name = `@rolldown/binding-${platform}`;
-        const binding = Toolchain.locate([name], toolchain, environment.process);
+        const binding = join(resources, "node_modules", "@rolldown", `binding-${platform}`);
 
         return {
             executable: compiler,
             arguments: [],
-            // read the launchers' and the resources' directories
-            read: [dirname(compiler), dirname(toolchain)],
+            // read the launchers', the resources' and the toolchain's directories
+            read: [dirname(compiler), resources, directory],
             variables: {
                 NAPI_RS_NATIVE_LIBRARY_PATH: join(binding, `rolldown-binding.${platform}.node`),
+                DESTACK_TOOLCHAIN: directory,
             },
         };
     },
 
-    /** Find the compiler this process starts. */
+    /** Find the compiler this process starts, running a toolchain. */
     async current(
+        toolchain: Toolchain,
         environment: Environment<"files" | "process" | "host">,
     ): Promise<CompilerCommand> {
         // start the release's compiler from a standalone executable
         const { executable } = environment.process;
         if (environment.process.runtime.isStandalone) {
-            return CompilerCommand.beside(executable, environment);
+            return CompilerCommand.beside(executable, toolchain, environment);
         }
 
-        // run the entry with Bun, reading the workspace that installed the tools
+        // run the entry with Bun, reading the workspace that installed the tools and a named toolchain
         const entry = fileURLToPath(new URL("../main.ts", import.meta.url));
         const root = fileURLToPath(new URL("../..", import.meta.url));
         const workspace = await locateWorkspace(root, environment.files);
+        const { directory } = toolchain;
 
         return {
             executable,
             arguments: ["run", "--no-env-file", entry],
-            read: [workspace],
-            variables: {},
+            read: directory === undefined ? [workspace] : [workspace, directory],
+            variables: directory === undefined ? {} : { DESTACK_TOOLCHAIN: directory },
         };
     },
 };
 
-/** How a compiler starts: its command, and the store it builds into. */
+/** How a compiler starts: its command, its toolchain, and the store it builds into. */
 export interface CompilerOptions {
     /** The command starting it, absent for this process's compiler. */
     readonly command?: CompilerCommand;
+    /** Read the toolchain the compiler runs, once it first needs it. */
+    readonly toolchain: () => Promise<Toolchain>;
     /** The store whose cache its builds reuse and fill. */
     readonly store: LocalBuildStore;
 }
@@ -125,6 +142,8 @@ export class Compiler implements AsyncDisposable {
     readonly workspace: string;
     /** The store whose cache its builds reuse and fill. */
     readonly store: LocalBuildStore;
+    /** The fingerprint of the compiler, which the keys of its npm units read. */
+    readonly #fingerprint: CompilerFingerprint;
     /** The compiler's files, its temporary files and the builds it writes, removed on shutdown. */
     readonly #temporary: string;
     /** The directories the compiler reads: the workspace, its tools and the store's trees. */
@@ -163,10 +182,11 @@ export class Compiler implements AsyncDisposable {
     /** The npm packages the workspace's lockfile locks, read once a build imports one. */
     readonly #npm = new Once<NpmInstallation>();
 
-    /** Retain the workspace, store, compiler files, read paths, command and started compiler. */
+    /** Retain the workspace, store, fingerprint, files, read paths, command and compiler. */
     private constructor(
         workspace: string,
         store: LocalBuildStore,
+        fingerprint: CompilerFingerprint,
         temporary: string,
         read: readonly string[],
         compiler: CompilerCommand,
@@ -175,6 +195,7 @@ export class Compiler implements AsyncDisposable {
         // store the workspace, the store and the compiler's files
         this.workspace = workspace;
         this.store = store;
+        this.#fingerprint = fingerprint;
         this.#temporary = temporary;
         this.#read = read;
         this.#compiler = compiler;
@@ -187,11 +208,14 @@ export class Compiler implements AsyncDisposable {
 
     /** Start a reusable compiler for a directory's workspace, building into a store. */
     static async start(directory: string, options: CompilerOptions): Promise<Compiler> {
-        // read the workspace, the compiler's tools and the store's trees
+        // read the toolchain, the workspace, the compiler's tools and the store's trees
         const { store } = options;
         const { environment } = store;
         const { files } = environment;
-        const started = options.command ?? (await CompilerCommand.current(environment));
+        const fingerprint = CompilerFingerprint.of(environment);
+        const started =
+            options.command ??
+            (await CompilerCommand.current(await options.toolchain(), environment));
         const workspace = await files.realPath(await locateWorkspace(resolve(directory), files));
         const paths = [
             workspace,
@@ -206,7 +230,7 @@ export class Compiler implements AsyncDisposable {
         try {
             const sandbox = await spawn(workspace, temporary, read, started, environment);
 
-            return new Compiler(workspace, store, temporary, read, started, sandbox);
+            return new Compiler(workspace, store, fingerprint, temporary, read, started, sandbox);
         } catch (error) {
             await files.remove(temporary, { recursive: true });
             throw error;
@@ -510,7 +534,7 @@ export class Compiler implements AsyncDisposable {
             const locked = readLockedReleases(
                 await readLockfile(this.workspace, environment.files),
             );
-            const conversion = await this.store.toolchain.conversion();
+            const conversion = await this.#fingerprint.conversion();
 
             return new NpmInstallation(locked, this.store, conversion, environment);
         });

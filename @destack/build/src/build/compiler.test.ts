@@ -18,6 +18,7 @@ import { present } from "@destack/schema";
 import { LocalBuildStore } from "../store/local.ts";
 import { BuildStore } from "../store/store.ts";
 import { copy, writeStore } from "../dependency/test/store.ts";
+import { Toolchain } from "@destack/check/toolchain";
 
 /** How long a cancelled build runs before it aborts: well inside the library's build. */
 const CANCEL_MILLISECONDS = 100;
@@ -36,7 +37,10 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         // compile a real package
         await files.copy(fileURLToPath(new URL("source/", fixture)), source);
         await using store = await LocalBuildStore.temporary(environment);
-        await using builder = await Compiler.start(source, { store });
+        await using builder = await Compiler.start(source, {
+            store,
+            toolchain: async () => Toolchain.workspace(),
+        });
         const build = await builder.build(library);
 
         // rebuild unchanged, edited, and restored source with the same compiler
@@ -224,7 +228,10 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     const source = fileURLToPath(new URL("../../tests/fixture/library/source/", import.meta.url));
     const library = { ...request, directory: source };
     await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(source, { store });
+    await using builder = await Compiler.start(source, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const first = await builder.build(library);
     expect(
         await refusal(builder.build({ directory: source, dependencies: {}, outputs: {} })),
@@ -253,7 +260,10 @@ test("terminate compilation on cancellation and deadline, and build again with t
     const library = { ...request, directory };
     const controller = new AbortController();
     await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(directory, { store });
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
 
     // cancel a build once the compiler has it, as the library's build takes over a second
     const pending = builder.build({ ...library, signal: controller.signal });
@@ -300,6 +310,7 @@ while (!(await Bun.file(${JSON.stringify(release)}).exists())) {
             variables: {},
         },
         store,
+        toolchain: async () => Toolchain.workspace(),
     });
 
     // stay open an hour past the end of its input, then close once it exits
@@ -375,7 +386,10 @@ test("compile a package with the build extension it declares", async () => {
 
         // build the package and read the greeting its extension wrote in
         await using store = await LocalBuildStore.temporary(environment);
-        await using builder = await Compiler.start(directory, { store });
+        await using builder = await Compiler.start(directory, {
+            store,
+            toolchain: async () => Toolchain.workspace(),
+        });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
         const built = await builder.build({
             directory: directory,
@@ -460,7 +474,10 @@ test("bundle a dependency's file imported with a query through the extension tha
 
         // build the package and read the word its extension loaded
         await using store = await LocalBuildStore.temporary(environment);
-        await using builder = await Compiler.start(directory, { store });
+        await using builder = await Compiler.start(directory, {
+            store,
+            toolchain: async () => Toolchain.workspace(),
+        });
         const outputs = { library: { kind: "module", runtime: "bun" } } as const;
         const built = await builder.build({ directory, dependencies: {}, outputs });
         await built.writeDirectory(join(directory, "build"), files);
@@ -528,7 +545,10 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
 
     // refuse its build before the store stores it
     const stored = await countObjects(store);
-    await using builder = await Compiler.start(directory, { store });
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const built = builder.build({
         directory,
         dependencies: {},
@@ -581,7 +601,10 @@ test("check every output's entries with the package's ambient declarations", asy
 
     // build both outputs, the browser's program rooted at its entries
     await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(directory, { store });
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const built = await builder.build({
         directory,
         dependencies: {},
@@ -632,7 +655,10 @@ test("compile each command the package installs into its Bun output, keeping its
 
     // build the Bun output and read the command's emitted module
     await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(directory, { store });
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const built = await builder.build({
         directory,
         dependencies: {},
@@ -683,7 +709,10 @@ test("keep the declaration file a package exports for another runtime in a Bun b
 
     // build the Bun output and read the declaration file from the written build
     await using store = await LocalBuildStore.temporary(environment);
-    await using builder = await Compiler.start(directory, { store });
+    await using builder = await Compiler.start(directory, {
+        store,
+        toolchain: async () => Toolchain.workspace(),
+    });
     const built = await builder.build({
         directory,
         dependencies: {},
@@ -740,7 +769,10 @@ test("bundle a module a page starts as a worker, and refuse one it references as
         const notePath = join(source, "src/note.ts");
         const note = await files.readTextFile(notePath);
         await using store = await LocalBuildStore.temporary(environment);
-        await using builder = await Compiler.start(source, { store });
+        await using builder = await Compiler.start(source, {
+            store,
+            toolchain: async () => Toolchain.workspace(),
+        });
 
         // start it as a worker, then reference it as an asset
         await files.writeTextFile(

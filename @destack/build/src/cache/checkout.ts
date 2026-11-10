@@ -7,8 +7,8 @@ import { relativePath } from "../source/dependency.ts";
 /** The mode git stores a symbolic link with, whose blob stores the link's target path. */
 const LINK_MODE = "120000";
 
-/** The files no build reads: test modules, the tests folder, docs and recipes. */
-const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /\.md$/u, /(?:^|\/)justfile$/u];
+/** The files no build reads: test modules, the tests folder and recipes. */
+const UNREAD_FILES = [/(?:^|\/)[^/]*\.test\.[^/]+$/u, /^tests\//u, /(?:^|\/)justfile$/u];
 
 /** The hash functions of git's object formats. */
 const ObjectFormat = schema.enum(["sha1", "sha256"]);

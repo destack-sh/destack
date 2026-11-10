@@ -1,5 +1,6 @@
 import type { FileSystem } from "@destack/environment";
 import { formatSource } from "@destack/check";
+import type { Toolchain } from "@destack/check/toolchain";
 import { dirname, join, resolve } from "node:path";
 import { DependencyName, Package, PackageDefinition } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
@@ -58,7 +59,10 @@ export class Template {
     }
 
     /** Copy source and replace declared dependencies without executing package code. */
-    async instantiate(parameters: TemplateInput): Promise<Map<string, Uint8Array>> {
+    async instantiate(
+        parameters: TemplateInput,
+        toolchain: Toolchain,
+    ): Promise<Map<string, Uint8Array>> {
         // read declarations from the selected source package
         const source = this.files;
         const { manifest, definition } = this.#readDeclarations();
@@ -105,7 +109,7 @@ export class Template {
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
         // format generated and copied text so new packages start formatted
-        await formatFiles(files);
+        await formatFiles(files, toolchain);
 
         return files;
     }
@@ -130,10 +134,15 @@ export class Template {
         return { manifest, definition };
     }
 
-    /** Instantiate a package into a new directory. */
-    async write(directory: string, parameters: TemplateInput, files: FileSystem): Promise<void> {
+    /** Instantiate a package into a new directory, formatted by a toolchain. */
+    async write(
+        directory: string,
+        parameters: TemplateInput,
+        toolchain: Toolchain,
+        files: FileSystem,
+    ): Promise<void> {
         // instantiate the files
-        const contents = await this.instantiate(parameters);
+        const contents = await this.instantiate(parameters, toolchain);
         // validate relative paths before creating the destination
         for (const path of contents.keys()) {
             PackagePath.parse(path);
@@ -272,13 +281,16 @@ function copyFiles(
     return files;
 }
 
-/** Format each text file of a new package in place. */
-async function formatFiles(files: Map<string, Uint8Array>): Promise<void> {
+/** Format each text file of a new package in place with a toolchain's formatter. */
+async function formatFiles(files: Map<string, Uint8Array>, toolchain: Toolchain): Promise<void> {
     const encoder = new TextEncoder();
     const decoder = new TextDecoder("utf-8", { fatal: true });
     for (const [path, bytes] of files) {
         if (/\.(?:[cm]?[jt]sx?|json|css|md|html)$/u.test(path)) {
-            files.set(path, encoder.encode(await formatSource(path, decoder.decode(bytes))));
+            files.set(
+                path,
+                encoder.encode(await formatSource(path, decoder.decode(bytes), toolchain)),
+            );
         }
     }
 }
