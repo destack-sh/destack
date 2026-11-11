@@ -1,6 +1,6 @@
 import type { Select } from "@destack/db";
 import { contained, principal } from "@destack/access";
-import { t } from "@destack/locale";
+import { argument, plural, t } from "@destack/locale";
 import { defineCommand, defineObject, device, field } from "@destack/object";
 import { schema, Version } from "@destack/schema";
 
@@ -19,6 +19,7 @@ export const distribution = defineObject(
     {
         name: "distribution",
         plural: "distributions",
+        title: t`${plural(argument("count"), { one: "Distribution", other: "Distributions" })}`,
         scope: device,
         fields: {
             // observed
@@ -31,19 +32,21 @@ export const distribution = defineObject(
             /** When the feed was last checked. */
             checkedAt: field.time().optional(),
         },
-        // let the device its owner acts as read, stage and record it
-        permissions: {
-            read: contained(principal.device),
-            update: contained(principal.device),
-            record: contained(principal.device),
+        access: {
+            // let the device its owner acts as read, stage and record it
+            permissions: {
+                read: contained(principal.device),
+                update: contained(principal.device),
+                record: contained(principal.device),
+            },
         },
     },
     (method) => ({
         create: method.create("record", { visibility: "package" }),
         /** Download and verify the feed's latest release if newer than the installed one. */
-        stage: method.mutation({ permission: "update", prepared: Staging }),
+        stage: method.mutation({ title: t`Stage`, permission: "update", prepared: Staging }),
         /** Restart the distribution into the staged release. */
-        activate: method.mutation({ permission: "update", prepared: Version }),
+        activate: method.mutation({ title: t`Activate`, permission: "update", prepared: Version }),
     }),
 );
 
