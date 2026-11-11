@@ -522,7 +522,21 @@ export class SpaceHost {
             );
             const served =
                 earlier.get(key)?.served ??
-                (await this.#serve(entry, load, { start, signal, trusted }));
+                (await this.#serve(entry, load, { start, signal, trusted }).catch(
+                    (error: unknown) => {
+                        // report an installation that fails to start, and start the space without it
+                        const name =
+                            entry.rollout.installation.name ?? entry.rollout.installationId;
+                        start.report(
+                            new Error(
+                                `installation ${name} serves nothing: its server failed to start`,
+                                { cause: error },
+                            ),
+                        );
+
+                        return undefined;
+                    },
+                ));
             entries.set(key, { load, served });
 
             // record the revision of each installation the start serves, in its store or its sandbox
@@ -566,20 +580,25 @@ export class SpaceHost {
             sandboxes: readonly HookSandbox[],
         ) => Promise<void> | void,
     ): Promise<void> {
-        // load the set's servers, reusing this start's, and hand them over unless the start serves the set already
-        const served = this.#served?.signal === signal ? this.#served.entries : undefined;
-        const isServed =
-            served?.size === installed.length &&
-            installed.every(({ rollout: row, revisionId }) =>
-                served.has(SpaceHost.#key(row.installationId, revisionId)),
-            );
+        // load the set's servers, reusing this start's, and hand them over once the served set changes
+        const before = this.#served?.signal === signal ? this.#serving() : undefined;
         const { servers, sandboxes, revisions } = await this.servers(installed, start, signal);
-        if (!isServed) {
+        const after = this.#serving();
+        if (before === undefined || before.symmetricDifference(after).size > 0) {
             await handover(servers, sandboxes);
         }
 
         // record the revision of each installation the start serves
         await Rollout.serve(await start.store, this.id, revisions);
+    }
+
+    /** List the keys of the installations this start serves. */
+    #serving(): Set<string> {
+        const entries = this.#served?.entries ?? new Map<string, ServedEntry>();
+
+        return new Set(
+            [...entries].flatMap(([key, entry]) => (entry.served === undefined ? [] : [key])),
+        );
     }
 
     /** Key an installation's server by the installation and the revision it serves. */
