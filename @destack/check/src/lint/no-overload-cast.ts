@@ -1,7 +1,7 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
 
 /** A statement or class member as the rule reads it. */
-interface Declared {
+interface Overload {
     /** The node the rule reports. */
     readonly node: ESTree.Node;
     /** The declared name, absent for nodes that declare no function. */
@@ -31,7 +31,7 @@ export const noOverloadCast: Rule = {
         }
 
         /** Report each implementation following signatures of its name. */
-        function check(declarations: readonly Declared[]): void {
+        function check(declarations: readonly Overload[]): void {
             // collect the return types of the signatures before each implementation
             let name: string | undefined;
             let returns: (string | undefined)[] = [];
@@ -65,7 +65,7 @@ export const noOverloadCast: Rule = {
         /** Read a statement as a function declaration or signature, or as any other statement. */
         function statementOf(
             statement: ESTree.Statement | ESTree.Directive | ESTree.ModuleDeclaration,
-        ): Declared {
+        ): Overload {
             const declaration =
                 statement.type === "ExportNamedDeclaration" ||
                 statement.type === "ExportDefaultDeclaration"

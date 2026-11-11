@@ -5,16 +5,18 @@ const DOMAIN = "@destack/check";
 
 /** The check package's failures, each reason with the call error code it answers. */
 export const CheckError = defineErrorFamily(
-    { name: DOMAIN },
     {
-        // invalid
-        CONFIGURATION_INVALID: {},
+        reasons: {
+            // invalid
+            CONFIGURATION_INVALID: {},
 
-        // broken
-        LANGUAGE_SERVICE_BROKEN: {},
-        TOOL_BROKEN: {},
+            // broken
+            LANGUAGE_SERVICE_BROKEN: {},
+            TOOL_BROKEN: {},
+        },
+        audience: "host",
     },
-    { audience: "host" },
+    { package: { name: DOMAIN } },
 );
 
 /** A stable cause of check failures. */
