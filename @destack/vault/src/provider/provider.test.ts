@@ -63,6 +63,6 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     }).toEqual({
         reference: vault.reference(ids.space, await fixture.vault()),
         read: [1, CREDENTIAL],
-        refused: ["NOT_FOUND", "NOT_FOUND", `vault ${strayId} not found`],
+        refused: ["NOT_FOUND", "NOT_FOUND", `vault '${strayId}' not found`],
     });
 });

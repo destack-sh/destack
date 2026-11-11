@@ -98,7 +98,7 @@ test("read a vault's secret by name, never a secret of the same name in another 
     }).toEqual({
         own: { version: 1, value: CREDENTIAL },
         another: { version: 1, value: { encoding: "text", value: "other credential" } },
-        missing: ["NOT_FOUND", "SECRET_NOT_FOUND", "vault has no secret second"],
+        missing: ["NOT_FOUND", "SECRET_NOT_FOUND", "secret 'second' not found"],
     });
 });
 
@@ -121,7 +121,7 @@ test("let an installation bound to a vault read its secrets by name without a st
             .vault.read({ scope: ids.space, id: credentials, name: "first" });
     expect([await read(consumer), await refusal(read(stranger))]).toEqual([
         { version: 1, value: CREDENTIAL },
-        ["NOT_FOUND", "NOT_FOUND", `vault ${credentials} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `vault '${credentials}' not found`],
     ]);
 });
 
@@ -183,12 +183,12 @@ test("put a consumer's secret as one live version through its vault, refuse anot
         .from(secret.table);
     expect({ renamed, live, concealed, versions, removed }).toEqual({
         renamed: [
-            "CONFLICT",
-            "SECRET_MISMATCH",
-            `secret ${target.secret} is token in this vault, not other`,
+            "PRECONDITION_FAILED",
+            "SECRET_BLOCKED",
+            `cannot update secret '${target.secret}' as 'other': it is 'token' in this vault`,
         ],
         live: { version: 2, value: { encoding: "text", value: "second" } },
-        concealed: ["NOT_FOUND", "NOT_FOUND", `secret ${target.secret} not found`],
+        concealed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
         versions: [
             { number: 1, state: "destroyed" },
             { number: 2, state: "enabled" },
@@ -250,9 +250,13 @@ test("let installations bound to a vault put and rotate their own secrets there,
     );
     expect({ rotated, replaced, removed, planted, after: await read() }).toEqual({
         rotated: { version: 2, value: { encoding: "text", value: "second" } },
-        replaced: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: update"],
-        removed: ["NOT_FOUND", "NOT_FOUND", `secret ${target.secret} not found`],
-        planted: ["NOT_FOUND", "NOT_FOUND", `vault ${credentials} not found`],
+        replaced: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'update' is forbidden: the caller lacks it",
+        ],
+        removed: ["NOT_FOUND", "NOT_FOUND", `secret '${target.secret}' not found`],
+        planted: ["NOT_FOUND", "NOT_FOUND", `vault '${credentials}' not found`],
         after: { version: 2, value: { encoding: "text", value: "second" } },
     });
 });
@@ -319,7 +323,13 @@ test("refuse removing a vault while an installation binds one of its secrets", a
                 .from(secret.table),
         ],
     }).toEqual({
-        refused: [["CONFLICT", "BOUND", `${token.id} is in use: bound by consumer`]],
+        refused: [
+            [
+                "PRECONDITION_FAILED",
+                "BINDING_BLOCKED",
+                `cannot remove '${token.id}': it is in use, bound by 'consumer'`,
+            ],
+        ],
         kept: [[{ deletedAt: null }], [{ deletedAt: null }]],
     });
 });
@@ -343,7 +353,13 @@ test("refuse removing a vault while an installation binds the vault itself", asy
             .select({ deletedAt: vault.table.deletedAt })
             .from(vault.table),
     }).toEqual({
-        refused: [["CONFLICT", "BOUND", `${provisioned.id} is in use: bound by consumer`]],
+        refused: [
+            [
+                "PRECONDITION_FAILED",
+                "BINDING_BLOCKED",
+                `cannot remove '${provisioned.id}': it is in use, bound by 'consumer'`,
+            ],
+        ],
         kept: [{ deletedAt: null }],
     });
 });

@@ -68,7 +68,7 @@ export function implementSecret(): typeof secret {
                 else {
                     throw VaultError.of(
                         "VALUE_REQUIRED",
-                        "a secret without an algorithm rotates to a given value",
+                        "value is required: a secret without an algorithm rotates to a given value",
                     );
                 }
 
@@ -93,7 +93,7 @@ export function implementSecret(): typeof secret {
                 if (currentVersion === null) {
                     throw VaultError.of(
                         "CURRENT_VERSION_REQUIRED",
-                        "a secret's current version cannot be unset",
+                        "current version is required: a secret's current version cannot be unset",
                     );
                 } else if (currentVersion !== undefined) {
                     const selected = await SecretVersion.find(call, call.target.id, currentVersion);
@@ -146,7 +146,10 @@ export function implementSecretVersion(): typeof secretVersion {
                 // refuse an expiry in the past
                 const { value, expiresAt, parentId } = call.input;
                 if (expiresAt !== undefined && expiresAt <= call.now) {
-                    throw VaultError.of("EXPIRY_IN_PAST", "secret expiry must be in the future");
+                    throw VaultError.of(
+                        "EXPIRY_IN_PAST_INVALID",
+                        "secret expiry is invalid: it must be in the future",
+                    );
                 }
 
                 // create the version with its value bound to it, within the size limit
@@ -161,7 +164,10 @@ export function implementSecretVersion(): typeof secretVersion {
                 SecretVersion.requireIntact(call.target);
                 const { expiresAt } = call.input;
                 if (expiresAt <= call.now) {
-                    throw VaultError.of("EXPIRY_IN_PAST", "secret expiry must be in the future");
+                    throw VaultError.of(
+                        "EXPIRY_IN_PAST_INVALID",
+                        "secret expiry is invalid: it must be in the future",
+                    );
                 }
 
                 return call.update({ expiresAt });
@@ -220,7 +226,7 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
 
         // require the bound secret, which deletion refuses while bound
         if (target === undefined) {
-            throw new TypeError(`secret ${id} of binding ${bound.name} is gone while bound`);
+            throw new TypeError(`secret '${id}' of binding '${bound.name}' is gone while bound`);
         }
 
         // pass a secret with a version, and one a stack binds
@@ -275,7 +281,7 @@ export const secretBindable: ObjectBindable<typeof secret, Secret> = {
         const version = versions.find((entry) => entry.number === number);
         if (version === undefined) {
             throw new TypeError(
-                `secret ${secretId} has no version ${number}, which its capture references`,
+                `secret '${secretId}' has no version '${number}', which its capture references`,
             );
         }
         const retiring = versions.filter(

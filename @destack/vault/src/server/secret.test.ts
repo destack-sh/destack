@@ -85,8 +85,8 @@ test("roundtrip bounded text and binary values without committing rejected write
         first: await client.secret.read({ ...key, version: 1 }),
     }).toEqual({
         refused: [
-            ["PAYLOAD_TOO_LARGE", "VALUE_TOO_LARGE", "secret value exceeds 65536 bytes"],
-            ["PAYLOAD_TOO_LARGE", "VALUE_TOO_LARGE", "secret value exceeds 65536 bytes"],
+            ["BAD_REQUEST", "VALUE_INVALID", "secret value is invalid: it exceeds 65536 bytes"],
+            ["BAD_REQUEST", "VALUE_INVALID", "secret value is invalid: it exceeds 65536 bytes"],
         ],
         listed: [written],
         current: { version: 2, value: text },
@@ -164,15 +164,27 @@ test("add a version, point the current alias at it, destroy and restore, recordi
         after: { version: 2, value: { encoding: "base64", value: "AAECAw==" } },
         restored: { version: 2, value: { encoding: "base64", value: "AAECAw==" } },
         destroyed: { ...written, state: "destroyed", revision: 2, updatedAt: time },
-        unavailable: ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
-        disabled: ["CONFLICT", "VERSION_DESTROYED", "secret version is destroyed"],
+        unavailable: [
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot read secret version: it is destroyed, disabled or expired",
+        ],
+        disabled: [
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot change secret version: it is destroyed",
+        ],
         pointing: [
             ["NOT_FOUND", "VERSION_NOT_FOUND", "secret version not found"],
-            ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
+            [
+                "PRECONDITION_FAILED",
+                "VERSION_BLOCKED",
+                "cannot read secret version: it is destroyed, disabled or expired",
+            ],
             [
                 "BAD_REQUEST",
                 "CURRENT_VERSION_REQUIRED",
-                "a secret's current version cannot be unset",
+                "current version is required: a secret's current version cannot be unset",
             ],
         ],
     });
@@ -221,9 +233,17 @@ test("refuse writing a version with a past expiry and reading an expired version
     // refuse reading the version once its expiry passed
     await fixture.space.simulation.run(expiresAt);
     expect([past, live, await refusal(client.secret.read(key))]).toEqual([
-        ["BAD_REQUEST", "EXPIRY_IN_PAST", "secret expiry must be in the future"],
+        [
+            "BAD_REQUEST",
+            "EXPIRY_IN_PAST_INVALID",
+            "secret expiry is invalid: it must be in the future",
+        ],
         { version: 2, value: CREDENTIAL },
-        ["CONFLICT", "VERSION_UNAVAILABLE", "secret version is unavailable"],
+        [
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot read secret version: it is destroyed, disabled or expired",
+        ],
     ]);
 });
 
@@ -267,7 +287,7 @@ test("rotate to a given value, keeping the rotated-out version live through its 
         refused: [
             "BAD_REQUEST",
             "VALUE_REQUIRED",
-            "a secret without an algorithm rotates to a given value",
+            "value is required: a secret without an algorithm rotates to a given value",
         ],
     });
 });
@@ -414,9 +434,9 @@ test("refuse deleting a secret its installation's declaration manages", async ()
         }),
     );
     expect(refused).toEqual([
-        "CONFLICT",
-        "MANAGED",
-        "secret is managed by its declaration: detach it before changing it",
+        "PRECONDITION_FAILED",
+        "DECLARATION_BLOCKED",
+        "cannot change 'secret': it is managed by its declaration, so detach it first",
     ]);
 });
 
@@ -468,8 +488,8 @@ test("refuse reading a version whose stored value was copied from another versio
     ]).toEqual([
         [
             "INTERNAL_SERVER_ERROR",
-            "VERSION_MISMATCH",
-            `secret version ${second.id} contains the value of another version`,
+            "VERSION_BROKEN",
+            `secret version '${second.id}' contains the value of another version`,
         ],
         ["INTERNAL_SERVER_ERROR", "INTERNAL_SERVER_ERROR", "internal server error"],
         FIRST,
@@ -491,8 +511,8 @@ test("deny plaintext while the space is suspended, keeping its metadata readable
         [
             [
                 "FORBIDDEN",
-                "SCOPE_SUSPENDED",
-                "scope space-01996ab0-0000-7000-8000-000000000002 is suspended",
+                "SCOPE_DENIED",
+                "scope 'space-01996ab0-0000-7000-8000-000000000002' is forbidden: it is suspended",
             ],
             metadata,
         ],
@@ -509,7 +529,7 @@ test("deny plaintext to a member who may not reveal, keeping metadata readable",
     // read the metadata, and refuse the value
     expect([await client.secret.get(key), await refusal(client.secret.read(key))]).toEqual([
         await fixture.owner.client(vaultPackage).secret.get(key),
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -525,7 +545,7 @@ test("reveal a missing version only to readers of the secret", async () => {
     await fixture.allow(person, VAULT_PERMISSIONS);
     const told = await refusal(member.client(vaultPackage).secret.read(missing));
     expect([concealed, told]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
         ["NOT_FOUND", "VERSION_NOT_FOUND", "secret version not found"],
     ]);
 });
@@ -540,8 +560,8 @@ test("challenge a person's reveal for a step-up, and reveal once they authentica
     expect([refused, revealed]).toEqual([
         [
             "UNAUTHORIZED",
-            "AUTHENTICATION_INSUFFICIENT",
-            "authentication assurance is too low: authenticate again",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
         ],
         FIRST,
     ]);
@@ -629,7 +649,7 @@ test("read a bound secret in process as its installation, and refuse another ins
     );
     expect({ read, refused: await refusal(stray.read()) }).toEqual({
         read: { version: 1, value: SecretVersion.requireReadable(stored, fixture.clock.now()) },
-        refused: ["NOT_FOUND", "NOT_FOUND", `secret ${strayId} not found`],
+        refused: ["NOT_FOUND", "NOT_FOUND", `secret '${strayId}' not found`],
     });
 });
 
@@ -640,7 +660,7 @@ test("fail installing a key generated in a vault the installation declares nowhe
         { package: APPLICATION },
     );
     const refused = await TestSpace.refusals(TestVault.open({ secrets: [lost] }));
-    expect(refused).toEqual([["BAD_REQUEST", "DECLARATION_INVALID", "unknown vault: mail"]]);
+    expect(refused).toEqual([["BAD_REQUEST", "DECLARATION_INVALID", "vault 'mail' is invalid: it is unknown"]]);
 });
 
 test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {

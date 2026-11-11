@@ -28,7 +28,7 @@ export function implementVault(): typeof vault {
                         ? undefined
                         : await call.check(secret.permission("read"), reference);
                 if (named === undefined || readable?.isAllowed !== true) {
-                    throw VaultError.of("SECRET_NOT_FOUND", `vault has no secret ${name}`);
+                    throw VaultError.of("SECRET_NOT_FOUND", `secret '${name}' not found`);
                 }
 
                 return SecretVersion.read(named, version, call);
@@ -49,13 +49,13 @@ export function implementVault(): typeof vault {
 
                 // refuse a secret of another vault as missing, which reveals nothing of it
                 if (found !== undefined && found.parentId !== target.id) {
-                    throw VaultError.of("SECRET_NOT_FOUND", `vault has no secret ${id}`);
+                    throw VaultError.of("SECRET_NOT_FOUND", `secret '${id}' not found`);
                 }
                 // refuse a secret of this vault under another name
                 else if (found !== undefined && found.name !== name) {
                     throw VaultError.of(
-                        "SECRET_MISMATCH",
-                        `secret ${id} is ${found.name} in this vault, not ${name}`,
+                        "SECRET_BLOCKED",
+                        `cannot update secret '${id}' as '${name}': it is '${found.name}' in this vault`,
                     );
                 }
                 // require updating a secret it has

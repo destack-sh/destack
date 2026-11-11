@@ -35,7 +35,7 @@ const VaultBinding = {
     /** Require the version a secret's binding captured. */
     requireVersion(binding: ResourceBinding): number {
         if (binding.version === undefined) {
-            throw new TypeError(`secret binding ${binding.resource} has no version`);
+            throw new TypeError(`secret binding '${binding.resource}' has no version`);
         }
 
         return binding.version;

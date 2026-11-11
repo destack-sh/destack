@@ -19,7 +19,7 @@ export const SecretVersion = {
         // refuse a secret without a selected version
         const number = version ?? target.currentVersion;
         if (number === null) {
-            throw VaultError.of("CURRENT_VERSION_MISSING", "secret has no current version");
+            throw VaultError.of("CURRENT_VERSION_NOT_FOUND", "current secret version not found");
         }
 
         // let software bound to the secret, its vault or the selected version read it
@@ -144,7 +144,7 @@ export const SecretVersion = {
     /** Refuse changing a version with a destroyed value. */
     requireIntact(version: SecretVersion): void {
         if (version.state === "destroyed") {
-            throw VaultError.of("VERSION_DESTROYED", "secret version is destroyed");
+            throw VaultError.of("VERSION_BLOCKED", "cannot change secret version: it is destroyed");
         }
     },
 
@@ -157,8 +157,8 @@ export const SecretVersion = {
             (content.version !== version.id || content.secret !== version.parentId)
         ) {
             throw VaultError.of(
-                "VERSION_MISMATCH",
-                `secret version ${version.id} contains the value of another version`,
+                "VERSION_BROKEN",
+                `secret version '${version.id}' contains the value of another version`,
             );
         }
         // refuse a destroyed, disabled or expired version
@@ -167,7 +167,10 @@ export const SecretVersion = {
             version.state === "disabled" ||
             (version.expiresAt !== null && version.expiresAt <= now)
         ) {
-            throw VaultError.of("VERSION_UNAVAILABLE", "secret version is unavailable");
+            throw VaultError.of(
+                "VERSION_BLOCKED",
+                "cannot read secret version: it is destroyed, disabled or expired",
+            );
         }
 
         return content.value;
@@ -183,7 +186,10 @@ export const SecretVersion = {
         const size = bytes.byteLength;
         bytes.fill(0);
         if (size > MAX_VALUE_BYTES) {
-            throw VaultError.of("VALUE_TOO_LARGE", `secret value exceeds ${MAX_VALUE_BYTES} bytes`);
+            throw VaultError.of(
+                "VALUE_INVALID",
+                `secret value is invalid: it exceeds ${MAX_VALUE_BYTES} bytes`,
+            );
         }
     },
 };
