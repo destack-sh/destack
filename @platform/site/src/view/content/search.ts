@@ -25,7 +25,7 @@ export async function loadSearchEntries(network: Network): Promise<readonly Sear
     // fetch the index and reject a failed response
     const response = await network.fetch(new Request("/search.json"));
     if (!response.ok) {
-        throw new Error(`cannot load search index (${response.status})`);
+        throw new Error(`could not load the search index: status ${response.status}`);
     }
 
     // validate every entry

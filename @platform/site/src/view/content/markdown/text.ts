@@ -40,7 +40,7 @@ export function plainTextFor(markdown: string) {
     return text.replace(/\u0000(\d+)\u0000/gu, (_match: string, index: string) => {
         const source = code[Number(index)];
         if (source == undefined) {
-            throw new Error(`missing protected code ${index}`);
+            throw new Error(`protected code ${index} not found`);
         }
 
         return source;

@@ -389,7 +389,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // count the people and vendors in the scene on screen
         const shown = todayScenes[today()];
         if (shown === undefined) {
-            throw new Error(`missing scene ${today()}`);
+            throw new Error(`scene '${today()}' not found`);
         }
 
         return {
@@ -759,7 +759,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                                     // read how far the water has left a row
                                     const reveal = reveals[row];
                                     if (reveal === undefined) {
-                                        throw new TypeError(`missing row ${row}`);
+                                        throw new TypeError(`row '${row}' not found`);
                                     }
 
                                     return reveal;
@@ -860,7 +860,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
 /** Report the water failing to draw, which leaves the still pool in its place. */
 function reportFailure(failure: ShaderFailure, telemetry: TelemetryScope): void {
-    telemetry.captureException(new Error(`the water shader failed: ${failure}`), {
+    telemetry.captureException(new Error(`the water shader did not run: '${failure}'`), {
         tags: { feature: "water" },
     });
 }
@@ -877,7 +877,7 @@ function activeOf(scene: number, band: number): readonly string[] {
         band
     ];
     if (!active) {
-        throw new TypeError(`shared band ${band} lights nothing`);
+        throw new TypeError(`shared band '${band}' lights nothing`);
     }
 
     return active;
@@ -887,7 +887,7 @@ function activeOf(scene: number, band: number): readonly string[] {
 function centreOf(column: number): number {
     const centre = columnCentres[column];
     if (centre === undefined) {
-        throw new TypeError(`missing column ${column}`);
+        throw new TypeError(`column ${column} not found`);
     }
 
     return centre;
@@ -917,7 +917,7 @@ function siloOn(scene: (typeof todayScenes)[number], column: number): string {
 function lockedLayer(id: string, depth: number): Entity {
     const layer = locked[id]?.[depth];
     if (!layer) {
-        throw new TypeError(`silo ${id} keeps no layer at depth ${depth}`);
+        throw new TypeError(`silo '${id}' keeps no layer at depth '${depth}'`);
     }
 
     return layer;
@@ -1028,7 +1028,7 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     const right = silosOf(gap + 1).indexOf(siloOn(scene, gap + 1));
     const label = tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
     if (label === undefined) {
-        throw new TypeError(`no tape label for gap ${gap}`);
+        throw new TypeError(`no tape label for gap '${gap}'`);
     }
 
     return label;

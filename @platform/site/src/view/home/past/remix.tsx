@@ -1086,7 +1086,7 @@ export function Remix(properties: {
                     const placement = () => {
                         const found = layout().places.get(id);
                         if (!found) {
-                            throw new TypeError(`card ${id} has no placement`);
+                            throw new TypeError(`card '${id}' has no placement`);
                         }
 
                         return found;
@@ -1283,7 +1283,7 @@ function arrange(scene: Scene): Map<string, Placement> {
         const left = columnLefts[column];
         const last = columnLefts[column + card.span - 1];
         if (left === undefined || last === undefined) {
-            throw new TypeError(`card ${card.id} spans past the board columns`);
+            throw new TypeError(`card '${card.id}' spans past the board columns`);
         }
         placed.set(card.id, {
             row: 1,
@@ -1304,7 +1304,7 @@ function lockedPlacement(id: string): Placement {
     // find the first locked scene with the silo
     const placement = todayPlacements.find((placements) => placements.has(id))?.get(id);
     if (!placement) {
-        throw new Error(`silo ${id} never rides an iceberg`);
+        throw new Error(`silo '${id}' never rides an iceberg`);
     }
 
     return placement;
@@ -1336,7 +1336,7 @@ function upcoming(id: string, from: number): Placement {
     }
 
     // fail when no scene shows the card
-    throw new Error(`card ${id} never appears`);
+    throw new Error(`card '${id}' never appears`);
 }
 
 /** Build a locked scene. */
@@ -1358,7 +1358,7 @@ function remixOf(first: string, second: string): string {
         ([, parts]) => parts.includes(first) && parts.includes(second),
     );
     if (!found) {
-        throw new TypeError(`no remix joins ${first} and ${second}`);
+        throw new TypeError(`no remix joins '${first}' and '${second}'`);
     }
 
     return found[0];
@@ -1369,7 +1369,7 @@ function linksOf(upper: readonly string[], targets: readonly string[]): [string,
     return upper.map((id, index): [string, string] => {
         const target = targets[index];
         if (target === undefined) {
-            throw new TypeError(`person ${id} has no target`);
+            throw new TypeError(`person '${id}' has no target`);
         }
 
         return [id, target];
@@ -1380,7 +1380,7 @@ function linksOf(upper: readonly string[], targets: readonly string[]): [string,
 function entityOf(id: string): Entity {
     const entity = entities[id];
     if (!entity) {
-        throw new TypeError(`unknown card ${id}`);
+        throw new TypeError(`card '${id}' not found`);
     }
 
     return entity;
@@ -1390,7 +1390,7 @@ function entityOf(id: string): Entity {
 export function usesOf(id: string): readonly (readonly [string, string])[] {
     const uses = appUses[id];
     if (!uses) {
-        throw new TypeError(`app ${id} calls no services`);
+        throw new TypeError(`app '${id}' calls no services`);
     }
 
     return uses;
@@ -1407,7 +1407,7 @@ function withRemixes(
                 // reject a remix of an app without services
                 const used = uses[part];
                 if (!used) {
-                    throw new TypeError(`remix ${remix} joins unknown app ${part}`);
+                    throw new TypeError(`remix '${remix}' joins unknown app '${part}'`);
                 }
 
                 return used;

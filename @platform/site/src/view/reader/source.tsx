@@ -48,7 +48,7 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 
         // fail on unavailable generated sources
         if (!response.ok) {
-            throw new Error(`failed to load ${route}: ${response.status}`);
+            throw new Error(`could not load '${route}': status ${response.status}`);
         }
 
         // publish the requested source
@@ -91,7 +91,7 @@ export function SourceActions(properties: SourceActionsProperties) {
             .then(async (response) => {
                 if (!response.ok) {
                     throw new Error(
-                        `failed to load ${commands.source.markdownRoute}: ${response.status}`,
+                        `could not load '${commands.source.markdownRoute}': ${response.status}`,
                     );
                 }
                 setMarkdown(await response.text());

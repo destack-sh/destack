@@ -53,7 +53,7 @@ const RAIL_SHARE = 75;
 export function glyphOf(icon: string): string {
     const glyph = glyphs[icon];
     if (glyph === undefined) {
-        throw new RangeError(`no planet colour for glyph ${icon}`);
+        throw new RangeError(`planet colour of glyph '${icon}' not found`);
     }
 
     return glyph;

@@ -83,7 +83,7 @@ export function lookOf(maker: Maker): Look {
 export function makerOf(name: string): Maker {
     const maker = makers.find((candidate) => candidate.name === name);
     if (maker === undefined) {
-        throw new RangeError(`no maker named ${name}`);
+        throw new RangeError(`maker '${name}' not found`);
     }
 
     return maker;

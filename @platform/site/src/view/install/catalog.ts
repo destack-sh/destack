@@ -68,14 +68,14 @@ export async function readDownloads(network: Network): Promise<Download[]> {
     // fetch the catalog and reject a failed response or shape
     const response = await network.fetch(new Request("https://download.destack.sh/downloads.json"));
     if (!response.ok) {
-        throw new Error(`download catalog returned ${response.status}`);
+        throw new Error(`could not load the download catalog: status ${response.status}`);
     }
     const catalog = Catalog.parse(await response.json());
 
     // offer the Linux archive and the native installers, each at a published address
     const downloads = Object.entries(catalog.downloads).flatMap(([target, distribution]) => {
         if (!isTarget(target)) {
-            throw new Error(`unknown download platform: ${target}`);
+            throw new Error(`download platform '${target}' is not supported`);
         }
         const isLinux = target.endsWith("unknown-linux-gnu");
         const choice = isLinux ? distribution.archive : distribution.installers.dmg;
@@ -83,7 +83,7 @@ export async function readDownloads(network: Network): Promise<Download[]> {
         return choice === undefined ? [] : [downloadOf(target, choice)];
     });
     if (downloads.length === 0) {
-        throw new Error("no downloads published");
+        throw new Error("published downloads not found");
     }
 
     // offer one Mac download when the universal installer is published
@@ -140,7 +140,7 @@ function downloadOf(target: Target, download: CatalogDownload): Download {
 
     // require a calendar version
     if (!/^\d{4}\.\d+\.\d+(?:-nightly\.\d+)?$/u.test(version)) {
-        throw new Error(`invalid download version: ${version}`);
+        throw new Error(`download version '${version}' is invalid: it must be a release version`);
     }
 
     // require an immutable target address on the download origin
@@ -153,7 +153,7 @@ function downloadOf(target: Target, download: CatalogDownload): Download {
             address.pathname,
         )
     ) {
-        throw new Error("invalid download address");
+        throw new Error("download address is invalid: it must be a URL");
     }
 
     return { target, label: LABELS[target], version, url };

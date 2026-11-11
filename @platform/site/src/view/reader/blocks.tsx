@@ -277,7 +277,7 @@ function elementAt(node: Element, index: number): Element {
         (candidate): candidate is Element => candidate.type === "element",
     )[index];
     if (child === undefined) {
-        throw new TypeError(`a '${node.tagName}' has no element child at '${index}'`);
+        throw new TypeError(`a '${node.tagName}' has no element child at ${index}`);
     }
 
     return child;

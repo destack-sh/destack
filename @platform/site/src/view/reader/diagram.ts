@@ -159,7 +159,7 @@ function themeColor(value: string): string {
     // read the channels and the optional alpha
     const match = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/u.exec(value);
     if (!match) {
-        throw new Error(`unsupported diagram theme color: ${value}`);
+        throw new Error(`diagram theme color '${value}' is not supported`);
     }
 
     // write each channel as two hex digits, adding alpha only when it is set

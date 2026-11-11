@@ -57,7 +57,7 @@ export function parseFrontmatter(source: string, file: string) {
     // split the delimited metadata block from the Markdown body
     const match = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/u.exec(source);
     if (match == undefined) {
-        throw new Error(`missing frontmatter: ${file}`);
+        throw new Error(`frontmatter of '${file}' not found`);
     }
 
     // parse the metadata block
@@ -80,7 +80,9 @@ function parseMetadata(source: string, file: string) {
 
         const match = /^([a-zA-Z][a-zA-Z0-9]*):\s*(.*)$/u.exec(line);
         if (match == undefined) {
-            throw new Error(`invalid frontmatter line in ${file}: ${line}`);
+            throw new Error(
+                `frontmatter of '${file}' is invalid: line '${line}' must be 'key: value'`,
+            );
         }
 
         metadata[captured(match, 1)] = parseMetadataValue(captured(match, 2));
@@ -124,7 +126,7 @@ export function requireString<Field extends string>(
     file: string,
 ): asserts metadata is Record<string, unknown> & Record<Field, string> {
     if (typeof metadata[field] !== "string" || metadata[field] === "") {
-        throw new Error(`missing ${field} in ${file}`);
+        throw new Error(`'${field}' of '${file}' is required`);
     }
 }
 
@@ -151,7 +153,7 @@ function shapeMarkdown(
     for (let index = 0; index < parent.children.length; index += 1) {
         const node = parent.children[index];
         if (node === undefined) {
-            throw new Error(`missing Markdown node ${index}`);
+            throw new Error(`node ${index} of the Markdown tree not found`);
         }
 
         // name a heading after its text, leaving out a document's title, which its page header shows
@@ -284,7 +286,7 @@ function shapeFigure(paragraph: mdast.Paragraph, context: MarkdownContext): void
     // read the image, and the attributes braced right after it, `{width=600 poster=./still.webp}`
     const [image, after, ...rest] = paragraph.children;
     if (image?.type !== "image") {
-        throw new Error(`a figure paragraph in ${context.slug} opens without its image`);
+        throw new Error(`a figure paragraph in '${context.slug}' opens without its image`);
     }
     const braced = after?.type === "text" ? /^\{([^}\n]*)\}/u.exec(after.value) : null;
     const attributes = braced === null ? {} : parseAttributes(captured(braced, 1));
@@ -308,10 +310,12 @@ function shapeFigure(paragraph: mdast.Paragraph, context: MarkdownContext): void
     // constrain an authored width to positive pixels, and require the image's description
     const width = attributes["width"];
     if (width !== undefined && !/^[1-9][0-9]*$/u.test(width)) {
-        throw new Error(`invalid media width in ${context.slug}: ${width}`);
+        throw new Error(
+            `media width '${width}' in '${context.slug}' is invalid: it must be a number`,
+        );
     }
     if (image.alt == undefined || image.alt === "") {
-        throw new Error(`missing alt text in ${context.slug}: ${image.url}`);
+        throw new Error(`alt text of '${image.url}' in '${context.slug}' is required`);
     }
 
     // carry a YouTube player, a video file as a looping animation, or an image
@@ -372,7 +376,7 @@ function shapeHtml(
         else if (node.tagName === "pre") {
             const code = node.children[0];
             if (code?.type !== "element") {
-                throw new Error(`a listing in ${context.slug} has no code`);
+                throw new Error(`a listing in '${context.slug}' has no code`);
             }
             const {
                 dataLanguage: language,
@@ -383,7 +387,7 @@ function shapeHtml(
             code.properties = properties;
             node.properties = { ...node.properties, dataLanguage: language, dataTitle, dataFormat };
             if (typeof language !== "string") {
-                throw new Error(`a listing in ${context.slug} has no language`);
+                throw new Error(`a listing in '${context.slug}' has no language`);
             }
 
             // highlight the code, or keep a diagram's source
@@ -541,7 +545,7 @@ function youtubeVideo(source: string) {
                 ? second
                 : undefined;
     if (id == undefined || !/^[\w-]{11}$/u.test(id)) {
-        throw new Error(`invalid YouTube video: ${source}`);
+        throw new Error(`YouTube video '${source}' is invalid: it must be a YouTube URL`);
     }
 
     // preserve an optional start time in seconds or YouTube's hour/minute/second form
@@ -552,7 +556,7 @@ function youtubeVideo(source: string) {
         let seconds = Number(start);
         if (!/^\d+$/u.test(start)) {
             if (duration == null || start === "") {
-                throw new Error(`invalid YouTube start time: ${source}`);
+                throw new Error(`YouTube start time of '${source}' is invalid: it must be seconds`);
             }
             seconds =
                 Number(duration[1] ?? 0) * 3600 +
@@ -575,7 +579,7 @@ function requireAttribute(
 ) {
     const value = attributes[attribute];
     if (value == undefined || value === "") {
-        throw new Error(`missing ${attribute} in ${slug} ${directive} directive`);
+        throw new Error(`'${attribute}' of directive '${directive}' in '${slug}' is required`);
     }
 
     return value;
@@ -584,7 +588,7 @@ function requireAttribute(
 /** Require one link-resolution field of a Markdown context. */
 function requireContext<Value>(value: Value | undefined, field: string, context: MarkdownContext) {
     if (value == undefined) {
-        throw new Error(`missing ${field} for links in ${context.slug}`);
+        throw new Error(`'${field}' for links in '${context.slug}' is required`);
     }
 
     return value;
@@ -633,14 +637,14 @@ function resolveLink(href: string, context: MarkdownContext) {
         const content = requireContext(context.sourceRoutes, "source routes", context).get(target);
         if (content == undefined) {
             throw new Error(
-                `markdown link leaves its content collection in ${context.slug}: ${href}`,
+                `link '${href}' in '${context.slug}' is invalid: it leaves its content collection`,
             );
         }
 
         const fragment = markdownLink[2] ?? "";
         const id = fragment.slice(1);
         if (id !== "" && !content.headings.has(id)) {
-            throw new Error(`missing heading in ${context.slug}: ${href}`);
+            throw new Error(`heading of link '${href}' in '${context.slug}' not found`);
         }
 
         return `${content.route}${fragment}`;
@@ -657,7 +661,7 @@ function resolveLink(href: string, context: MarkdownContext) {
 /** Validate one local heading link. */
 function resolveHeadingLink(href: string, context: MarkdownContext) {
     if (!requireContext(context.ownHeadings, "own headings", context).has(href.slice(1))) {
-        throw new Error(`missing local heading in ${context.slug}: ${href}`);
+        throw new Error(`local heading '${href}' in '${context.slug}' not found`);
     }
 
     return href;
@@ -703,11 +707,13 @@ function resolveAsset(href: string, context: MarkdownContext) {
 
     // require an existing non-Markdown file inside the collection
     if (!target.startsWith(`${collection}/`)) {
-        throw new Error(`asset escapes content directory in ${context.slug}: ${href}`);
+        throw new Error(
+            `asset '${href}' in '${context.slug}' is invalid: it leaves the content directory`,
+        );
     } else if (!requireContext(context.files, "files", context).has(target)) {
-        throw new Error(`missing asset in ${context.slug}: ${href}`);
+        throw new Error(`asset '${href}' in '${context.slug}' not found`);
     } else if (extensionOf(target) === ".md") {
-        throw new Error(`asset points at markdown in ${context.slug}: ${href}`);
+        throw new Error(`asset '${href}' in '${context.slug}' is invalid: it must not be Markdown`);
     }
 
     // reuse the placeholder of an asset collected before

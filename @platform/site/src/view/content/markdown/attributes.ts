@@ -2,7 +2,7 @@
 export function captured(match: RegExpMatchArray | RegExpExecArray, group: number) {
     const value = match[group];
     if (value == undefined) {
-        throw new Error(`missing capture group ${group} in ${match[0]}`);
+        throw new Error(`capture group '${group}' in '${match[0]}' not found`);
     }
 
     return value;
@@ -15,7 +15,7 @@ export function parseAttributes(source: string) {
     for (const match of source.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/gu)) {
         const value = match[2] ?? match[3] ?? match[4];
         if (value == undefined) {
-            throw new Error(`missing attribute value in ${match[0]}`);
+            throw new Error(`attribute value in '${match[0]}' not found`);
         }
         attributes[captured(match, 1)] = value;
     }

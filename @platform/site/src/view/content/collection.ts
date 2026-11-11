@@ -280,7 +280,7 @@ function sectionEntries(page: RenderedPage, context: string): SearchEntry[] {
 /** Require a value the collection assembled. */
 function present<Value>(value: Value | undefined, route: string): Value {
     if (value === undefined) {
-        throw new Error(`incomplete page: ${route}`);
+        throw new Error(`page '${route}' is invalid: it is incomplete`);
     }
 
     return value;
@@ -370,7 +370,7 @@ function readDocumentSources() {
                     path.startsWith(`${directory}/`),
                 );
                 if (found.length === 0) {
-                    throw new Error(`missing documentation directory: ${directory}`);
+                    throw new Error(`documentation directory '${directory}' not found`);
                 }
 
                 return found.map((file) => {
@@ -382,7 +382,9 @@ function readDocumentSources() {
                     requireString(metadata, "title", file);
                     requireString(metadata, "description", file);
                     if (Object.hasOwn(metadata, "order")) {
-                        throw new Error(`documentation order belongs in the source path: ${file}`);
+                        throw new Error(
+                            `documentation '${file}' is invalid: its order must be in its source path`,
+                        );
                     }
 
                     // derive the public path and route from the numbered source path
@@ -430,7 +432,9 @@ function parseDocumentPath(path: string, file: string) {
             const extension = isLast ? ".md" : "";
             const match = DOCUMENT_SEGMENT_PATTERN.exec(isLast ? segment.slice(0, -3) : segment);
             if (match === null) {
-                throw new Error(`documentation path lacks a numeric prefix: ${file}`);
+                throw new Error(
+                    `documentation path '${file}' is invalid: it must start with a number`,
+                );
             }
             hierarchy.push(Number(match[1]));
             names.push(`${match[2] ?? ""}${extension}`);
@@ -473,18 +477,20 @@ function validateDocuments(
     for (const document of pages) {
         // require a public path and a hierarchy of its own
         if (!DOCUMENT_PATH_PATTERN.test(document.path)) {
-            throw new Error(`invalid documentation path: ${document.path}`);
+            throw new Error(`documentation path '${document.path}' is invalid`);
         }
         const hierarchy = document.hierarchy.join(".");
         if (hierarchies.has(hierarchy)) {
-            throw new Error(`duplicate documentation hierarchy: ${hierarchy}`);
+            throw new Error(`documentation hierarchy '${hierarchy}' already exists`);
         }
         hierarchies.add(hierarchy);
 
         // require one H1 matching the title
         const titles = document.headings.filter((heading) => heading.depth === 1);
         if (titles.length !== 1 || titles[0]?.text !== document.title) {
-            throw new Error(`documentation title does not match its H1: ${document.path}`);
+            throw new Error(
+                `documentation '${document.path}' is invalid: its title must match its H1`,
+            );
         }
 
         // require an index in each directory above the page
@@ -492,7 +498,7 @@ function validateDocuments(
         for (let depth = 1; depth < segments.length; depth += 1) {
             const index = `${segments.slice(0, depth).join("/")}/index.md`;
             if (!paths.has(index)) {
-                throw new Error(`documentation directory is missing ${index}`);
+                throw new Error(`documentation directory ${index} not found`);
             }
         }
     }
@@ -540,7 +546,7 @@ function readPostSources() {
     // read each post directory's index in path order
     const blog = collections.find((collection) => collection.route === "/blog/")?.sources[0];
     if (blog === undefined) {
-        throw new Error("missing blog collection source");
+        throw new Error("blog collection source not found");
     }
     const directory = `/${blog.directory.replace(/^@platform\/site\//u, "")}`;
     const entries = Object.keys(SOURCES)
@@ -555,7 +561,7 @@ function readPostSources() {
             const { path } = parseDocumentPath(`${name}/index.md`, file);
             const slug = path.slice(0, -"/index.md".length);
             if (seen.has(slug)) {
-                throw new Error(`duplicate blog slug: ${slug}`);
+                throw new Error(`blog slug '${slug}' already exists`);
             }
             seen.add(slug);
 
@@ -593,7 +599,7 @@ function readPolicySources() {
     // read each policy below the legal collection's directory
     const legal = collections.find((collection) => collection.route === "/legal/")?.sources[0];
     if (legal === undefined) {
-        throw new Error("missing legal collection source");
+        throw new Error("legal collection source not found");
     }
     const directory = `/${legal.directory.replace(/^@platform\/site\//u, "")}`;
     const entries = Object.keys(SOURCES)
@@ -782,7 +788,7 @@ function buildNavigation(pages: DocumentationPage[]): void {
         const parentRoute = page.route.replace(/[^/]+\/$/u, "");
         const parent = page.route === "/docs/" ? undefined : byRoute.get(parentRoute);
         if (page.route !== "/docs/" && parent === undefined) {
-            throw new Error(`missing parent ${parentRoute} for ${page.route}`);
+            throw new Error(`parent '${parentRoute}' of '${page.route}' not found`);
         }
         if (parent !== undefined) {
             page.parent = parent;
@@ -800,7 +806,7 @@ function buildNavigation(pages: DocumentationPage[]): void {
         const collection = collectionAt(page.route);
         const root = collection === undefined ? undefined : byRoute.get(collection.route);
         if (root === undefined) {
-            throw new Error(`missing collection for ${page.route}`);
+            throw new Error(`collection of '${page.route}' not found`);
         }
         const ancestors = ancestorsOf(page);
         const chain = [...ancestors, page];

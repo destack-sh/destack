@@ -906,7 +906,7 @@ function tieredAt(amount: number, tiers: readonly Tier[]): number {
 export function workloadOf(tool: string): Workload {
     const workload = workloads[tool];
     if (workload === undefined) {
-        throw new Error(`no workload for ${tool}`);
+        throw new Error(`workload of '${tool}' not found`);
     }
 
     return workload;
@@ -934,7 +934,7 @@ export function usageCostOf(usage: Usage, rates: Rates): number {
 export function listedOf(subscription: string): string {
     const price = priceOf(subscription);
     if (price.kind !== "fee") {
-        throw new Error(`no list price for ${subscription}`);
+        throw new Error(`list price of '${subscription}' not found`);
     }
 
     return price.listed;
@@ -944,7 +944,7 @@ export function listedOf(subscription: string): string {
 export function priceOf(subscription: string): Price {
     const price = prices[subscription];
     if (price === undefined) {
-        throw new Error(`no price for ${subscription}`);
+        throw new Error(`price of '${subscription}' not found`);
     }
 
     return price;

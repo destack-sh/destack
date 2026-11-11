@@ -614,7 +614,7 @@ function pathOf(app: (typeof apps)[number]): string {
 function indexOf(label: string): number {
     const index = serviceLabels.indexOf(label);
     if (index === -1) {
-        throw new RangeError(`no service labelled ${label}`);
+        throw new RangeError(`service '${label}' not found`);
     }
 
     return index;
@@ -632,7 +632,7 @@ function accentAt(rented: readonly Service[], isOpenAt: Stagger, index: number):
 function wiringAt(index: number): string {
     const kind = wiring[index];
     if (kind === undefined) {
-        throw new RangeError(`no wiring at ${String(index)}`);
+        throw new RangeError(`wiring ${index} not found`);
     }
 
     return kind;

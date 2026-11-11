@@ -391,7 +391,7 @@ function featureOf(plan: Plan, topic: Topic): Feature | undefined {
 function currencyIn(value: string): Currency {
     const currency = currencies.find((each) => each === value);
     if (currency === undefined) {
-        throw new TypeError(`unknown currency ${value}`);
+        throw new TypeError(`currency '${value}' is not supported`);
     }
 
     return currency;
