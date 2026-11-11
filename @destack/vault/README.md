@@ -39,8 +39,9 @@ await Secret.text(pushKey.get(server.resources)); // in the package's server
 A stack declares its vaults and its secrets by vault and name, and an installation binds a declared secret to one at a fixed or the current version.
 
 ```ts
-export const personal = defineStack([vaultPackage], {
-    vaults: { push: pushVault.declare({ retention: { within: { days: 30 } } }) },
+export const personal = defineStack({
+    types: [vaultPackage],
+    vaults: { push: pushVault.provision({ retention: { within: { days: 30 } } }) },
     secrets: { github: { parent: "push", name: "github" } },
     installations: { site: install(site, { "github-token": { secret: "github", version: 2 } }) },
 });
