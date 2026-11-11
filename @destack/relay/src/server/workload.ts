@@ -216,7 +216,7 @@ async function openReplica(
     return new ObjectStore({
         blobs: new MemoryBlobStorage(context.environment.crypto),
         servers: [
-            implementPackage(relayPackage, { follows, adapters: { tunnels, names } }).at(server),
+            implementPackage(relayPackage, { follows, mounts: { tunnels, names } }).at(server),
         ],
         chain: async () => undefined,
         principal: principal.installation.reference(server.scope, server.installation),

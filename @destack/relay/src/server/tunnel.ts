@@ -19,8 +19,8 @@ import {
 } from "@destack/tunnel";
 import type { TunnelToken } from "./token.ts";
 
-/** The path below the relay package's mount of the calls between the root and each tunnel. */
-export const TUNNELS_PATH = relayPackage.adapters.tunnels.path;
+/** The path below the relay package's path of the calls between the root and each tunnel. */
+export const TUNNELS_PATH = relayPackage.mounts.tunnels.path;
 
 /** The header with a machine's accepted opening handshake. */
 export const HANDSHAKE_HEADER = "Destack-Handshake";
