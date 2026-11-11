@@ -643,10 +643,10 @@ export class Machine {
         const spaceId = schema.identifier("space").parse(found.id);
 
         // answer this machine's own space at its origin, named by a relay or not, another where it answers
-        const [placed] = await accountObject.Placement.find(this.directory.snapshot, [spaceId]);
+        const placed = await this.directory.placement(spaceId);
 
-        return placed?.machine === this.id
-            ? { placement: placed, url: this.origin }
+        return placed?.placement.machine === this.id
+            ? { ...placed, url: this.origin }
             : this.directory.locate(spaceId, this.clock.now());
     }
 
