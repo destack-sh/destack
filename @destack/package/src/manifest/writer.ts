@@ -321,11 +321,11 @@ export class BuildWriter {
         return manifest;
     }
 
-    /** Report whether an output's runtime loads a file: its code, the package.json or a catalog. */
+    /** Report whether an output's runtime loads a file: its code, its definitions or a catalog. */
     static #isLoaded(path: string, directory: string): boolean {
         const isOwn = path.startsWith(`${directory}/`) && !UNLOADED_PATTERN.test(path);
 
-        return isOwn || path === "package.json" || path.startsWith(`${CATALOG_DIRECTORY}/`);
+        return isOwn || DEFINITION_FILES.has(path) || path.startsWith(`${CATALOG_DIRECTORY}/`);
     }
 
     /** Report whether a file was written with these bytes, refusing other bytes at its path. */
