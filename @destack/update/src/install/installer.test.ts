@@ -67,9 +67,9 @@ test("recover interrupted activation and retain both distributions", async () =>
             }),
         );
         expect(await refusal(installer.recover())).toEqual([
-            "CONFLICT",
-            "DOWNGRADE_REFUSED",
-            "cannot activate an older or incompatible release",
+            "PRECONDITION_FAILED",
+            "RELEASE_BLOCKED",
+            "cannot activate the release: it is older or incompatible",
         ]);
         expect(await installer.current()).toEqual(second);
     } finally {
@@ -108,16 +108,16 @@ test("refuse a Mac activation without its application's absolute destination and
             [
                 "BAD_REQUEST",
                 "OPTIONS_INVALID",
-                "macOS releases require an application destination and identifier",
+                "macOS release option set is invalid: it must have an application destination and identifier",
             ],
             [
                 "BAD_REQUEST",
                 "OPTIONS_INVALID",
-                "macOS releases require an application destination and identifier",
+                "macOS release option set is invalid: it must have an application destination and identifier",
             ],
             [
                 "INTERNAL_SERVER_ERROR",
-                "RECORD_INVALID",
+                "RECORD_BROKEN",
                 "missing absolute application destination or identifier",
             ],
         ]);

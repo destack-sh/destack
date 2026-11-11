@@ -143,7 +143,7 @@ export class ShellPath {
     /** Read a startup file's text, absent for a missing file. */
     async #read(path: string): Promise<string | undefined> {
         return this.host.files.readTextFile(path).catch((error: unknown) => {
-            if (!FileSystemError.is(error, "NOT_FOUND")) {
+            if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 throw error;
             }
 
@@ -175,8 +175,8 @@ export class ShellPath {
         const [code, error] = await Promise.all([child.exited, new Response(child.stderr).text()]);
         if (code !== 0) {
             throw UpdateError.of(
-                "COMMAND_FAILED",
-                `${action} failed with status ${code}: ${error.trim()}`,
+                "COMMAND_BROKEN",
+                `'${action}' failed with status '${code}': '${error.trim()}'`,
             );
         }
     }

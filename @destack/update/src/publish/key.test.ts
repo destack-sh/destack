@@ -25,6 +25,6 @@ test("refuse an RSA signing key shorter than 2048 bits", async () => {
     expect(await refusal(() => readPublicKey(document))).toEqual([
         "BAD_REQUEST",
         "SIGNING_KEY_INVALID",
-        "RSA signing keys must contain at least 2048 bits",
+        "signing key is invalid: RSA keys must contain at least 2048 bits",
     ]);
 });

@@ -3,50 +3,54 @@ import type {} from "@destack/package/import-meta";
 
 /** The update package's failures, each reason with the call error code it answers. */
 export const UpdateError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    STAGE_UNKNOWN: { code: "BAD_REQUEST" },
-    ENVIRONMENT_INVALID: { code: "BAD_REQUEST" },
-    METADATA_INVALID: { code: "BAD_REQUEST" },
-    OPTIONS_INVALID: { code: "BAD_REQUEST" },
-    REPOSITORY_INVALID: { code: "BAD_REQUEST" },
-    SIGNING_KEY_INVALID: { code: "BAD_REQUEST" },
-    TARGET_UNSUPPORTED: { code: "BAD_REQUEST" },
-
     // not found
-    RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
+    BLOB_NOT_FOUND: {},
+    METADATA_NOT_FOUND: {},
+    RELEASE_NOT_FOUND: {},
+
+    // exists
+    RELEASE_EXISTS: {},
 
     // conflict
-    ALREADY_INSTALLED: { code: "CONFLICT" },
-    CACHE_MISMATCH: { code: "CONFLICT" },
-    DOWNGRADE_REFUSED: { code: "CONFLICT" },
-    INSTALLATION_CHANGED: { code: "CONFLICT" },
-    PLATFORM_CHANGED: { code: "CONFLICT" },
-    RELEASE_CHANGED: { code: "CONFLICT" },
-    TARGET_MISMATCH: { code: "CONFLICT" },
-    UPDATE_RUNNING: { code: "CONFLICT" },
+    INSTALLATION_CONFLICT: {},
+    RELEASE_CONFLICT: {},
+    UPDATE_CONFLICT: {},
 
-    // precondition failed
-    DESKTOP_UNAVAILABLE: { code: "PRECONDITION_FAILED" },
-    DEVELOPMENT_BUILD: { code: "PRECONDITION_FAILED" },
-    INSTALLATION_METHOD_MISMATCH: { code: "PRECONDITION_FAILED" },
-    INSTALLATION_MISMATCH: { code: "PRECONDITION_FAILED" },
+    // invalid
+    ENVIRONMENT_INVALID: {},
+    METADATA_INVALID: {},
+    OPTIONS_INVALID: {},
+    REPOSITORY_INVALID: {},
+    SIGNING_KEY_INVALID: {},
+    STAGE_INVALID: {},
+    TARGET_INVALID: {},
 
-    // internal server error
-    ACTIVATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    COMMAND_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    CLIENT_INCOMPATIBLE: { code: "INTERNAL_SERVER_ERROR" },
-    FILE_SYSTEM_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    INSTALL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    RECORD_INVALID: { code: "INTERNAL_SERVER_ERROR" },
+    // blocked
+    CACHE_BLOCKED: {},
+    DESKTOP_BLOCKED: {},
+    DEVELOPMENT_BUILD_BLOCKED: {},
+    INSTALLATION_BLOCKED: {},
+    INSTALLATION_METHOD_BLOCKED: {},
+    PLATFORM_BLOCKED: {},
+    RELEASE_BLOCKED: {},
+    TARGET_BLOCKED: {},
 
-    // bad gateway
-    DOWNLOAD_FAILED: { code: "BAD_GATEWAY" },
-    RELEASE_INVALID: { code: "BAD_GATEWAY" },
-    UNSAFE_MANIFEST: { code: "BAD_GATEWAY" },
-    VERIFICATION_FAILED: { code: "BAD_GATEWAY" },
+    // unavailable
+    SESSION_UNAVAILABLE: {},
 
-    // service unavailable
-    SESSION_CLOSED: { code: "SERVICE_UNAVAILABLE" },
+    // unreachable
+    DOWNLOAD_UNREACHABLE: {},
+
+    // broken
+    ACTIVATION_BROKEN: {},
+    CLIENT_BROKEN: {},
+    COMMAND_BROKEN: {},
+    FILE_SYSTEM_BROKEN: {},
+    INSTALL_BROKEN: {},
+    MANIFEST_BROKEN: {},
+    RECORD_BROKEN: {},
+    RELEASE_BROKEN: {},
+    VERIFICATION_BROKEN: {},
 });
 
 /** A stable cause of update failures. */

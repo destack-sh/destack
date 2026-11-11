@@ -141,8 +141,8 @@ export class Distribution {
         const current = await this.record();
         if (current !== undefined && current.method !== record.method) {
             throw UpdateError.of(
-                "INSTALLATION_METHOD_MISMATCH",
-                "uninstall the existing installation before changing its method",
+                "INSTALLATION_METHOD_BLOCKED",
+                "cannot change the installation method: uninstall the existing installation first",
             );
         }
 
@@ -266,13 +266,13 @@ export class Distribution {
             executable === command;
         if (!isMatching) {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "native installation descriptor does not match this executable",
+                "INSTALLATION_BLOCKED",
+                "cannot install natively: the installation descriptor does not match this executable",
             );
         } else if (/[\r\n"]/u.test(executable)) {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "native installation path contains unsupported command characters",
+                "INSTALLATION_BLOCKED",
+                "cannot install natively: the installation path contains unsupported command characters",
             );
         }
 
@@ -284,8 +284,8 @@ export class Distribution {
         // require this executable to be a native package's
         if ((await Distribution.native(this.options.environment)) === undefined) {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "native removal requires the Windows package executable",
+                "INSTALLATION_BLOCKED",
+                "cannot remove natively: removal requires the Windows package executable",
             );
         }
 
@@ -295,16 +295,16 @@ export class Distribution {
             record === undefined ? undefined : join(record.application, WINDOWS_COMMAND);
         if (record !== undefined && record.method !== "nsis") {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "native removal cannot remove a different installation method",
+                "INSTALLATION_BLOCKED",
+                "cannot remove natively: removal cannot remove a different installation method",
             );
         } else if (
             command !== undefined &&
             (await files.realPath(process.executable)) !== (await files.realPath(command))
         ) {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "native removal must run from the registered installation",
+                "INSTALLATION_BLOCKED",
+                "cannot remove natively: removal must run from the registered installation",
             );
         }
     }
@@ -314,8 +314,8 @@ export class Distribution {
         // refuse privileged installation, leaving dependency installation to the person
         if (process.userId === 0) {
             throw UpdateError.of(
-                "INSTALLATION_MISMATCH",
-                "install Destack as your regular user, without sudo",
+                "INSTALLATION_BLOCKED",
+                "cannot install: install Destack as your regular user, without sudo",
             );
         }
 
@@ -323,8 +323,8 @@ export class Distribution {
         for (const library of DESKTOP_LIBRARIES) {
             if (!(await process.hasLibrary(library))) {
                 throw UpdateError.of(
-                    "DESKTOP_UNAVAILABLE",
-                    `desktop dependency ${library} is unavailable; run ${Distribution.#dependencyCommand(process)}`,
+                    "DESKTOP_BLOCKED",
+                    `cannot start the desktop: dependency '${library}' is missing, so run '${Distribution.#dependencyCommand(process)}'`,
                 );
             }
         }
@@ -340,7 +340,7 @@ export class Distribution {
         // validate persisted registration before using it for installation operations
         const record = DistributionRecord.safeParse(value);
         if (!record.success || !isAbsolute(record.data.application)) {
-            throw UpdateError.of("RECORD_INVALID", "invalid application registration");
+            throw UpdateError.of("RECORD_BROKEN", "application registration does not parse");
         }
 
         return record.data;
@@ -386,7 +386,7 @@ export class Distribution {
         await files
             .link(join(release, "bin", "destack"), join(bin, stage.command))
             .catch((error: unknown) => {
-                if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+                if (!FileSystemError.is(error, "FILE_EXISTS")) {
                     throw error;
                 }
             });
@@ -400,7 +400,7 @@ export class Distribution {
         if (!isAbsolute(launcher) || /[\r\n]/u.test(launcher)) {
             throw UpdateError.of(
                 "ENVIRONMENT_INVALID",
-                "desktop launcher must be an absolute single-line path",
+                "desktop launcher is invalid: it must be an absolute single-line path",
             );
         }
 
@@ -438,7 +438,7 @@ export class Distribution {
         if (!isAbsolute(directory) || /[\r\n]/u.test(directory)) {
             throw UpdateError.of(
                 "ENVIRONMENT_INVALID",
-                "XDG_DATA_HOME must be an absolute single-line path",
+                "XDG_DATA_HOME is invalid: it must be an absolute single-line path",
             );
         }
 
@@ -478,8 +478,8 @@ export class Distribution {
                 system.symbols.statvfs(new TextEncoder().encode(application + "\0"), status) !== 0
             ) {
                 throw UpdateError.of(
-                    "FILE_SYSTEM_FAILED",
-                    `cannot read the filesystem status of ${application}`,
+                    "FILE_SYSTEM_BROKEN",
+                    `cannot read the filesystem status of '${application}'`,
                 );
             }
             const flag = new DataView(status.buffer).getBigUint64(STATVFS_FLAG_OFFSET, true);
@@ -600,8 +600,8 @@ export class Distribution {
         // refuse a development build, which takes no published updates
         if (this.options.stage.name === "local") {
             throw UpdateError.of(
-                "DEVELOPMENT_BUILD",
-                "development builds cannot take published updates",
+                "DEVELOPMENT_BUILD_BLOCKED",
+                "cannot update: development builds cannot take published updates",
             );
         }
 
@@ -625,13 +625,13 @@ export class Distribution {
             const locked = await this.record();
             if (JSON.stringify(locked) !== JSON.stringify(registration)) {
                 throw UpdateError.of(
-                    "INSTALLATION_CHANGED",
-                    "installation changed; retry the operation",
+                    "INSTALLATION_CONFLICT",
+                    "cannot update the installation: it changed, so retry the operation",
                 );
             } else if (running.target.includes("windows") && registration?.method !== "nsis") {
                 throw UpdateError.of(
-                    "INSTALLATION_METHOD_MISMATCH",
-                    "install Destack using Setup.exe before updating",
+                    "INSTALLATION_METHOD_BLOCKED",
+                    "cannot update: install Destack using Setup.exe first",
                 );
             }
 

@@ -76,7 +76,10 @@ export function serveDistributions(host: DistributionHost | undefined) {
                     // require a staged release
                     const staged = await requireHost(host).distribution.staged();
                     if (staged === undefined) {
-                        throw UpdateError.of("RELEASE_NOT_FOUND", "no Destack release is staged");
+                        throw UpdateError.of(
+                            "RELEASE_NOT_FOUND",
+                            "staged Destack release not found",
+                        );
                     }
 
                     return staged.release.version;
@@ -124,8 +127,8 @@ async function stage(reconciliation: ObjectReconciliation<typeof distribution>):
 function requireHost(host: DistributionHost | undefined): DistributionHost {
     if (host === undefined) {
         throw UpdateError.of(
-            "DEVELOPMENT_BUILD",
-            "development builds cannot take published updates",
+            "DEVELOPMENT_BUILD_BLOCKED",
+            "cannot update: development builds cannot take published updates",
         );
     }
 

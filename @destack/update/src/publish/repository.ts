@@ -107,7 +107,7 @@ async function readRepository(
             if (!isDeepStrictEqual(next.signed.toJSON(), root.signed.toJSON())) {
                 throw UpdateError.of(
                     "METADATA_INVALID",
-                    "published root differs from the trusted root",
+                    "published root is invalid: it differs from the trusted root",
                 );
             }
         }
@@ -138,7 +138,10 @@ async function readRepository(
     root.verifyDelegate("snapshot", snapshot);
     const targetsReference = snapshot.signed.meta["targets.json"];
     if (!targetsReference || snapshot.signed.version !== snapshotReference.version) {
-        throw UpdateError.of("METADATA_INVALID", "snapshot does not match its signed reference");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "snapshot is invalid: it does not match its signed reference",
+        );
     }
     const targetsBytes = Buffer.from(
         await files.readFile(join(metadata, `${targetsReference.version}.targets.json`)),
@@ -152,10 +155,16 @@ async function readRepository(
     );
     root.verifyDelegate("targets", targets);
     if (targets.signed.version !== targetsReference.version) {
-        throw UpdateError.of("METADATA_INVALID", "targets do not match their signed reference");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "target metadata is invalid: it does not match its signed reference",
+        );
     }
     if ([root, timestamp, snapshot, targets].some((document) => document.signed.isExpired())) {
-        throw UpdateError.of("METADATA_INVALID", "cannot publish expired release metadata");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "release metadata is invalid: expired metadata cannot publish",
+        );
     }
 
     return { root, timestamp, snapshot, targets };
@@ -171,10 +180,16 @@ async function createRepository(
     environment: Environment<"files">,
 ): Promise<Metadata<Targets>> {
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw UpdateError.of("METADATA_INVALID", "invalid metadata revision");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "metadata revision is invalid: it must be a positive safe integer",
+        );
     }
     if (distributions.length === 0) {
-        throw UpdateError.of("METADATA_INVALID", "no distributions selected");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "distribution selection is invalid: no distributions are selected",
+        );
     }
     // prepare the signed repository directories
     const { clock, files } = environment;
@@ -203,7 +218,10 @@ async function createRepository(
         const format = distribution.kind === "release" ? "json" : distribution.format;
         const path = `${distribution.target}.${format}`;
         if (Object.hasOwn(targets.signed.targets, path)) {
-            throw UpdateError.of("METADATA_INVALID", `duplicate target: ${path}`);
+            throw UpdateError.of(
+                "METADATA_INVALID",
+                `target '${path}' is invalid: it is a duplicate`,
+            );
         }
         const source =
             distribution.kind === "release"
@@ -260,7 +278,7 @@ async function writeToolchain(
     if (!read.hasSameFiles(toolchain.manifest)) {
         throw UpdateError.of(
             "METADATA_INVALID",
-            `the toolchain's files differ from its manifest: ${toolchain.directory}`,
+            `toolchain '${toolchain.directory}' is invalid: its files differ from its manifest`,
         );
     }
 
@@ -360,11 +378,14 @@ async function renewMetadata(
     if (root.signed.isExpired() || targets.signed.isExpired()) {
         throw UpdateError.of(
             "METADATA_INVALID",
-            "root and targets must be renewed before freshness metadata",
+            "freshness metadata is invalid: root and targets must be renewed first",
         );
     }
     if (!Number.isSafeInteger(revision) || revision < 1) {
-        throw UpdateError.of("METADATA_INVALID", "invalid metadata revision");
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            "metadata revision is invalid: it must be a positive safe integer",
+        );
     }
 
     // retain the exact document authenticated by the previous repository

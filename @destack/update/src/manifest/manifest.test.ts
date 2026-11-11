@@ -12,31 +12,31 @@ test.each([
         name: "parent path",
         files: [file("../outside")],
         links: [],
-        message: "unsafe manifest path: ../outside",
+        message: "could not read unsafe manifest path '../outside'",
     },
     {
         name: "absolute path",
         files: [file("/outside")],
         links: [],
-        message: "unsafe manifest path: /outside",
+        message: "could not read unsafe manifest path '/outside'",
     },
     {
         name: "drive path",
         files: [file("C:/outside")],
         links: [],
-        message: "unsafe manifest path: C:/outside",
+        message: "could not read unsafe manifest path 'C:/outside'",
     },
     {
         name: "relative link",
         files: [],
         links: [{ path: "bin/escape", target: "../../outside" }],
-        message: "manifest link escapes its directory: bin/escape",
+        message: "could not read manifest link 'bin/escape': it escapes its directory",
     },
     {
         name: "absolute link",
         files: [],
         links: [{ path: "escape", target: "/outside" }],
-        message: "manifest link escapes its directory: escape",
+        message: "could not read manifest link 'escape': it escapes its directory",
     },
 ])("refuse a manifest with a $name before writing any file", async ({ files, links, message }) => {
     // parse the signed encoding of an unsafe manifest
@@ -45,7 +45,7 @@ test.each([
     );
 
     // refuse it as unsafe, naming the offending entry
-    expect(await parsed).toEqual(["BAD_GATEWAY", "UNSAFE_MANIFEST", message]);
+    expect(await parsed).toEqual(["INTERNAL_SERVER_ERROR", "MANIFEST_BROKEN", message]);
 });
 
 test("encode a manifest one way whatever order its entries come in", () => {

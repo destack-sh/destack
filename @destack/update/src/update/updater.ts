@@ -44,7 +44,10 @@ export class Updater implements AsyncDisposable {
     static async open(options: UpdaterOptions): Promise<Updater> {
         // reject inconsistent installation inputs before opening or recovering state
         if (!isAbsolute(options.directory)) {
-            throw UpdateError.of("OPTIONS_INVALID", "installation directory must be absolute");
+            throw UpdateError.of(
+                "OPTIONS_INVALID",
+                "installation directory is invalid: it must be absolute",
+            );
         }
         const isMac = options.target.endsWith("apple-darwin");
         if (
@@ -56,13 +59,13 @@ export class Updater implements AsyncDisposable {
         ) {
             throw UpdateError.of(
                 "OPTIONS_INVALID",
-                "macOS releases require an absolute application destination and identifier",
+                "macOS release option set is invalid: it must have an absolute application destination and identifier",
             );
         }
         if (options.current && options.current.target !== options.target) {
             throw UpdateError.of(
-                "TARGET_MISMATCH",
-                "running release does not match the installation target",
+                "TARGET_BLOCKED",
+                "cannot update: the running release does not match the installation target",
             );
         }
 
@@ -71,7 +74,10 @@ export class Updater implements AsyncDisposable {
         await files.mkdir(options.directory, { recursive: true, mode: 0o700 });
         const lock = await files.tryLock(`${options.directory}.lock`, "exclusive");
         if (!lock) {
-            throw UpdateError.of("UPDATE_RUNNING", "another Destack update is running");
+            throw UpdateError.of(
+                "UPDATE_CONFLICT",
+                "cannot update: another Destack update is running",
+            );
         }
         try {
             const repository = await UpdateRepository.open(
@@ -110,14 +116,20 @@ export class Updater implements AsyncDisposable {
         const installed = await this.installer.current();
         let current = installed?.release;
         if (current && current.target !== this.options.target) {
-            throw UpdateError.of("PLATFORM_CHANGED", "cannot change the installed platform");
+            throw UpdateError.of(
+                "PLATFORM_BLOCKED",
+                "cannot update: the installed platform cannot change",
+            );
         }
         if (
             installed &&
             latest.compare(installed.release) === 0 &&
             this.repository.digest(latest) !== installed.sha256
         ) {
-            throw UpdateError.of("RELEASE_CHANGED", "published release changed");
+            throw UpdateError.of(
+                "RELEASE_CONFLICT",
+                "cannot update: the published release changed",
+            );
         }
 
         // include a running distribution opened directly from a downloaded application
@@ -126,8 +138,8 @@ export class Updater implements AsyncDisposable {
         }
         if (current && latest.compare(current) < 0) {
             throw UpdateError.of(
-                "DOWNGRADE_REFUSED",
-                "published release is older than the installed version",
+                "RELEASE_BLOCKED",
+                "cannot update: the published release is older than the installed version",
             );
         }
 
@@ -142,14 +154,14 @@ export class Updater implements AsyncDisposable {
         using operation = this.begin();
         if (download.release.target !== this.options.target) {
             throw UpdateError.of(
-                "TARGET_MISMATCH",
-                "downloaded release does not match the installation target",
+                "TARGET_BLOCKED",
+                "cannot update: the downloaded release does not match the installation target",
             );
         }
         if (this.options.current && download.release.compare(this.options.current) < 0) {
             throw UpdateError.of(
-                "DOWNGRADE_REFUSED",
-                "cannot stage a release older than the running version",
+                "RELEASE_BLOCKED",
+                "cannot stage the release: it is older than the running version",
             );
         }
 
@@ -177,8 +189,8 @@ export class Updater implements AsyncDisposable {
         using operation = this.begin();
         if (this.options.current && staged.release.compare(this.options.current) < 0) {
             throw UpdateError.of(
-                "DOWNGRADE_REFUSED",
-                "cannot activate a release older than the running version",
+                "RELEASE_BLOCKED",
+                "cannot activate the release: it is older than the running version",
             );
         }
 
@@ -190,13 +202,16 @@ export class Updater implements AsyncDisposable {
             this.repository.digest(latest) !== staged.sha256
         ) {
             throw UpdateError.of(
-                "RELEASE_CHANGED",
-                "staged release is no longer the published release",
+                "RELEASE_CONFLICT",
+                "cannot activate the release: the staged release is no longer the published release",
             );
         }
         const current = await this.installer.current();
         if (current?.sha256 !== staged.previous && current?.sha256 !== staged.sha256) {
-            throw UpdateError.of("INSTALLATION_CHANGED", "installation changed after staging");
+            throw UpdateError.of(
+                "INSTALLATION_CONFLICT",
+                "cannot activate the release: the installation changed after staging",
+            );
         }
 
         // check the staged release out again from the installed and staged files, verified
@@ -224,10 +239,16 @@ export class Updater implements AsyncDisposable {
     /** Serialize operations and retain the lock until in-progress work finishes. */
     private begin(): Disposable {
         if (this.isClosed) {
-            throw UpdateError.of("SESSION_CLOSED", "update session is closed");
+            throw UpdateError.of(
+                "SESSION_UNAVAILABLE",
+                "update session is unavailable: it is closed",
+            );
         }
         if (this.operation) {
-            throw UpdateError.of("UPDATE_RUNNING", "an update operation is already running");
+            throw UpdateError.of(
+                "UPDATE_CONFLICT",
+                "cannot update: an update operation is already running",
+            );
         }
         const operation = Promise.withResolvers<void>();
         this.operation = operation;
@@ -284,8 +305,8 @@ async function verifyRelease(
     ]);
     if (exit !== 0) {
         throw UpdateError.of(
-            "VERIFICATION_FAILED",
-            `downloaded CLI exited with ${exit}: ${stderr.trim()}`,
+            "VERIFICATION_BROKEN",
+            `could not verify the downloaded CLI: it exited with '${exit}': '${stderr.trim()}'`,
         );
     }
 
@@ -293,12 +314,15 @@ async function verifyRelease(
     const report = VersionReport.safeParse(JSON.parse(stdout));
     if (!report.success || report.data.version !== release.version) {
         throw UpdateError.of(
-            "VERIFICATION_FAILED",
-            "downloaded CLI version does not match the signed release",
+            "VERIFICATION_BROKEN",
+            "could not verify the downloaded CLI: its version does not match the signed release",
         );
     }
     const desktop = release.target.endsWith("apple-darwin") ? "Destack.app" : "Destack";
     if ((await files.stat(join(directory, desktop))).kind !== "directory") {
-        throw UpdateError.of("VERIFICATION_FAILED", "downloaded desktop is missing");
+        throw UpdateError.of(
+            "VERIFICATION_BROKEN",
+            "could not verify the downloaded desktop: it is missing",
+        );
     }
 }

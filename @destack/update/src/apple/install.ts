@@ -40,7 +40,7 @@ async function replaceApplication(
             new Response(copy.stderr).text(),
         ]);
         if (copyCode !== 0) {
-            throw UpdateError.of("INSTALL_FAILED", copyError);
+            throw UpdateError.of("INSTALL_BROKEN", copyError);
         }
         await verifyApplication(pending, identifier, environment);
 
@@ -49,7 +49,7 @@ async function replaceApplication(
             () => true,
             (error: unknown) => {
                 // read a missing destination as a first installation
-                if (!FileSystemError.is(error, "NOT_FOUND")) {
+                if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
                     throw error;
                 }
 
@@ -71,8 +71,8 @@ async function replaceApplication(
                     ) !== 0
                 ) {
                     throw UpdateError.of(
-                        "INSTALL_FAILED",
-                        `cannot replace ${destination}: check directory permissions`,
+                        "INSTALL_BROKEN",
+                        `cannot replace '${destination}': check directory permissions`,
                     );
                 }
             } finally {
@@ -110,8 +110,8 @@ export async function verifyApplication(
     ]);
     if (identifierCode !== 0 || name.trim() !== expectedIdentifier) {
         throw UpdateError.of(
-            "VERIFICATION_FAILED",
-            `application identifier does not match ${expectedIdentifier}: ${application}`,
+            "VERIFICATION_BROKEN",
+            `could not verify application '${application}': its identifier must be '${expectedIdentifier}'`,
         );
     }
     const signature = host.spawn(
@@ -126,6 +126,6 @@ export async function verifyApplication(
         new Response(signature.stderr).text(),
     ]);
     if (signatureCode !== 0) {
-        throw UpdateError.of("VERIFICATION_FAILED", signatureError);
+        throw UpdateError.of("VERIFICATION_BROKEN", signatureError);
     }
 }

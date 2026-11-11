@@ -48,8 +48,8 @@ export class Release {
         const target = Target.safeParse(`${ARCHITECTURES[architecture]}-${SYSTEMS[platform]}`);
         if (!target.success) {
             throw UpdateError.of(
-                "TARGET_UNSUPPORTED",
-                `unsupported target: ${platform}/${architecture}`,
+                "TARGET_INVALID",
+                `target '${platform}/${architecture}' is invalid: it is not supported`,
             );
         }
 
@@ -81,11 +81,14 @@ export class Release {
         // validate the public release identity before selecting its platform
         const parsedVersion = Version.safeParse(version);
         if (!parsedVersion.success) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release version");
+            throw UpdateError.of("RELEASE_BROKEN", "could not read the release version");
         }
         const parsedTarget = Target.safeParse(target);
         if (!parsedTarget.success) {
-            throw UpdateError.of("TARGET_UNSUPPORTED", `unsupported target: ${target}`);
+            throw UpdateError.of(
+                "TARGET_INVALID",
+                `target '${target}' is invalid: it is not supported`,
+            );
         }
         this.version = parsedVersion.data;
         this.target = parsedTarget.data;

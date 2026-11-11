@@ -82,7 +82,7 @@ export class SigningKey {
         // generate an extractable pair, then import its private key as a PEM document
         const pair = await crypto.generateKey(SCHEMES[scheme].generate, true, ["sign", "verify"]);
         if (!("privateKey" in pair)) {
-            throw new TypeError(`${scheme} generation returned no key pair`);
+            throw new TypeError(`'${scheme}' generation returned no key pair`);
         }
         const der = await crypto.exportKey("pkcs8", pair.privateKey);
 
@@ -107,7 +107,10 @@ export class SigningKey {
 /** Read the signature scheme a public key declares. */
 function schemeOf(key: Key): SigningScheme {
     if (key.scheme !== "ed25519" && key.scheme !== "rsassa-pss-sha256") {
-        throw UpdateError.of("SIGNING_KEY_INVALID", `unsupported signing scheme ${key.scheme}`);
+        throw UpdateError.of(
+            "SIGNING_KEY_INVALID",
+            `signing scheme '${key.scheme}' is invalid: it is not supported`,
+        );
     }
 
     return key.scheme;
@@ -131,7 +134,10 @@ export function readPublicKey(document: string): Key {
     if (key.asymmetricKeyType === "ed25519") {
         const jwk = key.export({ format: "jwk" });
         if (jwk.x === undefined || jwk.x === "") {
-            throw UpdateError.of("SIGNING_KEY_INVALID", "missing Ed25519 public key");
+            throw UpdateError.of(
+                "SIGNING_KEY_INVALID",
+                "signing key is invalid: its Ed25519 public key is missing",
+            );
         }
         const bytes = Buffer.from(jwk.x, "base64url");
 
@@ -148,7 +154,7 @@ export function readPublicKey(document: string): Key {
         if (modulusLength === undefined || modulusLength < 2048) {
             throw UpdateError.of(
                 "SIGNING_KEY_INVALID",
-                "RSA signing keys must contain at least 2048 bits",
+                "signing key is invalid: RSA keys must contain at least 2048 bits",
             );
         }
         const bytes = key.export({ format: "der", type: "spki" });
@@ -160,6 +166,9 @@ export function readPublicKey(document: string): Key {
             keyVal: { public: key.export({ format: "pem", type: "spki" }) },
         });
     } else {
-        throw UpdateError.of("SIGNING_KEY_INVALID", "unsupported signing key algorithm");
+        throw UpdateError.of(
+            "SIGNING_KEY_INVALID",
+            "signing key is invalid: its algorithm is not supported",
+        );
     }
 }

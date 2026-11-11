@@ -200,7 +200,7 @@ test("publish a toolchain's files as blobs and no target, refusing files its man
             refused: [
                 "BAD_REQUEST",
                 "METADATA_INVALID",
-                `the toolchain's files differ from its manifest: ${toolchain}`,
+                `toolchain '${toolchain}' is invalid: its files differ from its manifest`,
             ],
         });
     } finally {

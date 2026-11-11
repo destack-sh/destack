@@ -77,16 +77,16 @@ test("retain staging across sessions and reject concurrent or stale activation",
         await using updater = await Updater.open(options);
         expect(await refusal(Updater.open(options))).toEqual([
             "CONFLICT",
-            "UPDATE_RUNNING",
-            "another Destack update is running",
+            "UPDATE_CONFLICT",
+            "cannot update: another Destack update is running",
         ]);
 
         // serialize operations within the same session
         const checking = updater.check();
         expect(await refusal(updater.check())).toEqual([
             "CONFLICT",
-            "UPDATE_RUNNING",
-            "an update operation is already running",
+            "UPDATE_CONFLICT",
+            "cannot update: an update operation is already running",
         ]);
         const update = await checking;
         expect(update?.release).toEqual(new Release("2026.9.1", target));
@@ -112,9 +112,9 @@ test("retain staging across sessions and reject concurrent or stale activation",
         });
         const staged = await readStaged(updater);
         expect(await refusal(updater.activate(staged))).toEqual([
-            "CONFLICT",
-            "DOWNGRADE_REFUSED",
-            "cannot activate a release older than the running version",
+            "PRECONDITION_FAILED",
+            "RELEASE_BLOCKED",
+            "cannot activate the release: it is older than the running version",
         ]);
         expect(await updater.current()).toBeUndefined();
         expect(await updater.staged()).toEqual(staged);
@@ -193,7 +193,11 @@ test("retry cancelled downloads, refuse a tampered blob, and fetch a tampered do
         current: await updater.current(),
         isDownloadKept: await environment.files.exists(download.directory),
     }).toEqual({
-        tampered: ["BAD_GATEWAY", "VERIFICATION_FAILED", "blob digest mismatch: Destack/desktop"],
+        tampered: [
+            "INTERNAL_SERVER_ERROR",
+            "VERIFICATION_BROKEN",
+            "could not verify blob 'Destack/desktop': its digest does not match",
+        ],
         progress: { received: length, total: length },
         desktop,
         staged,
@@ -346,9 +350,9 @@ test("preserve the installed release when signed replacements contradict its ide
         const update = await checkUpdate(updater);
         const download = await update.download();
         expect(await refusal(updater.stage(download))).toEqual([
-            "BAD_GATEWAY",
-            "VERIFICATION_FAILED",
-            "downloaded CLI version does not match the signed release",
+            "INTERNAL_SERVER_ERROR",
+            "VERIFICATION_BROKEN",
+            "could not verify the downloaded CLI: its version does not match the signed release",
         ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
@@ -379,8 +383,8 @@ test("preserve the installed release when signed replacements contradict its ide
         await using updater = await Updater.open(options);
         expect(await refusal(updater.check())).toEqual([
             "CONFLICT",
-            "RELEASE_CHANGED",
-            "published release changed",
+            "RELEASE_CONFLICT",
+            "cannot update: the published release changed",
         ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
@@ -398,9 +402,9 @@ test("preserve the installed release when signed replacements contradict its ide
     {
         await using updater = await Updater.open(options);
         expect(await refusal(updater.check())).toEqual([
-            "BAD_GATEWAY",
-            "RELEASE_INVALID",
-            "the feed publishes dev build 2026.9.2-dev.1",
+            "INTERNAL_SERVER_ERROR",
+            "RELEASE_BROKEN",
+            "could not use dev build '2026.9.2-dev.1' from the feed",
         ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();

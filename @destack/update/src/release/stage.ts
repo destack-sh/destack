@@ -33,7 +33,7 @@ export class Stage {
     static of(name: string | undefined): Stage {
         const found = NAMES.find((candidate) => candidate === name);
         if (found === undefined) {
-            throw UpdateError.of("STAGE_UNKNOWN", `unknown stage ${name}`);
+            throw UpdateError.of("STAGE_INVALID", `stage '${name}' is invalid: it is unknown`);
         }
 
         return new Stage(found);

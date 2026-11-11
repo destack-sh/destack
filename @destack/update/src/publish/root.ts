@@ -45,7 +45,7 @@ function createRoot(
     ) {
         throw UpdateError.of(
             "METADATA_INVALID",
-            "root requires three independent keys and three distinct online keys",
+            "root is invalid: it must have three independent keys and three distinct online keys",
         );
     }
     if (
@@ -56,7 +56,7 @@ function createRoot(
     ) {
         throw UpdateError.of(
             "METADATA_INVALID",
-            "root requires a positive version and future expiration",
+            "root is invalid: it must have a positive version and future expiration",
         );
     }
 
@@ -89,7 +89,7 @@ function createRoot(
 function verifyRoot(root: Metadata<Root>, previous?: Metadata<Root>): void {
     // require current authorization for completed signing ceremonies
     if (root.signed.isExpired()) {
-        throw UpdateError.of("METADATA_INVALID", "root has expired");
+        throw UpdateError.of("METADATA_INVALID", "root is invalid: it has expired");
     }
     authenticateRoot(root, previous);
 }
@@ -101,14 +101,17 @@ function authenticateRoot(root: Metadata<Root>, previous?: Metadata<Root>): void
     if (role?.threshold !== 2 || role.keyIDs.length !== 3 || new Set(role.keyIDs).size !== 3) {
         throw UpdateError.of(
             "METADATA_INVALID",
-            "root policy must require two of three independent keys",
+            "root policy is invalid: it must require two of three independent keys",
         );
     }
 
     // reject accidental gaps in the rotation history
     const version = previous ? previous.signed.version + 1 : 1;
     if (root.signed.version !== version) {
-        throw UpdateError.of("METADATA_INVALID", `expected root version ${version}`);
+        throw UpdateError.of(
+            "METADATA_INVALID",
+            `root is invalid: its version must be '${version}'`,
+        );
     }
 
     // require authorization from both the previous and replacement root key sets

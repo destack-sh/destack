@@ -1,5 +1,6 @@
 import { DownloadHTTPError } from "tuf-js/dist/error";
 import { Digest, Version } from "@destack/schema";
+import { CALL_ERROR_STATUSES } from "@destack/error";
 import { UpdateError } from "../error/error.ts";
 import { join } from "node:path";
 import { type TargetFile, Updater, type UpdaterOptions } from "tuf-js";
@@ -66,10 +67,16 @@ export class UpdateRepository {
         // permit plaintext only for local release verification
         const isLoopback = ["127.0.0.1", "[::1]", "localhost"].includes(url.hostname);
         if (url.protocol !== "https:" && !(url.protocol === "http:" && isLoopback)) {
-            throw UpdateError.of("REPOSITORY_INVALID", "update repositories require HTTPS");
+            throw UpdateError.of(
+                "REPOSITORY_INVALID",
+                "update repository is invalid: it must use HTTPS",
+            );
         }
         if (url.username || url.password || url.search || url.hash || !url.pathname.endsWith("/")) {
-            throw UpdateError.of("REPOSITORY_INVALID", "invalid update repository URL");
+            throw UpdateError.of(
+                "REPOSITORY_INVALID",
+                "update repository URL is invalid: it must parse as a URL",
+            );
         }
 
         // keep verified metadata across processes, safe to check then write under the installation lock
@@ -83,8 +90,8 @@ export class UpdateRepository {
         const isClaimed = !(await writeNew(files, source, url.href));
         if (isClaimed && (await files.readTextFile(source)) !== url.href) {
             throw UpdateError.of(
-                "CACHE_MISMATCH",
-                "update cache belongs to a different repository",
+                "CACHE_BLOCKED",
+                "cannot use the update cache: it belongs to a different repository",
             );
         }
 
@@ -98,12 +105,32 @@ export class UpdateRepository {
             return error;
         }
 
-        // refuse a failed download, else metadata that fails to verify, with TUF's reason
+        // refuse missing metadata
         const message = error instanceof Error ? error.message : String(error);
-        const reason =
-            error instanceof DownloadHTTPError ? "DOWNLOAD_FAILED" : "VERIFICATION_FAILED";
-
-        return UpdateError.of(reason, `metadata refresh failed: ${message}`, { cause: error });
+        if (
+            error instanceof DownloadHTTPError &&
+            error.statusCode === CALL_ERROR_STATUSES.NOT_FOUND
+        ) {
+            return UpdateError.of("METADATA_NOT_FOUND", `metadata not found: ${message}`, {
+                cause: error,
+            });
+        }
+        // refuse a download the repository failed to answer
+        else if (error instanceof DownloadHTTPError) {
+            return UpdateError.of(
+                "DOWNLOAD_UNREACHABLE",
+                `could not download metadata: ${message}`,
+                {
+                    cause: error,
+                },
+            );
+        }
+        // refuse metadata that fails to verify, with TUF's reason
+        else {
+            return UpdateError.of("VERIFICATION_BROKEN", `could not verify metadata: ${message}`, {
+                cause: error,
+            });
+        }
     }
 
     /** Open a TUF client fetching through a fetcher, its update fixed at the environment's now. */
@@ -112,7 +139,7 @@ export class UpdateRepository {
         const updater = new Updater({ ...this.locations, fetcher });
         const trusted: unknown = Reflect.get(updater, "trustedSet");
         if (typeof trusted !== "object" || trusted === null || !("referenceTime" in trusted)) {
-            throw UpdateError.of("CLIENT_INCOMPATIBLE", "tuf-js keeps no update start time");
+            throw UpdateError.of("CLIENT_BROKEN", "tuf-js keeps no update start time");
         }
         Reflect.set(trusted, "referenceTime", new Date(this.environment.clock.now()));
 
@@ -128,28 +155,34 @@ export class UpdateRepository {
         });
         const artifact = await updater.getTargetInfo(`${target}.json`);
         if (!artifact) {
-            throw UpdateError.of("RELEASE_NOT_FOUND", `no published release for ${target}`);
+            throw UpdateError.of(
+                "RELEASE_NOT_FOUND",
+                `published release for '${target}' not found`,
+            );
         }
 
         // read the signed release identity
         const custom = TargetCustom.safeParse(artifact.custom);
         if (!custom.success) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release metadata");
+            throw UpdateError.of("RELEASE_BROKEN", "could not read the release metadata");
         }
 
         // refuse a dev build, which no feed publishes
         const release = new Release(custom.data.version, target);
         if (Version.isPrerelease(release.version)) {
             throw UpdateError.of(
-                "RELEASE_INVALID",
-                `the feed publishes dev build ${release.version}`,
+                "RELEASE_BROKEN",
+                `could not use dev build '${release.version}' from the feed`,
             );
         }
 
         // retain the exact signed target even if the repository publishes another release
         const previous = this.selected.get(release.directory);
         if (previous && !previous.equals(artifact)) {
-            throw UpdateError.of("RELEASE_CHANGED", "published release changed");
+            throw UpdateError.of(
+                "RELEASE_CONFLICT",
+                "cannot update: the published release changed",
+            );
         }
         this.selected.set(release.directory, artifact);
 
@@ -162,7 +195,7 @@ export class UpdateRepository {
         const artifact = this.selected.get(release.directory);
         const digest = Digest.safeParse(artifact?.hashes["sha256"]);
         if (!digest.success) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release manifest digest");
+            throw UpdateError.of("RELEASE_BROKEN", "could not read the release manifest digest");
         }
 
         return digest.data;
@@ -178,11 +211,14 @@ export class UpdateRepository {
         options.signal?.throwIfAborted();
         const artifact = this.selected.get(release.directory);
         if (!artifact || artifact.custom["version"] !== release.version) {
-            throw UpdateError.of("RELEASE_CHANGED", "release changed after selection");
+            throw UpdateError.of(
+                "RELEASE_CONFLICT",
+                "cannot update: the release changed after selection",
+            );
         }
         const sha256 = Digest.safeParse(artifact.hashes["sha256"]);
         if (artifact.length > MANIFEST_MAX_BYTES || !sha256.success) {
-            throw UpdateError.of("RELEASE_INVALID", "invalid release manifest metadata");
+            throw UpdateError.of("RELEASE_BROKEN", "could not read the release manifest metadata");
         }
 
         // authenticate the manifest by its signed length and hashes, reading a cached copy first
@@ -226,7 +262,7 @@ async function writeNew(files: FileSystem, path: string, text: string): Promise<
 
         return true;
     } catch (error) {
-        if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+        if (!FileSystemError.is(error, "FILE_EXISTS")) {
             throw error;
         }
 

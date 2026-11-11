@@ -109,7 +109,9 @@ export class TestUpdate implements AsyncDisposable {
         return await files.readFile(path).then(
             (bytes) => new Response(bytes.slice()),
             (error: unknown) =>
-                new Response(null, { status: FileSystemError.is(error, "NOT_FOUND") ? 404 : 500 }),
+                new Response(null, {
+                    status: FileSystemError.is(error, "FILE_NOT_FOUND") ? 404 : 500,
+                }),
         );
     }
 
@@ -152,7 +154,7 @@ export class TestUpdate implements AsyncDisposable {
             ])
             .output();
         if (code !== 0) {
-            throw new Error(`cannot compile update fixture: ${new TextDecoder().decode(stderr)}`);
+            throw new Error(`cannot compile update fixture: '${new TextDecoder().decode(stderr)}'`);
         }
     }
 

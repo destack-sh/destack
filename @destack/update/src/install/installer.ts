@@ -82,8 +82,8 @@ export class Installer {
         const lock = await files.tryLock(`${this.directory}.lock`, "exclusive");
         if (!lock) {
             throw UpdateError.of(
-                "UPDATE_RUNNING",
-                "another Destack installation operation is running",
+                "UPDATE_CONFLICT",
+                "cannot install: another Destack installation operation is running",
             );
         }
 
@@ -113,7 +113,7 @@ export class Installer {
         // validate persisted identifiers before constructing installation paths
         const record = StagedRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw UpdateError.of("RECORD_INVALID", "invalid staged release record");
+            throw UpdateError.of("RECORD_BROKEN", "staged release record does not parse");
         }
         const { version, target, ...digests } = record.data;
         const release = new Release(version, target);
@@ -132,7 +132,7 @@ export class Installer {
         // validate the persisted release before constructing its path
         const record = CurrentRecord.safeParse(JSON.parse(source));
         if (!record.success) {
-            throw UpdateError.of("RECORD_INVALID", "invalid installed release record");
+            throw UpdateError.of("RECORD_BROKEN", "installed release record does not parse");
         }
         const release = new Release(record.data.version, record.data.target);
 
@@ -147,14 +147,23 @@ export class Installer {
         // reject downgrades and reuse only an identical authenticated release
         const current = await this.current();
         if (current && current.release.target !== download.release.target) {
-            throw UpdateError.of("PLATFORM_CHANGED", "cannot change the installed platform");
+            throw UpdateError.of(
+                "PLATFORM_BLOCKED",
+                "cannot install: the installed platform cannot change",
+            );
         }
         if (current && download.release.compare(current.release) < 0) {
-            throw UpdateError.of("DOWNGRADE_REFUSED", "cannot install an older release");
+            throw UpdateError.of(
+                "RELEASE_BLOCKED",
+                "cannot install: the release is older than the installed one",
+            );
         }
         if (current && download.release.compare(current.release) === 0) {
             if (current.sha256 !== download.sha256) {
-                throw UpdateError.of("RELEASE_CHANGED", "published release changed");
+                throw UpdateError.of(
+                    "RELEASE_CONFLICT",
+                    "cannot install: the published release changed",
+                );
             }
             await check(current.directory);
             return current;
@@ -184,7 +193,7 @@ export class Installer {
             const isPresent = await files.rename(staging, destination).then(
                 () => false,
                 (error: unknown) => {
-                    if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+                    if (!FileSystemError.is(error, "FILE_EXISTS")) {
                         throw error;
                     }
 
@@ -194,8 +203,8 @@ export class Installer {
             if (isPresent) {
                 if ((await files.readTextFile(join(destination, "receipt.json"))) !== receipt) {
                     throw UpdateError.of(
-                        "VERIFICATION_FAILED",
-                        "installed release directory contains different content",
+                        "VERIFICATION_BROKEN",
+                        "could not verify the installed release directory: it has different content",
                     );
                 }
                 await check(destination);
@@ -223,7 +232,7 @@ export class Installer {
         if (isMac !== (application !== undefined) || (isMac && !isIdentified)) {
             throw UpdateError.of(
                 "OPTIONS_INVALID",
-                "macOS releases require an application destination and identifier",
+                "macOS release option set is invalid: it must have an application destination and identifier",
             );
         }
 
@@ -240,7 +249,7 @@ export class Installer {
             await this.recover();
         } catch (error) {
             throw UpdateError.of(
-                "ACTIVATION_FAILED",
+                "ACTIVATION_BROKEN",
                 "activation did not finish; retry `destack self activate` before restarting applications",
                 { cause: error },
             );
@@ -259,7 +268,7 @@ export class Installer {
         // verify the staged receipt before replacing the native application
         const parsed = ActivationRecord.safeParse(JSON.parse(source));
         if (!parsed.success) {
-            throw UpdateError.of("RECORD_INVALID", "invalid activation record");
+            throw UpdateError.of("RECORD_BROKEN", "activation record does not parse");
         }
         const record = parsed.data;
         const release = new Release(record.version, record.target);
@@ -269,8 +278,8 @@ export class Installer {
         );
         if (!receipt.success || receipt.data.sha256 !== record.sha256) {
             throw UpdateError.of(
-                "VERIFICATION_FAILED",
-                "activation receipt does not match the staged release",
+                "VERIFICATION_BROKEN",
+                "could not verify the activation receipt: it does not match the staged release",
             );
         }
         await this.checkActivation(release, record.sha256);
@@ -283,7 +292,7 @@ export class Installer {
                 applicationIdentifier === ""
             ) {
                 throw UpdateError.of(
-                    "RECORD_INVALID",
+                    "RECORD_BROKEN",
                     "missing absolute application destination or identifier",
                 );
             }
@@ -336,12 +345,15 @@ export class Installer {
             (current.release.target !== release.target || current.release.compare(release) > 0)
         ) {
             throw UpdateError.of(
-                "DOWNGRADE_REFUSED",
-                "cannot activate an older or incompatible release",
+                "RELEASE_BLOCKED",
+                "cannot activate the release: it is older or incompatible",
             );
         }
         if (current && current.release.compare(release) === 0 && current.sha256 !== sha256) {
-            throw UpdateError.of("RELEASE_CHANGED", "published release changed");
+            throw UpdateError.of(
+                "RELEASE_CONFLICT",
+                "cannot install: the published release changed",
+            );
         }
     }
 }

@@ -1,6 +1,7 @@
 import { type Environment, FileSystemError, Pipe } from "@destack/environment";
 import { Digest, schema } from "@destack/schema";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { CALL_ERROR_STATUSES } from "@destack/error";
 import { UpdateError } from "../error/error.ts";
 
 /** The files a checkout writes at once, as HTTP/2 multiplexes their fetches over one connection. */
@@ -73,7 +74,10 @@ export class Manifest {
             const segments = path.replaceAll("\\", "/").split("/");
             const isDrive = /^[A-Za-z]:/u.test(path);
             if (path === "" || isAbsolute(path) || isDrive || segments.includes("..")) {
-                throw UpdateError.of("UNSAFE_MANIFEST", `unsafe manifest path: ${path}`);
+                throw UpdateError.of(
+                    "MANIFEST_BROKEN",
+                    `could not read unsafe manifest path '${path}'`,
+                );
             }
         }
 
@@ -82,8 +86,8 @@ export class Manifest {
             const target = relative("/root", resolve("/root", dirname(link.path), link.target));
             if (isAbsolute(link.target) || target === ".." || target.startsWith(`..${sep}`)) {
                 throw UpdateError.of(
-                    "UNSAFE_MANIFEST",
-                    `manifest link escapes its directory: ${link.path}`,
+                    "MANIFEST_BROKEN",
+                    `could not read manifest link '${link.path}': it escapes its directory`,
                 );
             }
         }
@@ -97,7 +101,10 @@ export class Manifest {
     static parse(text: string): Manifest {
         const parsed = ManifestDocument.safeParse(JSON.parse(text));
         if (!parsed.success) {
-            throw UpdateError.of("UNSAFE_MANIFEST", `invalid manifest: ${parsed.error.message}`);
+            throw UpdateError.of(
+                "MANIFEST_BROKEN",
+                `could not read manifest: ${parsed.error.message}`,
+            );
         }
 
         return new Manifest(parsed.data.files, parsed.data.links);
@@ -124,8 +131,8 @@ export class Manifest {
                 });
             } else if (entry.kind !== "directory") {
                 throw UpdateError.of(
-                    "UNSAFE_MANIFEST",
-                    `unsupported manifest entry: ${entry.name}`,
+                    "MANIFEST_BROKEN",
+                    `could not read manifest entry '${entry.name}': its kind is not supported`,
                 );
             }
         }
@@ -154,7 +161,7 @@ export class Manifest {
             if (mode === undefined) {
                 throw UpdateError.of(
                     "METADATA_INVALID",
-                    `the manifest records no mode of ${file.path}`,
+                    `manifest is invalid: it records no mode of '${file.path}'`,
                 );
             }
 
@@ -215,7 +222,7 @@ export class Manifest {
         await files.mkdir(dirname(path), { recursive: true });
         for (const source of options.sources) {
             const status = await files.lstat(join(source, file.path)).catch((error: unknown) => {
-                if (!FileSystemError.is(error, "NOT_FOUND")) {
+                if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
                     throw error;
                 }
 
@@ -231,7 +238,7 @@ export class Manifest {
             }
         }
 
-        // fetch the blob within its timeout, refusing a failed request
+        // fetch the blob within its timeout
         const signal = AbortSignal.any([
             clock.timeout(FETCH_TIMEOUT_MILLISECONDS),
             ...(options.signal === undefined ? [] : [options.signal]),
@@ -239,11 +246,18 @@ export class Manifest {
         const response = await network.fetch(
             new Request(new URL(file.digest, options.blobs).href, { signal }),
         );
-        if (!response.ok || response.body === null) {
+
+        // refuse a missing blob
+        if (response.status === CALL_ERROR_STATUSES.NOT_FOUND) {
+            await response.body?.cancel();
+            throw UpdateError.of("BLOB_NOT_FOUND", `blob '${file.path}' not found`);
+        }
+        // refuse a blob the repository failed to answer
+        else if (!response.ok || response.body === null) {
             await response.body?.cancel();
             throw UpdateError.of(
-                "DOWNLOAD_FAILED",
-                `blob request failed: HTTP ${response.status} for ${file.path}`,
+                "DOWNLOAD_UNREACHABLE",
+                `could not download blob '${file.path}': HTTP ${response.status}`,
             );
         }
 
@@ -253,7 +267,10 @@ export class Manifest {
             environment.compression.decompress("gzip"),
         );
         if ((await Manifest.#write(path, decompressed, file, environment)) !== file.digest) {
-            throw UpdateError.of("VERIFICATION_FAILED", `blob digest mismatch: ${file.path}`);
+            throw UpdateError.of(
+                "VERIFICATION_BROKEN",
+                `could not verify blob '${file.path}': its digest does not match`,
+            );
         }
     }
 
@@ -288,13 +305,19 @@ function limit(file: ManifestFile): TransformStream<Uint8Array, Uint8Array> {
         transform(chunk, controller) {
             received += chunk.byteLength;
             if (received > file.size) {
-                throw UpdateError.of("VERIFICATION_FAILED", `blob exceeds its size: ${file.path}`);
+                throw UpdateError.of(
+                    "VERIFICATION_BROKEN",
+                    `could not verify blob '${file.path}': it exceeds its size`,
+                );
             }
             controller.enqueue(chunk);
         },
         flush() {
             if (received !== file.size) {
-                throw UpdateError.of("VERIFICATION_FAILED", `blob is truncated: ${file.path}`);
+                throw UpdateError.of(
+                    "VERIFICATION_BROKEN",
+                    `could not verify blob '${file.path}': it is truncated`,
+                );
             }
         },
     });

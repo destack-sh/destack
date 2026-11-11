@@ -44,7 +44,7 @@ test("recover macOS activation after bundle replacement", async () => {
         await HOST.files.writeTextFile(join(staging, "blocking"), "");
         expect(await refusal(installer.recover())).toEqual([
             "CONFLICT",
-            "ALREADY_EXISTS",
+            "FILE_EXISTS",
             `cannot remove ${staging}: ENOTEMPTY`,
         ]);
         expect(await HOST.files.readTextFile(join(destination, "Contents/Info.plist"))).toBe(
@@ -83,9 +83,9 @@ test("replace signed applications while keeping stable and dev identities separa
         expect(
             await refusal(installApplication(source, destination, "org.example.editor", world)),
         ).toEqual([
-            "BAD_GATEWAY",
-            "VERIFICATION_FAILED",
-            `application identifier does not match org.example.editor: ${destination}`,
+            "INTERNAL_SERVER_ERROR",
+            "VERIFICATION_BROKEN",
+            `could not verify application '${destination}': its identifier must be 'org.example.editor'`,
         ]);
         expect(await HOST.files.readTextFile(join(destination, "Contents/Resources/version"))).toBe(
             "2026.9.1-dev.2",

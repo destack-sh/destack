@@ -89,6 +89,6 @@ test("record a device's distribution once, stage the published release and offer
     }).toEqual({
         rows: [[deviceId, "2026.9.0", "2026.9.1", "staged"]],
         offered: ["restart-to-update"],
-        refused: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${deviceId} not found`],
+        refused: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${deviceId}' not found`],
     });
 });

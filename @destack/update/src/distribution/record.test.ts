@@ -27,8 +27,8 @@ test("keep a distribution's record across reopening and refuse changing its inst
         // refuse another installer in the same home, keeping the record
         expect(await refusal(distribution.register({ ...moved, method: "nsis" }))).toEqual([
             "PRECONDITION_FAILED",
-            "INSTALLATION_METHOD_MISMATCH",
-            "uninstall the existing installation before changing its method",
+            "INSTALLATION_METHOD_BLOCKED",
+            "cannot change the installation method: uninstall the existing installation first",
         ]);
         expect(await distribution.record()).toEqual(moved);
     } finally {
