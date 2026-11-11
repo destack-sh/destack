@@ -1,5 +1,5 @@
 import * as style from "@destack/style";
-import { t } from "@destack/locale";
+import { type Localization, t } from "@destack/locale";
 import { type JsonObject, type JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { text } from "@destack/theme/text";
 import { space } from "@destack/theme/tokens.stylex";
@@ -101,6 +101,7 @@ function SettingCard(properties: {
                             schema={formOf(
                                 properties.declared,
                                 schema.json().parse(JSON.parse(saved)),
+                                locale,
                             )}
                             submit={locale.render(t`Save`)}
                             onSubmit={(form) => save(valueOf(form))}
@@ -123,14 +124,18 @@ function valueOf(form: JsonObject): JsonValue {
 }
 
 /** Describe the form of a setting's value, starting from its current value. */
-function formOf(declared: (typeof PERSON_SETTINGS)[number], current: JsonValue): JsonObject {
+function formOf(
+    declared: (typeof PERSON_SETTINGS)[number],
+    current: JsonValue,
+    locale: Localization,
+): JsonObject {
     // describe the value as the form's one property with the setting's description
     const described = JsonSchemaObject.parse(
         toJsonSchema(
             schema.object({
                 value: declared.definition.schema.meta({
-                    title: declared.definition.title,
-                    description: declared.definition.description,
+                    title: locale.render(declared.definition.title),
+                    description: locale.render(declared.definition.description),
                 }),
             }),
         ),
