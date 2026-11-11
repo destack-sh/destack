@@ -3,14 +3,16 @@ import { space } from "@destack/account/object";
 import { defineObject, defineShape, field } from "@destack/object";
 import { Commit, schema } from "@destack/schema";
 import { repository } from "./repository.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A branch or tag of a repository's origin as last observed. */
 export const reference = defineObject(
     {
         name: "reference",
         plural: "references",
+        title: t`${plural(argument("count"), { one: "Reference", other: "References" })}`,
         scope: space,
-        nested: { in: repository, delete: "cascade", receive: "record" },
         fields: {
             /** The complete name, such as refs/heads/main or refs/tags/v1. */
             name: field.string(schema.string().min(1)),
@@ -23,8 +25,6 @@ export const reference = defineObject(
             /** When the origin was observed without the reference, absent while it exists. */
             deletedAt: field.time().optional(),
         },
-        // the repository's refreshers and reporters record its references
-        permissions: { read: through("parent", "read"), record: through("parent", "record") },
         constraints: {
             parentName: { kind: "unique", on: ["parentId", "name"] },
             name: {
@@ -46,6 +46,11 @@ export const reference = defineObject(
                 },
             },
         },
+        access: {
+            // the repository's refreshers and reporters record its references
+            permissions: { read: through("parent", "read"), record: through("parent", "record") },
+        },
+        traits: [nested({ in: repository, delete: "cascade", add: "record" })],
     },
     (method) => ({
         create: method.create("record", {

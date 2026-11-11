@@ -6,6 +6,8 @@ import { PackageId } from "@destack/package";
 import { graph } from "@destack/package";
 import { Digest, schema } from "@destack/schema";
 import { packageObject, TagName } from "./package.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest deprecation message: 1 KiB, a paragraph. */
 const DEPRECATION_LENGTH = 1024;
@@ -34,8 +36,8 @@ export const release = defineObject(
     {
         name: "release",
         plural: "releases",
+        title: t`${plural(argument("count"), { one: "Release", other: "Releases" })}`,
         scope: space,
-        nested: { in: packageObject, receive: "publish", delete: "restrict" },
         fields: {
             /** The immutable calendar version. */
             version: field.string(),
@@ -48,7 +50,6 @@ export const release = defineObject(
             /** When the release was yanked: new installs skip it, exact pins still resolve it. */
             yankedAt: field.time().optional(),
         },
-        permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
         constraints: {
             // record the commit of every stable release
             commit: {
@@ -67,6 +68,10 @@ export const release = defineObject(
             version: { kind: "unique", on: ["parentId", "version"] },
             build: { kind: "index", on: ["manifest"] },
         },
+        access: {
+            permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
+        },
+        traits: [nested({ in: packageObject, add: "publish", delete: "restrict" })],
     },
     (method) => ({
         create: method.create("publish", {
@@ -82,6 +87,7 @@ export const release = defineObject(
         }),
         /** Find a package's published release of a version, or of the version a tag points at. */
         resolve: method.query({
+            title: t`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -92,6 +98,7 @@ export const release = defineObject(
             }),
         }),
         deprecate: method.mutation({
+            title: t`Deprecate`,
             permission: "publish",
             input: schema.object({
                 /** The warning installers show, or null to withdraw the deprecation. */
@@ -99,6 +106,7 @@ export const release = defineObject(
             }),
         }),
         yank: method.mutation({
+            title: t`Yank`,
             permission: "publish",
             input: schema.object({
                 /** Whether new installs skip the release, false to restore it. */

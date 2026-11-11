@@ -7,6 +7,8 @@ import { schema, present } from "@destack/schema";
 import { GitListing } from "@destack/git";
 import type {} from "@destack/package/import-meta";
 import { RegistryError } from "../error/index.ts";
+import { recoverable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** Where a repository's authoritative history lives. */
 const HOSTINGS = ["platform", "github", "git", "machine"] as const;
@@ -157,6 +159,7 @@ export const repository = defineObject(
     {
         name: "repository",
         plural: "repositories",
+        title: t`${plural(argument("count"), { one: "Repository", other: "Repositories" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -188,20 +191,6 @@ export const repository = defineObject(
             },
             id: { on: ["id"], across: () => universe },
         },
-        permissions: {
-            read: union(relation("machine"), through("account", "read")),
-            create: through("account", "manage"),
-            update: through("account", "manage"),
-            // the account's owners, and its servers on deliveries and identification
-            refresh: through("account", "serve"),
-            report: relation("machine"),
-            record: union(permission("refresh"), permission("report")),
-            delete: through("account", "manage"),
-            pull: through("account", "read"),
-            push: through("account", "manage"),
-        },
-        reserved: ["report"],
-        recoverable: { within: { days: 30 }, by: "delete", prepared: OriginColumns },
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
             providerRepository: { kind: "index", on: ["providerRepositoryId"] },
@@ -279,6 +268,22 @@ export const repository = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                read: union(relation("machine"), through("account", "read")),
+                create: through("account", "manage"),
+                update: through("account", "manage"),
+                // the account's owners, and its servers on deliveries and identification
+                refresh: through("account", "serve"),
+                report: relation("machine"),
+                record: union(permission("refresh"), permission("report")),
+                delete: through("account", "manage"),
+                pull: through("account", "read"),
+                push: through("account", "manage"),
+            },
+            reserved: ["report"],
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "delete", prepared: OriginColumns })],
     },
     (method) => ({
         create: method.create("create", {
@@ -292,6 +297,7 @@ export const repository = defineObject(
         }),
         /** Lease a checkout short-lived, direct access to read or write the repository. */
         open: method.query({
+            title: t`Open`,
             permission: "pull",
             input: schema.object({ mode: LeaseMode }),
             output: Lease,
@@ -299,11 +305,19 @@ export const repository = defineObject(
             isAudited: true,
         }),
         /** Observe the origin's references and default branch. */
-        refresh: method.mutation({ permission: "refresh", prepared: GitListing }),
+        refresh: method.mutation({
+            title: t`Refresh`,
+            permission: "refresh",
+            prepared: GitListing,
+        }),
         /** Record GitHub's identifier of the repository. */
-        identify: method.mutation({ permission: "refresh", prepared: schema.string().min(1) }),
+        identify: method.mutation({
+            title: t`Identify`,
+            permission: "refresh",
+            prepared: schema.string().min(1),
+        }),
         /** Record the references the repository's machine observed. */
-        report: method.mutation({ permission: "report", input: GitListing }),
+        report: method.mutation({ title: t`Report`, permission: "report", input: GitListing }),
         update: method.update("update", {
             fields: ["name", ...MOVABLE_ORIGIN_FIELDS],
             input: schema.object({

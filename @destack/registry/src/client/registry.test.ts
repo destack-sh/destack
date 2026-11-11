@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { testSimulation } from "@destack/object/test";
 import { Digest } from "@destack/schema";
 import { expect, test } from "@destack/test";
@@ -6,7 +6,7 @@ import { Registry } from "./registry.ts";
 
 /** The finance package at a version. */
 function finance(version: string) {
-    return Package.parse({
+    return PackageVersion.parse({
         id: "package-01a10720-c4d6-7559-816b-99f193c28c3c",
         name: "@destack/finance",
         version,

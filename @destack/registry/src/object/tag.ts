@@ -6,21 +6,22 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { packageObject, TagName } from "./package.ts";
 import { release } from "./release.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** An npm distribution tag of a package, such as latest, pointing at one published version. */
 export const tag = defineObject(
     {
         name: "tag",
         plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
         scope: space,
-        nested: { in: packageObject, receive: "publish", delete: "restrict" },
         fields: {
             /** The npm distribution tag name, invalid as a version range. */
             name: field.string(TagName),
             /** The selected published version. */
             version: field.string(),
         },
-        permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
         constraints: {
             name: { kind: "unique", on: ["parentId", "name"] },
             release: {
@@ -30,6 +31,10 @@ export const tag = defineObject(
                 onDelete: "no action",
             },
         },
+        access: {
+            permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
+        },
+        traits: [nested({ in: packageObject, add: "publish", delete: "restrict" })],
     },
     (method) => ({
         create: method.create("publish", { fields: ["name", "version"] }),

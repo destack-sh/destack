@@ -8,6 +8,7 @@ import { PackageName } from "@destack/package";
 import { Vocabulary } from "@destack/resource";
 import { RegistryError } from "../error/index.ts";
 import { validRange } from "semver";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest package name in an account: npm's 214 minus a 63 character handle, `@` and `/`. */
 const NAME_LENGTH = 149;
@@ -42,6 +43,7 @@ export const packageObject = defineObject(
     {
         name: "package",
         plural: "packages",
+        title: t`${plural(argument("count"), { one: "Package", other: "Packages" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -59,21 +61,12 @@ export const packageObject = defineObject(
             /** The terms of the package's releases. */
             vocabulary: field.json(Vocabulary).default({}),
         },
-        attributes: { visibility: "string" },
         indexes: {
             name: {
                 on: ["accountId", "name"],
                 across: () => universe,
             },
             id: { on: ["id"], across: () => universe },
-        },
-        permissions: {
-            read: union(
-                resource({ visibility: { in: ["public", "unlisted"] } }),
-                through("account", "read"),
-            ),
-            discover: resource({ visibility: "public" }),
-            publish: through("account", "publish"),
         },
         constraints: {
             name: {
@@ -89,6 +82,17 @@ export const packageObject = defineObject(
                 },
             },
         },
+        access: {
+            attributes: { visibility: "string" },
+            permissions: {
+                read: union(
+                    resource({ visibility: { in: ["public", "unlisted"] } }),
+                    through("account", "read"),
+                ),
+                discover: resource({ visibility: "public" }),
+                publish: through("account", "publish"),
+            },
+        },
     },
     (method) => ({
         create: method.create("publish", {
@@ -98,6 +102,7 @@ export const packageObject = defineObject(
         list: method.list("discover"),
         /** Find the package of a global name, `@<account handle>/<name>`. */
         resolve: method.query({
+            title: t`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -108,6 +113,7 @@ export const packageObject = defineObject(
         }),
         /** Point a distribution tag at a published version, creating the tag the first time. */
         point: method.mutation({
+            title: t`Point`,
             permission: "publish",
             input: schema.object({
                 /** The distribution tag. */
