@@ -868,7 +868,7 @@ export class Machine {
         }
     }
 
-    /** Address a call below a package's mount, as it arrives. */
+    /** Address a call below a package's path, as it arrives. */
     static #mounted(handle: Package, request: Request): Request {
         const url = new URL(request.url);
         url.pathname = `${PackageMount.path(handle.id)}${url.pathname}`;

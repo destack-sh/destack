@@ -44,8 +44,8 @@ export function openGateway(
         readonly call?: GatewaySpace["call"];
         /** The space's traffic, which its gateway counts. */
         readonly traffic?: Traffic;
-        /** The adapters the space's installations declare, none by default. */
-        readonly adapters?: GatewaySpace["adapters"];
+        /** The mounts the space's installations declare, none by default. */
+        readonly mounts?: GatewaySpace["mounts"];
         /** Sign an installation's token leaving the machine, its claims readable. */
         readonly sign?: (claims: JwtClaims) => string;
     } = {},
@@ -63,7 +63,7 @@ export function openGateway(
             call: options.call ?? refuse("serve calls"),
             observe: options.observe ?? refuse("receive telemetry"),
             borrow,
-            adapters: options.adapters ?? (() => []),
+            mounts: options.mounts ?? (() => []),
             instance: { implements: () => false },
             host: {
                 database,

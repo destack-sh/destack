@@ -6,7 +6,7 @@ import { TestRoute } from "@destack/stack/test";
 import { expect, refusal, test } from "@destack/test";
 import { type RouteAction, RouteRequest } from "./route.ts";
 
-/** The package of the routed installation, which declares the notes adapter. */
+/** The package of the routed installation, which declares the notes mount. */
 const NOTES_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1");
 
 /** Read an action as what it sends where, and the response headers it sets. */
@@ -36,7 +36,7 @@ async function described(action: RouteAction | undefined) {
 }
 
 /** Act on a request the machine routed to the space by its route's rules. */
-test("act on routed requests by their route's most specific rule: redirect, rewrite, change headers, and hand them to an adapter, views or another site", async () => {
+test("act on routed requests by their route's most specific rule: redirect, rewrite, change headers, and hand them to a mount, views or another site", async () => {
     await using fixture = await TestRoute.open();
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId).name;
@@ -51,13 +51,13 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
             installation,
             rules: [
                 {
-                    entry: { kind: "adapter", adapter: "notes" },
+                    entry: { kind: "mount", mount: "notes" },
                     filters: [{ kind: "response-headers", set: { "cache-control": "max-age=60" } }],
                 },
                 {
                     matches: { method: "POST" },
                     filters: [{ kind: "request-headers", set: { "x-route": "write" } }],
-                    entry: { kind: "adapter", adapter: "notes" },
+                    entry: { kind: "mount", mount: "notes" },
                 },
                 {
                     matches: {
@@ -65,7 +65,7 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
                         headers: [{ name: "x-preview", value: "1", kind: "exact" }],
                     },
                     filters: [{ kind: "rewrite", path: { kind: "prefix", value: "/preview" } }],
-                    entry: { kind: "adapter", adapter: "notes" },
+                    entry: { kind: "mount", mount: "notes" },
                 },
             ],
         },
@@ -113,8 +113,8 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
     const declared = (name: string) =>
         found(new Map(rows.map((row) => [row.managerName, row.id])), name);
 
-    // act on a request as routed to a route, the installation declaring the notes adapter at /feed
-    const adapter = {
+    // act on a request as routed to a route, the installation declaring the notes mount at /feed
+    const mount = {
         installationId: installation.id,
         packageId: NOTES_PACKAGE,
         name: "notes",
@@ -124,7 +124,7 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
         name: string | undefined,
         path: string,
         init: RequestInit = {},
-        adapters = [adapter],
+        mounts = [mount],
     ) => {
         const headers = new Headers(init.headers);
         if (name !== undefined) {
@@ -133,7 +133,7 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
         const request = new Request(`https://eu.destack.cloud${path}`, { ...init, headers });
 
         return described(
-            await RouteRequest.mount(fixture.database(first), first, request, () => adapters),
+            await RouteRequest.mount(fixture.database(first), first, request, () => mounts),
         );
     };
 
@@ -150,9 +150,9 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
         await act(undefined, "/api/notes"),
         await refusal(act("api", "/api/notes", {}, [])),
     ]).toEqual([
-        ["adapter", "GET", `${feed}/notes?page=2`, null, null, "max-age=60"],
-        ["adapter", "POST", `${feed}/notes`, "write", null, null],
-        ["adapter", "POST", `${feed}/preview/notes`, null, null, null],
+        ["mount", "GET", `${feed}/notes?page=2`, null, null, "max-age=60"],
+        ["mount", "POST", `${feed}/notes`, "write", null, null],
+        ["mount", "POST", `${feed}/preview/notes`, null, null, null],
         [308, "https://blog.example/posts/2026/hello?ref=x"],
         ["url", "GET", "https://docs.example/destack/start?v=2", null, null, null],
         [404, null],
@@ -170,7 +170,7 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
         [
             "NOT_FOUND",
             "ROUTE_NOT_FOUND",
-            `adapter 'notes' of route '${declared("api")}' in installation '${installation.id}' not found`,
+            `mount 'notes' of route '${declared("api")}' in installation '${installation.id}' not found`,
         ],
     ]);
 });

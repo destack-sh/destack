@@ -98,7 +98,7 @@ const MAX_RESENT_BODY_BYTES = 1024 * 1024;
 /** The space a gateway serves, with the machine serving it and its host. */
 export type GatewaySpace = Pick<
     Space,
-    "id" | "database" | "traffic" | "call" | "observe" | "borrow" | "adapters"
+    "id" | "database" | "traffic" | "call" | "observe" | "borrow" | "mounts"
 > & {
     /** The space's workload, which tells the protocols its packages implement. */
     readonly instance: Pick<WorkloadInstance, "implements">;
@@ -283,7 +283,7 @@ export class Gateway {
     /** Serve a request to the space: its routes, origins, package mounts and installations. */
     async serve(request: Request, authentication?: Authentication): Promise<Response> {
         try {
-            // mount an origin's request below its installation, else a route's below its adapter
+            // mount an origin's request below its installation, else a route's below its mount
             const origin =
                 InstallationMount.of(request) === undefined
                     ? (InstallationOrigin.of(request, this.#space.machine.domain) ??
@@ -330,7 +330,7 @@ export class Gateway {
         }
     }
 
-    /** Serve a routed request by its rule: a response, its views, its adapter or another site. */
+    /** Serve a routed request by its rule: a response, its views, its mount or another site. */
     async #route(
         request: Request,
         authentication: Authentication | undefined,
@@ -340,7 +340,7 @@ export class Gateway {
             this.#space.database,
             this.#space.id,
             request,
-            (installationId) => this.#space.adapters(installationId),
+            (installationId) => this.#space.mounts(installationId),
         );
         if (routed === undefined) {
             return undefined;
@@ -358,8 +358,8 @@ export class Gateway {
                 await this.#views.serve(RouteRequest.strip(routed.request), found, routed.mount),
             );
         }
-        // hand the adapter its request
-        else if (routed.kind === "adapter") {
+        // hand the mount its request
+        else if (routed.kind === "mount") {
             const response = await this.#installations(routed.request, authentication);
 
             return routed.respond(response ?? new Response(null, { status: 404 }));
@@ -388,7 +388,7 @@ export class Gateway {
         const mount = InstallationMount.url(request.url, this.#space.id, found.installationId);
         const url = new URL(request.url);
 
-        // address its packages below its mount, such as an adapter a service calls
+        // address its packages below their paths, such as a mount a service calls
         if (PackageMount.parse(url.pathname) !== undefined) {
             return copyRequest(request, {}, `${mount}${url.pathname}${url.search}`);
         }
@@ -506,7 +506,7 @@ export class Gateway {
             : this.#space.machine.authenticate(request, stackPackage.id, this.#space.id);
     }
 
-    /** Deliver an adapter's request, a routed request or a call to an installation. */
+    /** Deliver a mount's request, a routed request or a call to an installation. */
     async #installation(
         mounted: NonNullable<ReturnType<typeof InstallationMount.of>>,
         authentication: Authentication | undefined,
@@ -536,7 +536,7 @@ export class Gateway {
             );
         }
 
-        // hand a request at an adapter its package declares to the newest deployment, as it speaks no release
+        // hand a request at a mount its package declares to the newest deployment, as it speaks no release
         const path = new URL(installed.request.url).pathname;
         const own = PackageId.parse(served.installation.packageId);
         if (this.#isAdapted(served.installationId, own, path)) {
@@ -569,7 +569,7 @@ export class Gateway {
         installed: NonNullable<ReturnType<typeof InstallationMount.of>>,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        // hand a call below its package's mount or a protocol's the package implements over as its verified caller
+        // hand a call below its package's path or a protocol's the package implements over as its verified caller
         const packageId = PackageId.parse(served.installation.packageId);
         const path = new URL(installed.request.url).pathname;
         const mounted = PackageMount.of(installed.request);
@@ -694,7 +694,7 @@ export class Gateway {
         return new Response(answer.body, { status: answer.status, headers });
     }
 
-    /** Report whether a path below an installation is at an adapter its package declares. */
+    /** Report whether a path below an installation is at a mount its package declares. */
     #isAdapted(
         installationId: Identifier<"installation">,
         packageId: PackageId,
@@ -706,23 +706,22 @@ export class Gateway {
             mounted !== undefined &&
             mounted.packageId === packageId &&
             this.#space
-                .adapters(installationId)
+                .mounts(installationId)
                 .some(
-                    (adapter) =>
-                        mounted.path === adapter.path ||
-                        mounted.path.startsWith(`${adapter.path}/`),
+                    (mount) =>
+                        mounted.path === mount.path || mounted.path.startsWith(`${mount.path}/`),
                 )
         );
     }
 
-    /** Forward a request at an adapter to the newest running deployment, as its caller. */
+    /** Forward a request at a mount to the newest running deployment, as its caller. */
     async #adapted(
         installationId: Identifier<"installation">,
         path: string,
         request: Request,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        const newest = await this.#newest(installationId, () => true, "serves its adapters");
+        const newest = await this.#newest(installationId, () => true, "serves its mounts");
 
         return this.#runtime(newest.runtime).fetch(
             newest.instanceId,
@@ -1061,7 +1060,7 @@ export class Gateway {
         };
     }
 
-    /** Resolve a bound installation's address for a path below its package's mount. */
+    /** Resolve a bound installation's address for a path below its package's path. */
     async #resolveBound(
         caller: EgressCaller,
         address: string,

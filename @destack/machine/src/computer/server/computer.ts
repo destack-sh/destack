@@ -205,7 +205,7 @@ export class ComputerServer {
 
         return implementPackage(handle, {
             objects: [this.#computer(), ...objects],
-            adapters: { people: (request) => this.#people(request) },
+            mounts: { people: (request) => this.#people(request) },
             // serve the spaces as the machine while its record states an enrollment, and carry out sign-ins
             controllers: [
                 () => this.machine.controller(),
@@ -258,7 +258,7 @@ export class ComputerServer {
 
     /** Answer a call below `/people/<login>` as that person, forwarding all but its own paths. */
     async #people(request: Request): Promise<Response> {
-        // read the login and the target below the adapter's path
+        // read the login and the target below the mount's path
         const { pathname } = new URL(request.url);
         const [, segment, ...target] = pathname.split("/");
         const loginId = schema.identifier("login").safeParse(segment);

@@ -166,7 +166,7 @@ class RecordingRuntime implements Runtime {
         request: Request,
         authentication: Authentication | undefined,
     ): Promise<Response> {
-        // record the caller, none for an adapter's anonymous caller
+        // record the caller, none for a mount's anonymous caller
         if (authentication !== undefined) {
             this.authentications.push(authentication);
         }
@@ -251,7 +251,7 @@ function egress(
     });
 }
 
-/** The webhook adapter notes declares, at its path below its package's mount. */
+/** The webhook mount notes declares, at its path below its package's path. */
 const PUSHES = {
     installationId: ids.notes,
     packageId: ids.package,
@@ -259,7 +259,7 @@ const PUSHES = {
     path: "/webhooks/pushes",
 };
 
-/** Make a delivery to notes' webhook adapter below its package's mount, as a sender posts it. */
+/** Make a delivery to notes' webhook mount below its package's path, as a sender posts it. */
 function delivery(): Request {
     const mount = InstallationMount.url("http://127.0.0.1:7470", ids.space, ids.notes);
 
@@ -520,12 +520,12 @@ test("answer another origin's 421 the egress cannot read as a moved scope to the
     });
 });
 
-test("forward a request at a sandboxed package's adapter to its newest deployment without a release, and refuse one without a deployment", async () => {
-    // deliver to notes' webhook adapter over its two deployments, and over none
-    const adapters = (installationId: string) => (installationId === ids.notes ? [PUSHES] : []);
-    const deployed = await openNotes(undefined, { adapters });
+test("forward a request at a sandboxed package's mount to its newest deployment without a release, and refuse one without a deployment", async () => {
+    // deliver to notes' webhook mount over its two deployments, and over none
+    const mounts = (installationId: string) => (installationId === ids.notes ? [PUSHES] : []);
+    const deployed = await openNotes(undefined, { mounts });
     const accepted = await deployed.gateway.serve(delivery());
-    const undeployed = await openNotes([], { adapters });
+    const undeployed = await openNotes([], { mounts });
     const refused = await undeployed.gateway.serve(delivery());
 
     // forward it below the installation, anonymously, to the newest deployment
@@ -535,7 +535,7 @@ test("forward a request at a sandboxed package's adapter to its newest deploymen
         refused: await answerOf(refused),
     }).toEqual({
         accepted: [200, [[NEWEST.instanceId, path, null, null]]],
-        refused: `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'serves its adapters' is unavailable: none is running`,
+        refused: `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'serves its mounts' is unavailable: none is running`,
     });
 });
 

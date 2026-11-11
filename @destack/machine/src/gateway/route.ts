@@ -5,7 +5,7 @@ import { copyRequest } from "@destack/environment";
 import { CLIENT_HEAD_HEADER, ROUTE_HEADER } from "@destack/object/workload";
 import { Route, type RouteRule } from "@destack/stack/object";
 import type { ViewMount } from "./origin.ts";
-import type { SpaceAdapter } from "../space/space.ts";
+import type { Mount } from "../space/space.ts";
 import type {} from "@destack/package/import-meta";
 import { MachineError } from "../error/index.ts";
 
@@ -15,7 +15,7 @@ type FilterOf<Kind extends string> = Extract<
     { kind: Kind }
 >;
 
-/** What a route does with a request: respond itself, or hand it to an adapter, views or a site. */
+/** What a route does with a request: respond itself, or hand it to a mount, views or a site. */
 export type RouteAction =
     | {
           /** The route returns a response itself: a redirect, or none for no matching rule. */
@@ -24,11 +24,11 @@ export type RouteAction =
           readonly response: Response;
       }
     | {
-          /** The route hands the request to an installation's adapter below its package's mount. */
-          readonly kind: "adapter";
+          /** The route hands the request to an installation's mount below its package's path. */
+          readonly kind: "mount";
           /** The request below the installation's mount. */
           readonly request: Request;
-          /** Change the adapter's response as the rule's filters ask. */
+          /** Change the mount's response as the rule's filters ask. */
           readonly respond: (response: Response) => Response;
       }
     | {
@@ -59,7 +59,7 @@ export const RouteRequest = {
         database: DatabaseConnection,
         space: Identifier<"space">,
         request: Request,
-        adapters: (installationId: Identifier<"installation">) => readonly SpaceAdapter[],
+        mounts: (installationId: Identifier<"installation">) => readonly Mount[],
     ): Promise<RouteAction | undefined> {
         // read the route the machine found
         const header = request.headers.get(ROUTE_HEADER);
@@ -134,23 +134,23 @@ export const RouteRequest = {
                 `installation of an entry of route '${id}' not found`,
             );
         }
-        // hand the installation's adapter the request at its path, the path below the route's after it
-        else if (entry.kind === "adapter") {
-            const adapter = adapters(installationId).find((each) => each.name === entry.adapter);
-            if (adapter === undefined) {
+        // hand the installation's mount the request at its path, the path below the route's after it
+        else if (entry.kind === "mount") {
+            const mount = mounts(installationId).find((each) => each.name === entry.mount);
+            if (mount === undefined) {
                 throw MachineError.of(
                     "ROUTE_NOT_FOUND",
-                    `adapter '${entry.adapter}' of route '${id}' in installation '${installationId}' not found`,
+                    `mount '${entry.mount}' of route '${id}' in installation '${installationId}' not found`,
                 );
             }
             const url = new URL(changed.url);
-            const mount = InstallationMount.url(changed.url, space, installationId);
+            const installation = InstallationMount.url(changed.url, space, installationId);
             const below = url.pathname.slice(base.length);
-            const path = `${PackageMount.path(adapter.packageId)}${adapter.path}${below === "/" ? "" : below}`;
+            const path = `${PackageMount.path(mount.packageId)}${mount.path}${below === "/" ? "" : below}`;
 
             return {
-                kind: "adapter",
-                request: copyRequest(changed, {}, `${mount}${path}${url.search}`),
+                kind: "mount",
+                request: copyRequest(changed, {}, `${installation}${path}${url.search}`),
                 respond,
             };
         }

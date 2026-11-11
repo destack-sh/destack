@@ -55,25 +55,25 @@ import { MachineError } from "../error/index.ts";
 import type { GrantRequest } from "@destack/account/authentication";
 import type { PackageRelease } from "@destack/package";
 
-/** The adapter of OTLP/HTTP, which the installations taking a space's telemetry serve. */
-const OTLP_ADAPTER = "otlp";
+/** The mount of OTLP/HTTP, which the installations taking a space's telemetry serve. */
+const OTLP_MOUNT = "otlp";
 
-/** An adapter an installation of the space declares, at its path below its package's mount. */
-export interface SpaceAdapter {
+/** A mount an installation of the space declares, at its path below its package's path. */
+export interface Mount {
     /** The installation answering it. */
     readonly installationId: Identifier<"installation">;
     /** The installation's package. */
     readonly packageId: PackageId;
-    /** The adapter's name in its package. */
+    /** The mount's name in its package. */
     readonly name: string;
-    /** The adapter's path below the package's mount. */
+    /** The mount's path below the package's path. */
     readonly path: string;
 }
 
 /** What one start of a space's workload serves with: its keys, its store and its buckets. */
 export interface SpaceRun {
-    /** The adapters the served installations declare. */
-    adapters: readonly SpaceAdapter[];
+    /** The mounts the served installations declare. */
+    mounts: readonly Mount[];
     /** The host of the space's buckets. */
     readonly buckets: CatalogueBucketHost;
     /** The S3 API over the space's buckets. */
@@ -279,7 +279,7 @@ export class Space {
             role === "primary" ? await this.#installed("cache") : { installed: [] };
         await this.#root(installed);
         this.#serving = {
-            adapters: Space.#adapters(installed),
+            mounts: Space.#mounts(installed),
             buckets,
             s3: serveS3(buckets, database, this.machine.environment),
             store: Promise.withResolvers(),
@@ -565,30 +565,30 @@ export class Space {
             context.serve(store.apply(servers, sandboxes)),
         );
 
-        // read the adapters the set declares
-        present(this.#serving, `the serving of ${this.id}`).adapters = Space.#adapters(installed);
+        // read the mounts the set declares
+        present(this.#serving, `the serving of ${this.id}`).mounts = Space.#mounts(installed);
     }
 
-    /** Read the adapters the installed set's packages declare. */
-    static #adapters(installed: Awaited<ReturnType<typeof Database.installed>>): SpaceAdapter[] {
+    /** Read the mounts the installed set's packages declare. */
+    static #mounts(installed: Awaited<ReturnType<typeof Database.installed>>): Mount[] {
         return installed.flatMap((entry) => {
-            // read the adapters the package declares, none for a library
+            // read the mounts the package declares, none for a library
             const { installationId } = entry.rollout;
             const packageId = PackageId.parse(entry.rollout.installation.packageId);
-            const adapters = PackageDescription.find(entry.declarations)?.adapters ?? {};
+            const mounts = PackageDescription.find(entry.declarations)?.mounts ?? {};
 
-            return Object.entries(adapters).map(([name, adapter]) => ({
+            return Object.entries(mounts).map(([name, mount]) => ({
                 installationId,
                 packageId,
                 name,
-                path: adapter.path,
+                path: mount.path,
             }));
         });
     }
 
-    /** List the adapters an installation the space serves declares. */
-    adapters(installationId: Identifier<"installation">): readonly SpaceAdapter[] {
-        return this.#current().adapters.filter((each) => each.installationId === installationId);
+    /** List the mounts an installation the space serves declares. */
+    mounts(installationId: Identifier<"installation">): readonly Mount[] {
+        return this.#current().mounts.filter((each) => each.installationId === installationId);
     }
 
     /** Publish a build and its account's unpublished dependencies for a caller. */
@@ -651,9 +651,9 @@ export class Space {
     /** Forward a telemetry export to each installation taking it, as the space itself. */
     async observe(signal: OtlpSignal, body: unknown): Promise<void> {
         const self = principal.space.reference(Scope.universe.id, this.id);
-        const receivers = this.#current().adapters.filter((each) => each.name === OTLP_ADAPTER);
+        const receivers = this.#current().mounts.filter((each) => each.name === OTLP_MOUNT);
         for (const receiver of receivers) {
-            // post the export below the receiver's adapter, refusing a failed answer
+            // post the export below the receiver's mount, refusing a failed answer
             const url = new URL(`${receiver.path}/${signal}`, this.machine.origin);
             const request = new Request(url.href, {
                 method: "POST",
