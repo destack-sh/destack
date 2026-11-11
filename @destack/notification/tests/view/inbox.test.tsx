@@ -32,7 +32,7 @@ function drawInHome(
                 packages: new Map(),
                 commands: new CommandRegistry(),
                 origin: (path) => {
-                    throw new TypeError(`the inbox cannot call ${path}`);
+                    throw new TypeError(`the inbox cannot call '${path}'`);
                 },
             },
             localization,

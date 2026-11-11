@@ -216,8 +216,8 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         const bytes = new TextEncoder().encode(JSON.stringify(payload)).length;
         if (bytes > PAYLOAD_BYTES) {
             throw NotificationError.of(
-                "PAYLOAD_TOO_LARGE",
-                `notification ${this.name} exceeds ${PAYLOAD_BYTES} bytes`,
+                "PAYLOAD_INVALID",
+                `notification '${this.name}' is invalid: it exceeds ${PAYLOAD_BYTES} bytes`,
             );
         }
 
@@ -315,15 +315,15 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         const declared = this.actions.find((action) => action.name === name);
         if (declared === undefined) {
             throw NotificationError.of(
-                "ACTION_UNKNOWN",
-                `notification ${this.name} has no action ${name}`,
+                "ACTION_INVALID",
+                `action '${name}' is invalid: notification '${this.name}' has no such action`,
             );
         }
         // require text exactly where the action asks for it
         else if ((declared.text === undefined) !== (text === undefined)) {
             throw NotificationError.of(
-                "TEXT_UNEXPECTED",
-                `action ${name} of ${this.name} must take text exactly when it declares text`,
+                "TEXT_INVALID",
+                `action '${name}' of '${this.name}' is invalid: it takes text exactly when it declares text`,
             );
         }
 
@@ -335,8 +335,8 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
         );
         if (called === undefined) {
             throw NotificationError.of(
-                "ACTION_TYPE_NOT_SERVED",
-                `action ${name} of ${this.name} calls ${key}, which this space serves no more`,
+                "ACTION_TYPE_NOT_FOUND",
+                `function '${key}' of action '${name}' on '${this.name}' not found: this space serves it no more`,
             );
         }
 
@@ -365,7 +365,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
             row.parentType !== action.type.type
         ) {
             throw new TypeError(
-                `action ${action.name} calls ${action.type.type}, not the source ${row.parentType}`,
+                `action '${action.name}' calls ${action.type.type}, not the source '${row.parentType}'`,
             );
         }
 

@@ -122,7 +122,9 @@ async function deliver(
         decided.flatMap(({ decision }) => (decision.action === "summarize" ? [decision.at] : [])),
     );
     if (times.size > 1) {
-        throw new TypeError(`${row.id} has more than one summary time: ${[...times].join(", ")}`);
+        throw new TypeError(
+            `'${row.id}' has more than one summary time: '${[...times].join(", ")}'`,
+        );
     }
     const [summarized] = times;
     if (summarized !== undefined) {

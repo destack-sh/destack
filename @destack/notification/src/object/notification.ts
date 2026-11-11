@@ -90,8 +90,8 @@ export const notification = defineObject(
             // refuse a read in the future
             if (call.input.items.some((item) => (item.readAt ?? call.now) > call.now)) {
                 throw NotificationError.of(
-                    "READ_IN_FUTURE",
-                    "a notification cannot be read in the future",
+                    "READ_IN_FUTURE_INVALID",
+                    "read time is invalid: a notification cannot be read in the future",
                 );
             }
 
@@ -100,7 +100,10 @@ export const notification = defineObject(
         snooze: async (call) => {
             // require a snooze ending later
             if (call.input.until <= call.now) {
-                throw NotificationError.of("SNOOZE_IN_PAST", "a snooze cannot end in the past");
+                throw NotificationError.of(
+                    "SNOOZE_IN_PAST_INVALID",
+                    "snooze end is invalid: a snooze cannot end in the past",
+                );
             }
 
             return call.update({ snoozedUntil: call.input.until });

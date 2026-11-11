@@ -161,8 +161,12 @@ test("send mentions to the desktop and the phone, badging the inbox until they a
 
     // refuse a read in the future, and a stale list that would mark them unread again
     expect([await refusal(readMany(now + 1)), await refusal(readMany(now - 1))]).toEqual([
-        ["BAD_REQUEST", "READ_IN_FUTURE", "a notification cannot be read in the future"],
-        ["CONFLICT", "REVISION_STALE", "notification revision has changed"],
+        [
+            "BAD_REQUEST",
+            "READ_IN_FUTURE_INVALID",
+            "read time is invalid: a notification cannot be read in the future",
+        ],
+        ["CONFLICT", "REVISION_CONFLICT", "cannot update notification: its revision changed"],
     ]);
 });
 
@@ -198,8 +202,8 @@ test("refuse a mention of someone who cannot read the document, notifying nobody
     expect([refused, await fixture.activities()]).toEqual([
         [
             "FORBIDDEN",
-            "RECIPIENT_FORBIDDEN",
-            `user ${fixture.subject("dave").id} cannot read document ${plan.id}`,
+            "RECIPIENT_DENIED",
+            `document '${plan.id}' is forbidden: user '${fixture.subject("dave").id}' cannot read it`,
         ],
         [],
     ]);

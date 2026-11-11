@@ -49,7 +49,7 @@ test("push a mention to each of a recipient's phones, and forget the subscriptio
     }).toEqual({
         pushed: [phone.url, old.url],
         messages: [
-            [old.id, "failed", "RECIPIENT_GONE"],
+            [old.id, "failed", "RECIPIENT_GONE_NOT_FOUND"],
             [phone.id, "sent", null],
         ].toSorted((left, right) => String(left[0]).localeCompare(String(right[0]))),
     });

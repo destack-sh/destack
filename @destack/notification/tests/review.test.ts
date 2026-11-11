@@ -82,8 +82,8 @@ test("answer a review request from its notification, which breaks through a focu
     );
     expect(refused).toEqual([
         "BAD_REQUEST",
-        "TEXT_UNEXPECTED",
-        "action approve of review must take text exactly when it declares text",
+        "TEXT_INVALID",
+        "action 'approve' of 'review' is invalid: it takes text exactly when it declares text",
     ]);
     await fixture.call(
         "bob",

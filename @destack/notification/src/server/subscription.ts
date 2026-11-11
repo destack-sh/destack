@@ -24,8 +24,8 @@ export function implementSubscription(): typeof subscription {
                 );
                 if (!(await call.permits(owner, host.permission("read"), parent))) {
                     throw NotificationError.of(
-                        "RECIPIENT_FORBIDDEN",
-                        `${owner.type} ${owner.id} cannot read ${parent.type} ${parent.id}`,
+                        "RECIPIENT_DENIED",
+                        `${parent.type} '${parent.id}' is forbidden: ${owner.type} '${owner.id}' cannot read it`,
                     );
                 }
 

@@ -30,13 +30,13 @@ export function defineNotification<
         // refuse another package's type
         if (type.package.id !== owner.id) {
             throw new TypeError(
-                `action ${action.name} of ${name} calls ${type.name} of another package`,
+                `action '${action.name}' of '${name}' calls ${type.name} of another package`,
             );
         }
         // refuse a method changing nothing
         else if (!type.method(method).mutates) {
             throw new TypeError(
-                `action ${action.name} of ${name} calls ${type.name}.${method}, which changes nothing`,
+                `action '${action.name}' of '${name}' calls '${type.name}.${method}', which changes nothing`,
             );
         }
 

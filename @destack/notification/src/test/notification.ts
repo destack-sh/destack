@@ -384,7 +384,7 @@ export class TestNotification implements AsyncDisposable {
         const client: unknown = Reflect.get(caller.client(handle), type.name);
         const procedure: unknown = Reflect.get(Object(client), called.method);
         if (typeof procedure !== "function") {
-            throw new TypeError(`${type.name} has no method ${called.method}`);
+            throw new TypeError(`${type.name} has no method '${called.method}'`);
         }
 
         // name a mutation's request

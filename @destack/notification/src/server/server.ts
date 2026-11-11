@@ -64,8 +64,8 @@ export class NotificationServer {
         const declared = declarations.find((each) => each.name === name);
         if (declared === undefined) {
             throw NotificationError.of(
-                "NOTIFICATION_UNKNOWN",
-                `this package declares no notification ${name}`,
+                "NOTIFICATION_INVALID",
+                `notification '${name}' is invalid: this package declares no such notification`,
             );
         }
 
