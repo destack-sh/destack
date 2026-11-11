@@ -223,8 +223,8 @@ async function readUsage(
     const units = new Set(meters.map((meter) => meter.definition.unit));
     if (units.size > 1) {
         throw FinanceError.of(
-            "UNITS_MIXED",
-            `a feature counts meters with different units: ${[...units].join(", ")}`,
+            "UNITS_BLOCKED",
+            `cannot count feature usage: its meters have different units '${[...units].join(", ")}'`,
         );
     }
 

@@ -56,12 +56,12 @@ export class StripeClient {
         if (response.status === 404) {
             throw FinanceError.of(
                 "STRIPE_NOT_FOUND",
-                `stripe has no ${path}: ${readMessage(body)}`,
+                `stripe answered '${readMessage(body)}': path '${path}' not found`,
             );
         } else if (!response.ok || typeof body !== "object" || body === null) {
             throw FinanceError.of(
-                "STRIPE_FAILED",
-                `stripe responded with ${response.status} to ${method} ${path}: ${readMessage(body)}`,
+                "STRIPE_UNREACHABLE",
+                `could not call stripe ${method} '${path}': status ${response.status} '${readMessage(body)}'`,
             );
         }
 

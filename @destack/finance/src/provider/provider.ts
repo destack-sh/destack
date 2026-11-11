@@ -249,7 +249,7 @@ export const ProviderEvent = {
         if (row === undefined) {
             throw FinanceError.of(
                 "CHECKOUT_NOT_FOUND",
-                `checkout session ${event.session} not found`,
+                `checkout session '${event.session}' not found`,
             );
         }
 
@@ -288,7 +288,7 @@ export const ProviderEvent = {
             .read(customer.table)
             .findMany({ where: { providerId: issued.customer } });
         if (buyer === undefined) {
-            throw FinanceError.of("CUSTOMER_NOT_FOUND", `customer ${issued.customer} not found`);
+            throw FinanceError.of("CUSTOMER_NOT_FOUND", `customer '${issued.customer}' not found`);
         }
 
         // create the invoice, or update the mirrored one
@@ -374,7 +374,7 @@ export const ProviderEvent = {
             .read(seller.table)
             .findMany({ where: { providerId: event.seller } });
         if (row === undefined) {
-            throw FinanceError.of("SELLER_NOT_FOUND", `seller ${event.seller} not found`);
+            throw FinanceError.of("SELLER_NOT_FOUND", `seller '${event.seller}' not found`);
         }
 
         // record its capabilities, and move its status with them

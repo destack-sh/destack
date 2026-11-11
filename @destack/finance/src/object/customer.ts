@@ -291,7 +291,7 @@ export const Customer = {
     ): Promise<void> {
         const [row] = await context.read(customer).findMany({ where: { accountId } });
         if (row === undefined) {
-            throw FinanceError.of("CUSTOMER_MISSING", "this account has no customer");
+            throw FinanceError.of("CUSTOMER_BLOCKED", "cannot bill: this account has no customer");
         }
     },
 };

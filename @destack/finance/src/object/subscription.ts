@@ -354,8 +354,8 @@ export const Subscription = {
             .findMany({ where: { accountId, status: { in: [...GRANTING_STATES] } } });
         if (granting.some((row) => row.sellerId === sold.id)) {
             throw FinanceError.of(
-                "SUBSCRIPTION_DUPLICATE",
-                `this account already subscribes to seller ${sold.id}: change that subscription`,
+                "SUBSCRIPTION_EXISTS",
+                `subscription of this account to seller '${sold.id}' already exists`,
             );
         }
     },
@@ -470,8 +470,8 @@ export const SubscriptionItem = {
             const found = rows.find((row) => row.providerId === item.price);
             if (found === undefined) {
                 throw FinanceError.of(
-                    "PRICE_NOT_MIRRORED",
-                    `no price matches provider price ${item.price}`,
+                    "PRICE_NOT_FOUND",
+                    `price for provider price '${item.price}' not found`,
                 );
             }
 

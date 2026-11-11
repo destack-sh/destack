@@ -258,9 +258,9 @@ test("open a seller's connected account in the country it onboards from, refusin
         false,
         "AT",
         [
-            "PRECONDITION_FAILED",
-            "COUNTRY_IMMUTABLE",
-            `seller ${offer.seller.id} is already registered in AT`,
+            "BAD_REQUEST",
+            "COUNTRY_INVALID",
+            `country of seller '${offer.seller.id}' is invalid: it stays 'AT' after registering`,
         ],
     ]);
 });
@@ -360,9 +360,9 @@ test("replace an abandoned checkout by expiring it at Stripe, and refuse another
         sessions: { [abandoned.id]: "expired", [current.id]: "complete" },
         atStripe: "expired",
         refused: [
-            "CONFLICT",
-            "CHECKOUT_COMPLETE",
-            `checkout session ${current.id} is paid, and its subscription starts once the provider reports it`,
+            "PRECONDITION_FAILED",
+            "CHECKOUT_BLOCKED",
+            `cannot complete checkout session '${current.id}': it is paid, and its subscription starts once the provider reports it`,
         ],
         subscriptions: ["active"],
     });
@@ -565,7 +565,11 @@ test("apply a delivery signed with the endpoint's secret, refusing a forged one,
         statuses,
         invoices: invoices.map((row) => row.providerId),
     }).toEqual({
-        forged: ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
+        forged: [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: webhook signature does not match",
+        ],
         settled: { status: "complete" },
         statuses: [202],
         invoices: [],
@@ -709,8 +713,8 @@ test("change Go to Pro at Stripe once the change commits, leaving Stripe as it w
     }).toEqual({
         rolledBack: [
             "NOT_FOUND",
-            "PRODUCT_UNAVAILABLE",
-            "product product-019f5530-8000-7000-8000-0000000000ff is not on sale",
+            "PRODUCT_NOT_FOUND",
+            "product 'product-019f5530-8000-7000-8000-0000000000ff' on sale not found",
         ],
         afterRollback: [String(FEE)],
         afterCommit: [String(2 * FEE)],

@@ -78,8 +78,8 @@ test("grant every account without a subscription to the shop its default product
     expect({ priced, before, after: await read() }).toEqual({
         priced: [
             "BAD_REQUEST",
-            "DEFAULT_PRODUCT_PRICED",
-            `product ${free.id} is every account's default, so it cannot have prices`,
+            "PRODUCT_INVALID",
+            `product '${free.id}' is invalid: it is every account's default, so it cannot have prices`,
         ],
         before: accounts.map((scope) => [scope, "community"]),
         after: accounts.map((scope) => [scope, scope === ids.buyer ? "priority" : "community"]),

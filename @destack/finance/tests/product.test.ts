@@ -116,7 +116,11 @@ test("let only a shop's sellers offer products in it, granting only features of 
                 }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: sell"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'sell' is forbidden: the caller lacks it",
+    ]);
 
     // refuse Carol's shop granting a feature of a destack package
     const grant = { packageId: hosting.id, feature: domains.name, value: null };
@@ -132,8 +136,8 @@ test("let only a shop's sellers offer products in it, granting only features of 
         ),
     ).toEqual([
         "FORBIDDEN",
-        "PUBLISHER_MISMATCH",
-        "account shop sells package @destack/hosting, which another account publishes",
+        "PUBLISHER_DENIED",
+        "package '@destack/hosting' is forbidden: account 'shop' cannot sell it, as another account publishes it",
     ]);
 
     // let the destack account grant its own package's feature
@@ -187,8 +191,16 @@ test("refuse offering a price or a product taken off sale", async () => {
     );
     expect([before, inactivePrice, await offered()]).toEqual([
         "done",
-        ["BAD_REQUEST", "PRICE_INACTIVE", `price ${offer.monthly.id} is inactive`],
-        ["BAD_REQUEST", "PRODUCT_INACTIVE", `product ${offer.product} is inactive`],
+        [
+            "BAD_REQUEST",
+            "PRICE_INVALID",
+            `price '${offer.monthly.id}' is invalid: it is inactive`,
+        ],
+        [
+            "BAD_REQUEST",
+            "PRODUCT_INVALID",
+            `product '${offer.product}' is invalid: it is inactive`,
+        ],
     ]);
 });
 
@@ -240,8 +252,8 @@ test("refuse a price whose included usage exceeds its fee, as the buyer would ow
         ),
     ).toEqual([
         "BAD_REQUEST",
-        "INCLUDED_USAGE_INVALID",
-        "a price's included usage of 900 exceeds its fee of 500 EUR",
+        "USAGE_INVALID",
+        "included usage '900' is invalid: it exceeds the price's fee of 500 'EUR'",
     ]);
 });
 
@@ -279,5 +291,9 @@ test("refuse a price in a currency its seller prices no credit in, which usage o
                 }),
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "CURRENCY_UNPRICED", `seller ${shop.id} has no credit price in USD`]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "CURRENCY_INVALID",
+        `currency 'USD' is invalid: seller '${shop.id}' has no credit price in it`,
+    ]);
 });

@@ -174,8 +174,8 @@ export class Feature<Value extends schema.Schema = schema.Schema> {
         // refuse any other value
         if (!isAccepted) {
             throw FinanceError.of(
-                "VALUE_REFUSED",
-                `feature ${DeclarationReference.key(this.reference)} rejects the granted value`,
+                "VALUE_INVALID",
+                `granted value is invalid: feature '${DeclarationReference.key(this.reference)}' rejects it`,
             );
         }
     }

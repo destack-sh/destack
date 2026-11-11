@@ -212,8 +212,8 @@ export const Charge = {
     requireOpen(line: Charge | undefined): Charge | undefined {
         if (line !== undefined && line.status !== "open") {
             throw FinanceError.of(
-                "PERIOD_CLOSED",
-                `the period of charge ${line.id} is closed: retry once the next one starts`,
+                "PERIOD_UNAVAILABLE",
+                `charge '${line.id}' is unavailable: its period is closed, so retry once the next one starts`,
             );
         }
 

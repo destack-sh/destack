@@ -3,58 +3,56 @@ import type {} from "@destack/package/import-meta";
 
 /** The finance package's failures, each reason with the call error code it answers. */
 export const FinanceError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    AGGREGATION_MISMATCH: { code: "BAD_REQUEST" },
-    CURRENCY_UNPRICED: { code: "BAD_REQUEST" },
-    DEFAULT_PRODUCT_PRICED: { code: "BAD_REQUEST" },
-    INCLUDED_USAGE_INVALID: { code: "BAD_REQUEST" },
-    LEVEL_MISMATCH: { code: "BAD_REQUEST" },
-    LICENSED_PRICE_MISSING: { code: "BAD_REQUEST" },
-    METER_MISMATCH: { code: "BAD_REQUEST" },
-    PRICE_INACTIVE: { code: "BAD_REQUEST" },
-    PRODUCT_INACTIVE: { code: "BAD_REQUEST" },
-    USAGE_BILLED: { code: "BAD_REQUEST" },
-    VALUE_REFUSED: { code: "BAD_REQUEST" },
-
-    // forbidden
-    PUBLISHER_MISMATCH: { code: "FORBIDDEN" },
-
     // not found
-    CHECKOUT_NOT_FOUND: { code: "NOT_FOUND" },
-    CUSTOMER_NOT_FOUND: { code: "NOT_FOUND" },
-    FEATURE_UNDECLARED: { code: "NOT_FOUND" },
-    METER_UNDECLARED: { code: "NOT_FOUND" },
-    PRICE_NOT_FOUND: { code: "NOT_FOUND" },
-    PRICE_NOT_MIRRORED: { code: "NOT_FOUND" },
-    PRODUCT_NOT_FOUND: { code: "NOT_FOUND" },
-    PRODUCT_UNAVAILABLE: { code: "NOT_FOUND" },
-    SELLER_NOT_FOUND: { code: "NOT_FOUND" },
-    SKU_UNDECLARED: { code: "NOT_FOUND" },
-    STRIPE_NOT_FOUND: { code: "NOT_FOUND" },
+    CHECKOUT_NOT_FOUND: {},
+    CUSTOMER_NOT_FOUND: {},
+    FEATURE_NOT_FOUND: {},
+    METER_NOT_FOUND: {},
+    PRICE_NOT_FOUND: {},
+    PRODUCT_NOT_FOUND: {},
+    SELLER_NOT_FOUND: {},
+    SKU_NOT_FOUND: {},
+    STRIPE_NOT_FOUND: {},
+
+    // exists
+    SUBSCRIPTION_EXISTS: {},
 
     // conflict
-    CHECKOUT_COMPLETE: { code: "CONFLICT" },
-    SUBSCRIPTION_DUPLICATE: { code: "CONFLICT" },
-    USAGE_CHANGED: { code: "CONFLICT" },
+    USAGE_CONFLICT: {},
 
-    // precondition failed
-    CONVERSION_UNPRICED: { code: "PRECONDITION_FAILED" },
-    COUNTRY_IMMUTABLE: { code: "PRECONDITION_FAILED" },
-    CUSTOMER_MISSING: { code: "PRECONDITION_FAILED" },
-    PROVIDER_MISSING: { code: "PRECONDITION_FAILED" },
-    SELLER_INACTIVE: { code: "PRECONDITION_FAILED" },
-    SELLER_MISSING: { code: "PRECONDITION_FAILED" },
-    SELLER_PLATFORM: { code: "PRECONDITION_FAILED" },
-    UNITS_MIXED: { code: "PRECONDITION_FAILED" },
+    // invalid
+    AGGREGATION_INVALID: {},
+    COUNTRY_INVALID: {},
+    CURRENCY_INVALID: {},
+    LEVEL_INVALID: {},
+    METER_INVALID: {},
+    PRICE_INVALID: {},
+    PRODUCT_INVALID: {},
+    USAGE_INVALID: {},
+    VALUE_INVALID: {},
 
-    // bad gateway
-    STRIPE_FAILED: { code: "BAD_GATEWAY" },
+    // required
+    PRICE_REQUIRED: {},
 
-    // service unavailable
-    PERIOD_CLOSED: { code: "SERVICE_UNAVAILABLE" },
-    PERIOD_ENDED: { code: "SERVICE_UNAVAILABLE" },
-    SELLER_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
-    USAGE_AHEAD: { code: "SERVICE_UNAVAILABLE" },
+    // denied
+    PUBLISHER_DENIED: {},
+    SELLER_DENIED: {},
+
+    // blocked
+    CHECKOUT_BLOCKED: {},
+    CONVERSION_BLOCKED: {},
+    CUSTOMER_BLOCKED: {},
+    PROVIDER_BLOCKED: {},
+    SELLER_BLOCKED: {},
+    UNITS_BLOCKED: {},
+
+    // unavailable
+    PERIOD_UNAVAILABLE: {},
+    SELLER_UNAVAILABLE: {},
+    USAGE_UNAVAILABLE: {},
+
+    // unreachable
+    STRIPE_UNREACHABLE: {},
 });
 
 /** A stable cause of finance failures. */

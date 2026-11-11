@@ -156,7 +156,7 @@ export const Stripe = {
         const row = StripeSubscription.parse(input);
         const [first] = row.items.data;
         if (first === undefined) {
-            throw new TypeError(`stripe subscription ${row.id} is empty`);
+            throw new TypeError(`stripe subscription '${row.id}' is empty`);
         }
 
         return {

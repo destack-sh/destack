@@ -301,7 +301,7 @@ export class TestStripe {
         const secret =
             endpoint === undefined ? undefined : this.#secrets.get(String(endpoint["id"]));
         if (secret === undefined) {
-            throw new TypeError(`the stripe fixture has no endpoint at ${url}`);
+            throw new TypeError(`the stripe fixture has no endpoint at '${url}'`);
         }
 
         return secret;
@@ -339,7 +339,7 @@ export class TestStripe {
     #object(id: string): StripeObject {
         const found = this.objects.get(id);
         if (found === undefined) {
-            throw new TypeError(`the stripe fixture has no ${id}`);
+            throw new TypeError(`the stripe fixture has no '${id}'`);
         }
 
         return found;

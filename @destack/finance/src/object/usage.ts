@@ -75,8 +75,8 @@ export const Usage = {
         if (isAveraged !== (level !== null)) {
             const verb = isAveraged ? "needs" : "refuses";
             throw FinanceError.of(
-                "LEVEL_MISMATCH",
-                `an event of meter ${name} ${verb} a level because its aggregation is ${meter.definition.aggregation}`,
+                "LEVEL_INVALID",
+                `event of meter '${name}' is invalid: it '${verb}' a level because its aggregation is '${meter.definition.aggregation}'`,
             );
         }
 
@@ -89,18 +89,18 @@ export const Usage = {
         const measured = DeclarationReference.key(sku.definition.meter);
         if (measured !== DeclarationReference.key({ packageId, name })) {
             throw FinanceError.of(
-                "METER_MISMATCH",
-                `sku ${sku.name} prices meter ${measured}, but the use measures ${name}`,
+                "METER_INVALID",
+                `meter '${name}' is invalid: sku '${sku.name}' prices meter '${measured}'`,
             );
         } else if (!meter.accepts(sku.definition.attributes)) {
             throw FinanceError.of(
-                "METER_MISMATCH",
-                `sku ${sku.name} prices attributes ${JSON.stringify(sku.definition.attributes)} that meter ${name} does not declare`,
+                "METER_INVALID",
+                `sku '${sku.name}' is invalid: it prices attributes ${JSON.stringify(sku.definition.attributes)} that meter '${name}' does not declare`,
             );
         } else if (!isAveraged && meter.definition.aggregation !== "sum") {
             throw FinanceError.of(
-                "AGGREGATION_MISMATCH",
-                `sku ${sku.name} only rates sum and average meters, but meter ${name} is ${meter.definition.aggregation}`,
+                "AGGREGATION_INVALID",
+                `meter '${name}' is invalid: sku '${sku.name}' only rates sum and average meters, and it is '${meter.definition.aggregation}'`,
             );
         }
     },

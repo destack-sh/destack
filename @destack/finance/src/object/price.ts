@@ -182,15 +182,21 @@ export const Price = {
         const id = price.identifier(reference.id);
         const row = await reader.read(price.table).findFirst({ where: { id } });
         if (row === undefined || row.scope !== reference.scope) {
-            throw FinanceError.of("PRICE_NOT_FOUND", `price ${id} not found`);
+            throw FinanceError.of("PRICE_NOT_FOUND", `price '${id}' not found`);
         }
 
         // refuse a price or product taken off sale
         const owner = await reader.read(product.table).findFirst({ where: { id: row.parentId } });
         if (!row.active) {
-            throw FinanceError.of("PRICE_INACTIVE", `price ${id} is inactive`);
+            throw FinanceError.of(
+                "PRICE_INVALID",
+                `price '${id}' is invalid: it is inactive`,
+            );
         } else if (!present(owner, "a price's product").active) {
-            throw FinanceError.of("PRODUCT_INACTIVE", `product ${row.parentId} is inactive`);
+            throw FinanceError.of(
+                "PRODUCT_INVALID",
+                `product '${row.parentId}' is invalid: it is inactive`,
+            );
         }
 
         // read its product's grants, by package and feature
@@ -220,11 +226,11 @@ export const Price = {
             .read(product.table)
             .findFirst({ where: { id: product.identifier(parentId) } });
         if (owner === undefined) {
-            throw FinanceError.of("PRODUCT_NOT_FOUND", `product ${parentId} not found`);
+            throw FinanceError.of("PRODUCT_NOT_FOUND", `product '${parentId}' not found`);
         } else if (owner.isDefault) {
             throw FinanceError.of(
-                "DEFAULT_PRODUCT_PRICED",
-                `product ${parentId} is every account's default, so it cannot have prices`,
+                "PRODUCT_INVALID",
+                `product '${parentId}' is invalid: it is every account's default, so it cannot have prices`,
             );
         }
 
@@ -233,11 +239,11 @@ export const Price = {
             .read(seller.table)
             .findMany({ where: { accountId: owner.accountId } });
         if (sold === undefined) {
-            throw FinanceError.of("SELLER_MISSING", "this account is not a seller");
+            throw FinanceError.of("SELLER_BLOCKED", "cannot sell: this account is not a seller");
         } else if (sold.creditPrices[terms.currency] === undefined) {
             throw FinanceError.of(
-                "CURRENCY_UNPRICED",
-                `seller ${sold.id} has no credit price in ${terms.currency}`,
+                "CURRENCY_INVALID",
+                `currency '${terms.currency}' is invalid: seller '${sold.id}' has no credit price in it`,
             );
         }
 
@@ -265,8 +271,8 @@ export const Price = {
             .findMany({ where: { parentId: product.identifier(row.id) } });
         if (priced.length > 0) {
             throw FinanceError.of(
-                "DEFAULT_PRODUCT_PRICED",
-                `product ${row.id} has prices, but every account's default product cannot have prices`,
+                "PRODUCT_INVALID",
+                `product '${row.id}' is invalid: it has prices, but every account's default product cannot have prices`,
             );
         }
     },
@@ -283,8 +289,8 @@ function requireFee(terms: Pick<Price, keyof typeof PRICE_TERMS>): void {
     // refuse a fee below the included usage
     if (fee < terms.includedUsage) {
         throw FinanceError.of(
-            "INCLUDED_USAGE_INVALID",
-            `a price's included usage of ${terms.includedUsage} exceeds its fee of ${fee} ${terms.currency}`,
+            "USAGE_INVALID",
+            `included usage '${terms.includedUsage}' is invalid: it exceeds the price's fee of ${fee} '${terms.currency}'`,
         );
     }
 }

@@ -55,15 +55,15 @@ const Offering = {
             .findFirst({ where: { id: product.identifier(wanted.product.id) } });
         if (row === undefined || !row.active || row.scope !== wanted.product.scope) {
             throw FinanceError.of(
-                "PRODUCT_UNAVAILABLE",
-                `product ${wanted.product.id} is not on sale`,
+                "PRODUCT_NOT_FOUND",
+                `product '${wanted.product.id}' on sale not found`,
             );
         }
 
         // read the seller of the product's account
         const [sold] = await context.read(seller).findMany({ where: { accountId: row.accountId } });
         if (sold === undefined) {
-            throw FinanceError.of("SELLER_MISSING", "this account is not a seller");
+            throw FinanceError.of("SELLER_BLOCKED", "cannot sell: this account is not a seller");
         } else if (row.isDefault) {
             return { product: row, seller: sold, prices: [] };
         }
@@ -74,8 +74,8 @@ const Offering = {
             .findMany({ where: { parentId: row.id, currency: wanted.currency, active: true } });
         if (prices.every((each) => Price.isMetered(each))) {
             throw FinanceError.of(
-                "LICENSED_PRICE_MISSING",
-                `product ${row.id} has no licensed price in ${wanted.currency}`,
+                "PRICE_REQUIRED",
+                `licensed price of product '${row.id}' in '${wanted.currency}' is required`,
             );
         }
 
@@ -105,8 +105,8 @@ export class Billing {
     requireProvider(): PaymentProvider {
         if (this.provider === undefined) {
             throw FinanceError.of(
-                "PROVIDER_MISSING",
-                "this home has no payment provider, so it cannot sell",
+                "PROVIDER_BLOCKED",
+                "cannot sell: this home has no payment provider",
             );
         }
 
@@ -134,8 +134,8 @@ export class Billing {
             (await provider.expire(open.providerId, `${key}/expire`)) === "complete"
         ) {
             throw FinanceError.of(
-                "CHECKOUT_COMPLETE",
-                `checkout session ${open.id} is paid, and its subscription starts once the provider reports it`,
+                "CHECKOUT_BLOCKED",
+                `cannot complete checkout session '${open.id}': it is paid, and its subscription starts once the provider reports it`,
             );
         }
 
@@ -443,8 +443,8 @@ export class Billing {
     static #connected(sold: Seller): string {
         if (sold.providerId === null || sold.status !== "active") {
             throw FinanceError.of(
-                "SELLER_INACTIVE",
-                `seller ${sold.id} is ${sold.status}: only an active seller can take charges`,
+                "SELLER_BLOCKED",
+                `cannot charge seller '${sold.id}': it is ${sold.status}, and only an active seller can take charges`,
             );
         }
 
@@ -518,8 +518,8 @@ export class Billing {
         const billed = new Map(Object.entries(closed.lines));
         if (lines.length !== billed.size || lines.some((line) => !billed.has(line.id))) {
             throw FinanceError.of(
-                "USAGE_CHANGED",
-                `the usage lines of subscription ${row.id} changed since its period was billed`,
+                "USAGE_CONFLICT",
+                `cannot bill subscription '${row.id}': its usage lines changed since its period was billed`,
             );
         }
 

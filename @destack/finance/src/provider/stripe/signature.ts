@@ -61,15 +61,18 @@ export class StripeSignature implements WebhookSignature {
         const timestamp = pairs.find(([name]) => name === "t")?.[1];
         const signatures = pairs.filter(([name]) => name === SCHEME).map(([, value]) => value);
         if (timestamp === undefined || signatures.length === 0) {
-            throw ObjectError.of("SIGNATURE_MISSING", "missing stripe webhook signature");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: stripe webhook signature is missing",
+            );
         }
 
         // refuse a timestamp outside the tolerance
         const sentAt = Number(timestamp) * 1000;
         if (!/^\d+$/u.test(timestamp) || Math.abs(now - sentAt) > TOLERANCE_MILLISECONDS) {
             throw ObjectError.of(
-                "TIMESTAMP_OUTSIDE_TOLERANCE",
-                "webhook timestamp is outside the tolerance",
+                "TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED",
+                "authentication required: webhook timestamp is outside the tolerance",
             );
         }
 
@@ -89,7 +92,10 @@ export class StripeSignature implements WebhookSignature {
             }
         }
         if (!isSigned) {
-            throw ObjectError.of("SIGNATURE_MISMATCH", "webhook signature does not match");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: webhook signature does not match",
+            );
         }
 
         // read the event's identifier and type

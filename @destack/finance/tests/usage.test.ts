@@ -516,8 +516,8 @@ test("rate each space's SKU usage at list cost, billing nothing without a subscr
         ],
         late: [
             "SERVICE_UNAVAILABLE",
-            "PERIOD_ENDED",
-            `the period of subscription ${ended.id} ended: retry once the next one starts`,
+            "PERIOD_UNAVAILABLE",
+            `subscription '${ended.id}' is unavailable: its period ended, so retry once the next one starts`,
         ],
     });
 });
@@ -656,7 +656,7 @@ test("capture usage of a period its subscription billed already as refused, and 
             {
                 scope: "@destack/finance",
                 name: "Error",
-                message: `usage at ${now - 2 * DAY} is before the current period of subscription ${running.id}, which already billed it`,
+                message: `usage at '${now - 2 * DAY}' is invalid: it is before the current period of subscription '${running.id}', which already billed it`,
             },
         ],
         rated: [["Usage", spaces.notes, 1, "2", "2", "open"]],
@@ -701,8 +701,8 @@ test("store one credit line per account, seller and period, refusing a second on
         "done",
         [
             "CONFLICT",
-            "DUPLICATE",
-            "another charge has the same account, seller, and chargePeriodStart",
+            "OBJECT_EXISTS",
+            "'charge' with the same 'account, seller, and chargePeriodStart' already exists",
         ],
     ]);
 });

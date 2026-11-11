@@ -553,7 +553,7 @@ export class TestFinance {
             .where(eq(kind.table[TABLE].column("scope"), payer))
             .limit(1);
         if (!("reconcile" in flush)) {
-            throw new TypeError(`the flush of ${kind.key} follows instead of reconciling`);
+            throw new TypeError(`the flush of '${kind.key}' follows instead of reconciling`);
         }
         await flush.reconcile(rows, reconciliation());
     }

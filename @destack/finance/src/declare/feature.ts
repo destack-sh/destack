@@ -28,7 +28,7 @@ export function defineFeature<Value extends schema.Schema>(
         RESOURCE_KINDS[definition.resource] !== definition.kind
     ) {
         throw new TypeError(
-            `feature ${definition.name} allows ${definition.resource}, which needs a ${RESOURCE_KINDS[definition.resource]} feature`,
+            `feature '${definition.name}' allows '${definition.resource}', which needs a '${RESOURCE_KINDS[definition.resource]}' feature`,
         );
     }
 
@@ -40,7 +40,7 @@ export function defineFeature<Value extends schema.Schema>(
         // count each meter once
         const keys = new Set(meters.map((meter) => DeclarationReference.key(meter)));
         if (keys.size < meters.length) {
-            throw new TypeError(`feature ${definition.name} counts a meter twice`);
+            throw new TypeError(`feature '${definition.name}' counts a meter twice`);
         }
     }
 

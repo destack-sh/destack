@@ -20,7 +20,7 @@ test("let the account's viewers read a subscription and its managers cancel it a
     expect([created.status, await read("bob"), await read("eve")]).toEqual([
         "incomplete",
         "done",
-        ["NOT_FOUND", "NOT_FOUND", `subscription ${created.id} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `subscription '${created.id}' not found`],
     ]);
 
     // let the owner cancel at the period's end, and refuse the viewer
@@ -42,12 +42,19 @@ test("let the account's viewers read a subscription and its managers cancel it a
                 }),
             ),
         ),
-    ]).toEqual([true, ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: bill"]]);
+    ]).toEqual([
+        true,
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: the caller lacks it"],
+    ]);
 
     // refuse the provider's transitions to the owner
     expect(
         await refusal(finance.call("alice", subscription.call("activate", { id: created.id }))),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: provide"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'provide' is forbidden: the caller lacks it",
+    ]);
 });
 
 test("refuse subscribing without a customer", async () => {
@@ -58,7 +65,7 @@ test("refuse subscribing without a customer", async () => {
     // refuse a subscription of an account without its billing details
     expect(await refusal(finance.subscribe(offer, { start: START, end: END }))).toEqual([
         "PRECONDITION_FAILED",
-        "CUSTOMER_MISSING",
-        "this account has no customer",
+        "CUSTOMER_BLOCKED",
+        "cannot bill: this account has no customer",
     ]);
 });

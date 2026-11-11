@@ -54,7 +54,10 @@ export function implementFinance(
             stripe:
                 webhook ??
                 (async () => {
-                    throw FinanceError.of("PROVIDER_MISSING", "finance has no payment provider");
+                    throw FinanceError.of(
+                        "PROVIDER_BLOCKED",
+                        "cannot bill: finance has no payment provider",
+                    );
                 }),
         },
 

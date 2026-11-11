@@ -136,7 +136,7 @@ export const Seller = {
         if (found === undefined) {
             throw FinanceError.of(
                 "SELLER_UNAVAILABLE",
-                `${handle} has no offers for ${owner.name} here yet`,
+                `offer of '${handle}' for '${owner.name}' is unavailable: there is none here yet`,
             );
         }
 
@@ -157,8 +157,8 @@ export const Seller = {
                 .read(account.table)
                 .findFirst({ where: { id: accountId } });
             throw FinanceError.of(
-                "PUBLISHER_MISMATCH",
-                `account ${present(selling, `account ${accountId}`).handle} sells package ${owner.name}, which another account publishes`,
+                "PUBLISHER_DENIED",
+                `package '${owner.name}' is forbidden: account '${present(selling, `account ${accountId}`).handle}' cannot sell it, as another account publishes it`,
             );
         }
     },

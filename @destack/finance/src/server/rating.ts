@@ -339,13 +339,13 @@ export class Rating {
         // refuse usage of a period the subscription closed, and wait for one it has not started
         if (time < chosen.currentPeriodStart) {
             throw FinanceError.of(
-                "USAGE_BILLED",
-                `usage at ${time} is before the current period of subscription ${chosen.id}, which already billed it`,
+                "USAGE_INVALID",
+                `usage at '${time}' is invalid: it is before the current period of subscription '${chosen.id}', which already billed it`,
             );
         } else if (time >= chosen.currentPeriodEnd) {
             throw FinanceError.of(
-                "USAGE_AHEAD",
-                `usage at ${time} is after the period of subscription ${chosen.id}: retry once the next one starts`,
+                "USAGE_UNAVAILABLE",
+                `usage at '${time}' is unavailable: it is after the period of subscription '${chosen.id}', so retry once the next one starts`,
             );
         }
 
@@ -417,8 +417,8 @@ export class Rating {
         const credit = from === CREDITS ? sold.creditPrices[to] : undefined;
         if (credit === undefined) {
             throw FinanceError.of(
-                "CONVERSION_UNPRICED",
-                `seller ${sold.id} has no price for ${from} in ${to}`,
+                "CONVERSION_BLOCKED",
+                `cannot convert prices of seller '${sold.id}': it has no price for '${from}' in '${to}'`,
             );
         }
 
@@ -430,8 +430,8 @@ export class Rating {
         // refuse once the clock passed the period's end
         if (now >= row.currentPeriodEnd) {
             throw FinanceError.of(
-                "PERIOD_ENDED",
-                `the period of subscription ${row.id} ended: retry once the next one starts`,
+                "PERIOD_UNAVAILABLE",
+                `subscription '${row.id}' is unavailable: its period ended, so retry once the next one starts`,
             );
         }
     }

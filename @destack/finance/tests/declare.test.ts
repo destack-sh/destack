@@ -54,7 +54,7 @@ test("read described features and meters back from a build, and relate metered f
     await expect(releases.feature({ packageId: storage.id, name: "backup" })).rejects.toMatchObject(
         {
             code: "NOT_FOUND",
-            message: `feature ${storage.id}/backup is undeclared`,
+            message: `feature '${storage.id}/backup' not found`,
         },
     );
 });
@@ -98,7 +98,7 @@ test("plan a feature's change between releases: hold its kind, and accept the va
     ]).toEqual([
         [],
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],
-        "feature/seats: declare a conversion for 2026.10.0",
-        "feature/seats: stay at kind static, or declare a feature of kind boolean",
+        "cannot reach the desired state: feature/seats: declare a conversion for 2026.10.0",
+        "cannot reach the desired state: feature/seats: stay at kind static, or declare a feature of kind boolean",
     ]);
 });

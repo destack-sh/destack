@@ -62,7 +62,7 @@ export const ProductFeature = {
             .read(product.table)
             .findFirst({ where: { id: product.identifier(grant.parentId) } });
         if (sold === undefined) {
-            throw FinanceError.of("PRODUCT_NOT_FOUND", `product ${grant.parentId} not found`);
+            throw FinanceError.of("PRODUCT_NOT_FOUND", `product '${grant.parentId}' not found`);
         }
 
         // refuse a feature of a package another account publishes

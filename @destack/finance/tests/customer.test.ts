@@ -38,8 +38,8 @@ test("store an account's billing details, refusing a second customer and billing
         ),
         await refusal(finance.call("bob", customer.call("update", { id: buyer.id, name: "Bob" }))),
     ]).toEqual([
-        ["CONFLICT", "DUPLICATE", "another customer has the same account"],
+        ["CONFLICT", "OBJECT_EXISTS", "'customer' with the same 'account' already exists"],
         ["BAD_REQUEST", "INPUT_INVALID", 'invalid input: unrecognized key: "providerId"'],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: bill"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'bill' is forbidden: the caller lacks it"],
     ]);
 });

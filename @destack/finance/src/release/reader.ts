@@ -39,8 +39,8 @@ export class ReleaseReader {
         const feature = await this.findFeature(reference);
         if (feature === undefined) {
             throw FinanceError.of(
-                "FEATURE_UNDECLARED",
-                `feature ${DeclarationReference.key(reference)} is undeclared`,
+                "FEATURE_NOT_FOUND",
+                `feature '${DeclarationReference.key(reference)}' not found`,
             );
         }
 
@@ -61,8 +61,8 @@ export class ReleaseReader {
         const meter = meters.find((each) => ReleaseReader.#isAt(each, reference));
         if (meter === undefined) {
             throw FinanceError.of(
-                "METER_UNDECLARED",
-                `meter ${DeclarationReference.key(reference)} is undeclared`,
+                "METER_NOT_FOUND",
+                `meter '${DeclarationReference.key(reference)}' not found`,
             );
         }
 
@@ -76,8 +76,8 @@ export class ReleaseReader {
         const sku = skus.find((each) => ReleaseReader.#isAt(each, reference));
         if (sku === undefined) {
             throw FinanceError.of(
-                "SKU_UNDECLARED",
-                `sku ${DeclarationReference.key(reference)} is undeclared`,
+                "SKU_NOT_FOUND",
+                `sku '${DeclarationReference.key(reference)}' not found`,
             );
         }
 

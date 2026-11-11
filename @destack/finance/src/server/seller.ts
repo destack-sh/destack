@@ -46,8 +46,8 @@ async function prepareOnboard(
     const row = context.target;
     if (billing.isPlatform(row.accountId)) {
         throw FinanceError.of(
-            "SELLER_PLATFORM",
-            "the platform cannot be a seller: it sells on the provider account itself",
+            "SELLER_DENIED",
+            "the platform as a seller is forbidden: it sells on the provider account itself",
         );
     }
 
@@ -55,8 +55,8 @@ async function prepareOnboard(
     const { country, returnUrl, refreshUrl } = context.input;
     if (row.country !== null && row.country !== country) {
         throw FinanceError.of(
-            "COUNTRY_IMMUTABLE",
-            `seller ${row.id} is already registered in ${row.country}`,
+            "COUNTRY_INVALID",
+            `country of seller '${row.id}' is invalid: it stays '${row.country}' after registering`,
         );
     }
 

@@ -98,7 +98,7 @@ export class CustomerEntitlement {
         // refuse an unread table
         else {
             throw new TypeError(
-                `table ${change.table[TABLE].name} is not read by the entitlement projection`,
+                `table '${change.table[TABLE].name}' is not read by the entitlement projection`,
             );
         }
     }
