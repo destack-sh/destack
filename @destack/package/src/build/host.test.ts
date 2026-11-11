@@ -34,9 +34,9 @@ test("refuse a host module the runtime lacks and the importing package keeps", a
     const hosts = new HostModuleResolver("browser", files);
 
     expect(await refusal(hosts.resolve("node:path", "/app/index.js"))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "HOST_MODULE_UNAVAILABLE",
-        "host module is unavailable on browser: node:path, imported by /app/index.js",
+        "BAD_REQUEST",
+        "HOST_MODULE_INVALID",
+        "host module 'node:path' is invalid: it is unavailable on 'browser', imported by '/app/index.js'",
     ]);
 });
 

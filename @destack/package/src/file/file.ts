@@ -44,12 +44,18 @@ async function verify(
     crypto: DigestCrypto,
 ): Promise<void> {
     if (bytes.byteLength !== file.size) {
-        throw PackageError.of("FILE_INVALID", `file size mismatch: ${file.path}`);
+        throw PackageError.of(
+            "FILE_INVALID",
+            `file '${file.path}' is invalid: its size does not match`,
+        );
     }
 
     // reject any content change, including changes that preserve the length
     const digest = await Digest.of(bytes, crypto);
     if (digest !== file.digest) {
-        throw PackageError.of("FILE_INVALID", `file digest mismatch: ${file.path}`);
+        throw PackageError.of(
+            "FILE_INVALID",
+            `file '${file.path}' is invalid: its digest does not match`,
+        );
     }
 }

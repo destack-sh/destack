@@ -246,7 +246,7 @@ export class PackageLocator {
         if (manifestText === undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `${join(directory, "destack.json")} has no package.json beside it`,
+                `'${join(directory, "destack.json")}' is invalid: it has no package.json beside it`,
             );
         }
         const manifest = ReleasedManifest.parse(JSON.parse(manifestText));

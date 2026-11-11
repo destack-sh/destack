@@ -27,7 +27,7 @@ export class ModuleGraph {
         if (!symbol) {
             throw PackageError.of(
                 "INSPECTION_INVALID",
-                `unresolved symbol: ${reference.module}#${reference.name}`,
+                `symbol '${reference.module}#${reference.name}' is invalid: it does not resolve`,
             );
         }
 
@@ -38,7 +38,10 @@ export class ModuleGraph {
     resolveExport(module: string, name: string): SymbolReference {
         const exported = this.modules.get(module)?.exports.find((entry) => entry.name === name);
         if (!exported) {
-            throw PackageError.of("INSPECTION_INVALID", `unknown export: ${module}#${name}`);
+            throw PackageError.of(
+                "INSPECTION_INVALID",
+                `export '${module}#${name}' is invalid: it is unknown`,
+            );
         }
 
         return exported.symbol;

@@ -25,7 +25,7 @@ async function extract(
     });
     const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
     if (code !== 0) {
-        throw new Error(`tar failed with ${code}: ${errors}`);
+        throw new Error(`tar failed with ${code}: '${errors}'`);
     }
 }
 
@@ -105,7 +105,7 @@ test("read back every file a tarball holds in order, with long paths and multi-b
         () => "read",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
-    expect([restored, refused]).toEqual([files, "a tarball header's checksum fails"]);
+    expect([restored, refused]).toEqual([files, "tarball is invalid: a header checksum fails"]);
 });
 
 test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {

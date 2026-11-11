@@ -66,7 +66,7 @@ export const PackageManifest = Object.assign(manifest, {
             const { name, version } = value.package;
             throw PackageError.of(
                 "BUILD_INVALID",
-                `${name}@${version} is an npm package build, not a Destack package build`,
+                `'${name}@${version}' is invalid: it is an npm package build, not a Destack package build`,
             );
         }
 

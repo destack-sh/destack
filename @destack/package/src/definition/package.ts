@@ -21,7 +21,7 @@ export const PackageId = Object.assign(packageIdentifier, {
     /** Read the package an OAuth resource names, refusing any other resource. */
     ofResource(resource: string): schema.Infer<typeof packageIdentifier> {
         if (!resource.startsWith(RESOURCE_PREFIX)) {
-            throw new TypeError(`resource ${resource} names no package`);
+            throw new TypeError(`resource '${resource}' names no package`);
         }
 
         return packageIdentifier.parse(resource.slice(RESOURCE_PREFIX.length));

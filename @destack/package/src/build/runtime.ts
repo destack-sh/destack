@@ -88,7 +88,7 @@ function cssTargets(): Record<string, number> {
             // split a target such as "safari17.4" into its browser and version
             const match = /^([a-z]+)(\d+)(?:\.(\d+))?$/u.exec(target);
             if (match === null) {
-                throw new TypeError(`unknown browser target: ${target}`);
+                throw new TypeError(`unknown browser target: '${target}'`);
             }
             const [, browser = "", major = "0", minor = "0"] = match;
 

@@ -77,7 +77,7 @@ export class Program {
         // refuse a module the program does not share
         const load = this.#load(specifier);
         if (load === undefined) {
-            throw new TypeError(`the program shares no module ${specifier}`);
+            throw new TypeError(`the program shares no module '${specifier}'`);
         }
 
         // load it once

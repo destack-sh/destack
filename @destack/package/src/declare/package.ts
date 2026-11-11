@@ -37,11 +37,14 @@ export function definePackage<const Declarations extends PackageDeclarationMap>(
         if (key !== declaration.name) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `declaration ${declaration.name} is listed under another name: ${key}`,
+                `declaration '${declaration.name}' is invalid: it is listed under another name '${key}'`,
             );
         }
         if (names.has(key)) {
-            throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `declaration '${key}' is invalid: it is a duplicate`,
+            );
         }
         names.add(key);
     }

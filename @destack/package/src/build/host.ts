@@ -45,10 +45,9 @@ export class HostModuleResolver {
         // refuse the host modules the runtime lacks before Vite emits browser stubs
         const resolution = await this.classify(specifier, importer);
         if (resolution === "unavailable") {
-            const importedBy = importer === undefined ? "" : `, imported by ${importer}`;
             throw PackageError.of(
-                "HOST_MODULE_UNAVAILABLE",
-                `host module is unavailable on ${this.runtime}: ${specifier}${importedBy}`,
+                "HOST_MODULE_INVALID",
+                `host module '${specifier}' is invalid: it is unavailable on '${this.runtime}', imported by '${importer ?? "the entry"}'`,
             );
         }
 

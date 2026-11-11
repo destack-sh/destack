@@ -101,7 +101,10 @@ export const Tarball = {
                 return;
             }
             if (readOctal(head, 148, 8) !== checksum(head)) {
-                throw PackageError.of("FILE_INVALID", "a tarball header's checksum fails");
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    "tarball is invalid: a header checksum fails",
+                );
             }
 
             // take a PAX path for the next file, skipping other entries' bytes
@@ -154,7 +157,7 @@ async function* readBlocks(
         pending = joined.slice(offset);
     }
     if (pending.byteLength > 0) {
-        throw PackageError.of("FILE_INVALID", "a tarball ends inside a block");
+        throw PackageError.of("FILE_INVALID", "tarball is invalid: it ends inside a block");
     }
 }
 
@@ -167,7 +170,10 @@ async function take(
     for (let index = 0; index < count; index++) {
         const next = await read.next();
         if (next.done === true) {
-            throw PackageError.of("FILE_INVALID", "a tarball ends before its last entry");
+            throw PackageError.of(
+                "FILE_INVALID",
+                "tarball is invalid: it ends before its last entry",
+            );
         }
         taken.set(next.value, index * BLOCK_BYTES);
     }
@@ -279,7 +285,7 @@ async function* blocks(entry: TarballEntry): AsyncGenerator<Uint8Array<ArrayBuff
     if (written !== entry.size) {
         throw PackageError.of(
             "FILE_INVALID",
-            `a tarball entry of ${entry.size} bytes has ${written}`,
+            `tarball entry is invalid: it has ${written} of ${entry.size} bytes`,
         );
     }
 

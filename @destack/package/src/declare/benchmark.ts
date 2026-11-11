@@ -62,16 +62,22 @@ export function defineBenchmark<Speaks extends Interaction>(
 
     // require an operation, iterations and limits only on measured operations
     if (Object.keys(operations).length === 0) {
-        throw PackageError.of("DEFINITION_INVALID", `benchmark ${name} measures no operation`);
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `benchmark '${name}' is invalid: it measures no operation`,
+        );
     }
     if (!Number.isInteger(definition.iterations) || definition.iterations < 1) {
-        throw PackageError.of("DEFINITION_INVALID", `benchmark ${name} takes no iterations`);
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `benchmark '${name}' is invalid: it takes no iterations`,
+        );
     }
     const unmeasured = Object.keys(limits).find((operation) => !(operation in operations));
     if (unmeasured !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `benchmark ${name} limits ${unmeasured}, which it does not measure`,
+            `benchmark '${name}' is invalid: it limits '${unmeasured}', which it does not measure`,
         );
     }
 

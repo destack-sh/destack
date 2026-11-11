@@ -172,7 +172,7 @@ export const Sandbox = Object.assign(sandboxSchema, {
         if (undeclared.length > 0) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `the workload uses undeclared sandbox abilities: ${undeclared.join(", ")}`,
+                `workload is invalid: it uses undeclared sandbox abilities '${undeclared.join(", ")}'`,
             );
         }
 

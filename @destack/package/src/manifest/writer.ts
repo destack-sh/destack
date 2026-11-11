@@ -249,7 +249,10 @@ export class BuildWriter {
     file(path: string): PackageFile {
         const file = this.#files.get(path);
         if (file === undefined) {
-            throw PackageError.of("FILE_INVALID", `unwritten build file: ${path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `build file '${path}' is invalid: it is unwritten`,
+            );
         }
 
         return file;
@@ -332,7 +335,10 @@ export class BuildWriter {
     #isWritten(file: PackageFile): boolean {
         const previous = this.#files.get(file.path);
         if (previous !== undefined && previous.digest !== file.digest) {
-            throw PackageError.of("FILE_INVALID", `conflicting build file: ${file.path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `build file '${file.path}' is invalid: it conflicts with another file at its path`,
+            );
         }
 
         return previous !== undefined;

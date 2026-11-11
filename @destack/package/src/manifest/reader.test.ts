@@ -43,9 +43,17 @@ test("refuse a distributed file whose bytes differ from its listing, and an unli
         await refusal(serving(longer).load("src/notes.js")),
         await refusal(build.load("src/missing.js")),
     ]).toEqual([
-        ["BAD_REQUEST", "FILE_INVALID", "file digest mismatch: src/notes.js"],
-        ["BAD_REQUEST", "FILE_INVALID", "file size mismatch: src/notes.js"],
-        ["BAD_REQUEST", "FILE_INVALID", "package file not listed: src/missing.js"],
+        [
+            "BAD_REQUEST",
+            "FILE_INVALID",
+            "file 'src/notes.js' is invalid: its digest does not match",
+        ],
+        ["BAD_REQUEST", "FILE_INVALID", "file 'src/notes.js' is invalid: its size does not match"],
+        [
+            "BAD_REQUEST",
+            "FILE_INVALID",
+            "package file 'src/missing.js' is invalid: it is not listed",
+        ],
     ]);
 });
 
@@ -99,7 +107,11 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "FILE_INVALID", "file digest mismatch: manifest.json"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "FILE_INVALID",
+        "file 'manifest.json' is invalid: its digest does not match",
+    ]);
     expect(
         await refusal(
             BuildReader.open(
@@ -108,7 +120,11 @@ test("open a remote build by its manifest digest, and refuse other bytes and uns
                 crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "FILE_INVALID", "invalid package URL"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "FILE_INVALID",
+        "package URL is invalid: it must be HTTP without credentials, query or fragment",
+    ]);
     expect(
         await refusal(
             BuildReader.open(
@@ -175,7 +191,10 @@ test("read each list once, and read a list again after a failed read", async () 
             loaded.push(path);
             if (path === build.manifest.lists.files.path && isFailing) {
                 isFailing = false;
-                throw PackageError.of("FILE_INVALID", `package read failed: ${path}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `package file '${path}' is invalid: its read failed`,
+                );
             }
 
             return await build.stream(path);
@@ -186,7 +205,7 @@ test("read each list once, and read a list again after a failed read", async () 
     expect(await refusal(reader.files())).toEqual([
         "BAD_REQUEST",
         "FILE_INVALID",
-        `package read failed: ${lists.files.path}`,
+        `package file '${lists.files.path}' is invalid: its read failed`,
     ]);
 
     // read every list and the declarations twice, loading each file once after the failed read

@@ -61,7 +61,10 @@ function merge(
         compute.scaling?.maxInstances !== undefined &&
         compute.scaling.minInstances > compute.scaling.maxInstances
     ) {
-        throw PackageError.of("DEFINITION_INVALID", "minimum scaling exceeds maximum scaling");
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            "scaling is invalid: minimum scaling exceeds maximum scaling",
+        );
     }
 
     // compare each requested resource with its corresponding limit
@@ -69,7 +72,10 @@ function merge(
         const request = compute.requests?.[resource];
         const limit = compute.limits?.[resource];
         if (request !== undefined && limit !== undefined && request > limit) {
-            throw PackageError.of("DEFINITION_INVALID", `${resource} request exceeds its limit`);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `'${resource}' request is invalid: it exceeds its limit`,
+            );
         }
     }
 

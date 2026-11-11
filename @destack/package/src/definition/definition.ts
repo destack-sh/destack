@@ -124,11 +124,17 @@ export const PackageDefinition = Object.assign(definition, {
         // refuse an app without its package
         const isPackaged = entries.some((entry) => subpathOf(entry) === "package");
         if (value.role === "app" && !isPackaged) {
-            throw PackageError.of("EXPORT_INVALID", `app ${name} exports no ./package`);
+            throw PackageError.of(
+                "EXPORT_INVALID",
+                `app '${name}' is invalid: it exports no ./package`,
+            );
         }
         // refuse a library's package
         else if (value.role === "library" && isPackaged) {
-            throw PackageError.of("EXPORT_INVALID", `library ${name} exports ./package`);
+            throw PackageError.of(
+                "EXPORT_INVALID",
+                `library '${name}' is invalid: it exports ./package`,
+            );
         }
 
         // refuse an app's subpath outside the standard ones and its providers
@@ -140,7 +146,7 @@ export const PackageDefinition = Object.assign(definition, {
         if (value.role === "app" && free !== undefined) {
             throw PackageError.of(
                 "EXPORT_INVALID",
-                `app ${name} exports ${free}, outside the standard subpaths`,
+                `app '${name}' is invalid: it exports '${free}', outside the standard subpaths`,
             );
         }
     },
@@ -165,21 +171,21 @@ export const PackageDefinition = Object.assign(definition, {
         if (imported.role === "app" && isPrivate) {
             throw PackageError.of(
                 "DEPENDENCY_INVALID",
-                `${importer.name} imports ${specifier}, private to its app`,
+                `'${importer.name}' is invalid: it imports '${specifier}', private to its app`,
             );
         }
         // refuse a test kit outside tests
         else if (isTestKit) {
             throw PackageError.of(
                 "DEPENDENCY_INVALID",
-                `${importer.name} imports ${specifier} outside its tests`,
+                `'${importer.name}' is invalid: it imports '${specifier}' outside its tests`,
             );
         }
         // refuse any app in a builtin, as the runtime never loads userland
         else if (importer.role === "builtin" && imported.role === "app") {
             throw PackageError.of(
                 "DEPENDENCY_INVALID",
-                `builtin ${importer.name} imports app ${specifier}`,
+                `builtin '${importer.name}' is invalid: it imports app '${specifier}'`,
             );
         }
     },
@@ -187,7 +193,10 @@ export const PackageDefinition = Object.assign(definition, {
     runtimes(value: PackageDefinition, name: string): Runtime[] {
         const runtimes = value.exports?.[name]?.runtimes ?? value.runtimes;
         if (runtimes === undefined) {
-            throw PackageError.of("DEFINITION_INVALID", `no runtimes declared for export: ${name}`);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `export '${name}' is invalid: it declares no runtimes`,
+            );
         }
 
         return runtimes;
@@ -238,7 +247,10 @@ function requireRuntimes(value: PackageDefinition): PackageDefinition {
         ...Object.values(value.exports ?? {}).flatMap((entry) => entry.runtimes),
     ];
     if (value.sandbox?.process !== undefined && !runtimes.includes("bun")) {
-        throw PackageError.of("DEFINITION_INVALID", "the process ability requires the bun runtime");
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            "process ability is invalid: it requires the bun runtime",
+        );
     }
 
     return value;

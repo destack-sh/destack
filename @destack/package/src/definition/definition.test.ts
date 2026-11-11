@@ -92,17 +92,17 @@ test("refuse an app's server and providers, test kits and any app in a builtin, 
     // allow the importing package and tests everything, and an app only interfaces and libraries
     expect(outcomes).toEqual({
         builtin: [
-            "builtin @destack/machine imports app @acme/notes/client",
-            "@destack/machine imports @acme/notes/server, private to its app",
-            "@destack/machine imports @acme/notes/provider/stripe, private to its app",
-            "@destack/machine imports @acme/kit/test outside its tests",
+            "builtin '@destack/machine' is invalid: it imports app '@acme/notes/client'",
+            "'@destack/machine' is invalid: it imports '@acme/notes/server', private to its app",
+            "'@destack/machine' is invalid: it imports '@acme/notes/provider/stripe', private to its app",
+            "'@destack/machine' is invalid: it imports '@acme/kit/test' outside its tests",
             "allowed",
         ],
         app: [
             "allowed",
-            "@acme/board imports @acme/notes/server, private to its app",
-            "@acme/board imports @acme/notes/provider/stripe, private to its app",
-            "@acme/board imports @acme/kit/test outside its tests",
+            "'@acme/board' is invalid: it imports '@acme/notes/server', private to its app",
+            "'@acme/board' is invalid: it imports '@acme/notes/provider/stripe', private to its app",
+            "'@acme/board' is invalid: it imports '@acme/kit/test' outside its tests",
             "allowed",
         ],
         test: ["allowed", "allowed", "allowed", "allowed", "allowed"],
@@ -110,7 +110,7 @@ test("refuse an app's server and providers, test kits and any app in a builtin, 
             "allowed",
             "allowed",
             "allowed",
-            "@acme/notes imports @acme/kit/test outside its tests",
+            "'@acme/notes' is invalid: it imports '@acme/kit/test' outside its tests",
             "allowed",
         ],
     });
@@ -150,10 +150,10 @@ test("refuse an app without its package or with a free subpath, and a library wi
         builtin: outcome("builtin", [".", "./package", "./cloudflare"]),
     }).toEqual({
         app: "allowed",
-        unpackaged: "app @acme/notes exports no ./package",
-        root: "app @acme/notes exports ., outside the standard subpaths",
-        free: "app @acme/notes exports ./oauth, outside the standard subpaths",
-        library: "library @acme/notes exports ./package",
+        unpackaged: "app '@acme/notes' is invalid: it exports no ./package",
+        root: "app '@acme/notes' is invalid: it exports '.', outside the standard subpaths",
+        free: "app '@acme/notes' is invalid: it exports './oauth', outside the standard subpaths",
+        library: "library '@acme/notes' is invalid: it exports ./package",
         builtin: "allowed",
     });
 });

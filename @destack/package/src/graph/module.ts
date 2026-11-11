@@ -56,7 +56,7 @@ async function file(
     if (stray !== undefined) {
         throw PackageError.of(
             "INSPECTION_INVALID",
-            `${module.path} declares ${stray.moniker}, which belongs to another module`,
+            `'${module.path}' is invalid: it declares '${stray.moniker}', which belongs to another module`,
         );
     }
 

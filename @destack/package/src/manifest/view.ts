@@ -135,8 +135,8 @@ export const ViewDescription = Object.assign(viewDescription, {
             for (const [name, view] of Object.entries(compiled.views)) {
                 if (Object.hasOwn(views, name)) {
                     throw PackageError.of(
-                        "VIEW_DUPLICATE",
-                        `output ${output} compiles view ${name}, which another output already compiles`,
+                        "VIEW_INVALID",
+                        `view '${name}' is invalid: output '${output}' compiles it, and another output already does`,
                     );
                 }
                 views[name] = view;
@@ -152,7 +152,10 @@ export const ViewDescription = Object.assign(viewDescription, {
             .filter(([, view]) => view.categories.includes("main"))
             .map(([name]) => name);
         if (mains.length > 1) {
-            throw PackageError.of("VIEW_MAIN_DUPLICATE", `views ${mains.join(", ")} are each main`);
+            throw PackageError.of(
+                "VIEW_MAIN_INVALID",
+                `main view is invalid: views '${mains.join(", ")}' are each main`,
+            );
         }
 
         return mains[0];

@@ -23,7 +23,7 @@ export const ModuleMetadata = Object.assign(moduleMetadataSchema, {
         if (!module) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `the Destack module transform passed no module to: ${name}`,
+                `call '${name}' is invalid: the Destack module transform passed it no module`,
             );
         }
 

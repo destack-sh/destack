@@ -28,9 +28,9 @@ test("list the views every output compiles by name, refusing a name two outputs 
     }).toEqual({
         listed: { home: VIEW, settings: { ...VIEW, entrypoint: "settings.js" } },
         refused: [
-            "UNPROCESSABLE_CONTENT",
-            "VIEW_DUPLICATE",
-            "output panel compiles view home, which another output already compiles",
+            "BAD_REQUEST",
+            "VIEW_INVALID",
+            "view 'home' is invalid: output 'panel' compiles it, and another output already does",
         ],
     });
 });
@@ -48,9 +48,9 @@ test("find the main view the package's origin opens at its root, none without on
         found: "home",
         none: undefined,
         refused: [
-            "UNPROCESSABLE_CONTENT",
-            "VIEW_MAIN_DUPLICATE",
-            "views home, settings are each main",
+            "BAD_REQUEST",
+            "VIEW_MAIN_INVALID",
+            "main view is invalid: views 'home, settings' are each main",
         ],
     });
 });

@@ -53,9 +53,9 @@ test("encode a module whose declarations sit in it, at itself or its symbols, re
         encoded: "55d4744af36f3fde66dd43c373c471a86359d5fad9047522a96edda64c41591a",
         atModule: "4cef01dbe758927b81ab590e962c369751b28e85b7c73ca675aec82bb2bc7a4e",
         refused: [
-            "UNPROCESSABLE_CONTENT",
+            "BAD_REQUEST",
             "INSPECTION_INVALID",
-            `src/a.ts declares ${ELSEWHERE}:object:a, which belongs to another module`,
+            `'src/a.ts' is invalid: it declares '${ELSEWHERE}:object:a', which belongs to another module`,
         ],
     });
 });

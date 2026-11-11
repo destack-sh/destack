@@ -38,7 +38,7 @@ function of(name: MonikerName): Moniker {
 function packageId(moniker: Moniker): string {
     const [, owner] = MONIKER_PATTERN.exec(moniker) ?? [];
     if (owner === undefined) {
-        throw new TypeError(`not a moniker: ${moniker}`);
+        throw new TypeError(`not a moniker: '${moniker}'`);
     }
 
     return owner;

@@ -64,7 +64,10 @@ export class BuildReader {
         let size = 0;
         for await (const chunk of await this.stream(path, signal)) {
             if (size + chunk.byteLength > file.size) {
-                throw PackageError.of("FILE_INVALID", `file size mismatch: ${path}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `file '${path}' is invalid: its size does not match`,
+                );
             }
             bytes.set(chunk, size);
             size += chunk.byteLength;
@@ -90,7 +93,10 @@ export class BuildReader {
         );
         const file = listed.get(path);
         if (file === undefined) {
-            throw PackageError.of("FILE_INVALID", `package file not listed: ${path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `package file '${path}' is invalid: it is not listed`,
+            );
         }
 
         return file;
@@ -332,7 +338,10 @@ export class BuildReader {
             base.search ||
             base.hash
         ) {
-            throw PackageError.of("FILE_INVALID", "invalid package URL");
+            throw PackageError.of(
+                "FILE_INVALID",
+                "package URL is invalid: it must be HTTP without credentials, query or fragment",
+            );
         }
         if (!base.pathname.endsWith("/")) {
             base.pathname += "/";

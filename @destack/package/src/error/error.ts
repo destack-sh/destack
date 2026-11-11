@@ -17,23 +17,22 @@ export type SandboxAbility = schema.Infer<typeof SandboxAbility>;
 export const PackageError = defineErrorFamily(
     { name: DOMAIN },
     {
-        // bad request
-        BUILD_INVALID: { code: "BAD_REQUEST" },
-        DEFINITION_INVALID: { code: "BAD_REQUEST" },
-        DEPENDENCY_INVALID: { code: "BAD_REQUEST" },
-        EXPORT_INVALID: { code: "BAD_REQUEST" },
-        FILE_INVALID: { code: "BAD_REQUEST" },
-        FILE_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+        // invalid
+        ABILITY_INVALID: { data: SandboxAbility },
+        BUILD_INVALID: {},
+        DEFINITION_INVALID: {},
+        DEPENDENCY_INVALID: {},
+        EXPORT_INVALID: {},
+        FILE_INVALID: {},
+        HOST_MODULE_INVALID: {},
+        INSPECTION_INVALID: {},
+        LANGUAGE_INVALID: {},
+        TARGET_INVALID: {},
+        VIEW_INVALID: {},
+        VIEW_MAIN_INVALID: {},
 
-        // unprocessable content
-        ABILITY_UNENFORCEABLE: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
-        ABILITY_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },
-        VIEW_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
-        VIEW_MAIN_DUPLICATE: { code: "UNPROCESSABLE_CONTENT" },
-        HOST_MODULE_UNAVAILABLE: { code: "UNPROCESSABLE_CONTENT" },
-        INSPECTION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        LANGUAGE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
-        TARGET_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        // unavailable
+        FILE_UNAVAILABLE: {},
     },
 );
 
