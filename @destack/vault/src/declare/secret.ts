@@ -1,6 +1,6 @@
 import { SECRET_KIND } from "@destack/stack/declare";
-import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
-import { type Connector, ResourceDeclaration, type Secret } from "@destack/resource";
+import { DeclarationName, ModuleMetadata, type PackageVersion } from "@destack/package";
+import { type Connector, NO_SPEC, ResourceDeclaration, type Secret } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { secretConnector } from "../secret/connector.ts";
 import { SecretGeneration } from "../secret/secret.ts";
@@ -27,16 +27,15 @@ export const SecretDescription = Object.assign(
 export type SecretDescription = schema.Infer<typeof SecretDescription>;
 
 /** A package's declaration of a secret it reads, bound to the version its deployment captured. */
-export class SecretDeclaration extends ResourceDeclaration<
-    Secret,
-    { readonly name: string; readonly kind: string; readonly spec: Record<string, never> }
-> {
+export class SecretDeclaration extends ResourceDeclaration<Secret, typeof NO_SPEC> {
+    /** The secret kind, which no provider provisions. */
+    declare readonly kind: typeof SECRET_KIND;
     /** How the space generates the first version at install, absent for a secret a stack binds. */
     readonly generated?: SecretGeneration;
 
     /** Keep a validated secret declaration of a package. */
-    constructor(owner: Package, declaration: SecretDescription) {
-        super(owner, { name: declaration.name, kind: SECRET_KIND.name, spec: {} });
+    constructor(owner: PackageVersion, declaration: SecretDescription) {
+        super(owner, SECRET_KIND, { name: declaration.name, spec: {} });
         if (declaration.generated !== undefined) {
             this.generated = declaration.generated;
         }

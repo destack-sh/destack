@@ -9,29 +9,28 @@ import { Snapshot } from "@destack/db";
 import { SimulatedClock } from "@destack/environment/simulation";
 import type { TestCaller, TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
-import { type BuildReader, Package } from "@destack/package";
+import { type BuildReader, PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_KIND } from "@destack/resource";
 import type { Identifier } from "@destack/schema";
 import { Binding } from "@destack/stack/object";
 import { fixtureOutputs, ids, TestSpace, workload } from "@destack/stack/test";
 import { type Call, RequestId } from "@destack/sync";
 import { single } from "@destack/test";
-import { defineVault, type SecretDeclaration, type VaultDeclaration } from "../declare/index.ts";
+import { defineVault, type SecretDeclaration } from "../declare/index.ts";
 import { describeSecret, describeVault } from "../inspect/index.ts";
 import { secret, secretVersion, vault } from "../object/index.ts";
 import vaultPackage from "../package.ts";
 import vaultServer from "../server.ts";
 
 /** The application the test vault's space installs, declaring its vaults. */
-export const APPLICATION = Package.parse({
+export const APPLICATION = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c1",
     name: "@example/application",
     version: "2026.10.0",
 });
 
 /** A second application, whose installation binds a vault or a secret beside the first's. */
-export const CONSUMER = Package.parse({
+export const CONSUMER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c2",
     name: "@example/consumer",
     version: "2026.10.0",
@@ -105,7 +104,7 @@ export class TestVault {
     static async open(
         options: {
             /** The vaults the application declares, the credentials vault when absent. */
-            readonly vaults?: readonly VaultDeclaration[];
+            readonly vaults?: readonly ReturnType<typeof defineVault>[];
             /** The secrets the application declares. */
             readonly secrets?: readonly SecretDeclaration[];
         } = {},
@@ -132,14 +131,14 @@ export class TestVault {
     }
 
     /** Declare a vault of the application. */
-    static declare(name: string): VaultDeclaration {
-        return defineVault({ name, spec: {} }, { package: APPLICATION });
+    static declare(name: string): ReturnType<typeof defineVault> {
+        return defineVault({ name }, { package: APPLICATION });
     }
 
     /** Build a package's release declaring some vaults and secrets, which its workload binds. */
     static build(
-        released: Package,
-        vaults: readonly VaultDeclaration[],
+        released: PackageVersion,
+        vaults: readonly ReturnType<typeof defineVault>[],
         secrets: readonly SecretDeclaration[],
         crypto: Crypto,
     ): Promise<BuildReader> {
@@ -171,12 +170,13 @@ export class TestVault {
 
     /** Describe some vaults and secrets as a build declares them, through vault's describers. */
     static declarations(
-        vaults: readonly VaultDeclaration[],
+        vaults: readonly ReturnType<typeof defineVault>[],
         secrets: readonly SecretDeclaration[],
     ) {
         return [
             ...vaults.map((declared) => ({
-                ...RESOURCE_KIND.identity,
+                ...declared.kind.identity,
+                provisioned: true as const,
                 name: declared.name,
                 description: describeVault(declared),
             })),

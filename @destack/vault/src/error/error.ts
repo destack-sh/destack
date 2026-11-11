@@ -2,26 +2,28 @@ import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
 /** The vault package's failures, each reason with the call error code it answers. */
-export const VaultError = defineErrorFamily(import.meta.destack.package, {
-    // not found
-    CURRENT_VERSION_NOT_FOUND: {},
-    SECRET_NOT_FOUND: {},
-    VERSION_NOT_FOUND: {},
+export const VaultError = defineErrorFamily({
+    reasons: {
+        // not found
+        CURRENT_VERSION_NOT_FOUND: {},
+        SECRET_NOT_FOUND: {},
+        VERSION_NOT_FOUND: {},
 
-    // invalid
-    EXPIRY_IN_PAST_INVALID: {},
-    VALUE_INVALID: {},
+        // invalid
+        EXPIRY_IN_PAST_INVALID: {},
+        VALUE_INVALID: {},
 
-    // required
-    CURRENT_VERSION_REQUIRED: {},
-    VALUE_REQUIRED: {},
+        // required
+        CURRENT_VERSION_REQUIRED: {},
+        VALUE_REQUIRED: {},
 
-    // blocked
-    SECRET_BLOCKED: {},
-    VERSION_BLOCKED: {},
+        // blocked
+        SECRET_BLOCKED: {},
+        VERSION_BLOCKED: {},
 
-    // broken
-    VERSION_BROKEN: {},
+        // broken
+        VERSION_BROKEN: {},
+    },
 });
 
 /** A stable cause of vault failures. */

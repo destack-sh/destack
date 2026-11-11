@@ -27,7 +27,7 @@ test("read a bound vault's secret in process as its installation, and refuse ano
     const other = CONSUMER;
     const built = await TestVault.build(
         other,
-        [defineVault({ name: CREDENTIALS, spec: {} }, { package: other })],
+        [defineVault({ name: CREDENTIALS }, { package: other })],
         [],
         fixture.environment.crypto,
     );

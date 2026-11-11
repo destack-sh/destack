@@ -198,7 +198,7 @@ export function implementSecretVersion(): typeof secretVersion {
 export const secretBindable: ObjectBindable<typeof secret, Secret> = {
     object: secret,
     used: [secret, secretVersion],
-    declaration: SECRET_KIND,
+    kind: SECRET_KIND,
     provider: VAULT_PROVIDER,
     reference: VAULT_REFERENCE,
     declare: (need, bindings) => {

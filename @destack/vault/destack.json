@@ -34,8 +34,7 @@
         "defineVault": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "vault",
                     "function": "./inspect#describeVault"
                 }
             ]

@@ -4,12 +4,14 @@ import { secret, secretVersion, vault } from "./object/index.ts";
 
 /** The vault package, which machines serve and clients call. */
 export default definePackage({
-    objects: { vault, secret, version: secretVersion },
+    objects: [vault, secret, secretVersion],
     errors: VaultError,
-    permissions: {
-        space: {
-            // provision the space's vaults as their provider, observing each one ready
-            space: [vault.permission("control")],
+    access: {
+        permissions: {
+            space: {
+                // provision the space's vaults as their provider, observing each one ready
+                space: [vault.permission("control")],
+            },
         },
     },
 });

@@ -35,7 +35,7 @@ const CONCEALING = VAULT_PERMISSIONS.filter(
 );
 
 /** A vault the space's stack declares, deleted at once on removal. */
-const SHARED = defineVault({ name: "shared", spec: {} });
+const SHARED = defineVault({ name: "shared" });
 
 /** The application's key, which the space generates in its credentials vault. */
 const KEY = defineSecret(
@@ -613,7 +613,7 @@ test("read a bound secret in process as its installation, and refuse another ins
     );
     const built = await TestVault.build(
         other,
-        [defineVault({ name: CREDENTIALS, spec: {} }, { package: other })],
+        [defineVault({ name: CREDENTIALS }, { package: other })],
         [otherKey],
         fixture.environment.crypto,
     );
@@ -669,7 +669,7 @@ test("bind a secret the stack declares at a fixed version, and trash it once the
     // declare a vault and a secret in it through the space's stack, with two versions
     const fixture = await TestVault.open({ vaults: [] });
     await fixture.space.apply(fixture.served, [vaultPackage], {
-        vaults: { shared: SHARED.declare({ retention: "delete" }) },
+        vaults: { shared: SHARED.provision({ retention: "delete" }) },
         secrets: { github: { parent: "shared", name: "github" } },
     });
     const declared = single(await fixture.served.database.select().from(secret.table));
@@ -731,7 +731,7 @@ test("point a secret the stack declares at a version as the space's owner, keepi
     // declare a vault and a secret in it through the space's stack, and write a version
     const fixture = await TestVault.open({ vaults: [] });
     const stack = {
-        vaults: { shared: SHARED.declare({ retention: "delete" }) },
+        vaults: { shared: SHARED.provision({ retention: "delete" }) },
         secrets: { github: { parent: "shared", name: "github" } },
     };
     await fixture.space.apply(fixture.served, [vaultPackage], stack);

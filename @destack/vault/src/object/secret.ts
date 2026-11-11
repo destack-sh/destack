@@ -11,6 +11,8 @@ import {
     SecretSelection,
 } from "../secret/secret.ts";
 import { vault } from "./vault.ts";
+import { audited, bindable, nested, recoverable, versioned } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The value of a new version and when its reads end. */
 export const SecretVersionInput = schema.object({
@@ -58,10 +60,8 @@ export const secret = defineObject(
     {
         name: "secret",
         plural: "secrets",
+        title: t`${plural(argument("count"), { one: "Secret", other: "Secrets" })}`,
         scope: [space, account, organization],
-        nested: { in: vault, delete: "trash", receive: "write" },
-        recoverable: { within: SECRET_RECOVERY, by: "delete", purge: "purge", retain: "record" },
-        audited: { reads: true },
         fields: {
             /** The vault-local name. */
             name: field.string(),
@@ -70,31 +70,6 @@ export const secret = defineObject(
             /** The algorithm generating the secret's values, absent for values written as given. */
             algorithm: field.enum(SECRET_ALGORITHMS).optional(),
         },
-        // bind the packages reading a secret on their behalf as its consumers
-        bindable: { by: "bind" },
-        relations: {
-            /** The installation that wrote the secret, which gets, deletes and purges it. */
-            custodian: { subjects: [principal.installation], grantedBy: null },
-        },
-        permissions: {
-            create: through("parent", "write"),
-            get: relation("custodian"),
-            list: none(),
-            update: relation("custodian"),
-            rotate: permission("update"),
-            // let people reveal a value, software bound to the secret or its vault consume it, and both read it
-            reveal: none(),
-            consume: union(relation("consumer"), through("parent", "consume")),
-            read: union(permission("reveal"), permission("consume")),
-            delete: relation("custodian"),
-            purge: relation("custodian"),
-            bind: permission("update"),
-            provision: none(),
-        },
-        // let an account's owners reveal a value only after a fresh step-up, every reveal audited
-        elevated: { reveal: sudo },
-        reserved: ["consume", "read"],
-        administration: ["create", "get", "list", "update", "rotate", "delete", "purge"],
         constraints: {
             vaultName: {
                 kind: "index",
@@ -117,12 +92,50 @@ export const secret = defineObject(
             },
             name: { kind: "check", condition: { name: { length: { gt: 0 } } } },
         },
+        access: {
+            relations: {
+                /** The installation that wrote the secret, which gets, deletes and purges it. */
+                custodian: { subjects: [principal.installation], grantedBy: null },
+            },
+            permissions: {
+                create: through("parent", "write"),
+                get: relation("custodian"),
+                list: none(),
+                update: relation("custodian"),
+                rotate: permission("update"),
+                // let people reveal a value, software bound to the secret or its vault consume it, and both read it
+                reveal: none(),
+                consume: union(relation("consumer"), through("parent", "consume")),
+                read: union(permission("reveal"), permission("consume")),
+                delete: relation("custodian"),
+                purge: relation("custodian"),
+                bind: permission("update"),
+                provision: none(),
+            },
+            // let an account's owners reveal a value only after a fresh step-up, every reveal audited
+            elevated: { reveal: sudo },
+            reserved: ["consume", "read"],
+            suspended: ["create", "get", "list", "update", "rotate", "delete", "purge"],
+        },
+        traits: [
+            nested({ in: vault, delete: "trash", add: "write" }),
+            recoverable({
+                within: SECRET_RECOVERY,
+                by: "delete",
+                purge: "purge",
+                retain: "record",
+            }),
+            audited({ reads: true }),
+            // bind the packages reading a secret on their behalf as its consumers
+            bindable({ by: "bind" }),
+        ],
     },
     (method) => ({
         create: method.create("create", { fields: ["name"] }),
         get: method.get("get"),
         list: method.list("list"),
         read: method.query({
+            title: t`Read`,
             permission: "read",
             input: SecretSelection,
             output: SecretReading,
@@ -130,18 +143,20 @@ export const secret = defineObject(
         }),
         /** Read the selected version and the earlier ones still retiring, newest first. */
         versions: method.query({
+            title: t`List versions`,
             permission: "read",
             input: SecretSelection,
             output: schema.tuple([SecretReading], SecretReading),
         }),
         /** Write a generated first version of a secret without one. */
         generate: method.mutation({
+            title: t`Generate`,
             permission: "provision",
             visibility: "installation",
             input: SecretGeneration.pick({ algorithm: true }),
         }),
         /** Make a new version current, the previous one readable until its overlap ends. */
-        rotate: method.mutation({ permission: "rotate", input: SecretRotation }),
+        rotate: method.mutation({ title: t`Rotate`, permission: "rotate", input: SecretRotation }),
         /** Rename a secret, or point its `current` alias at a readable version. */
         update: method.update("update", { fields: ["name", "currentVersion"] }),
     }),
@@ -153,10 +168,8 @@ export const secretVersion = defineObject(
         name: "version",
         identity: "secret-version",
         plural: "versions",
+        title: t`${plural(argument("count"), { one: "Version", other: "Versions" })}`,
         scope: [space, account, organization],
-        nested: { in: secret, delete: "cascade", receive: "update" },
-        versioned: true,
-        audited: { reads: true },
         fields: {
             /** The time after which reads are refused, absent for no expiry. */
             expiresAt: field.time().optional(),
@@ -165,22 +178,6 @@ export const secretVersion = defineObject(
             /** The value bound to its secret and version, sealed at rest, absent once destroyed. */
             content: field.json(BoundValue).sensitive().optional(),
         },
-        // bind the packages reading a version on their behalf as its consumers
-        bindable: { by: "bind" },
-        permissions: {
-            get: none(),
-            list: none(),
-            write: through("parent", "update"),
-            read: relation("consumer"),
-            disable: none(),
-            enable: none(),
-            destroy: through("parent", "update"),
-            erase: through("parent", "purge"),
-            bind: through("parent", "update"),
-        },
-        // let only consumers read a version, so a person reveals values through the secret's step-up
-        reserved: ["read"],
-        administration: ["get", "list", "disable", "enable", "destroy"],
         constraints: {
             positive: { kind: "check", condition: { number: { gt: 0 } } },
             sealed: {
@@ -199,6 +196,29 @@ export const secretVersion = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                get: none(),
+                list: none(),
+                write: through("parent", "update"),
+                read: relation("consumer"),
+                disable: none(),
+                enable: none(),
+                destroy: through("parent", "update"),
+                erase: through("parent", "purge"),
+                bind: through("parent", "update"),
+            },
+            // let only consumers read a version, so a person reveals values through the secret's step-up
+            reserved: ["read"],
+            suspended: ["get", "list", "disable", "enable", "destroy"],
+        },
+        traits: [
+            nested({ in: secret, delete: "cascade", add: "update" }),
+            versioned(),
+            audited({ reads: true }),
+            // bind the packages reading a version on their behalf as its consumers
+            bindable({ by: "bind" }),
+        ],
     },
     (method) => ({
         create: method.create("write", { fields: [], input: SecretVersionInput }),
@@ -206,13 +226,14 @@ export const secretVersion = defineObject(
         list: method.list("list"),
         /** Set when the version's reads end, as a rotation retires it. */
         expire: method.mutation({
+            title: t`Expire`,
             permission: "write",
             input: schema.object({ expiresAt: schema.number().int() }),
         }),
-        disable: method.mutation({ permission: "disable" }),
-        enable: method.mutation({ permission: "enable" }),
-        destroy: method.mutation({ permission: "destroy" }),
+        disable: method.mutation({ title: t`Disable`, permission: "disable" }),
+        enable: method.mutation({ title: t`Enable`, permission: "enable" }),
+        destroy: method.mutation({ title: t`Destroy`, permission: "destroy" }),
         /** Destroy a version's value as its secret's purge does. */
-        erase: method.mutation({ permission: "erase", visibility: "package" }),
+        erase: method.mutation({ title: t`Erase`, permission: "erase", visibility: "package" }),
     }),
 );

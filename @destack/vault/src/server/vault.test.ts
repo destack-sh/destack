@@ -1,7 +1,7 @@
 import { Account } from "@destack/account/object";
 import { type Table } from "@destack/db";
 import { type Identifier } from "@destack/schema";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { ids, TestSpace } from "@destack/stack/test";
 import { RequestId } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
@@ -12,17 +12,17 @@ import vaultServer from "../server.ts";
 import { APPLICATION, CONSUMER, CREDENTIAL, CREDENTIALS, TestVault } from "../test/index.ts";
 
 /** A vault the space's stack declares beside the application's, deleted at once on removal. */
-const shared = defineVault({ name: "shared", spec: {} });
+const shared = defineVault({ name: "shared" });
 
 /** A package whose installation binds nothing. */
-const STRANGER = Package.parse({
+const STRANGER = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c3",
     name: "@example/stranger",
     version: "2026.10.0",
 });
 
 /** The consumer's vault, bound to a vault of another installation. */
-const CONSUMER_VAULT = defineVault({ name: CREDENTIALS, spec: {} }, { package: CONSUMER });
+const CONSUMER_VAULT = defineVault({ name: CREDENTIALS }, { package: CONSUMER });
 
 /** The consumer's secret, bound to a secret of another installation. */
 const CONSUMER_SECRET = defineSecret({ name: "token" }, { package: CONSUMER });
@@ -265,7 +265,7 @@ test("destroy a vault's secrets with their records on its removal from the stack
     // keep a secret in a vault the space's stack declares, deleted at once on removal
     const fixture = await TestVault.open({ vaults: [] });
     await fixture.space.apply(fixture.served, [vaultPackage], {
-        vaults: { shared: shared.declare({ retention: "delete" }) },
+        vaults: { shared: shared.provision({ retention: "delete" }) },
     });
     const { database } = fixture.served;
     const provisioned = single(await database.select({ id: vault.table.id }).from(vault.table));
@@ -297,7 +297,7 @@ test("refuse removing a vault while an installation binds one of its secrets", a
     // keep a secret in a vault the space's stack declares, bound by the consumer's installation
     const fixture = await TestVault.open({ vaults: [] });
     await fixture.space.apply(fixture.served, [vaultPackage], {
-        vaults: { shared: shared.declare({ retention: "delete" }) },
+        vaults: { shared: shared.provision({ retention: "delete" }) },
     });
     const provisioned = single(await fixture.served.database.select().from(vault.table));
     const token = await fixture.owner.client(vaultPackage).secret.create({
@@ -338,7 +338,7 @@ test("refuse removing a vault while an installation binds the vault itself", asy
     // bind the consumer to a vault the space's stack declares
     const fixture = await TestVault.open({ vaults: [] });
     await fixture.space.apply(fixture.served, [vaultPackage], {
-        vaults: { shared: shared.declare({ retention: "delete" }) },
+        vaults: { shared: shared.provision({ retention: "delete" }) },
     });
     const provisioned = single(await fixture.served.database.select().from(vault.table));
     await installConsumer(fixture, { type: "vault", id: provisioned.id });
@@ -389,9 +389,9 @@ test("store a vault the account's home declares in the enclosing scope in the ac
     // serve the account's home with the vault package, and declare a vault in its account
     const home = await TestSpace.open({ id: Account.home(ids.account), packages: [vaultPackage] });
     const served = await home.serve({ servers: [vaultServer] });
-    const credentials = defineVault({ name: "credentials", spec: {} });
+    const credentials = defineVault({ name: "credentials" });
     await home.apply(served, [vaultPackage], {
-        vaults: { credentials: { ...credentials.declare(), scope: "enclosing" } },
+        vaults: { credentials: { ...credentials.provision(), scope: "enclosing" } },
     });
 
     // store the vault in the account, below the home

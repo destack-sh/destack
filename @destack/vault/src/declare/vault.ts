@@ -1,26 +1,19 @@
 import { ModuleMetadata } from "@destack/package";
-import { type Connector, ResourceDeclaration } from "@destack/resource";
+import { ResourceDeclaration } from "@destack/resource";
 import { vaultConnector } from "../secret/connector.ts";
 import type { Vault } from "../secret/secret.ts";
-import { type VaultDescription, VaultKind } from "./kind.ts";
-
-/** A package's vault, whose secrets its workloads read through the vault package. */
-export class VaultDeclaration extends ResourceDeclaration<Vault, VaultDescription> {
-    /** The connector reading the vault's secrets at the bound address, by provider code. */
-    override get connectors(): Readonly<Record<string, Connector<Vault>>> {
-        return { [vaultConnector.code]: vaultConnector };
-    }
-}
+import { VaultKind, type VaultSpec } from "./kind.ts";
 
 /** Declare a vault resource, whose secrets its workloads read through the vault package. */
 export function defineVault(
-    declaration: Omit<VaultDescription, "kind">,
+    options: { readonly name: string },
     module?: ModuleMetadata,
-): VaultDeclaration {
+): ResourceDeclaration<Vault, typeof VaultSpec> {
     const owner = ModuleMetadata.require(module, "defineVault").package;
 
-    return new VaultDeclaration(
-        owner,
-        VaultKind.description.parse({ ...declaration, kind: VaultKind.name }),
-    );
+    return new ResourceDeclaration<Vault, typeof VaultSpec>(owner, VaultKind, {
+        name: options.name,
+        spec: {},
+        connectors: { [vaultConnector.code]: vaultConnector },
+    });
 }
