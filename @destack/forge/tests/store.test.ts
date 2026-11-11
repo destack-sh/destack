@@ -40,7 +40,7 @@ test("serve a release's build by its digest to its package's readers only, yanke
     await using copied = await TestBuildStore.create(environment);
     const location = (digest: Digest) => ({
         manifest: digest,
-        url: `${forge.origin}${forgePackage.adapters.builds.path}/${digest}/`,
+        url: `${forge.origin}${forgePackage.mounts.builds.path}/${digest}/`,
     });
     await copied.copy(location(published.manifest), as(forge, forge.owner));
 
@@ -87,7 +87,7 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
     const stranger = await forge.signIn(STRANGER_EMAIL);
 
     // refuse the owner's manifest outside its package, and the stranger's below it as a missing package
-    const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
+    const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
     const put = (person: TestPerson, path: string) =>
         as(forge, person)(new URL(`${builds}/${path}manifest.json`), {
             method: "PUT",
@@ -142,7 +142,7 @@ test("stage a machine's push without releasing it", async () => {
     const { fetch } = forge.served.as(forge.home.machine.id).endpoint(forgePackage);
     const builds = (packageId: string) =>
         new PackageClient(
-            `${url}${forgePackage.adapters.builds.path}/${packageId}/`,
+            `${url}${forgePackage.mounts.builds.path}/${packageId}/`,
             fetch,
             forge.environment,
         );
@@ -191,7 +191,7 @@ test("authorize a manifest push from the forge's replica of the account, followi
     await forge.simulation.idle();
 
     // refuse the stranger's push at its first request, asking for the missing files
-    const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
+    const uploads = `${forgePackage.mounts.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
     expect(refused).toEqual([
         "BAD_GATEWAY",
         "PROBE_UNREACHABLE",
@@ -317,7 +317,7 @@ test("serve a release's npm units and its Bun output by digest to its readers on
     // publish the build with its unit, then copy the unit and pull the build's Bun output as the owner
     await forge.publish(build, "private", published);
     await using copied = await TestBuildStore.create(environment);
-    const builds = `${forge.origin}${forgePackage.adapters.builds.path}`;
+    const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
     const owner = as(forge, forge.owner);
     const located = (manifest: Digest) => ({ manifest, url: `${builds}/${manifest}/` });
     await copied.copy(located(unitManifest), owner);

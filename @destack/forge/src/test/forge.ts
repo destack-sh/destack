@@ -427,7 +427,7 @@ export class TestForge {
         return { url: ORIGIN, fetch: signed };
     }
 
-    /** Read one of the forge's adapters below its path as a person, or anonymously. */
+    /** Read one of the forge's mounts below its path as a person, or anonymously. */
     fetch(path: string, init: RequestInit = {}, person?: TestPerson): Promise<Response> {
         const { url, fetch } = this.endpoint(person);
 
@@ -486,7 +486,7 @@ export class TestForge {
         const { url, fetch } = this.endpoint(person);
 
         return new PackageClient(
-            `${url}${forgePackage.adapters.builds.path}/${packageId}/`,
+            `${url}${forgePackage.mounts.builds.path}/${packageId}/`,
             fetch,
             this.environment,
         );

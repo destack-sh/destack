@@ -80,7 +80,7 @@ function source(installation: number) {
     };
 }
 
-/** Sign a delivery as GitHub sends it to the forge's webhook adapter. */
+/** Sign a delivery as GitHub sends it to the forge's webhook mount. */
 async function deliver(
     forge: TestForge,
     delivery: { readonly id: string; readonly event: string; readonly payload: unknown },

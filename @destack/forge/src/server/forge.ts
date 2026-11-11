@@ -178,7 +178,7 @@ export class Forge {
         });
     }
 
-    /** Define the forge's server: its objects, follows, adapters and webhooks. */
+    /** Define the forge's server: its objects, follows, mounts and webhooks. */
     definition(): ImplementationInput<typeof forgePackage> {
         // take the GitHub App's deliveries, refusing them where the universe runs no GitHub App
         const hosting = this.#github;
@@ -196,7 +196,7 @@ export class Forge {
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
             // answer builds, and the GitHub App's deliveries
-            adapters: {
+            mounts: {
                 builds: (request, _caller, context, store) => this.#builds(request, context, store),
                 github:
                     webhook ??
