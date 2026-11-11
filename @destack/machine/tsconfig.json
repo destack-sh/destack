@@ -39,6 +39,7 @@
         "tests/fixture/apps",
         "tests/fixture/board",
         "tests/fixture/mention",
+        "tests/fixture/regional",
         "tests/fixture/stack",
         "tests/fixture/start"
     ]

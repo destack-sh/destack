@@ -10,7 +10,7 @@ const DEV_SEQUENCE = 1;
 export const WORLD_FIXTURES = ["apps", "board"] as const;
 
 /** The fixture packages only scenarios install, which no template ships. */
-export const SCENARIO_FIXTURES = ["mention"] as const;
+export const SCENARIO_FIXTURES = ["mention", "regional"] as const;
 
 /** The name and release a fixture's package.json declares. */
 const FixtureManifest = schema.looseObject({

@@ -663,6 +663,15 @@
         "@destack/sync": "workspace:*",
       },
     },
+    "@destack/machine/tests/fixture/regional": {
+      "name": "@destack/machine-regional-fixture",
+      "version": "2026.10.0",
+      "dependencies": {
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*",
+      },
+    },
     "@destack/machine/tests/fixture/stack": {
       "name": "@destack/machine-stack-fixture",
       "version": "2026.10.0",
@@ -1720,6 +1729,8 @@
     "@destack/machine-board-fixture": ["@destack/machine-board-fixture@workspace:@destack/machine/tests/fixture/board"],
 
     "@destack/machine-mention-fixture": ["@destack/machine-mention-fixture@workspace:@destack/machine/tests/fixture/mention"],
+
+    "@destack/machine-regional-fixture": ["@destack/machine-regional-fixture@workspace:@destack/machine/tests/fixture/regional"],
 
     "@destack/machine-stack-fixture": ["@destack/machine-stack-fixture@workspace:@destack/machine/tests/fixture/stack"],
 

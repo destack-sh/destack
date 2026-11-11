@@ -1,0 +1,14 @@
+{
+    "name": "@destack/machine-regional-fixture",
+    "version": "2026.10.0",
+    "type": "module",
+    "exports": {
+        "./package": "./src/package.ts",
+        "./setting": "./src/setting.ts"
+    },
+    "dependencies": {
+        "@destack/object": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/setting": "workspace:*"
+    }
+}

@@ -1,8 +1,11 @@
+import { Failure } from "@destack/error";
 import { RESOURCE_KIND } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
 import { BunWorkload } from "@destack/stack/bun";
 import { MemoryBuild } from "@destack/package/test";
 import { eq, Snapshot } from "@destack/db";
+import settingPackage from "@destack/setting/package";
+import * as settingObject from "@destack/setting/object";
 import * as accountObject from "@destack/account/object";
 import type { Login } from "@destack/account/native";
 import { BuildStore } from "@destack/build/store";
@@ -15,6 +18,7 @@ import { found, Identifier, present } from "@destack/schema";
 import {
     definePackage,
     Egress,
+    InstallationMount,
     PackageMount,
     SpaceMount,
     CallError,
@@ -949,6 +953,87 @@ test(
         }).toEqual({
             refused: `board failed to apply: @destack/stack PROCESS_ISOLATION_UNTRUSTED: ${message}`,
             captured: [message],
+        });
+    },
+);
+
+test(
+    "serve a space whose installation fails to start",
+    { timeout: SCENARIO_MILLISECONDS },
+    async () => {
+        // place the region the regional fixture requires in a space, then install the fixture there
+        const { home } = await TestComputer.home();
+        const { world } = home;
+        const { computer, login, space } = await openComputer(
+            world,
+            world.owner.account,
+            "regional",
+        );
+        const build = await TestDistribution.fixture("regional");
+        await home.publish(build);
+        const released = PackageManifest.package(build.manifest);
+        const { device } = computer;
+        const settings = createClient(
+            settingPackage,
+            (await device.launcher(login.id)).endpoint(
+                settingPackage.id,
+                await device.locate(space),
+            ),
+            device.environment,
+        );
+        const region = await settings.setting.create({
+            scope: space,
+            packageId: released.id,
+            name: "region",
+            mode: "set",
+            value: "eu",
+            release: released.version,
+            requestId: RequestId.create(computer.environment),
+        });
+        await computer.install(login.id, space, build, "regional");
+
+        // remove the region, which the installation's start then cannot read
+        await settings.setting.delete({
+            ...settingObject.setting.target(region),
+            requestId: RequestId.create(computer.environment),
+        });
+
+        // restart the computer, which starts the space, then wait for its reconcile to leave the installation unserved
+        const restarted = await computer.restart();
+        const started = await world.simulation.wait(restarted.machine.space(space));
+        const lagging = "installation regional does not serve its revision yet";
+        const settled = await world.simulation.wait(
+            (async () => {
+                for await (const state of started.health.watch()) {
+                    if (state.reason === lagging) {
+                        return state;
+                    }
+                }
+
+                throw new Error("the space's health stopped before its reconcile");
+            })(),
+        );
+
+        // ask the installation, which answers not served yet with when to retry
+        const answered = await world.simulation.wait(
+            restarted.machine.serve(
+                new Request(
+                    `${InstallationMount.url("http://127.0.0.1", space, "regional")}${PackageMount.path(released.id)}/`,
+                ),
+            ),
+        );
+
+        // the space starts, reports the installation that failed first, and refuses it with a retry
+        expect({
+            status: settled.status,
+            reason: settled.reason,
+            reported: Failure.of(await restarted.reported).message,
+            answered: [answered.status, answered.headers.get("retry-after")],
+        }).toEqual({
+            status: "starting",
+            reason: lagging,
+            reported: "installation regional serves nothing: its server failed to start",
+            answered: [503, "1"],
         });
     },
 );
