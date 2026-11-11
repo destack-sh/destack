@@ -243,7 +243,7 @@ export const RolloutTarget = {
         }
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {
-            return options.builds.pull(options.registry, packageId, linked.manifest);
+            return options.builds.pull(packageId, linked.manifest);
         }
         // resolve the release a planned installation selects as its rollout will
         else if (selection?.kind === "release" || selection?.kind === "tag") {
@@ -254,7 +254,7 @@ export const RolloutTarget = {
                 options,
             );
             if (resolved !== undefined) {
-                return options.builds.pull(options.registry, packageId, resolved.manifest);
+                return options.builds.pull(packageId, resolved.manifest);
             }
         }
 
@@ -316,7 +316,7 @@ export const RolloutTarget = {
             reader,
             inputs.export,
             inputs.settings,
-            (packageId, manifest) => options.builds.read(options.registry, packageId, manifest),
+            (packageId, manifest) => options.builds.read(packageId, manifest),
         );
 
         return { ...inputs, definition };
@@ -374,9 +374,8 @@ export const RolloutTarget = {
         options: Pick<RevisionOptions, "builds" | "registry" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
         // read the installable packages it depends on, at the releases it compiled against
-        const { builds, registry, blobs } = options;
-        const read = (dependency: PackageId, manifest: Digest) =>
-            builds.read(registry, dependency, manifest);
+        const { builds, blobs } = options;
+        const read = (dependency: PackageId, manifest: Digest) => builds.read(dependency, manifest);
         const dependencies = await installableReleases(reader, read);
 
         // describe the state each declaration requires: main's tables, an installation's pinned release, a resource's own
@@ -435,26 +434,33 @@ async function selectBuild(
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
-    // resolve a release or tag to its release, keeping the targeted build of that manifest
+    // resolve a release or tag, taking the machine's release for a superseded host installation
     const { selection, packageId } = row.installation;
     const snapshot = Snapshot.live(reconciliation.database);
     if (selection.kind === "release" || selection.kind === "tag") {
-        const pinned = await selectedRelease(snapshot, row.installation, current, options);
+        const running = options.linked.get(packageId) ?? options.shipped.get(packageId);
+        const replacement =
+            running === undefined
+                ? undefined
+                : { version: running.package.version, manifest: running.manifest };
+        const isCurrentSuperseded =
+            current !== undefined &&
+            Rollout.isSuperseded(row.installation, Build.manifest(current), options.trusted);
+        const pinned =
+            isCurrentSuperseded && replacement !== undefined
+                ? replacement
+                : await selectedRelease(snapshot, row.installation, current, options);
         if (pinned === undefined) {
             return undefined;
         }
 
-        // move a stack's host installation off a release this machine no longer runs, as a system image updates its apps
-        const running = options.linked.get(packageId) ?? options.shipped.get(packageId);
+        // move one whose resolved release this machine no longer runs too, as a system image updates its apps
         const isSuperseded = Rollout.isSuperseded(
             row.installation,
             pinned.manifest,
             options.trusted,
         );
-        const selected =
-            isSuperseded && running !== undefined
-                ? { version: running.package.version, manifest: running.manifest }
-                : pinned;
+        const selected = isSuperseded && replacement !== undefined ? replacement : pinned;
         const source = current?.source;
         if (
             source?.kind === "release" &&
@@ -465,9 +471,9 @@ async function selectBuild(
         }
 
         // pull the release and record it as the space's build once, at the version its manifest has
-        const { builds, registry } = options;
+        const { builds } = options;
         const { manifest } = selected;
-        const pulled = await builds.pull(registry, packageId, manifest);
+        const pulled = await builds.pull(packageId, manifest);
         const released = {
             kind: "release" as const,
             package: packageId,
@@ -569,7 +575,7 @@ async function selectedRelease(
         if (manifest === undefined) {
             return undefined;
         }
-        const version = (await builds.pull(registry, packageId, manifest)).manifest.package.version;
+        const version = (await builds.pull(packageId, manifest)).manifest.package.version;
 
         return { version, manifest };
     }
@@ -625,7 +631,7 @@ async function mainTables(
             )
             .map(async (dependency) => {
                 const { id } = dependency.package;
-                const read = await options.builds.read(options.registry, id, dependency.manifest);
+                const read = await options.builds.read(id, dependency.manifest);
 
                 return await ObjectDescription.read(read);
             }),

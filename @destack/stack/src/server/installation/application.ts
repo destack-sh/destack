@@ -192,7 +192,10 @@ export class ApplicationInstallation {
         }
 
         // revise an unmanaged installation once an input changed, its manager revising a managed one, then deploy it
-        if (!Manager.isManaged(target.installation) && (await this.#isChanged(reconciliation))) {
+        const isRevised = Manager.isManaged(target.installation)
+            ? await this.#isSuperseded(reconciliation)
+            : await this.#isChanged(reconciliation);
+        if (isRevised) {
             await RolloutTarget.revise(reconciliation, [target], this.#options);
         }
         await reconciliation.mutate([
@@ -250,6 +253,25 @@ export class ApplicationInstallation {
             revision.generation !== target.installation.generation ||
             (await this.#options.binder.isOutdated(snapshot, target, revision))
         );
+    }
+
+    /** Report whether the installation targets a build this machine no longer runs. */
+    async #isSuperseded(reconciliation: ObjectReconciliation): Promise<boolean> {
+        // read the targeted revision's build, none without a revision
+        const target = this.#target;
+        if (target.revisionId === null) {
+            return false;
+        }
+        const snapshot = Snapshot.live(reconciliation.database);
+        const revision = present(
+            await snapshot
+                .read(installationRevision.table)
+                .findFirst({ where: { id: target.revisionId } }),
+            `revision ${target.revisionId}`,
+        );
+        const built = await Build.require(snapshot, revision.scope, revision.buildId);
+
+        return Rollout.isSuperseded(target.installation, built.manifest, this.#options.trusted);
     }
 
     /** Revise the installation: a build at its bindings, retaining each revision once. */
@@ -1110,7 +1132,7 @@ export class ApplicationInstallation {
             `the release of ${packageId}`,
         );
 
-        return await this.#options.builds.pull(this.#options.registry, packageId, release.manifest);
+        return await this.#options.builds.pull(packageId, release.manifest);
     }
 
     /** Decide whether a build runs in the store's process: linked, or a host installation's. */
