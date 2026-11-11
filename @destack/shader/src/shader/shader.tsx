@@ -165,8 +165,8 @@ export function Shader(properties: ShaderProperties): JSX.Element {
                     // show the fallback where this browser cannot draw the shader
                     if (
                         ShaderError.is(error, "WEBGL_UNSUPPORTED") ||
-                        ShaderError.is(error, "COMPILE_FAILED") ||
-                        ShaderError.is(error, "LINK_FAILED")
+                        ShaderError.is(error, "COMPILE_INVALID") ||
+                        ShaderError.is(error, "LINK_INVALID")
                     ) {
                         setFailure(error);
                         properties.onFailure?.(error);

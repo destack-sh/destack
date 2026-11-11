@@ -26,7 +26,11 @@ test("show the fallback and report why where the browser draws no WebGL 2", asyn
     await expect
         .poll(() => failures)
         .toEqual([
-            ["PRECONDITION_FAILED", "WEBGL_UNSUPPORTED", "this browser does not support WebGL 2"],
+            [
+                "NOT_IMPLEMENTED",
+                "WEBGL_UNSUPPORTED",
+                "WebGL 2 is not supported: the browser lacks it",
+            ],
         ]);
     expect([
         container.querySelector("[data-slot=shader]")?.getAttribute("data-state"),

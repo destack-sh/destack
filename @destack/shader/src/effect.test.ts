@@ -39,13 +39,13 @@ test("declare every uniform an effect sets, and set every uniform its fragment s
         // read the effect's fragment shader, defaults and uniform mapping from its module
         const module: unknown = await import(`./${name}/effect.ts`);
         if (!isRecord(module)) {
-            throw new TypeError(`effect ${name} has no module`);
+            throw new TypeError(`effect '${name}' has no module`);
         }
         const fragment = Object.entries(module).find(([key]) => key.endsWith("_FRAGMENT"))?.[1];
         const defaults = Object.entries(module).find(([key]) => key.endsWith("_DEFAULTS"))?.[1];
         const uniforms = Object.entries(module).find(([key]) => key.endsWith("Uniforms"))?.[1];
         if (typeof fragment !== "string" || !isMapping(uniforms)) {
-            throw new TypeError(`effect ${name} exports no fragment shader or uniform mapping`);
+            throw new TypeError(`effect '${name}' exports no fragment shader or uniform mapping`);
         }
 
         // compare what the effect sets with what its shaders declare

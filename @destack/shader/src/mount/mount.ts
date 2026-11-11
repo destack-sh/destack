@@ -204,7 +204,10 @@ export class ShaderMount {
         // open a WebGL 2 context, refusing a browser without one
         const context = canvas.getContext("webgl2", options.contextAttributes);
         if (context === null) {
-            throw ShaderError.of("WEBGL_UNSUPPORTED", "this browser does not support WebGL 2");
+            throw ShaderError.of(
+                "WEBGL_UNSUPPORTED",
+                "WebGL 2 is not supported: the browser lacks it",
+            );
         }
         this.#context = context;
         if (this.#resolution === "adaptive" && isSlowGraphics()) {
@@ -509,7 +512,7 @@ export class ShaderMount {
         if (Array.isArray(first) && flat.length !== size * value.length) {
             throw ShaderError.of(
                 "UNIFORM_INVALID",
-                `the vectors of uniform ${name} differ in size`,
+                `uniform '${name}' is invalid: its vectors must have one size`,
             );
         }
 
@@ -529,7 +532,7 @@ export class ShaderMount {
             default:
                 throw ShaderError.of(
                     "UNIFORM_INVALID",
-                    `uniform ${name} has ${size} components, not 2, 3, 4, 9 or 16`,
+                    `uniform '${name}' is invalid: it has ${size} components and must have 2, 3, 4, 9 or 16`,
                 );
         }
     }
@@ -542,7 +545,10 @@ export class ShaderMount {
     ): void {
         // refuse an image that has not loaded
         if (!image.complete || image.naturalWidth === 0) {
-            throw ShaderError.of("IMAGE_NOT_LOADED", `the image of uniform ${name} has not loaded`);
+            throw ShaderError.of(
+                "IMAGE_BLOCKED",
+                `cannot draw uniform '${name}': its image has not loaded`,
+            );
         }
 
         // replace the texture on the uniform's unit
@@ -616,7 +622,10 @@ function linkProgram(
     if (context.getProgramParameter(program, context.LINK_STATUS) !== true) {
         const log = context.getProgramInfoLog(program) ?? "";
         context.deleteProgram(program);
-        throw ShaderError.of("LINK_FAILED", `the shader program does not link: ${log}`);
+        throw ShaderError.of(
+            "LINK_INVALID",
+            `shader program is invalid: it does not link:\n${log}`,
+        );
     }
 
     // release the stages, which the linked program no longer needs
@@ -633,7 +642,10 @@ function compileShader(context: WebGL2RenderingContext, type: number, source: st
     // compile the source
     const shader = context.createShader(type);
     if (shader === null) {
-        throw ShaderError.of("CONTEXT_LOST", "the WebGL context is lost");
+        throw ShaderError.of(
+            "CONTEXT_LOST_BLOCKED",
+            "cannot draw the shader: the WebGL context is lost",
+        );
     }
     context.shaderSource(shader, source);
     context.compileShader(shader);
@@ -642,7 +654,7 @@ function compileShader(context: WebGL2RenderingContext, type: number, source: st
     if (context.getShaderParameter(shader, context.COMPILE_STATUS) !== true) {
         const log = context.getShaderInfoLog(shader) ?? "";
         context.deleteShader(shader);
-        throw ShaderError.of("COMPILE_FAILED", `the shader does not compile: ${log}`);
+        throw ShaderError.of("COMPILE_INVALID", `shader is invalid: it does not compile:\n${log}`);
     }
 
     return shader;

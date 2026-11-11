@@ -3,19 +3,19 @@ import type {} from "@destack/package/import-meta";
 
 /** The shader package's failures, each reason with the call error code it answers. */
 export const ShaderError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    COLOR_INVALID: { code: "BAD_REQUEST" },
-    UNIFORM_INVALID: { code: "BAD_REQUEST" },
+    // invalid
+    COLOR_INVALID: {},
+    COMPILE_INVALID: {},
+    LINK_INVALID: {},
+    UNIFORM_INVALID: {},
 
-    // precondition failed
-    CANVAS_UNSUPPORTED: { code: "PRECONDITION_FAILED" },
-    CONTEXT_LOST: { code: "PRECONDITION_FAILED" },
-    IMAGE_NOT_LOADED: { code: "PRECONDITION_FAILED" },
-    WEBGL_UNSUPPORTED: { code: "PRECONDITION_FAILED" },
+    // blocked
+    CONTEXT_LOST_BLOCKED: {},
+    IMAGE_BLOCKED: {},
 
-    // unprocessable content
-    COMPILE_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-    LINK_FAILED: { code: "UNPROCESSABLE_CONTENT" },
+    // unsupported
+    CANVAS_UNSUPPORTED: {},
+    WEBGL_UNSUPPORTED: {},
 });
 
 /** A stable cause of shader failures. */
