@@ -3,17 +3,16 @@ import { schema } from "@destack/schema";
 import type { Setting } from "@destack/setting";
 import { defineSetting } from "@destack/setting/declare";
 import { shortcut } from "@destack/view/declare";
+import { t } from "@destack/locale";
 
 /** Whether the desktop opens at login on this computer. */
 export const autostart = defineSetting({
     name: "autostart",
-    title: "Open at login",
-    description: "Open the desktop when you log in to this computer.",
+    title: t`Open at login`,
+    description: t`Open the desktop when you log in to this computer.`,
     schema: schema.boolean(),
     default: true,
     scope: "device",
-    overrides: [],
-    apply: "immediate",
 });
 
 /** The settings of the desktop, beside the native device's settings. */
