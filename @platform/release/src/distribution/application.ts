@@ -12,38 +12,29 @@ export async function configureApplication(
     version: string,
     environment: Environment<"files" | "process" | "host">,
 ): Promise<string> {
-    // select the authored artwork for this identity
+    // take the brand's macOS icons as built once, so every slice of a universal build carries the same bytes
     const isMac = environment.host.os === "darwin";
+    if (isMac) {
+        return JSON.stringify({
+            productName: identity.title,
+            version,
+            identifier: identity.applicationIdentifier,
+            bundle: {
+                icon: [
+                    brand(`icon${identity.suffix}-macos.png`),
+                    brand(`icon${identity.suffix}.icns`),
+                ],
+            },
+        });
+    }
+
+    // generate the native icon containers of other systems from the authored artwork
     const icons = join(directory, "icons");
     await environment.files.mkdir(icons, { recursive: true });
     const tauri = join(root, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    let artwork = fileURLToPath(
-        import.meta.resolve(`@platform/brand/icon/icon${identity.suffix}-rounded.svg`),
-    );
-
-    // match the visual padding of native macOS applications
-    if (isMac) {
-        artwork = join(icons, "source.png");
-        await run(
-            "swift",
-            [
-                "-module-cache-path",
-                join(directory, "swift"),
-                join(root, "@platform/release/src/distribution/icon.swift"),
-                fileURLToPath(
-                    import.meta.resolve(`@platform/brand/icon/icon${identity.suffix}-rounded.png`),
-                ),
-                artwork,
-            ],
-            environment,
-            root,
-        );
-    }
-
-    // generate native icon containers and the matching Tauri configuration
     await run(
         environment.process.executable,
-        ["run", tauri, "icon", artwork, "--output", icons],
+        ["run", tauri, "icon", brand(`icon${identity.suffix}-rounded.svg`), "--output", icons],
         environment,
         root,
     );
@@ -53,7 +44,12 @@ export async function configureApplication(
         version,
         identifier: identity.applicationIdentifier,
         bundle: {
-            icon: [join(icons, "icon.png"), join(icons, isMac ? "icon.icns" : "icon.ico")],
+            icon: [join(icons, "icon.png"), join(icons, "icon.ico")],
         },
     });
+}
+
+/** Resolve a file of the brand package's icon directory. */
+function brand(file: string): string {
+    return fileURLToPath(import.meta.resolve(`@platform/brand/icon/${file}`));
 }

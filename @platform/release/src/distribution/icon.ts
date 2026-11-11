@@ -8,78 +8,52 @@ import { run } from "./command.ts";
 /** The brand package's icon directory, resolved through its exports. */
 const BRAND_ICONS = dirname(fileURLToPath(import.meta.resolve("@platform/brand/icon/icon.svg")));
 
-/** Build the stable and development icons from their vector artwork. */
+/** Build every stage's macOS icons into the brand package. */
 export async function buildIcons(environment: Environment<HostCapability>): Promise<void> {
-    // prepare the output directory and isolate intermediate platform files
+    // refuse a host without the macOS image tools
+    if (environment.host.os !== "darwin") {
+        throw new Error("the macOS icons are built on macOS");
+    }
+
+    // build every stage's icons in a directory of their own
     const { files } = environment;
-    const output = join(CHECKOUT, "dist/icon");
     const temporary = await files.makeTemporaryDirectory("destack-icon-");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    await files.mkdir(output, { recursive: true });
-
-    // build every identity from its corresponding authored artwork
     try {
         for (const { suffix } of Stage.names.map((name) => Stage.of(name))) {
-            await buildIdentity(suffix, tauri, temporary, output, environment);
+            await buildMacIcon(suffix, tauri, join(temporary, `icon${suffix}`), environment);
         }
     } finally {
         await files.remove(temporary, { recursive: true, force: true });
     }
 }
 
-/** Build the icons of one identity, named by its artwork suffix. */
-async function buildIdentity(
+/** Pad a stage's raster icon as macOS applications are, and generate its `.icns` container. */
+async function buildMacIcon(
     suffix: string,
     tauri: string,
-    temporary: string,
-    output: string,
+    directory: string,
     environment: Environment<HostCapability>,
 ): Promise<void> {
-    // generate standard raster sizes
+    // apply the macOS padding to the rounded artwork
     const { files, process } = environment;
-    const name = `destack${suffix}`;
-    const source = join(BRAND_ICONS, `icon${suffix}-rounded.svg`);
-    const directory = join(temporary, name);
-    const words = ["run", tauri, "icon", source, "--output", directory];
-    await run(process.executable, words, environment, CHECKOUT);
-    await files.copyFile(source, join(output, `${name}.svg`));
-    await files.copyFile(join(directory, "icon.png"), join(output, `${name}.png`));
-
-    // build the native icon container on macOS
-    if (environment.host.os === "darwin") {
-        await buildMacIcon(name, tauri, temporary, directory, output, environment);
-    }
-}
-
-/** Pad the raster icon for macOS and generate its `.icns` container. */
-async function buildMacIcon(
-    name: string,
-    tauri: string,
-    temporary: string,
-    directory: string,
-    output: string,
-    environment: Environment<"files" | "process">,
-): Promise<void> {
-    // apply the macOS padding before generating the native icon container
-    const { files, process } = environment;
-    const padded = join(directory, "macos.png");
+    const padded = join(BRAND_ICONS, `icon${suffix}-macos.png`);
+    await files.mkdir(directory, { recursive: true });
     await run(
         "swift",
         [
             "-module-cache-path",
-            join(temporary, "swift"),
+            join(directory, "swift"),
             join(CHECKOUT, "@platform/release/src/distribution/icon.swift"),
-            join(directory, "icon.png"),
+            join(BRAND_ICONS, `icon${suffix}-rounded.png`),
             padded,
         ],
         environment,
         CHECKOUT,
     );
 
-    // generate the container and copy both files
-    const macos = join(directory, "macos");
-    const words = ["run", tauri, "icon", padded, "--output", macos];
+    // generate the container beside the padded icon
+    const words = ["run", tauri, "icon", padded, "--output", directory];
     await run(process.executable, words, environment, CHECKOUT);
-    await files.copyFile(padded, join(output, `${name}-macos.png`));
-    await files.copyFile(join(macos, "icon.icns"), join(output, `${name}.icns`));
+    await files.copyFile(join(directory, "icon.icns"), join(BRAND_ICONS, `icon${suffix}.icns`));
 }
