@@ -178,7 +178,7 @@ export const errorMessageStyle: Rule = {
             for (const index of expressions.keys()) {
                 const previous = grouped.at(-1);
                 const joined = quasis[index]?.value.cooked ?? "";
-                if (previous?.end === index - 1 && joined !== "" && !/\s/u.test(joined)) {
+                if (previous?.end === index - 1 && !/\s/u.test(joined)) {
                     grouped[grouped.length - 1] = { start: previous.start, end: index };
                 } else {
                     grouped.push({ start: index, end: index });
@@ -220,7 +220,10 @@ export const errorMessageStyle: Rule = {
                             before.endsWith("'") &&
                             after.startsWith("'") &&
                             isBare(part, before.slice(0, -1), after) &&
-                            !(name !== undefined && (AMBIGUOUS_NAMES.test(name) || CONSTANT_NAMES.test(name)))
+                            !(
+                                name !== undefined &&
+                                (AMBIGUOUS_NAMES.test(name) || CONSTANT_NAMES.test(name))
+                            )
                         );
                     })
                     .map(({ start }) => start),
