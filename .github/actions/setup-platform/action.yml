@@ -1,23 +1,17 @@
 name: Set up platform tools
-description: Install Bun, just, OpenTofu, and workspace dependencies.
+description: Set up the workspace, then install just and OpenTofu.
 
 runs:
     using: composite
     steps:
-        - name: Install Bun
-          uses: ./.github/actions/setup-bun
-
+        - name: Set up
+          uses: ./.github/actions/setup
         - name: Install just
-          uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+          uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
           with:
               tool: just
-
         - name: Install OpenTofu
-          uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+          uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
           with:
               tofu_version: 1.12.6
               tofu_wrapper: false
-
-        - name: Install dependencies
-          shell: bash
-          run: bun install --frozen-lockfile

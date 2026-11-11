@@ -21,7 +21,7 @@ jobs:
             packages: ${{ steps.affected.outputs.packages }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
                   # the merge base with the target branch, or the pushed range, selects the affected packages
@@ -81,7 +81,7 @@ jobs:
                 options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 12
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
             - name: Set up platform tools
@@ -102,13 +102,11 @@ jobs:
         timeout-minutes: 10
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              run: bun install --frozen-lockfile
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Typecheck updates
               run: bun run --cwd @destack/update typecheck
             - name: Test updates

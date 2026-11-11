@@ -22,7 +22,9 @@ jobs:
         timeout-minutes: 5
         permissions:
             contents: read
+            actions: read
         outputs:
+            commit: ${{ steps.commit.outputs.commit }}
             version: ${{ steps.release.outputs.version }}
             build: ${{ steps.release.outputs.build }}
             publish: ${{ steps.release.outputs.publish }}
@@ -35,44 +37,79 @@ jobs:
             published: ${{ steps.release.outputs.published }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
                   fetch-depth: 0
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
-            - name: Select release version and work
-              id: release
-              run: bun run src/main.ts release prepare
-
-    check:
-        name: Require the commit's check
-        needs: [prepare]
-        if: needs.prepare.outputs.build == 'true'
-        runs-on: ubuntu-24.04
-        timeout-minutes: 5
-        permissions:
-            actions: read
-        steps:
-            - name: Require a passed check of the released commit
+            - name: Select the commit to release
+              id: commit
               working-directory: ${{ github.workspace }}
               env:
                   GH_TOKEN: ${{ github.token }}
                   SHA: ${{ github.sha }}
               run: |
-                  # take the check workflow's run for the commit's push to main, refusing a missing or unfinished one
-                  conclusion="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?head_sha=${SHA}&event=push" --jq '.workflow_runs[0].conclusion // "missing"')"
-                  if [ "$conclusion" != success ]; then
-                      echo "::error::the check of ${SHA} is ${conclusion}"
+                  # build a branch's own commit, which the release never publishes
+                  if [ "$GITHUB_REF" != refs/heads/main ]; then
+                      echo "commit=$SHA" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+
+                  # release the newest push to main up to the run's commit that passed the check workflow
+                  passed="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/check.yml/runs?branch=main&event=push&status=success&per_page=100" --jq '.workflow_runs[].head_sha')"
+                  commit=""
+                  for candidate in $passed; do
+                      if git merge-base --is-ancestor "$candidate" "$SHA"; then
+                          commit="$candidate"
+                          break
+                      fi
+                  done
+                  if [ -z "$commit" ]; then
+                      echo "::error::no commit up to ${SHA} passed the check"
                       exit 1
                   fi
+                  git checkout --quiet --detach "$commit"
+                  echo "commit=$commit" >> "$GITHUB_OUTPUT"
+            - name: Set up
+              uses: ./.github/actions/setup
+            - name: Select release version and work
+              id: release
+              run: bun run src/main.ts release prepare
+
+    releases:
+        name: Build first-party releases
+        needs: [prepare]
+        if: needs.prepare.outputs.build == 'true'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 30
+        permissions:
+            contents: read
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
+            - name: Set up the sandbox the releases compile in
+              uses: ./.github/actions/setup-sandbox
+            - name: Restore the release store
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/releases
+                  key: releases-${{ needs.prepare.outputs.commit }}
+                  restore-keys: releases-
+            - name: Build first-party releases
+              run: bun run src/main.ts platform build
+            - name: Save the release store
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/releases
+                  key: releases-${{ needs.prepare.outputs.commit }}
 
     build:
         name: Build distribution (${{ matrix.target }})
-        needs: [prepare, check]
+        needs: [prepare, releases]
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 30
         permissions:
@@ -85,11 +122,10 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
+                  ref: ${{ needs.prepare.outputs.commit }}
             - name: Install native desktop dependencies
               if: runner.os == 'Linux'
               run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev
@@ -98,25 +134,36 @@ jobs:
               run: |
                   rustup toolchain install stable --profile minimal
                   rustup default stable
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Set up the sandbox the build compiles in
               if: runner.os == 'Linux'
               uses: ./.github/actions/setup-sandbox
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+            - name: Restore the release store
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/releases
+                  key: releases-${{ needs.prepare.outputs.commit }}
+                  fail-on-cache-miss: true
+            - name: Cache the native desktop build
+              uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: dist/.native
+                  key: native-${{ matrix.target }}-${{ hashFiles('@destack/desktop/native/Cargo.lock') }}
+                  restore-keys: native-${{ matrix.target }}-
             - name: Build distribution
               run: bun run src/main.ts distribution build ${{ matrix.target }}
             - name: Pack distribution
               run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Upload unsigned distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: unsigned-${{ matrix.target }}
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
             - name: Upload unsigned toolchain
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: toolchain-unsigned-${{ matrix.target }}
                   retention-days: 14
@@ -141,23 +188,21 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Download unsigned distribution
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Unpack distribution
               run: bun run src/main.ts signing sign unpack ${{ matrix.target }}
             - name: Download unsigned toolchain
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: toolchain-unsigned-${{ matrix.target }}
                   path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
@@ -176,14 +221,14 @@ jobs:
             - name: Pack distribution
               run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Upload signed distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: signed-${{ matrix.target }}
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
             - name: Upload signed toolchain
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: toolchain-signed-${{ matrix.target }}
                   retention-days: 14
@@ -193,7 +238,7 @@ jobs:
               if: always() && matrix.signer == 'apple'
               run: bun run src/main.ts signing credential remove
 
-    build-installers:
+    installers:
         name: Build installer (${{ matrix.name }})
         needs: [prepare, build, sign]
         if: >-
@@ -213,16 +258,14 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Download the installer's distributions
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-${{ matrix.targets }}
                   merge-multiple: true
@@ -240,7 +283,7 @@ jobs:
             - name: Build installer
               run: bun run src/main.ts installer build ${{ matrix.name }}
             - name: Upload installer
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: installer-${{ matrix.name }}
                   retention-days: 14
@@ -252,7 +295,7 @@ jobs:
 
     publish:
         name: Publish release
-        needs: [prepare, sign, build-installers]
+        needs: [prepare, sign, installers]
         if: needs.prepare.outputs.publish == 'true'
         runs-on: ubuntu-24.04
         timeout-minutes: 20
@@ -268,44 +311,42 @@ jobs:
             DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Download signed distributions
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: signed-*
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Download distributions without a platform signer
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: unsigned-${{ needs.prepare.outputs.unsigned }}
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Download installers
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: installer-*
                   merge-multiple: true
                   path: dist/${{ needs.prepare.outputs.version }}
             - name: Download signed toolchains
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: toolchain-signed-*
                   path: dist/${{ needs.prepare.outputs.version }}/toolchain
             - name: Download toolchains without a platform signer
-              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   pattern: toolchain-unsigned-${{ needs.prepare.outputs.unsigned }}
                   path: dist/${{ needs.prepare.outputs.version }}/toolchain
             - name: Attest build provenance of the archives and installers
-              uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8
+              uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
               with:
                   subject-path: dist/${{ needs.prepare.outputs.version }}/destack-*
             - name: Prepare update signing keys
@@ -340,15 +381,13 @@ jobs:
             GH_TOKEN: ${{ github.token }}
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
                   fetch-depth: 0
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Tag the release and publish its notes
               run: bun run src/main.ts release record
 
@@ -374,20 +413,24 @@ jobs:
             GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
             MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
             DESTACK_OPERATOR: ${{ vars.DESTACK_OPERATOR }}
-        defaults:
-            run:
-                working-directory: "@platform/release"
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
+                  ref: ${{ needs.prepare.outputs.commit }}
             - name: Set up platform tools
               uses: ./.github/actions/setup-platform
             - name: Set up the sandbox the platform build compiles in
               uses: ./.github/actions/setup-sandbox
+            - name: Restore the release store
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/releases
+                  key: releases-${{ needs.prepare.outputs.commit }}
+                  fail-on-cache-miss: true
             - name: Assume deploy role
-              uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502
+              uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
               with:
                   role-to-assume: arn:aws:iam::903685415634:role/destack-platform-deploy
                   role-session-name: deploy-${{ github.run_id }}
@@ -396,6 +439,33 @@ jobs:
               run: bun run src/main.ts platform deploy production
             - name: Publish the platform's releases
               run: bun run src/main.ts platform publish production
+
+    verify:
+        name: Verify installation and updates (${{ matrix.target }})
+        needs: [prepare, publish]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 10
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                include: ${{ fromJSON(needs.prepare.outputs.targets) }}
+        env:
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  persist-credentials: false
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
+            - name: Install Linux desktop runtime dependencies
+              if: runner.os == 'Linux'
+              run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
+            - name: Install the published release through its install script, and verify restart and updates
+              run: bun run src/main.ts distribution install-check
 
     renew:
         name: Renew release metadata
@@ -411,14 +481,12 @@ jobs:
             cancel-in-progress: false
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Prepare freshness signing keys
               run: bun run src/main.ts github credential renew
               env:
@@ -437,7 +505,7 @@ jobs:
               if: always()
               run: bun run src/main.ts github credential remove
 
-    check-expiry:
+    expiry:
         name: Check release metadata expiry
         needs: [prepare, publish, renew]
         if: ${{ !cancelled() && needs.prepare.result == 'success' && (needs.prepare.outputs.published == 'true' || needs.publish.result == 'success') }}
@@ -447,42 +515,11 @@ jobs:
             contents: read
         steps:
             - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
+                  ref: ${{ needs.prepare.outputs.commit }}
+            - name: Set up
+              uses: ./.github/actions/setup
             - name: Check every role outlives its renewal window
               run: bun run src/main.ts update expiry
-
-    verify:
-        name: Verify installation and updates (${{ matrix.target }})
-        needs: [prepare, publish]
-        runs-on: ${{ matrix.runner }}
-        timeout-minutes: 10
-        permissions:
-            contents: read
-        strategy:
-            fail-fast: false
-            matrix:
-                include: ${{ fromJSON(needs.prepare.outputs.targets) }}
-        env:
-            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
-        steps:
-            - name: Check out repository
-              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
-              with:
-                  persist-credentials: false
-            - name: Set up Bun
-              uses: ./.github/actions/setup-bun
-            - name: Install dependencies
-              working-directory: ${{ github.workspace }}
-              run: bun install --frozen-lockfile
-            - name: Install Linux desktop runtime dependencies
-              if: runner.os == 'Linux'
-              run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
-            - name: Install the published release through its install script, and verify restart and updates
-              run: bun run src/main.ts distribution install-check
