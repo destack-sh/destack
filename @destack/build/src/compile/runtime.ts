@@ -43,8 +43,8 @@ export class RuntimeCompiler implements AsyncDisposable {
         if (dynamic !== undefined) {
             const { path, location } = describeReference(dynamic);
             throw BuildError.of(
-                "RUNTIME_API_UNSUPPORTED",
-                `dynamic global access: ${path} at ${location}`,
+                "RUNTIME_API_INVALID",
+                `global access to '${path}' at '${location}' is invalid: it is dynamic`,
             );
         }
 
@@ -88,7 +88,7 @@ export class RuntimeCompiler implements AsyncDisposable {
         try {
             const project = snapshot.getProject(configuration);
             if (!project) {
-                throw BuildError.of("INVARIANT_VIOLATED", `missing ${runtime} type environment`);
+                throw BuildError.of("INVARIANT_BROKEN", `missing '${runtime}' type environment`);
             }
             await checkEnvironment(project.program, runtime);
 
@@ -98,8 +98,8 @@ export class RuntimeCompiler implements AsyncDisposable {
             for (const failure of failures) {
                 if (failure.fileName !== entry) {
                     throw BuildError.of(
-                        "INVARIANT_VIOLATED",
-                        `invalid ${runtime} type environment`,
+                        "INVARIANT_BROKEN",
+                        `'${runtime}' type environment does not type-check`,
                         {
                             cause: failures,
                         },
@@ -111,7 +111,7 @@ export class RuntimeCompiler implements AsyncDisposable {
                 const generated = lines[line];
                 const reference = generated === undefined ? undefined : expressions.get(generated);
                 if (!reference) {
-                    throw BuildError.of("INVARIANT_VIOLATED", failure.text, { cause: failure });
+                    throw BuildError.of("INVARIANT_BROKEN", failure.text, { cause: failure });
                 }
                 rejected.push(reference);
             }
@@ -234,8 +234,8 @@ async function checkEnvironment(program: Program, runtime: Runtime): Promise<voi
             (diagnostic) => `${diagnostic.fileName ?? runtime}: ${diagnostic.text}`,
         );
         throw BuildError.of(
-            "INVARIANT_VIOLATED",
-            `invalid ${runtime} type environment:\n${messages.join("\n")}`,
+            "INVARIANT_BROKEN",
+            `'${runtime}' type environment does not type-check:\n${messages.join("\n")}`,
             {
                 cause: diagnostics,
             },
@@ -269,8 +269,8 @@ function unsupported(
     const { path, location } = describeReference(reference);
 
     return BuildError.of(
-        "RUNTIME_API_UNSUPPORTED",
-        `unsupported ${runtimes.join(", ")} API: ${path} at ${location}`,
+        "RUNTIME_API_INVALID",
+        `API '${path}' at '${location}' is invalid: it is not supported on '${runtimes.join(", ")}'`,
     );
 }
 
@@ -288,13 +288,13 @@ export function checkInputs(build: BuildDescription, runtime: Runtime): void {
         // require each compiled module
         const input = build.inputs[id];
         if (!input) {
-            throw BuildError.of("INVARIANT_VIOLATED", `unknown compiled module: ${id}`);
+            throw BuildError.of("INVARIANT_BROKEN", `unknown compiled module: '${id}'`);
         }
         // refuse a module of other runtimes
         else if (input.runtimes && !input.runtimes.includes(runtime)) {
             throw BuildError.of(
-                "RUNTIME_MODULE_UNSUPPORTED",
-                `unsupported ${runtime} module: ${input.package ?? "source"}/${input.path}`,
+                "RUNTIME_MODULE_INVALID",
+                `module '${input.package ?? "source"}/${input.path}' is invalid: it is not supported on '${runtime}'`,
             );
         }
         // refuse computed imports on a runtime loading only the modules its deployment lists
@@ -304,8 +304,8 @@ export function checkInputs(build: BuildDescription, runtime: Runtime): void {
             LISTED_MODULE_RUNTIMES.has(runtime)
         ) {
             throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `unresolved runtime imports: ${input.path}`,
+                "DEPENDENCY_INVALID",
+                `runtime import set of '${input.path}' is invalid: it is unresolved`,
             );
         }
     }

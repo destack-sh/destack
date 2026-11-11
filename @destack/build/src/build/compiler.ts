@@ -79,7 +79,7 @@ export const CompilerCommand = {
         // refuse a release's compiler without a toolchain directory, which it reads its tools from
         const { directory } = toolchain;
         if (directory === undefined) {
-            throw BuildError.of("INVARIANT_VIOLATED", "a release's compiler needs a toolchain");
+            throw BuildError.of("INVARIANT_BROKEN", "a release's compiler needs a toolchain");
         }
 
         // load rolldown's native binding from where the release lays it out in its resources
@@ -271,15 +271,15 @@ export class Compiler implements AsyncDisposable {
                 this.#exitCode = code;
                 if (code !== 0 || !this.#disposed) {
                     this.#failure ??= BuildError.of(
-                        "COMPILER_FAILED",
-                        `compiler exited (${code}): ${this.#stderr.trim()}`,
+                        "COMPILER_BROKEN",
+                        `compiler exited ('${code}'): '${this.#stderr.trim()}'`,
                     );
                 }
                 this.#pending?.reject(this.#failure);
             },
             (cause: unknown) => {
                 this.#failure ??= BuildError.of(
-                    "COMPILER_FAILED",
+                    "COMPILER_BROKEN",
                     "the compiler's sandbox failed",
                     {
                         cause,
@@ -296,7 +296,7 @@ export class Compiler implements AsyncDisposable {
             }
         };
         input.closed.catch((cause: unknown) =>
-            fail(BuildError.of("COMPILER_FAILED", "the compiler's input failed", { cause })),
+            fail(BuildError.of("COMPILER_BROKEN", "the compiler's input failed", { cause })),
         );
 
         // bound diagnostics retained from compiler tools
@@ -323,8 +323,8 @@ export class Compiler implements AsyncDisposable {
                 const head = this.#stderr.slice(0, DIAGNOSTICS_HEAD);
                 fail(
                     BuildError.of(
-                        "COMPILER_FAILED",
-                        `build diagnostics exceeded 1 MiB, starting: ${head}`,
+                        "COMPILER_BROKEN",
+                        `build diagnostics exceeded 1 MiB, starting: '${head}'`,
                     ),
                 );
 
@@ -344,7 +344,7 @@ export class Compiler implements AsyncDisposable {
             // refuse a message no request awaits
             const pending = this.#pending;
             if (pending === undefined) {
-                throw BuildError.of("COMPILER_FAILED", "unexpected compiler message");
+                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler message");
             }
             // deliver the response to its request
             else if (message.kind === "result") {
@@ -354,7 +354,7 @@ export class Compiler implements AsyncDisposable {
             else {
                 void this.#answer(input, message).catch((error: unknown) =>
                     this.#fail(
-                        BuildError.of("COMPILER_FAILED", "cannot respond to a cache request", {
+                        BuildError.of("COMPILER_BROKEN", "cannot respond to a cache request", {
                             cause: error,
                         }),
                     ),
@@ -412,7 +412,7 @@ export class Compiler implements AsyncDisposable {
             } as const;
             const response = await this.#request(request, signal, timeout);
             if (response.kind !== "check") {
-                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
             }
         });
 
@@ -433,7 +433,7 @@ export class Compiler implements AsyncDisposable {
             } as const;
             const response = await this.#request(request, signal, timeout);
             if (response.kind !== "evaluate") {
-                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
             }
 
             return response.declarations;
@@ -560,15 +560,15 @@ export class Compiler implements AsyncDisposable {
             // refuse a package unresolved from where it is required
             if (real === undefined) {
                 throw BuildError.of(
-                    "DEPENDENCY_UNRESOLVED",
-                    `unresolved runtime dependency of ${by}: ${name}`,
+                    "DEPENDENCY_INVALID",
+                    `runtime dependency '${name}' of '${by}' is invalid: it is unresolved`,
                 );
             }
             // refuse two releases of one package under its name
             else if (known !== undefined && known.directory !== real) {
                 throw BuildError.of(
                     "DEPENDENCY_INVALID",
-                    `${importer} requires ${name} as two releases: ${known.directory} and ${real}`,
+                    `dependency '${name}' of '${importer}' is invalid: it is required as two releases '${known.directory}' and '${real}'`,
                 );
             }
             // open a new one, queueing the peers it requires
@@ -608,7 +608,7 @@ export class Compiler implements AsyncDisposable {
             timeout,
         );
         if (response.kind !== "build") {
-            throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+            throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
         }
 
         return response.npm;
@@ -624,7 +624,7 @@ export class Compiler implements AsyncDisposable {
             const request = { kind: "inspect", options: await this.#inspected(options) } as const;
             const response = await this.#request(request, signal);
             if (response.kind !== "inspect") {
-                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
             }
 
             return response.inspection;
@@ -641,7 +641,7 @@ export class Compiler implements AsyncDisposable {
             const request = { kind: "index", options: await this.#inspected(options) } as const;
             const response = await this.#request(request, signal);
             if (response.kind !== "index") {
-                throw BuildError.of("COMPILER_FAILED", "unexpected compiler result");
+                throw BuildError.of("COMPILER_BROKEN", "unexpected compiler result");
             }
 
             return { code: response.code, modules: response.modules };
@@ -680,16 +680,19 @@ export class Compiler implements AsyncDisposable {
     ): Promise<BuildResult> {
         // refuse a closed compiler, an invalid timeout and a cancelled request
         if (this.#disposed) {
-            throw BuildError.of("INVARIANT_VIOLATED", "compiler is closed");
+            throw BuildError.of("INVARIANT_BROKEN", "compiler is closed");
         }
         if (
             timeout !== undefined &&
             (!Number.isSafeInteger(timeout) || timeout <= 0 || timeout > 2 ** 31 - 1)
         ) {
-            throw BuildError.of("TIMEOUT_INVALID", "invalid compiler timeout");
+            throw BuildError.of(
+                "TIMEOUT_INVALID",
+                "compiler timeout is invalid: it must be a positive 32-bit integer of milliseconds",
+            );
         }
         if (signal?.aborted === true) {
-            throw BuildError.of("BUILD_CANCELLED", "build cancelled", { cause: signal.reason });
+            throw BuildError.of("BUILD_CANCELLED", "build was cancelled", { cause: signal.reason });
         }
 
         // start a compiler again once a cancelled, late or crashed one has stopped
@@ -699,12 +702,15 @@ export class Compiler implements AsyncDisposable {
         }
         const abort = () =>
             this.#fail(
-                BuildError.of("BUILD_CANCELLED", "build cancelled", { cause: signal?.reason }),
+                BuildError.of("BUILD_CANCELLED", "build was cancelled", { cause: signal?.reason }),
             );
         // fail a build past the caller's deadline, and leave one without a deadline to its signal
         const deadline = new AbortController();
         if (timeout !== undefined) {
-            const late = BuildError.of("COMPILER_TIMEOUT", `build exceeded ${timeout} ms`);
+            const late = BuildError.of(
+                "COMPILER_UNREACHABLE",
+                `could not finish the build within ${timeout} ms`,
+            );
             void this.store.environment.clock.sleep(timeout, deadline.signal).then(
                 () => this.#fail(late),
                 (error: unknown) => {
@@ -736,7 +742,7 @@ export class Compiler implements AsyncDisposable {
             this.#pending = { resolve: deliver, reject };
             void writeMessage(this.#input, request).catch((error: unknown) =>
                 this.#fail(
-                    BuildError.of("COMPILER_FAILED", "cannot send the compiler request", {
+                    BuildError.of("COMPILER_BROKEN", "cannot send the compiler request", {
                         cause: error,
                     }),
                 ),
@@ -754,10 +760,10 @@ export class Compiler implements AsyncDisposable {
         // mark disposal, fail a pending build and end the compiler input
         this.#disposed = true;
         if (this.#pending) {
-            this.#fail(BuildError.of("INVARIANT_VIOLATED", "compiler closed during a build"));
+            this.#fail(BuildError.of("INVARIANT_BROKEN", "compiler closed during a build"));
         }
         void this.#input.close().catch((cause: unknown) => {
-            this.#failure ??= BuildError.of("COMPILER_FAILED", "cannot end the compiler's input", {
+            this.#failure ??= BuildError.of("COMPILER_BROKEN", "cannot end the compiler's input", {
                 cause,
             });
         });
@@ -785,7 +791,7 @@ export class Compiler implements AsyncDisposable {
 
         // stop the compiler's process group at once
         void this.#sandbox.stop(0).catch((cause: unknown) => {
-            this.#failure ??= BuildError.of("COMPILER_FAILED", "cannot stop the compiler", {
+            this.#failure ??= BuildError.of("COMPILER_BROKEN", "cannot stop the compiler", {
                 cause,
             });
         });

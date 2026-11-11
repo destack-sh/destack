@@ -37,7 +37,7 @@ export class Template {
             if ((await files.lstat(join(root, name))).kind !== "file") {
                 throw PackageError.of(
                     "FILE_INVALID",
-                    `template manifest is not a regular file: ${name}`,
+                    `template manifest '${name}' is invalid: it is not a regular file`,
                 );
             }
             contents.set(name, await files.readFile(join(root, name)));
@@ -46,7 +46,10 @@ export class Template {
             new TextDecoder("utf-8", { fatal: true }).decode(contents.get("destack.json")),
         );
         if (!definition.template) {
-            throw PackageError.of("DEFINITION_INVALID", "package has no template declaration");
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                "template declaration is invalid: the package has none",
+            );
         }
 
         // traverse declared paths while checking every parent for symbolic links
@@ -68,7 +71,10 @@ export class Template {
         const { manifest, definition } = this.#readDeclarations();
         const template = definition.template;
         if (!template) {
-            throw PackageError.of("DEFINITION_INVALID", "package has no template declaration");
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                "template declaration is invalid: the package has none",
+            );
         }
         parameters = TemplateInput.parse(parameters);
 
@@ -76,15 +82,15 @@ export class Template {
         if (parameters.id === definition.id) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                "template instance requires a new package ID",
+                "template instance is invalid: it requires a new package ID",
             );
         }
 
         // replace the declared dependency selections
         if (definition.language !== "typescript") {
             throw PackageError.of(
-                "LANGUAGE_UNSUPPORTED",
-                "template generation requires TypeScript",
+                "LANGUAGE_INVALID",
+                "template language is invalid: template generation requires TypeScript",
             );
         }
         replaceDependencies(manifest, template.dependencies ?? [], parameters);
@@ -122,7 +128,10 @@ export class Template {
             decoder.decode(requiredFile(this.files, "package.json")),
         );
         if (!isTemplateManifest(manifest)) {
-            throw PackageError.of("DEFINITION_INVALID", "template package.json is invalid");
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                "template package.json is invalid: it does not match its schema",
+            );
         }
 
         // read the definition and check the package identity
@@ -183,7 +192,7 @@ async function readDeclared(
             if (parent.kind !== "directory") {
                 throw PackageError.of(
                     "FILE_INVALID",
-                    `template parent is not a directory: ${path}`,
+                    `template parent of '${path}' is invalid: it is not a directory`,
                 );
             }
         }
@@ -198,7 +207,10 @@ async function readDeclared(
         } else if (entry.kind === "file") {
             contents.set(path, await files.readFile(absolute));
         } else {
-            throw PackageError.of("FILE_INVALID", `unsupported template file: ${path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `template file '${path}' is invalid: it is not supported`,
+            );
         }
     }
 
@@ -217,7 +229,7 @@ function replaceDependencies(
     if (JSON.stringify(expected) !== JSON.stringify(selected)) {
         throw PackageError.of(
             "DEPENDENCY_INVALID",
-            "template dependencies do not match the declared selections",
+            "template dependency set is invalid: it does not match the declared selections",
         );
     }
 
@@ -225,7 +237,10 @@ function replaceDependencies(
     const dependencies = manifest.dependencies ?? {};
     for (const original of expected) {
         if (typeof dependencies[original] !== "string") {
-            throw PackageError.of("DEPENDENCY_INVALID", `missing template dependency: ${original}`);
+            throw PackageError.of(
+                "DEPENDENCY_INVALID",
+                `template dependency '${original}' is invalid: it is missing`,
+            );
         }
         delete dependencies[original];
     }
@@ -239,7 +254,7 @@ function replaceDependencies(
         ) {
             throw PackageError.of(
                 "DEPENDENCY_INVALID",
-                `conflicting template dependency: ${replacement.name}`,
+                `template dependency '${replacement.name}' is invalid: it conflicts`,
             );
         }
         dependencies[replacement.name] = replacement.version;
@@ -272,7 +287,10 @@ function copyFiles(
     // require every declared path and both manifests
     for (const entry of declared) {
         if (![...files.keys()].some((path) => isWithin(path, entry))) {
-            throw PackageError.of("FILE_INVALID", `missing template source: ${entry}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `template source '${entry}' is invalid: it is missing`,
+            );
         }
     }
     requiredFile(files, "package.json");
@@ -304,7 +322,7 @@ function isWithin(path: string, entry: string): boolean {
 function requiredFile(files: ReadonlyMap<string, Uint8Array>, path: string): Uint8Array {
     const bytes = files.get(path);
     if (!bytes) {
-        throw PackageError.of("FILE_INVALID", `missing template file: ${path}`);
+        throw PackageError.of("FILE_INVALID", `template file '${path}' is invalid: it is missing`);
     }
 
     return bytes;
@@ -319,7 +337,10 @@ export function replaceImports(
     // reject malformed source before selecting edits
     const parsed = parseSync(path, source);
     if (parsed.errors.length) {
-        throw PackageError.of("FILE_INVALID", `invalid template source: ${path}`);
+        throw PackageError.of(
+            "FILE_INVALID",
+            `template source '${path}' is invalid: it does not parse`,
+        );
     }
     const references: ESTree.StringLiteral[] = [];
     const visitor = new Visitor({
@@ -343,7 +364,7 @@ export function replaceImports(
             } else {
                 throw PackageError.of(
                     "FILE_INVALID",
-                    `template imports must use literal specifiers: ${path}`,
+                    `template source '${path}' is invalid: its imports must use literal specifiers`,
                 );
             }
         },

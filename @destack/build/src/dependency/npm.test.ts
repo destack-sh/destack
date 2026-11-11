@@ -98,7 +98,7 @@ test("build an npm unit per runtime as ES modules on its dependency's unit, and 
         const reader = await store.contents(manifest);
         const recorded = reader.manifest.outputs[runtime]?.dependencies["word"];
         if (recorded?.kind !== "npm") {
-            throw new TypeError(`the ${runtime} output records no npm unit of word`);
+            throw new TypeError(`the '${runtime}' output records no npm unit of word`);
         }
         const placed = join(root, `placed-${runtime}`);
         await place(store, manifest, "greeting", runtime, placed);
@@ -394,9 +394,9 @@ test("refuse an npm unit with a missing dependency or a cycle, and a native addo
 
     // refuse the native addon and its importer on Bun as on workerd, and the others with their exact reasons
     const unloadable = [
-        "UNPROCESSABLE_CONTENT",
-        "RUNTIME_MODULE_UNSUPPORTED",
-        "native is a native addon, which no package may depend on",
+        "BAD_REQUEST",
+        "RUNTIME_MODULE_INVALID",
+        "package 'native' is invalid: it is a native addon, which no package may depend on",
     ];
     const onBun = await refusal(
         installation.store(await installation.open(copy(root, "native")), "bun"),
@@ -405,13 +405,13 @@ test("refuse an npm unit with a missing dependency or a cycle, and a native addo
     expect(await refusal(build("native"))).toEqual(unloadable);
     expect(await refusal(build("importer"))).toEqual(unloadable);
     expect(await refusal(build("missing"))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "DEPENDENCY_UNRESOLVED",
-        "missing dependency of missing@1.0.0: absent",
+        "BAD_REQUEST",
+        "DEPENDENCY_INVALID",
+        "dependency 'absent' of 'missing@1.0.0' is invalid: it is missing",
     ]);
     expect(await refusal(build("first"))).toEqual([
-        "UNPROCESSABLE_CONTENT",
+        "BAD_REQUEST",
         "DEPENDENCY_INVALID",
-        `npm dependency cycle through ${copy(root, "first")}`,
+        `npm dependency '${copy(root, "first")}' is invalid: it is part of a dependency cycle`,
     ]);
 });

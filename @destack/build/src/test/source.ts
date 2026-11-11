@@ -64,7 +64,7 @@ export class PackageCopy implements AsyncDisposable {
         for (const name of new Set(declared)) {
             const member = members.get(name);
             if (member === undefined) {
-                throw BuildError.of("MEMBER_UNKNOWN", `the workspace has no member ${name}`);
+                throw BuildError.of("MEMBER_NOT_FOUND", `workspace member '${name}' not found`);
             }
             const link = join(source, "node_modules", name);
             await files.mkdir(dirname(link), { recursive: true });
@@ -142,7 +142,7 @@ export async function copySource(
         } else {
             throw BuildError.of(
                 "ASSET_INVALID",
-                `unsupported ${entry.kind} entry in a package source: ${source}`,
+                `package source entry '${source}' is invalid: its kind ${entry.kind} is not supported`,
             );
         }
     }

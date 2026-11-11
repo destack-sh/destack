@@ -121,9 +121,9 @@ test("refuse an undeclared, differently selected or unsupported dependency in th
             ),
         );
         expect(refusals).toEqual([
-            "undeclared runtime dependency: @fixture/undeclared",
-            "dependency resolution differs from installation: @fixture/pinned",
-            "unsupported browser dependency: @fixture/server",
+            "runtime dependency '@fixture/undeclared' is invalid: it is undeclared",
+            "dependency resolution of '@fixture/pinned' is invalid: it differs from the installation",
+            "dependency '@fixture/server' is invalid: it is not supported on 'browser'",
         ]);
     } finally {
         await server.close();
@@ -177,9 +177,9 @@ test("refuse an unsupported dependency in a build as the development server does
             ),
         ),
     ).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "RUNTIME_MODULE_UNSUPPORTED",
-        `unsupported browser dependency: @fixture/server, imported by ${join(await files.realPath(directory), "src", "server.ts")}`,
+        "BAD_REQUEST",
+        "RUNTIME_MODULE_INVALID",
+        `dependency '@fixture/server' of '${join(await files.realPath(directory), "src", "server.ts")}' is invalid: it has no 'browser' module`,
     ]);
 });
 
@@ -294,8 +294,8 @@ test("refuse indexing star exports that lead back into a module, listing the cyc
         toolchain: async () => Toolchain.workspace(),
     });
     expect(await refusal(compiler.index({ directory, runtime: "bun", dependencies: {} }))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "INSPECTION_FAILED",
-        "export * cycle: src/left.ts -> src/right.ts -> src/left.ts",
+        "BAD_REQUEST",
+        "INSPECTION_INVALID",
+        "export * chain 'src/left.ts -> src/right.ts -> src/left.ts' is invalid: it is a cycle",
     ]);
 });

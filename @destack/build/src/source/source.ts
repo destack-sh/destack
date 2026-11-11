@@ -74,7 +74,10 @@ export const PackageSource = {
         try {
             await files.stat(authored);
         } catch (error) {
-            if (options.configuration !== undefined || !FileSystemError.is(error, "NOT_FOUND")) {
+            if (
+                options.configuration !== undefined ||
+                !FileSystemError.is(error, "FILE_NOT_FOUND")
+            ) {
                 throw error;
             }
             hasConfiguration = false;
@@ -149,7 +152,10 @@ async function readPackageSource(
 
     // require at least one runtime or type export
     if (!Object.keys(exports).length && !Object.keys(types).length) {
-        throw PackageError.of("TARGET_UNSUPPORTED", `no exports for runtime: ${runtime}`);
+        throw PackageError.of(
+            "TARGET_INVALID",
+            `runtime '${runtime}' is invalid: it has no exports`,
+        );
     }
 
     // compile the commands the package installs into its whole Bun output
@@ -181,7 +187,10 @@ function isCompiled(
 ): boolean {
     // require a subpath export of a concrete module
     if (!isSelected && name !== "." && !name.startsWith("./")) {
-        throw PackageError.of("DEFINITION_INVALID", `invalid export: ${name}`);
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `export '${name}' is invalid: it must be a valid export name`,
+        );
     }
 
     // skip the test layer
@@ -194,8 +203,8 @@ function isCompiled(
         runtime === undefined || PackageDefinition.runtimes(definition, name).includes(runtime);
     if (!isSupported && isSelected) {
         throw PackageError.of(
-            "TARGET_UNSUPPORTED",
-            `unsupported entry runtime: ${name} -> ${runtime}`,
+            "TARGET_INVALID",
+            `entry '${name}' is invalid: its runtime '${runtime}' is not supported`,
         );
     }
 
@@ -210,7 +219,10 @@ function selectType(entry: PackageExport, conditions: ReadonlySet<string>): stri
         return undefined;
     }
     if (!type.startsWith("./")) {
-        throw PackageError.of("DEFINITION_INVALID", `invalid type export path: ${type}`);
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `type export path ${type} is invalid: it must be a relative path`,
+        );
     }
 
     return PackagePath.parse(type.slice(2));
@@ -224,7 +236,10 @@ function selectModule(entry: PackageExport, conditions: ReadonlySet<string>): st
         return undefined;
     }
     if (!path.startsWith("./") || isAbsolute(path)) {
-        throw PackageError.of("DEFINITION_INVALID", `invalid export path: ${path}`);
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            `export path '${path}' is invalid: it must be a relative path`,
+        );
     }
 
     return /\.d\.[cm]?ts$/u.test(path) ? undefined : PackagePath.parse(path.slice(2));
@@ -267,22 +282,25 @@ export async function readPackageJson(
     if (stale !== undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `destack.json overrides the runtimes of an export missing from package.json: ${stale}`,
+            `runtime override '${stale}' is invalid: destack.json overrides an export missing from package.json`,
         );
     }
 
     // require a TypeScript package
     if (definition.language !== "typescript") {
         throw PackageError.of(
-            "LANGUAGE_UNSUPPORTED",
-            "building TypeScript++ packages requires the language toolchain",
+            "LANGUAGE_INVALID",
+            "TypeScript++ package is invalid: building it requires the language toolchain",
         );
     }
 
     // associate peer metadata with authored dependency requirements
     for (const name of Object.keys(packageJson.peerDependenciesMeta)) {
         if (!Object.hasOwn(packageJson.peerDependencies, name)) {
-            throw PackageError.of("DEPENDENCY_INVALID", `undeclared peer dependency: ${name}`);
+            throw PackageError.of(
+                "DEPENDENCY_INVALID",
+                `peer dependency '${name}' is invalid: it is undeclared`,
+            );
         }
     }
 
@@ -310,7 +328,7 @@ async function expandPatterns(
         else if (typeof entry !== "string" || !entry.includes("*")) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `a pattern export must map to one pattern target: ${name}`,
+                `pattern export '${name}' is invalid: it must map to one pattern target`,
             );
         }
         // key each file the target matches by the text its wildcard stands for
@@ -351,7 +369,7 @@ export function mapExports(packageJson: PackageJson): Readonly<Record<string, Pa
     if (authored === undefined) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            "a package build requires package.json exports",
+            "package build is invalid: it requires package.json exports",
         );
     }
 
@@ -379,7 +397,10 @@ export function selectExport(
     }
     // refuse an absent definition
     else if (value === undefined) {
-        throw PackageError.of("DEFINITION_INVALID", "invalid package export definition");
+        throw PackageError.of(
+            "DEFINITION_INVALID",
+            "package export definition is invalid: it must match its schema",
+        );
     }
 
     // try a fallback list's alternatives, or the matching conditions in declaration order

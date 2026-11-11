@@ -94,8 +94,8 @@ export class ConstructorCatalog {
         const owner = await this.owner(location);
         if (!("id" in owner)) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `${location.name} has Destack declarations but no destack.json`,
+                "INSPECTION_INVALID",
+                `package '${location.name}' is invalid: it has Destack declarations but no destack.json`,
             );
         }
 
@@ -216,8 +216,8 @@ export class ConstructorCatalog {
         const entry = [...constructed, ...defined].find((candidate) => candidate.kind === kind);
         if (directory === undefined || entry === undefined) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `${location.name} describes kind ${kind}, but ${name} does not declare it`,
+                "INSPECTION_INVALID",
+                `kind ${kind} is invalid: '${location.name}' describes it, but '${name}' does not declare it`,
             );
         }
         const declaring = await this.locate(directory);
@@ -231,8 +231,8 @@ export class ConstructorCatalog {
         const separator = reference.indexOf("#");
         if (separator === -1) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `function reference ${reference} is not an export`,
+                "INSPECTION_INVALID",
+                `function reference '${reference}' is invalid: it is not an export`,
             );
         }
         const subpath = reference.slice(0, separator);
@@ -241,8 +241,8 @@ export class ConstructorCatalog {
         const target = exports?.[subpath];
         if (target === undefined) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `${location.name} does not export ${subpath} for ${reference}`,
+                "INSPECTION_INVALID",
+                `function reference '${reference}' is invalid: '${location.name}' does not export '${subpath}'`,
             );
         }
 
@@ -283,7 +283,7 @@ async function readOwner(
     try {
         definition = await files.readTextFile(join(location.directory, "destack.json"));
     } catch (error) {
-        if (!FileSystemError.is(error, "NOT_FOUND")) {
+        if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
             throw error;
         }
     }

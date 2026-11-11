@@ -70,7 +70,10 @@ export async function loadExtensions(
         // refuse another absent one
         else if (installed === undefined) {
             const named = dependent.package.name;
-            throw BuildError.of("DEPENDENCY_UNRESOLVED", `missing dependency of ${named}: ${name}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `dependency '${name}' of '${named}' is invalid: it is missing`,
+            );
         }
         // take a Destack package's definition, walking a required one's runtime dependencies
         else if (await files.exists(join(installed, "destack.json"))) {
@@ -94,7 +97,7 @@ export async function loadExtensions(
     if (unbuilt !== undefined) {
         throw BuildError.of(
             "EXTENSION_INVALID",
-            `${root} lists ${unbuilt}, but ${unbuilt} declares no build extension`,
+            `extension '${unbuilt}' listed by '${root}' is invalid: it declares no build extension`,
         );
     }
 
@@ -167,7 +170,7 @@ async function importExtension(
     if (separator === -1) {
         throw BuildError.of(
             "EXTENSION_INVALID",
-            `${name} declares build ${build}, but has no export ${build}`,
+            `build '${build}' of '${name}' is invalid: '${name}' declares it but has no such export`,
         );
     }
     const subpath = build.slice(0, separator);
@@ -177,7 +180,10 @@ async function importExtension(
     const manifest = await readManifest(installed, files);
     const file = selectExport(manifest.exports?.[subpath], CONDITIONS);
     if (typeof file !== "string") {
-        throw BuildError.of("EXTENSION_INVALID", `${name} exports no build module at ${subpath}`);
+        throw BuildError.of(
+            "EXTENSION_INVALID",
+            `package '${name}' is invalid: it exports no build module at '${subpath}'`,
+        );
     }
 
     // read the extension from the module's exports
@@ -186,7 +192,7 @@ async function importExtension(
     if (typeof extension !== "object" || extension === null) {
         throw BuildError.of(
             "EXTENSION_INVALID",
-            `${name} exports no build extension ${exportName}`,
+            `build extension '${exportName}' is invalid: '${name}' does not export it`,
         );
     }
 

@@ -178,9 +178,9 @@ test("refuse a declared kind function its module does not export, by its package
     const workspace = await Workspace.open(directory, compilers);
 
     expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "INSPECTION_FAILED",
-        "declaration evaluation failed: @example/owner/inspect#missing is not an exported function",
+        "BAD_REQUEST",
+        "INSPECTION_INVALID",
+        "declaration evaluation is invalid: it failed",
     ]);
 });
 
@@ -338,8 +338,8 @@ void hidden;
     const workspace = await Workspace.open(directory, compilers);
 
     expect(await refusal(workspace.build({ outputs: OUTPUTS }))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "DECLARATION_UNEXPORTED",
-        "declared hidden is not exported by @example/app",
+        "BAD_REQUEST",
+        "DECLARATION_INVALID",
+        "declared 'hidden' is invalid: '@example/app' does not export it",
     ]);
 });

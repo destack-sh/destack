@@ -15,56 +15,51 @@ const BundleErrors = schema.array(schema.looseObject({ message: schema.string() 
 export const BuildError = defineErrorFamily(
     import.meta.destack.package,
     {
-        // bad request
-        CACHE_DIRECTORY_INVALID: { code: "BAD_REQUEST" },
-        DIGEST_INVALID: { code: "BAD_REQUEST" },
-        MANIFEST_BLOB_UNKNOWN: { code: "BAD_REQUEST" },
-        MANIFEST_INVALID: { code: "BAD_REQUEST" },
-        MEDIA_TYPE_MISSING: { code: "BAD_REQUEST" },
-        OUTPUT_INVALID: { code: "BAD_REQUEST" },
-        TIMEOUT_INVALID: { code: "BAD_REQUEST" },
-
         // not found
-        BLOB_UNKNOWN: { code: "NOT_FOUND" },
-        MANIFEST_UNKNOWN: { code: "NOT_FOUND" },
-        MEMBER_UNKNOWN: { code: "NOT_FOUND" },
+        BLOB_NOT_FOUND: {},
+        MANIFEST_NOT_FOUND: {},
+        MEMBER_NOT_FOUND: {},
 
         // conflict
-        SOURCE_CHANGED: { code: "CONFLICT" },
+        SOURCE_CONFLICT: {},
 
-        // unprocessable content
-        ASSET_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        BUNDLE_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-        CATALOG_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        DECLARATION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        DECLARATION_UNEXPORTED: { code: "UNPROCESSABLE_CONTENT" },
-        DEPENDENCY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        DEPENDENCY_UNRESOLVED: { code: "UNPROCESSABLE_CONTENT" },
-        ENTRY_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        EXTENSION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-        EXTENSION_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        INSPECTION_FAILED: { code: "UNPROCESSABLE_CONTENT" },
-        LOCKFILE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-        RUNTIME_API_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
-        RUNTIME_MODULE_UNSUPPORTED: { code: "UNPROCESSABLE_CONTENT" },
+        // invalid
+        ASSET_INVALID: {},
+        BUNDLE_INVALID: {},
+        CACHE_DIRECTORY_INVALID: {},
+        CATALOG_INVALID: {},
+        DECLARATION_INVALID: {},
+        DEPENDENCY_INVALID: {},
+        DIGEST_INVALID: {},
+        ENTRY_INVALID: {},
+        EXTENSION_INVALID: {},
+        INSPECTION_INVALID: {},
+        LOCKFILE_INVALID: {},
+        MANIFEST_BLOB_INVALID: {},
+        MANIFEST_INVALID: {},
+        OUTPUT_INVALID: {},
+        RUNTIME_API_INVALID: {},
+        RUNTIME_MODULE_INVALID: {},
+        TIMEOUT_INVALID: {},
 
-        // client closed request
-        BUILD_CANCELLED: { code: "CLIENT_CLOSED_REQUEST" },
+        // required
+        MEDIA_TYPE_REQUIRED: {},
 
-        // internal server error
-        CHECKOUT_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-        COMPILER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-        INVARIANT_VIOLATED: { code: "INTERNAL_SERVER_ERROR" },
-        LAYER_FILE_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-        STORED_CONTENT_DIFFERS: { code: "INTERNAL_SERVER_ERROR" },
+        // unreachable
+        COMPILER_UNREACHABLE: {},
+        DIGEST_UNREACHABLE: {},
+        PROBE_UNREACHABLE: {},
+        UPLOAD_UNREACHABLE: {},
 
-        // bad gateway
-        DIGEST_MISMATCH: { code: "BAD_GATEWAY" },
-        PROBE_FAILED: { code: "BAD_GATEWAY" },
-        UPLOAD_FAILED: { code: "BAD_GATEWAY" },
+        // cancelled
+        BUILD_CANCELLED: {},
 
-        // gateway timeout
-        COMPILER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
+        // broken
+        CHECKOUT_BROKEN: {},
+        COMPILER_BROKEN: {},
+        CONTENT_BROKEN: {},
+        INVARIANT_BROKEN: {},
+        LAYER_FILE_BROKEN: {},
     },
     { audience: "host" },
 );
@@ -86,7 +81,7 @@ export function extensionFailureOf(cause: unknown): Error {
     else {
         const message = cause instanceof Error ? cause.message : String(cause);
 
-        return BuildError.of("EXTENSION_FAILED", message, { cause });
+        return BuildError.of("EXTENSION_INVALID", message, { cause });
     }
 }
 
@@ -102,8 +97,8 @@ export function bundleFailureOf(error: unknown): Error {
         const code: unknown = Reflect.get(declared, "pluginCode") ?? declared.code;
         if (typeof code !== "string" || !CallErrorCode.is(code)) {
             return BuildError.of(
-                "INVARIANT_VIOLATED",
-                `the bundler lost the code of ${declared.reason}`,
+                "INVARIANT_BROKEN",
+                `the bundler lost the code of '${declared.reason}'`,
                 {
                     cause: error,
                 },
@@ -121,11 +116,11 @@ export function bundleFailureOf(error: unknown): Error {
     if (!parsed.success) {
         const message = error instanceof Error ? error.message : String(error);
 
-        return BuildError.of("BUNDLE_FAILED", message, { cause: error });
+        return BuildError.of("BUNDLE_INVALID", message, { cause: error });
     }
     const messages = parsed.data.map((entry) => entry.message);
 
-    return BuildError.of("BUNDLE_FAILED", messages.join("\n"), { cause: error });
+    return BuildError.of("BUNDLE_INVALID", messages.join("\n"), { cause: error });
 }
 
 /** Report whether a failure is a Rolldown bundle failure, which aggregates its errors. */

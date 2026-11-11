@@ -104,7 +104,10 @@ export class PackageBuild implements AsyncDisposable {
         }
         for (const path of references) {
             if (!paths.has(path)) {
-                throw PackageError.of("FILE_INVALID", `missing build file: ${path}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `build file '${path}' is invalid: it is missing`,
+                );
             }
         }
 
@@ -112,7 +115,10 @@ export class PackageBuild implements AsyncDisposable {
         for (const file of list) {
             const { digest, size } = await digestFile(resolve(directory, file.path), environment);
             if (size !== file.size || digest !== file.digest) {
-                throw PackageError.of("FILE_INVALID", `file contents differ: ${file.path}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `file '${file.path}' is invalid: its contents differ`,
+                );
             }
         }
 
@@ -126,10 +132,16 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === MANIFEST_PATH || file.path.startsWith(`${MANIFEST_PATH}/`)) {
-            throw PackageError.of("FILE_INVALID", `reserved build path: ${file.path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `build path '${file.path}' is invalid: it is reserved`,
+            );
         }
         if (paths.has(file.path)) {
-            throw PackageError.of("FILE_INVALID", `duplicate file: ${file.path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `file '${file.path}' is invalid: it is a duplicate`,
+            );
         }
         paths.add(file.path);
     }
@@ -138,7 +150,10 @@ function requireDistinctPaths(list: readonly PackageFile[]): Set<string> {
     for (const path of paths) {
         for (const parent of parents(path)) {
             if (paths.has(parent)) {
-                throw PackageError.of("FILE_INVALID", `file is also a directory: ${parent}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `file '${parent}' is invalid: it is also a directory`,
+                );
             }
         }
     }
@@ -154,7 +169,7 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
         if (directories.has(output.directory)) {
             throw PackageError.of(
                 "FILE_INVALID",
-                `duplicate output directory: ${output.directory}`,
+                `output directory '${output.directory}' is invalid: it is a duplicate`,
             );
         }
         directories.add(output.directory);
@@ -164,12 +179,15 @@ function requireSeparateOutputs(manifest: PackageManifest, paths: ReadonlySet<st
     for (const directory of directories) {
         for (const path of [...parents(directory), directory]) {
             if (paths.has(path)) {
-                throw PackageError.of("FILE_INVALID", `output directory is a file: ${path}`);
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `output directory '${path}' is invalid: it is a file`,
+                );
             }
             if (path !== directory && directories.has(path)) {
                 throw PackageError.of(
                     "FILE_INVALID",
-                    `overlapping output directories: ${path}, ${directory}`,
+                    `output directory '${path}' is invalid: it overlaps '${directory}'`,
                 );
             }
         }
@@ -185,7 +203,10 @@ function exportedPaths(
     const exported = Object.values(output.exports).map((entry) => entry.path);
     for (const path of exported) {
         if (!path.startsWith(`${output.directory}/`)) {
-            throw PackageError.of("FILE_INVALID", `export is outside its output: ${path}`);
+            throw PackageError.of(
+                "FILE_INVALID",
+                `export '${path}' is invalid: it is outside its output`,
+            );
         }
     }
 
@@ -265,7 +286,10 @@ export function outputsOf(
     // select the named outputs, refusing a name the exports imply no output for
     const unknown = names.filter((name) => !Object.hasOwn(implied, name));
     if (unknown.length > 0) {
-        throw BuildError.of("OUTPUT_INVALID", `the package has no output ${unknown.join(", ")}`);
+        throw BuildError.of(
+            "OUTPUT_INVALID",
+            `output '${unknown.join(", ")}' is invalid: the package has no such output`,
+        );
     }
 
     return Object.fromEntries(Object.entries(implied).filter(([name]) => names.includes(name)));

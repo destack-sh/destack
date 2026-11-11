@@ -64,7 +64,10 @@ export async function modulePackage(
         }
     }
 
-    throw BuildError.of("DEPENDENCY_UNRESOLVED", `no package declaration for module: ${directory}`);
+    throw BuildError.of(
+        "DEPENDENCY_INVALID",
+        `module '${directory}' is invalid: it has no package declaration`,
+    );
 }
 
 /** Read the npm releases the nearest Bun lockfile locks, by release and by import name. */
@@ -118,7 +121,10 @@ export function readLockedReleases(lockfile: BunLockfile): Record<string, NpmRel
         const key = `${release.package.name}@${release.package.version}`;
         const existing = releases[key];
         if (existing && JSON.stringify(existing) !== JSON.stringify(release)) {
-            throw BuildError.of("LOCKFILE_INVALID", `conflicting locked dependency: ${key}`);
+            throw BuildError.of(
+                "LOCKFILE_INVALID",
+                `locked dependency '${key}' is invalid: it conflicts with another lock`,
+            );
         }
         releases[key] = release;
     }
@@ -137,7 +143,10 @@ function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undef
         return undefined;
     }
     if (separator < 1 || integrity === undefined || integrity === "") {
-        throw BuildError.of("LOCKFILE_INVALID", `unsupported locked dependency: ${id}`);
+        throw BuildError.of(
+            "LOCKFILE_INVALID",
+            `locked dependency '${id}' is invalid: it is not supported`,
+        );
     }
 
     // read the registry from the full tarball URL that Bun stores for other registries
@@ -146,7 +155,10 @@ function readLockedRelease(id: string, entry: LockedPackage): NpmRelease | undef
     if (location !== undefined && location !== "") {
         const position = location.indexOf(suffix);
         if (position < 0) {
-            throw BuildError.of("LOCKFILE_INVALID", `unsupported registry location: ${location}`);
+            throw BuildError.of(
+                "LOCKFILE_INVALID",
+                `registry location '${location}' is invalid: it is not supported`,
+            );
         }
         registry = location.slice(0, position + 1);
     }
@@ -194,7 +206,10 @@ export function isAuthored(root: string, file: string): boolean {
 export async function readLockfile(directory: string, files: FileSystem): Promise<BunLockfile> {
     const lockfile = await BunLockfile.read(directory, files);
     if (lockfile === undefined) {
-        throw BuildError.of("LOCKFILE_INVALID", "no Bun lockfile");
+        throw BuildError.of(
+            "LOCKFILE_INVALID",
+            "lockfile is invalid: the package has no Bun lockfile",
+        );
     }
 
     return requireLockfileVersion(lockfile);
@@ -205,7 +220,7 @@ function requireLockfileVersion(lockfile: BunLockfile): BunLockfile {
     if (lockfile.version !== LOCKFILE_VERSION) {
         throw BuildError.of(
             "LOCKFILE_INVALID",
-            `unsupported Bun lockfile version: ${lockfile.version}`,
+            `lockfile version '${lockfile.version}' of Bun is invalid: it is not supported`,
         );
     }
 
@@ -227,7 +242,7 @@ async function readText(path: string, files: FileSystem): Promise<string | undef
     try {
         return await files.readTextFile(path);
     } catch (error) {
-        if (!FileSystemError.is(error, "NOT_FOUND")) {
+        if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
             throw error;
         }
 
@@ -247,7 +262,7 @@ async function isDirectory(path: string, files: FileSystem): Promise<boolean> {
     try {
         return (await files.stat(path)).kind === "directory";
     } catch (error) {
-        if (!FileSystemError.is(error, "NOT_FOUND")) {
+        if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
             throw error;
         }
 

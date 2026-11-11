@@ -119,12 +119,12 @@ export class Workspace {
                     const location = join(workspace, path);
 
                     return await files.realPath(location).catch((cause: unknown) => {
-                        if (!FileSystemError.is(cause, "NOT_FOUND")) {
+                        if (!FileSystemError.is(cause, "FILE_NOT_FOUND")) {
                             throw cause;
                         }
                         throw BuildError.of(
-                            "MEMBER_UNKNOWN",
-                            `the workspace member ${member.name ?? path} is missing at ${location}`,
+                            "MEMBER_NOT_FOUND",
+                            `workspace member '${member.name ?? path}' at '${location}' not found`,
                             { cause },
                         );
                     });
@@ -171,8 +171,8 @@ export class Workspace {
         } else if (resolver === undefined) {
             const names = [...required.keys()].toSorted().join(", ");
             throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `the workspace requires Destack packages outside it, which it has no release resolver for: ${names}`,
+                "DEPENDENCY_INVALID",
+                `workspace is invalid: it requires Destack packages '${names}' outside it and has no release resolver for them`,
             );
         }
 
@@ -208,7 +208,10 @@ export class Workspace {
             return known;
         }
         if (walk.visiting.has(from)) {
-            throw BuildError.of("DEPENDENCY_INVALID", `workspace dependency cycle through ${from}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `workspace dependency '${from}' is invalid: it is part of a dependency cycle`,
+            );
         }
         walk.visiting.add(from);
         const packageJson = await readPackageJson(from, walk.files);
@@ -237,8 +240,8 @@ export class Workspace {
             // refuse a missing dependency the package cannot build without
             if (resolved === undefined && !isOptional) {
                 throw BuildError.of(
-                    "DEPENDENCY_UNRESOLVED",
-                    `missing dependency of ${name}: ${dependency}`,
+                    "DEPENDENCY_INVALID",
+                    `dependency '${dependency}' of '${name}' is invalid: it is missing`,
                 );
             }
             // build a Destack member as a unit
@@ -426,7 +429,10 @@ export class Workspace {
             const built = await this.#put(unit, options);
             const listed = await Checkout.list(this.#checkout.root, this.#store.environment);
             if ((await listed.identify(unit.directory)) !== sources) {
-                throw BuildError.of("SOURCE_CHANGED", `${unit.name} changed while it built`);
+                throw BuildError.of(
+                    "SOURCE_CONFLICT",
+                    `cannot build '${unit.name}': it changed while it built`,
+                );
             }
 
             return built;
@@ -613,7 +619,7 @@ export class Workspace {
             }
             // report any other as an internal fault of the unit's build
             else {
-                throw BuildError.of("INVARIANT_VIOLATED", `building ${unit.name} failed`, {
+                throw BuildError.of("INVARIANT_BROKEN", `building '${unit.name}' failed`, {
                     cause,
                 });
             }
@@ -626,7 +632,7 @@ export class Workspace {
         try {
             return await Digest.of(await files.readFile(path), crypto);
         } catch (error) {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return null;
             }
             throw error;

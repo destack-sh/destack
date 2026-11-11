@@ -182,17 +182,17 @@ test("refuse a package outside a git checkout, ignored by one or listing a linke
     // refuse each instead of keying no files or failing on a directory read
     expect(await refusal(Checkout.list(outside, environment))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "CHECKOUT_FAILED",
-        `git rev-parse failed in ${outside}: fatal: not a git repository (or any of the parent directories): .git`,
+        "CHECKOUT_BROKEN",
+        `git 'rev-parse' failed in '${outside}': 'fatal: not a git repository (or any of the parent directories): .git'`,
     ]);
     expect(await refusal(checkout.identify(ignored))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "CHECKOUT_FAILED",
-        `git lists no package.json in ${ignored}`,
+        "CHECKOUT_BROKEN",
+        `git lists no package.json in '${ignored}'`,
     ]);
     expect(await refusal(checkout.identify(linking))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "CHECKOUT_FAILED",
-        `git lists the linked directory ${join(linking, "linked")}`,
+        "CHECKOUT_BROKEN",
+        `git lists the linked directory '${join(linking, "linked")}'`,
     ]);
 });

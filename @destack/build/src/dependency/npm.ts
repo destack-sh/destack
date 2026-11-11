@@ -77,7 +77,10 @@ export class NpmInstallation {
             return known;
         }
         if (visiting.has(directory)) {
-            throw BuildError.of("DEPENDENCY_INVALID", `npm dependency cycle through ${directory}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `npm dependency '${directory}' is invalid: it is part of a dependency cycle`,
+            );
         }
 
         // lock the release by its installed name and version
@@ -87,7 +90,7 @@ export class NpmInstallation {
         const key = `${manifest.name}@${manifest.version}`;
         const release = this.locked[key];
         if (release === undefined) {
-            throw BuildError.of("LOCKFILE_INVALID", `the lockfile has no ${key}`);
+            throw BuildError.of("LOCKFILE_INVALID", `lockfile is invalid: it has no '${key}'`);
         }
 
         // open each installed package it requires, and each peer its install resolved outside its dependents
@@ -107,8 +110,8 @@ export class NpmInstallation {
             // refuse another absent one
             else if (installed === undefined) {
                 throw BuildError.of(
-                    "DEPENDENCY_UNRESOLVED",
-                    `missing dependency of ${key}: ${name}`,
+                    "DEPENDENCY_INVALID",
+                    `dependency '${name}' of '${key}' is invalid: it is missing`,
                 );
             }
             // open the installed one
@@ -283,8 +286,8 @@ export class NpmUnit {
         const { name } = this.release.package;
         if (isAddon) {
             throw BuildError.of(
-                "RUNTIME_MODULE_UNSUPPORTED",
-                `${name} is a native addon, which no package may depend on`,
+                "RUNTIME_MODULE_INVALID",
+                `package '${name}' is invalid: it is a native addon, which no package may depend on`,
             );
         }
 
@@ -372,7 +375,10 @@ export class NpmUnit {
         const linked = await Promise.all(links.map((path) => files.stat(join(directory, path))));
         const folder = links.find((_path, index) => nth(linked, index).kind === "directory");
         if (folder !== undefined) {
-            throw BuildError.of("DEPENDENCY_INVALID", `npm package links a folder: ${folder}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `npm package folder link '${folder}' is invalid: npm packages must not link folders`,
+            );
         }
 
         // read the files a bounded number at a time

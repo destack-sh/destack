@@ -203,10 +203,10 @@ export async function* readMessages<Message>(
             if (isHeader) {
                 const size = buffer.readUInt32LE();
                 if (!size) {
-                    throw BuildError.of("COMPILER_FAILED", "empty compiler message");
+                    throw BuildError.of("COMPILER_BROKEN", "empty compiler message");
                 } else if (size > MAX_MESSAGE_BYTES) {
                     throw BuildError.of(
-                        "COMPILER_FAILED",
+                        "COMPILER_BROKEN",
                         `compiler message of ${size} bytes exceeds ${MAX_MESSAGE_BYTES}`,
                     );
                 }
@@ -225,7 +225,7 @@ export async function* readMessages<Message>(
 
     // reject a truncated stream
     if (offset || !isHeader) {
-        throw BuildError.of("COMPILER_FAILED", "incomplete compiler message");
+        throw BuildError.of("COMPILER_BROKEN", "incomplete compiler message");
     }
 }
 

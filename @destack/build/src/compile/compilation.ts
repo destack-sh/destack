@@ -182,7 +182,7 @@ export class OutputCompilation implements Compilation {
         if (exported === undefined) {
             throw BuildError.of(
                 "DECLARATION_INVALID",
-                `${declaration.kind} ${declaration.name} has no export`,
+                `declaration ${declaration.kind} '${declaration.name}' is invalid: it has no export`,
             );
         }
 
@@ -193,7 +193,10 @@ export class OutputCompilation implements Compilation {
     entry(entrypoint: string, module: string): void {
         // refuse an entrypoint taken twice
         if (this.#entries.has(entrypoint) || Object.hasOwn(this.project.exports, entrypoint)) {
-            throw BuildError.of("ENTRY_INVALID", `duplicate entrypoint: ${entrypoint}`);
+            throw BuildError.of(
+                "ENTRY_INVALID",
+                `entrypoint '${entrypoint}' is invalid: it is a duplicate`,
+            );
         }
         this.#entries.set(entrypoint, module);
     }
@@ -228,7 +231,10 @@ export class OutputCompilation implements Compilation {
             return compiled;
         }
         if (entries.some((entry) => entry.endsWith(".html")) && project.runtime !== "browser") {
-            throw BuildError.of("ENTRY_INVALID", "entries in HTML require the browser runtime");
+            throw BuildError.of(
+                "ENTRY_INVALID",
+                "HTML entry is invalid: entries in HTML require the browser runtime",
+            );
         }
 
         // retain HTML before Vite rewrites its module and asset references
@@ -310,7 +316,7 @@ export class OutputCompilation implements Compilation {
         for (const command of Object.keys(this.project.bins)) {
             const path = compiled.bins[command];
             if (path === undefined) {
-                throw BuildError.of("INVARIANT_VIOLATED", `missing generated command: ${command}`);
+                throw BuildError.of("INVARIANT_BROKEN", `missing generated command: '${command}'`);
             }
             bins[command] = { path, imports: this.#importsOf(command, path, compiled) };
         }
@@ -586,7 +592,7 @@ export class OutputCompilation implements Compilation {
                 (entry) => entry.type === "chunk" && entry.facadeModuleId === facade,
             );
             if (chunk === undefined) {
-                throw BuildError.of("INVARIANT_VIOLATED", `missing generated entry: ${entrypoint}`);
+                throw BuildError.of("INVARIANT_BROKEN", `missing generated entry: '${entrypoint}'`);
             }
             exports[entrypoint] = PackagePath.parse(`output/${this.name}/${chunk.fileName}`);
         }
@@ -594,7 +600,7 @@ export class OutputCompilation implements Compilation {
         // require every package export to be generated
         for (const name of Object.keys(this.project.exports)) {
             if (exports[name] === undefined) {
-                throw BuildError.of("INVARIANT_VIOLATED", `missing generated entry: ${name}`);
+                throw BuildError.of("INVARIANT_BROKEN", `missing generated entry: '${name}'`);
             }
         }
     }
@@ -684,11 +690,11 @@ export class OutputCompilation implements Compilation {
         // require a declared dependency
         const dependency = DependencyName.of(specifier);
         const { packageJson } = this.project;
-        const by = importer === undefined ? "" : `, imported by ${importer}`;
+        const by = importer ?? packageJson.package.name;
         if (!PackageJson.runtimeDependencies(packageJson).includes(dependency)) {
             throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `undeclared runtime dependency: ${dependency}${by}`,
+                "DEPENDENCY_INVALID",
+                `runtime dependency '${dependency}' of '${by}' is invalid: it is undeclared`,
             );
         }
 
@@ -698,8 +704,8 @@ export class OutputCompilation implements Compilation {
             const modules = this.project.tree.export(specifier);
             if (modules !== undefined && modules[this.runtime] === undefined) {
                 throw BuildError.of(
-                    "RUNTIME_MODULE_UNSUPPORTED",
-                    `unsupported ${this.runtime} dependency: ${specifier}${by}`,
+                    "RUNTIME_MODULE_INVALID",
+                    `dependency '${specifier}' of '${by}' is invalid: it has no '${this.runtime}' module`,
                 );
             }
 
@@ -717,7 +723,7 @@ export class OutputCompilation implements Compilation {
         else {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `runtime dependency requires a registry release: ${dependency}`,
+                `runtime dependency '${dependency}' is invalid: it requires a registry release`,
             );
         }
 
@@ -735,7 +741,7 @@ export class OutputCompilation implements Compilation {
         const emitted = compiled.exported[entrypoint];
         const facade = facades.get(entrypoint);
         if (emitted === undefined || facade === undefined) {
-            throw BuildError.of("INVARIANT_VIOLATED", `no emitted entrypoint: ${entrypoint}`);
+            throw BuildError.of("INVARIANT_BROKEN", `no emitted entrypoint: '${entrypoint}'`);
         }
 
         // start from the entry's module as the dependency plugin records it
@@ -746,7 +752,7 @@ export class OutputCompilation implements Compilation {
             .filter(([, input]) => input.package === undefined && modulePath(input.path) === root)
             .map(([id]) => id);
         if (!sources.length) {
-            throw BuildError.of("INVARIANT_VIOLATED", `missing input of entrypoint: ${entrypoint}`);
+            throw BuildError.of("INVARIANT_BROKEN", `missing input of entrypoint: '${entrypoint}'`);
         }
 
         // select the declarations the files of the entry's modules declare
@@ -771,7 +777,7 @@ export class OutputCompilation implements Compilation {
         const directory = `${compiled.output.directory}/`;
         const emitted = compiled.exported[entrypoint];
         if (emitted === undefined) {
-            throw BuildError.of("INVARIANT_VIOLATED", `no emitted entrypoint: ${entrypoint}`);
+            throw BuildError.of("INVARIANT_BROKEN", `no emitted entrypoint: '${entrypoint}'`);
         }
         const chunks = new Map(
             generated.flatMap((entry) => (entry.type === "chunk" ? [[entry.fileName, entry]] : [])),
@@ -810,7 +816,7 @@ export class OutputCompilation implements Compilation {
             visited.add(path);
             const chunk = inspection.outputs[path];
             if (!chunk) {
-                throw BuildError.of("INVARIANT_VIOLATED", `unknown emitted chunk: ${path}`);
+                throw BuildError.of("INVARIANT_BROKEN", `unknown emitted chunk: '${path}'`);
             }
 
             // follow internal imports and check external ones against the runtime and the dependencies
@@ -824,8 +830,8 @@ export class OutputCompilation implements Compilation {
                     imports.add(imported.path);
                 } else if (!isRuntimeModule(imported.path, this.runtime)) {
                     throw BuildError.of(
-                        "RUNTIME_MODULE_UNSUPPORTED",
-                        `unsupported external import of ${entrypoint} on ${this.runtime}: ${imported.path}`,
+                        "RUNTIME_MODULE_INVALID",
+                        `external import '${imported.path}' of '${entrypoint}' is invalid: it is not supported on '${this.runtime}'`,
                     );
                 }
             }
@@ -847,7 +853,7 @@ export class OutputCompilation implements Compilation {
             visited.add(id);
             const input = inspection.inputs[id];
             if (!input) {
-                throw BuildError.of("INVARIANT_VIOLATED", `unknown source module: ${id}`);
+                throw BuildError.of("INVARIANT_BROKEN", `unknown source module: '${id}'`);
             }
 
             // index the input's file under its package
@@ -857,8 +863,8 @@ export class OutputCompilation implements Compilation {
                     : inspection.packages[input.package]?.package;
             if (owner === undefined) {
                 throw BuildError.of(
-                    "INVARIANT_VIOLATED",
-                    `unknown source package: ${input.package}`,
+                    "INVARIANT_BROKEN",
+                    `unknown source package: '${input.package}'`,
                 );
             }
             const key = `${owner.name}@${owner.version}`;
@@ -904,7 +910,7 @@ async function runVite(configuration: InlineConfig): Promise<(OutputChunk | Outp
         throw bundleFailureOf(error);
     });
     if (!("output" in generated)) {
-        throw BuildError.of("INVARIANT_VIOLATED", "expected one Vite output");
+        throw BuildError.of("INVARIANT_BROKEN", "expected one Vite output");
     }
 
     return generated.output;
@@ -1019,7 +1025,7 @@ function wrapHook<Handler extends (...parameters: never[]) => unknown, Meta>(
 /** Fail on Rolldown warnings and pass other logs on. */
 function failOnWarning(level: LogLevel, log: RolldownLog, handler: LogOrStringHandler): void {
     if (level === "warn") {
-        throw BuildError.of("BUNDLE_FAILED", log.message);
+        throw BuildError.of("BUNDLE_INVALID", log.message);
     }
     handler(level, log);
 }
@@ -1051,7 +1057,10 @@ function mergeSection<Entry>(
 ): void {
     for (const [name, description] of Object.entries(entries ?? {})) {
         if (Object.hasOwn(target, name)) {
-            throw BuildError.of("ENTRY_INVALID", `duplicate ${section} entry: ${name}`);
+            throw BuildError.of(
+                "ENTRY_INVALID",
+                `'${section}' entry '${name}' is invalid: it is a duplicate`,
+            );
         }
         target[name] = description;
     }

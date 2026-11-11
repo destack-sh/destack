@@ -67,7 +67,7 @@ export function moduleScriptPlugin(): Plugin {
                 if (referenced !== undefined) {
                     throw BuildError.of(
                         "ASSET_INVALID",
-                        `${id} references the module ${referenced} as an asset: start it as new Worker(new URL(...)) or import it`,
+                        `asset '${referenced}' in '${id}' is invalid: it is a module, so start it as new Worker(new URL(...)) or import it`,
                     );
                 }
             },
@@ -119,7 +119,7 @@ export function directoryPlugin(
                     const entries = await listing.catch((cause: unknown) => {
                         throw BuildError.of(
                             "ASSET_INVALID",
-                            `${id} references an unreadable directory`,
+                            `directory referenced by '${id}' is invalid: it is unreadable`,
                             { cause },
                         );
                     });
@@ -259,7 +259,10 @@ async function resolveDirectory(
     const source = await files.realPath(fileURLToPath(new URL(path, pathToFileURL(importer))));
     const local = relativePath(packageDirectory, source);
     if (local === ".." || local.startsWith("../") || isAbsolute(local)) {
-        throw BuildError.of("ASSET_INVALID", `directory import is outside its package: ${path}`);
+        throw BuildError.of(
+            "ASSET_INVALID",
+            `directory import '${path}' is invalid: it is outside its package`,
+        );
     }
 
     return { source, local };
@@ -291,7 +294,7 @@ async function emitDirectory(
         anchor ??= { asset, parent: "../".repeat(name.split("/").length - 1) || "./" };
     }
     if (anchor === undefined) {
-        throw BuildError.of("ASSET_INVALID", `directory import is empty: ${path}`);
+        throw BuildError.of("ASSET_INVALID", `directory import '${path}' is invalid: it is empty`);
     }
 
     return `new URL(${JSON.stringify(anchor.parent)}, import.meta.ROLLUP_FILE_URL_${anchor.asset})`;
@@ -349,7 +352,7 @@ export function describeAssets(
 function assetKey(key: string, keys: ReadonlyMap<string, string>): string {
     const value = keys.get(key);
     if (value === undefined) {
-        throw BuildError.of("INVARIANT_VIOLATED", `missing Vite manifest entry: ${key}`);
+        throw BuildError.of("INVARIANT_BROKEN", `missing Vite manifest entry: '${key}'`);
     }
 
     return value;

@@ -129,7 +129,10 @@ export class SymbolInspector {
         if (symbol.flags & SymbolFlags.Value) {
             const type = await this.project.checker.getTypeOfSymbol(symbol);
             if (!type) {
-                throw BuildError.of("INSPECTION_FAILED", `missing value type: ${symbol.name}`);
+                throw BuildError.of(
+                    "INSPECTION_INVALID",
+                    `symbol '${symbol.name}' is invalid: its value type is missing`,
+                );
             }
             result.valueType = await this.type(type, nodes[0]);
             result.signatures = await this.signatures(type, nodes[0]);
@@ -232,8 +235,8 @@ export class SymbolInspector {
         const type = await this.#memberType(await this.original(symbol), location);
         if (type === undefined || type.isErrorType()) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `cannot inspect member: ${parent.name}.${symbol.name} (${symbol.flags})`,
+                "INSPECTION_INVALID",
+                `member '${parent.name}.${symbol.name}' ('${symbol.flags}') is invalid: its type cannot be inspected`,
             );
         }
 
@@ -355,7 +358,7 @@ export class SymbolInspector {
     /** Describe an expression and the named declarations needed to understand it. */
     async type(type: Type, location: Node | undefined): Promise<TypeDescription> {
         if (type.isErrorType()) {
-            throw BuildError.of("INSPECTION_FAILED", "cannot inspect an unresolved type");
+            throw BuildError.of("INSPECTION_INVALID", "type is invalid: it is unresolved");
         }
 
         // render the expression as hovers do, truncated, while walking its references
@@ -485,7 +488,10 @@ export class SymbolInspector {
             signature.getParameters().then((symbols) => this.#typesOf(symbols)),
         ]);
         if (!returns) {
-            throw BuildError.of("INSPECTION_FAILED", "missing signature return type");
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                "signature is invalid: its return type is missing",
+            );
         }
 
         return [returns, ...parameters];
@@ -515,8 +521,8 @@ export class SymbolInspector {
         return types.map((type, index) => {
             if (type === undefined) {
                 throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `missing type: ${nth(symbols, index).name}`,
+                    "INSPECTION_INVALID",
+                    `symbol '${nth(symbols, index).name}' is invalid: its type is missing`,
                 );
             }
 
@@ -563,8 +569,8 @@ export class SymbolInspector {
         const returns = await this.#returnOf(signature);
         if (!node || !returns) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `cannot describe a callable signature: ${declaration?.getText()}`,
+                "INSPECTION_INVALID",
+                `callable signature '${declaration?.getText()}' is invalid: it cannot be described`,
             );
         }
 
@@ -586,7 +592,10 @@ export class SymbolInspector {
         if (receiver) {
             const type = await this.project.checker.getTypeOfSymbol(receiver);
             if (!type) {
-                throw BuildError.of("INSPECTION_FAILED", "missing receiver type");
+                throw BuildError.of(
+                    "INSPECTION_INVALID",
+                    "receiver is invalid: its type is missing",
+                );
             }
             result.receiver = await this.type(type, declaration);
         }
@@ -606,8 +615,8 @@ export class SymbolInspector {
                 const generic = handle === undefined ? undefined : await this.node(handle);
                 if (!generic || !isTypeParameterDeclaration(generic)) {
                     throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        "missing generic parameter declaration",
+                        "INSPECTION_INVALID",
+                        "generic parameter is invalid: its declaration is missing",
                     );
                 }
 
@@ -632,7 +641,7 @@ export class SymbolInspector {
                 const declaration = nth(nodes, index).find(isParameterDeclaration);
                 const type = nth(types, index);
                 if (type.isErrorType()) {
-                    throw BuildError.of("INSPECTION_FAILED", "cannot inspect an unresolved type");
+                    throw BuildError.of("INSPECTION_INVALID", "type is invalid: it is unresolved");
                 }
 
                 return {
@@ -652,7 +661,10 @@ export class SymbolInspector {
     /** Read a generic parameter from its source declaration. */
     async parameterType(node: Node): Promise<SourceDeclaration["typeParameters"][number]> {
         if (!isTypeParameterDeclaration(node)) {
-            throw BuildError.of("INSPECTION_FAILED", "expected a type parameter");
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                "type is invalid: it must be a type parameter",
+            );
         }
 
         // describe the parameter and each authored type expression
@@ -668,7 +680,10 @@ export class SymbolInspector {
             // resolve the authored constraint or default
             const type = await this.project.checker.getTypeFromTypeNode(expression);
             if (!type) {
-                throw BuildError.of("INSPECTION_FAILED", `missing generic ${key}: ${result.name}`);
+                throw BuildError.of(
+                    "INSPECTION_INVALID",
+                    `generic '${key}' of '${result.name}' is invalid: it is missing`,
+                );
             }
 
             result[key] = await this.type(type, node);
@@ -745,7 +760,10 @@ export class SymbolInspector {
         // require the declaration
         const node = await handle.resolve(this.project);
         if (!node) {
-            throw BuildError.of("INSPECTION_FAILED", `missing declaration: ${handle.path}`);
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                `declaration '${handle.path}' is invalid: it is missing`,
+            );
         }
 
         return node;
@@ -787,7 +805,10 @@ function nodeList<Item extends Node>(
     if (list === undefined) {
         return [];
     } else if (!isNodeList(list) || !list.every(guard)) {
-        throw BuildError.of("INSPECTION_FAILED", "a declaration has an unexpected node list");
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            "declaration is invalid: it has an unexpected node list",
+        );
     }
 
     return list;

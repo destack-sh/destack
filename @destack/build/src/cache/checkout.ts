@@ -54,7 +54,7 @@ export class Checkout {
         const listed = await Checkout.#git(revision, directory, environment);
         const [root, format] = listed.split("\n");
         if (root === undefined || root === "") {
-            throw BuildError.of("CHECKOUT_FAILED", `${directory} is not a git checkout`);
+            throw BuildError.of("CHECKOUT_BROKEN", `'${directory}' is not a git checkout`);
         }
 
         // list the stored blobs, then the untracked and modified files git stores no blob for
@@ -90,7 +90,7 @@ export class Checkout {
 
         // refuse a package outside the checkout or ignored by it, whose listing lacks its manifest
         if (!files.some(([path]) => path === "package.json")) {
-            throw BuildError.of("CHECKOUT_FAILED", `git lists no package.json in ${directory}`);
+            throw BuildError.of("CHECKOUT_BROKEN", `git lists no package.json in '${directory}'`);
         }
 
         // key each file a build can read by its stored blob, else by the blob of its bytes, in path order
@@ -112,10 +112,10 @@ export class Checkout {
         // read the bytes, keying a deleted file as null and refusing a linked directory
         const { files } = this.#environment;
         const bytes = await files.readFile(path).catch(async (error: unknown) => {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return null;
             } else if ((await files.stat(path).catch(() => undefined))?.kind === "directory") {
-                throw BuildError.of("CHECKOUT_FAILED", `git lists the linked directory ${path}`);
+                throw BuildError.of("CHECKOUT_BROKEN", `git lists the linked directory '${path}'`);
             }
             throw error;
         });
@@ -163,13 +163,13 @@ export class Checkout {
         if (code !== 0) {
             const reason = diagnostics.trim();
             throw BuildError.of(
-                "CHECKOUT_FAILED",
-                `git ${command[0]} failed in ${directory}: ${reason}`,
+                "CHECKOUT_BROKEN",
+                `git '${command[0]}' failed in '${directory}': '${reason}'`,
             );
         } else if (output === undefined) {
             throw BuildError.of(
-                "CHECKOUT_FAILED",
-                `git ${command[0]} printed over 64 MiB in ${directory}`,
+                "CHECKOUT_BROKEN",
+                `git '${command[0]}' printed over 64 MiB in '${directory}'`,
             );
         }
 

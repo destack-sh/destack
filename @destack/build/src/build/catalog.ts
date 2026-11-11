@@ -18,13 +18,20 @@ export async function readCatalogs(
         // require a catalog file of the package's messages
         const path = `${CATALOG_DIRECTORY}/${name}`;
         if (!Catalog.isPath(path)) {
-            throw BuildError.of("CATALOG_INVALID", `not a catalog: ${path}`);
+            throw BuildError.of(
+                "CATALOG_INVALID",
+                `catalog path '${path}' is invalid: it is not a catalog`,
+            );
         }
         const bytes = await files.readFile(join(directory, path));
         try {
             Catalog.of(path, JSON.parse(new TextDecoder().decode(bytes)), owner);
         } catch (cause) {
-            throw BuildError.of("CATALOG_INVALID", `invalid catalog: ${path}`, { cause });
+            throw BuildError.of(
+                "CATALOG_INVALID",
+                `catalog '${path}' is invalid: it does not parse`,
+                { cause },
+            );
         }
         catalogs.set(path, bytes);
     }
@@ -37,7 +44,7 @@ async function listDirectory(directory: string, files: FileSystem): Promise<stri
     try {
         return (await files.readDirectory(directory)).map((entry) => entry.name);
     } catch (error) {
-        if (!FileSystemError.is(error, "NOT_FOUND")) {
+        if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
             throw error;
         }
 

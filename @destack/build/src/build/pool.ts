@@ -211,7 +211,7 @@ export class CompilerPool implements AsyncDisposable {
         await Promise.all(this.#leased);
         await Promise.all(this.#closing);
         if (this.#failures.length > 0) {
-            throw new AggregateError(this.#failures, "compilers failed to close");
+            throw new AggregateError(this.#failures, "compilers did not close");
         }
     }
 

@@ -290,7 +290,7 @@ async function extract(
     });
     const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
     if (code !== 0) {
-        throw new Error(`tar failed with ${code}: ${errors}`);
+        throw new Error(`tar failed with '${code}': '${errors}'`);
     }
 }
 
@@ -331,7 +331,11 @@ test("store a build's files once by digest, read it after reopening, and refuse 
         join(directory, "files", answer.digest),
         new TextEncoder().encode("broken"),
     );
-    const corrupt = ["BAD_REQUEST", "FILE_INVALID", "file size mismatch: src/answer.ts"];
+    const corrupt = [
+        "BAD_REQUEST",
+        "FILE_INVALID",
+        "file 'src/answer.ts' is invalid: its size does not match",
+    ];
     expect([
         await refusal(store.file(answer)),
         await store.put(build),
@@ -419,7 +423,7 @@ test("attach a code index to a build, retain it with the build, and collect it w
     // refuse a file the store lacks, and read each attached index back
     const missing = { ...live.file, digest: Digest.parse("c".repeat(64)) };
     await expect(store.attach(live.manifest, missing)).rejects.toThrow(
-        `build ${live.manifest} lists code.json, which was not uploaded`,
+        `build '${live.manifest}' is invalid: it lists 'code.json', which was not uploaded`,
     );
     expect([
         await store.referrer(live.manifest, "code.json"),
@@ -467,7 +471,7 @@ test("open one reader per stored build, find its manifest, and refuse a collecte
     expect({ isShared: first === second, found: manifest, reopened, collected }).toEqual({
         isShared: true,
         found: first.manifest,
-        reopened: `package manifest ${digest} not found`,
+        reopened: `package manifest '${digest}' not found`,
         collected: undefined,
     });
 });
@@ -627,7 +631,11 @@ test("serve a stored build over HTTP after the host authorizes each read", async
                 environment.crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "FILE_INVALID", "file digest mismatch: manifest.json"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "FILE_INVALID",
+        "file 'manifest.json' is invalid: its digest does not match",
+    ]);
 
     // authorize before serving partial bodies or answering cache conditions
     const path = `${url}files/src/answer.ts`;
@@ -821,8 +829,8 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
                 defined: false,
                 code: "BAD_REQUEST",
                 status: 400,
-                message: `build ${digest} lists manifest/dependencies.json, which was not uploaded`,
-                reason: "MANIFEST_BLOB_UNKNOWN",
+                message: `build '${digest}' is invalid: it lists 'manifest/dependencies.json', which was not uploaded`,
+                reason: "MANIFEST_BLOB_INVALID",
                 domain: "@destack/build",
             },
         ],
@@ -832,7 +840,7 @@ test("refuse uploads lacking files, of other bytes, past the limit, or where nob
                 defined: false,
                 code: "BAD_REQUEST",
                 status: 400,
-                message: `the uploaded file does not match its digest ${digest}`,
+                message: `uploaded file is invalid: it does not match its digest '${digest}'`,
                 reason: "DIGEST_INVALID",
                 domain: "@destack/build",
             },

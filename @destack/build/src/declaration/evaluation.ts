@@ -124,7 +124,7 @@ export const Evaluation = {
         // list each constructor kind of the package and its dependencies, keyed by package and constructor
         const [first] = projects;
         if (first === undefined) {
-            throw BuildError.of("INVARIANT_VIOLATED", "an evaluation needs a project");
+            throw BuildError.of("INVARIANT_BROKEN", "an evaluation needs a project");
         }
         const listed: { key: string; kind: CatalogedKind }[] = [];
         const directories = [
@@ -189,8 +189,8 @@ export const Evaluation = {
         for (const [site, name] of unexported) {
             if (!exported.has(site)) {
                 throw BuildError.of(
-                    "DECLARATION_UNEXPORTED",
-                    `declared ${name} is not exported by ${owner.name}`,
+                    "DECLARATION_INVALID",
+                    `declared '${name}' is invalid: '${owner.name}' does not export it`,
                 );
             }
         }
@@ -362,7 +362,7 @@ async function installedDirectories(project: PackageSource): Promise<string[]> {
             const isInstalled = await files.stat(join(installed, "destack.json")).then(
                 () => true,
                 (error: unknown) => {
-                    if (FileSystemError.is(error, "NOT_FOUND")) {
+                    if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                         return false;
                     }
                     throw error;
@@ -422,8 +422,8 @@ function locateFunction(
     const path = selectExport(inspector.target, conditions);
     if (typeof path !== "string") {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `${inspector.directory} exports no ${HOST_RUNTIME} module at ${inspector.subpath}`,
+            "INSPECTION_INVALID",
+            `package '${inspector.directory}' is invalid: it exports no '${HOST_RUNTIME}' module at '${inspector.subpath}'`,
         );
     }
 
@@ -445,11 +445,9 @@ async function evaluateEntry(
     transformer: ModuleTransformer,
 ): Promise<unknown> {
     return await bundleAndEvaluate(source, project, transformer).catch((cause: unknown) => {
-        throw BuildError.of(
-            "INSPECTION_FAILED",
-            `declaration evaluation failed: ${messageOf(cause)}`,
-            { cause },
-        );
+        throw BuildError.of("INSPECTION_INVALID", "declaration evaluation is invalid: it failed", {
+            cause,
+        });
     });
 }
 
@@ -500,8 +498,8 @@ async function bundleAndEvaluate(
         const [chunk] = chunks;
         if (chunks.length !== 1 || chunk === undefined) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                "declaration evaluation requires one JavaScript module",
+                "INSPECTION_INVALID",
+                "declaration evaluation is invalid: it requires one JavaScript module",
             );
         }
 
@@ -562,13 +560,16 @@ async function describeDeclaration(
             return undefined;
         }
         if (typeof functions.describe !== "function") {
-            throw BuildError.of("INSPECTION_FAILED", `kind ${kind.kind} has no describe function`);
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                `kind ${kind.kind} is invalid: it has no describe function`,
+            );
         }
         described = await Reflect.apply(functions.describe, undefined, [value]);
     } catch (cause) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `declaration evaluation failed: ${kind.kind} ${name} (${site.module}): ${messageOf(cause)}`,
+            "INSPECTION_INVALID",
+            `declaration ${kind.kind} '${name}' in '${site.module}' is invalid: its evaluation failed`,
             { cause },
         );
     }
@@ -622,7 +623,10 @@ function requireDeclaringPackage(value: unknown, owner: Package, name: string): 
     const stamped = Package.declaring(value);
     // refuse a declaration without a package
     if (stamped === undefined) {
-        throw BuildError.of("INSPECTION_FAILED", `${name} declaration has no package`);
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `declaration '${name}' is invalid: it has no package`,
+        );
     }
     // refuse a declaration of another package
     else if (
@@ -631,8 +635,8 @@ function requireDeclaringPackage(value: unknown, owner: Package, name: string): 
         stamped.version !== owner.version
     ) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `${name} declaration belongs to a different package`,
+            "INSPECTION_INVALID",
+            `declaration '${name}' is invalid: it belongs to a different package`,
         );
     }
 }
@@ -654,8 +658,8 @@ function treePlugin(project: PackageSource, program: Program): Plugin {
                 return { id: own };
             } else if (modules !== undefined) {
                 throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `${specifier} has no ${[...new Set([HOST_RUNTIME, runtime])].join(" or ")} module`,
+                    "INSPECTION_INVALID",
+                    `specifier '${specifier}' is invalid: it has no '${[...new Set([HOST_RUNTIME, runtime])].join(" or ")}' module`,
                 );
             }
 
@@ -732,7 +736,7 @@ function entryPlugin(source: string): Plugin {
                     sourcemap: true,
                 });
                 if (result.errors.length) {
-                    throw BuildError.of("INSPECTION_FAILED", JSON.stringify(result.errors));
+                    throw BuildError.of("INSPECTION_INVALID", JSON.stringify(result.errors));
                 }
 
                 return {
@@ -784,9 +788,4 @@ function serverTransform(option: PluginOption): PluginOption {
         ...option,
         transform: typeof hook === "function" ? served : { ...hook, handler: served },
     };
-}
-
-/** Read a failure's message. */
-function messageOf(cause: unknown): string {
-    return cause instanceof Error ? cause.message : String(cause);
 }

@@ -201,8 +201,8 @@ function describeTest(
     const location = `${file}:${node.getStart()}`;
     if (scopes.some((scope) => CONDITIONAL_KINDS.has(scope.kind))) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `test declaration requires module or suite scope: ${location}`,
+            "INSPECTION_INVALID",
+            `test declaration at '${location}' is invalid: it requires module or suite scope`,
         );
     }
 
@@ -210,8 +210,8 @@ function describeTest(
     const title = node.arguments[0];
     if (!title || !(isStringLiteral(title) || isNoSubstitutionTemplateLiteral(title))) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `test declaration requires a literal title: ${location}`,
+            "INSPECTION_INVALID",
+            `test declaration at '${location}' is invalid: it requires a literal title`,
         );
     }
 
@@ -220,8 +220,8 @@ function describeTest(
         const callback = node.arguments.at(-1);
         if (!callback || !(isArrowFunction(callback) || isFunctionExpression(callback))) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `suite declaration requires an inline callback: ${location}`,
+                "INSPECTION_INVALID",
+                `suite declaration at '${location}' is invalid: it requires an inline callback`,
             );
         }
         suites.set(callback, [...titles, title.text]);

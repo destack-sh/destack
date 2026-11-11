@@ -337,9 +337,9 @@ test("load a listed package's extension without walking its dependencies, and bu
     // refuse a listed package declaring no extension
     await listExtensions(directory, ["@fixture/other"], files);
     expect(await refusal(extensions())).toEqual([
-        "UNPROCESSABLE_CONTENT",
+        "BAD_REQUEST",
         "EXTENSION_INVALID",
-        "@fixture/site lists @fixture/other, but @fixture/other declares no build extension",
+        "extension '@fixture/other' listed by '@fixture/site' is invalid: it declares no build extension",
     ]);
 
     // refuse a lockfile member whose directory is missing
@@ -350,17 +350,17 @@ test("load a listed package's extension without walking its dependencies, and bu
     );
     expect(await refusal(units())).toEqual([
         "NOT_FOUND",
-        "MEMBER_UNKNOWN",
-        `the workspace member @fixture/gone is missing at ${join(root, "gone")}`,
+        "MEMBER_NOT_FOUND",
+        `workspace member '@fixture/gone' at '${join(root, "gone")}' not found`,
     ]);
     await writeLockfile(root, ["leaf", "middle", "other", "application", "tool", "site"], files);
 
     // refuse a listed extension that is not installed
     await listExtensions(directory, ["@fixture/absent"], files);
     expect(await refusal(units())).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "DEPENDENCY_UNRESOLVED",
-        "missing dependency of @fixture/site: @fixture/absent",
+        "BAD_REQUEST",
+        "DEPENDENCY_INVALID",
+        "dependency '@fixture/absent' of '@fixture/site' is invalid: it is missing",
     ]);
 
     // load the tool's extension, not the leaf's it requires, and build the tool's closure first
@@ -411,9 +411,9 @@ test("refuse what a module an extension generates imports until the package decl
         toolchain: async () => Toolchain.workspace(),
     });
     expect(await refusal(compiler.build(request))).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "DEPENDENCY_UNRESOLVED",
-        "undeclared runtime dependency: @fixture/leaf, imported by \0virtual:@fixture/leaf/barrel",
+        "BAD_REQUEST",
+        "DEPENDENCY_INVALID",
+        "runtime dependency '@fixture/leaf' of '\0virtual:@fixture/leaf/barrel' is invalid: it is undeclared",
     ]);
 
     // build the application on the leaf's build once it declares the leaf at runtime

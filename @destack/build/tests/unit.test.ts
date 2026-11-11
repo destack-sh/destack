@@ -142,7 +142,7 @@ test("build a workspace's units on their dependencies' builds, restore every uni
         throw new TypeError("the application records no library build");
     }
     const before = previous.manifest;
-    const refused = `${LIBRARY} is required as two different builds: ${before} and ${edited.manifest}`;
+    const refused = `dependency '${LIBRARY}' is invalid: it is required as two different builds '${before}' and '${edited.manifest}'`;
 
     // relink the application on the edited library: its files as they were, its pins anew
     const relinked = {
@@ -222,7 +222,11 @@ test("refuse to cache a unit whose committed sources changed after the workspace
         source: new TextDecoder().decode(source),
     }).toEqual({
         committed: [0, 0],
-        refused: ["CONFLICT", "SOURCE_CHANGED", `${LIBRARY} changed while it built`],
+        refused: [
+            "CONFLICT",
+            "SOURCE_CONFLICT",
+            `cannot build '${LIBRARY}': it changed while it built`,
+        ],
         source: edited,
     });
 });
@@ -284,9 +288,9 @@ test("build a package against the release of a Destack package installed from ou
         releases: await built.releases(),
     }).toEqual({
         refused: [
-            "UNPROCESSABLE_CONTENT",
-            "DEPENDENCY_UNRESOLVED",
-            `the workspace requires Destack packages outside it, which it has no release resolver for: ${LIBRARY}`,
+            "BAD_REQUEST",
+            "DEPENDENCY_INVALID",
+            `workspace is invalid: it requires Destack packages '${LIBRARY}' outside it and has no release resolver for them`,
         ],
         asked: [LIBRARY],
         pinned: release,

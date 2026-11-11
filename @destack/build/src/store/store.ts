@@ -292,8 +292,8 @@ export class BuildStore<
         const digest = await this.put(reader, signal);
         if (digest !== location.manifest) {
             throw BuildError.of(
-                "DIGEST_MISMATCH",
-                `expected build digest ${location.manifest}, got ${digest}`,
+                "DIGEST_UNREACHABLE",
+                `could not store build '${location.manifest}': its digest is '${digest}'`,
             );
         }
     }
@@ -420,7 +420,7 @@ export class BuildStore<
             if ((await Digest.of(bytes, this.environment.crypto)) !== expected) {
                 throw BuildError.of(
                     "DIGEST_INVALID",
-                    `the uploaded file does not match its digest ${digest}`,
+                    `uploaded file is invalid: it does not match its digest '${digest}'`,
                 );
             }
             files.push({
@@ -440,7 +440,7 @@ export class BuildStore<
         if ((await Digest.of(bytes, this.environment.crypto)) !== digest) {
             throw BuildError.of(
                 "DIGEST_INVALID",
-                `the uploaded manifest does not match its digest ${digest}`,
+                `uploaded manifest is invalid: it does not match its digest '${digest}'`,
             );
         }
         const parsed = PackageManifest.parse(
@@ -538,7 +538,7 @@ export class BuildStore<
     async contents(digest: Digest): Promise<BuildReader> {
         const contents = await this.#find(digest);
         if (contents === undefined) {
-            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
+            throw BuildError.of("MANIFEST_NOT_FOUND", `package manifest '${digest}' not found`);
         }
 
         return contents;
@@ -602,7 +602,7 @@ export class BuildStore<
                 file = references.get(path);
             }
             if (!file) {
-                throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${path}`);
+                throw BuildError.of("BLOB_NOT_FOUND", `package file '${path}' not found`);
             }
 
             return file;
@@ -1120,7 +1120,7 @@ export class BuildStore<
     async head(digest: Digest): Promise<PackageFile> {
         const head = await this.#head(digest);
         if (head === undefined) {
-            throw BuildError.of("MANIFEST_UNKNOWN", `package manifest ${digest} not found`);
+            throw BuildError.of("MANIFEST_NOT_FOUND", `package manifest '${digest}' not found`);
         }
 
         return head;
@@ -1212,7 +1212,7 @@ export class BuildStore<
                 // stream its bytes from where they lie, refusing a missing blob
                 const [placement] = await blobs.placements([file.digest]);
                 if (placement === undefined) {
-                    throw BuildError.of("BLOB_UNKNOWN", `package file not found: ${file.path}`);
+                    throw BuildError.of("BLOB_NOT_FOUND", `package file '${file.path}' not found`);
                 }
                 yield* blobs.storage.slice(placement.pack, placement.offset, placement.size);
             })(),
@@ -1251,8 +1251,8 @@ export class BuildStore<
         const absent = files.find((file) => missing.has(file.digest));
         if (absent !== undefined) {
             throw BuildError.of(
-                "MANIFEST_BLOB_UNKNOWN",
-                `build ${digest} lists ${absent.path}, which was not uploaded`,
+                "MANIFEST_BLOB_INVALID",
+                `build '${digest}' is invalid: it lists '${absent.path}', which was not uploaded`,
             );
         }
     }
@@ -1414,10 +1414,16 @@ function requireDistinctPaths(list: readonly PackageFile[]): void {
     const paths = new Set<string>();
     for (const file of list) {
         if (file.path === "manifest.json" || file.path.startsWith("manifest.json/")) {
-            throw BuildError.of("MANIFEST_INVALID", `reserved build path: ${file.path}`);
+            throw BuildError.of(
+                "MANIFEST_INVALID",
+                `build path '${file.path}' is invalid: it is reserved`,
+            );
         }
         if (paths.has(file.path)) {
-            throw BuildError.of("MANIFEST_INVALID", `duplicate package file: ${file.path}`);
+            throw BuildError.of(
+                "MANIFEST_INVALID",
+                `package file '${file.path}' is invalid: it is a duplicate`,
+            );
         }
         paths.add(file.path);
     }

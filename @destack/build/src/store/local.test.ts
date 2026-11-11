@@ -681,6 +681,6 @@ test("refuse an empty cache directory the environment sets for the person's stor
     expect(await refusal(LocalBuildStore.user("test", environment))).toEqual([
         "BAD_REQUEST",
         "CACHE_DIRECTORY_INVALID",
-        "DESTACK_CACHE_DIRECTORY is empty",
+        "DESTACK_CACHE_DIRECTORY is invalid: it is empty",
     ]);
 });

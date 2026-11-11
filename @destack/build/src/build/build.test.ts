@@ -70,7 +70,7 @@ test("read one module per runtime the shipped exports compile for", async () => 
                 workerd: { kind: "module", runtime: "workerd" },
             },
             { browser: { kind: "module", runtime: "browser" } },
-            "no runtimes declared for export: .",
+            "export '.' is invalid: it declares no runtimes",
         ]);
     } finally {
         await files.remove(directory, { recursive: true });

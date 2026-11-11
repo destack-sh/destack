@@ -143,9 +143,9 @@ void made;
 `;
     expect([await refusal(inspectApp(app)), await inspectApp(factory)]).toEqual([
         [
-            "UNPROCESSABLE_CONTENT",
-            "DECLARATION_UNEXPORTED",
-            "declared hidden is not exported by @example/app",
+            "BAD_REQUEST",
+            "DECLARATION_INVALID",
+            "declared 'hidden' is invalid: '@example/app' does not export it",
         ],
         ["greeting"],
     ]);

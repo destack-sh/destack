@@ -68,8 +68,8 @@ export class PackageClient {
         if (!asked.ok) {
             await asked.body?.cancel();
             throw BuildError.of(
-                "PROBE_FAILED",
-                `cannot probe ${new URL(probe).pathname}: HTTP ${asked.status}`,
+                "PROBE_UNREACHABLE",
+                `could not probe '${new URL(probe).pathname}': HTTP ${asked.status}`,
             );
         }
         const missing = new Set(schema.array(Digest).parse(await asked.json()));
@@ -100,8 +100,8 @@ export class PackageClient {
         await response.body?.cancel();
         if (!response.ok) {
             throw BuildError.of(
-                "UPLOAD_FAILED",
-                `cannot upload ${new URL(request.url).pathname}: HTTP ${response.status}`,
+                "UPLOAD_UNREACHABLE",
+                `could not upload '${new URL(request.url).pathname}': HTTP ${response.status}`,
             );
         }
     }

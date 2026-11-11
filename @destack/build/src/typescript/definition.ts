@@ -257,8 +257,8 @@ export class DefinitionFields {
     /** Describe a definition that cannot be read without evaluation. */
     #error(requirement: string): FamilyError<BuildReason> {
         return BuildError.of(
-            "INSPECTION_FAILED",
-            `${this.#kind} ${this.location} requires ${requirement}`,
+            "INSPECTION_INVALID",
+            `definition ${this.#kind} '${this.location}' is invalid: it requires '${requirement}'`,
         );
     }
 }
@@ -334,8 +334,8 @@ async function locateConstant(
         declaration.parent.parent.parent.kind === SyntaxKind.SourceFile;
     if (!isConstant || !isIdentifier(declaration.name)) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `${kind} in ${file} must initialize a module-level constant`,
+            "INSPECTION_INVALID",
+            `definition ${kind} in '${file}' is invalid: it must initialize a module-level constant`,
         );
     }
 
@@ -343,8 +343,8 @@ async function locateConstant(
     const symbol = await inspector.project.checker.getSymbolAtLocation(declaration.name);
     if (symbol === undefined || !exported.has(symbol.id)) {
         throw BuildError.of(
-            "DECLARATION_UNEXPORTED",
-            `declared ${declaration.name.text} is not exported by ${owner}`,
+            "DECLARATION_INVALID",
+            `declared '${declaration.name.text}' is invalid: '${owner}' does not export it`,
         );
     }
 

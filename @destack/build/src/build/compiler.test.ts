@@ -79,9 +79,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             note + "\n/** The page title. */\nexport const page = document.title;\n",
         );
         expect(await refusal(builder.check(workerdRequest))).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "RUNTIME_API_UNSUPPORTED",
-            `unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
+            "BAD_REQUEST",
+            "RUNTIME_API_INVALID",
+            `API 'document.title' at 'src/note.ts:${note.length + 44}' is invalid: it is not supported on 'workerd'`,
         ]);
 
         // accept the browser API inside a function, which only the browser calls
@@ -105,9 +105,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 }),
             ),
         ).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "RUNTIME_API_UNSUPPORTED",
-            `unsupported workerd API: Function at src/note.ts:${note.length + 68}`,
+            "BAD_REQUEST",
+            "RUNTIME_API_INVALID",
+            `API 'Function' at 'src/note.ts:${note.length + 68}' is invalid: it is not supported on 'workerd'`,
         ]);
         const prototypeSource =
             note +
@@ -132,9 +132,9 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
                 '\n/** A Math member. */\nexport const member = (key: string) => Math[key as "PI"];\n',
         );
         expect(await refusal(builder.check(workerdRequest))).toEqual([
-            "UNPROCESSABLE_CONTENT",
-            "RUNTIME_API_UNSUPPORTED",
-            `dynamic global access: Math at src/note.ts:${note.length + 62}`,
+            "BAD_REQUEST",
+            "RUNTIME_API_INVALID",
+            `global access to 'Math' at 'src/note.ts:${note.length + 62}' is invalid: it is dynamic`,
         ]);
 
         // accept browser index signatures through the runtime's actual type declarations
@@ -163,7 +163,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         // preserve an existing distribution when the caller repeats a write
         expect(await refusal(build.writeDirectory(destination, files))).toEqual([
             "CONFLICT",
-            "ALREADY_EXISTS",
+            "FILE_EXISTS",
             `cannot create ${destination}: EEXIST`,
         ]);
         expect((await PackageBuild.read(destination, environment)).manifest).toEqual(
@@ -189,7 +189,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         expect(await refusal(copied.reader.writeDirectory(corrupted, files))).toEqual([
             "BAD_REQUEST",
             "FILE_INVALID",
-            `file digest mismatch: ${changed.path}`,
+            `file '${changed.path}' is invalid: its digest does not match`,
         ]);
         await files.writeFile(join(copied.directory, changed.path), original);
 
@@ -199,12 +199,12 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         const removed = join(copied.directory, rootExport(build.manifest, "library"));
         expect(await refusal(copied.reader.writeDirectory(failed, files))).toEqual([
             "NOT_FOUND",
-            "NOT_FOUND",
+            "FILE_NOT_FOUND",
             `cannot open ${removed}: ENOENT`,
         ]);
         expect(await refusal(files.readFile(join(failed, "manifest.json")))).toEqual([
             "NOT_FOUND",
-            "NOT_FOUND",
+            "FILE_NOT_FOUND",
             `cannot read ${join(failed, "manifest.json")}: ENOENT`,
         ]);
 
@@ -235,7 +235,11 @@ test("reject invalid outputs and recover the retained compiler", async () => {
     const first = await builder.build(library);
     expect(
         await refusal(builder.build({ directory: source, dependencies: {}, outputs: {} })),
-    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "a build requires at least one output"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "OUTPUT_INVALID",
+        "build output set is invalid: a build requires at least one output",
+    ]);
     expect(
         await refusal(
             builder.build({
@@ -244,7 +248,11 @@ test("reject invalid outputs and recover the retained compiler", async () => {
                 outputs: { Library: { kind: "module", runtime: "bun" } },
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "OUTPUT_INVALID", "invalid output name: Library"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "OUTPUT_INVALID",
+        "output name 'Library' is invalid: it must be a valid name",
+    ]);
 
     // build the same package again with the same compiler after rejected requests
     const build = await builder.build(library);
@@ -271,14 +279,14 @@ test("terminate compilation on cancellation and deadline, and build again with t
     expect(await refusal(pending)).toEqual([
         "CLIENT_CLOSED_REQUEST",
         "BUILD_CANCELLED",
-        "build cancelled",
+        "build was cancelled",
     ]);
 
     // stop a compiler past its deadline, and build again with the same builder
     expect(await refusal(builder.build({ ...library, timeout: 1 }))).toEqual([
-        "GATEWAY_TIMEOUT",
-        "COMPILER_TIMEOUT",
-        "build exceeded 1 ms",
+        "BAD_GATEWAY",
+        "COMPILER_UNREACHABLE",
+        "could not finish the build within 1 ms",
     ]);
     const rebuilt = await builder.build(library);
     expect(rebuilt.manifest.package.name).toBe("@destack/build-library-fixture");
@@ -555,9 +563,9 @@ test("refuse an output importing an npm unit with a native addon", async () => {
         outputs: { server: { kind: "module", runtime: "workerd" } },
     });
     expect(await refusal(built)).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "RUNTIME_MODULE_UNSUPPORTED",
-        "native is a native addon, which no package may depend on",
+        "BAD_REQUEST",
+        "RUNTIME_MODULE_INVALID",
+        "package 'native' is invalid: it is a native addon, which no package may depend on",
     ]);
     expect(await countObjects(store)).toBe(stored);
 });
@@ -728,7 +736,7 @@ test("keep the declaration file a package exports for another runtime in a Bun b
 function rootExport(manifest: PackageManifest, output: string): string {
     const path = manifest.outputs[output]?.exports["."]?.path;
     if (path === undefined) {
-        throw new Error(`the manifest has no root export of ${output}`);
+        throw new Error(`the manifest has no root export of '${output}'`);
     }
 
     return path;
@@ -738,7 +746,7 @@ function rootExport(manifest: PackageManifest, output: string): string {
 async function importNotes(destination: string, path: string): Promise<NoteModule> {
     const module = await importBuilt(destination, path);
     if (!isNoteModule(module)) {
-        throw new TypeError(`${path} exports no createNote function`);
+        throw new TypeError(`'${path}' exports no createNote function`);
     }
 
     return module;
@@ -795,7 +803,7 @@ test("bundle a module a page starts as a worker, and refuse one it references as
             referenced: referenced === "done" ? referenced : referenced.slice(0, 2),
         }).toEqual({
             workers: [[true, "text/javascript"]],
-            referenced: ["UNPROCESSABLE_CONTENT", "ASSET_INVALID"],
+            referenced: ["BAD_REQUEST", "ASSET_INVALID"],
         });
     } finally {
         await files.remove(directory, { recursive: true });

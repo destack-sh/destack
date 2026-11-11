@@ -214,7 +214,10 @@ class ProjectInspection {
         const bytes = await this.#environment.files.readFile(file);
         const text = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         if (text !== source.text) {
-            throw BuildError.of("INSPECTION_FAILED", `source changed during inspection: ${path}`);
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                `source '${path}' is invalid: it changed during inspection`,
+            );
         }
 
         // retain the module's bytes and an empty description
@@ -276,7 +279,10 @@ class ProjectInspection {
                 const declaration = target?.declarations[0];
                 if (declaration === undefined) {
                     const text = nth(specifiers, index).getText();
-                    throw BuildError.of("INSPECTION_FAILED", `unresolved export module: ${text}`);
+                    throw BuildError.of(
+                        "INSPECTION_INVALID",
+                        `export module '${text}' is invalid: it is unresolved`,
+                    );
                 }
 
                 return (await this.inspector.node(declaration)).getSourceFile();
@@ -307,7 +313,10 @@ class ProjectInspection {
                 );
                 const ordered = [...cycle.slice(first), ...cycle.slice(0, first)];
                 const paths = [...ordered, nth(ordered, 0)].join(" -> ");
-                throw BuildError.of("INSPECTION_FAILED", `export * cycle: ${paths}`);
+                throw BuildError.of(
+                    "INSPECTION_INVALID",
+                    `export * chain '${paths}' is invalid: it is a cycle`,
+                );
             }
             await this.#requireAcyclic(starred, [...chain, starred]);
         }
@@ -364,8 +373,8 @@ class ProjectInspection {
             [...table.values()].map(async ({ symbol, original, isRuntime }) => {
                 if (await this.project.checker.isUnknownSymbol(original)) {
                     throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        `unresolved export: ${path}#${symbol.name}`,
+                        "INSPECTION_INVALID",
+                        `export '${path}#${symbol.name}' is invalid: it is unresolved`,
                     );
                 }
 
@@ -438,7 +447,7 @@ class ProjectInspection {
     ): Promise<{ module: string; symbol: SymbolDescription }> {
         const located = await this.reference(symbol);
         if (!("module" in located)) {
-            throw BuildError.of("INVARIANT_VIOLATED", "queued an external declaration");
+            throw BuildError.of("INVARIANT_BROKEN", "queued an external declaration");
         }
 
         return {
@@ -459,7 +468,10 @@ async function readAuthored(
         authored.map(async (file) => {
             const source = await project.program.getSourceFile(file);
             if (!source) {
-                throw BuildError.of("INSPECTION_FAILED", `missing compiler source: ${file}`);
+                throw BuildError.of(
+                    "INSPECTION_INVALID",
+                    `compiler source '${file}' is invalid: it is missing`,
+                );
             }
 
             return [file, source] as const;
@@ -492,8 +504,8 @@ async function locateDeclaration(
     const [declaration] = symbol.declarations;
     if (declaration === undefined) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `export has no source declaration: ${symbol.name}`,
+            "INSPECTION_INVALID",
+            `export '${symbol.name}' is invalid: it has no source declaration`,
         );
     }
     const name = declaration.kind === SyntaxKind.SourceFile ? "*" : await declarationName(symbol);
@@ -502,8 +514,8 @@ async function locateDeclaration(
     // require a declaration of the package to belong to one of its modules
     if ("module" in reference && !modules.has(reference.module)) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `declaration belongs to an unknown module: ${reference.module}`,
+            "INSPECTION_INVALID",
+            `declaration module '${reference.module}' is invalid: it is unknown`,
         );
     }
 
@@ -520,7 +532,10 @@ async function describeImports(
     // read literal specifiers, including dynamic imports
     const specifiers = source.imports.map((entry) => {
         if (!isStringLiteral(entry) && !isNoSubstitutionTemplateLiteral(entry)) {
-            throw BuildError.of("INSPECTION_FAILED", `unsupported import in ${source.fileName}`);
+            throw BuildError.of(
+                "INSPECTION_INVALID",
+                `import in '${source.fileName}' is invalid: it is not supported`,
+            );
         }
 
         return entry;
@@ -558,7 +573,10 @@ async function locateSymbol(
     // name compiler libraries by their lowercase file names, leaving their large sources unread
     const metadata = await inspector.project.program.getSourceFileMetadataByPath(declaration.path);
     if (metadata === undefined) {
-        throw BuildError.of("INSPECTION_FAILED", `undeclared source file: ${declaration.path}`);
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `source file '${declaration.path}' is invalid: it is undeclared`,
+        );
     }
     if (metadata.isDefaultLibrary) {
         return {
@@ -593,8 +611,8 @@ async function declarationName(symbol: TypeScriptSymbol): Promise<string> {
         const [declaration] = parent.declarations;
         if (declaration === undefined) {
             throw BuildError.of(
-                "INSPECTION_FAILED",
-                `unresolved declaration parent: ${parent.name}`,
+                "INSPECTION_INVALID",
+                `declaration parent '${parent.name}' is invalid: it is unresolved`,
             );
         }
         if (declaration.kind === SyntaxKind.SourceFile) {

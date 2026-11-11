@@ -48,7 +48,7 @@ test.concurrent("relocate the library build and call its exports, refusing corru
     expect(await refusal(corrupt.files())).toEqual([
         "BAD_REQUEST",
         "FILE_INVALID",
-        `file digest mismatch: ${build.manifest.lists.files.path}`,
+        `file '${build.manifest.lists.files.path}' is invalid: its digest does not match`,
     ]);
 
     // call the library's exports from the relocated build
@@ -84,16 +84,16 @@ test.concurrent("ship a package's catalogs in its build, refusing a misnamed one
     await write("de.json", { ...german, locale: "de-AT" });
     const misnamed = input.build(library.request);
     expect(await refusal(misnamed)).toEqual([
-        "UNPROCESSABLE_CONTENT",
+        "BAD_REQUEST",
         "CATALOG_INVALID",
-        "invalid catalog: locale/de.json",
+        "catalog 'locale/de.json' is invalid: it does not parse",
     ]);
     await write("de.json", { ...german, package: "package-01996ab0-0000-7000-8000-0000000000aa" });
     const foreign = input.build(library.request);
     expect(await refusal(foreign)).toEqual([
-        "UNPROCESSABLE_CONTENT",
+        "BAD_REQUEST",
         "CATALOG_INVALID",
-        "invalid catalog: locale/de.json",
+        "catalog 'locale/de.json' is invalid: it does not parse",
     ]);
     expect(shipped).toEqual([german]);
 });

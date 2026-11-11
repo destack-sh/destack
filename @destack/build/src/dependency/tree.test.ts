@@ -89,9 +89,9 @@ test("place npm units with the peers the packages beside them or their install p
         store: "object",
         styled: "styled with core",
         lacking: [
-            "UNPROCESSABLE_CONTENT",
-            "DEPENDENCY_UNRESOLVED",
-            "renderer requires the peer core, which its dependent does not provide",
+            "BAD_REQUEST",
+            "DEPENDENCY_INVALID",
+            "peer 'core' of 'renderer' is invalid: its dependent does not provide it",
         ],
     });
 });

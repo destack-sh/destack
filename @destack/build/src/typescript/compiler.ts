@@ -70,8 +70,8 @@ export class TypeScriptCompiler implements AsyncDisposable {
             const diagnostics = await this.#check(project);
             if (diagnostics.length) {
                 throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `the TypeScript inspection failed: ${JSON.stringify(diagnostics)}`,
+                    "INSPECTION_INVALID",
+                    `TypeScript inspection is invalid: it failed:\n${JSON.stringify(diagnostics)}`,
                 );
             }
 
@@ -132,8 +132,8 @@ export class TypeScriptCompiler implements AsyncDisposable {
             const project = snapshot.getProject(path);
             if (!project) {
                 throw BuildError.of(
-                    "INSPECTION_FAILED",
-                    `the TypeScript compiler did not load ${path}`,
+                    "INSPECTION_INVALID",
+                    `source '${path}' is invalid: the TypeScript compiler did not load it`,
                 );
             }
 

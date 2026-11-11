@@ -288,7 +288,10 @@ class DependencyRecorder {
         }
         const absolute = resolve(root, original);
         if (!(await isFile(absolute, this.resolver.files))) {
-            throw BuildError.of("ASSET_INVALID", `missing asset file: ${original}`);
+            throw BuildError.of(
+                "ASSET_INVALID",
+                `asset file '${original}' is invalid: it is missing`,
+            );
         }
 
         // attribute assets read by CSS plugins without creating JavaScript modules
@@ -309,11 +312,7 @@ class DependencyRecorder {
             (this.resolutions[key] !== undefined ||
                 (await readPackageDefinition(owner.directory, this.resolver.files)) !== undefined);
         if (isDestack && !this.description.packages[key]) {
-            this.description.packages[key] = this.#release(
-                owner,
-                key,
-                "unresolved asset dependency",
-            );
+            this.description.packages[key] = this.#release(owner, key, "asset");
         }
 
         // retain copied directory assets in their source package snapshot
@@ -346,7 +345,7 @@ class DependencyRecorder {
         }
         // match installed Destack code to the resolver's release
         else if (resolution || isInstalled) {
-            const release = this.#release(source, key, "unresolved bundled dependency");
+            const release = this.#release(source, key, "bundled");
             if (this.description.packages[key] === undefined && "id" in release.package) {
                 await this.#bundleCatalogs(source.directory, release.package.id);
             }
@@ -358,7 +357,10 @@ class DependencyRecorder {
         // refuse two sources of one unpublished release
         const previous = this.#directories.get(key);
         if (previous !== undefined && previous !== source.directory) {
-            throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency sources: ${key}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `dependency source of '${key}' is invalid: the sources conflict`,
+            );
         }
         this.#directories.set(key, source.directory);
 
@@ -409,7 +411,10 @@ class DependencyRecorder {
 
         // refuse a release resolved otherwise
         if (snapshot.kind !== "source") {
-            throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency resolution: ${key}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `dependency resolution of '${key}' is invalid: it conflicts`,
+            );
         }
 
         return snapshot;
@@ -442,14 +447,17 @@ class DependencyRecorder {
     }
 
     /** Require the selected release of an installed package. */
-    #release(owner: PackageLocation, key: string, failure: string): DependencyResolution {
+    #release(owner: PackageLocation, key: string, kind: "asset" | "bundled"): DependencyResolution {
         const resolution = this.resolutions[key] ?? this.resolutions[owner.name];
         if (
             !resolution ||
             resolution.package.name !== owner.name ||
             resolution.package.version !== owner.version
         ) {
-            throw BuildError.of("DEPENDENCY_UNRESOLVED", `${failure}: ${key}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `${kind} dependency '${key}' is invalid: it must resolve to its installed release`,
+            );
         }
 
         return resolution;
@@ -461,7 +469,10 @@ function addFile(snapshot: SourceSnapshot, file: PackageFile): void {
     // store an equal file once, and refuse a file whose bytes changed during the build
     const previous = snapshot.files.find((candidate) => candidate.path === file.path);
     if (previous !== undefined && previous.digest !== file.digest) {
-        throw BuildError.of("SOURCE_CHANGED", `dependency file changed during build: ${file.path}`);
+        throw BuildError.of(
+            "SOURCE_CONFLICT",
+            `cannot build with dependency file '${file.path}': it changed during the build`,
+        );
     }
     if (previous !== undefined) {
         return;
@@ -517,8 +528,8 @@ export function dependencyPlugin(
             const code = module.code;
             if (code === null) {
                 throw BuildError.of(
-                    "INVARIANT_VIOLATED",
-                    `parsed module has no source: ${module.id}`,
+                    "INVARIANT_BROKEN",
+                    `parsed module has no source: '${module.id}'`,
                 );
             }
             const lang = moduleLanguage(module.id);
@@ -567,7 +578,7 @@ async function readPackageDefinition(
 
         return PackageDefinition.parse(JSON.parse(text));
     } catch (error) {
-        if (FileSystemError.is(error, "NOT_FOUND")) {
+        if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
             return undefined;
         }
         throw error;
@@ -658,8 +669,8 @@ function requireRuntime(
     const required = declared && PackageDefinition.runtimes(declared, entry);
     if (selected && required && !required.includes(selected)) {
         throw BuildError.of(
-            "RUNTIME_MODULE_UNSUPPORTED",
-            `unsupported ${selected} dependency: ${specifier}`,
+            "RUNTIME_MODULE_INVALID",
+            `dependency '${specifier}' is invalid: it is not supported on '${selected}'`,
         );
     }
 }
@@ -685,7 +696,10 @@ function requireDeclared(
 
     // refuse a dependency no requirement group names
     if (!PackageJson.runtimeDependencies(packageJson).includes(name)) {
-        throw BuildError.of("DEPENDENCY_UNRESOLVED", `undeclared runtime dependency: ${name}`);
+        throw BuildError.of(
+            "DEPENDENCY_INVALID",
+            `runtime dependency '${name}' is invalid: it is undeclared`,
+        );
     }
     // refuse a module the compiler shares outside the peers, unless the package shares it itself
     else if (
@@ -695,7 +709,7 @@ function requireDeclared(
     ) {
         throw BuildError.of(
             "DEPENDENCY_INVALID",
-            `${packageJson.package.name} imports ${name}, which the compiler shares: declare it as a peer`,
+            `dependency '${name}' of '${packageJson.package.name}' is invalid: the compiler shares it, so declare it as a peer`,
         );
     }
 }
@@ -720,13 +734,16 @@ function requireSelected(
         if (selected.package.name !== owner.name || selected.package.version !== owner.version) {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `dependency resolution differs from installation: ${owner.name}`,
+                `dependency resolution of '${owner.name}' is invalid: it differs from the installation`,
             );
         }
     }
     // refuse an installed Destack release without a selection
     else if (isDestack && path.split(sep).includes("node_modules")) {
-        throw BuildError.of("DEPENDENCY_UNRESOLVED", `unresolved installed dependency: ${key}`);
+        throw BuildError.of(
+            "DEPENDENCY_INVALID",
+            `installed dependency '${key}' is invalid: it is unresolved`,
+        );
     }
 }
 
@@ -771,7 +788,7 @@ function describeInputs(
     for (const id of parsed.keys()) {
         const location = locations.get(id);
         if (!location) {
-            throw BuildError.of("INVARIANT_VIOLATED", `missing parsed module: ${id}`);
+            throw BuildError.of("INVARIANT_BROKEN", `missing parsed module: '${id}'`);
         }
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
@@ -793,7 +810,7 @@ function describeInputs(
                 const isExternal = !parsed.has(path);
                 const reference = isExternal ? path : identifiers.get(path);
                 if (reference === undefined) {
-                    throw BuildError.of("INVARIANT_VIOLATED", `unresolved module: ${path}`);
+                    throw BuildError.of("INVARIANT_BROKEN", `unresolved module: '${path}'`);
                 }
                 imports.push({ path: reference, external: isExternal, dynamic });
             }
@@ -828,7 +845,7 @@ function chunkInputs(
         }
         const reference = identifiers.get(id);
         if (reference === undefined) {
-            throw BuildError.of("INVARIANT_VIOLATED", `unknown emitted module: ${id}`);
+            throw BuildError.of("INVARIANT_BROKEN", `unknown emitted module: '${id}'`);
         }
         inputs.push(reference);
     }
@@ -918,7 +935,7 @@ async function isFile(path: string, files: FileSystem): Promise<boolean> {
     try {
         return (await files.stat(path)).kind === "file";
     } catch (error) {
-        if (FileSystemError.is(error, "NOT_FOUND")) {
+        if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
             return false;
         }
         throw error;

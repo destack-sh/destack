@@ -168,7 +168,7 @@ export class CompilerWorker implements AsyncDisposable {
         }
 
         // fail the cache requests the host can no longer answer, then finish the requests
-        cache.close(BuildError.of("COMPILER_FAILED", "the host closed the compiler's input"));
+        cache.close(BuildError.of("COMPILER_BROKEN", "the host closed the compiler's input"));
         await responding;
     }
 
@@ -570,8 +570,8 @@ export class CompilerWorker implements AsyncDisposable {
                 .catch(FileSystemError.absent);
             if (installed === undefined) {
                 throw BuildError.of(
-                    "DEPENDENCY_UNRESOLVED",
-                    `npm package ${name} renders the pages but is not installed beside the package`,
+                    "DEPENDENCY_INVALID",
+                    `npm package '${name}' is invalid: it renders the pages but is not installed beside the package`,
                 );
             }
             await system.mkdir(dirname(join(modules, name)), { recursive: true });
@@ -677,7 +677,10 @@ function plan(
     // refuse an invalid name
     for (const name of Object.keys(requests)) {
         if (!/^[a-z][a-z0-9-]*$/u.test(name)) {
-            throw BuildError.of("OUTPUT_INVALID", `invalid output name: ${name}`);
+            throw BuildError.of(
+                "OUTPUT_INVALID",
+                `output name '${name}' is invalid: it must be a valid name`,
+            );
         }
     }
 
@@ -686,7 +689,7 @@ function plan(
     if (planned.has(PRERENDER_OUTPUT)) {
         throw BuildError.of(
             "OUTPUT_INVALID",
-            `output ${PRERENDER_OUTPUT} is the build's prerender output`,
+            `output '${PRERENDER_OUTPUT}' is invalid: it is the build's prerender output`,
         );
     }
     if (prerendering !== undefined) {
@@ -696,7 +699,10 @@ function plan(
 
     // require at least one output
     if (!planned.size) {
-        throw BuildError.of("OUTPUT_INVALID", "a build requires at least one output");
+        throw BuildError.of(
+            "OUTPUT_INVALID",
+            "build output set is invalid: a build requires at least one output",
+        );
     }
 
     return planned;
@@ -791,7 +797,10 @@ function joinResolutions(
         next.kind !== "source" ||
         JSON.stringify(previous.package) !== JSON.stringify(next.package)
     ) {
-        throw BuildError.of("DEPENDENCY_INVALID", `conflicting dependency resolution: ${key}`);
+        throw BuildError.of(
+            "DEPENDENCY_INVALID",
+            `dependency resolution '${key}' is invalid: it conflicts across outputs`,
+        );
     }
 
     // unite the files by path, refusing one path read with different bytes
@@ -801,7 +810,7 @@ function joinResolutions(
         if (known !== undefined && known.digest !== file.digest) {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `conflicting dependency file: ${key}/${file.path}`,
+                `dependency file '${key}/${file.path}' is invalid: it conflicts across outputs`,
             );
         }
         files.set(file.path, file);
@@ -821,7 +830,7 @@ async function findPackage(
     const directory = toolchain.locate([name], PACKAGE);
     const owner = await locator.find(join(directory, "package.json"));
     if (!owner) {
-        throw BuildError.of("INVARIANT_VIOLATED", `missing Destack package: ${name}`);
+        throw BuildError.of("INVARIANT_BROKEN", `missing Destack package: '${name}'`);
     }
 
     return owner.metadata.package;
@@ -831,7 +840,7 @@ async function findPackage(
 function describeFailure(error: unknown): Extract<BuildResponse, { error: object }>["error"] {
     // describe a thrown value that is no error by its text
     if (!(error instanceof Error)) {
-        const failure = BuildError.of("INVARIANT_VIOLATED", String(error));
+        const failure = BuildError.of("INVARIANT_BROKEN", String(error));
 
         return { failure: failure.toCallError(), audience: failure.audience };
     }
@@ -839,7 +848,7 @@ function describeFailure(error: unknown): Extract<BuildResponse, { error: object
     // keep a family's failure with its audience, and report anything else as an internal fault
     const failure = DomainError.is(error)
         ? error
-        : BuildError.of("INVARIANT_VIOLATED", error.message);
+        : BuildError.of("INVARIANT_BROKEN", error.message);
 
     return {
         failure: failure.toCallError(),

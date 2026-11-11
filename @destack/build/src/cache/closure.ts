@@ -111,8 +111,8 @@ export class ModuleClosure {
         const loader = LOADERS[extname(file)];
         if (loader === undefined) {
             throw BuildError.of(
-                "INVARIANT_VIOLATED",
-                `the toolchain loads a module Bun cannot scan: ${file}`,
+                "INVARIANT_BROKEN",
+                `the toolchain loads a module Bun cannot scan: '${file}'`,
             );
         }
         const scanned = text.replace(HASHBANG, "");
@@ -141,7 +141,7 @@ export class ModuleClosure {
             const text = await files
                 .readTextFile(join(directory, "package.json"))
                 .catch((error: unknown) => {
-                    if (FileSystemError.is(error, "NOT_FOUND")) {
+                    if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                         return undefined;
                     }
                     throw error;
@@ -152,6 +152,9 @@ export class ModuleClosure {
                 return { directory, ...parsed.data };
             }
         }
-        throw BuildError.of("DEPENDENCY_UNRESOLVED", `no package declares the module ${file}`);
+        throw BuildError.of(
+            "DEPENDENCY_INVALID",
+            `module '${file}' is invalid: no package declares it`,
+        );
     }
 }

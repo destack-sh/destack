@@ -21,7 +21,9 @@ export function stringifyInspection(value: unknown, indent = 0): string {
         return JSON.stringify(value, replacer, indent);
     } catch (error) {
         if (error instanceof TypeError) {
-            throw BuildError.of("INSPECTION_FAILED", `cyclic inspection value: ${error.message}`);
+            throw BuildError.of("INSPECTION_INVALID", "inspection value is invalid: it is cyclic", {
+                cause: error,
+            });
         }
         throw error;
     }
@@ -40,16 +42,25 @@ function checkValue(holder: object, key: string, raw: unknown, path: string): vo
     }
     // refuse other scalars, holes and undefined elements
     else if (typeof raw !== "object") {
-        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection value at ${path}`);
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `inspection value at '${path}' is invalid: it is not JSON`,
+        );
     }
 
     // refuse objects with serialization behavior, and symbol keys
     const prototype: unknown = Object.getPrototypeOf(raw);
     const plain: unknown = Array.isArray(raw) ? Array.prototype : Object.prototype;
     if ((prototype !== plain && prototype !== null) || Object.hasOwn(raw, "toJSON")) {
-        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection object at ${path}`);
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `inspection object at '${path}' is invalid: it is not JSON`,
+        );
     } else if (Object.getOwnPropertySymbols(raw).length > 0) {
-        throw BuildError.of("INSPECTION_FAILED", `non-JSON inspection property at ${path}`);
+        throw BuildError.of(
+            "INSPECTION_INVALID",
+            `inspection property at '${path}' is invalid: it is not JSON`,
+        );
     }
 }
 

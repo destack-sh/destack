@@ -108,7 +108,7 @@ export function exported(
 ): string {
     const file = output?.exports[path]?.path;
     if (file === undefined) {
-        throw new TypeError(`the build output exports no ${path}`);
+        throw new TypeError(`the build output exports no '${path}'`);
     }
 
     return file;
@@ -306,7 +306,7 @@ export async function expectManifest(
 export async function importBuilt(destination: string, path: string): Promise<object> {
     const module: unknown = await import(pathToFileURL(join(destination, path)).href);
     if (typeof module !== "object" || module === null) {
-        throw new TypeError(`${path} is no module`);
+        throw new TypeError(`'${path}' is no module`);
     }
 
     return module;
@@ -315,7 +315,7 @@ export async function importBuilt(destination: string, path: string): Promise<ob
 /** Read a property of a built object, undefined when absent. */
 export function property(value: unknown, name: string): unknown {
     if (typeof value !== "object" || value === null) {
-        throw new TypeError(`the built value holds no object with ${name}`);
+        throw new TypeError(`the built value holds no object with '${name}'`);
     }
     const read: unknown = Reflect.get(value, name);
 

@@ -161,8 +161,8 @@ export function joinModules(
     // require the same source bytes, which give both outputs the same symbols and exports
     if (module.source.digest !== other.source.digest) {
         throw BuildError.of(
-            "SOURCE_CHANGED",
-            `module ${module.path} was inspected from two sources`,
+            "SOURCE_CONFLICT",
+            `cannot inspect module '${module.path}': it was inspected from two sources`,
         );
     }
 
@@ -456,8 +456,8 @@ function kindOf(declarations: readonly SourceDeclaration[], name: string): graph
     const kind = DECLARATION_SYMBOL_KINDS[first(declarations).kind];
     if (kind === undefined) {
         throw BuildError.of(
-            "INSPECTION_FAILED",
-            `unknown declaration kind ${first(declarations).kind}: ${name}`,
+            "INSPECTION_INVALID",
+            `declaration kind ${first(declarations).kind} of '${name}' is invalid: it is unknown`,
         );
     }
 
@@ -468,7 +468,7 @@ function kindOf(declarations: readonly SourceDeclaration[], name: string): graph
 function first(declarations: readonly SourceDeclaration[]): SourceDeclaration {
     const [declaration] = declarations;
     if (declaration === undefined) {
-        throw BuildError.of("INSPECTION_FAILED", "a symbol has no declaration");
+        throw BuildError.of("INSPECTION_INVALID", "symbol is invalid: it has no declaration");
     }
 
     return declaration;

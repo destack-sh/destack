@@ -87,7 +87,10 @@ function omitUrlSources(bundle: OutputBundle): void {
                 : new TextDecoder().decode(entry.source);
         const map: unknown = JSON.parse(text);
         if (!isSourceMap(map)) {
-            throw BuildError.of("INVARIANT_VIOLATED", `invalid source map: ${entry.fileName}`);
+            throw BuildError.of(
+                "INVARIANT_BROKEN",
+                `source map of '${entry.fileName}' does not parse`,
+            );
         }
 
         // preserve source indices and mappings for generated URL modules
@@ -135,7 +138,7 @@ export function mapSource(
     const absolute = resolve(dirname(map), source);
     const location = locations.get(absolute);
     if (!location) {
-        throw BuildError.of("INVARIANT_VIOLATED", `unknown source map input: ${source}`);
+        throw BuildError.of("INVARIANT_BROKEN", `unknown source map input: '${source}'`);
     }
     if (location.package !== undefined) {
         return `package:${location.package}/${location.path}`;

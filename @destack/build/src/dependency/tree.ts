@@ -175,7 +175,7 @@ export class DependencyTree {
             if (visited !== undefined && visited !== dependency.manifest) {
                 throw BuildError.of(
                     "DEPENDENCY_INVALID",
-                    `${dependency.package.name} is required as two different builds: ${visited} and ${dependency.manifest}`,
+                    `dependency '${dependency.package.name}' is invalid: it is required as two different builds '${visited}' and '${dependency.manifest}'`,
                 );
             } else if (visited !== undefined) {
                 continue;
@@ -497,7 +497,10 @@ export class DependencyTree {
         // refuse peers requiring each other in a cycle
         const name = dependency.package.name;
         if (visiting.has(dependency.manifest)) {
-            throw BuildError.of("DEPENDENCY_INVALID", `npm peer cycle through ${name}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `npm peer '${name}' is invalid: it is part of a peer cycle`,
+            );
         }
 
         // provide each peer the unit declares from the packages beside it, as Node resolves them
@@ -517,8 +520,8 @@ export class DependencyTree {
                 peers.set(peer, provided);
             } else if (!declared.isOptional) {
                 throw BuildError.of(
-                    "DEPENDENCY_UNRESOLVED",
-                    `${name} requires the peer ${peer}, which its dependent does not provide`,
+                    "DEPENDENCY_INVALID",
+                    `peer '${peer}' of '${name}' is invalid: its dependent does not provide it`,
                 );
             }
         }
@@ -603,7 +606,7 @@ export class DependencyTree {
             if (release.kind !== "npm") {
                 throw BuildError.of(
                     "DEPENDENCY_INVALID",
-                    `the npm unit of ${name} lists ${imported} as a build, not an npm release`,
+                    `npm unit of '${name}' is invalid: it lists '${imported}' as a build, not an npm release`,
                 );
             }
             beside.set(imported, release);
@@ -733,7 +736,7 @@ export class DependencyTree {
             // move it into place, keeping the root a concurrent materialization placed first
             await files.copy(tree, staged);
             await files.rename(staged, root).catch((error: unknown) => {
-                if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+                if (!FileSystemError.is(error, "FILE_EXISTS")) {
                     throw error;
                 }
             });
@@ -907,7 +910,10 @@ export class DependencyTree {
         // refuse a subpath the package does not export
         const conditions = exports[subpath];
         if (conditions === undefined) {
-            throw BuildError.of("DEPENDENCY_UNRESOLVED", `${name} exports no ${subpath}`);
+            throw BuildError.of(
+                "DEPENDENCY_INVALID",
+                `subpath '${subpath}' is invalid: '${name}' does not export it`,
+            );
         }
 
         // answer each runtime's module of the subpath, none for a subpath of types alone
@@ -980,7 +986,7 @@ export class DependencyTree {
 
         // resolve the link, absent for a package the source does not install
         return await files.realPath(join(source, "node_modules", name)).catch((error: unknown) => {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return undefined;
             }
             throw error;
@@ -1003,13 +1009,13 @@ export class DependencyTree {
             return undefined;
         } else if (only === undefined) {
             throw BuildError.of(
-                "DEPENDENCY_UNRESOLVED",
-                `npm package not installed: ${name}@${version}`,
+                "DEPENDENCY_INVALID",
+                `npm package '${name}@${version}' is invalid: it is not installed`,
             );
         } else if (others.length > 0) {
             throw BuildError.of(
                 "DEPENDENCY_INVALID",
-                `npm package installed with several peer sets: ${entries.join(", ")}`,
+                `npm package is invalid: it is installed with several peer sets '${entries.join(", ")}'`,
             );
         }
 
@@ -1026,8 +1032,8 @@ export class DependencyTree {
         const directory = directories[name];
         if (directory === undefined) {
             throw BuildError.of(
-                "INVARIANT_VIOLATED",
-                `the dependency tree has no directory for ${name}`,
+                "INVARIANT_BROKEN",
+                `the dependency tree has no directory for '${name}'`,
             );
         }
 

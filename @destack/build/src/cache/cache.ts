@@ -60,7 +60,7 @@ export class CompilerFingerprint {
                 this.environment.crypto,
             );
         } catch (error) {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return null;
             }
             throw error;

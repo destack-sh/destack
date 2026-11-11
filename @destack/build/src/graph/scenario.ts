@@ -25,8 +25,8 @@ export class ScenarioGraph {
                 const example = examples.at(name(reference));
                 if (example === undefined) {
                     throw BuildError.of(
-                        "INSPECTION_FAILED",
-                        `scenario ${location} is given ${name(reference)}, which is not an example of the package`,
+                        "INSPECTION_INVALID",
+                        `example '${name(reference)}' is invalid: scenario '${location}' is given it, and it is not an example of the package`,
                     );
                 }
 

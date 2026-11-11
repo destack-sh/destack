@@ -321,8 +321,8 @@ export class BuildLayer {
         const response = await assets.fetch(`${ASSETS_ORIGIN}/${path}`);
         if (!response.ok) {
             throw BuildError.of(
-                "LAYER_FILE_MISSING",
-                `the layer has no file ${path}: its assets answered ${response.status}`,
+                "LAYER_FILE_BROKEN",
+                `the layer has no file '${path}': its assets answered ${response.status}`,
             );
         }
 

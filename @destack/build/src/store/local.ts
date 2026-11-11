@@ -398,7 +398,7 @@ export class LocalBuildStore
         await files.mkdir(dirname(written), { recursive: true });
         await this.writeLayer(roots, runtimes, written, "linked");
         await files.rename(written, directory).catch(async (error: unknown) => {
-            if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+            if (!FileSystemError.is(error, "FILE_EXISTS")) {
                 throw error;
             }
             await files.remove(written, { recursive: true });
@@ -505,8 +505,8 @@ export class LocalBuildStore
                 const found = await this.find(needed);
                 if (found === undefined) {
                     throw BuildError.of(
-                        "DEPENDENCY_UNRESOLVED",
-                        `build ${needed} of ${manifest.package.name} is missing from the store`,
+                        "DEPENDENCY_INVALID",
+                        `build '${needed}' of '${manifest.package.name}' is invalid: it is missing from the store`,
                     );
                 }
 
@@ -697,7 +697,10 @@ export class LocalBuildStore
         // take the cache directory the environment names, as NX_CACHE_DIRECTORY does, else the person's
         const { DESTACK_CACHE_DIRECTORY: named } = environment.process.variables;
         if (named === "") {
-            throw BuildError.of("CACHE_DIRECTORY_INVALID", "DESTACK_CACHE_DIRECTORY is empty");
+            throw BuildError.of(
+                "CACHE_DIRECTORY_INVALID",
+                "DESTACK_CACHE_DIRECTORY is invalid: it is empty",
+            );
         }
         const cache = named ?? join(await environment.files.cacheDirectory(), CACHE_DIRECTORY);
 
