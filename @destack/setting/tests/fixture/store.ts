@@ -10,8 +10,8 @@ export async function openSettings(
     options: {
         /** The scope the values live in. */
         readonly scope?: ObjectReference;
-        /** The settings the release declares. */
-        readonly settings?: readonly Setting[];
+        /** The settings the release declares, or a function returning them at each open. */
+        readonly settings?: readonly Setting[] | (() => readonly Setting[]);
         /** The subjects owning the scope beside itself. */
         readonly owners?: readonly Subject[];
         /** The packages and versions the store opened releases of, in order. */
@@ -20,7 +20,6 @@ export async function openSettings(
 ): Promise<TestObjectStore> {
     // serve the setting package against a release declaring the settings
     const { scope, settings = [editor, lineNumbers, history], owners = [], opened } = options;
-    const reader = release(settings);
 
     return await TestObjectStore.open({
         packages: [settingServer({ after: [] })],
@@ -28,7 +27,7 @@ export async function openSettings(
         release: async (_view, _scope, packageId, version) => {
             opened?.push({ packageId, ...(version === undefined ? {} : { version }) });
 
-            return await reader;
+            return await release(typeof settings === "function" ? settings() : settings);
         },
         ...(scope === undefined ? {} : { scope }),
         owners,

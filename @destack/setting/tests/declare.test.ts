@@ -3,6 +3,7 @@ import { ObjectReference } from "@destack/sync";
 import { expect, refusal, single, test } from "@destack/test";
 import { asc, eq } from "@destack/db";
 import { Stack } from "@destack/object/server";
+import { Expression } from "@destack/db";
 import { nth, schema, type JsonObject } from "@destack/schema";
 
 import { defineSetting } from "../src/declare/index.ts";
@@ -168,5 +169,52 @@ test("stamp a declared value with the release of the build declaring its setting
     expect([placed.release, opened]).toEqual([
         editor.package.version,
         [{ packageId }, { packageId, version: editor.package.version }],
+    ]);
+});
+
+test("keep the release of an unchanged declared value across later releases without a conversion, and stamp a changed or converted one anew", async () => {
+    // apply a value of the editor setting at its first release, then at later ones
+    const later = defineSetting(editor.definition, { package: { ...notes, version: "2026.10.0" } });
+    const converted = defineSetting(
+        { ...editor.definition, convert: { "2026.10.0": Expression.column("value") } },
+        { package: { ...notes, version: "2026.10.0" } },
+    );
+    let declared = [editor];
+    await using served = await openSettings({ settings: () => declared });
+    const apply = async (value: string) => {
+        const document = {
+            settings: { editor: { ...editor.reference, value, mode: "recommend" } },
+        };
+        await new Stack({
+            database: served.database,
+            isHome: false,
+            objects: served.store.objects.filter((type) => type.same(setting)),
+            store: served.store,
+            as: served.store.principal,
+            declarer: () => Caller.of(served.store.principal),
+            manager,
+            scope: served.scope,
+            document,
+            applied: document,
+        }).apply(served.environment.clock.now());
+        const { release, revision } = single(await served.database.select().from(setting.table));
+
+        return { release, revision };
+    };
+
+    // keep an unchanged value readable by the earlier release, and stamp a changed or converted one
+    const first = await apply("vim");
+    declared = [later];
+    const unchanged = await apply("vim");
+    const changed = await apply("standard");
+    declared = [editor];
+    await apply("vim");
+    declared = [converted];
+    const conversion = await apply("vim");
+    expect([first, unchanged, changed, conversion]).toEqual([
+        { release: "2026.9.0", revision: 1 },
+        { release: "2026.9.0", revision: 1 },
+        { release: "2026.10.0", revision: 2 },
+        { release: "2026.10.0", revision: 4 },
     ]);
 });

@@ -1,6 +1,7 @@
 import type { MethodContext, ObjectType } from "@destack/object";
 import type { DeclarationReference } from "@destack/package/declare";
-import { schema } from "@destack/schema";
+import { canonicalize, schema } from "@destack/schema";
+import { Manager } from "@destack/access";
 import { setting, SettingValue } from "../object/index.ts";
 import { Setting, SETTING_KIND, SettingPlacement } from "../setting/index.ts";
 
@@ -53,7 +54,7 @@ export function implementSetting(options: SettingOptions) {
         },
         declaration: {
             after,
-            resolve: async (_name, desired, plan) => {
+            resolve: async (name, desired, plan) => {
                 // stamp the declared value with the release its scope runs, waiting for its package to install
                 const reader = await plan.release(desired.packageId);
                 if (reader === undefined) {
@@ -62,8 +63,19 @@ export function implementSetting(options: SettingOptions) {
                     );
                 }
                 const found = Setting.find(await Setting.list(reader), desired);
+                const release = found.package.version;
 
-                return { ...desired, release: found.package.version };
+                // keep the stored release when the value and its conversions are unchanged
+                const applied = await plan.transaction
+                    .view()
+                    .read(setting.table)
+                    .findFirst({ where: Manager.condition({ ...plan.stack.manager, name }) });
+                const isKept =
+                    applied !== undefined &&
+                    canonicalize(applied.value) === canonicalize(desired.value) &&
+                    found.isUnconverted(applied.release, release);
+
+                return { ...desired, release: isKept ? applied.release : release };
             },
         },
     });

@@ -556,6 +556,14 @@ export class Setting<
             : { rank, source: { kind: "invalid", source }, value: value.value, mode };
     }
 
+    /** Report whether a value written against one release reads the same in a later one. */
+    isUnconverted(from: Version, to: Version): boolean {
+        return (
+            Version.compare(from, to) <= 0 &&
+            Version.between(this.definition.convert ?? {}, from, to).length === 0
+        );
+    }
+
     /** Rank a value of this setting for a selection. */
     #rank(
         value: SettingValue,
