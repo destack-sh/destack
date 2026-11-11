@@ -10,6 +10,7 @@ import { headwordBox, headwordDot, headwordLetters } from "../content/generated/
 import { Mark } from "./mark";
 import { AgentField, TerminalField } from "../install/install";
 import { agentPrompt } from "../content/site";
+import { release } from "../content/generated/release";
 import {
     type Destination,
     isExternal,
@@ -21,13 +22,34 @@ import {
 } from "./navigation";
 import { typeScale, tracking } from "./type.stylex";
 
-/** Close every page with a colophon in starry space: the verb's entry, the links, the headword. */
-export function Footer() {
+/** The id of the hatching the headword's letters are filled with. */
+const HATCH_ID = "headword-hatch";
+
+/** The pitch of the headword's hatching in its own units, about 8px across the frame. */
+const HATCH_PITCH = 24;
+
+/** The width of each line of the headword's hatching in its own units, about 2.5px. */
+const HATCH_LINE = 7;
+
+/** Close every page with a colophon in starry space, ending in the sheet's title block. */
+export function Footer(properties: { path: string }) {
+    // fill the title block as a drawing's, for the sheet this page is
+    const fields = [
+        ["Project", "Destack"],
+        ["Sheet", properties.path],
+        ["Revision", release.version],
+        ["Stage", release.stability],
+        ["Scale", "1 : 1"],
+        ["Units", "CSS px"],
+    ] as const;
+
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             {/* mark the rails where the footer's top edge meets them */}
             <span aria-hidden="true" {...style.attrs(lattice.crossings, lattice.crossingsTop)} />
             <Sky xstyle={styles.band}>
+                {/* spread hairlines down from the footer's top edge, a stack coming apart */}
+                <span aria-hidden="true" {...style.attrs(lattice.stave)} />
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
                     {/* the verb's dictionary entry, as each section heads with one */}
                     <div {...style.attrs(styles.cell, styles.entry)}>
@@ -71,7 +93,27 @@ export function Footer() {
                         viewBox={`0 0 ${headwordBox.width} ${headwordBox.height}`}
                         {...style.attrs(styles.poster)}
                     >
-                        <path d={headwordLetters} {...style.attrs(styles.letters)} />
+                        {/* hatch the letters like a cut face, inside their outline */}
+                        <defs>
+                            <pattern
+                                id={HATCH_ID}
+                                width={HATCH_PITCH}
+                                height={HATCH_PITCH}
+                                patternTransform="rotate(-45)"
+                                patternUnits="userSpaceOnUse"
+                            >
+                                <rect
+                                    width={HATCH_LINE}
+                                    height={HATCH_PITCH}
+                                    {...style.attrs(styles.hatch)}
+                                />
+                            </pattern>
+                        </defs>
+                        <path
+                            d={headwordLetters}
+                            fill={`url(#${HATCH_ID})`}
+                            {...style.attrs(styles.letters)}
+                        />
                         <circle
                             cx={headwordDot.x}
                             cy={headwordDot.y}
@@ -79,6 +121,16 @@ export function Footer() {
                             {...style.attrs(styles.dot)}
                         />
                     </svg>
+
+                    {/* sign the sheet off with its title block */}
+                    <dl {...style.attrs(styles.block)}>
+                        {fields.map(([label, value]) => (
+                            <div {...style.attrs(styles.field)}>
+                                <dt {...style.attrs(styles.fieldLabel)}>{label}</dt>
+                                <dd {...style.attrs(styles.fieldValue)}>{value}</dd>
+                            </div>
+                        ))}
+                    </dl>
                 </div>
             </Sky>
         </footer>
@@ -140,10 +192,6 @@ const styles = style.create({
     },
     cell: {
         alignContent: "start",
-        borderColor: rule.color,
-        borderStyle: "solid",
-        borderWidth: 0,
-        borderInlineStartWidth: stroke.border,
         display: "grid",
         minWidth: 0,
         paddingBlock: { default: "3rem", [media.maxMd]: "2rem" },
@@ -151,7 +199,6 @@ const styles = style.create({
         rowGap: "0.75rem",
     },
     entry: {
-        borderInlineStartWidth: 0,
         gridColumn: "1 / -1",
         paddingBlock: { default: "7rem 6rem", [media.maxMd]: "4rem 3rem" },
         rowGap: "1.25rem",
@@ -177,16 +224,23 @@ const styles = style.create({
         margin: 0,
     },
     column: {
-        borderTopWidth: stroke.border,
+        // band the column's top, and its left where a column stands beside it
+        backgroundImage: `${rule.band}, ${rule.band}`,
+        backgroundPosition: "left top, left top",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% ${rule.bandHeight}, ${rule.bandHeight} 100%`,
         gridColumn: "span 2",
         justifyItems: "start",
         paddingBlock: { default: "2.5rem 3.5rem", [media.maxMd]: "2rem" },
     },
     firstColumn: {
-        borderInlineStartWidth: 0,
+        backgroundSize: `100% ${rule.bandHeight}, 0 0`,
     },
     lastColumn: {
-        borderInlineStartWidth: { default: stroke.border, [media.maxMd]: 0 },
+        backgroundSize: {
+            default: `100% ${rule.bandHeight}, ${rule.bandHeight} 100%`,
+            [media.maxMd]: `100% ${rule.bandHeight}, 0 0`,
+        },
         gridColumn: { default: "span 2", [media.maxMd]: "1 / -1" },
     },
     install: {
@@ -216,15 +270,57 @@ const styles = style.create({
         cursor: "default",
     },
     poster: {
-        borderTopColor: rule.color,
-        borderTopStyle: "solid",
-        borderTopWidth: stroke.border,
+        backgroundImage: rule.band,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% ${rule.bandHeight}`,
         display: "block",
         gridColumn: "1 / -1",
         width: "100%",
     },
     letters: {
+        stroke: color.foreground,
+        strokeWidth: 6,
+    },
+    hatch: {
         fill: color.foreground,
+    },
+    block: {
+        backgroundImage: rule.band,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% ${rule.bandHeight}`,
+        paddingBlockStart: rule.bandHeight,
+        display: "grid",
+        gridColumn: "1 / -1",
+        gridTemplateColumns: {
+            default: "repeat(6, minmax(0, 1fr))",
+            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
+        },
+        margin: 0,
+    },
+    field: {
+        borderColor: rule.color,
+        borderStyle: "solid",
+        borderWidth: 0,
+        borderInlineStartWidth: { default: stroke.border, ":first-child": 0 },
+        display: "grid",
+        paddingBlock: "0.875rem",
+        paddingInline: frame.inset,
+        rowGap: "0.25rem",
+    },
+    fieldLabel: {
+        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
+        fontFamily: font.code,
+        fontSize: "0.625rem",
+        letterSpacing: tracking.label,
+        textTransform: "uppercase",
+    },
+    fieldValue: {
+        fontFamily: font.code,
+        fontSize: typeScale.label,
+        letterSpacing: tracking.label,
+        margin: 0,
+        overflowWrap: "anywhere",
+        textTransform: "uppercase",
     },
     dot: {
         fill: color.primary,
