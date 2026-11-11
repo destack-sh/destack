@@ -1,10 +1,10 @@
 # @destack/resource
 
-`defineResourceKind` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas (`management: "external"` for kinds whose resources live outside Destack, such as a third-party API), a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
+`defineKind` with `provisioned` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas (`management: "external"` for kinds whose resources live outside Destack, such as a third-party API), a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
 
 ```ts
 // a CRD's spec and status
-const DatabaseKind = defineResourceKind("database", { spec: DatabaseSpec, state: DatabaseState });
+const DatabaseKind = defineKind({ name: "database", provisioned: { spec: DatabaseSpec, state: DatabaseState } });
 const plan = await provider.reconcile.plan(record, desired); // terraform plan
 // terraform apply of a saved plan
 await provider.reconcile.apply(record, desired, await Plan.digest(plan, environment.crypto));
@@ -15,19 +15,20 @@ await database.get(new ResourceContext().bind(database, connection)).select().fr
 
 ## Declaring
 
-`declare` describes the resource a stack creates from a declaration, and an external kind such as `https` takes the connection whose credential its calls carry.
+`provision` describes the resource a stack creates from a declaration, and an external kind such as `https` takes the connection whose credential its calls carry.
 
 ```ts
-export default defineStack([vaultPackage], {
+export default defineStack({
+    types: [vaultPackage],
     buckets: {
-        files: files.declare({
+        files: files.provision({
             retention: { within: { days: 30 } },
             placement: { provider: "r2" },
         }),
     },
 });
 // an external API, called with the connection's credential
-const stripe = stripeApi.declare({ connection: stripeConnection });
+const stripe = stripeApi.provision({ connection: stripeConnection });
 ```
 
 ## Connectors

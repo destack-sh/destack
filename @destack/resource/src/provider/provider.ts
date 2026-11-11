@@ -1,25 +1,40 @@
 import type { Environment } from "@destack/environment";
-import { type Digest, schema } from "@destack/schema";
+import { type Digest, type JsonValue, schema } from "@destack/schema";
 import { ResourceId, type ResourceDeclaration } from "../declare/declaration.ts";
-import type { KindState, ResourceKind } from "../declare/kind.ts";
+import type { Kind, Provisioning } from "@destack/package";
 import type { Plan } from "../plan/plan.ts";
 import type { Recipient } from "@destack/identity";
 import { ResourceError } from "../error/index.ts";
 
 /** A resource as its space records it, its specification read by its kind. */
-export interface ResourceRecord<Kind extends ResourceKind = ResourceKind> {
+export interface ResourceRecord<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** The persistent resource identifier. */
     readonly id: ResourceId;
     /** The scope the resource lives in, such as its space. */
     readonly scope: string;
     /** The declared specification. */
-    readonly spec: schema.Infer<Kind["spec"]>;
+    readonly spec: schema.Infer<Provisioned["provisioned"]["spec"]>;
     /** The provider's reference once provisioned. */
     readonly reference: string | null;
 }
 
 /** Resources as their spaces record them. */
 export const ResourceRecord = {
+    /** Read a stored resource of a kind, refusing an invalid specification. */
+    of<Spec extends schema.Schema<JsonValue>>(
+        kind: Kind<schema.Schema, Provisioning<Spec>>,
+        stored: Omit<ResourceRecord, "spec"> & { readonly spec: unknown },
+    ): ResourceRecord<Kind<schema.Schema, Provisioning<Spec>>> {
+        return {
+            id: stored.id,
+            scope: stored.scope,
+            spec: kind.provisioned.spec.parse(stored.spec),
+            reference: stored.reference,
+        };
+    },
+
     /** Read a provisioned resource's reference, refusing an unprovisioned one. */
     reference(record: Pick<ResourceRecord, "reference">): string {
         if (record.reference === null) {
@@ -95,7 +110,7 @@ export interface Placement {
 
 /** A technology a host manages one kind's resources with. */
 export type Provider<
-    Kind extends ResourceKind = ResourceKind,
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
     Object = unknown,
     Handle = never,
     Table = never,
@@ -103,57 +118,70 @@ export type Provider<
     Controller = never,
 > = {
     /** The resource kind managed. */
-    readonly kind: Kind;
+    readonly kind: Provisioned;
     /** The provider code recorded on resources and bindings, such as sqlite. */
     readonly code: string;
     /** The object type the kind's resources are in their space, such as a vault. */
     readonly object: Object;
     /** Reconcile resources toward their kind's desired state. */
-    readonly reconcile?: Reconciler<Kind>;
+    readonly reconcile?: Reconciler<Provisioned>;
     /** Create and remove the resources the provider hosts. */
-    readonly provision?: Provisioner<Kind>;
+    readonly provision?: Provisioner<Provisioned>;
     /** Open the resources' content as a database. */
-    readonly open?: Opener<Kind, Handle>;
+    readonly open?: Opener<Provisioned, Handle>;
     /** Resolve a reference to where a workload on this host reaches the resource. */
     readonly resolve?: (reference: string) => string;
     /** Rewrap the rows the provider binds to its host for another host. */
     readonly rewrap?: Rewrapper<Table, Row>;
     /** Refuse writes into the resources' content while a transfer copies it. */
-    readonly fence?: Fence<Kind>;
+    readonly fence?: Fence<Provisioned>;
     /** Copy the resources' content at a point in time into a content-addressed store. */
-    readonly snapshot?: Snapshotter<Kind>;
+    readonly snapshot?: Snapshotter<Provisioned>;
     /** The controllers the host runs beside the provider, such as a sweep of resource content. */
     readonly controllers?: readonly Controller[];
-} & (unknown extends KindState<Kind>
+} & (unknown extends schema.Output<Provisioned["provisioned"]["state"]>
     ? unknown
-    : KindState<Kind> extends { readonly [Key in string]: never }
+    : schema.Output<Provisioned["provisioned"]["state"]> extends { readonly [Key in string]: never }
       ? { readonly reconcile?: never }
-      : { readonly reconcile: Reconciler<Kind> });
+      : { readonly reconcile: Reconciler<Provisioned> });
 
 /** Take a resource to the desired states its kind declares. */
-export interface Reconciler<Kind extends ResourceKind = ResourceKind> {
+export interface Reconciler<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** Plan the steps taking the resource to the union of the desired states. */
-    plan(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Plan>;
+    plan(
+        record: ResourceRecord<Provisioned>,
+        desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
+    ): Promise<Plan>;
     /** Apply the plan with the reviewed digest. */
     apply(
-        record: ResourceRecord<Kind>,
-        desired: readonly KindState<Kind>[],
+        record: ResourceRecord<Provisioned>,
+        desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
         digest: Digest,
     ): Promise<void>;
 }
 
 /** Create and remove resources the provider hosts. */
-export interface Provisioner<Kind extends ResourceKind = ResourceKind> {
+export interface Provisioner<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** Create or confirm the resource, returning the same reference each time. */
-    provision(record: ResourceRecord<Kind>): Promise<Placement>;
+    provision(record: ResourceRecord<Provisioned>): Promise<Placement>;
     /** Destroy the resource and everything it stores. */
-    destroy(record: ResourceRecord<Kind>): Promise<void>;
+    destroy(record: ResourceRecord<Provisioned>): Promise<void>;
 }
 
 /** Open a resource's content as a database, such as a database resource's file. */
-export interface Opener<Kind extends ResourceKind = ResourceKind, Handle = unknown> {
+export interface Opener<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+    Handle = unknown,
+> {
     /** Open the provisioned resource as its desired states describe it. */
-    open(record: ResourceRecord<Kind>, desired: readonly KindState<Kind>[]): Promise<Handle>;
+    open(
+        record: ResourceRecord<Provisioned>,
+        desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
+    ): Promise<Handle>;
 }
 
 /** Content-addressed storage of blobs in packs, laid out as the storage decides. */
@@ -220,18 +248,20 @@ export interface BlobEntry {
 }
 
 /** Copy a resource's content at a point in time into a content-addressed store. */
-export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
+export interface Snapshotter<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** Copy the resource's content into the store, and answer the digest of the copy. */
     snapshot(
-        record: ResourceRecord<Kind>,
-        desired: readonly KindState<Kind>[],
+        record: ResourceRecord<Provisioned>,
+        desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
         store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">,
         recipient?: Recipient,
     ): Promise<Digest>;
     /** Restore the copy a digest identifies into a provisioned resource. */
     restore(
-        record: ResourceRecord<Kind>,
-        desired: readonly KindState<Kind>[],
+        record: ResourceRecord<Provisioned>,
+        desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
         digest: Digest,
         store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">,
         recipient?: Recipient,
@@ -240,11 +270,13 @@ export interface Snapshotter<Kind extends ResourceKind = ResourceKind> {
 }
 
 /** Refuse writes into a resource's content while a transfer copies it. */
-export interface Fence<Kind extends ResourceKind = ResourceKind> {
+export interface Fence<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** Refuse every write into the resource's content until lifted. */
-    fence(record: ResourceRecord<Kind>): Promise<boolean>;
+    fence(record: ResourceRecord<Provisioned>): Promise<boolean>;
     /** Accept writes into the resource's content again. */
-    lift(record: ResourceRecord<Kind>): Promise<void>;
+    lift(record: ResourceRecord<Provisioned>): Promise<void>;
 }
 
 /** Rewrap the rows a provider binds to its host for another host. */

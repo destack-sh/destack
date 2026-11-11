@@ -1,6 +1,6 @@
 import type { Crypto } from "@destack/environment";
 import { compareJsonSchemas, Digest, schema, type JsonSchema, Version } from "@destack/schema";
-import { type Package, type DeclarationDescription } from "@destack/package";
+import { type PackageVersion, type DeclarationDescription } from "@destack/package";
 import { type PlanProblem, ResourceError, unreachablePlan } from "../error/error.ts";
 import { Address } from "./address.ts";
 
@@ -80,7 +80,7 @@ export interface ReleaseEntry {
     /** The description. */
     readonly description: DeclarationDescription["description"];
     /** The symbol's package at the release declaring it. */
-    readonly symbol: { readonly package: Package };
+    readonly symbol: { readonly package: PackageVersion };
 }
 
 /** A schema change between two releases of a declaration. */

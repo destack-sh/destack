@@ -1,5 +1,5 @@
 import { schema, Version } from "@destack/schema";
-import { graph, type Package } from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Address } from "./address.ts";
 import { Plan, Step, type Comparator } from "./plan.ts";
@@ -45,7 +45,7 @@ export type History = schema.Infer<typeof History>;
 /** Plan the upgrade from a package's latest release to a release declaring its declarations. */
 function planUpgrade(
     history: History,
-    release: Package,
+    release: PackageVersion,
     declarations: readonly graph.Declaration[],
     compare: (declaration: graph.Declaration) => Comparator | undefined,
 ): Upgrade {

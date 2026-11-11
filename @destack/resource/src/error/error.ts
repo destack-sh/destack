@@ -21,9 +21,8 @@ export const UnreachablePlan = schema.object({
 export type UnreachablePlan = schema.Infer<typeof UnreachablePlan>;
 
 /** The resource package's failures, each reason with the call error code it answers. */
-export const ResourceError = defineErrorFamily(
-    import.meta.destack.package,
-    {
+export const ResourceError = defineErrorFamily({
+    reasons: {
         // not found
         BLOB_NOT_FOUND: {},
 
@@ -47,8 +46,8 @@ export const ResourceError = defineErrorFamily(
         BINDING_BROKEN: {},
         CREDENTIAL_BROKEN: {},
     },
-    { audience: "host" },
-);
+    audience: "host",
+});
 
 /** A stable cause of resource failures. */
 export type ResourceReason = ReasonOf<typeof ResourceError>;
