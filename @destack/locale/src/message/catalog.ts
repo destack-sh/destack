@@ -51,16 +51,16 @@ export const Catalog = Object.assign(catalogSchema, {
         // require a catalog path and a catalog
         const at = Catalog.at(path);
         if (at === undefined) {
-            throw new TypeError(`not a catalog path: ${path}`);
+            throw new TypeError(`not a catalog path: '${path}'`);
         }
         const catalog = catalogSchema.parse(value);
 
         // require the package and the locale of the path
         const expected = at.dependency ?? owner;
         if (catalog.package !== expected) {
-            throw new TypeError(`catalog ${path} is for ${catalog.package}, not ${expected}`);
+            throw new TypeError(`catalog '${path}' is for '${catalog.package}', not '${expected}'`);
         } else if (catalog.locale !== at.locale) {
-            throw new TypeError(`catalog ${path} is for ${catalog.locale}, not ${at.locale}`);
+            throw new TypeError(`catalog '${path}' is for '${catalog.locale}', not '${at.locale}'`);
         }
 
         return catalog;

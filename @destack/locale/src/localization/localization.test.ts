@@ -183,6 +183,6 @@ test("render a message with the arguments its reader supplies, refusing one left
     // refuse an untyped message whose reader leaves an argument out
     const untyped: Message = shared;
     expect(() => localization.render(untyped, { author: "Ada" })).toThrow(
-        new TypeError("message failed to format: Variable not available: $count"),
+        new TypeError("could not format message: 'Variable not available: $count'"),
     );
 });

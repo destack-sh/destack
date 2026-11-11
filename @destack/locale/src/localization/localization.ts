@@ -161,7 +161,7 @@ function format(compiled: MessageFormat, values: Readonly<Record<string, unknown
     const [first] = errors;
     if (first !== undefined) {
         throw new TypeError(
-            `message failed to format: ${first instanceof Error ? first.message : JSON.stringify(first)}`,
+            `could not format message: '${first instanceof Error ? first.message : JSON.stringify(first)}'`,
         );
     }
 

@@ -53,7 +53,7 @@ test("leave each argument's value to the reader, naming its placeholder and its 
 
     // refuse an argument named like a positional placeholder
     expect(() => argument("p0")).toThrow(
-        new TypeError("message argument p0 must be a camel case name and not a positional name"),
+        new TypeError("message argument 'p0' must be a camel case name and not a positional name"),
     );
 });
 
@@ -75,12 +75,12 @@ test("refuse to write a message without the module the transform passes", async 
     expect(await refusal(() => t(strings))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "the Destack module transform passed no module to: t",
+        "call 't' is invalid: the Destack module transform passed it no module",
     ]);
     expect(await refusal(() => Message.context("button", undefined))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "the Destack module transform passed no module to: Message.context",
+        "call 'Message.context' is invalid: the Destack module transform passed it no module",
     ]);
 });
 
@@ -92,6 +92,6 @@ test("keep a message's values as JSON it travels as, refusing a value that is no
     const stored = Message.parse(JSON.parse(JSON.stringify(t`Saved ${3} notes in ${"Trips"}`)));
     expect(stored.values).toEqual({ p0: 3, p1: "Trips" });
     expect(() => t`Saved at ${new Map()}`).toThrow(
-        new TypeError("message value p0 is not a JSON value"),
+        new TypeError("message value 'p0' is not a JSON value"),
     );
 });

@@ -8,7 +8,9 @@ test("read language tags in their canonical casing and refuse malformed ones", (
         "zh-Hant-TW",
         "es-419",
     ]);
-    expect(() => Locale.parse("not a tag")).toThrow(new TypeError("not a language tag: not a tag"));
+    expect(() => Locale.parse("not a tag")).toThrow(
+        new TypeError("not a language tag: 'not a tag'"),
+    );
 });
 
 test("walk a tag's fallback chain through CLDR's parents, else its shorter tags, to the source language once", () => {

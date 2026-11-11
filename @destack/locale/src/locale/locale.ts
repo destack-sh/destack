@@ -74,7 +74,7 @@ export const Locale = {
     parse(tag: string): LocaleTag {
         const canonical = canonicalize(tag);
         if (canonical === undefined) {
-            throw new TypeError(`not a language tag: ${tag}`);
+            throw new TypeError(`not a language tag: '${tag}'`);
         }
 
         return canonical;
