@@ -7,12 +7,15 @@ import { Identifier, Instant, schema } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
 import { activity } from "./activity.ts";
 import { ObjectReference, type ReferenceColumns } from "@destack/sync";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A person's state of one activity in their home, beside the activity's replica. */
 export const notification = defineObject(
     {
         name: "notification",
         plural: "notifications",
+        title: t`${plural(argument("count"), { one: "Notification", other: "Notifications" })}`,
         scope: space,
         key: "activityId",
         fields: {
@@ -33,13 +36,17 @@ export const notification = defineObject(
             /** The scheduled summary it waits for, absent outside one. */
             summaryAt: field.time().optional(),
         },
-        permissions: { read: through("scope", "read"), plan: none() },
-        // expire a notification 180 days after it was planned, past its activity's expiry
-        expiring: [{ after: { days: 180 }, from: "plannedAt" }],
         constraints: {
             delivery: { kind: "index", on: ["deliveryAt"] },
             summary: { kind: "index", on: ["scope", "summaryAt"] },
         },
+        access: {
+            permissions: { read: through("scope", "read"), plan: none() },
+        },
+        traits: [
+            // expire a notification 180 days after it was planned, past its activity's expiry
+            expiring([{ after: { days: 180 }, from: "plannedAt" }]),
+        ],
     },
     (method) => ({
         /** Create the notification of an activity replica. */
@@ -53,7 +60,7 @@ export const notification = defineObject(
             fields: ["plannedAt", "deliveryAt", "delivered", "summaryAt"],
         }),
         /** Deliver its last occurrence to each destination due now, deferring the others. */
-        deliver: method.mutation({ permission: "plan", visibility: "package" }),
+        deliver: method.mutation({ title: t`Deliver`, permission: "plan", visibility: "package" }),
         /** Move every notification waiting for one summary to another, or out of any. */
         reschedule: method.updateMany("plan", {
             visibility: "package",
@@ -62,14 +69,15 @@ export const notification = defineObject(
         }),
 
         /** Mark it read now. */
-        read: method.mutation({ permission: "read", inverse: "unread" }),
+        read: method.mutation({ title: t`Read`, permission: "read", inverse: "unread" }),
         /** Mark it unread. */
-        unread: method.mutation({ permission: "read", inverse: "read" }),
+        unread: method.mutation({ title: t`Mark unread`, permission: "read", inverse: "read" }),
         /** Mark listed notifications read as of a time, each at its revision. */
         readMany: method.updateItems("read", { fields: ["readAt"] }),
 
         /** Defer it until a time in the future. */
         snooze: method.mutation({
+            title: t`Snooze`,
             permission: "read",
             input: schema.object({
                 /** When the snooze ends, in UTC epoch milliseconds. */
@@ -78,9 +86,9 @@ export const notification = defineObject(
         }),
 
         /** Move it out of the inbox until the activity occurs again. */
-        archive: method.mutation({ permission: "read", inverse: "unarchive" }),
+        archive: method.mutation({ title: t`Archive`, permission: "read", inverse: "unarchive" }),
         /** Move it back into the inbox. */
-        unarchive: method.mutation({ permission: "read", inverse: "archive" }),
+        unarchive: method.mutation({ title: t`Unarchive`, permission: "read", inverse: "archive" }),
     }),
 ).implement({
     methods: {

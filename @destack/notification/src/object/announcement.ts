@@ -8,6 +8,8 @@ import { space } from "@destack/account/object";
 
 import { NOTIFY_RECIPIENTS, NotificationKey, NotificationName } from "./activity.ts";
 import { REASONS } from "./subscription.ts";
+import { expiring, nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The principals an announcement notifies. */
 export const Audience = schema.discriminatedUnion("kind", [
@@ -38,8 +40,8 @@ export const announcement = defineObject(
     {
         name: "announcement",
         plural: "announcements",
+        title: t`${plural(argument("count"), { one: "Announcement", other: "Announcements" })}`,
         scope: space,
-        nested: { in: "any", receive: "announce" },
         fields: {
             /** The principal who announced it, absent for the system. */
             author: field.subject().personal().optional(),
@@ -70,14 +72,6 @@ export const announcement = defineObject(
             /** When the last batch was expanded. */
             expandedAt: field.time().optional(),
         },
-        permissions: {
-            read: through("parent", "read"),
-            // the source's readers announce what their calls do to it
-            post: through("parent", "read"),
-            expand: none(),
-        },
-        // expire an expanded announcement after 30 days
-        expiring: [{ after: { days: 30 }, from: "expandedAt" }],
         constraints: {
             key: {
                 kind: "unique",
@@ -92,9 +86,23 @@ export const announcement = defineObject(
                 ],
             },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                // the source's readers announce what their calls do to it
+                post: through("parent", "read"),
+                expand: none(),
+            },
+        },
+        traits: [
+            nested({ in: "any", add: "announce" }),
+            // expire an expanded announcement after 30 days
+            expiring([{ after: { days: 30 }, from: "expandedAt" }]),
+        ],
     },
     (method) => ({
         announce: method.mutation({
+            title: t`Announce`,
             permission: "post",
             target: "scope",
             visibility: "installation",
@@ -120,7 +128,7 @@ export const announcement = defineObject(
         }),
         post: method.create("post", { visibility: "package" }),
         replace: method.update("post", { visibility: "package" }),
-        expand: method.mutation({ permission: "expand", visibility: "package" }),
+        expand: method.mutation({ title: t`Expand`, permission: "expand", visibility: "package" }),
     }),
 );
 

@@ -9,6 +9,8 @@ import { space } from "@destack/account/object";
 import { ActionMetadata, ActionName, NotificationContent } from "../notification/content.ts";
 import { INTERRUPTION_LEVELS, Preference } from "../preference/preference.ts";
 import { REASONS } from "./subscription.ts";
+import { expiring, nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The most recipients one notify call lists: 100 inserts of about 0.3 ms. */
 export const NOTIFY_RECIPIENTS = 100;
@@ -27,8 +29,8 @@ export const activity = defineObject(
     {
         name: "activity",
         plural: "activities",
+        title: t`${plural(argument("count"), { one: "Activity", other: "Activities" })}`,
         scope: space,
-        nested: { in: "any", receive: "notify" },
         fields: {
             /** The person it is for. */
             recipient: field.subject().personal(),
@@ -69,14 +71,6 @@ export const activity = defineObject(
             /** The preference its recipient starts from. */
             preference: field.json(Preference),
         },
-        permissions: {
-            // the recipient reads it through its source
-            read: intersection(relation("recipient"), through("parent", "read")),
-            // the source's readers post what their calls do to it through their apps' code
-            post: through("parent", "read"),
-        },
-        // expire an activity after 180 days, as code forges expire notifications after five months
-        expiring: [{ after: { days: 180 }, from: "occurredAt" }],
         constraints: {
             key: {
                 kind: "unique",
@@ -94,9 +88,23 @@ export const activity = defineObject(
             thread: { kind: "index", on: ["scope", "recipientId", "thread", "packageId", "name"] },
             count: { kind: "check", condition: { count: { gte: 1 } } },
         },
+        access: {
+            permissions: {
+                // the recipient reads it through its source
+                read: intersection(relation("recipient"), through("parent", "read")),
+                // the source's readers post what their calls do to it through their apps' code
+                post: through("parent", "read"),
+            },
+        },
+        traits: [
+            nested({ in: "any", add: "notify" }),
+            // expire an activity after 180 days, as code forges expire notifications after five months
+            expiring([{ after: { days: 180 }, from: "occurredAt" }]),
+        ],
     },
     (method) => ({
         notify: method.mutation({
+            title: t`Notify`,
             permission: "post",
             target: "scope",
             visibility: "installation",
@@ -123,6 +131,7 @@ export const activity = defineObject(
         post: method.create("post", { visibility: "package" }),
         occur: method.update("post", { visibility: "package" }),
         act: method.mutation({
+            title: t`Act`,
             permission: "read",
             input: schema.object({
                 /** The declared action's name. */

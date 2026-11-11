@@ -19,8 +19,8 @@ test("describe a declared notification for manifests with its actions, and key i
     // describe the notification
     expect(describeNotification(mention)).toEqual({
         name: "mention",
-        title: "Mentions",
-        description: "Someone mentions you in a remark.",
+        title: mention.definition.title,
+        description: mention.definition.description,
         interruption: "active",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
         package: NOTES,
@@ -96,8 +96,8 @@ function declare(name: string, action: string, title: string) {
         defineNotification(
             {
                 name,
-                title: "Reviews",
-                description: "A review waits for you.",
+                title: t`Reviews`,
+                description: t`A review waits for you.`,
                 payload: schema.object({ id: schema.string() }),
                 interruption: "active",
                 preference: { channels: [], delivery: "immediate" },

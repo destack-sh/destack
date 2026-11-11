@@ -5,7 +5,7 @@ import {
     type ObjectType,
     type ResultOf,
 } from "@destack/object";
-import { defineDeclarationKind, Package } from "@destack/package";
+import { defineKind, PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { Duration, JsonValue, schema, toJsonSchema, zip } from "@destack/schema";
 import { NotificationError } from "../error/error.ts";
@@ -31,9 +31,9 @@ export const NotificationMetadata = schema.object({
     /** The name, in camel case. */
     name: NotificationName,
     /** The label settings show. */
-    title: schema.string().min(1),
+    title: Message,
     /** What it tells. */
-    description: schema.string().min(1),
+    description: Message,
     /** How strongly it interrupts. */
     interruption: schema.enum(INTERRUPTION_LEVELS),
     /** The preference recipients start from. */
@@ -43,7 +43,7 @@ export const NotificationMetadata = schema.object({
 /** A notification as manifests describe it. */
 export const NotificationDescription = NotificationMetadata.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
     /** The payload's JSON Schema. */
     payload: schema.jsonObject(),
     /** The content every channel shows, its arguments the payload's fields. */
@@ -59,7 +59,10 @@ export const NotificationDescription = NotificationMetadata.extend({
 export type NotificationDescription = schema.Infer<typeof NotificationDescription>;
 
 /** The notification declaration kind, which notification defines and other packages declare. */
-export const NOTIFICATION_KIND = defineDeclarationKind("notification", NotificationDescription);
+export const NOTIFICATION_KIND = defineKind({
+    name: "notification",
+    description: NotificationDescription,
+});
 
 /** The payload fields a notification's messages take as arguments. */
 export type PayloadField<Payload extends schema.Schema> = keyof schema.Infer<Payload> & string;
@@ -72,9 +75,9 @@ export interface NotificationDefinition<
     /** The name, in camel case. */
     readonly name: string;
     /** The label settings show, such as "Mentions". */
-    readonly title: string;
+    readonly title: Message;
     /** What it tells. */
-    readonly description: string;
+    readonly description: Message;
     /** The payload schema. */
     readonly payload: Payload;
     /** How strongly it interrupts. */
@@ -96,7 +99,7 @@ export interface NotificationDefinition<
 /** A declared notification. */
 export class NotificationType<Payload extends schema.Schema = schema.Schema> {
     /** The declaring package's release. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name. */
     readonly name: string;
     /** The declaration beside its actions. */
@@ -108,7 +111,7 @@ export class NotificationType<Payload extends schema.Schema = schema.Schema> {
 
     /** Create a declared type and derive its preference setting. */
     constructor(
-        owner: Package,
+        owner: PackageVersion,
         definition: Omit<NotificationDefinition<Payload>, "actions">,
         actions: readonly Action[],
     ) {

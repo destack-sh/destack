@@ -9,46 +9,43 @@ import { announcement } from "./object/announcement.ts";
 import { notification } from "./object/notification.ts";
 import { summary } from "./object/summary.ts";
 import { subscription } from "./object/subscription.ts";
+import { t } from "@destack/locale";
 
 /** The handle stacks install notifications by, and clients call a space's inbox through. */
 export default definePackage({
-    objects: {
-        activity,
-        announcement,
-        subscription,
-        notification,
-        summary,
-    },
-    permissions: {
-        space: {
-            // plan notifications and summaries, expand announcements and send their messages in the space
-            space: [
-                notification.permission("plan"),
-                summary.permission("plan"),
-                announcement.permission("expand"),
-                message.permission("send"),
-                message.permission("read"),
-                message.permission("control"),
-                messageAttempt.permission("record"),
-                // read the notifications installed builds declare, from their index
-                build.permission("read"),
-                declaration.permission("read"),
-                catalog.permission("read"),
-            ],
+    objects: [activity, announcement, subscription, notification, summary],
+    access: {
+        permissions: {
+            space: {
+                // plan notifications and summaries, expand announcements and send their messages in the space
+                space: [
+                    notification.permission("plan"),
+                    summary.permission("plan"),
+                    announcement.permission("expand"),
+                    message.permission("send"),
+                    message.permission("read"),
+                    message.permission("control"),
+                    messageAttempt.permission("record"),
+                    // read the notifications installed builds declare, from their index
+                    build.permission("read"),
+                    declaration.permission("read"),
+                    catalog.permission("read"),
+                ],
+            },
         },
     },
-    capabilities: {
-        // deliver a person's notifications from their home
-        [DELIVER_CAPABILITY]: {
-            reason: "Deliver your notifications by email, push and on your desktops",
+    capabilities: [
+        {
+            name: DELIVER_CAPABILITY,
+            reason: t`Deliver your notifications by email, push and on your desktops`,
             optional: true,
             permissions: { space: { universe: [user.permission("recipient")] } },
         },
-        // push to people's browsers
-        [PUSH_CAPABILITY]: {
-            reason: "Send notifications to your browsers and devices as pushes",
+        {
+            name: PUSH_CAPABILITY,
+            reason: t`Send notifications to your browsers and devices as pushes`,
             optional: true,
         },
-    },
+    ],
     errors: NotificationError,
 });

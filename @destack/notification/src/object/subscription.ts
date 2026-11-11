@@ -3,6 +3,8 @@ import { intersection, relation, through } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { ObjectReference, type Subject } from "@destack/sync";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** Why a principal hears about an object, as code forges' notification reasons. */
 export const REASONS = ["author", "mention", "assigned", "participating", "subscribed"] as const;
@@ -15,22 +17,25 @@ export const subscription = defineObject(
     {
         name: "subscription",
         plural: "subscriptions",
+        title: t`${plural(argument("count"), { one: "Subscription", other: "Subscriptions" })}`,
         scope: space,
-        nested: { in: "any", receive: "subscribe" },
         fields: {
             /** The subscriber. */
             owner: field.subject().caller(),
             /** Why the principal is subscribed. */
             reason: field.enum(REASONS).default("subscribed" satisfies Reason),
         },
-        permissions: {
-            own: intersection(relation("owner"), through("parent", "subscribe")),
-            // the source's readers subscribe others
-            subscribe: through("parent", "read"),
-        },
         constraints: {
             owner: { kind: "unique", on: ["parentPackageId", "parentType", "parentId", "ownerId"] },
         },
+        access: {
+            permissions: {
+                own: intersection(relation("owner"), through("parent", "subscribe")),
+                // the source's readers subscribe others
+                subscribe: through("parent", "read"),
+            },
+        },
+        traits: [nested({ in: "any", add: "subscribe" })],
     },
     (method) => ({
         /** Subscribe the caller to the parent, once. */

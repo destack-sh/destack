@@ -1,20 +1,21 @@
 import { space, user } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
-import { argument, type Catalog, Message, plural } from "@destack/locale";
-import { defineObject, field, PackageHandle } from "@destack/object";
+import { argument, type Catalog, Message, plural, t } from "@destack/locale";
+import { defineObject, field, Package } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import { testBuild } from "@destack/object/test";
 import type { Crypto } from "@destack/environment";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { present, schema } from "@destack/schema";
 import { ObjectReference, Subject } from "@destack/sync";
 import { defineNotification } from "../declare/index.ts";
 import { activity, announcement, subscription } from "../object/index.ts";
 import notificationPackage from "../package.ts";
+import { shareable } from "@destack/object";
 
 /** The documents application, whose calls notify the people sharing its documents. */
-export const NOTES = Package.parse({
+export const NOTES = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@alice/notes",
     version: "2026.9.0",
@@ -33,6 +34,7 @@ export const document = defineObject(
     {
         name: "document",
         plural: "documents",
+        title: t`${plural(argument("count"), { one: "Document", other: "Documents" })}`,
         scope: space,
         fields: {
             /** The principal who created the document. */
@@ -42,43 +44,50 @@ export const document = defineObject(
             /** The principal who approved it, absent until approved. */
             approvedBy: field.subject().optional(),
         },
-        relations: {
-            editor: { subjects: [principal.user] },
-            viewer: { subjects: [principal.user] },
-        },
-        permissions: {
-            read: union(relation("owner"), relation("editor"), relation("viewer")),
-            edit: union(relation("owner"), relation("editor")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [
             activity.attach({ by: "read" }),
             announcement.attach({ by: "read" }),
             subscription.attach({ by: "read" }),
         ],
+        access: {
+            relations: {
+                editor: { subjects: [principal.user] },
+                viewer: { subjects: [principal.user] },
+            },
+            permissions: {
+                read: union(relation("owner"), relation("editor"), relation("viewer")),
+                edit: union(relation("owner"), relation("editor")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage", { fields: ["title"] }),
-        remark: method.mutation({ permission: "read", input: Remark }),
+        remark: method.mutation({ title: t`Remark`, permission: "read", input: Remark }),
         reply: method.mutation({
+            title: t`Reply`,
             permission: "read",
             input: schema.object({ text: schema.string().min(1) }),
         }),
         publish: method.mutation({
+            title: t`Publish`,
             permission: "edit",
             input: schema.object({ state: schema.enum(["publishing", "published", "failed"]) }),
         }),
         request: method.mutation({
+            title: t`Request`,
             permission: "edit",
             input: schema.object({ reviewer: Subject }),
         }),
-        approve: method.mutation({ permission: "edit" }),
+        approve: method.mutation({ title: t`Approve`, permission: "edit" }),
         edit: method.mutation({
+            title: t`Edit`,
             permission: "edit",
             input: schema.object({ summary: schema.string() }),
         }),
         broadcast: method.mutation({
+            title: t`Broadcast`,
             permission: "manage",
             input: schema.object({
                 audience: schema.enum(["subscribers", "members", "editors"]),
@@ -205,8 +214,8 @@ export const changes = write`${plural(argument("count"), { one: "# change", othe
 export const mention = defineNotification(
     {
         name: "mention",
-        title: "Mentions",
-        description: "Someone mentions you in a remark.",
+        title: t`Mentions`,
+        description: t`Someone mentions you in a remark.`,
         payload: schema.object({ author: schema.string(), excerpt: schema.string().max(280) }),
         interruption: "active",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -232,8 +241,8 @@ export const mention = defineNotification(
 export const review = defineNotification(
     {
         name: "review",
-        title: "Review requests",
-        description: "A document waits for your approval.",
+        title: t`Review requests`,
+        description: t`A document waits for your approval.`,
         payload: schema.object({ title: schema.string() }),
         interruption: "timeSensitive",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -248,8 +257,8 @@ export const review = defineNotification(
 export const change = defineNotification(
     {
         name: "change",
-        title: "Changes",
-        description: "A document you follow changed.",
+        title: t`Changes`,
+        description: t`A document you follow changed.`,
         payload: schema.object({ summary: schema.string() }),
         interruption: "active",
         preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -263,8 +272,8 @@ export const change = defineNotification(
 export const status = defineNotification(
     {
         name: "status",
-        title: "Publishing status",
-        description: "Where publishing a document stands.",
+        title: t`Publishing status`,
+        description: t`Where publishing a document stands.`,
         payload: schema.object({ state: schema.enum(["publishing", "published", "failed"]) }),
         interruption: "passive",
         preference: { channels: ["desktop", "push"], delivery: "immediate" },
@@ -289,7 +298,7 @@ const NOTES_CATALOG: Catalog = {
 };
 
 /** The documents package's handle. */
-export const notesPackage = PackageHandle.of(NOTES, { objects: { document } });
+export const notesPackage = Package.of(NOTES, { objects: [document] });
 
 /** The documents package's server. */
 export const notesServer = implementPackage(notesPackage, { objects: [documentHandlers] });

@@ -3,6 +3,7 @@ import { PlainTime, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
 import { CHANNELS, Preference } from "../preference/preference.ts";
 import { Window } from "../preference/window.ts";
+import { t } from "@destack/locale";
 
 /** The most quiet windows one focus schedules: two per day for a week. */
 const WINDOW_COUNT = 14;
@@ -13,8 +14,8 @@ const SUMMARY_COUNT = 12;
 /** When notifications stay quiet, as mobile platforms' focus modes. */
 export const focus = defineSetting({
     name: "focus",
-    title: "Focus",
-    description: "When notifications wait in the inbox instead of alerting you.",
+    title: t`Focus`,
+    description: t`When notifications wait in the inbox instead of alerting you.`,
     schema: schema.object({
         /** The quiet hours. */
         schedules: schema.array(Window).max(WINDOW_COUNT),
@@ -27,28 +28,25 @@ export const focus = defineSetting({
     }),
     default: { schedules: [], allowed: [], isTimeSensitiveAllowed: true },
     scope: "user",
-    overrides: [],
-    apply: "immediate",
 });
 
 /** How a person receives each notification, by its key, as notification channels do. */
 export const preferences = defineSetting({
     name: "preferences",
-    title: "Notifications",
-    description: "How each app's notifications reach you.",
+    title: t`Notifications`,
+    description: t`How each app's notifications reach you.`,
     schema: schema.record(schema.string(), Preference),
     default: {},
     scope: "user",
     overrides: ["space"],
     merge: "key",
-    apply: "immediate",
 });
 
 /** When the scheduled summary goes out, and on which channels. */
 export const summarySchedule = defineSetting({
     name: "summary",
-    title: "Scheduled summary",
-    description: "When notifications set to arrive in a summary are sent, and how.",
+    title: t`Scheduled summary`,
+    description: t`When notifications set to arrive in a summary are sent, and how.`,
     schema: schema.object({
         /** The times of day it goes out. */
         times: schema.array(PlainTime).min(1).max(SUMMARY_COUNT),
@@ -58,7 +56,6 @@ export const summarySchedule = defineSetting({
     default: { times: ["08:00", "18:00"], channels: ["email"] },
     scope: "user",
     overrides: ["space"],
-    apply: "immediate",
 });
 
 /** When notifications stay quiet. */
