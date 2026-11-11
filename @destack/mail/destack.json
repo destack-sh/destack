@@ -19,8 +19,7 @@
         "defineMail": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "mail",
                     "function": "./inspect#describeMail"
                 }
             ]

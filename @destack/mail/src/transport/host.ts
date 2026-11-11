@@ -1,5 +1,5 @@
 import type { Connector, Provider } from "@destack/resource";
-import { type MailDeclaration, MailKind } from "../declare/mail.ts";
+import { MailKind } from "../declare/mail.ts";
 import type { MailTransport } from "./mail.ts";
 
 /** Provide a host's mail resources under its provider code, which need nothing provisioned. */
@@ -19,10 +19,7 @@ export function mailProvider<Client>(
 }
 
 /** Connect bound mail resources to a host's transport under its provider code. */
-export function mailConnector(
-    code: string,
-    transport: MailTransport,
-): Connector<MailTransport, MailDeclaration> {
+export function mailConnector(code: string, transport: MailTransport): Connector<MailTransport> {
     return {
         code,
         connect: async () => ({

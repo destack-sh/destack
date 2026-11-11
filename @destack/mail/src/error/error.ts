@@ -23,34 +23,36 @@ export const SesFailure = schema.object({
 export type SesFailure = schema.Infer<typeof SesFailure>;
 
 /** The mail package's failures, each reason with the call error code it answers. */
-export const MailError = defineErrorFamily(import.meta.destack.package, {
-    // invalid
-    ADDRESS_INVALID: {},
-    COMMAND_INVALID: { data: SmtpReply },
-    DATE_INVALID: {},
-    ENVELOPE_INVALID: {},
-    HEADER_INVALID: {},
-    KEY_INVALID: {},
-    MESSAGE_INVALID: { data: SesFailure },
-    REQUEST_INVALID: { data: SesFailure },
-    SENDER_INVALID: { data: SesFailure },
+export const MailError = defineErrorFamily({
+    reasons: {
+        // invalid
+        ADDRESS_INVALID: {},
+        COMMAND_INVALID: { data: SmtpReply },
+        DATE_INVALID: {},
+        ENVELOPE_INVALID: {},
+        HEADER_INVALID: {},
+        KEY_INVALID: {},
+        MESSAGE_INVALID: { data: SesFailure },
+        REQUEST_INVALID: { data: SesFailure },
+        SENDER_INVALID: { data: SesFailure },
 
-    // exhausted
-    PROVIDER_EXHAUSTED: { data: SesFailure },
+        // exhausted
+        PROVIDER_EXHAUSTED: { data: SesFailure },
 
-    // unavailable
-    COMMAND_UNAVAILABLE: { data: SmtpReply },
-    CREDENTIALS_UNAVAILABLE: { data: SesFailure },
-    PROVIDER_UNAVAILABLE: { data: SesFailure },
-    SENDING_UNAVAILABLE: { data: SesFailure },
+        // unavailable
+        COMMAND_UNAVAILABLE: { data: SmtpReply },
+        CREDENTIALS_UNAVAILABLE: { data: SesFailure },
+        PROVIDER_UNAVAILABLE: { data: SesFailure },
+        SENDING_UNAVAILABLE: { data: SesFailure },
 
-    // unreachable
-    EXTENSION_UNREACHABLE: {},
-    PROVIDER_UNREACHABLE: {},
-    RESPONSE_UNREACHABLE: {},
+        // unreachable
+        EXTENSION_UNREACHABLE: {},
+        PROVIDER_UNREACHABLE: {},
+        RESPONSE_UNREACHABLE: {},
 
-    // broken
-    CREDENTIALS_BROKEN: { data: SesFailure },
+        // broken
+        CREDENTIALS_BROKEN: { data: SesFailure },
+    },
 });
 
 /** A stable cause of mail failures. */
