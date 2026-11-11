@@ -1,6 +1,6 @@
 import { AuditTarget } from "./execution.ts";
 import { schema, type JsonValue } from "@destack/schema";
-import { ModuleMetadata, Package } from "@destack/package";
+import { ModuleMetadata, PackageVersion } from "@destack/package";
 
 /** A package-local action name in the form noun.verb. */
 export const AuditActionName = schema
@@ -12,7 +12,7 @@ export const AuditActionDescription = schema.object({
     /** The package-local noun.verb action name. */
     name: AuditActionName,
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
     /** A short description. */
     description: schema.string().exactOptional(),
     /** The JSON Schema of the object each call acts on. */
@@ -29,7 +29,7 @@ export interface AuditAction<
     Details extends schema.Schema<JsonValue> = schema.Schema<JsonValue>,
 > {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The package-local noun.verb action name. */
     readonly name: string;
     /** A short description for inspection. */
@@ -53,6 +53,6 @@ export function defineAuditAction<
 
     return Object.freeze({
         ...definition,
-        package: Package.parse(ModuleMetadata.require(module, "defineAuditAction").package),
+        package: PackageVersion.parse(ModuleMetadata.require(module, "defineAuditAction").package),
     });
 }

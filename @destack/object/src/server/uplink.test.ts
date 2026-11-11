@@ -14,6 +14,7 @@ import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestObjectStore } from "../test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space whose store replicates the people it joined. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000041");
@@ -26,15 +27,19 @@ const person = defineObject(
     {
         name: "person",
         plural: "people",
+        title: t`${plural(argument("count"), { one: "Person", other: "People" })}`,
         scope: "universe",
-        isScope: true,
         fields: { name: field.string() },
-        relations: { joined: { subjects: [principal.space], grantedBy: null } },
-        permissions: { read: relation("joined"), write: relation("joined") },
+        container: "scope",
+        access: {
+            relations: { joined: { subjects: [principal.space], grantedBy: null } },
+            permissions: { read: relation("joined"), write: relation("joined") },
+        },
     },
     (method) => ({
         update: method.update("write", { fields: ["name"] }),
         greeting: method.query({
+            title: t`Greeting`,
             permission: "read",
             output: schema.object({ greeting: schema.string() }),
         }),
@@ -52,9 +57,12 @@ const greeted = person.implement({
 const label = defineObject({
     name: "label",
     plural: "labels",
+    title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
     scope: "universe",
     fields: { text: field.string() },
-    permissions: { read: none() },
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** The space's grant to its installation. */

@@ -5,17 +5,19 @@ import { ObjectError } from "../error/error.ts";
 import { Execution } from "./execution.ts";
 import { MethodBuilder } from "./record.ts";
 import type { ResourceTable } from "../trait/provisioned.ts";
+import { t } from "@destack/locale";
 /** The method declarations of provisioned resources. */
 export const provisionedMethod = new MethodBuilder<ResourceTable<unknown>>();
 
 /** Cancel a retiring resource's deletion, as its declaration declares it again. */
 export const restore = provisionedMethod
-    .mutation({ permission: "declare", visibility: "installation" })
+    .mutation({ title: t`Restore`, permission: "declare", visibility: "installation" })
     .handle((context) => context.update({ deletedAt: null }));
 
 /** Write the desired states' digests and the approval threshold. */
 export const specify = Execution.handle(
     provisionedMethod.mutation({
+        title: t`Specify`,
         permission: "declare",
         visibility: "installation",
         input: schema.object({

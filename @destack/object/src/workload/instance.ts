@@ -4,7 +4,7 @@ import { ObjectError } from "../error/error.ts";
 import type { Authentication } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import { Server, type ServerOptions, type PackageHandler } from "../server/index.ts";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 import { type Alarm, AlarmClock, AlarmStorage } from "@destack/db";
 import { Health } from "../server/health.ts";
 
@@ -147,17 +147,17 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 
     /** The served packages, in workload order. */
-    get packages(): readonly PackageHandle[] {
+    get packages(): readonly Package[] {
         return this.#current.packages;
     }
 
     /** Report whether the workload serves a package. */
-    has(handle: PackageHandle): boolean {
+    has(handle: Package): boolean {
         return this.#current.has(handle);
     }
 
     /** Report whether a package implements a request's route of another package's types. */
-    implements(handle: PackageHandle, protocol: string, request: Request): boolean {
+    implements(handle: Package, protocol: string, request: Request): boolean {
         return this.#current.implements(handle, protocol, request);
     }
 
@@ -191,11 +191,7 @@ export class WorkloadInstance implements AsyncDisposable {
     }
 
     /** Dispatch a request to a package the current start serves. */
-    fetch(
-        handle: PackageHandle,
-        request: Request,
-        authentication?: Authentication,
-    ): Promise<Response> {
+    fetch(handle: Package, request: Request, authentication?: Authentication): Promise<Response> {
         return this.#current.fetch(handle, request, authentication);
     }
 
@@ -224,7 +220,7 @@ class WorkloadStart {
     readonly #packages = new Map<
         string,
         {
-            readonly handle: PackageHandle;
+            readonly handle: Package;
             readonly handler: PackageHandler;
             readonly server: Server;
             readonly protocols: ReadonlyMap<string, readonly RegExp[]>;
@@ -383,7 +379,7 @@ class WorkloadStart {
     }
 
     /** Report whether a package implements a request's route of another package's types. */
-    implements(handle: PackageHandle, protocol: string, request: Request): boolean {
+    implements(handle: Package, protocol: string, request: Request): boolean {
         const { pathname } = new URL(request.url);
         const routes = this.#packages.get(handle.id)?.protocols.get(protocol) ?? [];
 
@@ -391,7 +387,7 @@ class WorkloadStart {
     }
 
     /** The served packages, in workload order. */
-    get packages(): readonly PackageHandle[] {
+    get packages(): readonly Package[] {
         return [...this.#packages.values()].map((served) => served.handle);
     }
 
@@ -403,7 +399,7 @@ class WorkloadStart {
     }
 
     /** Report whether the start serves a package. */
-    has(handle: PackageHandle): boolean {
+    has(handle: Package): boolean {
         return this.#packages.has(handle.id);
     }
 
@@ -443,11 +439,7 @@ class WorkloadStart {
     }
 
     /** Dispatch a request to a served package. */
-    fetch(
-        handle: PackageHandle,
-        request: Request,
-        authentication?: Authentication,
-    ): Promise<Response> {
+    fetch(handle: Package, request: Request, authentication?: Authentication): Promise<Response> {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
@@ -515,7 +507,7 @@ export interface WorkloadInstanceOptions {
     readonly environment: Environment;
     /** Select the server options of one served package. */
     readonly serverOptions: (
-        handle: PackageHandle,
+        handle: Package,
     ) => Omit<
         ServerOptions,
         keyof PackageHandler | "health" | "resources" | "environment" | "report"

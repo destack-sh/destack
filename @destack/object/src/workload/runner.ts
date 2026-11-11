@@ -12,7 +12,7 @@ import type { Telemetry, TelemetryOptions } from "@destack/telemetry/sdk";
 import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 
 import { refusal } from "../error/report.ts";
 import { Egress } from "../declare/egress.ts";
@@ -67,7 +67,7 @@ export class WorkloadRunner implements AsyncDisposable {
     /** The running instance. */
     readonly instance: WorkloadInstance;
     /** The workload's served packages, by package id. */
-    readonly #packages: ReadonlyMap<string, PackageHandle>;
+    readonly #packages: ReadonlyMap<string, Package>;
     /** The bound resources' clients, disposed once the instance drains. */
     readonly #connections: AsyncDisposableStack;
     /** The WebSockets the host hibernates for the instance. */
@@ -85,7 +85,7 @@ export class WorkloadRunner implements AsyncDisposable {
     private constructor(
         start: WorkloadStart,
         instance: WorkloadInstance,
-        packages: ReadonlyMap<string, PackageHandle>,
+        packages: ReadonlyMap<string, Package>,
         running: RunnerTelemetry,
         connections: AsyncDisposableStack,
         hibernation: Hibernation,
@@ -389,7 +389,7 @@ export class WorkloadRunner implements AsyncDisposable {
                 runner.connectors?.[binding.provider] ?? declaration?.connectors[binding.provider];
             if (
                 declaration === undefined ||
-                declaration.kind !== binding.kind ||
+                declaration.kind.name !== binding.kind ||
                 connector === undefined
             ) {
                 throw ObjectError.of(

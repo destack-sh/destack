@@ -24,8 +24,8 @@ import {
     type JsonSchema,
 } from "@destack/schema";
 import { Expression } from "@destack/db";
-import type { Package } from "@destack/package";
-import type { PackageHandle } from "../declare/package.ts";
+import type { PackageVersion } from "@destack/package";
+import type { Package } from "../declare/package.ts";
 
 import type { Health } from "./health.ts";
 import { ProcedureContext, type ProcedureAudit } from "./procedure.ts";
@@ -108,7 +108,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
     /** Refuse unserved releases and convert earlier inputs as JSON. */
     static #releasePlugin<State extends RequestState>(
-        served: PackageHandle,
+        served: Package,
         metas: ReadonlyMap<string, ProcedureMetadata>,
         telemetry: Environment["telemetry"],
     ): NonNullable<OpenAPIHandlerOptions<State>["plugins"]>[number] {
@@ -200,7 +200,7 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
     }
 
     /** Require a request's release within those of the procedure's package the server serves. */
-    static #requireRelease(request: Request, defining: Package, served: PackageHandle): Version {
+    static #requireRelease(request: Request, defining: PackageVersion, served: Package): Version {
         // read the caller's release, and the oldest one a served package's procedures take
         const header = request.headers.get(VERSION_HEADER);
         const caller = header === null ? undefined : Version.safeParse(header).data;
@@ -348,7 +348,7 @@ export type RequestState = Context & { readonly request: Request };
 /** The options of a request handler. */
 export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOptions<State> {
     /** The package the handler serves, with the release callers must use. */
-    package: PackageHandle;
+    package: Package;
     /** The health. */
     health: Health;
     /** The environment calls run in, whose tracers, meters and clock time them. */

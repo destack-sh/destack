@@ -1,7 +1,7 @@
 import { oc } from "@orpc/contract";
 import { DECLARED_ERRORS } from "../error/call.ts";
 import { schema, Version } from "@destack/schema";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { Expression } from "@destack/db";
 import { PermissionReference, type Permission, type Policy } from "@destack/access/declare";
 import { ObjectTypeReference } from "@destack/sync";
@@ -45,7 +45,7 @@ export type ProcedureAccess = schema.Infer<typeof ProcedureAccess>;
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
 const procedureMeta = ProcedureAccess.extend({
     /** The package defining the procedure, whose releases its callers speak. */
-    package: Package,
+    package: PackageVersion,
     /** The input fields each release computes from an earlier input's fields. */
     convert: schema
         .record(Version, schema.record(schema.string().min(1), Expression.schema))
@@ -77,33 +77,38 @@ export const ProcedureMetadata = Object.assign(procedureMeta, {
 /** A procedure's declared requirements and the conversions of inputs from earlier releases. */
 export type ProcedureMetadata = schema.Infer<typeof procedureMeta>;
 
-/** Declare a procedure with its access requirements and the conversions of earlier inputs. */
-export function defineProcedure(
-    meta: Omit<ProcedureMetadata, "permission"> & {
-        readonly permission:
-            | Permission
-            | { readonly rows: Permission }
-            | "rows"
-            | { readonly principals: readonly [Policy, ...Policy[]] }
-            | "anyone";
+/** The procedures object types and replicas derive, as oRPC contracts with their access. */
+export const Procedure = {
+    /** Declare a procedure with its access requirements and the conversions of earlier inputs. */
+    of(
+        meta: Omit<ProcedureMetadata, "permission"> & {
+            readonly permission:
+                | Permission
+                | { readonly rows: Permission }
+                | "rows"
+                | { readonly principals: readonly [Policy, ...Policy[]] }
+                | "anyone";
+        },
+    ) {
+        // refuse anyone on a procedure requiring credentials
+        const { permission } = meta;
+        if (permission === "anyone" && meta.authentication !== "public") {
+            throw new TypeError("a procedure for anyone needs public authentication");
+        }
+
+        // take the principal kinds by reference
+        const declared: ProcedurePermission =
+            typeof permission === "object" && "principals" in permission
+                ? {
+                      principals: permission.principals.map((kind) => ({
+                          packageId: kind.definition.packageId,
+                          type: kind.definition.name,
+                      })),
+                  }
+                : permission;
+
+        return oc
+            .$meta<ProcedureMetadata>({ ...meta, permission: declared })
+            .errors(DECLARED_ERRORS);
     },
-) {
-    // refuse anyone on a procedure requiring credentials
-    const { permission } = meta;
-    if (permission === "anyone" && meta.authentication !== "public") {
-        throw new TypeError("a procedure for anyone needs public authentication");
-    }
-
-    // take the principal kinds by reference
-    const declared: ProcedurePermission =
-        typeof permission === "object" && "principals" in permission
-            ? {
-                  principals: permission.principals.map((kind) => ({
-                      packageId: kind.definition.packageId,
-                      type: kind.definition.name,
-                  })),
-              }
-            : permission;
-
-    return oc.$meta<ProcedureMetadata>({ ...meta, permission: declared }).errors(DECLARED_ERRORS);
-}
+};

@@ -3,7 +3,7 @@ import type { Environment } from "@destack/environment";
 import type { Example } from "@destack/package/declare";
 import { type Call, type ObjectTypeReference, RequestId, type Subject } from "@destack/sync";
 import { type ClientOptions, type ClientTarget, createClient } from "../client/package.ts";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 import type { ObjectType } from "../object/object.ts";
 import { MethodContext } from "../method/context.ts";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
@@ -22,15 +22,15 @@ export interface TestServed {
     /** The simulation of that world, which a caller waits on for each answer. */
     readonly simulation: Simulation;
     /** Read the server of a served package, refusing another. */
-    readonly server: (handle: PackageHandle) => Pick<Server, "fetch">;
+    readonly server: (handle: Package) => Pick<Server, "fetch">;
     /** Read a served object type with its package, absent for a type served nowhere. */
     readonly type: (
         reference: ObjectTypeReference,
-    ) => { readonly type: ObjectType; readonly handle: PackageHandle } | undefined;
+    ) => { readonly type: ObjectType; readonly handle: Package } | undefined;
     /** Read the one served object type of a name with its package, absent if served nowhere. */
     readonly named: (
         name: string,
-    ) => { readonly type: ObjectType; readonly handle: PackageHandle } | undefined;
+    ) => { readonly type: ObjectType; readonly handle: Package } | undefined;
     /** Sign a request as a caller of a package. */
     readonly sign: (request: Request, signer: TestSigner) => Promise<Request>;
 }
@@ -58,14 +58,14 @@ export class TestCaller {
 
     /** Call a package's typed client at the package implementing it, its own by default. */
     client<Definition extends ProcedureRouter>(
-        handle: PackageHandle & ClientTarget<Definition>,
-        implementer: PackageHandle = handle,
+        handle: Package & ClientTarget<Definition>,
+        implementer: Package = handle,
     ): Client<Definition> {
         return createClient(handle, this.endpoint(implementer), this.#served.environment);
     }
 
     /** Address a served package through a fetch that signs each request. */
-    endpoint(handle: PackageHandle): ClientOptions & {
+    endpoint(handle: Package): ClientOptions & {
         readonly fetch: (request: Request) => Promise<Response>;
     } {
         return {

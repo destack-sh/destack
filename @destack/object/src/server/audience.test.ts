@@ -25,36 +25,46 @@ import { SubscriptionAudience } from "./audience.ts";
 import objectPackage from "../package.ts";
 import { tablesOf } from "../index.ts";
 import { TestObjectStore } from "../test/index.ts";
+import { nested, propagated } from "../index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The spaces the notebooks live in. */
 const space = defineObject({
     name: "space",
     plural: "spaces",
+    title: t`${plural(argument("count"), { one: "Space", other: "Spaces" })}`,
     scope: "universe",
-    isScope: true,
-    partition: true,
     fields: {},
-    permissions: { read: none() },
+    container: "partition",
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** Notebooks of a space, read by their viewers and by people with a role granting it. */
 const notebook = defineObject({
     name: "notebook",
     plural: "notebooks",
+    title: t`${plural(argument("count"), { one: "Notebook", other: "Notebooks" })}`,
     scope: space,
     fields: { name: field.string() },
-    relations: { viewer: { subjects: [principal.user] } },
-    permissions: { read: relation("viewer") },
+    access: {
+        relations: { viewer: { subjects: [principal.user] } },
+        permissions: { read: relation("viewer") },
+    },
 });
 
 /** Notes in notebooks, read by whoever reads their notebook. */
 const note = defineObject({
     name: "note",
     plural: "notes",
+    title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
     scope: space,
-    nested: { in: notebook, delete: "cascade", receive: "read" },
     fields: { title: field.string() },
-    permissions: { read: through("parent", "read") },
+    access: {
+        permissions: { read: through("parent", "read") },
+    },
+    traits: [nested({ in: notebook, delete: "cascade", add: "read" })],
 });
 
 /** How long the shared notebook stays shared, in milliseconds. */
@@ -239,20 +249,26 @@ test("decide again after changes of the caller's access, and leave other identit
 const shelf = defineObject({
     name: "shelf",
     plural: "shelves",
+    title: t`${plural(argument("count"), { one: "Shelf", other: "Shelves" })}`,
     scope: space,
     fields: {},
-    relations: { viewer: { subjects: [principal.user] } },
-    permissions: { read: relation("viewer") },
+    access: {
+        relations: { viewer: { subjects: [principal.user] } },
+        permissions: { read: relation("viewer") },
+    },
 });
 
 /** Albums read by whoever reads the shelf a relationship puts them on. */
 const album = defineObject({
     name: "album",
     plural: "albums",
+    title: t`${plural(argument("count"), { one: "Album", other: "Albums" })}`,
     scope: space,
     fields: {},
-    relations: { shelf: { subjects: [shelf] }, owner: { subjects: [principal.user] } },
-    permissions: { read: union(relation("owner"), through("shelf", "read")) },
+    access: {
+        relations: { shelf: { subjects: [shelf] }, owner: { subjects: [principal.user] } },
+        permissions: { read: union(relation("owner"), through("shelf", "read")) },
+    },
 });
 
 test("decide again once a relationship an arrow follows changes, and leave another identity's relationship alone", async () => {
@@ -451,31 +467,39 @@ test("decide the keys an account propagates to its space like its own rows, by t
     const account = defineObject({
         name: "account",
         plural: "accounts",
+        title: t`${plural(argument("count"), { one: "Account", other: "Accounts" })}`,
         scope: "universe",
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const room = defineObject({
         name: "room",
         plural: "rooms",
+        title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
         scope: account,
-        isScope: true,
-        partition: true,
         fields: {},
-        permissions: { read: none() },
+        container: "partition",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const key = defineObject({
         name: "key",
         plural: "keys",
+        title: t`${plural(argument("count"), { one: "Key", other: "Keys" })}`,
         scope: [account, room],
-        propagated: {},
         fields: { name: field.string() },
-        relations: {
-            consumer: { subjects: [principal.user] },
-            reader: { subjects: [principal.user] },
+        access: {
+            relations: {
+                consumer: { subjects: [principal.user] },
+                reader: { subjects: [principal.user] },
+            },
+            permissions: { read: relation("reader"), use: relation("consumer") },
         },
-        permissions: { read: relation("reader"), use: relation("consumer") },
+        traits: [propagated({})],
     });
     const storage = await TestDatabase.create(
         tablesOf({

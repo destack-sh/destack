@@ -2,9 +2,9 @@ import { Message } from "@destack/locale";
 import * as accessExports from "@destack/access";
 import { Policy, PolicySubject } from "@destack/access";
 import { TABLE, type Table } from "@destack/db";
-import { defineDeclarationKind, DeclarationName, graph, Package } from "@destack/package";
+import { defineKind, graph, Kind, KIND_JSON, PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import { NO_STATE, ResourceDeclaration, ResourceKind, ResourceManagement } from "@destack/resource";
+import { ResourceDeclaration } from "@destack/resource";
 import {
     fromJsonSchema,
     present,
@@ -15,7 +15,6 @@ import {
 } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
 import { field, Field, FIELD_MODIFIERS } from "../field/field.ts";
-import type { FileBucket } from "../field/file.ts";
 import { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
 import { ObjectType, type ObjectDefinition } from "./object.ts";
@@ -194,7 +193,7 @@ const objectDescription = schema.object({
     /** The type's name, the name of its declaration. */
     name: schema.string().min(1),
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
     /** The definition as written beside its name, special values tagged. */
     definition: schema.jsonObject(),
 });
@@ -214,7 +213,7 @@ const PERMISSION_VERBS: Readonly<Record<string, string>> = {
 const DeclaredDescriptions = schema.record(schema.string(), Message);
 
 /** The kind of the declarations `defineObject` makes, which object defines. */
-export const OBJECT_KIND = defineDeclarationKind("object", objectDescription);
+export const OBJECT_KIND = defineKind({ name: "object", description: objectDescription });
 
 /** A scope as a description encodes it, read as the reference of its object type or its policy. */
 const EncodedScope = schema
@@ -447,13 +446,13 @@ export class ObjectTypePool {
             case "$table":
                 return this.#requireTable(value);
             case "$kind":
-                return DescribedKind.decode(value);
-            case "$bucket":
-                return DescribedBucket.decode(value);
+                return Kind.fromJSON(value);
+            case "$resource":
+                return ResourceDeclaration.fromJSON(value);
             case "$lazy":
                 return () => this.decode(present(value, "the lazy declaration"));
             case "$schema":
-                return fromJsonSchema(DescribedSchema.parse(value));
+                return fromJsonSchema(schema.jsonObject().parse(value));
             case "$field":
                 return this.#replay(field, FIELD_MODIFIERS, BuilderCalls.parse(value));
             case "$method":
@@ -649,10 +648,10 @@ class Position {
             return { $policy: value.typeReference };
         } else if (value instanceof PolicySubject) {
             return this.encode(value.type());
-        } else if (value instanceof ResourceKind) {
-            return { $kind: DescribedKind.of(value) };
+        } else if (value instanceof Kind) {
+            return { $kind: value.toJSON() };
         } else if (value instanceof ResourceDeclaration) {
-            return { $bucket: DescribedBucket.of(value) };
+            return { $resource: value.toJSON() };
         }
         // write exported code as its export path, preserving its identity
         else if (exported !== undefined) {
@@ -725,84 +724,6 @@ class Position {
     }
 }
 
-/** A JSON Schema as a description stores it. */
-const DescribedSchema = schema.jsonObject();
-
-/** A resource kind as a description stores it: its package, name and schemas. */
-const DescribedKind = Object.assign(
-    schema.object({
-        /** The declaring package. */
-        package: Package,
-        /** The kind's name. */
-        name: DeclarationName,
-        /** The schema of a declaration's specification. */
-        spec: DescribedSchema,
-        /** The schema of the desired state its providers reconcile, null for a kind without one. */
-        state: DescribedSchema.nullable(),
-        /** Whether Destack creates its resources, or they live outside it. */
-        management: ResourceManagement,
-    }),
-    {
-        /** Describe a resource kind: its package, name, JSON Schemas and whether it is lent. */
-        of(
-            kind: Pick<
-                ResourceKind,
-                "package" | "name" | "spec" | "state" | "isStateful" | "management"
-            >,
-        ): JsonObject {
-            return {
-                package: identity(kind.package),
-                name: kind.name,
-                spec: JsonValue.object(toJsonSchema(kind.spec)),
-                state: kind.isStateful ? JsonValue.object(toJsonSchema(kind.state)) : null,
-                management: kind.management,
-            };
-        },
-
-        /** Rebuild a resource kind a description stores. */
-        decode(value: JsonValue | undefined): ResourceKind {
-            const { package: owner, name, spec, state, management } = DescribedKind.parse(value);
-
-            return new ResourceKind(
-                owner,
-                name,
-                fromJsonSchema(spec),
-                state === null ? NO_STATE : fromJsonSchema(state),
-                management,
-            );
-        },
-    },
-);
-
-/** A bucket as a description stores it: its package, name and specification. */
-const DescribedBucket = Object.assign(
-    schema.object({
-        /** The declaring package. */
-        package: Package,
-        /** The bucket's name. */
-        name: DeclarationName,
-        /** The bucket's specification. */
-        spec: schema.jsonObject(),
-    }),
-    {
-        /** Describe a bucket as data: its package, name and specification. */
-        of(bucket: {
-            readonly package: Package;
-            readonly name: string;
-            readonly spec: Readonly<Record<string, JsonValue>>;
-        }): JsonObject {
-            return { package: identity(bucket.package), name: bucket.name, spec: bucket.spec };
-        },
-
-        /** Rebuild a bucket a description stores. */
-        decode(value: JsonValue | undefined): FileBucket {
-            const { package: owner, ...bucket } = DescribedBucket.parse(value);
-
-            return new ResourceDeclaration(owner, { ...bucket, kind: "bucket" });
-        },
-    },
-);
-
 /** A chain of builder calls as data. */
 const BuilderCalls = schema
     .array(
@@ -818,7 +739,7 @@ const DescribedDefinition = schema.looseObject({
     storage: schema.string().exactOptional(),
     /** The resource kind the type provisions, absent on a type provisioning none. */
     provisioned: schema
-        .looseObject({ kind: schema.looseObject({ $kind: DescribedKind }) })
+        .looseObject({ kind: schema.looseObject({ $kind: KIND_JSON }) })
         .exactOptional(),
 });
 
@@ -841,7 +762,7 @@ function isList(value: readonly JsonValue[] | JsonObject): value is readonly Jso
 }
 
 /** Read only a package's identity. */
-function identity(owner: Package): Package {
+function identity(owner: PackageVersion): PackageVersion {
     return { id: owner.id, name: owner.name, version: owner.version };
 }
 

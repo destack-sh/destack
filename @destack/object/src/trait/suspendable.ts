@@ -1,8 +1,10 @@
 import { integer } from "@destack/db";
 import { type Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
-import type { Gated, Trait } from "./trait.ts";
+import type { TraitPermission, TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
+import { t } from "@destack/locale";
 
 /** The methods suspendable scope objects take. */
 export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
@@ -13,7 +15,7 @@ export type SuspendableMethodMap<Suspend> = [Suspend] extends [string]
     : {};
 
 /** Scope objects that can be suspended. */
-export const suspendable: Trait<Gated> & {
+const suspendableTrait: TraitBehavior<TraitPermission> & {
     /** Declare the method suspending a scope object. */
     readonly suspend: <const Permission extends string>(
         permission: Permission,
@@ -48,7 +50,7 @@ export const suspendable: Trait<Gated> & {
     resume: (permission) => suspendable.change(permission, "resume", "suspend"),
     change(permission, action, inverse) {
         return Execution.handle(
-            method.mutation({ permission, inverse, isPredicted: false }),
+            method.mutation({ title: t`Change`, permission, inverse, isPredicted: false }),
             async (call, execution) => {
                 // record it on the row, which the scope's home follows, and on the scope where it is home here
                 const store = Execution.store(execution, call);
@@ -65,6 +67,9 @@ export const suspendable: Trait<Gated> & {
         );
     },
 };
+
+/** The suspendable trait, callable to declare it on an object type. */
+export const suspendable = callableTrait("suspendable", suspendableTrait);
 
 /** Build the column recording when a scope object was suspended. */
 export function suspensionColumns() {

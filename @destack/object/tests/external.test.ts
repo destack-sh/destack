@@ -1,7 +1,7 @@
 import { testSimulation } from "../src/test/index.ts";
 import { defineObject, field, ObjectDescription } from "../src/index.ts";
 import { users } from "./fixture/user.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { defineDatabase, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { none, principal, through } from "@destack/access";
@@ -18,6 +18,8 @@ import objectPackage from "../src/package.ts";
 import { openSpace, space, unmoved, spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** An entry's natural key: the notebook's term, as a moniker identifies a symbol. */
 const Term = schema.string().regex(/^term:[A-Za-z]+$/u);
@@ -27,12 +29,15 @@ const entry = defineObject(
     {
         name: "entry",
         plural: "entries",
+        title: t`${plural(argument("count"), { one: "Entry", other: "Entries" })}`,
         scope: space,
         storage: "external",
         key: "term",
-        nested: { in: notebook, receive: "read" },
         fields: { term: field.string(Term) },
-        permissions: { read: through("parent", "read") },
+        access: {
+            permissions: { read: through("parent", "read") },
+        },
+        traits: [nested({ in: notebook, add: "read" })],
     },
     undefined,
     { package: notebook.package },
@@ -43,17 +48,21 @@ const lookup = defineObject(
     {
         name: "lookup",
         plural: "lookups",
+        title: t`${plural(argument("count"), { one: "Lookup", other: "Lookups" })}`,
         scope: space,
         fields: {
             /** The term looked up. */
             term: field.string(),
         },
-        permissions: { read: through("scope", "read"), write: through("scope", "read") },
+        access: {
+            permissions: { read: through("scope", "read"), write: through("scope", "read") },
+        },
     },
     (method) => ({
         create: method.create("write"),
         /** Read an entry's term from inside a mutation. */
         look: method.mutation({
+            title: t`Look`,
             permission: "write",
             target: "scope",
             input: schema.object({ term: Term }),
@@ -166,10 +175,7 @@ test("read external objects named by their key from the database their files ope
     ]);
 
     // follow the entries in a client's live query, through the external replica
-    const notebooks = definePackage(
-        { objects: { notebook, entry } },
-        { package: notebook.package },
-    );
+    const notebooks = definePackage({ objects: [notebook, entry] }, { package: notebook.package });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [
@@ -179,7 +185,7 @@ test("read external objects named by their key from the database their files ope
             ],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(notebooks) },
+            origin: { package: PackageVersion.of(notebooks) },
             principal: spacePrincipal(spaceId),
             database: durable.database,
             callKey: testCallKey,
@@ -221,13 +227,21 @@ function declareMark(visibility: MethodVisibility) {
         {
             name: "mark",
             plural: "marks",
+            title: t`${plural(argument("count"), { one: "Mark", other: "Marks" })}`,
             scope: space,
             storage: "external",
             fields: { term: field.string() },
-            permissions: { receive: none() },
+            access: {
+                permissions: { receive: none() },
+            },
         },
         (method) => ({
-            receive: method.mutation({ permission: "receive", target: "scope", visibility }),
+            receive: method.mutation({
+                title: t`Receive`,
+                permission: "receive",
+                target: "scope",
+                visibility,
+            }),
         }),
     );
 }

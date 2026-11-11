@@ -8,32 +8,36 @@ import { space } from "./space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
 import { invitation } from "../../src/access/index.ts";
+import { nested, recoverable, shareable } from "../../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A body of work in a space, planned by its members and followed by its viewers. */
 export const project = defineObject(
     {
         name: "project",
         plural: "projects",
+        title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(schema.string().min(1).max(200)),
         },
-        recoverable: { within: { days: 30 }, by: "manage" },
-        relations: {
-            member: {
-                subjects: [user],
+        access: {
+            relations: {
+                member: {
+                    subjects: [user],
+                },
+                viewer: {
+                    subjects: [user],
+                },
             },
-            viewer: {
-                subjects: [user],
+            permissions: {
+                read: union(relation("owner"), relation("member"), relation("viewer")),
+                plan: union(relation("owner"), relation("member")),
+                manage: relation("owner"),
             },
         },
-        permissions: {
-            read: union(relation("owner"), relation("member"), relation("viewer")),
-            plan: union(relation("owner"), relation("member")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
+        traits: [recoverable({ within: { days: 30 }, by: "manage" }), shareable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage"),
@@ -46,8 +50,8 @@ export const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: space,
-        nested: { in: project, delete: "cascade", receive: "plan" },
         fields: {
             author: field.reference(principal.user).caller(),
             title: field.string(schema.string().min(1).max(500)),
@@ -66,12 +70,15 @@ export const task = defineObject(
                 },
             }),
         },
-        permissions: {
-            read: union(relation("assignee"), through("parent", "read")),
-            work: union(relation("assignee"), through("parent", "plan")),
-            plan: through("parent", "plan"),
-            manage: through("parent", "manage"),
+        access: {
+            permissions: {
+                read: union(relation("assignee"), through("parent", "read")),
+                work: union(relation("assignee"), through("parent", "plan")),
+                plan: through("parent", "plan"),
+                manage: through("parent", "manage"),
+            },
         },
+        traits: [nested({ in: project, delete: "cascade", add: "plan" })],
     },
     (method) => ({
         create: method.create("plan"),
@@ -85,13 +92,16 @@ export const comment = defineObject(
     {
         name: "comment",
         plural: "comments",
+        title: t`${plural(argument("count"), { one: "Comment", other: "Comments" })}`,
         scope: space,
-        nested: { in: task, delete: "cascade", receive: "read" },
         fields: {
             author: field.reference(principal.user).caller(),
             text: field.string(schema.string().min(1).max(10_000)),
         },
-        permissions: { read: through("parent", "read"), edit: relation("author") },
+        access: {
+            permissions: { read: through("parent", "read"), edit: relation("author") },
+        },
+        traits: [nested({ in: task, delete: "cascade", add: "read" })],
     },
     (method) => ({
         create: method.create("read"),
@@ -101,7 +111,7 @@ export const comment = defineObject(
 );
 
 /** Projects, tasks and comments, with their sharing and sync. */
-export const tasksPackage = definePackage({ objects: { project, task, comment, invitation } });
+export const tasksPackage = definePackage({ objects: [project, task, comment, invitation] });
 
 /** The database of one space's projects, tasks and comments. */
 export const tasksDatabase = defineDatabase({

@@ -12,19 +12,23 @@ import { TestAccess } from "@destack/access/test";
 import type { DatabaseConnection } from "@destack/db";
 import { Identifier } from "@destack/schema";
 import { defineObject } from "../../src/index.ts";
+import { shareable } from "../../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The spaces the example objects live in. */
 export const space = defineObject({
     name: "space",
     plural: "spaces",
+    title: t`${plural(argument("count"), { one: "Space", other: "Spaces" })}`,
     scope: "universe",
-    isScope: true,
-    partition: true,
     fields: {},
-    relations: { reader: { subjects: [principal.user, anyone.all()] } },
-    // let its owner manage it, as an account's space does, whose managers approve its plans
-    permissions: { read: relation("reader"), manage: none(), share: none() },
-    shareable: { by: "share" },
+    container: "partition",
+    access: {
+        relations: { reader: { subjects: [principal.user, anyone.all()] } },
+        // let its owner manage it, as an account's space does, whose managers approve its plans
+        permissions: { read: relation("reader"), manage: none(), share: none() },
+    },
+    traits: [shareable({ by: "share" })],
 });
 
 /** Reference a space as the principal its server's work runs as. */

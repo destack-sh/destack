@@ -21,6 +21,7 @@ import { request, type RequestInput } from "./fixture/request.ts";
 import { createRouterClient } from "@destack/object/server";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the shelves. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000011");
@@ -30,13 +31,16 @@ const book = defineObject(
     {
         name: "book",
         plural: "books",
+        title: t`${plural(argument("count"), { one: "Book", other: "Books" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             shelf: field.string(schema.string().min(1)),
             isTidy: field.boolean().default(false),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["shelf"] }),
@@ -50,13 +54,16 @@ const slip = defineObject(
     {
         name: "slip",
         plural: "slips",
+        title: t`${plural(argument("count"), { one: "Slip", other: "Slips" })}`,
         scope: space,
         fields: {
             borrower: field.reference(principal.user).caller(),
             shelf: field.string(),
             isReturned: field.boolean().default(false),
         },
-        permissions: { read: relation("borrower"), issue: none() },
+        access: {
+            permissions: { read: relation("borrower"), issue: none() },
+        },
     },
     (method) => ({
         issue: method.create("issue", { visibility: "package" }),
@@ -69,27 +76,34 @@ const shelf = defineObject(
     {
         name: "shelf",
         plural: "shelves",
+        title: t`${plural(argument("count"), { one: "Shelf", other: "Shelves" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), name: field.string() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["name"] }),
         tidy: method.mutation({
+            title: t`Tidy`,
             permission: "write",
             output: schema.object({ count: schema.number() }),
         }),
         straighten: method.mutation({
+            title: t`Straighten`,
             permission: "write",
             input: schema.object({ book: schema.string() }),
         }),
         lend: method.mutation({
+            title: t`Lend`,
             permission: "write",
             input: schema.object({ borrower: schema.identifier("user") }),
             output: schema.object({ slip: schema.string() }),
         }),
-        misfile: method.mutation({ permission: "write" }),
+        misfile: method.mutation({ title: t`Misfile`, permission: "write" }),
         forge: method.mutation({
+            title: t`Forge`,
             permission: "write",
             input: schema.object({ borrower: schema.identifier("user") }),
         }),

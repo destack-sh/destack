@@ -4,7 +4,7 @@ import { users } from "./fixture/user.ts";
 import { implementPackage } from "../src/server/index.ts";
 import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema, type Identifier, Uuid } from "@destack/schema";
 import { CallError } from "@destack/object";
 import { project, task, tasksDatabase, tasksPackage } from "./fixture/task.ts";
@@ -36,7 +36,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
             servers: [implementPackage(tasksPackage, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(tasksPackage) },
+            origin: { package: PackageVersion.of(tasksPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(database, world),
@@ -218,7 +218,7 @@ test("serve a handled type in place of the package's type", async () => {
             servers: [implementPackage(tasksPackage, { objects: [frozen] })],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(tasksPackage) },
+            origin: { package: PackageVersion.of(tasksPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),

@@ -5,7 +5,7 @@ import { TestDatabase } from "@destack/db/test";
 import { present, schema, Uuid } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { defineObject, field } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -14,12 +14,14 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { Scope } from "@destack/sync";
+import { audited } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the lockers. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
 
 /** A package hosting other packages' objects in its store. */
-const HOST = Package.parse({
+const HOST = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000f1",
     name: "@example/host",
     version: "2026.10.0",
@@ -30,19 +32,24 @@ const locker = defineObject(
     {
         name: "locker",
         plural: "lockers",
+        title: t`${plural(argument("count"), { one: "Locker", other: "Lockers" })}`,
         scope: space,
-        audited: { reads: true },
         fields: { owner: field.reference(principal.user).caller(), version: field.integer() },
-        permissions: { read: relation("owner") },
+        access: {
+            permissions: { read: relation("owner") },
+        },
+        traits: [audited({ reads: true })],
     },
     (method) => ({
         open: method.query({
+            title: t`Open`,
             permission: "read",
             output: schema.object({ version: schema.number(), value: schema.string() }),
             audit: { details: schema.object({ version: schema.number() }) },
         }),
         /** Check the locker with an outside system, an audited external effect. */
         check: method.query({
+            title: t`Check`,
             permission: "read",
             output: schema.object({ isLocked: schema.boolean() }),
             isAudited: true,

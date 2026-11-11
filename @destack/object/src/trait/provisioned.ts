@@ -1,7 +1,8 @@
+import { callableTrait } from "./trait.ts";
 import { principal, relation, none } from "@destack/access";
 import type { Select, Table } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { ResourcePlacement, ResourceRetention, type ResourceKind } from "@destack/resource";
+import { ResourcePlacement, ResourceRetention } from "@destack/resource";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { field, type FieldsByColumn } from "../field/field.ts";
@@ -21,6 +22,7 @@ import type { RolePermission } from "./shareable.ts";
 import type { Erasure } from "./trait.ts";
 
 import { restore, specify } from "../method/provisioned.ts";
+import type { Kind, Provisioning } from "@destack/package";
 
 /** The constraints every resource takes. */
 const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
@@ -51,13 +53,15 @@ const RESOURCE_CONSTRAINTS: Readonly<Record<string, ObjectConstraint>> = {
 };
 
 /** Objects that are a kind's resources, provisioned by the kind's providers. */
-export interface ProvisionedDefinition<Kind extends ResourceKind = ResourceKind> {
+export interface ProvisionedDefinition<
+    Provisioned extends Kind<schema.Schema, Provisioning> = Kind<schema.Schema, Provisioning>,
+> {
     /** The resource kind, whose specification the objects store. */
-    readonly kind: Kind;
+    readonly kind: Provisioned;
 }
 
 /** The fields of a kind's resources. */
-function resourceFields(kind: ResourceKind) {
+function resourceFields(kind: Kind<schema.Schema, Provisioning>) {
     return {
         /** The name, unique among the kind's resources in its scope. */
         name: field.string(),
@@ -68,7 +72,7 @@ function resourceFields(kind: ResourceKind) {
         /** The definition's exported name in the release manifest. */
         definitionName: field.string(),
         /** The desired specification. */
-        spec: field.json(kind.spec),
+        spec: field.json(kind.provisioned.spec),
         /** The desired states the active consumers need, which the provider applies. */
         states: field.blobs().default([]),
         /** The desired states only draining consumers need, until they stop. */
@@ -95,12 +99,14 @@ function resourceFields(kind: ResourceKind) {
 }
 
 /** The fields a definition provisioned as a kind's resources takes, none otherwise. */
-export type ProvisionedFieldsOf<Provisioning> = Provisioning extends {
-    readonly kind: infer Kind extends ResourceKind;
+export type ProvisionedFieldsOf<Definition> = Definition extends {
+    readonly kind: infer Provisioned extends Kind<schema.Schema, Provisioning>;
 }
     ? Omit<ReturnType<typeof resourceFields>, "spec"> & {
           /** The desired specification, typed by the kind. */
-          readonly spec: ReturnType<typeof field.json<schema.Output<Kind["spec"]>>>;
+          readonly spec: ReturnType<
+              typeof field.json<schema.Output<Provisioned["provisioned"]["spec"]>>
+          >;
       }
     : {};
 
@@ -127,12 +133,12 @@ export type ResourceType<Scope> =
 export type Resource = Select<ResourceTable<"space">>;
 
 /** The permission every resource takes, none for other objects. */
-export type ProvisionedPermissionOf<Provisioning> = [Provisioning] extends [undefined]
+export type ProvisionedPermissionOf<Provisioned> = [Provisioned] extends [undefined]
     ? never
     : "write" | RolePermission;
 
 /** The traits every resource takes, none for other objects. */
-export type ProvisionedTraitsOf<Provisioning> = [Provisioning] extends [undefined]
+export type ProvisionedTraitsOf<Provisioned> = [Provisioned] extends [undefined]
     ? {}
     : {
           readonly controlled: { readonly approval: true };
@@ -140,12 +146,12 @@ export type ProvisionedTraitsOf<Provisioning> = [Provisioning] extends [undefine
       };
 
 /** How resources are shared, through the roles, or as a definition declares otherwise. */
-export type ProvisionedSharingOf<Provisioning, Sharing> = [Provisioning] extends [undefined]
+export type ProvisionedSharingOf<Provisioned, Sharing> = [Provisioned] extends [undefined]
     ? Sharing
     : {};
 
 /** The methods every resource takes, none for other objects. */
-export type ProvisionedMethodsOf<Provisioning> = [Provisioning] extends [undefined]
+export type ProvisionedMethodsOf<Provisioned> = [Provisioned] extends [undefined]
     ? {}
     : ReturnType<typeof resourceMethods>;
 
@@ -253,3 +259,6 @@ function resourceMethods() {
         specify,
     };
 }
+
+/** The provisioned trait, callable to declare it on an object type. */
+export const provisioned = callableTrait("provisioned", {});

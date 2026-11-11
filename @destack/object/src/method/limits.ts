@@ -12,8 +12,13 @@ export type LimitKey = "scope" | "caller" | { readonly input: string };
 export interface Limits {
     /** How many start per period, and at most at once after idling. */
     readonly rate?: { readonly count: number; readonly every: Duration; readonly burst?: number };
-    /** How many advance at once, for workflows' runs. */
-    readonly concurrency?: { readonly slots: number };
+    /** How many advance at once, for workflows' runs, and how long a run keeps its slot. */
+    readonly concurrency?: {
+        /** The runs advancing at once. */
+        readonly slots: number;
+        /** How long a run keeps its slot: until each advance ends, or until the run ends. */
+        readonly until?: "advance" | "end";
+    };
     /** Whose limit each counts against, its scope's by default. */
     readonly key?: LimitKey;
 }

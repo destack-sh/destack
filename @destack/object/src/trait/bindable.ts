@@ -3,7 +3,13 @@ import type { schema } from "@destack/schema";
 import type { Procedure } from "../method/procedure.ts";
 import { bind, ConsumerInput, type ConsumerMethod } from "../method/bindable.ts";
 import { method } from "../method/record.ts";
-import { type Gated, derivePermissions, type Trait } from "./trait.ts";
+import {
+    type TraitPermission,
+    derivePermissions,
+    type TraitBehavior,
+    callableTrait,
+} from "./trait.ts";
+import { t } from "@destack/locale";
 
 /** The relation of an object's consumers. */
 export const CONSUMER = "consumer";
@@ -14,7 +20,7 @@ const BIND = "bind";
 /** The methods of bindable objects: binding them where their rows live, and one at a time. */
 export type BindableMethodMap<Bindable> = [Bindable] extends [undefined]
     ? {}
-    : [Bindable] extends [Gated<infer Permission>]
+    : [Bindable] extends [TraitPermission<infer Permission>]
       ? {
             readonly bind: typeof bind;
             readonly bindConsumer: ConsumerMethod<Permission>;
@@ -31,7 +37,7 @@ export type BindableProcedures = {
 };
 
 /** Objects that installations and machines bind to and consume, such as secrets. */
-export const bindable: Trait<true | Gated> & {
+const bindableTrait: TraitBehavior<true | TraitPermission> & {
     /** Declare the method binding or releasing one consumer's object, leaving its other objects. */
     readonly consumer: <const Permission extends string>(
         permission: Permission,
@@ -67,7 +73,13 @@ export const bindable: Trait<true | Gated> & {
     ): ConsumerMethod<Permission> {
         const inverse = action === "bind" ? "releaseConsumer" : "bindConsumer";
         return method
-            .mutation({ permission, input: ConsumerInput, inverse, isPredicted: false })
+            .mutation({
+                title: t`Read consumer`,
+                permission,
+                input: ConsumerInput,
+                inverse,
+                isPredicted: false,
+            })
             .handle(async (context) => {
                 // read the consumer's objects of the type in the scope
                 const { consumer } = context.input;
@@ -97,3 +109,6 @@ export const bindable: Trait<true | Gated> & {
             });
     },
 };
+
+/** The bindable trait, callable to declare it on an object type. */
+export const bindable = callableTrait("bindable", bindableTrait);

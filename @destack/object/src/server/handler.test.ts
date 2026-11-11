@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { AccessError, none, Policy, principal } from "@destack/access";
 import { DatabaseError } from "@destack/db";
 import { schema } from "@destack/schema";
@@ -6,7 +6,7 @@ import { expect, test } from "@destack/test";
 import { createClient } from "../client/index.ts";
 import { conceal, CallError } from "../error/index.ts";
 import { Health } from "./health.ts";
-import { defineProcedure, eventIterator } from "../procedure/index.ts";
+import { Procedure, eventIterator } from "../procedure/index.ts";
 import { fixturePackage } from "../test/fixture.ts";
 import { testSimulation } from "../test/world.ts";
 import { implement, RequestHandler, type HandlerOptions } from "./handler.ts";
@@ -55,8 +55,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         permissions: { read: none() },
     });
     const procedures = {
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: notes.permission("read"),
             audit: "access",
@@ -275,8 +275,8 @@ test("withhold streamed values after access revocation", async () => {
     let isClosed = false;
     const outcomes: string[] = [];
     const procedures = {
-        watch: defineProcedure({
-            package: Package.of(fixturePackage),
+        watch: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: "access",
@@ -346,8 +346,8 @@ test("answer a failure thrown by a handler with the status its code declares", a
     const world = testSimulation().environment("test");
     // throw the SERVICE_UNAVAILABLE code from a handler
     const procedures = {
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -397,8 +397,8 @@ test("answer a lower package's failure with the call error it names, and an unkn
     const world = testSimulation().environment("test");
     // throw a database failure, an access challenge and an unknown failure from handlers
     const procedures = {
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,

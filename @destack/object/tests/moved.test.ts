@@ -18,16 +18,19 @@ import { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A labelled marker of a space, whose label stays editable while the space moves. */
 const marker = defineObject(
     {
         name: "marker",
         plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
         scope: space,
         fields: { label: field.string() },
-        shareable: {},
-        moving: ["write"],
+        access: { moving: ["write"] },
+        traits: [shareable({})],
     },
     (method) => ({
         create: method.create("manage"),

@@ -14,6 +14,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the posts are written in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -23,12 +24,18 @@ const post = defineObject(
     {
         name: "post",
         plural: "posts",
+        title: t`${plural(argument("count"), { one: "Post", other: "Posts" })}`,
         scope: space,
         fields: { author: field.reference(principal.user), title: field.string() },
-        permissions: { read: relation("author"), write: relation("author") },
-        limits: { create: { rate: { count: 2, every: { minutes: 1 } }, key: "caller" } },
+        access: {
+            permissions: { read: relation("author"), write: relation("author") },
+        },
     },
-    (method) => ({ create: method.create("write") }),
+    (method) => ({
+        create: method.create("write", {
+            limits: { rate: { count: 2, every: { minutes: 1 } }, key: "caller" },
+        }),
+    }),
 );
 
 test("refuse a third post of an author within a minute, saying when the next is due, and allow others", async () => {

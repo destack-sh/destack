@@ -5,8 +5,9 @@ import type { MethodContext } from "../method/context.ts";
 import { ObjectType } from "../object/object.ts";
 import { method } from "../method/record.ts";
 import { EventLog } from "../query/event.ts";
-import { derivePermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type TraitBehavior } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
+import { t } from "@destack/locale";
 
 /** The most keys a series groups by: four keys of a few values each stay a readable chart. */
 const MAX_GROUP_KEYS = 4;
@@ -60,6 +61,7 @@ export const SeriesResult = schema.object({
 /** Fold the events a condition selects by keys the caller may read, per step and group. */
 const seriesMethod = Execution.handle(
     method.query({
+        title: t`Read series`,
         permission: "read",
         target: "scope",
         selected: (input) => series.selectedKeys(SeriesQuery.parse(input).where),
@@ -75,7 +77,7 @@ export type SeriesMethodMap<Storage> = Storage extends "events"
     : {};
 
 /** Events types, folded into series over time by the readers of the keys a fold selects. */
-export const series: Trait<{}> & {
+export const series: TraitBehavior<{}> & {
     /** Fold the scope's events in the range per step and group, which reveals no single event. */
     readonly fold: (
         context: MethodContext,

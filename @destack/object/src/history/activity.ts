@@ -4,6 +4,8 @@ import { schema } from "@destack/schema";
 import { field, type FieldsByColumn } from "../field/field.ts";
 import type { ObjectTable } from "../object/table.ts";
 import { defineObject, type ObjectScope } from "../object/object.ts";
+import { nested } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The fields of an activity: one caller's session of changes to an object. */
 const activityFields = {
@@ -26,20 +28,23 @@ export type ActivityTable = ObjectTable<
     "activity",
     ObjectScope,
     FieldsByColumn<typeof activityFields>,
-    { readonly nested: { readonly in: "any"; readonly receive: "activity" } }
+    { readonly nested: { readonly in: "any"; readonly add: "activity" } }
 >;
 
 /** The activities of a scope, one per caller's session of changes to an object. */
 export const activity = defineObject({
     name: "activity",
     plural: "activities",
-    nested: { in: "any", receive: "activity" },
+    title: t`${plural(argument("count"), { one: "Activity", other: "Activities" })}`,
     fields: activityFields,
-    permissions: { read: through("parent", "read") },
     constraints: {
         session: {
             kind: "index",
             on: ["parentPackageId", "parentType", "parentId", "callerId", "endedAt"],
         },
     },
+    access: {
+        permissions: { read: through("parent", "read") },
+    },
+    traits: [nested({ in: "any", add: "activity" })],
 });

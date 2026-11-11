@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { through } from "@destack/access";
 import { defineDatabase } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
@@ -15,9 +15,10 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The package of the types reading the holders from outside their package. */
-const OUTSIDE = Package.parse({
+const OUTSIDE = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000071",
     name: "@example/outside",
     version: "2026.10.0",
@@ -28,15 +29,19 @@ const holder = defineObject(
     {
         name: "holder",
         plural: "holders",
+        title: t`${plural(argument("count"), { one: "Holder", other: "Holders" })}`,
         scope: space,
         fields: { label: field.string(), token: field.string().sensitive() },
-        permissions: { read: through("space", "read") },
+        access: {
+            permissions: { read: through("space", "read") },
+        },
     },
     (method) => ({
         create: method.create("read", { fields: ["label", "token"] }),
         /** Read a holder's token as the holders' package. */
         token: method
             .query({
+                title: t`Token`,
                 permission: "read",
                 output: schema.object({ token: schema.string() }),
             })
@@ -55,14 +60,18 @@ const peeker = defineObject(
     {
         name: "peeker",
         plural: "peekers",
+        title: t`${plural(argument("count"), { one: "Peeker", other: "Peekers" })}`,
         scope: space,
         fields: { label: field.string() },
-        permissions: { read: through("space", "read") },
+        access: {
+            permissions: { read: through("space", "read") },
+        },
     },
     (method) => ({
         /** Read the scope's holders as the outside package, then try to reveal them. */
         peek: method
             .query({
+                title: t`Peek`,
                 permission: "read",
                 target: "scope",
                 output: schema.object({

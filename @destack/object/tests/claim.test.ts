@@ -25,7 +25,7 @@ import {
 } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { nth, Identifier, present, schema, Uuid } from "@destack/schema";
 import { profile, profilesDatabase, profilesPackage } from "./fixture/profile.ts";
 import { none, principal, relation, universe } from "@destack/access";
@@ -38,24 +38,29 @@ import { claim, serveClaims } from "./fixture/claim.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { recoverable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Profiles as first released, before their type declared the handle index. */
 const unindexed = defineObject(
     {
         name: "profile",
         plural: "profiles",
+        title: t`${plural(argument("count"), { one: "Profile", other: "Profiles" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             handle: field.string(schema.string().min(1).max(40)).optional(),
         },
-        permissions: { read: relation("owner"), manage: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), manage: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("manage") }),
 );
 
 /** The package of the profiles as first released. */
-const unindexedPackage = definePackage({ objects: { profile: unindexed } });
+const unindexedPackage = definePackage({ objects: [unindexed] });
 
 /** The database of one space's profiles as first released. */
 const unindexedDatabase = defineDatabase({
@@ -467,7 +472,7 @@ async function storeUnindexed(world: Environment, handles: readonly string[]) {
             servers: [implementPackage(unindexedPackage, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(unindexedPackage) },
+            origin: { package: PackageVersion.of(unindexedPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),
@@ -503,7 +508,7 @@ async function receiveProfiles(
         servers: [implementPackage(profilesPackage, {})],
         chain: async () => undefined,
         environment: world,
-        origin: { package: Package.of(profilesPackage) },
+        origin: { package: PackageVersion.of(profilesPackage) },
         principal: spacePrincipal(spaceId),
         callKey: testCallKey,
         events: await testEvents(database, world),
@@ -545,26 +550,35 @@ test("key an index within the enclosing scope it is unique across", async () => 
     const account = defineObject({
         name: "account",
         plural: "accounts",
+        title: t`${plural(argument("count"), { one: "Account", other: "Accounts" })}`,
         scope: "universe",
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const folder = defineObject({
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: account,
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const route = defineObject({
         name: "route",
         plural: "routes",
+        title: t`${plural(argument("count"), { one: "Route", other: "Routes" })}`,
         scope: folder,
         fields: { path: field.string() },
         indexes: { path: { on: ["path"], across: () => account } },
-        permissions: { read: none() },
+        access: {
+            permissions: { read: none() },
+        },
     });
 
     // record two folders of one account and one of another
@@ -645,11 +659,14 @@ test("retain a trashed object's names, activate them on restore, and release the
     const tag = defineObject({
         name: "tag",
         plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
         scope: space,
         fields: { name: field.string() },
         indexes: { name: { on: ["name"], across: () => universe } },
-        recoverable: { within: { days: 30 }, by: "manage", retain: "record" },
-        permissions: { read: none(), manage: none() },
+        access: {
+            permissions: { read: none(), manage: none() },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "manage", retain: "record" })],
     });
     const storage = await TestDatabase.create(
         tablesOf({ packages: [], follows: [], tables: [claimTable] }).tables,

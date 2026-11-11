@@ -1,6 +1,6 @@
 import { testSimulation } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineDatabase, eq, type DatabaseConnection } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
@@ -19,15 +19,20 @@ import { principal } from "@destack/access";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested, recoverable, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Folders with pages. */
 const folder = defineObject(
     {
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: space,
         fields: { name: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({ create: method.create("write") }),
 );
@@ -37,6 +42,7 @@ const page = defineObject(
     {
         name: "page",
         plural: "pages",
+        title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
         scope: space,
         fields: {
             title: field.string(),
@@ -49,19 +55,23 @@ const page = defineObject(
                 },
             }),
         },
-        nested: { in: folder, receive: "write", move: "write" },
-        recoverable: { within: { days: 30 }, by: "write" },
-        permissions: ["read", "write"],
-        shareable: { by: "write" },
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [
+            nested({ in: folder, add: "write", move: "write" }),
+            recoverable({ within: { days: 30 }, by: "write" }),
+            shareable({ by: "write" }),
+        ],
     },
     (method) => ({
         create: method.create("write"),
         createMany: method.createMany("write", { fields: ["title"] }),
         update: method.update("write"),
         deleteMany: method.deleteMany("write", { match: ["status"] }),
-        archive: method.mutation({ permission: "write", inverse: "unarchive" }),
-        unarchive: method.mutation({ permission: "write" }),
-        announce: method.mutation({ permission: "write" }),
+        archive: method.mutation({ title: t`Archive`, permission: "write", inverse: "unarchive" }),
+        unarchive: method.mutation({ title: t`Unarchive`, permission: "write" }),
+        announce: method.mutation({ title: t`Announce`, permission: "write" }),
     }),
 );
 
@@ -69,18 +79,20 @@ const page = defineObject(
 const tally = defineObject({
     name: "tally",
     plural: "tallies",
+    title: t`${plural(argument("count"), { one: "Tally", other: "Tallies" })}`,
     scope: space,
     fields: { count: field.bigint(), label: field.string() },
-    shareable: {},
+    traits: [shareable({})],
 });
 
 /** Stamps with their bytes, stored as binary. */
 const stamp = defineObject({
     name: "stamp",
     plural: "stamps",
+    title: t`${plural(argument("count"), { one: "Stamp", other: "Stamps" })}`,
     scope: space,
     fields: { bytes: field.binary(), label: field.string() },
-    shareable: {},
+    traits: [shareable({})],
 });
 
 test("invert each trait's methods into the calls that undo them, and leave the rest undoable by nothing", () => {
@@ -340,13 +352,13 @@ test("undo an update of an exact integer, restoring its value on the device and 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const tallies = definePackage({ objects: { tally } });
+    const tallies = definePackage({ objects: [tally] });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(tallies, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(tallies) },
+            origin: { package: PackageVersion.of(tallies) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),
@@ -420,13 +432,13 @@ test("undo an update of a bytes field, restoring its bytes on the device and the
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const stamps = definePackage({ objects: { stamp } });
+    const stamps = definePackage({ objects: [stamp] });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(stamps, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(stamps) },
+            origin: { package: PackageVersion.of(stamps) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),

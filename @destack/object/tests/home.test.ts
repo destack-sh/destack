@@ -20,6 +20,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
+import { propagated } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** How long a commit may take to arrive at a replica: 5 s, far above the milliseconds it takes. */
 const REPLICA_MILLISECONDS = 5000;
@@ -42,22 +44,27 @@ const CONFIRM_MILLISECONDS = 2000;
 const person = defineObject({
     name: "person",
     plural: "people",
+    title: t`${plural(argument("count"), { one: "Person", other: "People" })}`,
     scope: "universe",
-    isScope: true,
-    partition: true,
     fields: {},
-    relations: { self: { subjects: [principal.user] } },
-    permissions: { read: relation("self"), write: none() },
+    container: "partition",
+    access: {
+        relations: { self: { subjects: [principal.user] } },
+        permissions: { read: relation("self"), write: none() },
+    },
 });
 
 /** Rooms within a person, whose replicas store the person's preferences. */
 const room = defineObject({
     name: "room",
     plural: "rooms",
+    title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
     scope: person,
-    isScope: true,
     fields: {},
-    permissions: { read: none(), write: none() },
+    container: "scope",
+    access: {
+        permissions: { read: none(), write: none() },
+    },
 });
 
 /** Preferences a person sets, propagated to their rooms. */
@@ -65,10 +72,13 @@ const preference = defineObject(
     {
         name: "preference",
         plural: "preferences",
+        title: t`${plural(argument("count"), { one: "Preference", other: "Preferences" })}`,
         scope: [person, room],
-        propagated: {},
         fields: { name: field.string(), value: field.string() },
-        permissions: { read: none(), write: none() },
+        access: {
+            permissions: { read: none(), write: none() },
+        },
+        traits: [propagated({})],
     },
     (method) => ({
         create: method.create("write"),
@@ -77,7 +87,7 @@ const preference = defineObject(
 );
 
 /** The package serving the preferences. */
-const preferences = definePackage({ objects: { preference } });
+const preferences = definePackage({ objects: [preference] });
 
 /** Refuse a change sent over the uplink, as the client sends its changes home itself. */
 const refuseChanges = () => Promise.reject(new Error("the replica receives no changes"));

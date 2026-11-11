@@ -3,6 +3,12 @@ export type SnakeCase<Name extends string> = Name extends `${infer Head}-${infer
     ? `${Head}_${SnakeCase<Tail>}`
     : Name;
 
+/** A kebab-case name in camel case. */
+export type CamelCase<Name extends string> =
+    Name extends `${infer Head}-${infer Initial}${infer Tail}`
+        ? `${Head}${Uppercase<Initial>}${CamelCase<Tail>}`
+        : Name;
+
 /** The casings of declared names: kebab, snake, camel and pascal case. */
 export const Casing = {
     /** Write a camel-case or kebab-case name in kebab case. */

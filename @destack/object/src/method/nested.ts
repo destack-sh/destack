@@ -12,6 +12,7 @@ import { RecordMethod } from "./record.ts";
 import { type NestedDefinition, PARENT, ParentReference } from "../trait/nested.ts";
 
 import type {} from "@destack/package/import-meta";
+import { t } from "@destack/locale";
 
 /** The nested methods' handlers: moving an object between parents. */
 export const NestedMethod = {
@@ -21,6 +22,7 @@ export const NestedMethod = {
         nesting: NestedDefinition,
     ): Method<{ kind: "move"; permission: Permission; mutates: true }> {
         return defineMethod<{ kind: "move"; permission: Permission; mutates: true }>({
+            title: t`Move`,
             kind: "move",
             permission,
             mutates: true,

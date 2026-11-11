@@ -2,9 +2,9 @@ import type { Environment } from "@destack/environment";
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
-import { defineAdapter, definePackage } from "@destack/object";
+import { defineMount, definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
 import { type AdapterFetch, implementPackage, type ObjectPackage } from "../src/server/index.ts";
@@ -21,14 +21,14 @@ const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-
 
 /** The pages with a feed adapter answering below /feed. */
 const pages = definePackage({
-    objects: { page },
-    adapters: { feed: defineAdapter("feed", { path: "/feed" }) },
+    objects: [page],
+    mounts: [defineMount({ name: "feed", path: "/feed" })],
 });
 
 /** The pages with a feed adapter answering the space's installation alone. */
 const customPages = definePackage({
-    objects: { page },
-    adapters: { feed: defineAdapter("feed", { path: "/feed", callers: "self" }) },
+    objects: [page],
+    mounts: [defineMount({ name: "feed", path: "/feed", callers: "self" })],
 });
 
 /** Answer a feed request with the path and query it arrived at. */
@@ -60,7 +60,7 @@ async function servePages(
             servers: [implementPackage(handle, { adapters })],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(handle) },
+            origin: { package: PackageVersion.of(handle) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events,

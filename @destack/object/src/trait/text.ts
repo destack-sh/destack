@@ -10,10 +10,11 @@ import { Element, SequenceEdit } from "../sequence/index.ts";
 import { permission } from "@destack/access";
 import { Chunk, Containment, Undo, TEXT_READ } from "../text/chunk.ts";
 import { chunk } from "../text/table.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
 
 import type {} from "@destack/package/import-meta";
+import { t } from "@destack/locale";
 
 /** The text fields of an object and the permission editing them. */
 export interface TextDefinition {
@@ -69,7 +70,7 @@ export type TextProcedures<Object extends ObjectType> = {
 };
 
 /** Text fields stored in chunks and changed only by edits. */
-export const text: Trait<TextDefinition> & {
+export const text: TraitBehavior<TextDefinition> & {
     /** Edit one text field of an object. */
     readonly edit: (
         required: string,
@@ -164,6 +165,7 @@ export const text: Trait<TextDefinition> & {
             output: typeof Undo;
             mutates: true;
         }>({
+            title: t`Edit`,
             kind: "edit",
             permission: required,
             mutates: true,
@@ -232,6 +234,7 @@ export const text: Trait<TextDefinition> & {
             output: typeof Containment;
             mutates: false;
         }>({
+            title: t`Check containment`,
             kind: "contains",
             permission: TEXT_READ,
             mutates: false,

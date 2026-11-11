@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { MemoryBlobStorage } from "@destack/resource";
 import { defineDatabase, Snapshot } from "@destack/db";
 import { defineObject, field, ObjectDescription, type ObjectType } from "../src/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { none, principal, relation } from "@destack/access";
 import { TestAccess } from "@destack/access/test";
@@ -23,6 +23,8 @@ import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installedPackage } from "@destack/access";
 import { TestObjectStore } from "../src/test/index.ts";
+import { shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space whose partition the cards live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000a1");
@@ -32,9 +34,12 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
@@ -43,18 +48,20 @@ const card = defineObject(
 const room = defineObject({
     name: "room",
     plural: "rooms",
+    title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
     scope: space,
-    isScope: true,
-    partition: true,
     fields: {},
-    permissions: { read: none() },
+    container: "partition",
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** The room the scenarios serve a partition of. */
 const ROOM = "room-01996ab0-0000-7000-8000-0000000000a3";
 
 /** The package of the space's rooms. */
-const roomsPackage = definePackage({ objects: { room } });
+const roomsPackage = definePackage({ objects: [room] });
 
 /** The database of the space's rooms. */
 const roomsDatabase = defineDatabase({
@@ -169,12 +176,12 @@ test("follow an installation's root chain from its machine, and a partition's ch
             }),
             environment: world,
             blobs: new MemoryBlobStorage(world.crypto),
-            origin: { package: Package.of(roomsPackage) },
+            origin: { package: PackageVersion.of(roomsPackage) },
             callKey: testCallKey,
             events: await testEvents(storage.database, world),
             database: storage.database,
             server: {
-                ...(await testServerContext(Package.of(roomsPackage), spaceId, world)),
+                ...(await testServerContext(PackageVersion.of(roomsPackage), spaceId, world)),
                 partition,
                 publisher: machine,
                 publisherAt: (address, packageId) => {
@@ -214,9 +221,12 @@ test("list the types a home and a follower decide in the chain subscription, add
     const marker = defineObject({
         name: "marker",
         plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     });
     const declared = defineDatabase({
         name: "main",
@@ -287,12 +297,14 @@ test("derive the roles of a shared partition without sharing methods on its row,
     const shared = defineObject({
         name: "room",
         plural: "rooms",
+        title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
         scope: space,
-        isScope: true,
-        partition: true,
         fields: {},
-        permissions: { read: none() },
-        shareable: { isPublic: true },
+        container: "partition",
+        access: {
+            permissions: { read: none() },
+        },
+        traits: [shareable({ isPublic: true })],
     });
 
     // derive the roles' relations, and no sharing methods
@@ -313,11 +325,13 @@ test("derive the roles of a shared partition without sharing methods on its row,
                 {
                     name: "room",
                     plural: "rooms",
+                    title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
                     scope: space,
-                    isScope: true,
-                    partition: true,
                     fields: {},
-                    permissions: { read: none(), manage: none() },
+                    container: "partition",
+                    access: {
+                        permissions: { read: none(), manage: none() },
+                    },
                 },
                 () => ({
                     explain: ShareableMethod.methods({ grant: "manage", read: "read" }).explain,

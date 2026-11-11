@@ -17,7 +17,17 @@ export * from "./approval/index.ts";
 export * from "./claim/index.ts";
 export * from "./hook/index.ts";
 export * from "./declare/index.ts";
-export * from "./procedure/index.ts";
+export {
+    type Client,
+    eventIterator,
+    getEventMeta,
+    type ProcedureAccess,
+    type ProcedureRouter,
+    type Route,
+    VERSION_HEADER,
+    withEventMeta,
+} from "./procedure/index.ts";
+export * from "./procedure/bookmark.ts";
 export * from "./health/index.ts";
 export * from "./server/body.ts";
 export * from "./webhook/hmac.ts";

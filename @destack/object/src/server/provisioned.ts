@@ -2,15 +2,14 @@ import { accessRelationship } from "@destack/access";
 import { and, type BlobStore, type DatabaseConnection, eq, now, Table } from "@destack/db";
 import {
     Address,
-    type KindState,
     Plan,
     type Provider,
-    type ResourceKind,
+    ResourceRecord,
     type Risk,
     type Step,
 } from "@destack/resource";
 import { ResourceError } from "@destack/resource/error";
-import { nth, Digest, Duration, type Identifier, present, zip } from "@destack/schema";
+import { nth, Digest, Duration, type Identifier, present, schema, zip } from "@destack/schema";
 import {
     ObjectWatch,
     type ObjectController,
@@ -25,6 +24,7 @@ import {
 import { type ObjectType } from "../object/object.ts";
 import { CONSUMER } from "../trait/bindable.ts";
 import { type ResourceType, type Resource } from "../trait/provisioned.ts";
+import type { Kind, Provisioning } from "@destack/package";
 
 /** The condition of a resource waiting for draining consumers to stop before recreation. */
 export const DRAINING = "Draining";
@@ -36,7 +36,7 @@ const DESIRED_STATES_KEPT = 16;
 export interface ResourceControllerOptions {
     /** The providers the process has, in preference order within each kind. */
     readonly providers: readonly Pick<
-        Provider<ResourceKind, ObjectType>,
+        Provider<Kind<schema.Schema, Provisioning>, ObjectType>,
         "kind" | "code" | "object" | "provision" | "reconcile" | "fence" | "snapshot"
     >[];
     /** The machine running the resources its providers provision. */
@@ -46,10 +46,7 @@ export interface ResourceControllerOptions {
 /** What one reconcile of a resource uses: the process's providers and its desired states. */
 interface ReconcileOptions extends ResourceControllerOptions {
     /** Read the desired states of some digests a resource lists. */
-    readonly states: (
-        row: Resource,
-        digests: readonly Digest[],
-    ) => Promise<KindState<ResourceKind>[]>;
+    readonly states: (row: Resource, digests: readonly Digest[]) => Promise<unknown[]>;
 }
 
 /** The control loop of one kind's provisioned objects through a process's providers. */
@@ -61,7 +58,7 @@ export class ResourceController {
     /** The process's providers of the kind and its machine. */
     readonly #options: ResourceControllerOptions;
     /** The resources' kind. */
-    readonly #kind: ResourceKind;
+    readonly #kind: Kind<schema.Schema, Provisioning>;
     /** The desired states read so far by digest, parsed by the kind, the latest read last. */
     readonly #states = new Map<Digest, unknown>();
 
@@ -128,12 +125,12 @@ export class ResourceController {
     }
 
     /** Read the desired states of some digests a resource lists, each parsed once by the kind. */
-    async #read(blobs: BlobStore, digests: readonly Digest[]): Promise<KindState<ResourceKind>[]> {
+    async #read(blobs: BlobStore, digests: readonly Digest[]): Promise<unknown[]> {
         // read and parse the states not stored
         const missing = digests.filter((digest) => !this.#states.has(digest));
         if (missing.length > 0) {
             const parsed = await Promise.all(
-                missing.map((digest) => blobs.readJson(digest, this.#kind.state)),
+                missing.map((digest) => blobs.readJson(digest, this.#kind.provisioned.state)),
             );
             for (const [digest, state] of zip(missing, parsed)) {
                 this.#states.set(digest, state);
@@ -168,7 +165,7 @@ export class ResourceController {
     /** Retire, provision or apply one resource, or wait for its owner's approval threshold. */
     static async #reconcileRow(
         object: ResourceType<"space">,
-        kind: ResourceKind,
+        kind: Kind<schema.Schema, Provisioning>,
         row: Resource,
         reconciliation: ObjectReconciliation<ResourceType<"space">>,
         options: ReconcileOptions,
@@ -220,7 +217,9 @@ export class ResourceController {
         }
 
         // record the provider reference for this generation, a failure recorded as Synced
-        const provisioned = await provider.provision.provision(provider.kind.record(row));
+        const provisioned = await provider.provision.provision(
+            ResourceRecord.of(provider.kind, row),
+        );
         const fields = {
             provider: provider.code,
             reference: provisioned.reference,
@@ -326,7 +325,7 @@ export class ResourceController {
         const planDigests = async (digests: readonly Digest[]) =>
             provider.reconcile !== undefined
                 ? provider.reconcile.plan(
-                      provider.kind.record(row),
+                      ResourceRecord.of(provider.kind, row),
                       await options.states(row, digests),
                   )
                 : { steps: [] };
@@ -379,7 +378,7 @@ export class ResourceController {
             // apply the plan
             if (provider.reconcile !== undefined) {
                 await provider.reconcile.apply(
-                    provider.kind.record(row),
+                    ResourceRecord.of(provider.kind, row),
                     await options.states(row, [...row.states, ...row.drainingStates]),
                     digests.plan,
                 );
@@ -454,7 +453,7 @@ export class ResourceController {
         // destroy provisioned content, a failure recorded as Synced
         const provider = ResourceController.select(options.providers, row);
         if (row.reference !== null && provider?.provision !== undefined) {
-            await provider.provision.destroy(provider.kind.record(row));
+            await provider.provision.destroy(ResourceRecord.of(provider.kind, row));
         }
 
         // finish the record's deletion

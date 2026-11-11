@@ -1,7 +1,7 @@
 import { none, principal } from "@destack/access";
 import { connectBunSqlite } from "@destack/db/bun";
-import { t } from "@destack/locale";
-import { Package, PackageId } from "@destack/package";
+import { argument, plural, t } from "@destack/locale";
+import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { expect, expectTypeOf, onTestFinished, refusal, test } from "@destack/test";
@@ -12,9 +12,10 @@ import { defineObject, device } from "../object/index.ts";
 import type { ShortcutText } from "./shortcut.ts";
 import { Command, type CommandDefinition, defineCommand } from "./command.ts";
 import { definePackage } from "./package.ts";
+import { recoverable } from "../index.ts";
 
 /** The declaring package. */
-const notes = Package.parse({
+const notes = PackageVersion.parse({
     id: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     name: "@example/notes",
     version: "2026.9.0",
@@ -25,21 +26,28 @@ const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: device,
         fields: {
             title: field.string(schema.string()),
             status: field.enum(["open", "done"]).default("open"),
             priority: field.integer().default(0),
         },
-        permissions: { read: none(), update: none(), create: none() },
+        access: {
+            permissions: { read: none(), update: none(), create: none() },
+        },
     },
     (method) => ({
         create: method.create("create", { fields: ["title"] }),
-        open: method.mutation({ permission: "read" }),
+        open: method.mutation({ title: t`Open`, permission: "read" }),
         mark: method.update("update", { fields: ["status", "priority"] }),
         delete: method.delete("update"),
-        restore: method.mutation({ permission: "read", visibility: "installation" }),
-        purge: method.mutation({ permission: "read", visibility: "package" }),
+        restore: method.mutation({
+            title: t`Restore`,
+            permission: "read",
+            visibility: "installation",
+        }),
+        purge: method.mutation({ title: t`Purge`, permission: "read", visibility: "package" }),
     }),
 );
 
@@ -48,10 +56,13 @@ const draft = defineObject(
     {
         name: "draft",
         plural: "drafts",
+        title: t`${plural(argument("count"), { one: "Draft", other: "Drafts" })}`,
         scope: device,
         fields: { title: field.string(schema.string()) },
-        permissions: { update: none() },
-        recoverable: { within: { days: 30 }, by: "update" },
+        access: {
+            permissions: { update: none() },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "update" })],
     },
     () => ({}),
 );
@@ -61,10 +72,13 @@ const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: device,
         storage: "local",
         fields: { status: field.enum(["open", "done"]) },
-        permissions: { create: none(), update: none() },
+        access: {
+            permissions: { create: none(), update: none() },
+        },
     },
     (method) => ({
         create: method.create("create", { fields: ["status"] }),
@@ -320,12 +334,10 @@ test("list a package's commands on its own objects, refusing one on a type it do
     );
 
     // list each on a package serving the tasks alone
-    const handle = definePackage({ objects: { task }, commands: { "mark-done": markDone } }, owner);
+    const handle = definePackage({ objects: [task], commands: [markDone] }, owner);
     const refused = [
-        await refusal(() =>
-            definePackage({ objects: { task }, commands: { finish: stray } }, owner),
-        ),
-        await refusal(() => definePackage({ objects: { task }, commands: { mark: named } }, owner)),
+        await refusal(() => definePackage({ objects: [task], commands: [stray] }, owner)),
+        await refusal(() => definePackage({ objects: [task], commands: [named] }, owner)),
     ];
 
     // expect the command listed, and both others refused by name

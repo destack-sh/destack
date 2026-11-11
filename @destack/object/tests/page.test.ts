@@ -5,7 +5,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { isNull } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { ObjectClient } from "../src/client/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { createClient, type ClientOptions } from "@destack/object/client";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
@@ -39,7 +39,7 @@ async function servePages(world: Environment) {
             servers: [implementPackage(pagesPackage, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(pagesPackage) },
+            origin: { package: PackageVersion.of(pagesPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(database, world),

@@ -3,6 +3,7 @@ import { schema, toJsonSchema } from "@destack/schema";
 import { defineObject, field } from "../src/index.ts";
 import { objectSymbols, objectVocabulary } from "../src/inspect/index.ts";
 import { task } from "./schema.ts";
+import { argument, plural, t } from "@destack/locale";
 
 test("list the terms a task fixes in stored data: its type, relations, permissions and methods", () => {
     const access = "package-01a0c80b-614e-739e-a21a-66fd749e17ca";
@@ -81,18 +82,26 @@ test("describe the methods callers call: kind, permission, route, and input with
         {
             name: "gauge",
             plural: "gauges",
+            title: t`${plural(argument("count"), { one: "Gauge", other: "Gauges" })}`,
             scope: "universe",
             fields: { level: field.number() },
-            permissions: ["read", "reset"],
+            access: {
+                permissions: ["read", "reset"],
+            },
         },
         (method) => ({
             measure: method.query({
+                title: t`Measure`,
                 permission: "read",
                 input: schema.object({ unit: schema.enum(["percent", "ratio"]) }),
                 output: schema.object({ value: schema.number() }),
             }),
-            reset: method.mutation({ permission: "reset", output: schema.object({}) }),
-            tidy: method.mutation({ permission: "reset", visibility: "package" }),
+            reset: method.mutation({
+                title: t`Reset`,
+                permission: "reset",
+                output: schema.object({}),
+            }),
+            tidy: method.mutation({ title: t`Tidy`, permission: "reset", visibility: "package" }),
         }),
     );
     const described = gauge.describeMethods();

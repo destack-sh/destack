@@ -17,6 +17,8 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { controlled } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the machines. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000031");
@@ -32,14 +34,17 @@ const machine = defineObject(
     {
         name: "machine",
         plural: "machines",
+        title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
         scope: space,
-        controlled: true,
         fields: {
             owner: field.reference(principal.user).caller(),
             size: field.string(schema.string().min(1)),
             address: field.string().optional(),
         },
-        permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner"), provision: none() },
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write", { fields: ["size"] }),
@@ -271,11 +276,14 @@ const agent = defineObject(
     {
         name: "contact",
         plural: "contacts",
+        title: t`${plural(argument("count"), { one: "Contact", other: "Contacts" })}`,
         scope: space,
-        represents: principal.contact,
-        controlled: true,
         fields: { name: field.string() },
-        permissions: { read: none(), write: none() },
+        access: {
+            represents: principal.contact,
+            permissions: { read: none(), write: none() },
+        },
+        traits: [controlled()],
     },
     (method) => ({ create: method.create("write") }),
 );
@@ -350,11 +358,14 @@ test("control a device's local object as a durable one: observe it at its genera
         {
             name: "lamp",
             plural: "lamps",
+            title: t`${plural(argument("count"), { one: "Lamp", other: "Lamps" })}`,
             scope: device,
             storage: "local",
-            controlled: true,
             fields: { color: field.string(schema.string().min(1)) },
-            permissions: { write: none() },
+            access: {
+                permissions: { write: none() },
+            },
+            traits: [controlled()],
         },
         (method) => ({
             create: method.create("write", { fields: ["color"] }),

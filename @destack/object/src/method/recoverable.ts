@@ -15,6 +15,7 @@ import type { TraitTable } from "../object/table.ts";
 import type { Execution } from "./execution.ts";
 
 import type {} from "@destack/package/import-meta";
+import { t } from "@destack/locale";
 /** The method declarations of recoverable objects whose purge retains the record. */
 const retainedMethod = new MethodBuilder<RetainedTable>();
 
@@ -45,6 +46,7 @@ export const RecoverableMethod = {
         // restore within the recovery window, undone by deleting again
         if (kind === "restore") {
             return defineMethod<RestorationConfiguration & { table: RecoverableTable }>({
+                title: t`Restore`,
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "object",
@@ -60,6 +62,7 @@ export const RecoverableMethod = {
         // purge a retained record by the type's handler, which destroys its content
         else if (options.retain === "record") {
             return defineMethod<RestorationConfiguration & { table: RetainedTable }>({
+                title: t`Purge`,
                 ...restorationShape(kind, permission),
                 isPredicted: false,
                 result: "value",
@@ -80,6 +83,7 @@ export const RecoverableMethod = {
         // purge any other object, removing it
         else {
             return defineMethod<RestorationConfiguration & { table: RecoverableTable }>({
+                title: t`Restoration`,
                 ...restorationShape(kind, permission),
                 isPredicted: true,
                 result: "value",
@@ -92,7 +96,7 @@ export const RecoverableMethod = {
     /** Remove a purged record at the loaded revision, by holders of the purge permission. */
     discard<const Permission extends string>(permission: Permission) {
         return retainedMethod
-            .mutation({ permission, visibility: "package", output: Empty })
+            .mutation({ title: t`Discard`, permission, visibility: "package", output: Empty })
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {

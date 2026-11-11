@@ -7,11 +7,15 @@ import type { MethodContext } from "../method/context.ts";
 import { Step } from "../method/step.ts";
 import type { ObjectOf, ObjectType } from "../object/object.ts";
 import type { Procedure, ReplayFields, RowSchema, TargetFields } from "../method/procedure.ts";
-import type { Gated, Trait } from "./trait.ts";
+import type { TraitPermission, TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
+import { t } from "@destack/locale";
 
 /** The options of history tracking. */
-export interface TrackedDefinition<Permissions extends string = string> extends Gated<Permissions> {
+export interface TrackedDefinition<
+    Permissions extends string = string,
+> extends TraitPermission<Permissions> {
     /** The activity type among the object's attachments. */
     readonly activity: ObjectOf<{ table: ActivityTable }>;
     /** How long one activity continues after its last change, 10 minutes by default. */
@@ -37,7 +41,7 @@ export type TrackedProcedures<Object extends ObjectType> = {
 type PositionField = { readonly at: typeof LogPosition };
 
 /** Objects recording their history, grouped into activities. */
-export const tracked: Trait<TrackedDefinition> & {
+const trackedTrait: TraitBehavior<TrackedDefinition> & {
     /** Revert an object's written fields to a position. */
     readonly revert: (permission: string) => Method;
     /** Read the call's object at the input's position, readable by the caller then and now. */
@@ -66,6 +70,7 @@ export const tracked: Trait<TrackedDefinition> & {
     },
     revert(permission: string): Method {
         return defineMethod<{ kind: "revert" }>({
+            title: t`Revert`,
             kind: "revert",
             permission,
             mutates: true,
@@ -138,3 +143,6 @@ export const tracked: Trait<TrackedDefinition> & {
         return execution.authorization.readIn(context, context.id, snapshot, permission);
     },
 };
+
+/** The tracked trait, callable to declare it on an object type. */
+export const tracked = callableTrait("tracked", trackedTrait);

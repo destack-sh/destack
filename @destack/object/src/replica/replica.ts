@@ -1,5 +1,5 @@
 import { present, schema } from "@destack/schema";
-import { DeclarationName, Package, PackageId } from "@destack/package";
+import { DeclarationName, PackageVersion, PackageId } from "@destack/package";
 import { InstallationName } from "../installation/name.ts";
 import { Expression, LogPosition, Condition, OrderBy, Scalar, type FindOptions } from "@destack/db";
 import { eventIterator } from "../procedure/index.ts";
@@ -13,11 +13,11 @@ import {
     Subscription,
     Aggregate,
 } from "@destack/sync";
-import { defineProcedure } from "../procedure/index.ts";
+import { Procedure } from "../procedure/index.ts";
 import { Failure } from "@destack/error";
 
 /** The package defining the store procedures. */
-const DEFINING_PACKAGE = Package.of(import.meta.destack.package);
+const DEFINING_PACKAGE = PackageVersion.of(import.meta.destack.package);
 
 /** The view a read sees: a log position, a branch over the main line, or both. */
 export const ViewFields = {
@@ -200,7 +200,7 @@ export type PushResult = schema.Infer<typeof PushResult>;
 
 /** The procedures a client replica or a database replicating the served one uses. */
 export const storeProcedures = {
-    push: defineProcedure({
+    push: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "identity",
         permission: "rows",
@@ -218,7 +218,7 @@ export const storeProcedures = {
             }),
         )
         .output(PushResult),
-    watermark: defineProcedure({
+    watermark: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "identity",
         permission: "rows",
@@ -234,7 +234,7 @@ export const storeProcedures = {
             }),
         )
         .output(Watermark),
-    call: defineProcedure({
+    call: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "public",
         permission: "rows",
@@ -250,7 +250,7 @@ export const storeProcedures = {
             }),
         )
         .output(schema.json()),
-    receive: defineProcedure({
+    receive: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "identity",
         permission: "rows",
@@ -269,7 +269,7 @@ export const storeProcedures = {
                 results: schema.array(schema.json()),
             }),
         ),
-    broadcast: defineProcedure({
+    broadcast: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "identity",
         permission: "rows",
@@ -287,7 +287,7 @@ export const storeProcedures = {
             }),
         )
         .output(schema.object({})),
-    stream: defineProcedure({
+    stream: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "public",
         permission: "rows",
@@ -296,7 +296,7 @@ export const storeProcedures = {
         .route({ method: "POST", path: "/store/stream" })
         .input(Subscription)
         .output(eventIterator(Page)),
-    request: defineProcedure({
+    request: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "public",
         permission: "rows",
@@ -310,7 +310,7 @@ export const storeProcedures = {
             }),
         )
         .output(schema.object({})),
-    describe: defineProcedure({
+    describe: Procedure.of({
         package: DEFINING_PACKAGE,
         authentication: "public",
         permission: "rows",

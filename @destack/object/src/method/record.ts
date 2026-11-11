@@ -68,6 +68,8 @@ import { TagMap } from "@destack/resource";
 import { Execution, type StoreExecution } from "./execution.ts";
 
 import type {} from "@destack/package/import-meta";
+import type { MethodLimits } from "./limits.ts";
+import type { Message } from "@destack/locale";
 
 /** The most items one bulk creation takes, as many as one list page reads. */
 export const BATCH_LIMIT = 1000;
@@ -122,6 +124,8 @@ export interface CreateOptions<
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How often the method runs per key, and whose limit a call counts against. */
+    readonly limits?: MethodLimits;
     /** The unique key, `id` or a unique constraint, whose existing match the creation answers. */
     readonly onConflict?: string;
 }
@@ -155,6 +159,8 @@ export interface UpdateOptions<
     readonly isPredicted?: boolean;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How often the method runs per key, and whose limit a call counts against. */
+    readonly limits?: MethodLimits;
 }
 
 /** How a bulk update matches and writes objects. */
@@ -171,6 +177,8 @@ export interface UpdateManyOptions<
     readonly match: readonly Match[];
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How often the method runs per key, and whose limit a call counts against. */
+    readonly limits?: MethodLimits;
 }
 
 /** How a bulk deletion matches objects. */
@@ -225,6 +233,7 @@ function bulkUpdate<
         ...(options.visibility === undefined ? {} : { visibility: options.visibility }),
         ...(isItemized ? { isItemized } : {}),
         ...(options.convert === undefined ? {} : { convert: options.convert }),
+        ...(options.limits === undefined ? {} : { limits: options.limits }),
         target: "scope",
         result: "value",
         procedure: (name, schemas) => ({
@@ -274,6 +283,8 @@ export interface CustomDefinition<
     Visibility extends MethodVisibility = "client",
     Target extends MethodTarget = "object",
 > {
+    /** The action as people read it, such as in an audit log. */
+    readonly title: Message;
     /** The permission the caller needs on the target. */
     readonly permission: Permission;
     /** Whether the method stays off public routes, run only by the principals' code. */
@@ -296,12 +307,14 @@ export interface CustomDefinition<
     readonly inverse?: string | ((step: Step) => readonly sync.Call[] | undefined);
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How often the method runs per key, and whose limit a call counts against. */
+    readonly limits?: MethodLimits;
     /** Whether clients predict the method once handled. */
     readonly isPredicted?: boolean;
 }
 
 /** The procedure each record method derives. */
-export type RecordProcedures<Object extends ObjectType, Declared extends Method> = {
+export type RecordProcedures<Object extends ObjectType, Declaration extends Method> = {
     get: Procedure<schema.Object<TargetFields<Object> & typeof ViewFields>, RowSchema<Object>>;
     list: Procedure<
         schema.Object<
@@ -312,14 +325,14 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
         >
     >;
     create: Procedure<
-        IsSum<Declared["variants"]> extends true
-            ? VariantSchema<Object, Declared, CreateFields<Object, Declared>>
-            : schema.Object<CreateFields<Object, Declared>>,
+        IsSum<Declaration["variants"]> extends true
+            ? VariantSchema<Object, Declaration, CreateFields<Object, Declaration>>
+            : schema.Object<CreateFields<Object, Declaration>>,
         RowSchema<Object>
     >;
     createMany: Procedure<
         schema.Object<
-            ScopeFields<Object> & ReplayFields<Object> & { items: ItemsSchema<Object, Declared> }
+            ScopeFields<Object> & ReplayFields<Object> & { items: ItemsSchema<Object, Declaration> }
         >,
         schema.Object<{ ids: schema.Schema<string[]> }>
     >;
@@ -328,9 +341,9 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
             TargetFields<Object> &
                 ReplayFields<Object> &
                 typeof RevisionFields &
-                WrittenFields<Object, Declared, true> &
+                WrittenFields<Object, Declaration, true> &
                 typeof TagFields &
-                InputFields<Declared>
+                InputFields<Declaration>
         >,
         RowSchema<Object>
     >;
@@ -338,11 +351,11 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
         schema.Object<
             ScopeFields<Object> &
                 ReplayFields<Object> &
-                (NonNullable<Declared["isItemized"]> extends true
-                    ? { items: UpdatedItemsSchema<Object, Declared> }
+                (NonNullable<Declaration["isItemized"]> extends true
+                    ? { items: UpdatedItemsSchema<Object, Declaration> }
                     : {
-                          where: schema.Object<MatchFields<Object, Declared>>;
-                      } & WrittenFields<Object, Declared, true>)
+                          where: schema.Object<MatchFields<Object, Declaration>>;
+                      } & WrittenFields<Object, Declaration, true>)
         >,
         schema.Object<{ count: schema.Schema<number> }>
     >;
@@ -353,32 +366,32 @@ export type RecordProcedures<Object extends ObjectType, Declared extends Method>
     deleteMany: Procedure<
         schema.Object<
             ScopeFields<Object> &
-                ReplayFields<Object> & { where: schema.Object<MatchFields<Object, Declared>> }
+                ReplayFields<Object> & { where: schema.Object<MatchFields<Object, Declaration>> }
         >,
         schema.Object<{ count: schema.Schema<number> }>
     >;
     custom: Procedure<
         CustomSchema<
-            (NonNullable<Declared["target"]> extends "scope"
+            (NonNullable<Declaration["target"]> extends "scope"
                 ? ScopeFields<Object>
                 : TargetFields<Object>) &
-                (Declared["mutates"] extends false ? {} : ReplayFields<Object>),
-            Declared["input"]
+                (Declaration["mutates"] extends false ? {} : ReplayFields<Object>),
+            Declaration["input"]
         >,
-        [NonNullable<Declared["output"]>] extends [never]
+        [NonNullable<Declaration["output"]>] extends [never]
             ? RowSchema<Object>
-            : NonNullable<Declared["output"]>
+            : NonNullable<Declaration["output"]>
     >;
 };
 
 /** The fields of every creation: scope, chosen identifier, parent, replay, fields and input. */
-type CreateFields<Object extends ObjectType, Declared extends Method> = ScopeFields<Object> &
+type CreateFields<Object extends ObjectType, Declaration extends Method> = ScopeFields<Object> &
     CreationFields<Object> &
     ParentFields<Object> &
     ReplayFields<Object> &
-    WrittenFields<Object, Declared, false> &
+    WrittenFields<Object, Declaration, false> &
     typeof TagFields &
-    InputFields<Declared>;
+    InputFields<Declaration>;
 
 /** The labels a creation or an update writes beside the fields, every record's. */
 const TagFields = { tags: TagMap.exactOptional() };
@@ -386,21 +399,21 @@ const TagFields = { tags: TagMap.exactOptional() };
 /** The items of a bulk creation, each a creation's chosen identifier, parent and fields. */
 type ItemsSchema<
     Object extends ObjectType,
-    Declared extends Method,
+    Declaration extends Method,
     Item extends schema.Schema = schema.Object<
-        CreationFields<Object> & ParentFields<Object> & WrittenFields<Object, Declared, false>
+        CreationFields<Object> & ParentFields<Object> & WrittenFields<Object, Declaration, false>
     >,
 > = schema.Schema<schema.Output<Item>[], schema.Input<Item>[]>;
 
 /** The items of a bulk update: each object's identifier and revision with its written fields. */
 type UpdatedItemsSchema<
     Object extends ObjectType,
-    Declared extends Method,
+    Declaration extends Method,
     Item extends schema.Schema = schema.Object<
         {
             id: schema.Schema<string, string>;
             revision: schema.Schema<number, number>;
-        } & WrittenFields<Object, Declared, true>
+        } & WrittenFields<Object, Declaration, true>
     >,
 > = schema.Schema<schema.Output<Item>[], schema.Input<Item>[]>;
 
@@ -412,11 +425,11 @@ export type IsSum<Sum> = [NonNullable<Sum>] extends [never]
       : true;
 
 /** The written values a call matches objects by, in their JSON form. */
-type MatchFields<Object extends ObjectType, Declared extends Method> = ColumnFields<
+type MatchFields<Object extends ObjectType, Declaration extends Method> = ColumnFields<
     Object,
-    string extends NonNullable<Declared["match"]>[number]
+    string extends NonNullable<Declaration["match"]>[number]
         ? WrittenField<Object["fields"]>
-        : NonNullable<Declared["match"]>[number],
+        : NonNullable<Declaration["match"]>[number],
     true
 >;
 
@@ -511,7 +524,7 @@ export const RecordMethod = {
         await RecordMethod.requireCreatable(context, execution, reader);
     },
 
-    /** Require the receive permission on a created object's parent. */
+    /** Require the add permission on a created object's parent. */
     async requireReceiving(
         context: MethodContext,
         execution: StoreExecution,
@@ -556,9 +569,9 @@ export const RecordMethod = {
             }
         }
 
-        // hide an unreadable parent, else require the permission, unless the parent receives
-        const receive = authorizer.policy(parent).permission(declared.receive);
-        if (!(await authorization.check(receive, parent, reader)).isAllowed) {
+        // hide an unreadable parent unless the caller may add under it, else require the permission
+        const add = authorizer.policy(parent).permission(declared.add);
+        if (!(await authorization.check(add, parent, reader)).isAllowed) {
             const host =
                 declared.object === "any"
                     ? context.objects.find((object) => object.policy.is(parent))
@@ -569,7 +582,7 @@ export const RecordMethod = {
                     message: `${parent.type} '${parent.id}' not found`,
                 });
             }
-            await authorization.require(receive, parent);
+            await authorization.require(add, parent);
         }
 
         // require the permitted parent ready for children

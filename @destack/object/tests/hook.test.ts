@@ -22,8 +22,8 @@ import { principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { ResourceDeclaration } from "@destack/resource";
 import { type Identifier, schema, present, type JsonValue } from "@destack/schema";
-import { graph, Package } from "@destack/package";
-import { definePackage, OBJECT_KIND, PACKAGE_KIND, PackageHandle } from "@destack/object";
+import { graph, PackageVersion } from "@destack/package";
+import { definePackage, OBJECT_KIND, PACKAGE_KIND, Package } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { RequestId, Scope } from "@destack/sync";
 import { testCallKey, testServerContext } from "@destack/object/test";
@@ -32,7 +32,7 @@ import { testEvents } from "../src/test/index.ts";
 import { implementPackage, ObjectStore } from "../src/server/index.ts";
 
 /** A declaration of a build, as a sandbox receives it. */
-type Declared = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
+type Declaration = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { spaceId } from "./fixture/device.ts";
 import { userContext, users } from "./fixture/user.ts";
@@ -40,23 +40,30 @@ import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { controlled } from "../src/index.ts";
+import { defineKind } from "@destack/package";
+import { argument, plural, t } from "@destack/locale";
 
 /** Cards their owner remarks on. */
 const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(schema.string().min(1)),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write"),
         update: method.update("write"),
         remark: method.mutation({
+            title: t`Remark`,
             permission: "write",
             input: schema.object({ text: schema.string() }),
         }),
@@ -70,27 +77,36 @@ const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), text: field.string() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("write") }),
 );
 
 /** The bucket the platform's photos store their images in. */
-const images: FileBucket = new ResourceDeclaration(card.package, {
-    name: "images",
-    kind: "bucket",
-    spec: {},
-});
+const images: FileBucket = new ResourceDeclaration(
+    card.package,
+    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
+    {
+        name: "images",
+        spec: {},
+    },
+);
 
 /** Photos of the platform, each image stored as a file. */
 const photo = defineObject({
     name: "photo",
     plural: "photos",
+    title: t`${plural(argument("count"), { one: "Photo", other: "Photos" })}`,
     scope: space,
     fields: { owner: field.reference(principal.user).caller(), image: field.file(images) },
-    permissions: { read: relation("owner"), write: relation("owner") },
+    access: {
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
 });
 
 /** The package defining the view declaration kind, as a build names it. */
@@ -110,7 +126,11 @@ function travel(value: unknown): unknown {
 }
 
 /** Serve cards whose hooks run in a sandbox of the package's installation. */
-async function serveCards(world: Environment, cards: PackageHandle, owner: Package = card.package) {
+async function serveCards(
+    world: Environment,
+    cards: Package,
+    owner: PackageVersion = card.package,
+) {
     // store the space's cards in memory
     const storage = await TestDatabase.create(
         defineDatabase({
@@ -163,7 +183,7 @@ async function serveCards(world: Environment, cards: PackageHandle, owner: Packa
     });
     const sandbox = new HookSandbox({
         server: context,
-        declarations: [...declared(cards), dependency],
+        declarations: [...declarationsOf(cards), dependency],
         send: async (request) => {
             const sent = HandlerRequest.parse(travel(request));
             const { call } = sent;
@@ -198,7 +218,7 @@ async function serveCards(world: Environment, cards: PackageHandle, owner: Packa
 }
 
 /** Describe the card type and the package routing it, as the cards' build declares them. */
-function declared(cards: PackageHandle): Declared[] {
+function declarationsOf(cards: Package): Declaration[] {
     const symbol = graph.Moniker.of({ packageId: cards.id, module: "src/index.ts", name: "cards" });
 
     return [
@@ -214,7 +234,7 @@ function declared(cards: PackageHandle): Declared[] {
 }
 
 /** A bundled dependency of the cards' package. */
-const bundled = Package.parse({
+const bundled = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d9",
     name: "@example/dependency",
     version: "2026.9.0",
@@ -225,26 +245,29 @@ const sticker = defineObject(
     {
         name: "sticker",
         plural: "stickers",
+        title: t`${plural(argument("count"), { one: "Sticker", other: "Stickers" })}`,
         scope: space,
         fields: {
             /** The sticker's text. */
             text: field.string(),
         },
-        permissions: ["read"],
+        access: {
+            permissions: ["read"],
+        },
     },
     () => ({}),
     { package: bundled },
 );
 
 /** The bundled dependency's package declaration, at its symbol, which no sandbox serves. */
-const dependency: Declared = {
+const dependency: Declaration = {
     symbol: graph.Moniker.of({ packageId: bundled.id, module: "src/index.ts", name: "default" }),
     ...PACKAGE_KIND.identity,
-    description: describePackage(PackageHandle.of(bundled, { objects: { sticker } })),
+    description: describePackage(Package.of(bundled, { objects: [sticker] })),
 };
 
 /** Move the card type of a declaration into another package, its scope left in the platform's. */
-function moved(entry: Declared, installed: Package): Declared {
+function moved(entry: Declaration, installed: PackageVersion): Declaration {
     // rewrite the declaration's package and every reference to the card type
     const reference = schema.looseObject({
         packageId: schema.literal(card.package.id),
@@ -307,8 +330,8 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
     const { store, exchange } = await serveCards(
         world,
         definePackage({
-            objects: {
-                card: card.implement({
+            objects: [
+                card.implement({
                     methods: {
                         create: (call, next) =>
                             next(
@@ -333,7 +356,7 @@ test("run a card's hooks in its sandbox, their reads, nested calls and wrapped b
                         },
                     },
                 }),
-            },
+            ],
         }),
     );
     const created = await run(store, card.call("create", { spaceId, name: "plan" }));
@@ -409,8 +432,8 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
         const { store, exchange } = await serveCards(
             world,
             definePackage({
-                objects: {
-                    card: card.implement({
+                objects: [
+                    card.implement({
                         methods: {
                             remark: async (call) => {
                                 // read the card, renaming it concurrently on the first attempt
@@ -442,7 +465,7 @@ test("run a sandboxed hook again in a fresh session once a concurrent commit cha
                             },
                         },
                     }),
-                },
+                ],
             }),
         );
         served.store = store;
@@ -475,8 +498,8 @@ test("read every card of the package in a hook, and read as the caller through a
     const { store } = await serveCards(
         world,
         definePackage({
-            objects: {
-                card: card.implement({
+            objects: [
+                card.implement({
                     methods: {
                         remark: async (call) => {
                             const listed = await call.read(card).findMany();
@@ -514,7 +537,7 @@ test("read every card of the package in a hook, and read as the caller through a
                         },
                     },
                 }),
-            },
+            ],
         }),
     );
 
@@ -538,8 +561,8 @@ test("read every card of the package in a hook, and read as the caller through a
 
 /** Cards whose remark stamps the card through its package method. */
 const stamping = definePackage({
-    objects: {
-        card: card.implement({
+    objects: [
+        card.implement({
             methods: {
                 remark: async (call) => {
                     await call.mutate(call.caller, [
@@ -550,7 +573,7 @@ const stamping = definePackage({
                 },
             },
         }),
-    },
+    ],
 });
 
 test("call a package method of the hook's package in its session", async () => {
@@ -584,8 +607,8 @@ test("decide permissions, take positions, read the start position and act as the
     const { store, exchange } = await serveCards(
         world,
         definePackage({
-            objects: {
-                card: card.implement({
+            objects: [
+                card.implement({
                     methods: {
                         remark: async (call) => {
                             const reference = card.reference(call.scope, call.target.id);
@@ -603,7 +626,7 @@ test("decide permissions, take positions, read the start position and act as the
                         },
                     },
                 }),
-            },
+            ],
         }),
     );
     const created = await run(store, card.call("create", { spaceId, name: "Plan" }));
@@ -640,7 +663,7 @@ test("serve the installation's package from its sandbox, never a bundled depende
     // run in a world of its own
     const world = testSimulation().environment("test");
 
-    const { store } = await serveCards(world, definePackage({ objects: { card } }));
+    const { store } = await serveCards(world, definePackage({ objects: [card] }));
 
     expect(store.packages.map((served) => served.package.id)).toEqual([card.package.id]);
 });
@@ -677,8 +700,8 @@ test("read the rows of a type the installation serves without hooks", async () =
     const { store } = await serveCards(
         world,
         definePackage({
-            objects: {
-                card: card.implement({
+            objects: [
+                card.implement({
                     methods: {
                         remark: async (call) => {
                             const notes = await call.read(note).findMany();
@@ -695,7 +718,7 @@ test("read the rows of a type the installation serves without hooks", async () =
                     },
                 }),
                 note,
-            },
+            ],
         }),
     );
 
@@ -729,12 +752,12 @@ test("refuse serving the cards of two installations of one package from one stor
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const cards = definePackage({ objects: { card } });
+    const cards = definePackage({ objects: [card] });
     const installed = await testServerContext(card.package, spaceId, world);
     const sandbox = (id: Identifier<"installation">) =>
         new HookSandbox({
             server: { ...installed, installation: id },
-            declarations: declared(cards),
+            declarations: declarationsOf(cards),
             send: () => Promise.reject(new TypeError("the cards have no hooks")),
         });
     const first = schema
@@ -785,11 +808,11 @@ test("serve the cards of the platform and of an installed package from one store
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const cards = definePackage({ objects: { card } });
+    const cards = definePackage({ objects: [card] });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId, world),
-        declarations: declared(cards).map((entry) => moved(entry, installed)),
+        declarations: declarationsOf(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
 
@@ -835,12 +858,12 @@ test("describe the platform's and an installed package's types from one store, d
         { environment: world, isMigrated: true },
     );
     onTestFinished(() => storage.close());
-    const photos = definePackage({ objects: { photo } });
-    const cards = definePackage({ objects: { card } });
+    const photos = definePackage({ objects: [photo] });
+    const cards = definePackage({ objects: [card] });
     const installed = { ...card.package, id: OTHER_PACKAGE, name: "@app/cards" };
     const sandbox = new HookSandbox({
         server: await testServerContext(installed, spaceId, world),
-        declarations: declared(cards).map((entry) => moved(entry, installed)),
+        declarations: declarationsOf(cards).map((entry) => moved(entry, installed)),
         send: () => Promise.reject(new TypeError("the cards have no hooks")),
     });
     const store = await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
@@ -881,10 +904,13 @@ test("list the phases a package attaches as hooks, leaving a trait's methods to 
         {
             name: "machine",
             plural: "machines",
+            title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
             scope: space,
-            controlled: true,
             fields: { owner: field.reference(principal.user).caller() },
-            permissions: { read: relation("owner"), write: relation("owner") },
+            access: {
+                permissions: { read: relation("owner"), write: relation("owner") },
+            },
+            traits: [controlled()],
         },
         (method) => ({
             create: method.create("write").handle((context, next) => next(context)),
@@ -943,7 +969,11 @@ test("describe a sandboxed installation that serves no objects, such as one ship
     onTestFinished(() => storage.close());
 
     // install a package whose build declares one view and no objects, its hooks in a sandbox
-    const pages = Package.parse({ id: OTHER_PACKAGE, name: "@acme/pages", version: "2026.9.0" });
+    const pages = PackageVersion.parse({
+        id: OTHER_PACKAGE,
+        name: "@acme/pages",
+        version: "2026.9.0",
+    });
     const view = {
         kind: "view",
         kindPackageId: VIEW_PACKAGE,
@@ -966,7 +996,7 @@ test("describe a sandboxed installation that serves no objects, such as one ship
         blobs: new MemoryBlobStorage(world.crypto),
         principal: spacePrincipal(spaceId),
         database: storage.database,
-        origin: { package: Package.of(objectPackage) },
+        origin: { package: PackageVersion.of(objectPackage) },
         policies: [space],
         sandboxes: [sandbox],
     });

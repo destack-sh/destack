@@ -6,15 +6,19 @@ import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
 import { defineShape } from "../replica/shape.ts";
 import { schema } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** The grants of a scope: what its principal lets delegates do for it. */
 export const grant = defineObject(
     {
         name: "grant",
         plural: "grants",
+        title: t`${plural(argument("count"), { one: "Grant", other: "Grants" })}`,
         mapping: ObjectPolicy.readMapping(accessGrant),
-        represents: access.grant,
-        permissions: access.grant.definition.permissions,
+        access: {
+            represents: access.grant,
+            permissions: access.grant.definition.permissions,
+        },
     },
     (method: MethodBuilder<typeof accessGrant>) => ({
         create: Execution.handle(

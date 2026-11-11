@@ -6,12 +6,14 @@ import { testCallKey } from "@destack/object/test";
 import { anyone, Manager, principal, Caller } from "@destack/access";
 import { Identifier, schema } from "@destack/schema";
 import { ObjectReference, Scope, Subject } from "@destack/sync";
-import { defineObject, field } from "../src/index.ts";
+import { StackTarget, defineObject, field } from "../src/index.ts";
 import { type StackOptions, Stack } from "../src/server/index.ts";
 import { serversOf, testEvents } from "../src/test/index.ts";
 import { objectDatabase } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the stack declares in. */
 const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00c`);
@@ -21,9 +23,12 @@ const tag = defineObject(
     {
         name: "tag",
         plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
         scope: space,
         fields: { name: field.string(), color: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["name", "color"] }),
@@ -36,10 +41,13 @@ const stamp = defineObject(
     {
         name: "stamp",
         plural: "stamps",
+        title: t`${plural(argument("count"), { one: "Stamp", other: "Stamps" })}`,
         scope: space,
-        nested: { in: tag, delete: "restrict", receive: "write" },
         fields: { mark: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
+        traits: [nested({ in: tag, delete: "restrict", add: "write" })],
     },
     (method) => ({
         create: method.create("write", { fields: ["mark"] }),
@@ -52,9 +60,12 @@ const marker = defineObject(
     {
         name: "marker",
         plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
         scope: space,
         fields: { tag: field.reference(() => tag), note: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["tagId", "note"] }),
@@ -67,10 +78,15 @@ const badge = defineObject(
     {
         name: "badge",
         plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
         scope: space,
-        references: { holder: "subject", place: "object" },
-        fields: { holder: field.json(Subject), place: field.json(ObjectReference) },
-        permissions: ["write"],
+        fields: {
+            holder: field.json(StackTarget.on(Subject, () => "subject")),
+            place: field.json(StackTarget.on(ObjectReference, () => "object")),
+        },
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["holder", "place"] }),
@@ -83,9 +99,12 @@ const seal = defineObject(
     {
         name: "seal",
         plural: "seals",
+        title: t`${plural(argument("count"), { one: "Seal", other: "Seals" })}`,
         scope: space,
         fields: { name: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["name"] }),
@@ -97,9 +116,12 @@ const seal = defineObject(
 const crate = defineObject({
     name: "crate",
     plural: "crates",
+    title: t`${plural(argument("count"), { one: "Crate", other: "Crates" })}`,
     scope: space,
     fields: { size: field.integer() },
-    permissions: ["write"],
+    access: {
+        permissions: ["write"],
+    },
 });
 
 /** The installation and package declaring the records. */

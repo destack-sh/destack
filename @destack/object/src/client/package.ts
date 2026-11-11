@@ -29,9 +29,9 @@ export interface ClientTarget<Definition extends ProcedureRouter> {
 
 /** A typed HTTP client of a package, as createClient creates it. */
 export type ClientOf<
-    Declared extends { readonly router: ProcedureRouter },
+    Handle extends { readonly router: ProcedureRouter },
     Context extends ClientContext = Record<never, never>,
-> = Client<Declared["router"], Context>;
+> = Client<Handle["router"], Context>;
 
 /** Create a typed HTTP client of a package at an endpoint, sending and retrying in a world. */
 export function createClient<

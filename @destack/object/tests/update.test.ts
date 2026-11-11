@@ -16,6 +16,7 @@ import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the chores. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -25,6 +26,7 @@ const chore = defineObject(
     {
         name: "chore",
         plural: "chores",
+        title: t`${plural(argument("count"), { one: "Chore", other: "Chores" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
@@ -32,7 +34,9 @@ const chore = defineObject(
             done: field.boolean(),
             assignee: field.string().optional(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["list", "done"] }),
@@ -132,12 +136,15 @@ test("refuse many updates at once of guarded fields", () => {
                 {
                     name: "secret-chore",
                     plural: "secret-chores",
+                    title: t`${plural(argument("count"), { one: "Secret chore", other: "Secret chores" })}`,
                     scope: space,
                     fields: {
                         owner: field.reference(principal.user).caller(),
                         done: field.boolean().guardWrite("write"),
                     },
-                    permissions: { read: relation("owner"), write: relation("owner") },
+                    access: {
+                        permissions: { read: relation("owner"), write: relation("owner") },
+                    },
                 },
                 (method) => ({
                     finish: method.updateMany("write", { fields: ["done"], match: ["owner"] }),

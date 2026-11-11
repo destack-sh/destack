@@ -16,6 +16,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The public space containing the handles. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -31,15 +32,18 @@ const handle = defineObject(
     {
         name: "handle",
         plural: "handles",
+        title: t`${plural(argument("count"), { one: "Handle", other: "Handles" })}`,
         scope: space,
         fields: {
             holder: field.reference(principal.user),
             name: field.string(schema.string().min(1)),
         },
-        permissions: { read: relation("holder"), create: relation("holder") },
-        elevated: { create: RECENT },
         constraints: {
             name: { kind: "unique", on: ["scope", "name"] },
+        },
+        access: {
+            permissions: { read: relation("holder"), create: relation("holder") },
+            elevated: { create: RECENT },
         },
     },
     (method) => ({
@@ -152,13 +156,16 @@ const team = defineObject(
     {
         name: "team",
         plural: "teams",
+        title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
         scope: space,
         fields: { name: field.string(schema.string().min(1)) },
-        relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
-        permissions: {
-            read: relation("owner"),
-            update: relation("owner"),
-            manage: relation("owner"),
+        access: {
+            relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
+            permissions: {
+                read: relation("owner"),
+                update: relation("owner"),
+                manage: relation("owner"),
+            },
         },
     },
     (method) => ({
@@ -330,6 +337,7 @@ const contact = defineObject(
     {
         name: "contact",
         plural: "contacts",
+        title: t`${plural(argument("count"), { one: "Contact", other: "Contacts" })}`,
         scope: space,
         fields: {
             label: field.string(schema.string().min(1)),
@@ -337,12 +345,6 @@ const contact = defineObject(
             address: field.string(schema.email()).optional(),
             number: field.string(schema.e164()).optional(),
             region: field.string(schema.string().length(2)).optional(),
-        },
-        relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
-        permissions: {
-            read: relation("owner"),
-            update: relation("owner"),
-            manage: relation("owner"),
         },
         constraints: {
             kind: {
@@ -363,6 +365,14 @@ const contact = defineObject(
                         },
                     ],
                 },
+            },
+        },
+        access: {
+            relations: { owner: { subjects: [principal.user], grantedBy: "manage" } },
+            permissions: {
+                read: relation("owner"),
+                update: relation("owner"),
+                manage: relation("owner"),
             },
         },
     },
@@ -459,9 +469,12 @@ const ticket = defineObject(
     {
         name: "ticket",
         plural: "tickets",
+        title: t`${plural(argument("count"), { one: "Ticket", other: "Tickets" })}`,
         scope: space,
         fields: { title: field.string(), queue: field.string() },
-        permissions: { read: none(), write: none() },
+        access: {
+            permissions: { read: none(), write: none() },
+        },
     },
     (method) => ({ create: method.create("write", { filled: ["queue"] }) }),
 );
@@ -527,6 +540,7 @@ const channel = defineObject(
     {
         name: "channel",
         plural: "channels",
+        title: t`${plural(argument("count"), { one: "Channel", other: "Channels" })}`,
         scope: space,
         key: "slug",
         fields: {
@@ -534,7 +548,9 @@ const channel = defineObject(
             holder: field.reference(principal.user),
             name: field.string(),
         },
-        permissions: { read: relation("holder"), create: relation("holder") },
+        access: {
+            permissions: { read: relation("holder"), create: relation("holder") },
+        },
     },
     (method) => ({ create: method.create("create"), get: method.get("read") }),
 );
@@ -544,13 +560,16 @@ const post = defineObject(
     {
         name: "post",
         plural: "posts",
+        title: t`${plural(argument("count"), { one: "Post", other: "Posts" })}`,
         scope: space,
         fields: {
             channel: field.reference(channel),
             holder: field.reference(principal.user),
             text: field.string(),
         },
-        permissions: { read: relation("holder"), create: relation("holder") },
+        access: {
+            permissions: { read: relation("holder"), create: relation("holder") },
+        },
     },
     (method) => ({ create: method.create("create") }),
 );
@@ -627,9 +646,12 @@ const topic = defineObject(
     {
         name: "topic",
         plural: "topics",
+        title: t`${plural(argument("count"), { one: "Topic", other: "Topics" })}`,
         scope: space,
         fields: { holder: field.reference(principal.user), name: field.string() },
-        permissions: { read: relation("holder"), create: relation("holder") },
+        access: {
+            permissions: { read: relation("holder"), create: relation("holder") },
+        },
     },
     (method) => ({ create: method.create("create") }),
 );
@@ -700,9 +722,12 @@ const watch = defineObject(
     {
         name: "watch",
         plural: "watches",
+        title: t`${plural(argument("count"), { one: "Watch", other: "Watches" })}`,
         scope: space,
         fields: { watcher: field.subject().caller(), topic: field.string() },
-        permissions: { read: relation("watcher"), add: none() },
+        access: {
+            permissions: { read: relation("watcher"), add: none() },
+        },
     },
     (method) => ({
         create: method.create("read"),

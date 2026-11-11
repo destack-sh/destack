@@ -15,17 +15,26 @@ import {
 } from "@destack/access";
 import { defineDatabase, eq, Transaction } from "@destack/db";
 import { PackageId } from "@destack/package";
-import { defineResourceKind, Plan, type Provider } from "@destack/resource";
+import { Plan, type Provider } from "@destack/resource";
 import { unreachablePlan } from "@destack/resource/error";
 import { Digest, present, schema } from "@destack/schema";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
 
-import { CONSUMER, defineObject, type ObjectType, type Resource } from "../src/index.ts";
+import {
+    CONSUMER,
+    controlled,
+    defineObject,
+    type ObjectType,
+    provisioned,
+    type Resource,
+} from "../src/index.ts";
 import { DRAINING } from "../src/server/index.ts";
 import { claim, serveClaims } from "./fixture/claim.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { defineKind } from "@destack/package";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the boxes and links. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -36,45 +45,51 @@ const machineId = schema
     .parse("machine-01996ab0-0000-7000-8000-000000000052");
 
 /** Boxes whose size their consumers require. */
-const BoxKind = defineResourceKind("box", {
-    spec: schema.object({}),
-    state: schema.object({ size: schema.number().int().min(0) }),
+const BoxKind = defineKind({
+    name: "box",
+    provisioned: {
+        spec: schema.object({}),
+        state: schema.object({ size: schema.number().int().min(0) }),
+    },
 });
 
 /** Links nothing provisions. */
-const LinkKind = defineResourceKind("link", { spec: schema.object({}) });
+const LinkKind = defineKind({ name: "link", provisioned: { spec: schema.object({}) } });
 
 /** A space's box: a resource of the box kind. */
 const box = defineObject({
     name: "box",
     plural: "boxes",
+    title: t`${plural(argument("count"), { one: "Box", other: "Boxes" })}`,
     scope: space,
-    provisioned: { kind: BoxKind },
     fields: {},
+    traits: [provisioned({ kind: BoxKind })],
 });
 
 /** Sockets outside Destack, which the egress reaches at their identifiers. */
-const SocketKind = defineResourceKind("socket", {
-    spec: schema.object({}),
-    management: "external",
+const SocketKind = defineKind({
+    name: "socket",
+    provisioned: { spec: schema.object({}), management: "external" },
 });
 
 /** A space's socket: a resource of the external socket kind. */
 const socket = defineObject({
     name: "socket",
     plural: "sockets",
+    title: t`${plural(argument("count"), { one: "Socket", other: "Sockets" })}`,
     scope: space,
-    provisioned: { kind: SocketKind },
     fields: {},
+    traits: [provisioned({ kind: SocketKind })],
 });
 
 /** A space's link: a resource of the link kind. */
 const link = defineObject({
     name: "link",
     plural: "links",
+    title: t`${plural(argument("count"), { one: "Link", other: "Links" })}`,
     scope: space,
-    provisioned: { kind: LinkKind },
     fields: {},
+    traits: [provisioned({ kind: LinkKind })],
 });
 
 /** The boxes and links the scenarios use. */
@@ -579,10 +594,10 @@ test("retry a failed provisioning without recording it, and provision on the nex
     );
     const failure = present(await read(ids.first), "the failed box").conditions;
     await reconcile("box", ids.first);
-    const provisioned = present(await read(ids.first), "the provisioned box").conditions["Ready"];
+    const ready = present(await read(ids.first), "the provisioned box").conditions["Ready"];
     expect({
         failed: [failed, failure],
-        provisioned: provisioned?.reason,
+        provisioned: ready?.reason,
         sizes: [...boxes.sizes.keys()],
     }).toEqual({
         failed: ["the disk is full", {}],
@@ -670,13 +685,13 @@ test("leave an external kind's resources to their own type's controller, and ref
     const world = testSimulation().environment("provisioned");
     const own = { pending: {}, reconcile: async () => {} };
     const sockets = socket.implement({ controllers: [own] });
-    const controlled = box.implement({ controllers: [own] });
+    const implemented = box.implement({ controllers: [own] });
     const { store } = await serve(world, new Boxes(), [box, link, sockets]);
     const names = store.control().controllers.map((each) => each.name);
 
     // run the sockets' own controller alone, and refuse a box store
     expect(names.filter((name) => name === "socket")).toEqual(["socket"]);
-    await expect(serve(world, new Boxes(), [controlled, link])).rejects.toThrow(
+    await expect(serve(world, new Boxes(), [implemented, link])).rejects.toThrow(
         new TypeError("resources box cannot have a controller: their kind provides it"),
     );
 });
@@ -686,10 +701,10 @@ test("refuse a resource type declaring its own controlled trait, which its kind 
         defineObject({
             name: "socket",
             plural: "sockets",
+            title: t`${plural(argument("count"), { one: "Socket", other: "Sockets" })}`,
             scope: space,
-            provisioned: { kind: SocketKind },
-            controlled: true,
             fields: {},
+            traits: [provisioned({ kind: SocketKind }), controlled()],
         }),
     ).toThrow(new TypeError("resources 'socket' take their kind's controlled trait"));
 });

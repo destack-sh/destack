@@ -1,7 +1,8 @@
 import * as access from "@destack/access";
 import { accessRelationship, Relationship } from "@destack/access";
 import { GrantFields, readGrant } from "../trait/shareable.ts";
-import { ObjectReference } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
+import { StackTarget } from "../stack/reference.ts";
 import { schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
 import { Empty } from "../method/procedure.ts";
@@ -17,19 +18,27 @@ import {
     LookupResult,
     ObjectPolicy,
 } from "../object/access.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A relationship to create: its object, and its subject through one relation or role. */
-const RelationshipInput = schema.object({ object: ObjectReference, ...GrantFields });
+const RelationshipInput = schema.object({
+    ...GrantFields,
+    object: StackTarget.on(ObjectReference, () => "object"),
+    role: StackTarget.on(GrantFields.role, () => role),
+    subject: StackTarget.on(Subject, () => "subject"),
+});
 
 /** The relationships of a scope, created and deleted under the grant rules. */
 export const relationship = defineObject(
     {
         name: "relationship",
         plural: "relationships",
+        title: t`${plural(argument("count"), { one: "Relationship", other: "Relationships" })}`,
         mapping: ObjectPolicy.readMapping(accessRelationship),
-        represents: access.relationship,
-        permissions: access.relationship.definition.permissions,
-        references: { object: "object", role, subject: "subject" },
+        access: {
+            represents: access.relationship,
+            permissions: access.relationship.definition.permissions,
+        },
     },
     (method: MethodBuilder<typeof accessRelationship>) => ({
         list: method.list("read"),
@@ -42,6 +51,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
+            title: t`Check`,
             kind: "custom",
             permission: "read",
             input: CheckInput,
@@ -67,6 +77,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
+            title: t`Lookup`,
             kind: "custom",
             permission: "read",
             input: LookupInput,
@@ -92,6 +103,7 @@ export const relationship = defineObject(
             target: "object";
             table: typeof accessRelationship;
         }>({
+            title: t`Get`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -119,6 +131,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
+            title: t`Create`,
             kind: "custom",
             permission: "grant",
             input: RelationshipInput,
@@ -151,6 +164,7 @@ export const relationship = defineObject(
             target: "scope";
             table: typeof accessRelationship;
         }>({
+            title: t`Touch`,
             kind: "custom",
             permission: "grant",
             input: RelationshipInput,
@@ -183,6 +197,7 @@ export const relationship = defineObject(
             target: "object";
             table: typeof accessRelationship;
         }>({
+            title: t`Delete`,
             kind: "custom",
             permission: "read",
             input: Empty,

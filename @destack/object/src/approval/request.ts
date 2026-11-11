@@ -22,14 +22,16 @@ import type { MethodContext } from "../method/context.ts";
 import { ObjectWatch, type ObjectReconciliation } from "../object/controller.ts";
 import { defineObject } from "../object/object.ts";
 import { Approval, approval, ApprovalQuorum, type ApprovalState } from "./approval.ts";
+import { nested } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A call one principal asks others to approve, made once approved as requester or approver. */
 export const changeRequest = defineObject(
     {
         name: "change-request",
         plural: "change-requests",
+        title: t`${plural(argument("count"), { one: "Change request", other: "Change requests" })}`,
         scope: [principal.space],
-        nested: { in: "any", receive: "approve", optional: true },
         fields: {
             /** The principal asking for the change. */
             requester: field.subject().caller().immutable(),
@@ -76,27 +78,30 @@ export const changeRequest = defineObject(
             /** The refusal the call answered once approved. */
             failure: field.json(Failure).optional(),
         },
-        permissions: {
-            // the object's readers, the requester and the space's managers read it, its code through its role
-            read: union(
-                through("parent", "read"),
-                relation("requester"),
-                through("scope", "manage"),
-            ),
-            // the object's approvers, the space's managers, and the approver the call runs as approve it
-            approve: union(
-                through("parent", "approve"),
-                through("scope", "manage"),
-                relation("as"),
-            ),
-            // the object's approvers, anyone reading the space, and the approver the call runs as open it
-            open: union(through("parent", "approve"), through("scope", "read"), relation("as")),
-            // the change's code advances it through its role, and its requester withdraws it
-            advance: none(),
-            withdraw: relation("requester"),
-        },
         attachments: [approval.attach({ by: "approve" })],
         constraints: { count: { kind: "check", condition: { count: { gte: 1 } } } },
+        access: {
+            permissions: {
+                // the object's readers, the requester and the space's managers read it, its code through its role
+                read: union(
+                    through("parent", "read"),
+                    relation("requester"),
+                    through("scope", "manage"),
+                ),
+                // the object's approvers, the space's managers, and the approver the call runs as approve it
+                approve: union(
+                    through("parent", "approve"),
+                    through("scope", "manage"),
+                    relation("as"),
+                ),
+                // the object's approvers, anyone reading the space, and the approver the call runs as open it
+                open: union(through("parent", "approve"), through("scope", "read"), relation("as")),
+                // the change's code advances it through its role, and its requester withdraws it
+                advance: none(),
+                withdraw: relation("requester"),
+            },
+        },
+        traits: [nested({ in: "any", add: "approve", optional: true })],
     },
     (method) => ({
         create: method.create("open", {

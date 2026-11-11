@@ -17,6 +17,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { controlled, nested, recoverable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the credentials. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -26,18 +28,23 @@ const credential = defineObject(
     {
         name: "credential",
         plural: "credentials",
+        title: t`${plural(argument("count"), { one: "Credential", other: "Credentials" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             custodian: field.reference(principal.user),
             value: field.string().optional(),
         },
-        recoverable: { within: { minutes: 1 }, by: "write", purge: "purge", retain: "record" },
-        permissions: {
-            read: relation("owner"),
-            write: relation("owner"),
-            purge: relation("custodian"),
+        access: {
+            permissions: {
+                read: relation("owner"),
+                write: relation("owner"),
+                purge: relation("custodian"),
+            },
         },
+        traits: [
+            recoverable({ within: { minutes: 1 }, by: "write", purge: "purge", retain: "record" }),
+        ],
     },
     (method) => ({
         create: method.create("write", { fields: ["custodianId", "value"] }),
@@ -207,10 +214,13 @@ const drawer = defineObject(
     {
         name: "drawer",
         plural: "drawers",
+        title: t`${plural(argument("count"), { one: "Drawer", other: "Drawers" })}`,
         scope: space,
-        controlled: true,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write", { fields: [] }),
@@ -223,11 +233,16 @@ const letter = defineObject(
     {
         name: "letter",
         plural: "letters",
+        title: t`${plural(argument("count"), { one: "Letter", other: "Letters" })}`,
         scope: space,
-        nested: { in: drawer, delete: "trash", receive: "write" },
         fields: { text: field.string().optional() },
-        recoverable: { within: { minutes: 1 }, by: "write", retain: "record" },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [
+            nested({ in: drawer, delete: "trash", add: "write" }),
+            recoverable({ within: { minutes: 1 }, by: "write", retain: "record" }),
+        ],
     },
     (method) => ({
         create: method.create("write", { fields: ["text"] }),

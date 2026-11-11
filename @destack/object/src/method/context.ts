@@ -43,7 +43,7 @@ import {
     type JsonObject,
     type JsonValue,
 } from "@destack/schema";
-import type { DeclarationKind, graph, PackageId } from "@destack/package";
+import type { Kind, graph, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Catalog } from "@destack/locale";
 
@@ -930,7 +930,7 @@ export class MethodContext<
 
     /** Read a kind of its package from a package's release the scope runs, or a given version. */
     async declarations<Description extends schema.Schema>(
-        kind: DeclarationKind<Description>,
+        kind: Kind<Description>,
         packageId: PackageId,
         version?: string,
     ): Promise<graph.Declaration<schema.Output<Description>>[]> {

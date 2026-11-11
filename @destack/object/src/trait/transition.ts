@@ -14,7 +14,7 @@ import {
     type TargetFields,
 } from "../method/procedure.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -63,7 +63,7 @@ export type TransitionMethodMap<Fields> = {
 };
 
 /** Transitions of state fields. */
-export const transitions: Trait<StateFields> & {
+export const transitions: TraitBehavior<StateFields> & {
     /** Change one state field through one transition. */
     readonly method: (
         field: string,
@@ -163,12 +163,12 @@ export const transitions: Trait<StateFields> & {
 };
 
 /** The procedures transitions derive, taking the fields a transition records. */
-export type TransitionProcedures<Object extends ObjectType, Declared extends Method = Method> = {
+export type TransitionProcedures<Object extends ObjectType, Declaration extends Method = Method> = {
     transition: Procedure<
         schema.Object<
             TargetFields<Object> &
                 ReplayFields<Object> &
-                ValueFields<Object, NonNullable<Declared["fields"]>[number] & string>
+                ValueFields<Object, NonNullable<Declaration["fields"]>[number] & string>
         >,
         RowSchema<Object>
     >;

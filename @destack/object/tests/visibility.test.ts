@@ -21,6 +21,7 @@ import { testEvents, serversOf } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A private space nobody reads. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -29,20 +30,26 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const room = defineObject({
     name: "room",
     plural: "rooms",
+    title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
     scope: "universe",
-    isScope: true,
     fields: {},
-    relations: { reader: { subjects: [anyone.all()] } },
-    permissions: { read: relation("reader") },
+    container: "scope",
+    access: {
+        relations: { reader: { subjects: [anyone.all()] } },
+        permissions: { read: relation("reader") },
+    },
 });
 
 /** Desks in rooms. */
 const desk = defineObject({
     name: "desk",
     plural: "desks",
+    title: t`${plural(argument("count"), { one: "Desk", other: "Desks" })}`,
     scope: room,
     fields: {},
-    permissions: { read: none() },
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** Documents shared one at a time with their readers. */
@@ -50,10 +57,13 @@ const document = defineObject(
     {
         name: "document",
         plural: "documents",
+        title: t`${plural(argument("count"), { one: "Document", other: "Documents" })}`,
         scope: space,
         fields: { title: field.string(schema.string().min(1)) },
-        relations: { reader: { subjects: [principal.user] } },
-        permissions: { read: relation("reader"), write: none() },
+        access: {
+            relations: { reader: { subjects: [principal.user] } },
+            permissions: { read: relation("reader"), write: none() },
+        },
     },
     (method) => ({
         create: method.create("write"),

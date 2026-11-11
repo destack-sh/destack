@@ -12,7 +12,7 @@ import {
     relationsOf,
     type TableMapping,
 } from "@destack/access";
-import type { Package, PackageId } from "@destack/package";
+import type { PackageVersion, PackageId } from "@destack/package";
 import { Field } from "../field/field.ts";
 import { Roles } from "../trait/shareable.ts";
 import { derivePermissions, type TraitObject, type TraitPolicy } from "../trait/trait.ts";
@@ -41,7 +41,7 @@ export const ObjectPolicy = {
     policy(
         type: ObjectType,
         definition: ObjectDefinition,
-        owner: Package,
+        owner: PackageVersion,
     ): { permissions: string[]; policy: Policy } {
         // collect the declared permissions, the traits' policies and the permissions they derive
         const permissions = ObjectPermissions.expressions(definition.permissions ?? []);
@@ -351,7 +351,7 @@ export const ObjectPolicy = {
     declaredRelations(
         type: ObjectType,
         definition: ObjectDefinition,
-        owner: Package,
+        owner: PackageVersion,
         permissions: Readonly<Record<string, AccessExpression>>,
     ): Record<string, RelationInput> {
         // resolve declared relations
@@ -403,7 +403,7 @@ export const ObjectPolicy = {
     /** Resolve a declared relation subject: a type's policy, a package subject type, or as is. */
     resolveSubject(
         subject: ObjectRelationInput["subjects"][number],
-        owner: Package,
+        owner: PackageVersion,
     ): RelationInput["subjects"][number] {
         // take an object type's policy
         if (subject instanceof ObjectType) {
@@ -461,7 +461,7 @@ export const ObjectPolicy = {
 
     /** Assemble a type's policy from its declared and represented rules and its traits'. */
     objectPolicy(
-        owner: Package,
+        owner: PackageVersion,
         definition: ObjectDefinition<string, Readonly<Record<string, Method>>>,
         rules: {
             /** The relations the definition declares, reads from fields and enclosing scopes. */
@@ -510,9 +510,7 @@ export const ObjectPolicy = {
                 : { relationships: { read: definition.shareable.read } }),
             ...(definition.reserved === undefined ? {} : { reserved: definition.reserved }),
             ...(definition.elevated === undefined ? {} : { elevated: definition.elevated }),
-            ...(definition.administration === undefined
-                ? {}
-                : { administration: definition.administration }),
+            ...(definition.suspended === undefined ? {} : { suspended: definition.suspended }),
             ...(definition.moving === undefined ? {} : { moving: definition.moving }),
             ...(definition.isScope === true || represented?.definition.scope === true
                 ? { scope: true }

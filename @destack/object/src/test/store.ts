@@ -16,7 +16,7 @@ import { connectBunSqlite } from "@destack/db/bun";
 import { TestDatabase } from "@destack/db/test";
 import { Clock, type Environment, waitAborted } from "@destack/environment";
 import { Simulation, SimulatedScheduler } from "@destack/environment/simulation";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
 import {
@@ -27,7 +27,7 @@ import {
     Subject,
 } from "@destack/sync";
 import { ObjectType } from "../object/object.ts";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 import { Health } from "../server/health.ts";
 import { type PackageHandler, Server } from "../server/http.ts";
 import {
@@ -219,10 +219,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     }
 
     /** The object types the store serves by their reference's key, each with its package. */
-    get #types(): ReadonlyMap<
-        string,
-        { readonly type: ObjectType; readonly handle: PackageHandle }
-    > {
+    get #types(): ReadonlyMap<string, { readonly type: ObjectType; readonly handle: Package }> {
         return new Map(
             this.store.packages.flatMap((handler) =>
                 Object.values(handler.package.objects)
@@ -348,7 +345,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         const store = await TestObjectStore.receive(scope, {
             servers: implementations,
             chain: async () => undefined,
-            origin: { package: Package.of(objectPackage) },
+            origin: { package: PackageVersion.of(objectPackage) },
             principal: principal.user.is(scope)
                 ? universe.reference(Scope.universe.id, Scope.universe.id)
                 : Subject.parse(scope),
@@ -515,7 +512,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     }
 
     /** Read the server of a package the store serves. */
-    server(handle: PackageHandle): Server {
+    server(handle: Package): Server {
         // refuse a package the store serves no server of
         const server = this.#servers.get(handle.id);
         if (server === undefined) {
@@ -528,12 +525,12 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     /** Read a served object type with its package, absent for a type served nowhere. */
     type(
         reference: ObjectTypeReference,
-    ): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
+    ): { readonly type: ObjectType; readonly handle: Package } | undefined {
         return this.#types.get(ObjectTypeReference.key(reference));
     }
 
     /** Read the one served object type of a name with its package, refusing a shared name. */
-    named(name: string): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
+    named(name: string): { readonly type: ObjectType; readonly handle: Package } | undefined {
         const found = [...this.#types.values()].filter((each) => each.type.name === name);
         if (found.length > 1) {
             throw new TypeError(`two packages the test store serves declare '${name}'`);

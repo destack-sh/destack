@@ -3,7 +3,7 @@ import type { Method } from "../method/method.ts";
 import type { Empty } from "../method/procedure.ts";
 import { method } from "../method/record.ts";
 import { ObjectPermissions, ObjectType } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
 
 /** The permission whose holders create, update and delete the objects of a writable type. */
 const WRITE = "write";
@@ -81,7 +81,7 @@ interface Writes {
 }
 
 /** Objects created, updated and deleted by the holders of the type's write permission. */
-export const writable: Trait<Writes> = {
+export const writable: TraitBehavior<Writes> = {
     options: (definition) => {
         // write objects a store stores under a declared write permission, never events or another system's rows
         const storage = ObjectType.storageKind(definition.storage);

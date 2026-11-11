@@ -14,7 +14,8 @@ import {
 import type { ObjectType } from "../object/object.ts";
 import { idColumn } from "../field/field.ts";
 import type { FieldColumn } from "../field/field.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 import { NestedMethod } from "../method/nested.ts";
 /** The parent a tree node refers to, null for a root. */
@@ -33,8 +34,8 @@ export type NestedDefinition = {
     readonly optional?: boolean;
     /** Delete children with their parent, trash them with it, or refuse deleting it. */
     readonly delete?: "cascade" | "trash" | "restrict";
-    /** The parent permission for creating or moving an object under it. */
-    readonly receive: string;
+    /** The parent permission that adds an object under it, by creating or moving it there. */
+    readonly add: string;
     /** The permission moving an object to another parent. */
     readonly move?: string;
 };
@@ -78,7 +79,7 @@ export type NestedMethodMap<Parent> = Parent extends {
     : {};
 
 /** Objects nested under a parent, or under an object of their type in a tree. */
-export const nested: Trait<NestedDefinition> = {
+const nestedTrait: TraitBehavior<NestedDefinition> = {
     key: "nested",
     options: (definition) => definition.nested,
     columns: (options, object): Record<string, ColumnBuilder> => {
@@ -212,13 +213,16 @@ export const nested: Trait<NestedDefinition> = {
         }
 
         // require the receive permission on the parent type
-        if (parent !== "any" && !parent.permissions.includes(options.receive)) {
+        if (parent !== "any" && !parent.permissions.includes(options.add)) {
             throw new TypeError(
-                `object ${object.name} has parents without permission '${options.receive}'`,
+                `object ${object.name} has parents without permission '${options.add}'`,
             );
         }
     },
 };
+
+/** The nested trait, callable to declare it on an object type. */
+export const nested = callableTrait("nested", nestedTrait);
 
 /** The procedure moves derive. */
 export type NestedProcedures<Object extends ObjectType> = {

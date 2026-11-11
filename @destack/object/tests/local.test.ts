@@ -26,6 +26,8 @@ import { note, notebook } from "./fixture/note.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { propagated } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The module the database worker starts from, as the tab resolves it. */
 const DATABASE_WORKER = new URL("../src/browser/database.worker.ts", import.meta.url);
@@ -142,7 +144,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
     const events = await testEvents(database, world);
 
     // refuse a server for a local type, and local types in the universe, in several scopes or with durable traits
-    const draftPackage = definePackage({ objects: { draft } });
+    const draftPackage = definePackage({ objects: [draft] });
     expect([
         failure(() =>
             nth(
@@ -166,6 +168,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                     ...local,
                     name: "shared",
                     plural: "shared",
+                    title: t`${plural(argument("count"), { one: "Shared", other: "Shared" })}`,
                     scope: "universe",
                 }),
             ),
@@ -176,6 +179,7 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                     ...local,
                     name: "spread",
                     plural: "spreads",
+                    title: t`${plural(argument("count"), { one: "Spread", other: "Spreads" })}`,
                     scope: [user, notebook],
                 }),
             ),
@@ -186,7 +190,8 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                     ...local,
                     name: "sticky",
                     plural: "stickies",
-                    propagated: {},
+                    title: t`${plural(argument("count"), { one: "Sticky", other: "Stickies" })}`,
+                    traits: [propagated({})],
                 }),
             ),
         ),
@@ -197,8 +202,11 @@ test("refuse to serve local objects at another principal's store, and refuse loc
                         ...local,
                         name: "remote",
                         plural: "remotes",
+                        title: t`${plural(argument("count"), { one: "Remote", other: "Remotes" })}`,
                         fields: { text: field.string() },
-                        permissions: ["edit"],
+                        access: {
+                            permissions: ["edit"],
+                        },
                     },
                     (method) => ({
                         create: method.create("edit", { isPredicted: false }),

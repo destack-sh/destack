@@ -23,6 +23,7 @@ import { ObjectStore } from "./index.ts";
 import { tablesOf } from "../stack/db.ts";
 import objectPackage from "../package.ts";
 import { TestObjectStore } from "../test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Refuse a change sent over the uplink, as these replicas receive none. */
 const refuseChanges = () => Promise.reject(new Error("the fixture receives no changes"));
@@ -37,43 +38,55 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const person = defineObject({
     name: "person",
     plural: "people",
+    title: t`${plural(argument("count"), { one: "Person", other: "People" })}`,
     scope: "universe",
-    isScope: true,
     fields: { name: field.string() },
-    relations: { joined: { subjects: [principal.space], grantedBy: null } },
-    permissions: { read: relation("joined") },
+    container: "scope",
+    access: {
+        relations: { joined: { subjects: [principal.space], grantedBy: null } },
+        permissions: { read: relation("joined") },
+    },
 });
 
 /** Profiles living in their person's scope, read by whoever reads the person. */
 const profile = defineObject({
     name: "profile",
     plural: "profiles",
+    title: t`${plural(argument("count"), { one: "Profile", other: "Profiles" })}`,
     scope: person,
     fields: {
         handle: field.string(),
         email: field.string().guard({ read: "manage" }),
     },
-    permissions: { read: through("person", "read"), manage: none() },
+    access: {
+        permissions: { read: through("person", "read"), manage: none() },
+    },
 });
 
 /** Teams of the universe, with no replicas in the space. */
 const team = defineObject({
     name: "team",
     plural: "teams",
+    title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
     scope: "universe",
-    isScope: true,
     fields: { name: field.string() },
-    permissions: { read: none() },
+    container: "scope",
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** Badges living in a person's or a team's scope, each listed to the spaces it is shown to. */
 const badge = defineObject({
     name: "badge",
     plural: "badges",
+    title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
     scope: [person, team],
     fields: { label: field.string() },
-    relations: { shown: { subjects: [principal.space], grantedBy: null } },
-    permissions: { read: relation("shown") },
+    access: {
+        relations: { shown: { subjects: [principal.space], grantedBy: null } },
+        permissions: { read: relation("shown") },
+    },
 });
 
 /** Cards of the universe, listed to the spaces shown them and read whole by those given them. */
@@ -81,18 +94,21 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: "universe",
         fields: { title: field.string(), body: field.string() },
-        relations: {
-            shown: { subjects: [principal.space], grantedBy: null },
-            given: { subjects: [principal.space], grantedBy: null },
+        access: {
+            relations: {
+                shown: { subjects: [principal.space], grantedBy: null },
+                given: { subjects: [principal.space], grantedBy: null },
+            },
+            permissions: {
+                list: union(relation("shown"), relation("given")),
+                view: relation("given"),
+                read: permission("view"),
+            },
+            guard: { read: "view", except: ["title"] },
         },
-        permissions: {
-            list: union(relation("shown"), relation("given")),
-            view: relation("given"),
-            read: permission("view"),
-        },
-        guard: { read: "view", except: ["title"] },
     },
     (method) => ({ list: method.list("list") }),
 );

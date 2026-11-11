@@ -1,4 +1,4 @@
-import type { ResourceDeclaration, ResourceDescription } from "@destack/resource";
+import type { ResourceDeclaration } from "@destack/resource";
 import { schema } from "@destack/schema";
 
 /** The longest file key, as a bucket stores it. */
@@ -13,7 +13,4 @@ export const ObjectFile = schema.object({
 export type ObjectFile = schema.Infer<typeof ObjectFile>;
 
 /** The declaration of a bucket file fields store their files in. */
-export type FileBucket = ResourceDeclaration<
-    unknown,
-    ResourceDescription & { readonly kind: "bucket" }
->;
+export type FileBucket = ResourceDeclaration<unknown>;

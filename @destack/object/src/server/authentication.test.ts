@@ -3,7 +3,7 @@ import { TestAccess } from "@destack/access/test";
 import { Scope, Subject } from "@destack/sync";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Identifier, schema } from "@destack/schema";
-import { PackageId, Package } from "@destack/package";
+import { PackageId, PackageVersion } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
     accessTables,
@@ -25,7 +25,7 @@ import { Jwt, KeyPair } from "@destack/identity";
 import { TokenIssuer, TokenVerifier } from "@destack/access/token";
 import { Health } from "./health.ts";
 import { CallError } from "../error/index.ts";
-import { defineProcedure, eventIterator } from "../procedure/index.ts";
+import { Procedure, eventIterator } from "../procedure/index.ts";
 import { createClient } from "../client/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
@@ -41,8 +41,8 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
 
         // serve one procedure in every scope
         const definition = {
-            read: defineProcedure({
-                package: Package.of(fixturePackage),
+            read: Procedure.of({
+                package: PackageVersion.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -109,8 +109,8 @@ test("serve a caller handed over in-process while it is current for this package
 
     // serve the caller's name to callers handed over by in-process code
     const definition = {
-        me: defineProcedure({
-            package: Package.of(fixturePackage),
+        me: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user] },
             audit: false,
@@ -233,16 +233,16 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     });
     const key = schema.object({ id: schema.string() });
     const procedures = {
-        me: defineProcedure({
-            package: Package.of(fixturePackage),
+        me: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: "access",
         })
             .route({ method: "GET", path: "/me" })
             .output(schema.string()),
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: note.permission("read"),
             audit: "access",
@@ -250,8 +250,8 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             .route({ method: "GET", path: "/notes/{id}" })
             .input(key)
             .output(schema.string()),
-        watch: defineProcedure({
-            package: Package.of(fixturePackage),
+        watch: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: note.permission("read"),
             audit: "access",

@@ -1,10 +1,12 @@
 import { type Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
-import type { Gated, Trait } from "./trait.ts";
+import type { TraitPermission, TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 import { Execution } from "../method/execution.ts";
 import { schema } from "@destack/schema";
 import type { Table } from "@destack/db";
 import { Scope } from "@destack/sync";
+import { t } from "@destack/locale";
 
 /** The input fencing an object's scope: the machine the scope moves to. */
 const FenceInput = schema.object({
@@ -47,7 +49,7 @@ export type FencingMethodMap<Fence> = [Fence] extends [string]
     : {};
 
 /** Objects fencing the scope they live in while it moves between machines, such as a transfer. */
-export const fencing: Trait<Gated> & {
+const fencingTrait: TraitBehavior<TraitPermission> & {
     /** Declare the method fencing an object's scope for its move to a machine. */
     readonly fenceScope: <const Permission extends string>(
         permission: Permission,
@@ -75,6 +77,7 @@ export const fencing: Trait<Gated> & {
     fenceScope: (permission) =>
         Execution.handle(
             method.mutation({
+                title: t`Fence scope`,
                 permission,
                 input: FenceInput,
                 visibility: "installation",
@@ -91,7 +94,12 @@ export const fencing: Trait<Gated> & {
         ),
     unfenceScope: (permission) =>
         Execution.handle(
-            method.mutation({ permission, visibility: "installation", isPredicted: false }),
+            method.mutation({
+                title: t`Unfence scope`,
+                permission,
+                visibility: "installation",
+                isPredicted: false,
+            }),
             async (call, execution) => {
                 // lift the fence of the scope the object lives in
                 const { authorization } = Execution.store(execution, call);
@@ -102,3 +110,6 @@ export const fencing: Trait<Gated> & {
             },
         ),
 };
+
+/** The fencing trait, callable to declare it on an object type. */
+export const fencing = callableTrait("fencing", fencingTrait);

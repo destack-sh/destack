@@ -2,14 +2,14 @@ import type { Clock } from "@destack/environment";
 import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { type Authentication, Caller, principal } from "@destack/access";
 import type { Subject } from "@destack/sync";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { CallError } from "../error/index.ts";
-import { PackageHandle } from "../declare/index.ts";
+import { Package } from "../declare/index.ts";
 
 /** The package the server scenarios host. */
-export const fixturePackage = PackageHandle.of(
-    Package.parse({
+export const fixturePackage = Package.of(
+    PackageVersion.parse({
         id: "package-019f7480-0000-7000-8000-000000000001",
         name: "@destack/fixture",
         version: "2026.9.0",

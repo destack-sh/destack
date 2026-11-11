@@ -14,6 +14,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { searchable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the documents. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d3");
@@ -23,14 +25,17 @@ const document = defineObject(
     {
         name: "document",
         plural: "documents",
+        title: t`${plural(argument("count"), { one: "Document", other: "Documents" })}`,
         scope: space,
-        search: { searchable: ["title", "body"] },
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(),
             body: field.text(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [searchable({ text: ["title", "body"] })],
     },
     (method) => ({
         create: method.create("write"),

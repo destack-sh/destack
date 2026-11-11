@@ -6,6 +6,7 @@ import { MethodContext } from "./context.ts";
 
 import { CONSUMER } from "../trait/bindable.ts";
 import { Execution } from "./execution.ts";
+import { t } from "@destack/locale";
 /** The input binding an installation: the installation and all objects bound to it in scope. */
 const BindInput = schema.object({
     /** The bound installation. */
@@ -28,6 +29,7 @@ export const bind: Method<{
     visibility: "installation";
     target: "scope";
 }>({
+    title: t`Bind`,
     kind: "bind",
     permission: "bind",
     mutates: true,

@@ -1,9 +1,11 @@
 import { defineMethod, type Method } from "./method.ts";
 import { Empty } from "./procedure.ts";
+import { t } from "@destack/locale";
 
 /** Remove an expired object at any revision, past the trash. */
 export const expiry: Method = defineMethod<{ kind: "delete"; permission: "expire"; mutates: true }>(
     {
+        title: t`Read expiry`,
         kind: "delete",
         permission: "expire",
         visibility: "package",

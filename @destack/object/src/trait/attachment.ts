@@ -2,11 +2,11 @@ import { present } from "@destack/schema";
 import { permission, subjectSet, union, type AccessExpression } from "@destack/access";
 
 import type { Attachment } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
 import { installedPackage } from "@destack/access";
 
 /** Objects taking attachments of other types. */
-export const attachments: Trait<readonly Attachment[]> = {
+export const attachments: TraitBehavior<readonly Attachment[]> = {
     key: "attachments",
     storages: ["durable"],
     options: (definition) =>
@@ -55,10 +55,10 @@ export const attachments: Trait<readonly Attachment[]> = {
         };
     },
     policy: (options, object, permissions) => {
-        // derive each attachment's receive permission
+        // derive each attachment's add permission
         const attaching: Record<string, AccessExpression> = {};
         for (const attachment of options) {
-            const receive = present(attachment.object.parent, "an attachment's nesting").receive;
+            const add = present(attachment.object.parent, "an attachment's nesting").add;
             const plural = attachment.object.plural;
             // refuse a permission the host lacks
             if (!permissions.includes(attachment.by)) {
@@ -66,24 +66,24 @@ export const attachments: Trait<readonly Attachment[]> = {
                     `object ${object.name} attaches '${plural}' by permission '${attachment.by}', which it does not declare`,
                 );
             }
-            // require the host's receive permission to be the attaching one
-            else if (permissions.includes(receive)) {
-                if (attachment.by !== receive) {
+            // require the host's add permission to be the attaching one
+            else if (permissions.includes(add)) {
+                if (attachment.by !== add) {
                     throw new TypeError(
-                        `object ${object.name} declares permission '${receive}', so it must attach '${plural}' by '${receive}'`,
+                        `object ${object.name} declares permission '${add}', so it must attach '${plural}' by '${add}'`,
                     );
                 }
             }
             // refuse a second attachment deriving the same permission
-            else if (Object.hasOwn(attaching, receive)) {
+            else if (Object.hasOwn(attaching, add)) {
                 throw new TypeError(
-                    `object ${object.name} already derives permission '${receive}', which attaching '${plural}' also derives`,
+                    `object ${object.name} already derives permission '${add}', which attaching '${plural}' also derives`,
                 );
             }
-            // derive the receive permission: the attaching one, or the attachment package's installations
+            // derive the add permission: the attaching one, or the attachment package's installations
             else {
                 const { packageId } = attachment.object.policy.definition;
-                attaching[receive] = union(
+                attaching[add] = union(
                     permission(attachment.by),
                     subjectSet(installedPackage, packageId, "installation", "row"),
                 );

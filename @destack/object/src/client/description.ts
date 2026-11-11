@@ -1,4 +1,4 @@
-import type { DeclarationKind } from "@destack/package";
+import type { Kind } from "@destack/package";
 import { present, type schema } from "@destack/schema";
 import { ObjectTypeReference } from "@destack/sync";
 import { Command, COMMAND_KIND } from "../declare/command.ts";
@@ -63,7 +63,7 @@ export class ObjectStoreDescription {
     /** Select a package's declarations of a kind, read by the kind's schema. */
     declarations<Description extends schema.Schema>(
         implementation: PackageImplementationDescription,
-        kind: DeclarationKind<Description>,
+        kind: Kind<Description>,
     ): PackageDeclaration<schema.Output<Description>>[] {
         return kind.select(implementation.declarations);
     }

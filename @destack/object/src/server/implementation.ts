@@ -1,5 +1,5 @@
 import type { AccessContext } from "@destack/access";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 import type { PackageHandler } from "./http.ts";
 import type { RequestContext } from "./context.ts";
 import type { Controller, Cursor } from "@destack/db";
@@ -20,7 +20,7 @@ export type AdapterFetch = (
 ) => Promise<Response>;
 
 /** A package handle whose objects are object types, as a store serves them. */
-export type ObjectPackage = PackageHandle & {
+export type ObjectPackage = Package & {
     /** The object types the package declares, by name. */
     readonly objects: Readonly<Record<string, ObjectType>>;
 };
@@ -30,7 +30,7 @@ export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = 
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
     /** The other packages' handles whose types and adapters the package answers. */
-    readonly protocols?: readonly PackageHandle[];
+    readonly protocols?: readonly Package[];
     /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
     /** The cursors beside the objects' projections, each built over the package's store. */

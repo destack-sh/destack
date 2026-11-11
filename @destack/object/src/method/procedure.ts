@@ -1,8 +1,8 @@
 import { type Insert, type JsonOf, jsonShape, type Select, TABLE } from "@destack/db";
 import { Scope, RequestId } from "@destack/sync";
 import { type Identifier, mapValues, schema } from "@destack/schema";
-import { Package } from "@destack/package";
-import { defineProcedure } from "../procedure/index.ts";
+import { PackageVersion } from "@destack/package";
+import { Procedure } from "../procedure/index.ts";
 import { MAX_PAGE_LIMIT } from "./page.ts";
 import { ParentReference } from "../trait/nested.ts";
 import type {
@@ -150,8 +150,8 @@ export function callableProcedures(
         const collection: `/${string}` = `${object.route.prefix}/${Casing.kebab(object.plural)}`;
         const { route, input, output } = object.procedure(name);
         procedures[name] = ObjectProcedure.procedure(
-            defineProcedure({
-                package: Package.of(object.package),
+            Procedure.of({
+                package: PackageVersion.of(object.package),
                 authentication: method.mutates ? "identity" : "public",
                 permission: { rows: object.policy.permission(method.permission) },
                 audit: false,
@@ -246,7 +246,7 @@ export function scopeRoute(object: ObjectType): ScopeRoute {
 }
 
 /** The schema a procedure outputs: a value or a stream of values. */
-export type ProcedureOutput = Parameters<ReturnType<typeof defineProcedure>["output"]>[0];
+export type ProcedureOutput = Parameters<ReturnType<typeof Procedure.of>["output"]>[0];
 
 /** A derived procedure with its input and output schemas. */
 export type Procedure<Input extends schema.Schema, Output extends ProcedureOutput> = ReturnType<
@@ -289,17 +289,17 @@ type AnyProcedure = Procedure<
 /** The procedure one method derives, by its kind, any procedure for a method of unknown kind. */
 type MethodProcedureOf<
     Object extends ObjectType,
-    Declared extends Method,
-> = MethodKind extends Declared["kind"]
+    Declaration extends Method,
+> = MethodKind extends Declaration["kind"]
     ? AnyProcedure
-    : (RecordProcedures<Object, Declared> &
+    : (RecordProcedures<Object, Declaration> &
           RecoverableProcedures<Object> &
-          TransitionProcedures<Object, Declared> &
+          TransitionProcedures<Object, Declaration> &
           NestedProcedures<Object> &
           ShareableProcedures<Object> &
           BindableProcedures &
           TrackedProcedures<Object> &
-          TextProcedures<Object>)[Declared["kind"]];
+          TextProcedures<Object>)[Declaration["kind"]];
 
 /** The names of an object type's mutating methods. */
 export type MutationName<Object extends ObjectType> = {
@@ -450,14 +450,14 @@ type OptionalKeys<Record> = {
 }[keyof Record];
 
 /** The columns a creation or update writes. */
-type WrittenName<Object extends ObjectType, Declared extends Method> =
-    | (string extends NonNullable<Declared["fields"]>[number]
-          ? Declared extends { readonly kind: "create" | "createMany" }
+type WrittenName<Object extends ObjectType, Declaration extends Method> =
+    | (string extends NonNullable<Declaration["fields"]>[number]
+          ? Declaration extends { readonly kind: "create" | "createMany" }
               ? WrittenField<Object["fields"]>
               : UpdatedField<Object["fields"]>
-          : NonNullable<Declared["fields"]>[number])
-    | (Declared extends { readonly kind: "create" | "createMany" }
-          ? [Exclude<NonNullable<Declared["visibility"]>, "client">] extends [never]
+          : NonNullable<Declaration["fields"]>[number])
+    | (Declaration extends { readonly kind: "create" | "createMany" }
+          ? [Exclude<NonNullable<Declaration["visibility"]>, "client">] extends [never]
               ? never
               : CallerField<Object["fields"]>
           : never);
@@ -465,19 +465,19 @@ type WrittenName<Object extends ObjectType, Declared extends Method> =
 /** The JSON validators of the columns a creation or update writes. */
 export type WrittenFields<
     Object extends ObjectType,
-    Declared extends Method,
+    Declaration extends Method,
     IsPartial extends boolean,
-> = ColumnFields<Object, WrittenName<Object, Declared>, IsPartial, FilledName<Declared>>;
+> = ColumnFields<Object, WrittenName<Object, Declaration>, IsPartial, FilledName<Declaration>>;
 
 /** The columns a creation's handler fills where the caller leaves them out. */
-type FilledName<Declared extends Method> = NonNullable<Declared["filled"]>[number];
+type FilledName<Declaration extends Method> = NonNullable<Declaration["filled"]>[number];
 
 /** One object per creation variant: the shared fields, its columns and its literal. */
 export type VariantSchema<
     Object extends ObjectType,
-    Declared extends Method,
+    Declaration extends Method,
     Fields,
-    Variants = NonNullable<Declared["variants"]>,
+    Variants = NonNullable<Declaration["variants"]>,
 > = schema.DiscriminatedUnion<
     {
         [Field in keyof Variants & string]: {
@@ -540,9 +540,11 @@ export type ColumnFields<
 };
 
 /** A method's input fields. */
-export type InputFields<Declared extends Method> = [NonNullable<Declared["input"]>] extends [never]
+export type InputFields<Declaration extends Method> = [NonNullable<Declaration["input"]>] extends [
+    never,
+]
     ? {}
-    : NonNullable<Declared["input"]> extends schema.Object<infer Fields>
+    : NonNullable<Declaration["input"]> extends schema.Object<infer Fields>
       ? Fields
       : {};
 
@@ -657,7 +659,7 @@ const ObjectProcedure = {
 
     /** Declare one derived procedure with its access, route, input and output. */
     procedure<Input extends schema.Schema, Output extends ProcedureOutput>(
-        access: ReturnType<typeof defineProcedure>,
+        access: ReturnType<typeof Procedure.of>,
         route: { readonly method: Route["method"]; readonly path: `/${string}` },
         input: Input,
         output: Output,

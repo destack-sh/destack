@@ -1,6 +1,6 @@
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
-import { PackageHandle } from "../src/index.ts";
+import { Package } from "../src/index.ts";
 import { type TestCaller, TestObjectStore } from "../src/test/index.ts";
 import { note, notebook, notesPackage } from "./fixture/note.ts";
 import { space } from "./fixture/space.ts";
@@ -43,8 +43,8 @@ test("refuse a package served twice in one store", async () => {
     // serve the notes package's notebooks and notes through two servers
     const opening = TestObjectStore.open({
         packages: [
-            PackageHandle.of(notebook.package, { objects: { notebook } }),
-            PackageHandle.of(notebook.package, { objects: { note } }),
+            Package.of(notebook.package, { objects: [notebook] }),
+            Package.of(notebook.package, { objects: [note] }),
         ],
         scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000202"),
     });

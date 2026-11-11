@@ -10,6 +10,7 @@ import { type MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 import { Execution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** An invitation to create: its object, the relationship it offers, and why. */
 const InvitationInput = schema.object({ object: ObjectReference, ...InviteFields });
@@ -26,9 +27,12 @@ export const invitation = defineObject(
     {
         name: "invitation",
         plural: "invitations",
+        title: t`${plural(argument("count"), { one: "Invitation", other: "Invitations" })}`,
         mapping: ObjectPolicy.readMapping(accessInvitation),
-        represents: access.invitation,
-        permissions: access.invitation.definition.permissions,
+        access: {
+            represents: access.invitation,
+            permissions: access.invitation.definition.permissions,
+        },
     },
     (_method: MethodBuilder<typeof accessInvitation>) => ({
         create: defineMethod<{
@@ -40,6 +44,7 @@ export const invitation = defineObject(
             target: "scope";
             table: typeof accessInvitation;
         }>({
+            title: t`Create`,
             kind: "custom",
             permission: "grant",
             input: InvitationInput,
@@ -74,6 +79,7 @@ export const invitation = defineObject(
             target: "object";
             table: typeof accessInvitation;
         }>({
+            title: t`Accept`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -112,6 +118,7 @@ export const invitation = defineObject(
             target: "object";
             table: typeof accessInvitation;
         }>({
+            title: t`Delete`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -150,6 +157,7 @@ export const invitation = defineObject(
             target: "scope";
             table: typeof accessInvitation;
         }>({
+            title: t`List`,
             kind: "custom",
             permission: "grant",
             input: InvitationListing,

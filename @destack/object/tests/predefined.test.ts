@@ -11,6 +11,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the tiers live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -23,9 +24,9 @@ const tier = defineObject(
     {
         name: "tier",
         plural: "tiers",
+        title: t`${plural(argument("count"), { one: "Tier", other: "Tiers" })}`,
         scope: space,
         fields: { name: field.string() },
-        permissions: { read: none(), manage: none() },
         predefined: [
             {
                 id: FREE,
@@ -41,6 +42,9 @@ const tier = defineObject(
                 name: "free",
             },
         ],
+        access: {
+            permissions: { read: none(), manage: none() },
+        },
     },
     (method) => ({
         list: method.list("read"),
@@ -104,7 +108,13 @@ test("store the owner role as the role type's predefined row, refusing other row
     // read the roles' predefined rows, and declare roles with separate rows
     expect(role.predefined.map((row) => row["id"])).toEqual([Role.OWNER]);
     const mapping = ObjectPolicy.readMapping(accessRole);
-    expect(() => defineObject({ name: "role", plural: "roles", mapping, predefined: [] })).toThrow(
-        new TypeError("object 'role' over a foreign table cannot have 'predefined'"),
-    );
+    expect(() =>
+        defineObject({
+            name: "role",
+            plural: "roles",
+            title: t`${plural(argument("count"), { one: "Role", other: "Roles" })}`,
+            mapping,
+            predefined: [],
+        }),
+    ).toThrow(new TypeError("object 'role' over a foreign table cannot have 'predefined'"));
 });

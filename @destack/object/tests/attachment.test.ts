@@ -5,7 +5,7 @@ import { expect, refusal, onTestFinished, test } from "@destack/test";
 import { InstallationId, intersection, principal, relation, through, union } from "@destack/access";
 import { asc, eq, defineDatabase, Table } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 
 import { ObjectReference, RequestId, Scope } from "@destack/sync";
 import {
@@ -25,6 +25,8 @@ import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the objects. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -33,7 +35,7 @@ const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-
 const OTHER_PACKAGE = PackageId.parse("package-019f5530-8000-7000-8000-0000000000b7");
 
 /** The package of tags, which posters let its installations attach. */
-const TAGS = Package.parse({
+const TAGS = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000b8",
     name: "@example/tags",
     version: "2026.10.0",
@@ -44,10 +46,13 @@ const tag = defineObject(
     {
         name: "tag",
         plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
         scope: space,
-        nested: { in: "any", receive: "tag" },
         fields: { text: field.string(schema.string().min(1)) },
-        permissions: { read: through("parent", "read"), write: through("parent", "tag") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "tag") },
+        },
+        traits: [nested({ in: "any", add: "tag" })],
     },
     (method) => ({ create: method.create("write") }),
     { package: TAGS },
@@ -58,10 +63,13 @@ const poster = defineObject(
     {
         name: "poster",
         plural: "posters",
+        title: t`${plural(argument("count"), { one: "Poster", other: "Posters" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner") },
         attachments: [tag.attach({ by: "read" })],
+        access: {
+            permissions: { read: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("read") }),
 );
@@ -71,17 +79,21 @@ const remark = defineObject(
     {
         name: "remark",
         plural: "remarks",
+        title: t`${plural(argument("count"), { one: "Remark", other: "Remarks" })}`,
         scope: space,
-        nested: { in: "any", receive: "remark" },
         fields: { text: field.string(schema.string().min(1)) },
-        permissions: { read: through("parent", "read"), write: through("parent", "remark") },
         aggregates: { remarkCount: { function: "count" } },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "remark") },
+        },
+        traits: [nested({ in: "any", add: "remark" })],
     },
     (method) => ({
         create: method.create("write"),
         delete: method.delete("write"),
         /** Count the remarks on a parent, checked as on a new remark there. */
         count: method.query({
+            title: t`Count`,
             permission: "read",
             target: "scope",
             input: schema.object({ parent: ParentReference }),
@@ -95,10 +107,13 @@ const marker = defineObject(
     {
         name: "marker",
         plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
         scope: space,
-        nested: { in: "any", delete: "restrict", receive: "mark" },
         fields: {},
-        permissions: { read: through("parent", "read"), write: through("parent", "mark") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "mark") },
+        },
+        traits: [nested({ in: "any", delete: "restrict", add: "mark" })],
     },
     (method) => ({ create: method.create("write"), delete: method.delete("write") }),
 );
@@ -108,10 +123,13 @@ const article = defineObject(
     {
         name: "article",
         plural: "articles",
+        title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-        permissions: { read: relation("owner"), edit: relation("owner") },
         attachments: [remark.attach({ by: "edit" })],
+        access: {
+            permissions: { read: relation("owner"), edit: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("edit"),
@@ -124,10 +142,13 @@ const photo = defineObject(
     {
         name: "photo",
         plural: "photos",
+        title: t`${plural(argument("count"), { one: "Photo", other: "Photos" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), remarkCount: field.count() },
-        permissions: { read: relation("owner") },
         attachments: [remark.attach({ by: "read" }), marker.attach({ by: "read" })],
+        access: {
+            permissions: { read: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("read"),
@@ -140,9 +161,12 @@ const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner") },
+        access: {
+            permissions: { read: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("read") }),
 );
@@ -152,19 +176,22 @@ const favourite = defineObject(
     {
         name: "favourite",
         plural: "favourites",
+        title: t`${plural(argument("count"), { one: "Favourite", other: "Favourites" })}`,
         scope: space,
-        nested: { in: "any", receive: "favourite" },
         fields: { reader: field.reference(principal.user).caller() },
-        permissions: {
-            read: intersection(relation("reader"), through("parent", "favourite")),
-            write: intersection(relation("reader"), through("parent", "favourite")),
-        },
         constraints: {
             reader: {
                 kind: "unique",
                 on: ["parentPackageId", "parentType", "parentId", "readerId"],
             },
         },
+        access: {
+            permissions: {
+                read: intersection(relation("reader"), through("parent", "favourite")),
+                write: intersection(relation("reader"), through("parent", "favourite")),
+            },
+        },
+        traits: [nested({ in: "any", add: "favourite" })],
     },
     (method) => ({
         create: method.create("write"),
@@ -177,15 +204,18 @@ const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        relations: { viewer: { subjects: [user] } },
-        permissions: {
-            read: union(relation("owner"), relation("viewer")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [favourite.attach({ by: "read" })],
+        access: {
+            relations: { viewer: { subjects: [user] } },
+            permissions: {
+                read: union(relation("owner"), relation("viewer")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({ create: method.create("manage"), delete: method.delete("manage") }),
 );

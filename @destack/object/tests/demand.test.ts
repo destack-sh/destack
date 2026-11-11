@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { CONTAINED, none, principal, through } from "@destack/access";
 import { asc, defineDatabase, ControlLoop } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { PackageHandle } from "@destack/object";
+import { Package } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { Identifier, schema } from "@destack/schema";
 import { Scope, type Subscription } from "@destack/sync";
@@ -15,6 +15,7 @@ import type { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** How long a test waits for a replica: 5 s, far above its milliseconds. */
 const REPLICA_MILLISECONDS = 5000;
@@ -32,9 +33,12 @@ const followerId = schema.identifier("space").parse("space-01996ab0-0000-7000-80
 const card = defineObject({
     name: "card",
     plural: "cards",
+    title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
     scope: space,
     fields: { title: field.string() },
-    permissions: { read: through("scope", "read"), write: none() },
+    access: {
+        permissions: { read: through("scope", "read"), write: none() },
+    },
 });
 
 /** The cards with one title. */
@@ -52,10 +56,13 @@ const byTitle = titleShape.onDemand({ minutes: TTL_MINUTES });
 const machine = defineObject({
     name: "machine",
     plural: "machines",
+    title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
     scope: space,
-    represents: principal.machine,
     fields: {},
-    permissions: { read: through("scope", "read"), write: none() },
+    access: {
+        represents: principal.machine,
+        permissions: { read: through("scope", "read"), write: none() },
+    },
 });
 
 /** The row of one machine. */
@@ -148,7 +155,7 @@ async function openStores(): Promise<{
         environment: world,
         principal: spacePrincipal(followerId),
         servers: [
-            implementPackage(PackageHandle.of(card.package, {}), {
+            implementPackage(Package.of(card.package, {}), {
                 follows: [byTitle],
                 standing: [byMachine],
             }),

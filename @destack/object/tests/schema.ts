@@ -6,15 +6,20 @@ import { schema } from "@destack/schema";
 import { space } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { nested, recoverable, shareable, versioned } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** People, the user principal the example objects reference. */
 export const user = defineObject({
     name: "user",
     plural: "users",
+    title: t`${plural(argument("count"), { one: "User", other: "Users" })}`,
     scope: "universe",
-    represents: principal.user,
     fields: { name: field.string(schema.string().min(1)) },
-    permissions: [],
+    access: {
+        represents: principal.user,
+        permissions: [],
+    },
 });
 
 /** Notes stacks declare by name. */
@@ -22,9 +27,12 @@ export const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields: { title: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write"),
@@ -39,9 +47,12 @@ export const label = defineObject(
     {
         name: "label",
         plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
         scope: space,
         fields: { note: field.reference(note, { delete: "restrict" }), text: field.string() },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write"),
@@ -55,11 +66,14 @@ export const label = defineObject(
 export const team = defineObject({
     name: "team",
     plural: "teams",
+    title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
     scope: space,
     fields: { owner: field.reference(principal.user).caller() },
-    relations: { member: { subjects: [user] } },
-    permissions: { read: relation("owner"), write: relation("owner") },
-    shareable: { by: "write" },
+    access: {
+        relations: { member: { subjects: [user] } },
+        permissions: { read: relation("owner"), write: relation("owner") },
+    },
+    traits: [shareable({ by: "write" })],
 });
 
 /** Tasks callers manage through methods within a space. */
@@ -67,6 +81,7 @@ export const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
@@ -88,25 +103,31 @@ export const task = defineObject(
                 },
             }),
         },
-        recoverable: { within: { minutes: 1 }, by: "write" },
-        relations: {
-            viewer: { subjects: [user, principal.installation, team.members("member")] },
-            editor: { subjects: [user] },
+        access: {
+            relations: {
+                viewer: { subjects: [user, principal.installation, team.members("member")] },
+                editor: { subjects: [user] },
+            },
+            permissions: {
+                read: union(relation("owner"), relation("viewer"), relation("editor")),
+                write: union(relation("owner"), relation("editor")),
+                plan: relation("owner"),
+                tidy: through("scope", "share"),
+            },
         },
-        permissions: {
-            read: union(relation("owner"), relation("viewer"), relation("editor")),
-            write: union(relation("owner"), relation("editor")),
-            plan: relation("owner"),
-            tidy: through("scope", "share"),
-        },
-        shareable: { by: "write" },
+        traits: [recoverable({ within: { minutes: 1 }, by: "write" }), shareable({ by: "write" })],
     },
     (method) => ({
         create: method.create("write", { fields: ["title"] }),
         update: method.update("write", { fields: ["title", "estimate", "currentId"] }),
-        archive: method.mutation({ permission: "write" }),
-        export: method.mutation({ permission: "write", prepared: schema.string() }),
+        archive: method.mutation({ title: t`Archive`, permission: "write" }),
+        export: method.mutation({
+            title: t`Export`,
+            permission: "write",
+            prepared: schema.string(),
+        }),
         archiveAll: method.mutation({
+            title: t`Archive all`,
             permission: "tidy",
             target: "scope",
             output: schema.object({
@@ -121,10 +142,13 @@ export const task = defineObject(
 export const comment = defineObject({
     name: "comment",
     plural: "comments",
+    title: t`${plural(argument("count"), { one: "Comment", other: "Comments" })}`,
     scope: space,
-    nested: { in: task, delete: "cascade", receive: "write" },
     fields: { text: field.string(schema.string().min(1)) },
-    permissions: ["read", "write"],
+    access: {
+        permissions: ["read", "write"],
+    },
+    traits: [nested({ in: task, delete: "cascade", add: "write" })],
 });
 
 /** Immutable versions of a task's title. */
@@ -132,11 +156,13 @@ export const taskVersion = defineObject(
     {
         name: "task-version",
         plural: "taskVersions",
+        title: t`${plural(argument("count"), { one: "Task version", other: "Task versions" })}`,
         scope: space,
-        nested: { in: task, delete: "cascade", receive: "write" },
-        versioned: true,
         fields: { title: field.string(schema.string().min(1)) },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [nested({ in: task, delete: "cascade", add: "write" }), versioned()],
     },
     (method) => ({ create: method.create("write") }),
 );
@@ -146,10 +172,13 @@ export const taskCopy = defineObject(
     {
         name: "task-copy",
         plural: "taskCopies",
+        title: t`${plural(argument("count"), { one: "Task copy", other: "Task copies" })}`,
         scope: space,
-        nested: { in: task, delete: "cascade", receive: "write" },
         fields: { title: field.string(schema.string().min(1)) },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [nested({ in: task, delete: "cascade", add: "write" })],
     },
     (method) => ({
         create: method.create("write", {
@@ -163,13 +192,17 @@ export const folder = defineObject(
     {
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: space,
-        nested: { in: "self", optional: true, receive: "write" },
         fields: { name: field.string(schema.string().min(1)) },
-        permissions: ["read", "write"],
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [nested({ in: "self", optional: true, add: "write" })],
     },
     (method) => ({
         draw: method.mutation({
+            title: t`Draw`,
             permission: "write",
             target: "scope",
             output: schema.object({

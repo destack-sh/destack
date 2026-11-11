@@ -1,5 +1,5 @@
 import { testSimulation } from "../src/test/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import type { CallableName } from "../src/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
@@ -21,6 +21,8 @@ import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { recoverable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the labels. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000005");
@@ -30,15 +32,18 @@ const label = defineObject(
     {
         name: "label",
         plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(schema.string().min(1)),
             color: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
-        recoverable: { within: { days: 30 }, by: "write" },
         constraints: { name: { kind: "unique", on: ["scope", "name"] } },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "write" })],
     },
     (method) => ({
         create: method.create("write", { fields: ["name", "color"] }),
@@ -239,13 +244,13 @@ test("undo a bulk creation by deleting each created object on the device and the
 
     // serve the labels of a space
     const { storage } = await serveLabels(world);
-    const labels = definePackage({ objects: { label } });
+    const labels = definePackage({ objects: [label] });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(labels, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(labels) },
+            origin: { package: PackageVersion.of(labels) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),

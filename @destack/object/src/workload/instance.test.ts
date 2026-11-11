@@ -11,8 +11,8 @@ import { Health } from "../server/health.ts";
 import { Server } from "../server/index.ts";
 import { defineWorkload, type ServerContext } from "./workload.ts";
 import { WorkloadInstance } from "./instance.ts";
-import { Package } from "@destack/package";
-import { PackageHandle } from "../declare/index.ts";
+import { PackageVersion } from "@destack/package";
+import { Package } from "../declare/index.ts";
 import { hosting, authenticateByName } from "../test/fixture.ts";
 import { testCallKey } from "../test/context.ts";
 import { Environment, waitAborted } from "@destack/environment";
@@ -20,8 +20,8 @@ import { tablesOf } from "../index.ts";
 import { testSimulation } from "../test/world.ts";
 
 /** The first fixture package. */
-const first = PackageHandle.of(
-    Package.parse({
+const first = Package.of(
+    PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000a001",
         name: "@destack/first",
         version: "2026.9.0",
@@ -29,8 +29,8 @@ const first = PackageHandle.of(
     {},
 );
 /** The second fixture package. */
-const second = PackageHandle.of(
-    Package.parse({
+const second = Package.of(
+    PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000a002",
         name: "@destack/second",
         version: "2026.9.0",

@@ -11,7 +11,8 @@ import {
     type TargetFields,
 } from "../method/procedure.ts";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 import { RecoverableMethod } from "../method/recoverable.ts";
 /** The options of recoverable deletion. */
@@ -95,7 +96,7 @@ export function deletionColumns() {
 const PURGE_ROWS = 100;
 
 /** Objects deleted to a trash, restorable within a window and purged after it. */
-export const recoverable: Trait<RecoverableDefinition> = {
+const recoverableTrait: TraitBehavior<RecoverableDefinition> = {
     key: "recoverable",
     storages: ["durable"],
     options: (definition) => definition.recoverable,
@@ -162,6 +163,9 @@ export const recoverable: Trait<RecoverableDefinition> = {
         }
     },
 };
+
+/** The recoverable trait, callable to declare it on an object type. */
+export const recoverable = callableTrait("recoverable", recoverableTrait);
 
 /** The procedures recoverable deletion derives besides deleting. */
 export type RecoverableProcedures<Object extends ObjectType> = {

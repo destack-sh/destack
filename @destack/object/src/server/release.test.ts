@@ -1,18 +1,18 @@
 import { testSimulation } from "../test/world.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
-import { PackageHandle } from "../declare/index.ts";
+import { Package } from "../declare/index.ts";
 import { Health } from "./health.ts";
-import { defineProcedure, VERSION_HEADER } from "../procedure/index.ts";
+import { Procedure, VERSION_HEADER } from "../procedure/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
 import { fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
 
 /** A search procedure whose input renamed text to query and gained a limit in 2026.9.0. */
-const search = defineProcedure({
-    package: Package.of(fixturePackage),
+const search = Procedure.of({
+    package: PackageVersion.of(fixturePackage),
     authentication: "public",
     permission: "anyone",
     audit: false,
@@ -33,7 +33,7 @@ const Failure = schema
     .loose();
 
 /** The fixture package, serving callers of 2026.8.0 and later. */
-const served = PackageHandle.of(fixturePackage, { since: "2026.8.0" });
+const served = Package.of(fixturePackage, { since: "2026.8.0" });
 
 test("convert inputs of earlier releases, dropping the fields this release no longer declares, and refuse releases the package does not serve", async () => {
     const world = testSimulation().environment("test");
@@ -108,12 +108,12 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
 test("speak the release of the package defining a procedure, which the served package's retirement leaves alone", async () => {
     const world = testSimulation().environment("test");
     // serve another package's echo procedure from the fixture package, at a later release than the fixture's
-    const protocol = Package.parse({
+    const protocol = PackageVersion.parse({
         id: "package-019f7480-0000-7000-8000-000000000002",
         name: "@destack/protocol",
         version: "2026.11.0",
     });
-    const echo = defineProcedure({
+    const echo = Procedure.of({
         package: protocol,
         authentication: "public",
         permission: "anyone",

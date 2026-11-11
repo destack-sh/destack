@@ -20,7 +20,7 @@ import { claimReservation } from "../claim/reservation.ts";
 import { followKey } from "../replica/key.ts";
 import { replicaRequest } from "../replica/request.ts";
 import type { Follow } from "../replica/shape.ts";
-import type { PackageHandle } from "../declare/package.ts";
+import type { Package } from "../declare/package.ts";
 import { ObjectType } from "../object/object.ts";
 
 /** The calls a database executed recently, which retries of their requests replay. */
@@ -73,7 +73,7 @@ export const SYSTEM_TABLES: readonly Table[] = [
 /** List a store's tables: system tables, what it serves, follows and needs, and its host's. */
 export function tablesOf(store: {
     /** The packages the store serves. */
-    readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
+    readonly packages: readonly Pick<Package, "objects" | "tables">[];
     /** The shapes the store follows. */
     readonly follows: readonly Follow[];
     /** The tables the store's host stores in its database, such as its keys. */

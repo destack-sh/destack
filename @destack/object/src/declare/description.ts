@@ -1,13 +1,8 @@
+import { Message } from "@destack/locale";
 import { ReasonDescription } from "@destack/error";
 import { schema, Version } from "@destack/schema";
 import { GrantDeclaration } from "@destack/access";
-import {
-    defineDeclarationKind,
-    DeclarationName,
-    type graph,
-    PackageId,
-    Sandbox,
-} from "@destack/package";
+import { defineKind, DeclarationName, type graph, PackageId, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { ObjectTypeReference } from "@destack/sync";
 
@@ -101,7 +96,7 @@ export type FeatureReference = schema.Infer<typeof FeatureReference>;
 export const Capability = schema
     .object({
         /** Why the package needs it, shown when someone allows it. */
-        reason: schema.string().min(1),
+        reason: Message,
         /** Whether an installation may go without it, asking for it once its code needs it. */
         optional: schema.boolean().exactOptional(),
         /** The permissions it needs of the installation's space and of each user. */
@@ -150,7 +145,7 @@ const packageDescription = schema.object({
 });
 
 /** The kind of the declaration `definePackage` makes, which object defines. */
-export const PACKAGE_KIND = defineDeclarationKind("package", packageDescription);
+export const PACKAGE_KIND = defineKind({ name: "package", description: packageDescription });
 
 /** A declared package: the API its objects derive, its adapters and its views. */
 export const PackageDescription = Object.assign(packageDescription, {

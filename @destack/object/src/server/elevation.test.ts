@@ -1,5 +1,5 @@
 import { testSimulation } from "../test/world.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { TestAccess } from "@destack/access/test";
 import { expect, onTestFinished, test } from "@destack/test";
 import { schema } from "@destack/schema";
@@ -7,7 +7,7 @@ import { Authorizer, Policy, principal, relation, Caller } from "@destack/access
 import { defineTable, text } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { Health } from "./health.ts";
-import { defineProcedure } from "../procedure/index.ts";
+import { Procedure } from "../procedure/index.ts";
 import { createClient } from "../client/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./http.ts";
@@ -71,8 +71,8 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
 
     // serve renaming with the permission
     const procedures = {
-        rename: defineProcedure({
-            package: Package.of(fixturePackage),
+        rename: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: vault.permission("rename"),
             audit: false,

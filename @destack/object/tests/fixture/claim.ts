@@ -7,12 +7,14 @@ import { Scope } from "@destack/sync";
 import { type ClaimPrimary, RemoteStore } from "../../src/server/index.ts";
 import { claimMethods, claimTable, defineObject } from "../../src/index.ts";
 import type { Environment } from "@destack/environment";
+import { argument, plural, t } from "@destack/locale";
 
 /** The universe's claimed names, which only its principal changes in these tests. */
 export const claim = defineObject(
     {
         name: "claim",
         plural: "claims",
+        title: t`${plural(argument("count"), { one: "Claim", other: "Claims" })}`,
         mapping: {
             table: claimTable,
             id: "id",
@@ -21,7 +23,9 @@ export const claim = defineObject(
             relations: {},
         },
         scope: "universe",
-        permissions: { read: none(), claim: none(), resolve: none() },
+        access: {
+            permissions: { read: none(), claim: none(), resolve: none() },
+        },
     },
     () => claimMethods,
 );

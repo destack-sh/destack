@@ -9,6 +9,7 @@ import { defineObject } from "../object/object.ts";
 import { Execution, type StoreExecution } from "../method/execution.ts";
 import { ObjectPolicy } from "../object/access.ts";
 import { type Select } from "@destack/db";
+import { argument, plural, t } from "@destack/locale";
 
 /** A role upserted by name under a manager, granting exactly some permissions to one subject. */
 const RoleBinding = RoleRequest.extend({
@@ -25,9 +26,12 @@ export const role = defineObject(
     {
         name: "role",
         plural: "roles",
+        title: t`${plural(argument("count"), { one: "Role", other: "Roles" })}`,
         mapping: ObjectPolicy.readMapping(accessRole),
-        represents: access.role,
-        permissions: access.role.definition.permissions,
+        access: {
+            represents: access.role,
+            permissions: access.role.definition.permissions,
+        },
     },
     (method: MethodBuilder<typeof accessRole>) => ({
         get: defineMethod<{
@@ -39,6 +43,7 @@ export const role = defineObject(
             target: "object";
             table: typeof accessRole;
         }>({
+            title: t`Get`,
             kind: "custom",
             permission: "read",
             input: Empty,
@@ -116,6 +121,7 @@ export const role = defineObject(
             target: "scope";
             table: typeof accessRole;
         }>({
+            title: t`Upsert binding`,
             kind: "custom",
             permission: "update",
             input: RoleBinding,

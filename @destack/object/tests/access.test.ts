@@ -28,6 +28,8 @@ import { space, spacePrincipal } from "./fixture/space.ts";
 import { CallSite, tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { installation } from "../src/installation/index.ts";
+import { nested, recoverable, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The package the space installs beside its own. */
 const DEPLOY_PACKAGE_ID = schema
@@ -202,9 +204,12 @@ test("refuse traits on an object type over a foreign table", () => {
         defineObject({
             name: "role",
             plural: "roles",
+            title: t`${plural(argument("count"), { one: "Role", other: "Roles" })}`,
             mapping: ObjectPolicy.readMapping(accessRole),
-            permissions: ["delete"],
-            recoverable: { by: "delete", within: { days: 30 } },
+            access: {
+                permissions: ["delete"],
+            },
+            traits: [recoverable({ by: "delete", within: { days: 30 } })],
         }),
     ).toThrow(new TypeError("object 'role' over a foreign table cannot have 'recoverable'"));
 });
@@ -215,8 +220,9 @@ test("nest objects over a foreign table only through its mapping's parent relati
         defineObject({
             name: "role",
             plural: "roles",
+            title: t`${plural(argument("count"), { one: "Role", other: "Roles" })}`,
             mapping: ObjectPolicy.readMapping(accessRole),
-            nested: { in: "any", receive: "role" },
+            traits: [nested({ in: "any", add: "role" })],
         }),
     ).toThrow(
         new TypeError("object 'role' over a foreign table has no parent relation to nest through"),
@@ -228,13 +234,16 @@ test("guard every column but the identifier, the scope and the shown ones, each 
     const card = defineObject({
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: {
             title: field.string(),
             note: field.string().optional().guard({ read: "manage" }),
         },
-        permissions: ["read", "manage"],
-        guard: { read: "read", except: ["title"] },
+        access: {
+            permissions: ["read", "manage"],
+            guard: { read: "read", except: ["title"] },
+        },
     });
 
     expect(card.guards).toEqual({
@@ -263,10 +272,13 @@ function validateCard(guard: { readonly read: string; readonly except: readonly 
     defineObject({
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: { title: field.string() },
-        permissions: ["read"],
-        guard,
+        access: {
+            permissions: ["read"],
+            guard: guard,
+        },
     }).requireValid();
 }
 
@@ -283,9 +295,23 @@ test("refuse a type's guard showing a column the type lacks, or guarded by a per
 
 test("live in the universe when listed there or when living in any scope, and not inside one scope type", () => {
     // read where a universe type, an any-scope type and a space type live
-    const universal = defineObject({ name: "anchor", plural: "anchors", scope: "universe" });
-    const anywhere = defineObject({ name: "badge", plural: "badges" });
-    const spaced = defineObject({ name: "marker", plural: "markers", scope: space });
+    const universal = defineObject({
+        name: "anchor",
+        plural: "anchors",
+        title: t`${plural(argument("count"), { one: "Anchor", other: "Anchors" })}`,
+        scope: "universe",
+    });
+    const anywhere = defineObject({
+        name: "badge",
+        plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
+    });
+    const spaced = defineObject({
+        name: "marker",
+        plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
+        scope: space,
+    });
 
     // accept the first two in the universe, the any-scope one living in any scope
     expect(
@@ -434,10 +460,13 @@ test("leave a represented policy's relations whole, a concealed one concealed", 
     const represented = defineObject({
         name: "badge",
         plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
         scope: space,
-        represents: badge,
         fields: {},
-        permissions: [],
+        access: {
+            represents: badge,
+            permissions: [],
+        },
     });
 
     expect(represented.policy.definition.relations["holder"]).toEqual(
@@ -458,11 +487,14 @@ test("make each object a partition when the principal it stands for declares one
         {
             name: "site",
             plural: "sites",
+            title: t`${plural(argument("count"), { one: "Site", other: "Sites" })}`,
             scope: space,
-            represents: site,
             fields: {},
-            permissions: { read: none(), manage: none() },
-            shareable: {},
+            access: {
+                represents: site,
+                permissions: { read: none(), manage: none() },
+            },
+            traits: [shareable({})],
         },
         (method) => ({ create: method.create("manage") }),
     );
@@ -470,11 +502,14 @@ test("make each object a partition when the principal it stands for declares one
         {
             name: "room",
             plural: "rooms",
+            title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
             scope: space,
-            represents: room,
             fields: {},
-            permissions: { read: none(), manage: none() },
-            shareable: {},
+            access: {
+                represents: room,
+                permissions: { read: none(), manage: none() },
+            },
+            traits: [shareable({})],
         },
         (method) => ({ create: method.create("manage") }),
     );

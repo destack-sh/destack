@@ -1,15 +1,9 @@
 import type { Crypto } from "@destack/environment";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { type BuildReader, type OutputContent, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_KIND, ResourceDeclaration } from "@destack/resource";
-import { describeResource } from "@destack/resource/inspect";
-import {
-    PACKAGE_KIND,
-    PACKAGE_EXPORT,
-    type PackageHandle,
-    SERVER_EXPORT,
-} from "../declare/index.ts";
+import { ResourceDeclaration } from "@destack/resource";
+import { PACKAGE_KIND, PACKAGE_EXPORT, type Package, SERVER_EXPORT } from "../declare/index.ts";
 import { describePackage } from "../inspect/index.ts";
 import { OBJECT_KIND, ObjectDescription, type ObjectType } from "../object/index.ts";
 
@@ -40,7 +34,7 @@ export type TestBuildOptions = Omit<
 
 /** Write a package's build as its compiler does: its package, object types and resources. */
 export async function testBuild(
-    handle: PackageHandle & { readonly objects: Readonly<Record<string, ObjectType>> },
+    handle: Package & { readonly objects: Readonly<Record<string, ObjectType>> },
     crypto: Crypto,
     options: TestBuildOptions = {},
 ): Promise<BuildReader> {
@@ -60,9 +54,10 @@ export async function testBuild(
         ...Object.values(handle.resources)
             .filter((resource) => ResourceDeclaration.is(resource))
             .map((resource) => ({
-                ...RESOURCE_KIND.identity,
+                ...resource.kind.identity,
+                provisioned: true as const,
                 name: resource.name,
-                description: { ...describeResource(resource), ...resource.state() },
+                description: { ...resource.describe(), ...resource.state() },
             })),
     ];
 
@@ -82,7 +77,7 @@ export async function testBuild(
     );
 
     // write the build with a server output unless given others, beside its dependencies
-    return MemoryBuild.of(Package.of(handle), [...described, ...declared], crypto, {
+    return MemoryBuild.of(PackageVersion.of(handle), [...described, ...declared], crypto, {
         outputs: { server: SERVER_OUTPUT },
         ...contents,
         dependencies: Object.fromEntries(resolved.flat()),

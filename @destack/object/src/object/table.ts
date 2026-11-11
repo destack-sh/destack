@@ -9,6 +9,7 @@ import {
     text,
     type Table,
     type TableColumnMap,
+    type Expression,
 } from "@destack/db";
 import type { ModuleMetadata, PackageId } from "@destack/package";
 import type { Field, FieldColumn, TextField } from "../field/field.ts";
@@ -209,9 +210,11 @@ export const ObjectTable = {
                 ],
                 // add the traits' dependents
                 dependents: added.flatMap((traitTable) => traitTable.dependents ?? []),
-                // rename moved fields' columns in place and convert stored rows
-                moved: { columns: ObjectTable.movedColumns(definition) },
-                ...(definition.convert === undefined ? {} : { convert: definition.convert }),
+                // rename the columns of renamed fields in place and convert stored rows
+                moved: { columns: ObjectTable.movedColumns(definition, builders) },
+                ...(definition.convert === undefined
+                    ? {}
+                    : { convert: ObjectTable.storedConversions(definition, builders) }),
                 // record history for tracked objects, append events, and index a tree
                 log: ObjectTable.readLog(definition, object.storage),
                 ...(tree === undefined ? {} : { tree }),
@@ -315,14 +318,38 @@ export const ObjectTable = {
             }));
     },
 
-    /** Map each moved field to the column of its previous name. */
-    movedColumns(definition: ObjectDefinition): Record<string, string> {
+    /** Read a definition's conversions of stored rows, apart from renames. */
+    storedConversions(
+        definition: ObjectDefinition,
+        columns: Readonly<Record<string, unknown>>,
+    ): Readonly<Record<string, Readonly<Record<string, Expression>>>> {
         return Object.fromEntries(
-            Object.entries(definition.moved?.fields ?? {}).map(([field, previous]) => [
-                field,
-                Casing.snake(previous),
+            Object.entries(definition.convert ?? {}).map(([release, assignments]) => [
+                release,
+                Object.fromEntries(
+                    Object.entries(assignments).filter(
+                        ([, expression]) => renamedFrom(columns, expression) === undefined,
+                    ),
+                ),
             ]),
         );
+    },
+
+    /** Map each renamed field to its previous column, as its conversion states it. */
+    movedColumns(
+        definition: ObjectDefinition,
+        columns: Readonly<Record<string, unknown>>,
+    ): Record<string, string> {
+        // take each conversion copying a column the table no longer has as that field's rename
+        const renames = Object.values(definition.convert ?? {}).flatMap((assignments) =>
+            Object.entries(assignments).flatMap(([field, expression]): [string, string][] => {
+                const previous = renamedFrom(columns, expression);
+
+                return previous === undefined ? [] : [[field, Casing.snake(previous)]];
+            }),
+        );
+
+        return Object.fromEntries(renames);
     },
 
     /** Find the table with an aggregate. */
@@ -363,3 +390,13 @@ export const ObjectTable = {
         }
     },
 };
+
+/** Read the column a conversion renames from: one the table no longer has. */
+function renamedFrom(
+    columns: Readonly<Record<string, unknown>>,
+    expression: Expression,
+): string | undefined {
+    return expression.kind === "column" && !Object.hasOwn(columns, expression.name)
+        ? expression.name
+        : undefined;
+}

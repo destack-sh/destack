@@ -6,29 +6,34 @@ import { defineObject, field } from "../../src/index.ts";
 import { space } from "./space.ts";
 import { tablesOf } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
+import { nested, recoverable, shareable } from "../../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A page in a tree of pages, shared with its subpages and publishable through links. */
 export const page = defineObject({
     name: "page",
     plural: "pages",
+    title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
     scope: space,
-    nested: {
-        in: "self",
-        optional: true,
-        receive: "write",
-        move: "manage",
-    },
     fields: {
         title: field.string(schema.string().max(500)).default(""),
         icon: field.string(schema.string().max(32)).optional(),
         position: field.fractionalIndex().default("a0"),
     },
-    recoverable: { within: { days: 30 }, by: "manage" },
-    shareable: { isPublic: true },
+    traits: [
+        nested({
+            in: "self",
+            optional: true,
+            add: "write",
+            move: "manage",
+        }),
+        recoverable({ within: { days: 30 }, by: "manage" }),
+        shareable({ isPublic: true }),
+    ],
 });
 
 /** The package of pages, their trees, sharing, links, trash and sync. */
-export const pagesPackage = definePackage({ objects: { page, invitation } });
+export const pagesPackage = definePackage({ objects: [page, invitation] });
 
 /** The database of one space's pages. */
 export const pageDatabase = defineDatabase({

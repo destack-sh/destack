@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
-import { Package } from "@destack/package";
-import { defineProcedure, eventIterator } from "../procedure/index.ts";
+import { PackageVersion } from "@destack/package";
+import { Procedure, eventIterator } from "../procedure/index.ts";
 
 /** The readiness of a package's server. */
 export const HealthStatus = schema.enum(["starting", "up", "down", "draining", "stopped"]);
@@ -19,16 +19,16 @@ export const HealthDescription = schema.object({
 
 /** The health procedures. */
 export const health = {
-    check: defineProcedure({
-        package: Package.of(import.meta.destack.package),
+    check: Procedure.of({
+        package: PackageVersion.of(import.meta.destack.package),
         authentication: "public",
         permission: "anyone",
         audit: false,
     })
         .route({ method: "GET", path: "/health" })
         .output(HealthDescription),
-    watch: defineProcedure({
-        package: Package.of(import.meta.destack.package),
+    watch: Procedure.of({
+        package: PackageVersion.of(import.meta.destack.package),
         authentication: "public",
         permission: "anyone",
         audit: false,

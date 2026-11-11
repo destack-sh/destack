@@ -28,6 +28,8 @@ import type { Step } from "./step.ts";
 import type { BranchEntry } from "../branch/entry.ts";
 import type { Settled, SettlementContext } from "./settlement.ts";
 import type { Execution, StoreExecution } from "./execution.ts";
+import type { MethodLimits } from "./limits.ts";
+import type { Message } from "@destack/locale";
 
 export { METHOD_KINDS, type MethodKind } from "./kind.ts";
 
@@ -163,6 +165,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly [METHOD]: true;
     /** The method's kind. */
     readonly kind: OptionOf<Configuration, "kind", MethodKind>;
+    /** A custom method's action as people read it, such as in an audit log. */
+    readonly title?: Message;
     /** The permission the caller needs on the target. */
     readonly permission: OptionOf<Configuration, "permission", string>;
     /** Whether the method changes state. */
@@ -181,6 +185,8 @@ export interface Method<Configuration extends MethodConfiguration = MethodConfig
     readonly input?: OptionOf<Configuration, "input", never>;
     /** The input fields each release computes from earlier input, by introducing release. */
     readonly convert?: Readonly<Record<Version, Readonly<Record<string, Expression>>>>;
+    /** How often the method runs per key, and whose limit a call counts against. */
+    readonly limits?: MethodLimits;
     /** The result of a custom method. */
     readonly output?: OptionOf<Configuration, "output", never>;
     /** The external work the method prepares before its transaction, stored until it settles. */

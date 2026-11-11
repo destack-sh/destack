@@ -8,6 +8,8 @@ import { defineObject } from "../object/object.ts";
 import { Branch } from "./branch.ts";
 import { BranchType } from "./type.ts";
 import { changeRequest } from "../approval/request.ts";
+import { nested, shareable } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest branch title, a sentence's worth. */
 const MAX_TITLE_LENGTH = 200;
@@ -20,6 +22,7 @@ export const branch = defineObject(
     {
         name: "branch",
         plural: "branches",
+        title: t`${plural(argument("count"), { one: "Branch", other: "Branches" })}`,
         scope: [principal.space],
         fields: {
             /** The branch's title. */
@@ -35,27 +38,30 @@ export const branch = defineObject(
             /** The SQL names of the tables the branch's calls read or write. */
             tables: field.json(schema.array(schema.string())).default([]),
         },
-        relations: {
-            /** People who read, push to and review the branch. */
-            collaborator: { subjects: [principal.user] },
-        },
-        permissions: {
-            read: union(relation("author"), relation("collaborator")),
-            push: union(relation("author"), relation("collaborator")),
-            // merge as a role of the space gives it: at once, or once a change gathers its approvals
-            merge: none(),
-            approve: union(relation("author"), relation("collaborator")),
-            discard: relation("author"),
-            share: relation("author"),
-            rebuild: none(),
-        },
-        shareable: { by: "share" },
         attachments: [changeRequest.attach({ by: "approve" })],
+        access: {
+            relations: {
+                /** People who read, push to and review the branch. */
+                collaborator: { subjects: [principal.user] },
+            },
+            permissions: {
+                read: union(relation("author"), relation("collaborator")),
+                push: union(relation("author"), relation("collaborator")),
+                // merge as a role of the space gives it: at once, or once a change gathers its approvals
+                merge: none(),
+                approve: union(relation("author"), relation("collaborator")),
+                discard: relation("author"),
+                share: relation("author"),
+                rebuild: none(),
+            },
+        },
+        traits: [shareable({ by: "share" })],
     },
     (method) => ({
         create: method.create("push", { fields: ["title"] }),
         /** Append calls to an open branch as the caller's, and put their rows over the branch's. */
         push: method.mutation({
+            title: t`Push`,
             permission: "push",
             input: schema.object({
                 /** The calls to append, in order. */
@@ -64,13 +70,17 @@ export const branch = defineObject(
         }),
 
         /** Merge an open branch: run its calls in one mutation as their authors and close it. */
-        merge: method.mutation({ permission: "merge" }),
+        merge: method.mutation({ title: t`Merge`, permission: "merge" }),
 
         /** Close an open branch without replaying its calls. */
-        discard: method.mutation({ permission: "discard" }),
+        discard: method.mutation({ title: t`Discard`, permission: "discard" }),
 
         /** Rebuild an open branch's rows once the main line changed a table they read. */
-        rebuild: method.mutation({ permission: "rebuild", visibility: "package" }),
+        rebuild: method.mutation({
+            title: t`Rebuild`,
+            permission: "rebuild",
+            visibility: "package",
+        }),
     }),
 ).implement({
     methods: {
@@ -140,8 +150,8 @@ export const branchEntry = defineObject(
     {
         name: "branch-entry",
         plural: "branchEntries",
+        title: t`${plural(argument("count"), { one: "Branch entry", other: "Branch entries" })}`,
         scope: [principal.space],
-        nested: { in: branch, delete: "cascade", receive: "push" },
         fields: {
             /** The call's place on the branch. */
             position: field.integer(),
@@ -158,10 +168,13 @@ export const branchEntry = defineObject(
             /** The actors the author called through, none for a direct call. */
             actors: field.json(schema.array(Subject)).default([]),
         },
-        permissions: { read: through("parent", "read"), record: through("parent", "push") },
         constraints: {
             position: { kind: "unique", on: ["parentId", "position"] },
         },
+        access: {
+            permissions: { read: through("parent", "read"), record: through("parent", "push") },
+        },
+        traits: [nested({ in: branch, delete: "cascade", add: "push" })],
     },
     (method) => ({
         create: method.create("record", {
@@ -187,8 +200,8 @@ export const branchChange = defineObject(
     {
         name: "branch-change",
         plural: "branchChanges",
+        title: t`${plural(argument("count"), { one: "Branch change", other: "Branch changes" })}`,
         scope: [principal.space],
-        nested: { in: branch, delete: "cascade", receive: "push" },
         fields: {
             /** The SQL name of the row's table. */
             table: field.string(),
@@ -199,7 +212,10 @@ export const branchChange = defineObject(
             /** The main line's row the branch replaces, absent when the branch creates it. */
             before: field.json(schema.jsonObject()).optional(),
         },
-        permissions: { read: through("parent", "read"), record: through("parent", "push") },
+        access: {
+            permissions: { read: through("parent", "read"), record: through("parent", "push") },
+        },
+        traits: [nested({ in: branch, delete: "cascade", add: "push" })],
     },
     (method) => ({
         create: method.create("record", {

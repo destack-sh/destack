@@ -1,17 +1,12 @@
 import type { Authentication } from "@destack/access";
-import {
-    type ResourceBinding,
-    type Connector,
-    defineResourceKind,
-    ResourceDeclaration,
-} from "@destack/resource";
-import { ModuleMetadata, type Package, PackageId } from "@destack/package";
+import { type ResourceBinding, type Connector, ResourceDeclaration } from "@destack/resource";
+import { defineKind, ModuleMetadata, type PackageVersion, PackageId } from "@destack/package";
 import { schema, Version } from "@destack/schema";
 import { Exchange } from "@destack/access/token";
 import { createClient } from "../client/package.ts";
 import type { Environment } from "@destack/environment";
 import type { Client, ProcedureRouter } from "../procedure/index.ts";
-import type { PackageHandle } from "./package.ts";
+import type { Package } from "./package.ts";
 
 /** The provider code of installation bindings, connecting over HTTP through the host's egress. */
 export const INSTALLATION_PROVIDER = "http";
@@ -39,8 +34,9 @@ export const InstallationBindingState = schema.object({ release: Version });
 export type InstallationBindingState = schema.Infer<typeof InstallationBindingState>;
 
 /** The installation resource kind: typed clients of another package's installation. */
-export const InstallationKind = defineResourceKind("installation", {
-    spec: InstallationBindingSpec,
+export const InstallationKind = defineKind({
+    name: "installation",
+    provisioned: { spec: InstallationBindingSpec },
 });
 /** A named dependency on an installation of a package. */
 export type InstallationBindingDescription = schema.Infer<typeof InstallationKind.description>;
@@ -48,17 +44,17 @@ export type InstallationBindingDescription = schema.Infer<typeof InstallationKin
 /** A dependency on an installation of a package, bound to a typed client of its endpoint. */
 export class InstallationBinding<
     Router extends ProcedureRouter = ProcedureRouter,
-> extends ResourceDeclaration<Client<Router, BindingContext>, InstallationBindingDescription> {
+> extends ResourceDeclaration<Client<Router, BindingContext>, typeof InstallationBindingSpec> {
     /** The package the client calls. */
-    readonly handle: PackageHandle & { readonly router: Router };
+    readonly handle: Package & { readonly router: Router };
 
     /** Create the binding. */
     constructor(
-        owner: Package,
+        owner: PackageVersion,
         description: InstallationBindingDescription,
-        handle: PackageHandle & { readonly router: Router },
+        handle: Package & { readonly router: Router },
     ) {
-        super(owner, description);
+        super(owner, InstallationKind, description);
         this.handle = handle;
     }
 
@@ -115,7 +111,7 @@ export class InstallationBinding<
 /** Declare a dependency on an installation of a package. */
 export function defineInstallationBinding<Router extends ProcedureRouter>(
     name: string,
-    handle: PackageHandle & { readonly router: Router },
+    handle: Package & { readonly router: Router },
     options: {
         /** The address an installation calls unless a stack binds another. */
         readonly address?: string;
@@ -126,7 +122,6 @@ export function defineInstallationBinding<Router extends ProcedureRouter>(
     const owner = ModuleMetadata.require(module, "defineInstallationBinding").package;
     const description = InstallationKind.description.parse({
         name,
-        kind: InstallationKind.name,
         spec: {
             package: handle.id,
             ...(options.address === undefined ? {} : { address: options.address }),

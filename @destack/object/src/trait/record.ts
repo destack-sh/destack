@@ -14,7 +14,7 @@ import type { FieldColumn } from "../field/field.ts";
 import { TagMap } from "@destack/resource";
 import { present } from "@destack/schema";
 import { ObjectType, type ObjectStorage } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
 
 /** Declare the columns every record has. */
 export function recordColumns<const Prefix extends string>(prefix: Prefix) {
@@ -106,7 +106,7 @@ export type WriterBuilderMap<Storage> = Storage extends "ephemeral"
     : {};
 
 /** The record trait every object takes, by the objects' storage. */
-export const record: Trait<{
+export const record: TraitBehavior<{
     readonly kind: ObjectStorage;
     readonly indexes: readonly string[];
 }> = {

@@ -13,6 +13,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { recoverable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The public space the labels live in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000061");
@@ -22,13 +24,16 @@ const label = defineObject(
     {
         name: "label",
         plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(),
             color: field.string().immutable(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     () => ({ delete: false }),
 );
@@ -89,14 +94,17 @@ function declare(methods: "update" | "delete"): () => unknown {
             {
                 name: "label",
                 plural: "labels",
+                title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
                 scope: space,
                 fields: { name: field.string(), color: field.string().immutable() },
-                permissions: {
-                    read: relation("owner"),
-                    write: relation("owner"),
-                    manage: relation("owner"),
+                access: {
+                    permissions: {
+                        read: relation("owner"),
+                        write: relation("owner"),
+                        manage: relation("owner"),
+                    },
                 },
-                recoverable: { within: { days: 30 }, by: "manage" },
+                traits: [recoverable({ within: { days: 30 }, by: "manage" })],
             },
             (method) =>
                 methods === "update"

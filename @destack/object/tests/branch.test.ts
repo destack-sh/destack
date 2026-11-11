@@ -15,21 +15,25 @@ import {
 } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { users } from "./fixture/user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A note of a space, drafted on branches. */
 const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: [principal.space],
         fields: { title: field.string(schema.string().min(1)) },
-        permissions: ["manage"],
+        access: {
+            permissions: ["manage"],
+        },
     },
     (method) => ({ create: method.create("manage") }),
 );
 
 /** Object's package with the space's notes, as this test module belongs to it. */
-const notesPackage = definePackage({ objects: { ...objectPackage.objects, note } });
+const notesPackage = definePackage({ objects: [...Object.values(objectPackage.objects), note] });
 
 /** Serve alice's space with notes and branches, and read a branch with its changes. */
 async function serveBranches() {

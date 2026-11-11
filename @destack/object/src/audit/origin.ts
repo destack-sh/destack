@@ -1,6 +1,6 @@
 import { ClientId } from "@destack/access";
 import { schema } from "@destack/schema";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { AuditCaller } from "./actor.ts";
 
 /** The authority and origin of an executed call, as its machine supplied them. */
@@ -14,7 +14,7 @@ export const CallOrigin = schema.object({
     /** The grant the caller's actors acted under. */
     grantId: schema.identifier("grant").exactOptional(),
     /** The package whose method or procedure the call ran. */
-    package: Package,
+    package: PackageVersion,
     /** The installation executing the call, as the relaying machine recorded it. */
     installationId: schema.identifier("installation").exactOptional(),
     /** The instance executing the call, as the machine relaying its journal recorded it. */

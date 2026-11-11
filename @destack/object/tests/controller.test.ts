@@ -17,6 +17,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { auditedCalls, settleControl } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { controlled } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the reminders. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000003");
@@ -26,6 +28,7 @@ const reminder = defineObject(
     {
         name: "reminder",
         plural: "reminders",
+        title: t`${plural(argument("count"), { one: "Reminder", other: "Reminders" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
@@ -33,11 +36,13 @@ const reminder = defineObject(
             dueAt: field.time(),
             sentAt: field.time().optional(),
         },
-        permissions: { read: relation("owner"), write: relation("owner"), send: none() },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner"), send: none() },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["topic", "dueAt"] }),
-        send: method.mutation({ permission: "send", visibility: "package" }),
+        send: method.mutation({ title: t`Send`, permission: "send", visibility: "package" }),
     }),
 ).implement({
     methods: { send: (call) => call.update({ sentAt: call.now }) },
@@ -58,13 +63,16 @@ const gate = defineObject(
     {
         name: "gate",
         plural: "gates",
+        title: t`${plural(argument("count"), { one: "Gate", other: "Gates" })}`,
         scope: space,
-        controlled: true,
         fields: {
             owner: field.reference(principal.user).caller(),
             outcome: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write", { fields: ["outcome"] }),
@@ -100,13 +108,16 @@ const latch = defineObject(
     {
         name: "latch",
         plural: "latches",
+        title: t`${plural(argument("count"), { one: "Latch", other: "Latches" })}`,
         scope: space,
-        controlled: true,
         fields: {
             owner: field.reference(principal.user).caller(),
             outcome: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write", { fields: ["outcome"] }),
@@ -136,10 +147,13 @@ const toggle = defineObject(
     {
         name: "toggle",
         plural: "toggles",
+        title: t`${plural(argument("count"), { one: "Toggle", other: "Toggles" })}`,
         scope: space,
-        controlled: true,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [controlled()],
     },
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
@@ -149,13 +163,16 @@ const lever = defineObject(
     {
         name: "lever",
         plural: "levers",
+        title: t`${plural(argument("count"), { one: "Lever", other: "Levers" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             toggle: field.reference(() => toggle),
             outcome: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["toggleId", "outcome"] }),

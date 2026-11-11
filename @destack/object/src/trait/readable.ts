@@ -1,7 +1,7 @@
 import type { Table } from "@destack/db";
 import type { Method } from "../method/method.ts";
 import { method } from "../method/record.ts";
-import { derivePermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type TraitBehavior } from "./trait.ts";
 
 /** The get and list methods a type derives, those it declares itself left out. */
 export type ReadableMethodMap<Methods, Defined extends Table> = ("get" extends keyof Methods
@@ -21,7 +21,7 @@ export type ReadableMethodMap<Methods, Defined extends Table> = ("get" extends k
           });
 
 /** Every object type, readable one by one and in lists by its read permission. */
-export const readable: Trait<{}> = {
+export const readable: TraitBehavior<{}> = {
     options: () => ({}),
     columns: () => ({}),
     constraints: () => [],

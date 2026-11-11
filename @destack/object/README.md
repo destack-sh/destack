@@ -181,29 +181,31 @@ await post.call("create", { spaceId, channelId: "core", text: "Hi" }); // stored
 A trait adds columns, permissions and methods to a type.
 
 ```ts
-defineObject(
-    {
-        ...definition,
-        recoverable: { within: { days: 30 }, by: "write" }, // delete, restore and purge
-        controlled: { approval: true }, // desired generation, conditions and approved plan
-        provisioned: { kind }, // a resource kind's specification and provider
-        shareable: { isPublic: true }, // owner, editor, commenter and viewer roles
-        tracked: { by: "write", activity, session: { minutes: 10 } }, // history and revert
-        orderable: true, // a fractional index among the siblings
-        search: { searchable: ["title"], filterable: ["status"], sortable: ["dueAt"] },
-    },
-    build,
-);
+defineObject({
+    ...definition,
+    traits: [
+        recoverable({ within: { days: 30 }, by: "write" }), // delete, restore and purge
+        controlled({ approval: true }), // desired generation, conditions and approved plan
+        provisioned({ kind }), // a resource kind's specification and provider
+        shareable({ isPublic: true }), // owner, editor, commenter and viewer roles
+        tracked({ by: "write", activity, session: { minutes: 10 } }), // history and revert
+        orderable(), // a fractional index among the siblings
+        searchable({ text: ["title"], filter: ["status"], sort: ["dueAt"] }),
+    ],
+});
 ```
 
 ## Declarations
 
-A durable type with a `create` method takes stack declarations as its create input: the declaration's name fills its `name` field, and `references` take declared names.
+A durable type with a `create` method takes stack declarations as its create input: the declaration's name fills its `name` field, and references take declared names, from reference fields or from schemas that declare one.
 
 ```ts
 const badge = defineObject({
     ...definition,
-    references: { tagId: tag, holder: "subject" },
+    fields: {
+        tag: field.reference(tag),
+        holder: field.json(StackTarget.on(Subject, () => "subject")),
+    },
 });
 
 const badges: Record<string, StackInputOf<typeof badge>> = {
@@ -608,46 +610,42 @@ for (const installation of description.installations) {
 
 ## Packages
 
-`definePackage` declares a package's handle from its objects, views, adapters, resources, secrets, the permissions its installations request of their space and their users, and its capabilities, and `defineAdapter` answers a protocol others define below the package's mount.
+`definePackage` declares a package's handle from its objects, views, mounts, resources, secrets, the permissions its installations request of their space and their users, and its capabilities, and `defineMount` answers a protocol others define below the package's path.
 
 ```ts
-export const npm = defineAdapter("npm", { path: "/npm" });
-export const hooks = defineAdapter("hooks", { path: "/hooks", callers: [principal.installation] });
-export const sync = defineAdapter("sync", { path: "/sync", callers: "self" }); // the installation itself
+export const npm = defineMount({ name: "npm", path: "/npm" });
+export const hooks = defineMount({ name: "hooks", path: "/hooks", callers: [principal.installation] });
+export const sync = defineMount({ name: "sync", path: "/sync", callers: "self" }); // the installation itself
 export default definePackage({
-    objects: { repository, release },
-    adapters: { npm, hooks },
-    permissions: {
-        space: {
-            space: [message.permission("send")],
-            universe: [user.permission("recipient")],
+    objects: [repository, release],
+    mounts: [npm, hooks],
+    access: {
+        permissions: {
+            space: {
+                space: [message.permission("send")],
+                universe: [user.permission("recipient")],
+            },
+            user: { home: [notification.permission("read")] },
         },
-        user: { home: [notification.permission("read")] },
     },
-    capabilities: {
-        push: {
-            reason: "Push notifications",
+    capabilities: [
+        {
+            name: "push",
+            reason: t`Push notifications`,
             optional: true, // asked for once its code needs it
             permissions: { space: { universe: [client.permission("unsubscribe")] } },
             features: [{ packageId: pricing, name: "push" }], // the account's plan must include it
         },
-    },
+    ],
     since: "2026.8.0",
 });
 ```
 
-## Procedures
+## Call errors
 
-`defineProcedure` declares a procedure with its authentication and permission, as oRPC's `oc`, and `CallError` is the error a caller receives, as `ORPCError`.
+`CallError` is the error a caller receives, as oRPC's `ORPCError`.
 
 ```ts
-const list = defineProcedure({
-    package: Package.of(pages), // the package whose releases its callers speak
-    authentication: "identity",
-    permission: page.permission("read"),
-    audit: false,
-});
-list.route({ method: "GET", path: "/pages" }).output(PageList);
 throw new CallError("NOT_FOUND", { message: `no page ${id}` });
 ```
 

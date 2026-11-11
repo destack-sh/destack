@@ -14,6 +14,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested, orderable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the items and cards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");
@@ -23,14 +25,16 @@ const item = defineObject(
     {
         name: "item",
         plural: "items",
+        title: t`${plural(argument("count"), { one: "Item", other: "Items" })}`,
         scope: space,
-        nested: { in: "self", optional: true, receive: "write", move: "write" },
-        orderable: true,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [nested({ in: "self", optional: true, add: "write", move: "write" }), orderable()],
     },
     (method) => ({
         create: method.create("write"),
@@ -43,14 +47,17 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
-        orderable: { within: "status" },
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(),
             status: field.enum(["todo", "done"]),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [orderable({ within: "status" })],
     },
     (method) => ({
         create: method.create("write"),

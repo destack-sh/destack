@@ -247,24 +247,23 @@ const WRITTEN = {
 
 /** The signature of a required, written, unguarded field, each absent flag at its default. */
 type FieldConfigurationOf<
-    Declared extends Partial<FieldConfiguration> & { readonly value: ColumnValue },
+    Options extends Partial<FieldConfiguration> & { readonly value: ColumnValue },
 > = {
-    readonly value: Declared["value"];
-    readonly required: Declared extends { readonly required: infer Flag } ? Flag : true;
-    readonly default: Declared extends { readonly default: infer Flag } ? Flag : false;
-    readonly guarded: Declared extends { readonly guarded: infer Flag } ? Flag : false;
-    readonly written: Declared extends { readonly written: infer Flag } ? Flag : true;
-    readonly sensitive: Declared extends { readonly sensitive: infer Flag } ? Flag : false;
-    readonly caller: Declared extends { readonly caller: infer Flag } ? Flag : false;
-    readonly reference: Declared extends { readonly reference: infer Kind } ? Kind : "none";
+    readonly value: Options["value"];
+    readonly required: Options extends { readonly required: infer Flag } ? Flag : true;
+    readonly default: Options extends { readonly default: infer Flag } ? Flag : false;
+    readonly guarded: Options extends { readonly guarded: infer Flag } ? Flag : false;
+    readonly written: Options extends { readonly written: infer Flag } ? Flag : true;
+    readonly sensitive: Options extends { readonly sensitive: infer Flag } ? Flag : false;
+    readonly caller: Options extends { readonly caller: infer Flag } ? Flag : false;
+    readonly reference: Options extends { readonly reference: infer Kind } ? Kind : "none";
     readonly relation: never;
-    readonly open: Declared extends { readonly open: infer Flag } ? Flag : false;
+    readonly open: Options extends { readonly open: infer Flag } ? Flag : false;
 };
 
 /** A field of a declared signature, each absent flag at its default. */
-export type FieldOf<
-    Declared extends Partial<FieldConfiguration> & { readonly value: ColumnValue },
-> = Field<FieldConfigurationOf<Declared>>;
+export type FieldOf<Options extends Partial<FieldConfiguration> & { readonly value: ColumnValue }> =
+    Field<FieldConfigurationOf<Options>>;
 
 /** A field's signature with some properties changed. */
 type Override<

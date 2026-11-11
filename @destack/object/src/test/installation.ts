@@ -3,7 +3,7 @@ import type { Deriver } from "@destack/identity";
 import { ResourceContext } from "@destack/resource/context";
 import { InstallationRoot } from "../workload/root.ts";
 import { MemoryBuild } from "@destack/package/test";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import type { Uplink } from "@destack/sync";
 import type { ServerContext } from "../workload/workload.ts";
 import { waitAborted, type Environment } from "@destack/environment";
@@ -29,7 +29,7 @@ export function testKeys(environment: Pick<Environment, "crypto" | "random">): P
 
 /** Build the server context of a package's installation in a space and world, as tests serve it. */
 export async function testServerContext(
-    owner: Package,
+    owner: PackageVersion,
     space: string,
     environment: Environment,
 ): Promise<ServerContext> {

@@ -10,18 +10,19 @@ import { CHUNKS } from "../text/table.ts";
 import { present, schema } from "@destack/schema";
 
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 import type {} from "@destack/package/import-meta";
 
 /** How callers find a type's objects. */
 const ObjectSearchSchema = schema.object({
     /** The fields the space's full-text index covers, the most significant first. */
-    searchable: schema.array(schema.string().min(1)),
+    text: schema.array(schema.string().min(1)).readonly(),
     /** The fields lists filter and count facets by, each indexed. */
-    filterable: schema.array(schema.string().min(1)),
+    filter: schema.array(schema.string().min(1)).readonly(),
     /** The fields lists order by, each indexed. */
-    sortable: schema.array(schema.string().min(1)),
+    sort: schema.array(schema.string().min(1)).readonly(),
 });
 /** How callers find an object type's objects. */
 export type ObjectSearch = schema.Infer<typeof ObjectSearchSchema>;
@@ -31,9 +32,9 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Read a definition's roles, a role left out pointing at no field. */
     of(definition: SearchDefinition): ObjectSearch {
         return ObjectSearchSchema.parse({
-            searchable: [],
-            filterable: [],
-            sortable: [],
+            text: [],
+            filter: [],
+            sort: [],
             ...definition,
         });
     },
@@ -41,20 +42,20 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Expand a condition's searches: each word in a searched column or a searched text's chunk. */
     expand(object: ObjectType, condition: OpenCondition): OpenCondition {
         // leave a type searching no text to its table's index
-        const texts = (object.search?.searchable ?? []).filter((name) =>
-            object.text.includes(name),
-        );
+        const texts = (object.searchable?.text ?? []).filter((name) => object.text.includes(name));
         if (texts.length === 0) {
             return condition;
         }
-        const columns = (object.search?.searchable ?? []).filter((name) => !texts.includes(name));
+        const columns = (object.searchable?.text ?? []).filter((name) => !texts.includes(name));
 
         return ObjectSearch.expandSearches(condition, texts, columns.length > 0);
     },
 
     /** Read a definition's query roles, absent without any. */
-    readSearch(definition: Pick<ObjectDefinition, "search">): ObjectSearch | undefined {
-        return definition.search === undefined ? undefined : ObjectSearch.of(definition.search);
+    readSearch(definition: Pick<ObjectDefinition, "searchable">): ObjectSearch | undefined {
+        return definition.searchable === undefined
+            ? undefined
+            : ObjectSearch.of(definition.searchable);
     },
 
     /** Index each filterable or sortable field once, after the objects' scope. */
@@ -64,7 +65,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         columns: Readonly<Record<string, Column>>,
     ): TableConstraint[] {
         const scope = columns["scope"];
-        const indexed = [...new Set([...options.filterable, ...options.sortable])];
+        const indexed = [...new Set([...options.filter, ...options.sort])];
 
         return indexed.map((name) => {
             const column = present(columns[name], `the column of ${name}`);
@@ -78,9 +79,9 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Refuse a role pointing at an unknown field, or a field its role cannot read. */
     requireRoles(object: ObjectType, options: ObjectSearch): void {
         const roles = [
-            ["searchable", options.searchable, SEARCHED_TYPES],
-            ["filterable", options.filterable, INDEXED_TYPES],
-            ["sortable", options.sortable, INDEXED_TYPES],
+            ["text", options.text, SEARCHED_TYPES],
+            ["filter", options.filter, INDEXED_TYPES],
+            ["sort", options.sort, INDEXED_TYPES],
         ] as const;
         for (const [role, names, types] of roles) {
             for (const name of names) {
@@ -187,14 +188,17 @@ const INDEXED_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** Objects found by query roles, each filter or sort field indexed in the objects' scope. */
-export const search: Trait<ObjectSearch> = {
-    key: "search",
+const searchTrait: TraitBehavior<ObjectSearch> = {
+    key: "searchable",
     storages: ["durable", "events"],
     options: (definition) => ObjectSearch.readSearch(definition),
     columns: () => ({}),
     constraints: (options, table, columns) => ObjectSearch.indexes(options, table, columns),
     // index the searchable fields' text, which a list's `SEARCH` condition matches
-    table: (options) => ({ fullText: options.searchable }),
+    table: (options) => ({ fullText: options.text }),
     methods: () => ({}),
     validate: (options, object) => ObjectSearch.requireRoles(object, options),
 };
+
+/** The search trait, callable to declare it on an object type. */
+export const searchable = callableTrait("searchable", searchTrait);

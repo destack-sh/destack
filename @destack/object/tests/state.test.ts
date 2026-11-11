@@ -12,6 +12,7 @@ import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the articles live in. */
 const SPACE_ID = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000051");
@@ -26,9 +27,12 @@ test("change state fields only through their transitions, with modifiers enforci
     const article = defineObject({
         name: "article",
         plural: "articles",
+        title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
         scope: space,
         fields: { title: field.string(), review: field.state(review).optional() },
-        permissions: ["write", "review"],
+        access: {
+            permissions: ["write", "review"],
+        },
     });
 
     // leave the state out of what callers write, and its transition through the modifier
@@ -47,6 +51,7 @@ test("record a transition's declared fields with its state, refusing a call with
         {
             name: "article",
             plural: "articles",
+            title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
             scope: space,
             fields: {
                 title: field.string(),
@@ -63,7 +68,9 @@ test("record a transition's declared fields with its state, refusing a call with
                     },
                 }),
             },
-            permissions: ["write", "review"],
+            access: {
+                permissions: ["write", "review"],
+            },
         },
         (method) => ({ create: method.create("write") }),
     );

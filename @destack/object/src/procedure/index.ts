@@ -1,4 +1,4 @@
-export { defineProcedure, type ProcedureAccess, VERSION_HEADER } from "./procedure.ts";
+export { Procedure, type ProcedureAccess, VERSION_HEADER } from "./procedure.ts";
 
 /** Describe event streams. */
 export { eventIterator } from "@orpc/contract";

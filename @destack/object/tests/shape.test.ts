@@ -2,7 +2,7 @@ import { testSimulation } from "../src/test/index.ts";
 import { Snapshot } from "@destack/db";
 import { AccessContext, Caller } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { RequestId, Scope, type Publisher } from "@destack/sync";
 import { testCallKey } from "@destack/object/test";
 import { present, schema } from "@destack/schema";
@@ -60,7 +60,7 @@ test("subscribe to a fixed key and to one key per row the follower has as one re
         servers: [implementPackage(pagesPackage, { follows: [plans, icons] })],
         chain: async () => ({ kind: "follower", parent: Scope.universe.id }),
         environment: world,
-        origin: { package: Package.of(pagesPackage) },
+        origin: { package: PackageVersion.of(pagesPackage) },
         principal: spacePrincipal(spaceId),
         callKey: testCallKey,
         events: await testEvents(storage.database, world),

@@ -17,6 +17,8 @@ import { ObjectError } from "../error/error.ts";
 import { field } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
 import { defineObject } from "../object/object.ts";
+import { nested } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest comment an approver writes with a decision, a review summary's worth. */
 const COMMENT_LENGTH = 4000;
@@ -32,8 +34,8 @@ export const approval = defineObject(
     {
         name: "approval",
         plural: "approvals",
+        title: t`${plural(argument("count"), { one: "Approval", other: "Approvals" })}`,
         scope: [principal.space],
-        nested: { in: "any", receive: "approve" },
         fields: {
             /** The principal or subject set asked to decide, as GitHub asks a person or a team. */
             approver: field.subject().open(),
@@ -65,18 +67,21 @@ export const approval = defineObject(
             /** How strongly and how recently the approver authenticated when deciding. */
             assurance: field.json(AuthenticationAssurance).optional(),
         },
-        permissions: {
-            // the parent's readers read approvals, its approvers request them, and the asked or a member of the asked set decides
-            read: through("parent", "read"),
-            request: through("parent", "approve"),
-            decide: intersection(relation("approver"), through("parent", "approve")),
-        },
         constraints: {
             approver: {
                 kind: "unique",
                 on: ["parentPackageId", "parentType", "parentId", "approverId"],
             },
         },
+        access: {
+            permissions: {
+                // the parent's readers read approvals, its approvers request them, and the asked or a member of the asked set decides
+                read: through("parent", "read"),
+                request: through("parent", "approve"),
+                decide: intersection(relation("approver"), through("parent", "approve")),
+            },
+        },
+        traits: [nested({ in: "any", add: "approve" })],
     },
     (method) => ({
         create: method.create("request", {

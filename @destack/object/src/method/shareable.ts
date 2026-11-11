@@ -24,6 +24,7 @@ import { GrantFields, readGrant, RelationshipFields, ExplainFields } from "../tr
 import { Execution, type StoreExecution } from "./execution.ts";
 
 import type {} from "@destack/package/import-meta";
+import { t } from "@destack/locale";
 
 /** The signature of a sharing method, acting on one object by its identifier. */
 type SharingConfiguration = {
@@ -121,6 +122,7 @@ export const ShareableMethod = {
                 },
             ),
             explain: defineMethod<SharingConfiguration>({
+                title: t`Explain`,
                 kind: "explain",
                 permission: read,
                 mutates: false,

@@ -32,6 +32,8 @@ import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000009");
@@ -41,22 +43,25 @@ const presence = defineObject(
     {
         name: "presence",
         plural: "presences",
+        title: t`${plural(argument("count"), { one: "Presence", other: "Presences" })}`,
         scope: space,
         storage: "ephemeral",
-        nested: { in: "any", receive: "present" },
         fields: {
             member: field.reference(principal.user).caller(),
             activity: field.string(schema.string().min(1).max(64)),
             cursor: field.integer().optional(),
             profile: field.reference((): ObjectOf<{ identity: "profile" }> => profile).optional(),
         },
-        permissions: {
-            read: through("parent", "present"),
-            write: intersection(relation("member"), through("parent", "present")),
-        },
         constraints: {
             writer: { kind: "unique", on: ["parentId", "writerId"] },
         },
+        access: {
+            permissions: {
+                read: through("parent", "present"),
+                write: intersection(relation("member"), through("parent", "present")),
+            },
+        },
+        traits: [nested({ in: "any", add: "present" })],
     },
     (method) => ({
         create: method.create("write"),
@@ -71,15 +76,18 @@ const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        relations: { viewer: { subjects: [user] } },
-        permissions: {
-            read: union(relation("owner"), relation("viewer")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [presence.attach({ by: "read" })],
+        access: {
+            relations: { viewer: { subjects: [user] } },
+            permissions: {
+                read: union(relation("owner"), relation("viewer")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({ create: method.create("manage") }),
 );
@@ -89,16 +97,19 @@ const profile = defineObject(
     {
         name: "profile",
         plural: "profiles",
+        title: t`${plural(argument("count"), { one: "Profile", other: "Profiles" })}`,
         scope: space,
-        nested: { in: board, receive: "manage" },
         fields: { name: field.string() },
-        permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
+        access: {
+            permissions: { read: through("parent", "read"), manage: through("parent", "manage") },
+        },
+        traits: [nested({ in: board, add: "manage" })],
     },
     (method) => ({ create: method.create("manage") }),
 );
 
 /** The package serving the boards, profiles and presence. */
-const boardsPackage = definePackage({ objects: { presence, board, profile } });
+const boardsPackage = definePackage({ objects: [presence, board, profile] });
 
 test("refuse relating an ephemeral object's creator, as no relationship outlives it", () => {
     expect(() =>
@@ -107,11 +118,14 @@ test("refuse relating an ephemeral object's creator, as no relationship outlives
                 {
                     name: "marker",
                     plural: "markers",
+                    title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
                     scope: space,
                     storage: "ephemeral",
                     fields: { note: field.string() },
-                    relations: { author: { subjects: [user] } },
-                    permissions: { write: relation("author") },
+                    access: {
+                        relations: { author: { subjects: [user] } },
+                        permissions: { write: relation("author") },
+                    },
                 },
                 (method) => ({ create: method.create("write", { creator: "author" }) }),
             ),

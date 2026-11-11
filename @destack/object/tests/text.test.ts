@@ -4,7 +4,7 @@ import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation, union } from "@destack/access";
 import { type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { type ClientOptions } from "@destack/object/client";
 import { definePackage } from "@destack/object";
 import { RequestId, Scope } from "@destack/sync";
@@ -20,6 +20,8 @@ import { Environment } from "@destack/environment";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the documents. */
 const spaceId = "space-01996ab0-0000-7000-8000-000000000014";
@@ -29,18 +31,21 @@ const document = defineObject(
     {
         name: "document",
         plural: "documents",
+        title: t`${plural(argument("count"), { one: "Document", other: "Documents" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string().default(""),
             body: field.text(),
         },
-        relations: { editor: { subjects: [user] } },
-        permissions: {
-            read: union(relation("owner"), relation("editor")),
-            manage: relation("owner"),
+        access: {
+            relations: { editor: { subjects: [user] } },
+            permissions: {
+                read: union(relation("owner"), relation("editor")),
+                manage: relation("owner"),
+            },
         },
-        shareable: { by: "manage" },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("read"),
@@ -49,7 +54,7 @@ const document = defineObject(
 );
 
 /** The documents package. */
-const documentsPackage = definePackage({ objects: { document } });
+const documentsPackage = definePackage({ objects: [document] });
 
 /** The database of one space's documents. */
 const documentsDatabase = defineDatabase({
@@ -78,7 +83,7 @@ async function serveDocuments(world: Environment) {
             servers: [implementPackage(documentsPackage, {})],
             chain: async () => undefined,
             environment: world,
-            origin: { package: Package.of(documentsPackage) },
+            origin: { package: PackageVersion.of(documentsPackage) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(database, world),

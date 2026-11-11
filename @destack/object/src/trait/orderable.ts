@@ -4,7 +4,8 @@ import { field } from "../field/field.ts";
 import { FractionalIndex } from "../field/fractional-index.ts";
 import type { ObjectDefinition, ObjectType } from "../object/object.ts";
 import type { MethodContext } from "../method/context.ts";
-import type { Erasure, Trait } from "./trait.ts";
+import type { Erasure, TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 /** How a type orders its objects: among siblings of one parent, or of one field value. */
 export type OrderableDefinition = true | { readonly within: string };
@@ -16,7 +17,7 @@ export interface Ordering {
 }
 
 /** The field ordering adds: each object's place among its siblings. */
-export type OrderedFieldsOf<Declared> = Declared extends OrderableDefinition
+export type OrderedFieldsOf<Definition> = Definition extends OrderableDefinition
     ? {
           /** The object's place among its siblings. */
           readonly position: ReturnType<typeof Orderable.positionField>;
@@ -127,10 +128,13 @@ export const Orderable = {
 };
 
 /** Ordered objects, each sibling group in an index of scope, parent or field, and position. */
-export const orderable: Trait<Ordering> = {
+const orderableTrait: TraitBehavior<Ordering> = {
     key: "orderable",
     options: (definition) => Orderable.of(definition),
     columns: () => ({}),
     constraints: (options, table, columns) => [Orderable.order(options, table, columns)],
     methods: () => ({}),
 };
+
+/** The orderable trait, callable to declare it on an object type. */
+export const orderable = callableTrait("orderable", orderableTrait, true);

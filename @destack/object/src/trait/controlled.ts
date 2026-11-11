@@ -1,7 +1,7 @@
 import { check, integer, json, text, type Check, textEnum } from "@destack/db";
 import { Plan, RISKS } from "@destack/resource";
 import { deletionColumns } from "./recoverable.ts";
-import { derivePermissions, type Trait } from "./trait.ts";
+import { derivePermissions, type TraitBehavior, callableTrait } from "./trait.ts";
 
 import { approvePlan, finalize, observe } from "../method/controlled.ts";
 import { ConditionMap } from "../object/condition.ts";
@@ -49,7 +49,7 @@ export function approvalColumns() {
 }
 
 /** Records a controller reconciles. */
-export const controlled: Trait<ControlledDefinition> & {
+const controlledTrait: TraitBehavior<ControlledDefinition> & {
     /** Require valid revisions and generations. */
     readonly checks: (name: string) => Check[];
 } = {
@@ -77,3 +77,6 @@ export const controlled: Trait<ControlledDefinition> & {
         ];
     },
 };
+
+/** The controlled trait, callable to declare it on an object type. */
+export const controlled = callableTrait("controlled", controlledTrait, true);

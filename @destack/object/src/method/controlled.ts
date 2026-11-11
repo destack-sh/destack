@@ -10,6 +10,7 @@ import { Observation, StatusCondition, SYNCED } from "../object/condition.ts";
 import type { TraitTable } from "../object/table.ts";
 
 import type {} from "@destack/package/import-meta";
+import { t } from "@destack/locale";
 /** The method declarations of controlled objects. */
 export const controlledMethod = new MethodBuilder<TraitTable<{ readonly controlled: true }>>();
 
@@ -20,7 +21,7 @@ export const approvalMethod = new MethodBuilder<
 
 /** Record a controller's conditions of its target at the generation it evaluated. */
 export const observe = controlledMethod
-    .mutation({ permission: "control", input: Observation })
+    .mutation({ title: t`Observe`, permission: "control", input: Observation })
     .handle(async (context) => {
         // refuse an observation of a generation the record has not arrived at
         const { observedGeneration, conditions, fields } = context.input;
@@ -60,6 +61,7 @@ export const observe = controlledMethod
 /** Remove a record with a requested deletion after its controller finishes. */
 export const finalize = controlledMethod
     .mutation({
+        title: t`Finalize`,
         permission: "control",
         output: schema.object({}),
     })
@@ -81,6 +83,7 @@ export const finalize = controlledMethod
 /** Accept a plan digest for the controller to apply once it plans the same steps again. */
 export const approvePlan = approvalMethod
     .mutation({
+        title: t`Approve plan`,
         permission: "approve",
         visibility: "installation",
         input: schema.object({

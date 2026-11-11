@@ -5,15 +5,17 @@ export { suspendable } from "./suspendable.ts";
 export { fencing } from "./fencing.ts";
 export { bindable, CONSUMER } from "./bindable.ts";
 export {
+    provisioned,
     Provisioned,
     type ProvisionedDefinition,
     type ResourceType,
     type Resource,
 } from "./provisioned.ts";
 export { tracked, type TrackedDefinition } from "./tracked.ts";
-export { ParentReference } from "./nested.ts";
+export { nested, ParentReference } from "./nested.ts";
 export { expiring, type ExpiryRule } from "./expiring.ts";
 export {
+    presentable,
     Presentable,
     type PresentableDefinition,
     ACCENTS,
@@ -21,6 +23,8 @@ export {
     Icon,
     Presentation,
 } from "./presentable.ts";
-export { ObjectSearch, type SearchDefinition } from "./search.ts";
-export { Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
-export { readGrant } from "./shareable.ts";
+export { ObjectSearch, searchable, type SearchDefinition } from "./search.ts";
+export { orderable, Orderable, type OrderableDefinition, type Ordering } from "./orderable.ts";
+export { readGrant, shareable } from "./shareable.ts";
+export { versioned } from "./versioned.ts";
+export { audited, declarable, propagated, type Trait } from "./trait.ts";

@@ -5,7 +5,7 @@ import { CLIENT_HEAD_HEADER, ROUTE_HEADER } from "../workload/start.ts";
 import type { BlobStorage } from "@destack/resource";
 import { ObjectError } from "../error/error.ts";
 import { CallError } from "../error/call.ts";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { EventStore } from "@destack/event";
 import {
@@ -85,7 +85,7 @@ import { type ServerAccess, type RequestContext } from "./context.ts";
 import { type PackageHandler } from "./http.ts";
 import { type ProcedureContext } from "./procedure.ts";
 import { Egress } from "../declare/egress.ts";
-import { type AdapterDeclaration, PackageHandle } from "../declare/package.ts";
+import { type AdapterDeclaration, Package } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
@@ -565,7 +565,7 @@ export class ObjectStore {
         this.ephemeral = given.ephemeral;
         this.connect = given.connect;
         this.isAccessAudited = given.isAccessAudited ?? false;
-        this.origin = { ...given.origin, package: Package.of(given.origin.package) };
+        this.origin = { ...given.origin, package: PackageVersion.of(given.origin.package) };
         this.#report = given.report ?? ((error) => ObjectStore.#rethrow(error));
         this.#instruments = TelemetryScope.of(
             import.meta.destack.package,
@@ -775,7 +775,7 @@ export class ObjectStore {
     }
 
     /** Read the implementation of a package the store serves, refusing one it serves not. */
-    package(handle: PackageHandle): PackageHandler & { readonly objects: ObjectStore } {
+    package(handle: Package): PackageHandler & { readonly objects: ObjectStore } {
         const found = this.packages.find((each) => each.package.id === handle.id);
         if (found === undefined) {
             throw new TypeError(`the store does not serve package '${handle.name}'`);
@@ -1040,7 +1040,7 @@ export class ObjectStore {
 
     /** Implement a package's served objects. */
     implement(
-        handle: PackageHandle,
+        handle: Package,
         routed: readonly ObjectType[],
         control: ControllerSet,
     ): PackageHandler & { readonly objects: ObjectStore } {
@@ -1054,7 +1054,7 @@ export class ObjectStore {
                 this.audit(
                     this.#procedureScope(call, routed) ?? Scope.universe.id,
                     ObjectStore.#requestCaller(call.request),
-                    { package: Package.of(handle), requestId: call.request.requestId },
+                    { package: PackageVersion.of(handle), requestId: call.request.requestId },
                 ),
             ),
             control,
@@ -2617,7 +2617,7 @@ export class ObjectStore {
     }
 
     /** Read the package implementing a type here, as its calls' audit records it. */
-    #implementing(object: ObjectType): Package {
+    #implementing(object: ObjectType): PackageVersion {
         // take the installed implementer, or the declaring package in a store serving no installations
         const served = this.#catalog.installed.get(ObjectTypeReference.key(object.typeReference));
 
@@ -2700,7 +2700,7 @@ export class ObjectStore {
         // take a token of each limited method's rate for the call's key
         const now = this.clock.now();
         for (const { object, name, input } of calls) {
-            const limits = object.limits[name];
+            const limits = object.methods[name]?.limits;
             const rate = limits?.rate;
             if (rate !== undefined) {
                 const key = Limits.key(limits?.key, {
@@ -3706,7 +3706,7 @@ export class ObjectStore {
 
     /** List the routes of a protocol a package implements, refusing a type or adapter it skips. */
     static #protocolRoutes(
-        protocol: PackageHandle,
+        protocol: Package,
         entry: Catalog["served"][number],
     ): ReadonlySet<string> {
         // require each of the protocol's types handled and each of its adapters answered
@@ -3737,7 +3737,7 @@ export class ObjectStore {
 
     /** Route requests below a package's mount to the adapters answering their paths. */
     static #adapterFetch(
-        handle: PackageHandle,
+        handle: Package,
         answers: Readonly<Record<string, AdapterFetch>>,
         store: ObjectStore,
     ): PackageHandler["fetch"] {

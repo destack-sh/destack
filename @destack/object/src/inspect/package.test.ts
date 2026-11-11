@@ -3,11 +3,12 @@ import { defineErrorFamily } from "@destack/error";
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { Expression } from "@destack/db";
-import { PackageId, Package } from "@destack/package";
-import { defineAdapter, definePackage, type ObjectDeclaration } from "../declare/package.ts";
+import { PackageId, PackageVersion } from "@destack/package";
+import { defineMount, definePackage, type ObjectDeclaration } from "../declare/package.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
-import { defineProcedure } from "../procedure/index.ts";
+import { Procedure } from "../procedure/index.ts";
 import { comparePackage, describePackage, packageSymbols } from "./package.ts";
+import { t } from "@destack/locale";
 
 /** The release under comparison. */
 const RELEASE = "2026.9.0";
@@ -42,8 +43,8 @@ const query = (procedures: ProcedureRouter): ObjectDeclaration => ({
 
 /** A procedure without requirements. */
 const procedure = (convert?: Readonly<Record<string, Readonly<Record<string, Expression>>>>) =>
-    defineProcedure({
-        package: Package.of(import.meta.destack.package),
+    Procedure.of({
+        package: PackageVersion.of(import.meta.destack.package),
         authentication: "public",
         permission: "anyone",
         audit: false,
@@ -55,8 +56,8 @@ test("plan a package's API changes between releases, converting narrowed inputs 
     const before = describePackage(
         definePackage(
             {
-                objects: {
-                    query: query({
+                objects: [
+                    query({
                         search: procedure()
                             .input(schema.object({ text: schema.string() }))
                             .output(
@@ -68,7 +69,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                         count: procedure().input(schema.object({ text: schema.string() })),
                         retired: procedure(),
                     }),
-                },
+                ],
             },
             MODULE,
         ),
@@ -80,15 +81,15 @@ test("plan a package's API changes between releases, converting narrowed inputs 
             definePackage(
                 {
                     since: RELEASE,
-                    objects: {
-                        query: query({
+                    objects: [
+                        query({
                             search: procedure({ [RELEASE]: { query: Expression.column("text") } })
                                 .input(schema.object({ query: schema.string() }))
                                 .output(schema.object({ hits: schema.array(schema.string()) })),
                             count: count.input(schema.object({ text: schema.string().min(3) })),
                             suggest: procedure(),
                         }),
-                    },
+                    ],
                 },
                 MODULE,
             ),
@@ -167,11 +168,8 @@ test("plan a package's adapter changes: adding is safe, removing or moving break
         describePackage(
             definePackage(
                 {
-                    adapters: Object.fromEntries(
-                        Object.entries(adapters).map(([name, path]) => [
-                            name,
-                            defineAdapter(name, { path }, MODULE),
-                        ]),
+                    mounts: Object.entries(adapters).map(([name, path]) =>
+                        defineMount({ name, path }, MODULE),
                     ),
                 },
                 MODULE,
@@ -207,12 +205,12 @@ test("list a package's procedures as members the package serves", () => {
     // describe a package with a nested procedure
     const handle = definePackage(
         {
-            objects: {
-                query: query({
+            objects: [
+                query({
                     search: procedure().input(schema.object({ text: schema.string() })),
                     index: { rebuild: procedure() },
                 }),
-            },
+            ],
         },
         MODULE,
     );
@@ -248,20 +246,26 @@ test("describe a package's routes, adapters, views, requested permissions, capab
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
     const handle = definePackage(
         {
-            objects: { query: custom },
-            adapters: { npm: defineAdapter("npm", { path: "/npm" }, MODULE) },
-            permissions: { space: { universe: [user.permission("recipient")] } },
-            capabilities: {
-                push: {
-                    reason: "Drop the browsers push services forgot",
+            objects: [custom],
+            mounts: [defineMount({ name: "npm", path: "/npm" }, MODULE)],
+            access: { permissions: { space: { universe: [user.permission("recipient")] } } },
+            capabilities: [
+                {
+                    name: "push",
+                    reason: t`Drop the browsers push services forgot`,
                     optional: true,
                     permissions: { user: { home: [user.permission("recipient")] } },
                     features: [{ packageId: MODULE.package.id, name: "push" }],
                 },
-            },
-            errors: defineErrorFamily(MODULE.package, {
-                QUERY_DENIED: {},
-            }),
+            ],
+            errors: defineErrorFamily(
+                {
+                    reasons: {
+                        QUERY_DENIED: {},
+                    },
+                },
+                { package: MODULE.package },
+            ),
         },
         MODULE,
     );
@@ -280,7 +284,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
         },
         capabilities: {
             push: {
-                reason: "Drop the browsers push services forgot",
+                reason: t`Drop the browsers push services forgot`,
                 optional: true,
                 permissions: {
                     user: {
@@ -302,7 +306,7 @@ test("refuse describing a procedure whose payload JSON Schema cannot describe, a
         ),
     });
 
-    expect(() => describePackage(definePackage({ objects: { read: refined } }, MODULE))).toThrow(
+    expect(() => describePackage(definePackage({ objects: [refined] }, MODULE))).toThrow(
         "unsupported schema check: 'custom'",
     );
 });
@@ -315,7 +319,7 @@ test("refuse a package listing an object type another package defines, which tha
         typeReference: { packageId: "package-01996ab0-0000-7000-8000-00000000c002", type: "card" },
     };
 
-    expect(() => definePackage({ objects: { card: foreign } }, MODULE)).toThrow(
+    expect(() => definePackage({ objects: [foreign] }, MODULE)).toThrow(
         `object 'card' is invalid: '${PACKAGE.name}' lists it, but only '@destack/board' can serve it`,
     );
 });

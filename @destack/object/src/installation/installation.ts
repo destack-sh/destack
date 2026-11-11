@@ -7,19 +7,17 @@ import { InstallationBindings, InstallationSelection } from "./selection.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";
 import type { PackageDescription } from "../declare/description.ts";
+import { controlled, propagated, shareable } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A package installed in a space at a selection, under a name. */
 export const installation = defineObject(
     {
         name: "installation",
         plural: "installations",
+        title: t`${plural(argument("count"), { one: "Installation", other: "Installations" })}`,
         scope: [principal.space],
-        represents: principal.installation,
         key: "name",
-        // let its controller roll it out, apply its plans once approved, and finalize an uninstall
-        controlled: { approval: true },
-        // propagate each installation into the scopes inside its scope, read there by permission
-        propagated: {},
         fields: {
             /** The installed package. */
             packageId: field.string(PackageId),
@@ -48,24 +46,6 @@ export const installation = defineObject(
             /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
             isolation: field.enum(["sandbox", "host"]).default("sandbox"),
         },
-        // let permissions read the scope an installation lives in
-        attributes: { scope: "string" },
-        permissions: {
-            read: none(),
-            list: none(),
-            install: none(),
-            update: none(),
-            delete: none(),
-            replicate: self(),
-            run: self(),
-            observe: none(),
-            analyze: none(),
-            unmask: none(),
-            allow: none(),
-        },
-        reserved: ["replicate", "run"],
-        // bind roles on an installation directly
-        shareable: { by: "update" },
         convert: {
             // read the process isolation that releases before 2026.11.0 stored as host
             "2026.11.0": {
@@ -103,6 +83,33 @@ export const installation = defineObject(
                 where: { export: { isNotNull: true } },
             },
         },
+        access: {
+            represents: principal.installation,
+            // let permissions read the scope an installation lives in
+            attributes: { scope: "string" },
+            permissions: {
+                read: none(),
+                list: none(),
+                install: none(),
+                update: none(),
+                delete: none(),
+                replicate: self(),
+                run: self(),
+                observe: none(),
+                analyze: none(),
+                unmask: none(),
+                allow: none(),
+            },
+            reserved: ["replicate", "run"],
+        },
+        traits: [
+            // let its controller roll it out, apply its plans once approved, and finalize an uninstall
+            controlled({ approval: true }),
+            // propagate each installation into the scopes inside its scope, read there by permission
+            propagated({}),
+            // bind roles on an installation directly
+            shareable({ by: "update" }),
+        ],
     },
     (method) => ({
         list: method.list("list"),
@@ -138,6 +145,7 @@ export const installation = defineObject(
 
         /** Target a revision its selection resolves to, which its controller rolls out. */
         target: method.mutation({
+            title: t`Target revision`,
             permission: "control",
             input: schema.object({
                 /** The revision to roll out. */
@@ -147,11 +155,13 @@ export const installation = defineObject(
 
         /** Allow one of the package's optional capabilities, as the installation asked for it. */
         allow: method.mutation({
+            title: t`Allow`,
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
         }),
         /** Withdraw an optional capability allowed at the installation's request. */
         disallow: method.mutation({
+            title: t`Disallow`,
             permission: "allow",
             input: schema.object({ capability: DeclarationName }),
         }),

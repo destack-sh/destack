@@ -33,6 +33,7 @@ import { auditedActions, settleControl } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { request, type RequestInput } from "./fixture/request.ts";
 import { invitation } from "../src/access/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the tasks. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000001");
@@ -115,9 +116,12 @@ test("route a creation other than create below its collection by name", () => {
         {
             name: "note",
             plural: "notes",
+            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
             scope: "universe",
             fields: { title: field.string(schema.string().min(1)) },
-            permissions: { write: none() },
+            access: {
+                permissions: { write: none() },
+            },
         },
         (declared) => ({
             create: declared.create("write", { fields: ["title"] }),
@@ -1360,7 +1364,7 @@ test("share an implemented type's procedures with its declaration, and build a c
 
 test("predict custom methods only where their handler is, and never a scope's suspension", () => {
     // predict only methods with a handler on the client
-    const unhandled = method.mutation({ permission: "archive" });
+    const unhandled = method.mutation({ title: t`Unhandled`, permission: "archive" });
     const handled = unhandled.handle(async (context) => context.target);
     expect([
         unhandled.isPredicted,
@@ -1375,11 +1379,14 @@ test("add suspending and resuming on a scope type through its trait", () => {
     const room = defineObject({
         name: "room",
         plural: "rooms",
+        title: t`${plural(argument("count"), { one: "Room", other: "Rooms" })}`,
         scope: "universe",
-        isScope: true,
         fields: {},
-        permissions: ["read", "update"],
-        suspendable: { by: "update" },
+        container: "scope",
+        access: {
+            permissions: ["read", "update"],
+        },
+        traits: [suspendable({ by: "update" })],
     });
     expect(Object.keys(room.methods).toSorted()).toEqual(["get", "list", "resume", "suspend"]);
 });

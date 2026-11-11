@@ -13,6 +13,7 @@ import { chunk, chunkRun, CHUNKS } from "./table.ts";
 import { Execution } from "../method/execution.ts";
 
 import type {} from "@destack/package/import-meta";
+import { argument, plural, t } from "@destack/locale";
 
 /** The most characters per chunk: a keystroke syncs one ~1 KiB row, 1 MB is ~2,000 rows. */
 export const CHUNK_CHARACTERS = 512;
@@ -82,8 +83,9 @@ export const Chunk = {
         const definition: ObjectDefinition = {
             name: "chunk",
             plural: CHUNKS,
+            title: t`${plural(argument("count"), { one: "Text chunk", other: "Text chunks" })}`,
             scope: first.scope,
-            nested: { in: "any", receive: TEXT_READ },
+            nested: { in: "any", add: TEXT_READ },
             relations: { parent: { subjects: [...owners], grantedBy: null } },
             permissions: { read: through("parent", TEXT_READ) },
             methods,

@@ -16,6 +16,8 @@ import { auditedActions } from "../src/test/index.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
+import { expiring } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the alerts. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000002");
@@ -34,17 +36,22 @@ const alert = defineObject(
     {
         name: "alert",
         plural: "alerts",
+        title: t`${plural(argument("count"), { one: "Alert", other: "Alerts" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(),
             readAt: field.time().optional(),
         },
-        expiring: [
-            { after: { days: 30 }, from: "readAt" },
-            { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [
+            expiring([
+                { after: { days: 30 }, from: "readAt" },
+                { after: { days: 180 }, from: "createdAt", where: { readAt: { isNull: true } } },
+            ]),
         ],
-        permissions: { read: relation("owner"), write: relation("owner") },
     },
     (method) => ({
         create: method.create("write", { fields: ["title"] }),
@@ -208,10 +215,13 @@ test("grant expiry of a space type and a universe type to no one, leaving it to 
     const universal = defineObject({
         name: "token",
         plural: "tokens",
+        title: t`${plural(argument("count"), { one: "Token", other: "Tokens" })}`,
         scope: Scope.universe.id,
         fields: { expiresAt: field.time() },
-        expiring: [{ after: { days: 1 }, from: "expiresAt" }],
-        permissions: ["read"],
+        access: {
+            permissions: ["read"],
+        },
+        traits: [expiring([{ after: { days: 1 }, from: "expiresAt" }])],
     });
 
     // expect both types' expiry granted to no one
@@ -226,21 +236,27 @@ test("remove the expired objects of several people at once, one mutation per sco
     const person = defineObject({
         name: "person",
         plural: "people",
+        title: t`${plural(argument("count"), { one: "Person", other: "People" })}`,
         scope: Scope.universe.id,
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const reminder = defineObject({
         name: "reminder",
         plural: "reminders",
+        title: t`${plural(argument("count"), { one: "Reminder", other: "Reminders" })}`,
         scope: person,
         fields: { expiresAt: field.time() },
-        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
-        permissions: ["read"],
+        access: {
+            permissions: ["read"],
+        },
+        traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     });
     await using objects = await TestObjectStore.open({
-        packages: [definePackage({ objects: { person, reminder } })],
+        packages: [definePackage({ objects: [person, reminder] })],
         scope: universe.reference(Scope.universe.id, Scope.universe.id),
         scopes: PEOPLE.map((id) => person.reference(Scope.universe.id, id)),
     });

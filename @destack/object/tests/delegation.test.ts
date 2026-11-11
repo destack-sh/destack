@@ -19,6 +19,7 @@ import { spaceId } from "./fixture/device.ts";
 import { openSpace, space } from "./fixture/space.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The installation serving the probes in the space. */
 const INSTALLATION = schema
@@ -30,12 +31,16 @@ const probe = defineObject(
     {
         name: "probe",
         plural: "probes",
+        title: t`${plural(argument("count"), { one: "Probe", other: "Probes" })}`,
         scope: space,
         fields: {},
-        permissions: { read: through("scope", "read") },
+        access: {
+            permissions: { read: through("scope", "read") },
+        },
     },
     (method) => ({
         acting: method.query({
+            title: t`Acting`,
             permission: "read",
             target: "scope",
             output: schema.object({
@@ -64,7 +69,7 @@ const probe = defineObject(
 });
 
 /** The package of the probes. */
-const probes = definePackage({ objects: { probe } });
+const probes = definePackage({ objects: [probe] });
 
 test("act with the space's delegation to its installation, refusing without one, and read its capabilities", async () => {
     // run in a world of its own

@@ -1,6 +1,6 @@
 import { testSimulation } from "../test/world.ts";
 import { Simulation } from "@destack/environment/simulation";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import { FileSystemError } from "@destack/environment";
@@ -8,15 +8,15 @@ import { AccessError } from "@destack/access";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { createClient } from "../client/index.ts";
 import { Health } from "./health.ts";
-import { defineProcedure } from "../procedure/index.ts";
+import { Procedure } from "../procedure/index.ts";
 import { reportError } from "../error/report.ts";
 import { fixturePackage } from "../test/fixture.ts";
 import { implement, RequestHandler } from "./handler.ts";
 
 /** Declare a public read procedure of the fixture package at a path. */
 function declared(path: `/${string}`) {
-    return defineProcedure({
-        package: Package.of(fixturePackage),
+    return Procedure.of({
+        package: PackageVersion.of(fixturePackage),
         authentication: "public",
         permission: "anyone",
         audit: false,
@@ -62,8 +62,8 @@ test("capture a handler's unknown failure once where it happens, and never again
 
     // fail a handler
     const procedures = {
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,

@@ -21,13 +21,15 @@ import {
 } from "@destack/access";
 import { RequestId, Scope } from "@destack/sync";
 import { ObjectStore, Stack } from "../src/server/index.ts";
-import { defineResourceKind } from "@destack/resource";
+import { defineKind } from "@destack/package";
 import { ObjectDescription } from "../src/object/description.ts";
 import { label, note, objectDatabase, task } from "./schema.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
+import { controlled, nested, provisioned, recoverable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the declared objects live in. */
 const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a00d`);
@@ -37,9 +39,12 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller(), title: field.string() },
-        permissions: { write: relation("owner") },
+        access: {
+            permissions: { write: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("write") }),
 );
@@ -279,9 +284,14 @@ test("plan nothing when a document is applied again unchanged, tags and referenc
 const vault = defineObject({
     name: "vault",
     plural: "vaults",
+    title: t`${plural(argument("count"), { one: "Vault", other: "Vaults" })}`,
     scope: space,
-    provisioned: { kind: defineResourceKind("vault", { spec: schema.object({}) }) },
     fields: {},
+    traits: [
+        provisioned({
+            kind: defineKind({ name: "vault", provisioned: { spec: schema.object({}) } }),
+        }),
+    ],
 });
 
 test("leave a collection no served type collects to the installed type of its plural, refusing it without one", async () => {
@@ -343,21 +353,27 @@ test("refuse aggregates that measure rows some readers of their holder may not l
     const shelf = defineObject({
         name: "shelf",
         plural: "shelves",
+        title: t`${plural(argument("count"), { one: "Shelf", other: "Shelves" })}`,
         scope: space,
         fields: { bookCount: field.count() },
-        relations: { reader: { subjects: [principal.user] } },
-        permissions: { read: relation("reader") },
+        access: {
+            relations: { reader: { subjects: [principal.user] } },
+            permissions: { read: relation("reader") },
+        },
     });
     const book = (read: ReturnType<typeof union>) =>
         defineObject({
             name: "book",
             plural: "books",
+            title: t`${plural(argument("count"), { one: "Book", other: "Books" })}`,
             scope: space,
-            nested: { in: shelf, receive: "read" },
             fields: { title: field.string().default("") },
             aggregates: { bookCount: { function: "count" } },
-            relations: { owner: { subjects: [principal.user] } },
-            permissions: { read },
+            access: {
+                relations: { owner: { subjects: [principal.user] } },
+                permissions: { read },
+            },
+            traits: [nested({ in: shelf, add: "read" })],
         });
 
     // count books every shelf reader lists, and refuse books only their owners list
@@ -654,10 +670,13 @@ const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: { title: field.string(), size: field.integer() },
-        recoverable: { within: { days: 1 }, by: "write" },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
+        traits: [recoverable({ within: { days: 1 }, by: "write" })],
     },
     (method) => ({
         create: method.create("write"),
@@ -670,9 +689,12 @@ const badge = defineObject(
     {
         name: "badge",
         plural: "badges",
+        title: t`${plural(argument("count"), { one: "Badge", other: "Badges" })}`,
         scope: space,
         fields: { title: field.string(), active: field.boolean().default(true) },
-        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
     },
     (method) => ({
         create: method.create("write"),
@@ -803,11 +825,14 @@ function ledger(isScope: boolean) {
     return defineObject({
         name: "ledger",
         plural: "ledgers",
+        title: t`${plural(argument("count"), { one: "Ledger", other: "Ledgers" })}`,
         scope: "universe",
         ...(isScope ? { isScope } : {}),
         fields: { title: field.string().default("") },
-        permissions: { read: union(relation("owner"), contained(principal.space)) },
-        relations: { owner: { subjects: [principal.user] } },
+        access: {
+            permissions: { read: union(relation("owner"), contained(principal.space)) },
+            relations: { owner: { subjects: [principal.user] } },
+        },
     });
 }
 
@@ -819,9 +844,12 @@ test("refuse two methods answering one route, which a router would send to one o
                 {
                     name: "memo",
                     plural: "memos",
+                    title: t`${plural(argument("count"), { one: "Memo", other: "Memos" })}`,
                     scope: space,
                     fields: { title: field.string() },
-                    permissions: ["read", "write"],
+                    access: {
+                        permissions: ["read", "write"],
+                    },
                 },
                 (method) => ({
                     update: method.update("write", { fields: ["title"] }),
@@ -839,6 +867,7 @@ test("manage every durable type with a create verb, and no type without one", ()
     const readRole = defineObject({
         name: "role",
         plural: "roles",
+        title: t`${plural(argument("count"), { one: "Role", other: "Roles" })}`,
         mapping: ObjectPolicy.readMapping(accessRole),
     });
 
@@ -854,18 +883,24 @@ test("relate a reference to an installation in the row's scope when its scope ty
     const placed = defineObject({
         name: "space",
         plural: "spaces",
+        title: t`${plural(argument("count"), { one: "Space", other: "Spaces" })}`,
         scope: "universe",
-        isScope: true,
-        represents: principal.space,
         fields: {},
-        permissions: {},
+        container: "scope",
+        access: {
+            represents: principal.space,
+            permissions: {},
+        },
     });
     const emission = defineObject({
         name: "emission",
         plural: "emissions",
+        title: t`${plural(argument("count"), { one: "Emission", other: "Emissions" })}`,
         scope: placed,
         fields: { installation: field.reference(installation).optional() },
-        permissions: { read: through("installation", "observe") },
+        access: {
+            permissions: { read: through("installation", "observe") },
+        },
     });
 
     expect(ObjectPolicy.mapping(emission).relations["installation"]).toEqual({
@@ -877,10 +912,13 @@ test("let roles grant every permission of a type but its reserved ones", () => {
     const vaulted = defineObject({
         name: "vaulted",
         plural: "vaulteds",
+        title: t`${plural(argument("count"), { one: "Vaulted", other: "Vaulteds" })}`,
         scope: "universe",
         fields: {},
-        permissions: { read: none(), write: none(), consume: none() },
-        reserved: ["consume"],
+        access: {
+            permissions: { read: none(), write: none(), consume: none() },
+            reserved: ["consume"],
+        },
     });
 
     expect([vaulted.permissions, vaulted.grantable]).toEqual([
@@ -894,10 +932,13 @@ const wall = defineObject(
     {
         name: "wall",
         plural: "walls",
+        title: t`${plural(argument("count"), { one: "Wall", other: "Walls" })}`,
         scope: space,
-        controlled: true,
         fields: { title: field.string() },
-        permissions: ["write", "control"],
+        access: {
+            permissions: ["write", "control"],
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write"),

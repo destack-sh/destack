@@ -23,6 +23,8 @@ import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested, shareable, tracked } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the pages. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -35,21 +37,23 @@ const page = defineObject(
     {
         name: "page",
         plural: "pages",
+        title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(),
             body: field.string(),
         },
-        relations: { editor: { subjects: [user] } },
-        permissions: {
-            read: union(relation("owner"), relation("editor")),
-            edit: union(relation("owner"), relation("editor")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [activity.attach({ by: "read" }), checkpoint.attach({ by: "edit" })],
-        tracked: { by: "edit", activity },
+        access: {
+            relations: { editor: { subjects: [user] } },
+            permissions: {
+                read: union(relation("owner"), relation("editor")),
+                edit: union(relation("owner"), relation("editor")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" }), tracked({ by: "edit", activity })],
     },
     (method) => ({
         create: method.create("edit"),
@@ -186,19 +190,24 @@ test("refuse serving history that reads through an object recording none", async
     const folder = defineObject({
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner") },
+        access: {
+            permissions: { read: relation("owner") },
+        },
     });
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
+        title: t`${plural(argument("count"), { one: "Sheet", other: "Sheets" })}`,
         scope: space,
-        nested: { in: folder, receive: "read" },
         fields: { title: field.string() },
-        permissions: { read: through("parent", "read") },
         attachments: [activity.attach({ by: "read" })],
-        tracked: { by: "read", activity },
+        access: {
+            permissions: { read: through("parent", "read") },
+        },
+        traits: [nested({ in: folder, add: "read" }), tracked({ by: "read", activity })],
     });
 
     // refuse the sheet's history, which the folder's lost changes decided

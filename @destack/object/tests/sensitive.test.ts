@@ -16,6 +16,7 @@ import { auditedCalls } from "../src/test/index.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** An API key a caller hands a method, which nothing derived from the call stores. */
 const ApiKey = schema.sensitive(schema.string().regex(/^sk-/u));
@@ -25,9 +26,12 @@ const holder = defineObject(
     {
         name: "holder",
         plural: "holders",
+        title: t`${plural(argument("count"), { one: "Holder", other: "Holders" })}`,
         scope: space,
         fields: { label: field.string(), token: field.string().sensitive().optional() },
-        permissions: { read: through("space", "read"), provision: none() },
+        access: {
+            permissions: { read: through("space", "read"), provision: none() },
+        },
     },
     (method) => ({
         create: method.create("read", {

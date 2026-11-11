@@ -56,6 +56,7 @@ import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { replicaRequest } from "../src/replica/request.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The lag access allows a replica: 30 s. */
 const LAG_MILLISECONDS = 30_000;
@@ -101,47 +102,58 @@ const otherAccountId = schema
 const account = defineObject({
     name: "account",
     plural: "accounts",
+    title: t`${plural(argument("count"), { one: "Account", other: "Accounts" })}`,
     scope: "universe",
-    isScope: true,
     fields: {},
-    relations: {
-        member: { subjects: [principal.user] },
-        reader: { subjects: [principal.installation], grantedBy: null },
+    container: "scope",
+    access: {
+        relations: {
+            member: { subjects: [principal.user] },
+            reader: { subjects: [principal.installation], grantedBy: null },
+        },
+        permissions: { read: union(relation("member"), relation("reader")) },
     },
-    permissions: { read: union(relation("member"), relation("reader")) },
 });
 
 /** Spaces within accounts, which installations read and replicate as granted. */
 const space = defineObject({
     name: "space",
     plural: "spaces",
+    title: t`${plural(argument("count"), { one: "Space", other: "Spaces" })}`,
     scope: account,
-    isScope: true,
-    partition: true,
     fields: {},
-    relations: {
-        reader: { subjects: [principal.installation], grantedBy: null },
-        replicator: { subjects: [principal.installation], grantedBy: null },
+    container: "partition",
+    access: {
+        relations: {
+            reader: { subjects: [principal.installation], grantedBy: null },
+            replicator: { subjects: [principal.installation], grantedBy: null },
+        },
+        permissions: { read: relation("reader"), replicate: relation("replicator") },
     },
-    permissions: { read: relation("reader"), replicate: relation("replicator") },
 });
 
 /** Comments an installation stores in the spaces it follows. */
 const comment = defineObject({
     name: "comment",
     plural: "comments",
+    title: t`${plural(argument("count"), { one: "Comment", other: "Comments" })}`,
     scope: space,
     fields: { body: field.string() },
-    permissions: { read: none() },
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** Annotations an installation stores in its space, each readable through its account. */
 const annotation = defineObject({
     name: "annotation",
     plural: "annotations",
+    title: t`${plural(argument("count"), { one: "Annotation", other: "Annotations" })}`,
     scope: space,
     fields: { account: field.reference(account).relate("account"), body: field.string() },
-    permissions: { read: through("account", "read") },
+    access: {
+        permissions: { read: through("account", "read") },
+    },
 });
 
 /** Documents that only roles grant. */
@@ -149,9 +161,12 @@ const document = defineObject(
     {
         name: "document",
         plural: "documents",
+        title: t`${plural(argument("count"), { one: "Document", other: "Documents" })}`,
         scope: space,
         fields: { title: field.string(schema.string().min(1)) },
-        permissions: { read: none(), write: none() },
+        access: {
+            permissions: { read: none(), write: none() },
+        },
     },
     (method) => ({
         create: method.create("write"),
@@ -1027,7 +1042,7 @@ test("serve a woken store only once the replicas it stored are live again", asyn
     // wake a store over the same database, blocking the chain's pages
     const pages = Promise.withResolvers<void>();
     const woken = await open(pages.promise);
-    const handle = definePackage({ objects: { document } });
+    const handle = definePackage({ objects: [document] });
     const implemented = woken.implement(handle, [], { controllers: [], cursors: [] });
     const ready = present(implemented.ready, "the readiness wait");
     const waking = new AbortController();
@@ -1717,7 +1732,7 @@ test("serve a store once its chain is confirmed while the source of a followed s
         stopping.signal,
     );
     const ready = present(
-        store.implement(definePackage({ objects: { document } }), [], {
+        store.implement(definePackage({ objects: [document] }), [], {
             controllers: [],
             cursors: [],
         }).ready,
@@ -2166,18 +2181,24 @@ test("require replicate via a scope for an in-process follower inside the scopes
     const region = defineObject({
         name: "region",
         plural: "regions",
+        title: t`${plural(argument("count"), { one: "Region", other: "Regions" })}`,
         scope: "universe",
-        isScope: true,
         fields: {},
-        permissions: { read: none(), replicate: contained(principal.machine) },
+        container: "scope",
+        access: {
+            permissions: { read: none(), replicate: contained(principal.machine) },
+        },
     });
     const machine = defineObject({
         name: "machine",
         plural: "machines",
+        title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
         scope: region,
-        represents: principal.machine,
         fields: {},
-        permissions: { read: none() },
+        access: {
+            represents: principal.machine,
+            permissions: { read: none() },
+        },
     });
     const home = await TestDatabase.create(
         tablesOf({

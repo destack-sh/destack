@@ -1,4 +1,4 @@
-import { defineDeclarationKind } from "@destack/package";
+import { defineKind } from "@destack/package";
 import type { Environment } from "@destack/environment";
 import { type BlobStore, type DatabaseConnection, type Table } from "@destack/db";
 import type { Identifier, JsonValue } from "@destack/schema";
@@ -25,7 +25,7 @@ import type { Hibernation, SocketHandler } from "./socket.ts";
 export const WORKLOAD_EXPORT = "Workload";
 
 /** The workload declaration kind, which object defines. */
-export const WORKLOAD_KIND = defineDeclarationKind("workload", WorkloadDescription);
+export const WORKLOAD_KIND = defineKind({ name: "workload", description: WorkloadDescription });
 
 /** A declared unit of deployment. */
 export interface Workload extends Declaration {

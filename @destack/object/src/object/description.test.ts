@@ -1,5 +1,5 @@
 import { principal, relation } from "@destack/access";
-import { t } from "@destack/locale";
+import { argument, plural, t } from "@destack/locale";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { field } from "../field/index.ts";
@@ -11,9 +11,12 @@ function notes(scope: NonNullable<Parameters<typeof defineObject>[0]["scope"]>) 
     return defineObject({
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope,
         fields: { title: field.string(schema.string()) },
-        permissions: {},
+        access: {
+            permissions: {},
+        },
     });
 }
 
@@ -33,8 +36,11 @@ function misdescribedNotes() {
     defineObject({
         name: "note",
         plural: "notes",
-        permissions: { read: relation("owner") },
-        descriptions: { delete: t`Delete your notes` },
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+        access: {
+            permissions: { read: relation("owner") },
+            descriptions: { delete: t`Delete your notes` },
+        },
     }).requireValid();
 }
 
@@ -43,14 +49,17 @@ test("describe a type's permissions from their verbs and its plural, or as it de
     const cards = defineObject({
         name: "card",
         plural: "noteCards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Note cards" })}`,
         fields: { title: field.string(schema.string()) },
-        permissions: {
-            read: relation("owner"),
-            manage: relation("owner"),
-            archive: relation("owner"),
-            share: relation("owner"),
+        access: {
+            permissions: {
+                read: relation("owner"),
+                manage: relation("owner"),
+                archive: relation("owner"),
+                share: relation("owner"),
+            },
+            descriptions: { share: t`Share your notes with others` },
         },
-        descriptions: { share: t`Share your notes with others` },
     });
     const described = ObjectDescription.of(cards);
 

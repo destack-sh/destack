@@ -6,16 +6,21 @@ import { call, CallEvent, defineObject, definePackage, field } from "../src/inde
 import { TestObjectStore } from "../src/test/index.ts";
 import { space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
+import { nested, recoverable, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A folder of pages, trashed and restored with them. */
 const folder = defineObject(
     {
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: space,
         fields: { name: field.string(schema.string().min(1)) },
-        recoverable: { within: { days: 30 }, by: "manage", purge: "manage" },
-        shareable: {},
+        traits: [
+            recoverable({ within: { days: 30 }, by: "manage", purge: "manage" }),
+            shareable({}),
+        ],
     },
     (method) => ({ create: method.create("manage") }),
 );
@@ -24,15 +29,18 @@ const folder = defineObject(
 const page = defineObject({
     name: "page",
     plural: "pages",
+    title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
     scope: space,
-    nested: { in: folder, delete: "trash", receive: "manage" },
     fields: { title: field.string(schema.string().min(1)) },
-    recoverable: { within: { days: 30 }, by: "manage" },
-    shareable: {},
+    traits: [
+        nested({ in: folder, delete: "trash", add: "manage" }),
+        recoverable({ within: { days: 30 }, by: "manage" }),
+        shareable({}),
+    ],
 });
 
 /** Folders and their pages. */
-const pagesPackage = definePackage({ objects: { folder, page } });
+const pagesPackage = definePackage({ objects: [folder, page] });
 
 test("trash a folder's pages with it, restore only the ones trashed with it, refuse a page in a trashed folder, and purge it with its pages", async () => {
     // serve alice's folder with two pages, one trashed on its own first
@@ -126,15 +134,18 @@ test("record a folder's deletion alone, its pages' deletions running within it",
 
 test("refuse a child trashed with its parent without a trash, or with a shorter window than its parent's", () => {
     // validate a note type under the folder with a given trash, as serving it does
-    const declare = (recoverable: { within: { days: number }; by: "manage" } | undefined) => () =>
+    const declare = (trash: { within: { days: number }; by: "manage" } | undefined) => () =>
         defineObject({
             name: "note",
             plural: "notes",
+            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
             scope: space,
-            nested: { in: folder, delete: "trash", receive: "manage" },
             fields: {},
-            ...(recoverable === undefined ? {} : { recoverable }),
-            shareable: {},
+            traits: [
+                nested({ in: folder, delete: "trash", add: "manage" }),
+                shareable({}),
+                ...(trash === undefined ? [] : [recoverable(trash)]),
+            ],
         }).requireValid();
 
     expect([

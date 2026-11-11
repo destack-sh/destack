@@ -1,5 +1,5 @@
 import { PackageManifest } from "@destack/package/manifest";
-import { graph, Package } from "@destack/package";
+import { graph, PackageVersion } from "@destack/package";
 import { RelationGraph } from "../query/query.ts";
 import type { EventStore } from "@destack/event";
 import { type Authorizer, decisionTables, Policy, type TableMapping } from "@destack/access";
@@ -8,7 +8,7 @@ import { type BlobStore, type DatabaseConnection, TABLE, type Table } from "@des
 import type { Identifier } from "@destack/schema";
 import { PackageContext, type ServerContext } from "../workload/workload.ts";
 import { PACKAGE_KIND, PackageDescription } from "../declare/description.ts";
-import { PackageHandle } from "../declare/package.ts";
+import { Package } from "../declare/package.ts";
 import type { Follow } from "../replica/shape.ts";
 import { branchType, type BranchType } from "../branch/index.ts";
 import { ObjectType } from "../object/object.ts";
@@ -40,7 +40,7 @@ export interface ObjectTypeImplementation {
     /** The installation serving the type, absent for its scope's own package. */
     readonly server: ServerContext | undefined;
     /** The package implementing the type. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The capabilities it runs with: its installation's, else its package's required ones. */
     readonly capabilities: readonly string[];
 }
@@ -258,7 +258,7 @@ export class Catalog {
 
                 return [
                     key,
-                    { server: context, package: Package.of(entry.package), capabilities },
+                    { server: context, package: PackageVersion.of(entry.package), capabilities },
                 ] as const;
             }),
         );
@@ -381,7 +381,7 @@ export class Catalog {
                   .filter((object) => Provisioned.is(object))
                   .filter(
                       (object) =>
-                          object.provisioned?.kind.management !== "external" &&
+                          object.provisioned?.kind.provisioned.management !== "external" &&
                           provisioned.providers.some((provider) => provider.object.same(object)),
                   )
                   .map((object) =>
@@ -639,7 +639,7 @@ export class Catalog {
                 // implement the package's objects as the installation
                 const objects = route(described.objects);
                 const since = described.since === undefined ? {} : { since: described.since };
-                const handle = PackageHandle.of(owner, { objects, ...since });
+                const handle = Package.of(owner, { objects: Object.values(objects), ...since });
 
                 return [
                     {

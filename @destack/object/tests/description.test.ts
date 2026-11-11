@@ -50,30 +50,36 @@ import { Execution } from "../src/method/execution.ts";
 import { expect, test } from "@destack/test";
 import { declareState, TABLE } from "@destack/db";
 import { principal, through } from "@destack/access";
-import { t } from "@destack/locale";
-import { defineResourceKind, ResourceDeclaration } from "@destack/resource";
+import { argument, plural, t } from "@destack/locale";
+import { ResourceDeclaration } from "@destack/resource";
 import { nth, schema, toJsonSchema } from "@destack/schema";
 import { Chunk } from "../src/text/index.ts";
 import { space } from "./fixture/space.ts";
 import { comment, folder, label, note, task, taskCopy, taskVersion, team, user } from "./schema.ts";
+import { nested, provisioned } from "../src/index.ts";
+import { defineKind } from "@destack/package";
 
 /** The bucket the sample's file field stores its files in. */
-const files: FileBucket = new ResourceDeclaration(note.package, {
-    name: "files",
-    kind: "bucket",
-    spec: {},
-});
+const files: FileBucket = new ResourceDeclaration(
+    note.package,
+    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
+    {
+        name: "files",
+        spec: {},
+    },
+);
 
 /** Boxes a provider provisions. */
-const BoxKind = defineResourceKind("box", { spec: schema.object({}) });
+const BoxKind = defineKind({ name: "box", provisioned: { spec: schema.object({}) } });
 
 /** A space's box: a resource of the box kind. */
 const box = defineObject({
     name: "box",
     plural: "boxes",
+    title: t`${plural(argument("count"), { one: "Box", other: "Boxes" })}`,
     scope: space,
-    provisioned: { kind: BoxKind },
     fields: {},
+    traits: [provisioned({ kind: BoxKind })],
 });
 
 /** A type with every field builder, method builder and constraint kind. */
@@ -81,6 +87,7 @@ const sample = defineObject(
     {
         name: "sample",
         plural: "samples",
+        title: t`${plural(argument("count"), { one: "Sample", other: "Samples" })}`,
         scope: space,
         fields: {
             title: field.string(schema.string().min(1).max(80)),
@@ -110,7 +117,6 @@ const sample = defineObject(
             link: field.object(),
             elsewhere: field.object(note),
         },
-        permissions: ["read", "write", "edit", "audit", "tidy"],
         constraints: {
             rank: {
                 kind: "check",
@@ -130,6 +136,9 @@ const sample = defineObject(
                 onDelete: "cascade",
             },
         },
+        access: {
+            permissions: ["read", "write", "edit", "audit", "tidy"],
+        },
     },
     (method) => ({
         create: method.create("write", {
@@ -145,6 +154,7 @@ const sample = defineObject(
         updateMany: method.updateMany("write", { fields: ["title"], match: ["kind"] }),
         delete: method.delete("write", { visibility: "package" }),
         count: method.query({
+            title: t`Count`,
             permission: "read",
             input: schema.discriminatedUnion("by", [
                 schema.object({ by: schema.literal("kind"), kind: schema.string() }),
@@ -153,12 +163,18 @@ const sample = defineObject(
             output: schema.object({ total: schema.int() }),
         }),
         archive: method.mutation({
+            title: t`Archive`,
             permission: "write",
             prepared: schema.string(),
             audit: { details: schema.object({ reason: schema.string() }) },
             inverse: "restore",
         }),
-        tidy: method.mutation({ permission: "tidy", target: "scope", visibility: "package" }),
+        tidy: method.mutation({
+            title: t`Tidy`,
+            permission: "tidy",
+            target: "scope",
+            visibility: "package",
+        }),
     }),
 );
 
@@ -183,14 +199,17 @@ const mark = defineObject(
     {
         name: "mark",
         plural: "marks",
+        title: t`${plural(argument("count"), { one: "Mark", other: "Marks" })}`,
         scope: space,
-        nested: { in: "any", receive: "mark" },
         fields: {
             /** The mark's label. */
             label: field.string(),
         },
-        permissions: { read: through("parent", "read") },
         aggregates: { markCount: { function: "count" } },
+        access: {
+            permissions: { read: through("parent", "read") },
+        },
+        traits: [nested({ in: "any", add: "mark" })],
     },
     () => ({ update: false }),
 );
@@ -199,13 +218,16 @@ const mark = defineObject(
 const host = defineObject({
     name: "host",
     plural: "hosts",
+    title: t`${plural(argument("count"), { one: "Host", other: "Hosts" })}`,
     scope: space,
     fields: {
         /** The number of marks. */
         markCount: field.count(),
     },
-    permissions: ["read", "mark"],
     attachments: [mark.attach({ by: "mark" })],
+    access: {
+        permissions: ["read", "mark"],
+    },
 });
 test("describe every field and method as its builder calls, and declare the same type from them", () => {
     // describe the type, declare it again and describe that
@@ -228,7 +250,7 @@ test("describe every field and method as its builder calls, and declare the same
     ]);
 });
 
-test("describe fields and methods as the calls written, types by reference, kinds and buckets as data and schemas as JSON Schema", () => {
+test("describe fields and methods as the calls written, types by reference, kinds and resources as data and schemas as JSON Schema", () => {
     // read the calls of a few fields and methods
     const { definition } = ObjectDescription.of(sample);
     const fields = schema.jsonObject().parse(definition["fields"]);
@@ -294,7 +316,7 @@ test("describe fields and methods as the calls written, types by reference, kind
             $field: [
                 {
                     builder: "file",
-                    arguments: [{ $bucket: { package: note.package, name: "files", spec: {} } }],
+                    arguments: [{ $resource: files.toJSON() }],
                 },
             ],
         },
@@ -311,18 +333,27 @@ test("describe fields and methods as the calls written, types by reference, kind
             $method: [
                 {
                     builder: "mutation",
-                    arguments: [{ permission: "tidy", target: "scope", visibility: "package" }],
+                    arguments: [
+                        {
+                            title: t`Tidy`,
+                            permission: "tidy",
+                            target: "scope",
+                            visibility: "package",
+                        },
+                    ],
                 },
             ],
         },
         {
             kind: {
                 $kind: {
-                    package: box.package,
+                    packageId: box.package.id,
                     name: "box",
-                    spec: toJsonSchema(BoxKind.spec),
-                    state: null,
-                    management: "internal",
+                    provisioned: {
+                        spec: toJsonSchema(BoxKind.provisioned.spec),
+                        state: null,
+                        management: "internal",
+                    },
                 },
             },
         },
@@ -395,12 +426,15 @@ test("refuse code and unknown declarations at their path", () => {
         {
             name: "coded",
             plural: "codeds",
+            title: t`${plural(argument("count"), { one: "Coded", other: "Codeds" })}`,
             scope: space,
             fields: { title: field.string() },
-            permissions: ["write"],
+            access: {
+                permissions: ["write"],
+            },
         },
         (method) => ({
-            rename: method.mutation({ permission: "write", inverse: () => [] }),
+            rename: method.mutation({ title: t`Rename`, permission: "write", inverse: () => [] }),
         }),
     );
     expect(() => ObjectDescription.of(coded)).toThrow(
@@ -482,9 +516,12 @@ test("refuse a handled method no loaded package exports, and an export path the 
         {
             name: "handled",
             plural: "handleds",
+            title: t`${plural(argument("count"), { one: "Handled", other: "Handleds" })}`,
             scope: space,
             fields: { title: field.string() },
-            permissions: ["write"],
+            access: {
+                permissions: ["write"],
+            },
         },
         (method) => ({
             update: Execution.handle(

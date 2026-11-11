@@ -29,6 +29,15 @@
         }
     },
     "declarations": {
+        "defineInstallationBinding": {
+            "describes": [
+                {
+                    "kind": "installation",
+                    "function": "./inspect#describeInstallationBinding",
+                    "symbols": "./inspect#installationBindingSymbols"
+                }
+            ]
+        },
         "defineObject": {
             "describes": [
                 {
@@ -58,16 +67,6 @@
                 }
             ]
         },
-        "defineInstallationBinding": {
-            "describes": [
-                {
-                    "kind": "resource",
-                    "package": "@destack/resource",
-                    "function": "./inspect#describeInstallationBinding",
-                    "symbols": "./inspect#installationBindingSymbols"
-                }
-            ]
-        },
         "defineWorkload": {
             "describes": [
                 {
@@ -87,20 +86,20 @@
         }
     },
     "stamps": {
+        "defineInstallationBinding": {
+            "module": 3
+        },
         "defineObject": {
             "module": 2
         },
         "defineAuditAction": {
             "module": 1
         },
-        "defineAdapter": {
-            "module": 2
+        "defineMount": {
+            "module": 1
         },
         "definePackage": {
             "module": 1
-        },
-        "defineInstallationBinding": {
-            "module": 3
         },
         "defineWorkload": {
             "module": 1

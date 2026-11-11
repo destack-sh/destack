@@ -1,5 +1,5 @@
 import { principal } from "@destack/access";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { RequestId, Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -10,9 +10,11 @@ import { notesPackage } from "./fixture/note.ts";
 import { pagesPackage } from "./fixture/page.ts";
 import { space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
+import { shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The handle of the labels package, which the store serves only once applied. */
-const LABELS = Package.parse({
+const LABELS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a9",
     name: "@example/labels",
     version: "2026.9.0",
@@ -23,16 +25,17 @@ const label = defineObject(
     {
         name: "label",
         plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
         scope: space,
         fields: { name: field.string(schema.string().min(1)) },
-        shareable: {},
+        traits: [shareable({})],
     },
     (method) => ({ create: method.create("manage") }),
     { package: LABELS },
 );
 
 /** The package of labels. */
-const labelsPackage = definePackage({ objects: { label } }, { package: LABELS });
+const labelsPackage = definePackage({ objects: [label] }, { package: LABELS });
 
 test("serve a package applied after the store started, keeping the handlers of the packages after the first", async () => {
     // serve notes and pages over a database that stores labels too

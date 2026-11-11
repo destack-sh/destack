@@ -1,13 +1,13 @@
 import { testSimulation } from "../test/index.ts";
 import { principal } from "@destack/access";
-import { PackageId, Package } from "@destack/package";
+import { PackageId, PackageVersion } from "@destack/package";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { schema } from "@destack/schema";
 import { health } from "../health/index.ts";
 import { Health } from "./health.ts";
 import { implementHealth } from "./health.ts";
 import { createClient } from "../client/index.ts";
-import { eventIterator, defineProcedure } from "../procedure/index.ts";
+import { eventIterator, Procedure } from "../procedure/index.ts";
 import { implement, Server, type ServerOptions } from "./index.ts";
 import { authenticateUser, fixturePackage, hosting, authenticateByName } from "../test/fixture.ts";
 import { Observable } from "../client/observable.ts";
@@ -29,8 +29,8 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     // serve a finite snapshot subscription
     let requests = 0;
     const procedures = {
-        watch: defineProcedure({
-            package: Package.of(fixturePackage),
+        watch: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
@@ -116,8 +116,8 @@ test.for([
         const { clock } = simulation;
         let isRevoked = false;
         const procedures = {
-            watch: defineProcedure({
-                package: Package.of(fixturePackage),
+            watch: Procedure.of({
+                package: PackageVersion.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -201,8 +201,8 @@ test("drain complete HTTP response streams before reporting the server stopped",
     const readiness = new Health("reader");
     const procedures = {
         health,
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -345,8 +345,8 @@ test("end a stream that follows its context signal once the server drains, stopp
     const world = testSimulation().environment("test");
     // declare a stream that yields until its context signal aborts
     const procedures = {
-        follow: defineProcedure({
-            package: Package.of(fixturePackage),
+        follow: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -402,8 +402,8 @@ test("end a request's context signal once its response is answered", async () =>
     // record the context of a call that answers at once
     let seen: RequestContext | undefined;
     const procedures = {
-        get: defineProcedure({
-            package: Package.of(fixturePackage),
+        get: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -454,8 +454,8 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     const waiting = Promise.withResolvers<void>();
     const entered = Promise.withResolvers<void>();
     const procedures = {
-        get: defineProcedure({
-            package: Package.of(fixturePackage),
+        get: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -552,16 +552,16 @@ test("return observed watermarks and require them on the client's later requests
     const world = testSimulation().environment("test");
     // observe write watermarks and require read watermarks
     const procedures = {
-        write: defineProcedure({
-            package: Package.of(fixturePackage),
+        write: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
         })
             .route({ method: "POST", path: "/write" })
             .output(schema.object({})),
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user, principal.machine, principal.installation] },
             audit: false,
@@ -626,8 +626,8 @@ test("require the watermarks a caller's credential has beside its bookmark's", a
     // authenticate callers whose credentials include the position their grant was written at
     const granted = { scope: "universe", log: "log-1", epoch: "epoch-1", sequence: 3 };
     const procedures = {
-        read: defineProcedure({
-            package: Package.of(fixturePackage),
+        read: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "identity",
             permission: { principals: [principal.user] },
             audit: false,
@@ -686,8 +686,8 @@ test.for(["before the call", "during the call", "between events"] as const)(
         const simulation = testSimulation();
         const world = simulation.environment("server");
         const procedures = {
-            follow: defineProcedure({
-                package: Package.of(fixturePackage),
+            follow: Procedure.of({
+                package: PackageVersion.of(fixturePackage),
                 authentication: "identity",
                 permission: {
                     principals: [principal.user, principal.machine, principal.installation],
@@ -789,8 +789,8 @@ test("report a handler's invalid output as an internal failure and a caller's in
     const world = testSimulation().environment("test");
     // serve a procedure whose handler breaks its output schema
     const routes = {
-        echo: defineProcedure({
-            package: Package.of(fixturePackage),
+        echo: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -836,8 +836,8 @@ test("delay a request while starting and answer it once ready, and refuse it wit
 
     // serve a procedure behind a readiness the test opens
     const routes = {
-        echo: defineProcedure({
-            package: Package.of(fixturePackage),
+        echo: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: false,
@@ -944,8 +944,8 @@ test("end a server stopped while its activation waits quietly, reporting nothing
 test("refuse a caller authenticated for another package as unauthenticated, auditing the denial", async () => {
     // serve an audited procedure to a caller with a credential for another package
     const procedures = {
-        get: defineProcedure({
-            package: Package.of(fixturePackage),
+        get: Procedure.of({
+            package: PackageVersion.of(fixturePackage),
             authentication: "public",
             permission: "anyone",
             audit: "access",

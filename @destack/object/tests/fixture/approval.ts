@@ -10,7 +10,7 @@ import {
 } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import type { Environment } from "@destack/environment";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { RequestId, Scope, type Subject, Uplink } from "@destack/sync";
 import { onTestFinished } from "@destack/test";
@@ -21,11 +21,13 @@ import {
     defineObject,
     field,
     grantShape,
-    PackageHandle,
+    Package,
 } from "../../src/index.ts";
 import objectPackage from "../../src/package.ts";
 import { implementPackage } from "../../src/server/index.ts";
 import { TestObjectStore, testSimulation } from "../../src/test/index.ts";
+import { shareable } from "../../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest a grant takes to reach the space's replica, in milliseconds. */
 const REPLICA_MILLISECONDS = 2000;
@@ -38,7 +40,7 @@ const ARCHIVE_AGE = 15 * 60_000;
 
 /** The module of the notes application whose calls the changes make. */
 const NOTES = {
-    package: Package.parse({
+    package: PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000f1",
         name: "@example/notes",
         version: "2026.10.0",
@@ -73,38 +75,44 @@ export const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: [principal.space],
         fields: { owner: field.subject().caller(), title: field.string() },
-        // the people an owner asks to review a note, whom a change may ask as one set
-        relations: { reviewer: { subjects: [principal.user], grantedBy: "share" } },
-        permissions: {
-            read: union(relation("owner"), relation("reviewer")),
-            write: relation("owner"),
-            approve: union(relation("owner"), relation("reviewer")),
-            publish: relation("owner"),
-            archive: relation("owner"),
-            share: relation("owner"),
-        },
-        // ask several factors within fifteen minutes to archive a note
-        elevated: { archive: { assurance: 2, maxAge: ARCHIVE_AGE } },
-        // let the owner bind the space's roles on a note
-        shareable: { by: "share" },
         attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
-        // let a change ask a note's approvers as one set, as GitHub asks a team
-        contributes: [{ object: () => approval, relation: "approver", members: "reviewer" }],
+        access: {
+            // the people an owner asks to review a note, whom a change may ask as one set
+            relations: { reviewer: { subjects: [principal.user], grantedBy: "share" } },
+            permissions: {
+                read: union(relation("owner"), relation("reviewer")),
+                write: relation("owner"),
+                approve: union(relation("owner"), relation("reviewer")),
+                publish: relation("owner"),
+                archive: relation("owner"),
+                share: relation("owner"),
+            },
+            // ask several factors within fifteen minutes to archive a note
+            elevated: { archive: { assurance: 2, maxAge: ARCHIVE_AGE } },
+            // let a change ask a note's approvers as one set, as GitHub asks a team
+            contributes: [{ object: () => approval, relation: "approver", members: "reviewer" }],
+        },
+        traits: [
+            // let the owner bind the space's roles on a note
+            shareable({ by: "share" }),
+        ],
     },
     (method) => ({
         publish: method.mutation({
+            title: t`Publish`,
             permission: "publish",
             input: schema.object({ title: schema.string() }),
         }),
-        archive: method.mutation({ permission: "archive" }),
+        archive: method.mutation({ title: t`Archive`, permission: "archive" }),
     }),
     NOTES,
 );
 
 /** The notes application's package, which clients call for notes. */
-export const notesPackage = PackageHandle.of(note.package, { objects: { note } });
+export const notesPackage = Package.of(note.package, { objects: [note] });
 
 /** A space serving notes and change requests over them, on a simulated clock. */
 export interface TestApproval {

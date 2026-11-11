@@ -1,10 +1,10 @@
 import { Condition } from "@destack/db";
 import { Message } from "@destack/locale";
 import {
-    defineDeclarationKind,
+    defineKind,
     DeclarationName,
     ModuleMetadata,
-    Package,
+    PackageVersion,
     PackageError,
     PackageId,
 } from "@destack/package";
@@ -80,7 +80,7 @@ export class Command<
     Preset extends object = {},
 > {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name. */
     readonly name: string;
     /** The title menus, the command palette and the command line show. */
@@ -99,7 +99,7 @@ export class Command<
     readonly keybinding: Shortcut | undefined;
 
     /** Create a command of a package, refusing a condition on a method without a target. */
-    constructor(owner: Package, definition: CommandDefinition<Object, Method, Preset>) {
+    constructor(owner: PackageVersion, definition: CommandDefinition<Object, Method, Preset>) {
         // set the package and the definition, presetting no input by default
         this.package = owner;
         this.name = DeclarationName.parse(definition.name);
@@ -260,7 +260,7 @@ export type CommandReference = schema.Infer<typeof CommandReference>;
 /** A titled call of an object type's method, as menus and the command palette offer it. */
 export const CommandDescription = schema.object({
     /** The package declaring the command. */
-    package: Package,
+    package: PackageVersion,
     /** The name, unique among the package's commands. */
     name: schema.string().min(1),
     /** The command's title. */
@@ -284,7 +284,7 @@ export const CommandDescription = schema.object({
 export type CommandDescription = schema.Infer<typeof CommandDescription>;
 
 /** The command declaration kind, which object defines. */
-export const COMMAND_KIND = defineDeclarationKind("command", CommandDescription);
+export const COMMAND_KIND = defineKind({ name: "command", description: CommandDescription });
 
 /** A method's input as JSON Schema: an object with its properties and the required ones. */
 const InputSchema = schema.looseObject({

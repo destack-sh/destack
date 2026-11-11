@@ -1,11 +1,11 @@
 import { Simulation } from "@destack/environment/simulation";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { type Uplink } from "@destack/sync";
 import { afterAll, expect, onTestFinished, test } from "@destack/test";
 import { Caller, principal } from "@destack/access";
 import { schema } from "@destack/schema";
-import { PackageHandle } from "../declare/index.ts";
+import { Package } from "../declare/index.ts";
 import { PackageMount } from "../declare/mount.ts";
 import { startTelemetry } from "@destack/telemetry/bun";
 import { startSilentTelemetry } from "@destack/telemetry/test";
@@ -67,18 +67,18 @@ const refusingEphemeral: EphemeralHost = {
 };
 
 /** The runner's package. */
-const NOTES = Package.parse({
+const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a1",
     name: "@acme/notes",
     version: "2026.9.0",
 });
 
 /** The handle of the runner's package. */
-const notes = PackageHandle.of(NOTES, {});
+const notes = Package.of(NOTES, {});
 
 /** Another package the runner's workload also serves. */
-const events = PackageHandle.of(
-    Package.parse({
+const events = Package.of(
+    PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",
         name: "@acme/events",
         version: "2026.10.0",

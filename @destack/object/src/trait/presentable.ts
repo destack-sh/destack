@@ -1,3 +1,4 @@
+import { callableTrait } from "./trait.ts";
 import { DeclarationReference } from "@destack/package/declare";
 import { ACCENT_PRESETS, type AccentPreset } from "@destack/theme/declare";
 import { type JsonValue, present, schema } from "@destack/schema";
@@ -256,3 +257,6 @@ export const Presentable = {
         return field.json(Cover).optional();
     },
 };
+
+/** The presentable trait, callable to declare it on an object type. */
+export const presentable = callableTrait("presentable", {}, true);

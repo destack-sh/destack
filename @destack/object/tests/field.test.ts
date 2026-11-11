@@ -14,6 +14,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the markers. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000007");
@@ -23,9 +24,12 @@ const label = defineObject(
     {
         name: "label",
         plural: "labels",
+        title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
@@ -35,9 +39,12 @@ const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields: { owner: field.reference(principal.user).caller() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({ create: method.create("write", { fields: [] }) }),
 );
@@ -47,12 +54,15 @@ const marker = defineObject(
     {
         name: "marker",
         plural: "markers",
+        title: t`${plural(argument("count"), { one: "Marker", other: "Markers" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             target: field.object(label),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", {

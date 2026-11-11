@@ -2,6 +2,7 @@ import { expect, test } from "@destack/test";
 import { principal } from "@destack/access";
 import { defineObject } from "../object/object.ts";
 import { ListPage, scopeRoute } from "./procedure.ts";
+import { argument, plural, t } from "@destack/locale";
 
 test("read every row of a list across its pages, passing each page's cursor once", async () => {
     // answer three pages of a list, recording the cursors asked
@@ -28,8 +29,18 @@ test("read every row of a list across its pages, passing each page's cursor once
 
 test("route a type's scope by its scope type or a listed policy, refusing one unlisted policy", () => {
     // scope a type by account's space type through its policy, listed and alone
-    const listed = defineObject({ name: "listed", plural: "listeds", scope: [principal.space] });
-    const single = defineObject({ name: "single", plural: "singles", scope: principal.space });
+    const listed = defineObject({
+        name: "listed",
+        plural: "listeds",
+        title: t`${plural(argument("count"), { one: "Listed", other: "Listeds" })}`,
+        scope: [principal.space],
+    });
+    const single = defineObject({
+        name: "single",
+        plural: "singles",
+        title: t`${plural(argument("count"), { one: "Single", other: "Singles" })}`,
+        scope: principal.space,
+    });
 
     // route the listed one through a scope field, and refuse the single one
     expect([scopeRoute(listed), refusalOf(() => scopeRoute(single))]).toEqual([

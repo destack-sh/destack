@@ -22,6 +22,7 @@ import { request, type RequestInput } from "./fixture/request.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the assets. */
 const homeId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-000000000021");
@@ -37,6 +38,7 @@ const declared = defineObject(
     {
         name: "asset",
         plural: "assets",
+        title: t`${plural(argument("count"), { one: "Asset", other: "Assets" })}`,
         scope: space,
         owner: "holder",
         fields: {
@@ -46,12 +48,15 @@ const declared = defineObject(
             name: field.string(),
         },
         indexes: { name: { on: ["holderId", "name"], across: () => universe } },
-        permissions: { read: through("holder", "read"), manage: none() },
+        access: {
+            permissions: { read: through("holder", "read"), manage: none() },
+        },
     },
     (method) => ({
         create: method.create("manage"),
         /** Count the owner's assets, checked as on a new asset of the owner in the input. */
         count: method.mutation({
+            title: t`Count`,
             permission: "manage",
             target: "scope",
             input: schema.object({ holderId: schema.identifier("space") }),
@@ -110,36 +115,48 @@ test("map a reference to an object of another scope type across scopes, and one 
     const team = defineObject({
         name: "team",
         plural: "teams",
+        title: t`${plural(argument("count"), { one: "Team", other: "Teams" })}`,
         scope: space,
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const vault = defineObject({
         name: "vault",
         plural: "vaults",
+        title: t`${plural(argument("count"), { one: "Vault", other: "Vaults" })}`,
         scope: space,
-        isScope: true,
         fields: {},
-        permissions: { read: none() },
+        container: "scope",
+        access: {
+            permissions: { read: none() },
+        },
     });
     const tag = defineObject({
         name: "tag",
         plural: "tags",
+        title: t`${plural(argument("count"), { one: "Tag", other: "Tags" })}`,
         scope: vault,
         fields: {},
-        permissions: { read: none() },
+        access: {
+            permissions: { read: none() },
+        },
     });
     const item = defineObject({
         name: "item",
         plural: "items",
+        title: t`${plural(argument("count"), { one: "Item", other: "Items" })}`,
         scope: vault,
         owner: "team",
         fields: {
             team: field.reference(team).relate("team"),
             tag: field.reference(tag).relate("tag"),
         },
-        permissions: { read: union(through("team", "read"), through("tag", "read")) },
+        access: {
+            permissions: { read: union(through("team", "read"), through("tag", "read")) },
+        },
     });
 
     // follow the team in any scope, and the tag in the item's scope
@@ -155,6 +172,7 @@ test("refuse an owner that no reference relates", () => {
             defineObject({
                 name: "orphan",
                 plural: "orphans",
+                title: t`${plural(argument("count"), { one: "Orphan", other: "Orphans" })}`,
                 scope: space,
                 owner: "holder",
                 fields: { name: field.string() },
@@ -228,12 +246,15 @@ const sticker = defineObject(
     {
         name: "sticker",
         plural: "stickers",
+        title: t`${plural(argument("count"), { one: "Sticker", other: "Stickers" })}`,
         scope: space,
         fields: {
             /** The sticker's name. */
             name: field.string(),
         },
-        permissions: { read: none(), manage: none() },
+        access: {
+            permissions: { read: none(), manage: none() },
+        },
     },
     (method) => ({ create: method.create("manage") }),
 );

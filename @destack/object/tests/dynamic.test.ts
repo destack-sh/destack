@@ -10,7 +10,7 @@ import { implementPackage } from "../src/server/index.ts";
 import { testEvents } from "../src/test/index.ts";
 import { defineDatabase } from "@destack/db";
 import { through } from "@destack/access";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
@@ -20,6 +20,7 @@ import objectPackage from "../src/package.ts";
 import { tablesOf } from "../src/index.ts";
 import { TestObjectStore } from "../src/test/index.ts";
 import { Scope } from "@destack/sync";
+import { argument, plural, t } from "@destack/locale";
 
 /** A row's identifier. */
 const Identified = schema.looseObject({ id: schema.string() });
@@ -215,31 +216,38 @@ test("describe the served types with the types they refer to, declare them from 
 const shelf = defineObject({
     name: "shelf",
     plural: "shelves",
+    title: t`${plural(argument("count"), { one: "Shelf", other: "Shelves" })}`,
     scope: space,
-    isScope: true,
     fields: {
         /** The shelf's name. */
         name: field.string(),
     },
-    permissions: { read: through("scope", "read"), write: through("scope", "read") },
+    container: "scope",
+    access: {
+        permissions: { read: through("scope", "read"), write: through("scope", "read") },
+    },
 });
 
 /** A label another package stores, which bookmarks refer to though the store serves no labels. */
 const label = defineObject({
     name: "label",
     plural: "labels",
+    title: t`${plural(argument("count"), { one: "Label", other: "Labels" })}`,
     scope: space,
     fields: {
         /** The label's text. */
         text: field.string(),
     },
-    permissions: { read: through("scope", "read") },
+    access: {
+        permissions: { read: through("scope", "read") },
+    },
 });
 
 /** A bookmark stored on a shelf. */
 const bookmark = defineObject({
     name: "bookmark",
     plural: "bookmarks",
+    title: t`${plural(argument("count"), { one: "Bookmark", other: "Bookmarks" })}`,
     scope: shelf,
     fields: {
         /** The bookmarked address. */
@@ -247,7 +255,9 @@ const bookmark = defineObject({
         /** The label of the bookmark, absent for none. */
         label: field.reference(() => label).optional(),
     },
-    permissions: { read: through("scope", "read"), write: through("scope", "read") },
+    access: {
+        permissions: { read: through("scope", "read"), write: through("scope", "read") },
+    },
 });
 
 test("read objects of a scope inside the space a client is bound to, refusing a scope outside it, and describe every type they refer to", async () => {
@@ -272,12 +282,12 @@ test("read objects of a scope inside the space a client is bound to, refusing a 
     );
     onTestFinished(() => storage.close());
     await openSpace(storage.database, world, spaceId);
-    const shelves = definePackage({ objects: { shelf, bookmark } });
+    const shelves = definePackage({ objects: [shelf, bookmark] });
     const served = TestObjectStore.serve(
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
             servers: [implementPackage(shelves, {})],
             chain: async () => undefined,
-            origin: { package: Package.of(shelves) },
+            origin: { package: PackageVersion.of(shelves) },
             principal: spacePrincipal(spaceId),
             callKey: testCallKey,
             events: await testEvents(storage.database, world),

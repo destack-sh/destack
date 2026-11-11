@@ -1,7 +1,7 @@
 import { testSimulation } from "../src/test/index.ts";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { principal, relation } from "@destack/access";
-import { defineDatabase } from "@destack/db";
+import { defineDatabase, Expression } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import { schema } from "@destack/schema";
 
@@ -15,19 +15,23 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Cards whose `title` became `name`. */
 const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
-        moved: { fields: { name: "title" } },
+        convert: { [objectPackage.version]: { name: Expression.column("title") } },
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(schema.string().min(1)),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write"),

@@ -17,7 +17,7 @@ import { AccessContext, Credential } from "@destack/access";
 import { type ProcedureAudit, type ProcedureContext } from "../server/procedure.ts";
 import { trace, isSpanContextValid } from "@destack/telemetry";
 import { type AuditAction, defineAuditAction } from "./action.ts";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { ObjectError } from "../error/index.ts";
 import type { DatabaseConnection } from "@destack/db";
 import type { Journal, JournalRecord } from "./journal.ts";
@@ -35,7 +35,7 @@ export type AuditOrigin = Omit<CallOrigin, "caller" | "deploymentId" | "traceId"
 /** The options of a recorder: what it records about the calls beside their caller. */
 export interface AuditRecorderOptions {
     /** The package whose method or procedure the calls run. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The request the calls answer. */
     readonly requestId?: string;
     /** The code making the calls, such as a controller's name. */

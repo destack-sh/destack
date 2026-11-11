@@ -1,5 +1,5 @@
 import { testSimulation } from "../src/test/index.ts";
-import { defineObject, field, ObjectDescription } from "../src/index.ts";
+import { defineObject, field, type FileBucket, ObjectDescription } from "../src/index.ts";
 import { expect, onTestFinished, test } from "@destack/test";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -14,16 +14,19 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { presentable, searchable } from "../src/index.ts";
+import { defineKind } from "@destack/package";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space containing the boards. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000c1");
 
 /** The bucket storing the boards' covers. */
-const media = new ResourceDeclaration<unknown, { name: string; kind: "bucket"; spec: {} }>(
+const media: FileBucket = new ResourceDeclaration(
     space.package,
+    defineKind({ name: "bucket", provisioned: { spec: schema.object({}) } }),
     {
         name: "media",
-        kind: "bucket",
         spec: {},
     },
 );
@@ -33,6 +36,7 @@ const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
@@ -40,9 +44,13 @@ const board = defineObject(
             excerpt: field.string().optional(),
             rank: field.integer().default(0),
         },
-        presentable: { subtitle: "excerpt", cover: media },
-        search: { searchable: ["name", "excerpt"], filterable: ["ownerId"], sortable: ["rank"] },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [
+            presentable({ subtitle: "excerpt", cover: media }),
+            searchable({ text: ["name", "excerpt"], filter: ["ownerId"], sort: ["rank"] }),
+        ],
     },
     (method) => ({
         create: method.create("write", { fields: ["name", "icon", "color", "cover"] }),
@@ -95,7 +103,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
     expect({
         stored: [created.name, created.icon, created.color, created.cover],
         presentation: board.presentation,
-        search: board.search,
+        search: board.searchable,
         indexes: board.table[TABLE]
             .constraints(storage.database.dialect)
             .flatMap((constraint) => (constraint.kind === "index" ? [constraint.name] : []))
@@ -114,7 +122,7 @@ test("present an object by its name, subtitle, chosen icon, accent and cover, de
             color: { field: "color" },
             cover: { field: "cover", bucket: { packageId: space.package.id, name: "media" } },
         },
-        search: { searchable: ["name", "excerpt"], filterable: ["ownerId"], sortable: ["rank"] },
+        search: { text: ["name", "excerpt"], filter: ["ownerId"], sort: ["rank"] },
         indexes: ["board_manager", "board_ownerId", "board_rank"],
     });
 });
@@ -126,6 +134,7 @@ function declare(definition: Record<string, unknown>) {
             defineObject({
                 name: "card",
                 plural: "cards",
+                title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
                 scope: space,
                 fields: { body: field.json(schema.json()) },
                 ...definition,
@@ -134,14 +143,14 @@ function declare(definition: Record<string, unknown>) {
 }
 
 test("refuse a presentation without a title field, a field the presentation adds itself, and a query role over a field it cannot read", () => {
-    expect(declare({ presentable: true })).toThrow("a title or name field of card");
+    expect(declare({ traits: [presentable()] })).toThrow("a title or name field of card");
     expect(
         declare({
             fields: { title: field.string(), color: field.string() },
-            presentable: true,
+            traits: [presentable()],
         }),
     ).toThrow("object 'card' cannot declare field 'color': its presentation adds it");
-    expect(declare({ search: { sortable: ["body"] } })).toThrow(
-        "object card declares body 'sortable', which is not a 'sortable' field",
+    expect(declare({ traits: [searchable({ sort: ["body"] })] })).toThrow(
+        "object card declares body 'sort', which is not a 'sort' field",
     );
 });

@@ -184,7 +184,7 @@ export class Stack {
     }
 
     /** Order a stack's declarations, refusing collections no type declares or installs. */
-    static #declare(options: StackOptions): Declared {
+    static #declare(options: StackOptions): DeclarationOrder {
         // pair each object type with its declaration
         const declared = options.objects.map((object) => {
             // require a managed type
@@ -297,7 +297,7 @@ export class Stack {
     static #after(declaration: TypeDeclaration): readonly ObjectType[] | "every" {
         // follow every type for an object or subject reference
         const { object, after = [] } = declaration;
-        const references = Object.values(object.declaredReferences);
+        const references = Object.values(object.stackTargets);
         if (after === "every" || references.some((reference) => typeof reference === "string")) {
             return "every";
         }
@@ -312,7 +312,7 @@ export class Stack {
 
     /** Rank a declaration: after its types, after all types, or after those too for any record. */
     static #tier(declaration: TypeDeclaration): 0 | 1 | 2 {
-        const references = Object.values(declaration.object.declaredReferences);
+        const references = Object.values(declaration.object.stackTargets);
         if (references.some((reference) => typeof reference === "string")) {
             return 2;
         } else if (declaration.after === "every") {
@@ -492,7 +492,7 @@ export class StackPlan {
     ): Promise<Record<string, unknown>> {
         // take the written fields but the references, and fill a name field with the declaration's name
         const written = DECLARED.parse(declared);
-        const references = Object.entries(object.declaredReferences);
+        const references = Object.entries(object.stackTargets);
         const referenced = new Set(references.map(([field]) => ObjectType.declaredField(field)));
         const input: Record<string, unknown> = Object.fromEntries(
             Object.entries(written).filter(([field]) => !referenced.has(field)),
@@ -519,8 +519,8 @@ export class StackPlan {
             }
             // resolve a present reference to one type's record
             else if (reference !== "subject" && value !== undefined) {
-                const declaredReference = StackReference.of(reference.identity).parse(value);
-                input[field] = await this.resolveRecord(reference, declaredReference);
+                const named = StackReference.of(reference.identity).parse(value);
+                input[field] = await this.resolveRecord(reference, named);
             }
         }
 
@@ -1375,7 +1375,7 @@ export class StackPlan {
 class DependencyWait extends Error {}
 
 /** A stack's declarations in dependency order, and the entries left to the types it installs. */
-interface Declared {
+interface DeclarationOrder {
     /** The declared object types in dependency order. */
     readonly ordered: readonly TypeDeclaration[];
     /** The document's collections no served type declares. */

@@ -2,15 +2,18 @@ import { expect, test } from "@destack/test";
 import { permission, principal, relation, through, union } from "@destack/access";
 import { defineObject, field } from "../src/index.ts";
 import { space } from "./fixture/space.ts";
+import { nested, shareable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A board shared through the roles, containing cards. */
 const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: { title: field.string() },
-        shareable: {},
+        traits: [shareable({})],
     },
     (method) => ({ update: method.update("write") }),
 );
@@ -25,29 +28,35 @@ test("derive each role's permissions on an object, inherited from its parent or 
     const folder = defineObject({
         name: "folder",
         plural: "folders",
+        title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
         scope: space,
-        isScope: true,
         fields: {},
-        shareable: {},
-        relations: { auditor: { subjects: [principal.user] } },
-        permissions: { read: relation("auditor") },
+        container: "scope",
+        access: {
+            relations: { auditor: { subjects: [principal.user] } },
+            permissions: { read: relation("auditor") },
+        },
+        traits: [shareable({})],
     });
     const sheet = defineObject({
         name: "sheet",
         plural: "sheets",
+        title: t`${plural(argument("count"), { one: "Sheet", other: "Sheets" })}`,
         scope: folder,
         fields: {},
-        shareable: {},
+        traits: [shareable({})],
     });
     const card = defineObject(
         {
             name: "card",
             plural: "cards",
+            title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
             scope: space,
-            nested: { in: board, receive: "write" },
             fields: { starred: field.boolean().default(false) },
-            shareable: {},
-            permissions: { star: permission("write") },
+            access: {
+                permissions: { star: permission("write") },
+            },
+            traits: [nested({ in: board, add: "write" }), shareable({})],
         },
         (method) => ({
             star: method.update("star", { fields: ["starred"] }),

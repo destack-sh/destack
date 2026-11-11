@@ -1,11 +1,13 @@
 import { AUDIT_CATEGORIES, AUDIT_OUTCOMES, CallEvent } from "./execution.ts";
 import { field } from "../field/field.ts";
 import { defineObject } from "../object/object.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A call executed in a scope: who ran which method on what, and how it ended. */
 export const call = defineObject({
     name: "call",
     plural: "calls",
+    title: t`${plural(argument("count"), { one: "Call", other: "Calls" })}`,
     // record every call once, its segments locked for 400 days
     storage: {
         kind: "events",
@@ -35,5 +37,7 @@ export const call = defineObject({
         /** The type of the object the call acts on. */
         targetType: field.string(),
     },
-    permissions: ["read", "unmask"],
+    access: {
+        permissions: ["read", "unmask"],
+    },
 });

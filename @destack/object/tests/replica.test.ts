@@ -47,16 +47,20 @@ import { TOKEN_LIFETIME_MILLISECONDS } from "@destack/access/token";
 import { tablesOf } from "../src/stack/db.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A mention of a person in a space, readable by that person wherever a replica has it. */
 const mention = defineObject(
     {
         name: "mention",
         plural: "mentions",
+        title: t`${plural(argument("count"), { one: "Mention", other: "Mentions" })}`,
         scope: space,
         fields: { recipient: field.subject(), text: field.string() },
-        relations: { recipient: { subjects: [principal.user] } },
-        permissions: { read: relation("recipient"), post: none() },
+        access: {
+            relations: { recipient: { subjects: [principal.user] } },
+            permissions: { read: relation("recipient"), post: none() },
+        },
     },
     (method) => ({
         create: method.create("post", {
@@ -75,11 +79,14 @@ const mention = defineObject(
 const person = defineObject({
     name: "user",
     plural: "users",
+    title: t`${plural(argument("count"), { one: "User", other: "Users" })}`,
     scope: "universe",
-    represents: principal.user,
     fields: {},
-    relations: { home: { subjects: [principal.space] } },
-    permissions: { follow: relation("home") },
+    access: {
+        represents: principal.user,
+        relations: { home: { subjects: [principal.space] } },
+        permissions: { follow: relation("home") },
+    },
 });
 
 /** The mentions of a space a home follows for its person. */
@@ -581,17 +588,20 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         {
             name: "realm",
             plural: "realms",
+            title: t`${plural(argument("count"), { one: "Realm", other: "Realms" })}`,
             scope: "universe",
-            isScope: true,
-            partition: true,
             fields: { title: field.string() },
-            permissions: { read: none(), write: none() },
+            container: "partition",
+            access: {
+                permissions: { read: none(), write: none() },
+            },
         },
         (method) => ({
             rename: method.update("write", { fields: ["title"] }),
             update: false,
             /** Read the realm's title. */
             describe: method.query({
+                title: t`Describe`,
                 permission: "read",
                 output: schema.object({ title: schema.string() }),
             }),
@@ -603,9 +613,12 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
         {
             name: "note",
             plural: "notes",
+            title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
             scope: realm,
             fields: { text: field.string() },
-            permissions: { read: none(), write: none() },
+            access: {
+                permissions: { read: none(), write: none() },
+            },
         },
         (method) => ({ create: method.create("write") }),
     );
@@ -648,7 +661,7 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
 
     // serve the notes, which make the enclosing realm known
     const store = TestObjectStore.of({
-        servers: [implementPackage(definePackage({ objects: { note } }), {})],
+        servers: [implementPackage(definePackage({ objects: [note] }), {})],
         chain: async () => undefined,
         environment: world,
         principal: spacePrincipal(realmId),
@@ -687,16 +700,19 @@ test("list and replicate only the rows a query's permission allows, drop a row o
         {
             name: "loan",
             plural: "loans",
+            title: t`${plural(argument("count"), { one: "Loan", other: "Loans" })}`,
             scope: space,
             fields: { reader: field.subject(), consumer: field.subject(), title: field.string() },
-            relations: {
-                reader: { subjects: [principal.user] },
-                consumer: { subjects: [principal.user] },
-            },
-            permissions: {
-                read: union(relation("reader"), relation("consumer")),
-                use: relation("consumer"),
-                post: none(),
+            access: {
+                relations: {
+                    reader: { subjects: [principal.user] },
+                    consumer: { subjects: [principal.user] },
+                },
+                permissions: {
+                    read: union(relation("reader"), relation("consumer")),
+                    use: relation("consumer"),
+                    post: none(),
+                },
             },
         },
         (method) => ({

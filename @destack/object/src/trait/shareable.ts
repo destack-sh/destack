@@ -27,7 +27,8 @@ import {
     type ObjectRelationInput,
     type ObjectType,
 } from "../object/object.ts";
-import type { Gated, Erasure, Trait } from "./trait.ts";
+import type { TraitPermission, Erasure, TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 import { ShareableMethod } from "../method/shareable.ts";
 /** The roles, lowest first: viewer, commenter, editor and owner. */
@@ -135,7 +136,7 @@ export interface RolesDefinition {
 
 /** How callers share objects: through roles, or separate relations by permission, and who sees. */
 export type ShareableDefinition<Permission extends string = string> = (
-    | Gated<Permission>
+    | TraitPermission<Permission>
     | RolesDefinition
 ) & {
     /** The permission whose holders see the objects' relationships, `read` by default. */
@@ -151,14 +152,14 @@ export interface SharingGate {
 }
 
 /** The sharing permission: the definition's, `manage` through roles, or undefined. */
-export type SharingGateOf<Sharing> = [Sharing] extends [Gated<infer Permission>]
+export type SharingGateOf<Sharing> = [Sharing] extends [TraitPermission<infer Permission>]
     ? Permission
     : [Sharing] extends [RolesDefinition]
       ? "manage"
       : undefined;
 
 /** The permissions the roles grant when objects are shared through them, none otherwise. */
-export type RolePermissionsOf<Sharing> = [Sharing] extends [Gated]
+export type RolePermissionsOf<Sharing> = [Sharing] extends [TraitPermission]
     ? never
     : [Sharing] extends [RolesDefinition]
       ? RolePermission
@@ -313,7 +314,7 @@ export const Roles = {
 };
 
 /** Objects callers share through relationships and invitations. */
-export const shareable: Trait<SharingGate> = {
+const shareableTrait: TraitBehavior<SharingGate> = {
     key: "shareable",
     storages: ["durable"],
     options: (definition) => {
@@ -330,6 +331,9 @@ export const shareable: Trait<SharingGate> = {
     constraints: () => [],
     methods: (options) => ShareableMethod.methods(options),
 };
+
+/** The shareable trait, callable to declare it on an object type. */
+export const shareable = callableTrait("shareable", shareableTrait);
 
 /** The procedures sharing derives. */
 export type ShareableProcedures<Object extends ObjectType> = {

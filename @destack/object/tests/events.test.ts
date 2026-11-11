@@ -14,6 +14,7 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space the visits happen in. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000e1");
@@ -29,6 +30,7 @@ const visit = defineObject(
     {
         name: "visit",
         plural: "visits",
+        title: t`${plural(argument("count"), { one: "Visit", other: "Visits" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -48,7 +50,9 @@ const visit = defineObject(
             /** The page the visitor came from, absent for a direct visit. */
             data: field.json(schema.object({ referrer: schema.string().nullable() })),
         },
-        permissions: { read: relation("visitor"), record: none(), visit: relation("visitor") },
+        access: {
+            permissions: { read: relation("visitor"), record: none(), visit: relation("visitor") },
+        },
     },
     (method) => ({
         list: method.list("read"),
@@ -66,12 +70,16 @@ const page = defineObject(
     {
         name: "page",
         plural: "pages",
+        title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
         scope: space,
         fields: { title: field.string() },
-        permissions: { read: through("scope", "read") },
+        access: {
+            permissions: { read: through("scope", "read") },
+        },
     },
     (method) => ({
         visits: method.query({
+            title: t`Visits`,
             permission: "read",
             target: "scope",
             input: schema.object({ title: schema.string() }),

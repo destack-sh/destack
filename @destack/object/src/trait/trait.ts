@@ -64,21 +64,21 @@ export type TraitMapping = Pick<TableMapping, "relations"> &
     Partial<Pick<TableMapping, "parent" | "trees">>;
 
 /** A trait whose methods the holders of one object permission call. */
-export interface Gated<Permission extends string = string> {
+export interface TraitPermission<Permission extends string = string> {
     /** The permission whose holders call the trait's methods. */
     readonly by: Permission;
 }
 
 /** The permission a gated trait's definition sets, undefined without the trait. */
-export type GateOf<Definition> =
-    Definition extends Gated<infer Permission> ? Permission : undefined;
+export type TraitPermissionOf<Definition> =
+    Definition extends TraitPermission<infer Permission> ? Permission : undefined;
 
 /** A definition with trait-rewritten members, each typed as any definition's after it. */
 export type Erasure<Definition, Keys extends keyof ObjectDefinition> = Omit<Definition, Keys> &
     Pick<ObjectDefinition, Keys>;
 
 /** A capability object types opt into. */
-export interface Trait<Options> {
+export interface TraitBehavior<Options> {
     /** The definition key enabling the trait, absent for implied traits. */
     readonly key?: keyof ObjectTraits | "attachments";
     /** The storages whose types take the trait, every storage when absent. */
@@ -112,6 +112,48 @@ export interface Trait<Options> {
     controllers?(options: Options, object: ObjectType): readonly ObjectController[];
 }
 
+/** The type of a trait's options as an object type's declaration reads them. */
+declare const OPTIONS: unique symbol;
+
+/** The options a trait takes, as any object type's definition reads them. */
+export type TraitValue<Key extends keyof ObjectTraits> = NonNullable<ObjectTraits[Key]>;
+
+/** A trait an object type declares, with its options. */
+export interface Trait<Key extends keyof ObjectTraits = keyof ObjectTraits, Options = unknown> {
+    /** The definition key the trait enables. */
+    readonly key: Key;
+    /** The trait's options. */
+    readonly options: TraitValue<Key>;
+    /** The type of the trait's options as the declaring object type reads them. */
+    readonly [OPTIONS]?: Options;
+}
+
+/** Make a trait callable with its options, or without any where it has a fallback. */
+export function callableTrait<
+    const Key extends keyof ObjectTraits,
+    Implementation extends object,
+    const Fallback extends TraitValue<Key> | undefined = undefined,
+>(
+    key: Key,
+    implementation: Implementation,
+    fallback?: Fallback,
+): Implementation &
+    (<const Given extends TraitValue<Key> = NonNullable<Fallback>>(
+        ...options: [Fallback] extends [undefined] ? [Given] : [] | [Given]
+    ) => Trait<Key, NoInfer<Given>>) {
+    // declare the trait under its key, with the options given or its fallback
+    const declare = (...options: readonly TraitValue<Key>[]) => {
+        const [given = fallback] = options;
+        if (given === undefined) {
+            throw new TypeError(`trait '${key}' needs options`);
+        }
+
+        return { key, options: given };
+    };
+
+    return Object.assign(declare, implementation);
+}
+
 /** Derive the undeclared permissions a trait's methods require, granted by roles and to selves. */
 export function derivePermissions(
     declared: readonly string[],
@@ -126,3 +168,16 @@ export function derivePermissions(
         ),
     };
 }
+
+/** Replicate the objects into the scopes inside each object's scope, matching any condition. */
+export const propagated = callableTrait("propagated", {});
+
+/** Record the objects' reads in the audit as well as their writes. */
+export const audited = callableTrait("audited", {});
+
+/** Let stacks declare the objects, filling the listed create input fields. */
+export const declarable = callableTrait("declarable", {});
+
+/** The type of the options a trait declares. */
+export type TraitOptionsOf<Use> =
+    Use extends Trait<keyof ObjectTraits, infer Options> ? Options : never;

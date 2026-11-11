@@ -11,6 +11,8 @@ import { serversOf, testCallKey, testEvents } from "../src/test/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { userContext, users } from "./fixture/user.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { nested } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The time the store runs at: 2026-10-24, in Unix milliseconds. */
 const START = Date.UTC(2026, 9, 24);
@@ -23,9 +25,12 @@ const board = defineObject(
     {
         name: "board",
         plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
         scope: space,
         fields: { author: field.subject().caller(), title: field.string() },
-        permissions: { read: through("space", "read"), write: relation("author") },
+        access: {
+            permissions: { read: through("space", "read"), write: relation("author") },
+        },
     },
     (method) => ({ create: method.create("read", { fields: ["title"] }) }),
 );
@@ -35,10 +40,13 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
-        nested: { in: board, receive: "write" },
         fields: { label: field.string() },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [nested({ in: board, add: "write" })],
     },
     (method) => ({ create: method.create("write", { fields: ["label"] }) }),
 );
@@ -48,14 +56,18 @@ const pinboard = defineObject(
     {
         name: "pinboard",
         plural: "pinboards",
+        title: t`${plural(argument("count"), { one: "Pinboard", other: "Pinboards" })}`,
         scope: space,
         fields: {},
-        permissions: { read: through("space", "read") },
+        access: {
+            permissions: { read: through("space", "read") },
+        },
     },
     (method) => ({
         /** Pin a card to a board, answering the card's identifier. */
         pin: method
             .mutation({
+                title: t`Pin`,
                 permission: "read",
                 target: "scope",
                 input: schema.object({

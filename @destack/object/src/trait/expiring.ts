@@ -3,7 +3,7 @@ import { Duration } from "@destack/schema";
 import { TABLE, Condition, Now } from "@destack/db";
 import { ObjectKey, type ObjectType } from "../object/object.ts";
 import { expiry } from "../method/expiring.ts";
-import { type Trait } from "./trait.ts";
+import { type TraitBehavior, callableTrait } from "./trait.ts";
 
 /** The most objects one expiry mutation removes: about a millisecond of deletes. */
 const EXPIRE_ROWS = 100;
@@ -19,7 +19,7 @@ export interface ExpiryRule {
 }
 
 /** Objects the code serving them removes once a rule's window passes. */
-export const expiring: Trait<readonly ExpiryRule[]> & {
+const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
     /** Replicate an expiring object type with the rules its host sets. */
     readonly after: <Self extends ObjectType>(object: Self, rules: readonly ExpiryRule[]) => Self;
     /** Require at least one valid rule. */
@@ -93,3 +93,6 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
         }
     },
 };
+
+/** The expiring trait, callable to declare it on an object type. */
+export const expiring = callableTrait("expiring", expiringTrait);

@@ -13,6 +13,8 @@ import { userContext, users } from "./fixture/user.ts";
 import { tablesOf } from "../src/index.ts";
 import objectPackage from "../src/package.ts";
 import { TestObjectStore } from "../src/test/index.ts";
+import { searchable } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The space with the notes. */
 const spaceId = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d2");
@@ -22,14 +24,17 @@ const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
-        search: { searchable: ["title", "status"], sortable: ["title"] },
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(),
             status: field.enum(["draft", "published"]),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
+        traits: [searchable({ text: ["title", "status"], sort: ["title"] })],
     },
     (method) => ({
         create: method.create("write"),

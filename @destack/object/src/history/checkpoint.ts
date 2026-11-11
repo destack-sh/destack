@@ -5,13 +5,15 @@ import { field } from "../field/field.ts";
 import type { MethodBuilder } from "../method/record.ts";
 import { defineObject } from "../object/object.ts";
 import type { ObjectTable } from "../object/table.ts";
+import { nested } from "../trait/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The checkpoints of a scope: named points in an object's history. */
 export const checkpoint = defineObject(
     {
         name: "checkpoint",
         plural: "checkpoints",
-        nested: { in: "any", receive: "checkpoint" },
+        title: t`${plural(argument("count"), { one: "Checkpoint", other: "Checkpoints" })}`,
         fields: {
             /** The log position the checkpoint marks. */
             position: field.json(LogPosition),
@@ -20,10 +22,13 @@ export const checkpoint = defineObject(
             /** What the checkpoint marks. */
             description: field.string(schema.string().max(2000)).optional(),
         },
-        permissions: {
-            read: through("parent", "read"),
-            checkpoint: through("parent", "checkpoint"),
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                checkpoint: through("parent", "checkpoint"),
+            },
         },
+        traits: [nested({ in: "any", add: "checkpoint" })],
     },
     <Definition extends ObjectTable>(method: MethodBuilder<Definition>) => ({
         create: method

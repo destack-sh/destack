@@ -3,7 +3,8 @@ import { type ColumnBuilder, integer, unique } from "@destack/db";
 import type { FieldColumn } from "../field/field.ts";
 import type { MethodContext } from "../method/context.ts";
 import type { ObjectType } from "../object/object.ts";
-import type { Trait } from "./trait.ts";
+import type { TraitBehavior } from "./trait.ts";
+import { callableTrait } from "./trait.ts";
 
 /** The options of versioned objects. */
 export type VersionsDefinition = true;
@@ -14,7 +15,7 @@ export type VersionBuilderMap<Versions> = Versions extends VersionsDefinition
     : {};
 
 /** Immutable versions of a parent, numbered within it. */
-export const versioned: Trait<VersionsDefinition> & {
+const versionedTrait: TraitBehavior<VersionsDefinition> & {
     /** Read the number following a parent's latest version. */
     readonly next: (
         object: ObjectType,
@@ -55,3 +56,6 @@ export const versioned: Trait<VersionsDefinition> & {
         return latest === undefined ? 1 : schema.number().parse(latest["number"]) + 1;
     },
 };
+
+/** The versioned trait, callable to declare it on an object type. */
+export const versioned = callableTrait("versioned", versionedTrait, true);

@@ -2,7 +2,7 @@ import { testSimulation } from "../test/index.ts";
 import { Caller, principal } from "@destack/access";
 import { expect, onTestFinished, test } from "@destack/test";
 import { Exchange } from "@destack/access/token";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { ResourceId } from "@destack/resource";
 import { health } from "../health/index.ts";
 import objectPackage from "../package.ts";
@@ -11,7 +11,7 @@ import { defineInstallationBinding } from "./binding.ts";
 import { definePackage, type ObjectDeclaration } from "./package.ts";
 
 /** The identity of the notes package. */
-const NOTES = Package.parse({
+const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b001",
     name: "@destack/notes",
     version: "2026.9.0",
@@ -27,10 +27,10 @@ const bound = (reference: string, credential?: string) => ({
 });
 
 /** A package's note type routing a set of procedures. */
-const note = <Router extends ProcedureRouter>(owner: Package, procedures: Router) => {
+const note = <Router extends ProcedureRouter>(owner: PackageVersion, procedures: Router) => {
     const declaration = {
         package: owner,
-        name: "note",
+        name: "note" as const,
         typeReference: { packageId: owner.id, type: "note" },
         hooks: {},
         procedures,
@@ -41,7 +41,7 @@ const note = <Router extends ProcedureRouter>(owner: Package, procedures: Router
 };
 
 /** The notes package, whose note type routes the health procedures. */
-const notes = definePackage({ objects: { note: note(NOTES, health) } }, { package: NOTES });
+const notes = definePackage({ objects: [note(NOTES, health)] }, { package: NOTES });
 
 test("call a bound installation at its reference with the credential the host lends, speaking its procedures' release, for the served caller a call passes", async () => {
     // answer health checks
@@ -80,7 +80,7 @@ test("call a bound installation at its reference with the credential the host le
         },
     };
     await client.note.check(undefined, { context: { authentication } });
-    expect([answer, calls, binding.kind, binding.spec]).toEqual([
+    expect([answer, calls, binding.kind.name, binding.spec]).toEqual([
         { name: "notes", status: "ready" },
         [
             ["Bearer secret", objectPackage.version, null],
