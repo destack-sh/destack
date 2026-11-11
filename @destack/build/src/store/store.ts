@@ -322,8 +322,56 @@ export class BuildStore<
         return ordered;
     }
 
-    /** Pull a build's manifest and lists without its outputs. */
-    async pullLists(
+    /** Pull a build's manifest and lists, with one output and its maps in one archive request. */
+    async pull(
+        location: PackageLocation,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        output?: string,
+        signal?: AbortSignal,
+    ): Promise<void> {
+        // pull the manifest and lists alone without an output
+        if (output === undefined) {
+            await this.#pullLists(location, fetch, signal);
+
+            return;
+        }
+        // return an output the store has
+        else if (await this.containsOutput(location.manifest, output)) {
+            return;
+        }
+
+        // read the output's archive, its manifest verified by its digest, and list what it carries
+        const reader = await BuildReader.archive(location, fetch, this.environment, {
+            signal,
+            output,
+        });
+        const files = await reader.outputFiles(output);
+
+        // store the files as served in one pack, then the manifest
+        signal?.throwIfAborted();
+        await this.blobs.put(
+            files.map((file) => ({
+                digest: file.digest,
+                size: file.size,
+                open: () => reader.stream(file.path),
+            })),
+            this.#leasedUntil,
+        );
+        const bytes = PackageManifest.serialize(reader.manifest);
+        await this.#write(location.manifest, bytes);
+
+        // record the output beside the references it adds
+        await this.#recordOutput(
+            location.manifest,
+            bytes.byteLength,
+            reader.manifest,
+            files,
+            output,
+        );
+    }
+
+    /** Store a build's manifest and lists, unless the store has its manifest. */
+    async #pullLists(
         location: PackageLocation,
         fetch: (input: URL, init: RequestInit) => Promise<Response>,
         signal?: AbortSignal,
@@ -359,48 +407,6 @@ export class BuildStore<
                 .values({ digest: location.manifest, size: bytes.byteLength, isComplete: false })
                 .onConflictDoNothing();
         });
-    }
-
-    /** Pull one output of a served build with its maps, in one request for its archive. */
-    async pull(
-        location: PackageLocation,
-        fetch: (input: URL, init: RequestInit) => Promise<Response>,
-        output: string,
-        signal?: AbortSignal,
-    ): Promise<void> {
-        // return an output the store has
-        if (await this.containsOutput(location.manifest, output)) {
-            return;
-        }
-
-        // read the output's archive, its manifest verified by its digest, and list what it carries
-        const reader = await BuildReader.archive(location, fetch, this.environment, {
-            signal,
-            output,
-        });
-        const files = await reader.outputFiles(output);
-
-        // store the files as served in one pack, then the manifest
-        signal?.throwIfAborted();
-        await this.blobs.put(
-            files.map((file) => ({
-                digest: file.digest,
-                size: file.size,
-                open: () => reader.stream(file.path),
-            })),
-            this.#leasedUntil,
-        );
-        const bytes = PackageManifest.serialize(reader.manifest);
-        await this.#write(location.manifest, bytes);
-
-        // record the output beside the references it adds
-        await this.#recordOutput(
-            location.manifest,
-            bytes.byteLength,
-            reader.manifest,
-            files,
-            output,
-        );
     }
 
     /** Lease and store uploaded files in one pack, refusing bytes of another digest. */
