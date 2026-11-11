@@ -123,17 +123,12 @@ export const features = {
     // support
     support: {
         name: "Support",
-        detail: "Community on Discord and GitHub, email, priority, or guaranteed response times.",
+        detail: "Email on every plan, priority on Pro, and guaranteed response times on Enterprise.",
         icon: "help",
-    },
-    communitySupport: {
-        name: "Community support",
-        detail: "Ask on Discord and GitHub.",
-        icon: "people",
     },
     emailSupport: {
         name: "Email support",
-        detail: "Write to the people who build Destack.",
+        detail: "Write to the people who build Destack, or ask on Discord and GitHub.",
         icon: "mail",
     },
     prioritySupport: {
@@ -153,6 +148,11 @@ export const features = {
     },
 
     // enterprise
+    sla: {
+        name: "SLAs",
+        detail: "A promised uptime with credits when we miss it, and guaranteed response times.",
+        icon: "check",
+    },
     uptime: {
         name: "Uptime SLA",
         detail: "An uptime we promise in your contract, with credits when we miss it.",
@@ -174,3 +174,13 @@ export const features = {
         icon: "lock",
     },
 } as const satisfies Readonly<Record<string, Feature>>;
+
+/** What fair use means, for the terms marked with it. */
+export const FAIR_USE = "Within reasonable fair use, at our discretion.";
+
+/** The features free or unlimited within fair use. */
+export const fairUse: ReadonlySet<Feature> = new Set([
+    features.members,
+    features.agents,
+    features.tunnels,
+]);

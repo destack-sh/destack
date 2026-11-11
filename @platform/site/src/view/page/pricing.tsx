@@ -8,7 +8,6 @@ import { Tally } from "../home/participle/tally";
 import { firstPicks } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
 import { commandEvents } from "../layout/command";
-import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
@@ -28,7 +27,7 @@ const pricing: Form = {
     sense: {
         definition: "own the software, rent the hardware",
         highlight: ["own", "rent"],
-        sentence: "The software is free and yours to keep. Run it on our hardware or your own.",
+        sentence: "The software is included and yours to keep. Run it on our hardware or your own.",
     },
 };
 
@@ -57,7 +56,7 @@ const bill: Form = {
     },
 };
 
-/** Render the pricing page: the plans, the unit prices, then the bill for your tools. */
+/** Render the pricing page: the plans, their comparison, the unit prices, then the bill. */
 export function Pricing() {
     // show the personal plans until the reader switches to the organisation ones
     const [audience, setAudience] = createSignal<Audience>("personal");
@@ -95,15 +94,7 @@ export function Pricing() {
             />
 
             {/* the plans */}
-            <section
-                {...style.attrs(
-                    lattice.frame,
-                    lattice.ruled,
-                    lattice.section,
-                    styles.plans,
-                    styles.drawn,
-                )}
-            >
+            <section {...style.attrs(lattice.frame, lattice.ruled, styles.plans, styles.drawn)}>
                 <Entry form={pricing} isTitle />
                 <Hosts />
                 <PlansLabel
@@ -113,8 +104,13 @@ export function Pricing() {
                     onCurrency={setCurrency}
                 />
                 <Plans audience={audience()} currency={currency()} />
+            </section>
+            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
+
+            {/* the plans compared */}
+            <section {...style.attrs(lattice.frame, lattice.ruled)}>
                 <ComparisonLabel />
-                <Comparison currency={currency()} />
+                <Comparison audience={audience()} currency={currency()} />
             </section>
             <div aria-hidden="true" {...style.attrs(lattice.interval)} />
 
@@ -162,13 +158,11 @@ const styles = style.create({
     figure: {
         gridTemplateRows: { default: "auto auto minmax(0, 1fr)", [screen.belowDesktop]: "auto" },
     },
-    // the entry, the label, the plan rows, then the comparison's label and table
+    // the entry, the label, then the plan rows
     plans: {
         gridTemplateRows: {
-            default: "auto auto repeat(4, auto) minmax(auto, 1fr) auto auto",
+            default: "auto auto repeat(4, auto) minmax(auto, 1fr)",
             [screen.belowDesktop]: "auto",
         },
-        height: "auto",
-        minHeight: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 });

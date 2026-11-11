@@ -1,12 +1,13 @@
 import { color, font, motion, shadow, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
-import { createSignal } from "@destack/view";
+import { createSignal, type JSX } from "@destack/view";
 
-import { palette } from "../palette.stylex";
 import { typeScale } from "../layout/type.stylex";
+import { palette } from "../palette.stylex";
+import { FAIR_USE, type Feature, fairUse } from "./feature";
 
 /** Set a term with a dotted underline that explains it in a bubble above it on hover or focus. */
-export function Hint(properties: { text: string; detail: string }) {
+export function Hint(properties: { text: JSX.Element; detail: string }) {
     // show the bubble while the term is pointed at or focused
     const [isOpen, setIsOpen] = createSignal(false);
 
@@ -24,6 +25,30 @@ export function Hint(properties: { text: string; detail: string }) {
                 {properties.detail}
             </span>
         </span>
+    );
+}
+
+/** Set a feature's name as a hint, marked as subject to fair use where it is. */
+export function FeatureHint(properties: { feature: Feature }) {
+    return fairUse.has(properties.feature) ? (
+        <FairUseHint text={properties.feature.name} detail={properties.feature.detail} />
+    ) : (
+        <Hint text={properties.feature.name} detail={properties.feature.detail} />
+    );
+}
+
+/** Set a term with a mark, its bubble adding what fair use means. */
+export function FairUseHint(properties: { text: string; detail: string }) {
+    return (
+        <Hint
+            text={
+                <>
+                    {properties.text}
+                    <span {...style.attrs(styles.mark)}>*</span>
+                </>
+            }
+            detail={`${properties.detail} ${FAIR_USE}`}
+        />
     );
 }
 
@@ -70,5 +95,10 @@ const styles = style.create({
     open: {
         opacity: 1,
         transform: "none",
+    },
+    mark: {
+        color: color.primary,
+        fontWeight: weight.semibold,
+        marginInlineStart: "1px",
     },
 });

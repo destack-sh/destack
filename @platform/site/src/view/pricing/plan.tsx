@@ -14,7 +14,7 @@ import { frame } from "../layout/frame.stylex";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Feature, features } from "./feature";
-import { Hint } from "./hint";
+import { FeatureHint, Hint } from "./hint";
 import { type Currency, money } from "./money";
 import { typeScale, tracking } from "../layout/type.stylex";
 import { press } from "../layout/press";
@@ -74,6 +74,9 @@ const TOPICS = [
     "support",
 ] as const;
 
+/** The features every plan has that the Free card leaves to the comparison, to keep it short. */
+const UNLISTED: ReadonlySet<Feature> = new Set([features.defaultRetention]);
+
 /** The rows of a card: head, price, action, the line leading its list, and the list. */
 const CARD_ROWS = 5;
 
@@ -89,18 +92,11 @@ const taglines: Readonly<Record<Plan["key"], string>> = {
     enterprise: "For your whole organisation",
 };
 
-/** What Enterprise adds past Pro, each in the words its sentence lists it with. */
-const ENTERPRISE_FEATURES: readonly { phrase: string; feature: Feature }[] = [
-    { phrase: "SLA support", feature: features.slaSupport },
-    { phrase: "an uptime SLA", feature: features.uptime },
-    { phrase: "a dedicated engineer", feature: features.engineer },
-    { phrase: "invoice billing", feature: features.invoice },
-    { phrase: "a data processing agreement", feature: features.agreement },
-];
+/** The key features Enterprise adds past Pro, the rest left to the comparison. */
+const ENTERPRISE_FEATURES: readonly Feature[] = [features.sla, features.engineer, features.invoice];
 
 /** The support each level gives, as a feature. */
 const supportFeatures: Readonly<Record<Plan["support"], Feature>> = {
-    community: features.communitySupport,
     email: features.emailSupport,
     priority: features.prioritySupport,
     sla: features.slaSupport,
@@ -181,13 +177,6 @@ export function Plans(properties: { audience: Audience; currency: Currency }) {
                         count={shown.length}
                         currency={properties.currency}
                         isPooled={properties.audience === "organisation"}
-                        enterprise={
-                            plan.key !== "pro"
-                                ? "absent"
-                                : properties.audience === "organisation"
-                                  ? "shown"
-                                  : "kept"
-                        }
                     />
                 )}
             </For>
@@ -203,7 +192,6 @@ function PlanCard(properties: {
     count: number;
     currency: Currency;
     isPooled: boolean;
-    enterprise: "shown" | "kept" | "absent";
 }) {
     // read the plan's fee, and whether it is the free plan, a contract, or the one most people pick
     const plan = properties.plan;
@@ -214,7 +202,9 @@ function PlanCard(properties: {
     // list what the plan adds over the plan below it, or everything on the first plan
     const below = properties.below;
     const shown = below === undefined ? [] : featuresOf(below);
-    const added = featuresOf(plan).filter((feature) => !shown.includes(feature));
+    const added = featuresOf(plan).filter(
+        (feature) => !shown.includes(feature) && !UNLISTED.has(feature),
+    );
 
     return (
         <article
@@ -259,7 +249,7 @@ function PlanCard(properties: {
                 {isFree ? "Start for free" : `Get ${plan.name}`}
             </a>
 
-            {/* what the plan adds over the plan below it, then Enterprise past Pro for organisations */}
+            {/* what the plan adds over the plan below it */}
             <p {...style.attrs(styles.lead)}>
                 {below === undefined ? "All of Destack:" : `Everything in ${below.name}, plus:`}
             </p>
@@ -267,18 +257,17 @@ function PlanCard(properties: {
                 {added.map((feature) => (
                     <FeatureRow feature={feature} />
                 ))}
-                {properties.enterprise === "absent" ? undefined : (
-                    <Enterprise
-                        currency={properties.currency}
-                        isShown={properties.enterprise === "shown"}
-                    />
-                )}
+
+                {/* Enterprise past Pro, its space kept for people so the switch moves nothing */}
+                {plan.key === "pro" ? (
+                    <Enterprise currency={properties.currency} isShown={properties.isPooled} />
+                ) : undefined}
             </div>
         </article>
     );
 }
 
-/** Draw Enterprise past Pro, or keep its space hidden so the audiences share one height. */
+/** Draw Enterprise under Pro's list: its starting spend, key features and action. */
 function Enterprise(properties: { currency: Currency; isShown: boolean }) {
     // read the contract's least monthly usage
     const contract = present(
@@ -292,34 +281,18 @@ function Enterprise(properties: { currency: Currency; isShown: boolean }) {
             inert={!properties.isShown}
             {...style.attrs(styles.enterprise, !properties.isShown && styles.kept)}
         >
-            {/* the spending it starts at, on a rule */}
+            {/* the spending it starts at, on a rule, then its name */}
             <p {...style.attrs(styles.threshold)}>
                 {money(contract.fees[properties.currency], properties.currency)} a month and up
             </p>
+            <h3 {...style.attrs(styles.subname)}>{contract.name}</h3>
 
-            {/* name, what it adds and the action */}
-            <h3 {...style.attrs(styles.name)}>{contract.name}</h3>
-            <p {...style.attrs(styles.usage)}>
-                {ENTERPRISE_FEATURES.map(({ phrase, feature }, index) => (
-                    <>
-                        {index === 0
-                            ? ""
-                            : index === ENTERPRISE_FEATURES.length - 1
-                              ? " and "
-                              : ", "}
-                        <Hint text={phrase} detail={feature.detail} />
-                    </>
-                ))}
-            </p>
-            <a
-                href={CONTACT}
-                {...style.attrs(
-                    buttonVariants({ variant: "outline", size: "lg" }),
-                    press.key,
-                    styles.action,
-                )}
-            >
-                Talk to us
+            {/* its key features and the action */}
+            {ENTERPRISE_FEATURES.map((feature) => (
+                <FeatureRow feature={feature} />
+            ))}
+            <a href={CONTACT} {...style.attrs(styles.talk)}>
+                Talk to us →
             </a>
         </section>
     );
@@ -364,7 +337,7 @@ function FeatureRow(properties: { feature: Feature }) {
             <span aria-hidden="true" {...style.attrs(styles.icon)}>
                 <Glyph name={properties.feature.icon} size={16} weight={1.75} />
             </span>
-            <Hint text={properties.feature.name} detail={properties.feature.detail} />
+            <FeatureHint feature={properties.feature} />
         </p>
     );
 }
@@ -428,8 +401,10 @@ function currencyIn(value: string): Currency {
 const styles = style.create({
     controls: {
         alignItems: "center",
+        columnGap: "1.25rem",
         display: "flex",
-        gap: "1.25rem",
+        flexWrap: "wrap",
+        rowGap: "0.75rem",
     },
     currency: {
         alignItems: "center",
@@ -559,7 +534,6 @@ const styles = style.create({
         fontSize: typeScale.label,
         letterSpacing: tracking.label,
         margin: 0,
-        marginBlockEnd: "0.5rem",
         textTransform: "uppercase",
         whiteSpace: "nowrap",
         "::after": {
@@ -569,6 +543,22 @@ const styles = style.create({
             content: "''",
             flexGrow: 1,
         },
+    },
+    subname: {
+        fontSize: typeScale.body,
+        fontWeight: weight.semibold,
+        margin: 0,
+    },
+    talk: {
+        color: color.primary,
+        fontSize: typeScale.body,
+        fontWeight: weight.semibold,
+        justifySelf: "start",
+        textDecorationLine: {
+            default: "none",
+            ":hover": { default: null, [media.hover]: "underline" },
+        },
+        textUnderlineOffset: "0.25em",
     },
     action: {
         justifyContent: "center",
