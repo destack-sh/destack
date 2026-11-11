@@ -11,7 +11,7 @@ import {
     DeclarationSite,
     DependencyName,
     graph,
-    Package,
+    PackageVersion,
     PackageJson,
 } from "@destack/package";
 import { DECLARED_MODULE } from "@destack/package/transform";
@@ -534,7 +534,7 @@ async function linkHost(specifier: string, program: Program): Promise<SyntheticM
 async function describeDeclaration(
     declared: unknown,
     located: {
-        readonly owner: Package;
+        readonly owner: PackageVersion;
         readonly name: string;
         readonly site: DeclarationSite;
         readonly kind: CatalogedKind;
@@ -583,6 +583,7 @@ async function describeDeclaration(
         symbol: { package: owner, symbol: { module: site.module, name } },
         source: { file: site.module, line: site.line, column: site.column },
         description,
+        ...(isProvisioned(value) ? { provisioned: true } : {}),
     });
 
     // digest each term's definition the kind's code returns for the declaration
@@ -619,8 +620,8 @@ function nameOf(description: unknown, fallback: string): string {
 }
 
 /** Require an exported declaration to record the package that exports it. */
-function requireDeclaringPackage(value: unknown, owner: Package, name: string): void {
-    const stamped = Package.declaring(value);
+function requireDeclaringPackage(value: unknown, owner: PackageVersion, name: string): void {
+    const stamped = PackageVersion.declaring(value);
     // refuse a declaration without a package
     if (stamped === undefined) {
         throw BuildError.of(
@@ -788,4 +789,15 @@ function serverTransform(option: PluginOption): PluginOption {
         ...option,
         transform: typeof hook === "function" ? served : { ...hook, handler: served },
     };
+}
+
+/** Report whether a declaration's kind is provisioned, as a resource declaration's kind states. */
+function isProvisioned(value: unknown): boolean {
+    // read the declaration's kind, then the kind's provisioning
+    const kind: unknown =
+        typeof value === "object" && value !== null ? Reflect.get(value, "kind") : undefined;
+    const provisioned: unknown =
+        typeof kind === "object" && kind !== null ? Reflect.get(kind, "provisioned") : undefined;
+
+    return provisioned !== undefined;
 }

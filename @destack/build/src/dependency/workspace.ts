@@ -5,7 +5,7 @@ import type { BunLockfile } from "@destack/check/bun";
 import { DomainError } from "@destack/error";
 import {
     type DependencyResolution,
-    type Package,
+    type PackageVersion,
     PackageJson,
     PackageName,
     type graph,
@@ -38,7 +38,7 @@ interface WorkspaceUnit {
     /** The names of the workspace units it requires. */
     readonly requires: readonly string[];
     /** The Destack packages it requires from outside the workspace, built as releases. */
-    readonly releases: readonly Package[];
+    readonly releases: readonly PackageVersion[];
     /** The npm packages it requires at runtime, by import name, at their real directories. */
     readonly npm: ReadonlyMap<string, string>;
 }
@@ -53,7 +53,7 @@ export type WorkspaceUnitOptions = Pick<WorkspaceBuildOptions, "signal" | "timeo
 export type WorkspaceCompilers = Pick<CompilerPool, "store" | "fingerprint" | "use">;
 
 /** Find the release of a Destack package outside the workspace, storing it with its closure. */
-export type ReleaseResolver = (dependency: Package) => Promise<DependencyBuild>;
+export type ReleaseResolver = (dependency: PackageVersion) => Promise<DependencyBuild>;
 
 /** Which workspace members a build compiles from source: all, or the publishing account's. */
 export type WorkspaceSelection = "all" | "account";
@@ -220,7 +220,7 @@ export class Workspace {
         // split each runtime or listed dependency once into units and npm packages, leaving the rest to the compiler
         const listed = packageJson.definition.extensions ?? [];
         const requires: string[] = [];
-        const releases: Package[] = [];
+        const releases: PackageVersion[] = [];
         const npm = new Map<string, string>();
         for (const dependency of new Set([
             ...PackageJson.runtimeDependencies(packageJson),

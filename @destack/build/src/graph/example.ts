@@ -1,4 +1,4 @@
-import { graph, type Package } from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import type { SymbolReference } from "@destack/package/code";
 import type { SourceRange } from "@destack/package/source";
 import type { ExampleDeclaration } from "../typescript/example.ts";
@@ -23,8 +23,8 @@ export class ExampleGraph {
 
     /** Describe each example at its constant, showing its symbol and the declarations at it. */
     constructor(
-        source: Package,
-        kinds: Package,
+        source: PackageVersion,
+        kinds: PackageVersion,
         examples: readonly ExampleDeclaration[],
         declared: DeclarationGraph,
         name: (reference: SymbolReference) => graph.Moniker,

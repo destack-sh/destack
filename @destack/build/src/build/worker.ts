@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 import {
     type DependencyResolution,
     graph,
-    type Package,
+    type PackageVersion,
     type DeclarationDescription,
     type PackageJson,
 } from "@destack/package";
@@ -825,7 +825,7 @@ async function findPackage(
     name: string,
     locator: PackageLocator,
     toolchain: Toolchain,
-): Promise<Package> {
+): Promise<PackageVersion> {
     // find the package among the tools, refusing a missing one
     const directory = toolchain.locate([name], PACKAGE);
     const owner = await locator.find(join(directory, "package.json"));

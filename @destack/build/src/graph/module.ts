@@ -1,5 +1,5 @@
 import { canonicalize, Text } from "@destack/schema";
-import { graph, type Package, type DeclarationDescription } from "@destack/package";
+import { graph, type PackageVersion, type DeclarationDescription } from "@destack/package";
 import type {
     ModuleDescription,
     SignatureDescription,
@@ -101,7 +101,7 @@ class Edges {
 
 /** Describe each module's graph file from the checker's descriptions and evaluations. */
 export function describeGraph(
-    source: Package,
+    source: PackageVersion,
     modules: readonly ModuleDescription[],
     declarations: readonly DeclarationDescription[],
     tests: TestSource,
@@ -121,7 +121,7 @@ export function describeGraph(
 
 /** Describe each module's code for the code index: its symbols and the edges of its code. */
 export function describeCode(
-    source: Package,
+    source: PackageVersion,
     modules: readonly ModuleDescription[],
     declarations: readonly DeclarationDescription[],
     tests: TestSource,
@@ -178,7 +178,7 @@ export function joinModules(
 /** The examples and scenarios a build declares with the package defining their kinds. */
 export interface ExampleSource {
     /** The package defining the example and scenario kinds. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The examples of every module. */
     readonly examples: readonly ExampleDeclaration[];
     /** The scenarios of every module. */
@@ -199,7 +199,7 @@ interface PackageGraph {
 
 /** Describe one module's exports, declarations and the edges of its imports and declarations. */
 function describeModule(
-    source: Package,
+    source: PackageVersion,
     module: ModuleDescription,
     { declared, tested, examples, scenarios }: PackageGraph,
 ): graph.Module {
@@ -247,7 +247,7 @@ function describeModule(
 /** The named symbols and members of one module, with the edges of their types. */
 class ModuleSymbols {
     /** The package declaring the module. */
-    readonly source: Package;
+    readonly source: PackageVersion;
     /** The described module. */
     readonly module: ModuleDescription;
     /** The symbols any module of the package exports. */
@@ -258,7 +258,11 @@ class ModuleSymbols {
     readonly #symbols = new Map<graph.Moniker, graph.Symbol>();
 
     /** Collect the symbols of a module. */
-    constructor(source: Package, module: ModuleDescription, exported: ReadonlySet<graph.Moniker>) {
+    constructor(
+        source: PackageVersion,
+        module: ModuleDescription,
+        exported: ReadonlySet<graph.Moniker>,
+    ) {
         this.source = source;
         this.module = module;
         this.exported = exported;
@@ -360,7 +364,7 @@ class ModuleSymbols {
 }
 
 /** Name a referenced symbol by its moniker, or its module's moniker for a module. */
-export function monikerOf(source: Package, reference: SymbolReference): graph.Moniker {
+export function monikerOf(source: PackageVersion, reference: SymbolReference): graph.Moniker {
     // locate the package and symbol
     let packageId: string;
     let symbol: { readonly module: string; readonly name: string };
@@ -426,14 +430,14 @@ function attributeUses(
 }
 
 /** Name a referenced symbol by its moniker, absent for an anonymous one. */
-function nameOf(source: Package, reference: SymbolReference): graph.Moniker | undefined {
+function nameOf(source: PackageVersion, reference: SymbolReference): graph.Moniker | undefined {
     const name = "symbol" in reference ? reference.symbol.name : reference.name;
 
     return isAnonymous(name) ? undefined : monikerOf(source, reference);
 }
 
 /** Report whether a symbol is the package's, outside its test modules. */
-function isCovered(source: Package, tested: TestGraph, symbol: graph.Moniker): boolean {
+function isCovered(source: PackageVersion, tested: TestGraph, symbol: graph.Moniker): boolean {
     // take the package's symbols
     const prefix = `${source.id}/`;
     if (!symbol.startsWith(prefix)) {

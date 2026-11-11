@@ -1,11 +1,11 @@
-import { graph, type Package } from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import type { SourceRange } from "@destack/package/source";
 import type { TestDeclaration } from "../typescript/test.ts";
 
 /** The tests a build declares with the package defining their kinds. */
 export interface TestSource {
     /** The package defining the test and suite kinds. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The tests and suites of every module. */
     readonly declarations: readonly TestDeclaration[];
 }
@@ -24,7 +24,7 @@ export class TestGraph {
     readonly #tests = new Map<string, DescribedTest[]>();
 
     /** Describe each test as a declaration at its module, named by its suite titles and title. */
-    constructor(source: Package, tests: TestSource) {
+    constructor(source: PackageVersion, tests: TestSource) {
         for (const test of tests.declarations) {
             const module = graph.Moniker.of({ packageId: source.id, module: test.file });
             const described: DescribedTest = {

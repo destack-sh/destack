@@ -12,9 +12,8 @@ import type {} from "@destack/package/import-meta";
 const BundleErrors = schema.array(schema.looseObject({ message: schema.string() })).min(1);
 
 /** The build package's failures, each reason with the call error code it answers. */
-export const BuildError = defineErrorFamily(
-    import.meta.destack.package,
-    {
+export const BuildError = defineErrorFamily({
+    reasons: {
         // not found
         BLOB_NOT_FOUND: {},
         MANIFEST_NOT_FOUND: {},
@@ -61,8 +60,8 @@ export const BuildError = defineErrorFamily(
         INVARIANT_BROKEN: {},
         LAYER_FILE_BROKEN: {},
     },
-    { audience: "host" },
-);
+    audience: "host",
+});
 
 /** A stable cause of build failures. */
 export type BuildReason = ReasonOf<typeof BuildError>;

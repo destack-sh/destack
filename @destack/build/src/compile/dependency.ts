@@ -9,7 +9,7 @@ import { type PackageSource } from "../source/index.ts";
 import { PackageFile } from "@destack/package/file";
 import {
     DependencyName,
-    Package,
+    PackageVersion,
     PackageDefinition,
     type PackageId,
     PackageJson,
@@ -388,7 +388,7 @@ class DependencyRecorder {
             const identity = { id: definition?.id, name: source.name, version: source.version };
             const created: SourceSnapshot = {
                 kind: "source",
-                package: Package.parse(identity),
+                package: PackageVersion.parse(identity),
                 files: [],
             };
             this.description.packages[key] = created;

@@ -1,5 +1,5 @@
 import { Text } from "@destack/schema";
-import { graph, type Package, type DeclarationDescription } from "@destack/package";
+import { graph, type PackageVersion, type DeclarationDescription } from "@destack/package";
 
 /** A declaration or member a relationship may refer to, with its declaration. */
 interface Referent {
@@ -31,7 +31,7 @@ export class DeclarationGraph {
     readonly #referents = new Map<string, Referent[]>();
 
     /** Locate every declaration and derive the package's declarations and edges. */
-    constructor(source: Package, declarations: readonly DeclarationDescription[]) {
+    constructor(source: PackageVersion, declarations: readonly DeclarationDescription[]) {
         // describe each declaration once across outputs with the members its symbols derive
         const located = new Map<graph.Moniker, Located>();
         for (const declaration of declarations) {
@@ -161,6 +161,7 @@ function describe(declaration: DeclarationDescription): graph.Declaration {
         kindPackageId: declaration.package.id,
         name: declaration.name,
         description: declaration.description,
+        ...(declaration.provisioned === undefined ? {} : { provisioned: declaration.provisioned }),
         ...(declaration.vocabulary === undefined ? {} : { vocabulary: declaration.vocabulary }),
     });
 }

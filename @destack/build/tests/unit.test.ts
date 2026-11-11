@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { CompilerPool, DependencyTree, Workspace } from "../src/index.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { PackageManifest } from "@destack/package/manifest";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { BuildStore } from "../src/store/index.ts";
 import { LocalBuildStore } from "../src/store/local.ts";
@@ -346,7 +346,7 @@ test("record a builtin dependency by its release, which every runtime links", as
         recorded: built.manifest.outputs["bun"]?.dependencies?.[LIBRARY],
         releases: await built.releases(),
     }).toEqual({
-        recorded: { kind: "builtin", package: Package.of(release.package) },
+        recorded: { kind: "builtin", package: PackageVersion.of(release.package) },
         releases: [{ package: release.package, manifest: release.manifest }],
     });
 });

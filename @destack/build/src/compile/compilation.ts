@@ -17,7 +17,7 @@ import {
     DependencyName,
     DependencyRelease,
     type DependencyResolution,
-    Package,
+    PackageVersion,
     type DeclarationDescription,
 } from "@destack/package";
 import {
@@ -152,7 +152,7 @@ export class OutputCompilation implements Compilation {
     }
 
     /** The package the build compiles. */
-    get package(): Package {
+    get package(): PackageVersion {
         return this.project.packageJson.package;
     }
 
@@ -712,7 +712,7 @@ export class OutputCompilation implements Compilation {
             // record a builtin by its release, which every runtime links, and another build by its manifest
             compiled.output.dependencies[dependency] =
                 this.project.tree.roles.get(dependency) === "builtin"
-                    ? { kind: "builtin", package: Package.of(selected.package) }
+                    ? { kind: "builtin", package: PackageVersion.of(selected.package) }
                     : DependencyRelease.parse(selected);
         }
         // leave an npm package to the host's link, which pins its unit for the runtime

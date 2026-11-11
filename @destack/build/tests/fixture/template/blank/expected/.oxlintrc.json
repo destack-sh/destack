@@ -114,6 +114,7 @@
             "entrypoints": [],
             "roles": {
                 "@destack/template-blank": "app",
+                "@destack/locale": "builtin",
                 "@destack/object": "builtin",
                 "@destack/package": "builtin",
                 "@destack/schema": "builtin",

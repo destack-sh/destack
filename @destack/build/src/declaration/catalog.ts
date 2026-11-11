@@ -4,7 +4,7 @@ import {
     type DeclarationKindDefinition,
     type DeclarationKindValue,
     DependencyPackage,
-    Package,
+    PackageVersion,
     PackageDefinition,
     PackageExport,
 } from "@destack/package";
@@ -27,7 +27,7 @@ export interface ConstructorKind {
     /** The description kind. */
     readonly kind: string;
     /** The package declaring the kind. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The functions inspecting the kind. */
     readonly inspector: Inspector;
 }
@@ -35,7 +35,7 @@ export interface ConstructorKind {
 /** A declaration constructor its package declares as inspected. */
 export interface InspectedConstructor {
     /** The declaring package's identity. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The kinds it describes each declaration as. */
     readonly kinds: readonly ConstructorKind[];
 }
@@ -45,7 +45,7 @@ export class ConstructorCatalog {
     /** The package containing each module directory. */
     readonly #locations = new Map<string, Promise<PackageLocation>>();
     /** The identity of each package directory, a Destack package's or an npm package's. */
-    readonly #owners = new Map<string, Promise<Package | DependencyPackage>>();
+    readonly #owners = new Map<string, Promise<PackageVersion | DependencyPackage>>();
     /** The inspected constructors of each package directory. */
     readonly #constructors = new Map<string, Promise<Map<string, InspectedConstructor>>>();
     /** The exports of each package directory, absent when its package.json lists none. */
@@ -79,7 +79,7 @@ export class ConstructorCatalog {
     }
 
     /** Read a package's identity, with the stable id of its destack.json if declared. */
-    owner(location: PackageLocation): Promise<Package | DependencyPackage> {
+    owner(location: PackageLocation): Promise<PackageVersion | DependencyPackage> {
         let owner = this.#owners.get(location.directory);
         if (owner === undefined) {
             owner = readOwner(location, this.files);
@@ -90,7 +90,7 @@ export class ConstructorCatalog {
     }
 
     /** Read a Destack package's identity, requiring its destack.json. */
-    async identify(location: PackageLocation): Promise<Package> {
+    async identify(location: PackageLocation): Promise<PackageVersion> {
         const owner = await this.owner(location);
         if (!("id" in owner)) {
             throw BuildError.of(
@@ -141,7 +141,7 @@ export class ConstructorCatalog {
     /** Describe a constructor's kind, with the functions of the package declaring it. */
     async #describeKind(
         location: PackageLocation,
-        identity: Package,
+        identity: PackageVersion,
         entry: DeclarationKindDefinition | DeclarationKindValue,
     ): Promise<ConstructorKind> {
         // locate a kind of this package, inspected by the functions it names
@@ -199,7 +199,7 @@ export class ConstructorCatalog {
         kind: string,
         location: PackageLocation,
     ): Promise<{
-        package: Package;
+        package: PackageVersion;
         location: PackageLocation;
         entry: DeclarationKindDefinition;
     }> {
@@ -277,7 +277,7 @@ export class ConstructorCatalog {
 async function readOwner(
     location: PackageLocation,
     files: FileSystem,
-): Promise<Package | DependencyPackage> {
+): Promise<PackageVersion | DependencyPackage> {
     // read the optional Destack definition and preserve every other filesystem failure
     let definition: string | undefined;
     try {
@@ -293,7 +293,7 @@ async function readOwner(
 
     return definition === undefined
         ? DependencyPackage.parse(identity)
-        : Package.parse({ ...identity, id: PackageDefinition.read(definition).id });
+        : PackageVersion.parse({ ...identity, id: PackageDefinition.read(definition).id });
 }
 
 /** Read the exports a package's package.json lists, absent when it lists none. */

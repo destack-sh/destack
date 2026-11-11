@@ -1,4 +1,4 @@
-import { type Package, DeclarationDescription } from "@destack/package";
+import { type PackageVersion, DeclarationDescription } from "@destack/package";
 import { type Runtime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { type ModuleDescription, ModuleGraph, PackageInspection } from "@destack/package/code";
@@ -16,7 +16,7 @@ export interface InspectOptions {
 
 /** Describe the modules and declarations collected by the compiler. */
 export function inspectModules(
-    source: Package,
+    source: PackageVersion,
     modules: ModuleDescription[],
     tests: TestDeclaration[],
     declarations: DeclarationDescription[],

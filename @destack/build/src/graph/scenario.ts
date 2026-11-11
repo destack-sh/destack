@@ -1,5 +1,5 @@
 import { ScenarioDescription } from "@destack/package/declare";
-import { graph, type Package } from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import type { SymbolReference } from "@destack/package/code";
 import { BuildError } from "../error/index.ts";
 import type { ScenarioDeclaration } from "../typescript/scenario.ts";
@@ -12,8 +12,8 @@ export class ScenarioGraph {
 
     /** Describe each scenario at its constant, covering what each example it is given shows. */
     constructor(
-        source: Package,
-        kinds: Package,
+        source: PackageVersion,
+        kinds: PackageVersion,
         scenarios: readonly ScenarioDeclaration[],
         examples: ExampleGraph,
         name: (reference: SymbolReference) => graph.Moniker,

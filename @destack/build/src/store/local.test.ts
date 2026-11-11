@@ -2,7 +2,12 @@ import { TEST_START } from "@destack/test/world";
 import type { Crypto } from "@destack/environment";
 import { join } from "node:path";
 import { Simulation } from "@destack/environment/simulation";
-import { type DependencyRelease, Package, PackageId, type PackageRole } from "@destack/package";
+import {
+    type DependencyRelease,
+    PackageVersion,
+    PackageId,
+    type PackageRole,
+} from "@destack/package";
 import { BuildReader, BuildWriter, PackageManifest } from "@destack/package/manifest";
 import { Digest, found, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -55,7 +60,7 @@ async function written(
     const manifest = await writer.finish({
         destack: "2026.11.0",
         role,
-        package: Package.parse({ ...named, version: "2026.9.0" }),
+        package: PackageVersion.parse({ ...named, version: "2026.9.0" }),
         outputs: {
             bun: {
                 runtime: "bun",

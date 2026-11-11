@@ -1,6 +1,10 @@
 import { type BuildDescription } from "@destack/package/manifest";
 import { modulePath } from "../compile/dependency.ts";
-import { type Package, type PackageExport, type DeclarationDescription } from "@destack/package";
+import {
+    type PackageVersion,
+    type PackageExport,
+    type DeclarationDescription,
+} from "@destack/package";
 
 /** A function a package exports, located for evaluation. */
 export interface FunctionExport {
@@ -45,7 +49,7 @@ export interface DeclarationExport {
 /** Select package declarations and dependency declarations parsed by this compilation. */
 export function selectDeclarations(
     declarations: readonly DeclarationDescription[],
-    source: Package,
+    source: PackageVersion,
     build: BuildDescription,
 ): DeclarationDescription[] {
     // index dependency source files, including declarations removed during tree shaking

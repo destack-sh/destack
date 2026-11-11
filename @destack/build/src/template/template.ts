@@ -2,7 +2,7 @@ import type { FileSystem } from "@destack/environment";
 import { formatSource } from "@destack/check";
 import type { Toolchain } from "@destack/check/toolchain";
 import { dirname, join, resolve } from "node:path";
-import { DependencyName, Package, PackageDefinition } from "@destack/package";
+import { DependencyName, PackageVersion, PackageDefinition } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { TemplateInput } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
@@ -138,7 +138,7 @@ export class Template {
         const definition = PackageDefinition.read(
             decoder.decode(requiredFile(this.files, "destack.json")),
         );
-        Package.parse({ id: definition.id, name: manifest.name, version: manifest.version });
+        PackageVersion.parse({ id: definition.id, name: manifest.name, version: manifest.version });
 
         return { manifest, definition };
     }
@@ -265,7 +265,7 @@ function replaceDependencies(
 function copyFiles(
     source: ReadonlyMap<string, Uint8Array>,
     declared: readonly string[],
-    imports: Readonly<Record<string, Package>>,
+    imports: Readonly<Record<string, PackageVersion>>,
 ): Map<string, Uint8Array> {
     // copy each declared file
     const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -332,7 +332,7 @@ function requiredFile(files: ReadonlyMap<string, Uint8Array>, path: string): Uin
 export function replaceImports(
     path: string,
     source: string,
-    dependencies: Readonly<Record<string, Package>>,
+    dependencies: Readonly<Record<string, PackageVersion>>,
 ): string {
     // reject malformed source before selecting edits
     const parsed = parseSync(path, source);

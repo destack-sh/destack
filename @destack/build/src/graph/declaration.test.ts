@@ -1,23 +1,23 @@
 import { expect, test } from "@destack/test";
-import { graph, Package, type DeclarationDescription } from "@destack/package";
+import { graph, PackageVersion, type DeclarationDescription } from "@destack/package";
 import { DeclarationGraph } from "./declaration.ts";
 
 /** The package declaring the declarations. */
-const app = Package.parse({
+const app = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000000a",
     name: "@example/app",
     version: "2026.9.0",
 });
 
 /** A dependency of the app declaring an object type. */
-const library = Package.parse({
+const library = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000000b",
     name: "@example/library",
     version: "2026.9.0",
 });
 
 /** The package declaring the kinds. */
-const kinds = Package.parse({
+const kinds = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000000c",
     name: "@example/kinds",
     version: "2026.9.0",
@@ -25,7 +25,7 @@ const kinds = Package.parse({
 
 /** Describe a declaration of a kind at an export of a package, with the symbols its kind lists. */
 function declare(
-    owner: Package,
+    owner: PackageVersion,
     kind: string,
     module: string,
     symbol: string,
