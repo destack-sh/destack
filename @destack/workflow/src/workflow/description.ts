@@ -43,16 +43,21 @@ export const WorkflowDescription = schema.object({
                 burst: schema.number().int().positive(),
             })
             .exactOptional(),
-        /** The runs advancing at once. */
-        concurrency: schema.object({ slots: schema.number().int().positive() }).exactOptional(),
+        /** The runs advancing at once, and how long a run keeps its slot. */
+        concurrency: schema
+            .object({
+                /** The runs advancing at once. */
+                slots: schema.number().int().positive(),
+                /** Whether a run keeps its slot until each advance ends or until the run ends. */
+                until: schema.enum(["advance", "end"]),
+            })
+            .exactOptional(),
         /** Whose limit a run counts against: its scope's, its actor's, or an input value's. */
         key: schema.union([
             schema.enum(["scope", "caller"]),
             schema.object({ input: schema.string().min(1) }),
         ]),
     }),
-    /** Whether a run takes its concurrency slot from its start to its end. */
-    isSingleton: schema.boolean(),
     /** The declared triggers starting runs. */
     triggers: schema.array(TriggerDescription),
 });

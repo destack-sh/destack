@@ -1,6 +1,6 @@
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
-import { DeclarationName, defineDeclarationKind, ModuleMetadata } from "@destack/package";
+import { DeclarationName, defineKind, ModuleMetadata } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import type { AdapterDeclaration } from "@destack/object";
 import type { ResourceHandle, Secret } from "@destack/resource";
@@ -49,7 +49,7 @@ export const WebhookDescription = schema.object({
 export type WebhookDescription = schema.Infer<typeof WebhookDescription>;
 
 /** The webhook declaration kind, which workflow defines. */
-export const WEBHOOK_KIND = defineDeclarationKind("webhook", WebhookDescription);
+export const WEBHOOK_KIND = defineKind({ name: "webhook", description: WebhookDescription });
 
 /** Take a webhook's verified delivery in the installation's store. */
 export type WebhookReceive = (delivery: WebhookDelivery, store: ObjectStore) => Promise<void>;
@@ -75,6 +75,8 @@ export interface Webhook extends AdapterDeclaration {
 
 /** What a webhook declares. */
 export interface WebhookDefinition {
+    /** The webhook's name within its package. */
+    readonly name: string;
     /** The path template below the webhook's adapter path, `/` by default. */
     readonly template?: string;
     /** The scheme verifying each delivery's signature. */
@@ -134,14 +136,10 @@ export class WebhookPath {
 }
 
 /** Declare a webhook of the calling package, verified with the secret its installations bind. */
-export function defineWebhook(
-    name: string,
-    definition: WebhookDefinition,
-    module?: ModuleMetadata,
-): Webhook {
+export function defineWebhook(definition: WebhookDefinition, module?: ModuleMetadata): Webhook {
     // answer each installation's deliveries through the webhook's server
     const owner = ModuleMetadata.require(module, "defineWebhook").package;
-    const checked = DeclarationName.parse(name);
+    const checked = DeclarationName.parse(definition.name);
     const { signature, secret } = definition;
     const webhook: Webhook = Object.freeze({
         kind: "webhook" as const,

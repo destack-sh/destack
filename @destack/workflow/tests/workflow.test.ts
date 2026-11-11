@@ -4,11 +4,13 @@ import { expect, test } from "@destack/test";
 import { defineWorkflow } from "../src/index.ts";
 import { actor, alice, note, notesPackage, openWorkflow, type TestWorkflow } from "./workflow.ts";
 import { NOTES } from "./package.ts";
+import { t } from "@destack/locale";
 
 /** Write a draft, read it back, pause, then wait an hour for its approval note. */
 const draft = defineWorkflow(
     {
         name: "draft",
+        title: t`Draft`,
         input: schema.object({ title: schema.string().min(1) }),
         output: schema.object({ draft: schema.string(), approval: schema.string().nullable() }),
         waits: [note],

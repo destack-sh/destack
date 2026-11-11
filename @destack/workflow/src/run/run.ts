@@ -328,9 +328,10 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             renewing.abort();
         }
 
-        // release the slot after the advance, except a singleton's until its end
+        // release the slot after the advance, or at the run's end for a run keeping it until then
         const renewalFailure = await renewal;
-        if (slot !== undefined && (!this.workflow.isSingleton || isEnded)) {
+        const isKept = this.workflow.limits.concurrency?.until === "end";
+        if (slot !== undefined && (!isKept || isEnded)) {
             await this.#releaseSlot(database);
         }
 

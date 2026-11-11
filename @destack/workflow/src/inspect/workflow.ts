@@ -47,10 +47,16 @@ export function describeWorkflow<Input, Output>(
                           burst: limits.rate.burst ?? limits.rate.count,
                       },
                   }),
-            ...(limits.concurrency === undefined ? {} : { concurrency: limits.concurrency }),
+            ...(limits.concurrency === undefined
+                ? {}
+                : {
+                      concurrency: {
+                          slots: limits.concurrency.slots,
+                          until: limits.concurrency.until ?? "advance",
+                      },
+                  }),
             key: limits.key ?? "scope",
         },
-        isSingleton: workflow.isSingleton,
         triggers: workflow.triggers.map((trigger) => describeTrigger(trigger)),
     });
 }

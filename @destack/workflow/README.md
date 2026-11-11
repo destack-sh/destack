@@ -8,10 +8,12 @@ const summarize = defineWorkflow({
     input: schema.object({ id: schema.string() }),
     output: NO_OUTPUT,
 });
-const served = summarize.implement(async (step, input) => {
-    const note = await step.query("read", note.call("get", { spaceId, id: input.id }));
-    await step.sleep("pause", { minutes: 5 });
-    await step.call("write", summary.call("create", { spaceId, text: note.title }));
+const served = summarize.implement({
+    run: async (step, input) => {
+        const note = await step.query("read", note.call("get", { spaceId, id: input.id }));
+        await step.sleep("pause", { minutes: 5 });
+        await step.call("write", summary.call("create", { spaceId, text: note.title }));
+    },
 });
 await store.mutate(caller, {
     id: RequestId.create(store.environment),
@@ -61,10 +63,9 @@ defineWorkflow({
     expiring: { after: { days: 7 } },
     limits: {
         rate: { count: 10, every: { minutes: 1 } },
-        concurrency: { slots: 1 },
+        concurrency: { slots: 1, until: "end" }, // a run takes its slot from its start to its end
         key: "caller",
     },
-    singleton: true, // a run takes its slot from its start to its end
 });
 ```
 
@@ -74,7 +75,7 @@ defineWorkflow({
 
 ```ts
 const task = defineWorkflow({ name: "task", input: TaskInput, output: TaskOutput });
-const served = task.implement((step, input) => new Task(step, input).run());
+const served = task.implement({ run: (step, input) => new Task(step, input).run() });
 await context.mutate(context.self, [
     task.start({ call: reminder.call("send", target) }, { at, actor }),
 ]);

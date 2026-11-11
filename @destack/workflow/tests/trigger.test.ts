@@ -16,6 +16,7 @@ import {
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
+import { t } from "@destack/locale";
 
 /** A minute, in milliseconds. */
 const MINUTE = 60_000;
@@ -45,9 +46,11 @@ const TickInput = schema.object({ at: schema.number() });
 const minutely = defineWorkflow(
     {
         name: "minutely",
+        title: t`Minutely`,
         input: TickInput,
-        triggers: {
-            "every-minute": {
+        triggers: [
+            {
+                name: "every-minute",
                 kind: "schedule",
                 schedule: {
                     timing: { timing: "interval", interval: MINUTE, startsAt: TEST_START + MINUTE },
@@ -56,27 +59,32 @@ const minutely = defineWorkflow(
                 },
                 input: (occurrence) => ({ at: occurrence.at }),
             },
-        },
+        ],
         output: NO_OUTPUT,
     },
     NOTES,
 );
 
 /** Tick on the schedules a space's managers create. */
-const scheduled = defineWorkflow({ name: "scheduled", input: TickInput, output: NO_OUTPUT }, NOTES);
+const scheduled = defineWorkflow(
+    { name: "scheduled", title: t`Scheduled`, input: TickInput, output: NO_OUTPUT },
+    NOTES,
+);
 
 /** Tick for each note titled urgent. */
 const urgent = defineWorkflow(
     {
         name: "urgent",
+        title: t`Urgent`,
         input: TickInput,
-        triggers: {
-            urgent: {
+        triggers: [
+            {
+                name: "urgent",
                 kind: "change",
                 change: { object: note, where: { title: "urgent" }, operations: ["create"] },
                 input: (change) => ({ at: change.position.sequence }),
             },
-        },
+        ],
         output: NO_OUTPUT,
     },
     NOTES,
@@ -86,14 +94,16 @@ const urgent = defineWorkflow(
 const alarm = defineWorkflow(
     {
         name: "alarm",
+        title: t`Alarm`,
         input: TickInput,
-        triggers: {
-            urgent: {
+        triggers: [
+            {
+                name: "urgent",
                 kind: "change",
                 change: { object: note, where: { title: "urgent" }, operations: ["create"] },
                 input: (change) => ({ at: change.position.sequence }),
             },
-        },
+        ],
         output: NO_OUTPUT,
     },
     NOTES,
@@ -103,21 +113,26 @@ const alarm = defineWorkflow(
 const appSecret = new ResourceHandle<Secret>(NOTES.package, "app-webhook");
 
 /** The deliveries of a sender the installation's bound secret signs. */
-const app = defineWebhook("app", { signature: new StandardSignature(), secret: appSecret }, NOTES);
+const app = defineWebhook(
+    { name: "app", signature: new StandardSignature(), secret: appSecret },
+    NOTES,
+);
 
 /** Tick for each delivery of a webhook. */
 function hookedOn(webhook: typeof app) {
     return defineWorkflow(
         {
             name: "hooked",
+            title: t`Hooked`,
             input: TickInput,
-            triggers: {
-                delivered: {
+            triggers: [
+                {
+                    name: "delivered",
                     kind: "webhook",
                     webhook,
                     input: (delivery) => ({ at: delivery.receivedAt }),
                 },
-            },
+            ],
             output: NO_OUTPUT,
         },
         NOTES,
@@ -252,11 +267,9 @@ test("start one run per note a change trigger admits, from now on", async () => 
 
 test("start a run in each workflow whose trigger of one name admits a change", async () => {
     // serve urgent and alarm, both with a trigger named urgent
-    const fixture = await openServed(
-        urgent,
-        urgent.implement(async () => {}),
-        [{ workflow: alarm, served: alarm.implement(async () => {}) }],
-    );
+    const fixture = await openServed(urgent, urgent.implement({ run: async () => {} }), [
+        { workflow: alarm, served: alarm.implement({ run: async () => {} }) },
+    ]);
     await fixture.waitUntil(() => true);
 
     // write an urgent note, which both triggers admit

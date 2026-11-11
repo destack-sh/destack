@@ -4,6 +4,7 @@ import type {} from "@destack/package/import-meta";
 import { defineWorkflow } from "../workflow/workflow.ts";
 import { describeWorkflow } from "./workflow.ts";
 import { NO_OUTPUT } from "../workflow/workflow.ts";
+import { t } from "@destack/locale";
 
 /** The module the tests declare their workflows in: this package. */
 const MODULE = { package: import.meta.destack.package };
@@ -12,6 +13,7 @@ const MODULE = { package: import.meta.destack.package };
 const digest = defineWorkflow(
     {
         name: "digest",
+        title: t`Digest`,
         input: schema.object({ person: schema.string() }),
         output: schema.object({ sent: schema.number() }),
         retries: { maximumAttempts: 3 },
@@ -19,12 +21,12 @@ const digest = defineWorkflow(
         expiring: { after: { days: 7 } },
         limits: {
             rate: { count: 10, every: { minutes: 1 } },
-            concurrency: { slots: 1 },
+            concurrency: { slots: 1, until: "end" },
             key: { input: "person" },
         },
-        singleton: true,
-        triggers: {
-            daily: {
+        triggers: [
+            {
+                name: "daily",
                 kind: "schedule",
                 schedule: {
                     timing: { timing: "cron", cron: "0 7 * * *", timezone: "Europe/Zurich" },
@@ -33,7 +35,7 @@ const digest = defineWorkflow(
                 },
                 input: () => ({ person: "everyone" }),
             },
-        },
+        ],
     },
     MODULE,
 );
@@ -42,6 +44,7 @@ const digest = defineWorkflow(
 const tally = defineWorkflow(
     {
         name: "tally",
+        title: t`Tally`,
         input: schema.object({}),
         limits: { rate: { count: 1, every: { seconds: 1 }, burst: 5 }, key: "caller" },
         output: NO_OUTPUT,
@@ -83,10 +86,9 @@ test("describe a workflow's schemas, retries, timeout, expiry, limits and trigge
             expiring: 604_800_000,
             limits: {
                 rate: { count: 10, every: 60_000, burst: 10 },
-                concurrency: { slots: 1 },
+                concurrency: { slots: 1, until: "end" },
                 key: { input: "person" },
             },
-            isSingleton: true,
             triggers: [
                 {
                     name: "daily",

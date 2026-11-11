@@ -6,17 +6,22 @@ import { defineWorkflow } from "../src/index.ts";
 import { actor, alice, openServed } from "./workflow.ts";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
+import { t } from "@destack/locale";
 
 /** A number a run takes or answers. */
 const Value = schema.object({ value: schema.number().int() });
 
 /** Double a number, refusing a negative one. */
-const double = defineWorkflow({ name: "double", input: Value, output: Value }, NOTES);
+const double = defineWorkflow(
+    { name: "double", title: t`Double`, input: Value, output: Value },
+    NOTES,
+);
 
 /** Double two numbers in child runs and add the results. */
 const sum = defineWorkflow(
     {
         name: "sum",
+        title: t`Sum`,
         input: schema.object({ left: schema.number().int(), right: schema.number().int() }),
         output: Value,
         waits: [double.run],
@@ -28,21 +33,25 @@ const sum = defineWorkflow(
 function openSum(doubled: (value: number) => number = (value) => 2 * value) {
     return openServed(
         sum,
-        sum.implement(async (step, input) => {
-            const left = await step.invoke("left", double, { value: input.left });
-            const right = await step.invoke("right", double, { value: input.right });
+        sum.implement({
+            run: async (step, input) => {
+                const left = await step.invoke("left", double, { value: input.left });
+                const right = await step.invoke("right", double, { value: input.right });
 
-            return { value: left.value + right.value };
+                return { value: left.value + right.value };
+            },
         }),
         [
             {
                 workflow: double,
-                served: double.implement(async (_step, input) => {
-                    if (input.value < 0) {
-                        throw CallError.http("BAD_REQUEST", { message: "a negative number" });
-                    }
+                served: double.implement({
+                    run: async (_step, input) => {
+                        if (input.value < 0) {
+                            throw CallError.http("BAD_REQUEST", { message: "a negative number" });
+                        }
 
-                    return { value: doubled(input.value) };
+                        return { value: doubled(input.value) };
+                    },
                 }),
             },
         ],
@@ -107,12 +116,16 @@ test("fail a run with the refusal its child run failed with", async () => {
 });
 
 /** Sleep an hour, answering nothing. */
-const nap = defineWorkflow({ name: "nap", input: schema.object({}), output: NO_OUTPUT }, NOTES);
+const nap = defineWorkflow(
+    { name: "nap", title: t`Nap`, input: schema.object({}), output: NO_OUTPUT },
+    NOTES,
+);
 
 /** Invoke a nap, cancelling it with this run or letting it run on. */
 const watch = defineWorkflow(
     {
         name: "watch",
+        title: t`Watch`,
         input: schema.object({ isAbandoned: schema.boolean() }),
         waits: [nap.run],
         output: NO_OUTPUT,
@@ -124,15 +137,19 @@ test("cancel a child run once its parent is cancelled, and leave an abandoned on
     // start a watch that cancels its nap with it, and one that abandons it
     const fixture = await openServed(
         watch,
-        watch.implement(async (step, input) => {
-            const onParentClose = input.isAbandoned ? "abandon" : "cancel";
-            await step.invoke("nap", nap, {}, { onParentClose });
+        watch.implement({
+            run: async (step, input) => {
+                const onParentClose = input.isAbandoned ? "abandon" : "cancel";
+                await step.invoke("nap", nap, {}, { onParentClose });
+            },
         }),
         [
             {
                 workflow: nap,
-                served: nap.implement(async (step) => {
-                    await step.sleep("nap", { hours: 1 });
+                served: nap.implement({
+                    run: async (step) => {
+                        await step.sleep("nap", { hours: 1 });
+                    },
                 }),
             },
         ],

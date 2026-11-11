@@ -9,7 +9,7 @@
             "module": 1
         },
         "defineWebhook": {
-            "module": 2
+            "module": 1
         }
     },
     "exports": {

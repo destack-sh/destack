@@ -4,15 +4,19 @@ import { Task, TaskInput, TaskOutput, defineWorkflow } from "../src/index.ts";
 import { alice, note, openServed } from "./workflow.ts";
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
+import { t } from "@destack/locale";
 
 /** The notes package's tasks. */
-const task = defineWorkflow({ name: "task", input: TaskInput, output: TaskOutput }, NOTES);
+const task = defineWorkflow(
+    { name: "task", title: t`Task`, input: TaskInput, output: TaskOutput },
+    NOTES,
+);
 
 test("make a task's call once at its time as its actor, answering the call's result", async () => {
     // start a note's creation as alice to run in a minute
     const fixture = await openServed(
         task,
-        task.implement((step, input) => new Task(step, input).run()),
+        task.implement({ run: (step, input) => new Task(step, input).run() }),
     );
     await fixture.start((spaceId) =>
         task.start(

@@ -104,8 +104,7 @@ test("describe a declared webhook with its bound secret, and a trigger naming it
     // declare a webhook verified with a bound secret, and a trigger firing on it
     const secret = new ResourceHandle<Secret>(MODULE.package, "payments-secret");
     const webhook = defineWebhook(
-        "payments",
-        { template: "/{account}", signature: new StandardSignature(), secret },
+        { name: "payments", template: "/{account}", signature: new StandardSignature(), secret },
         MODULE,
     );
     const trigger = new WebhookTrigger("paid", { webhook, input: pushed });

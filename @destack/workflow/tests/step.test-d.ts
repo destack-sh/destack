@@ -3,12 +3,16 @@ import { expectTypeOf, test } from "@destack/test";
 import { defineWorkflow, NO_OUTPUT } from "../src/index.ts";
 import { note } from "./workflow.ts";
 import { NOTES } from "./package.ts";
+import { t } from "@destack/locale";
 
 /** A workflow waiting for nothing beside change requests. */
-const quiet = defineWorkflow({ name: "quiet", input: schema.object({}), output: NO_OUTPUT }, NOTES);
+const quiet = defineWorkflow(
+    { name: "quiet", title: t`Quiet`, input: schema.object({}), output: NO_OUTPUT },
+    NOTES,
+);
 
 /** The steps quiet's code takes. */
-type QuietStep = Parameters<Parameters<typeof quiet.implement>[0]>[0];
+type QuietStep = Parameters<Parameters<typeof quiet.implement>[0]["run"]>[0];
 
 test("refuse at compile time a wait, an approval or an invocation of a type the workflow does not wait for", () => {
     // refuse a wait for notes, which quiet does not wait for

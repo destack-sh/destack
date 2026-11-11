@@ -165,19 +165,25 @@ export type Trigger<Input = unknown> =
 
 /** A workflow's trigger as the workflow declares it, a change trigger's defaults left out. */
 export type TriggerDefinition<Input> =
-    | ({ readonly kind: "schedule" } & Omit<ScheduleTrigger<Input>, "name" | "kind">)
+    | ({ readonly kind: "schedule"; readonly name: string } & Omit<
+          ScheduleTrigger<Input>,
+          "name" | "kind"
+      >)
     | {
           readonly kind: "change";
+          readonly name: string;
           readonly change: ChangeTriggerOn;
           readonly input: (change: ObjectChange) => Input;
       }
-    | ({ readonly kind: "webhook" } & Omit<WebhookTrigger<Input>, "name" | "kind">);
+    | ({ readonly kind: "webhook"; readonly name: string } & Omit<
+          WebhookTrigger<Input>,
+          "name" | "kind"
+      >);
 
 /** Check a workflow's declared trigger as the noun of its kind. */
-export function triggerOf<Input>(
-    name: string,
-    definition: TriggerDefinition<Input>,
-): Trigger<Input> {
+export function triggerOf<Input>(definition: TriggerDefinition<Input>): Trigger<Input> {
+    const { name } = definition;
+
     // check a schedule
     if (definition.kind === "schedule") {
         return new ScheduleTrigger(name, definition);

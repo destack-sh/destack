@@ -9,7 +9,7 @@ import {
     field,
     grantShape,
     installation,
-    PackageHandle,
+    Package,
     type ObjectType,
 } from "@destack/object";
 import { DynamicObjectClient } from "@destack/object/client";
@@ -27,9 +27,10 @@ import type {
     Workflow,
     WorkflowDeclaration,
     WorkflowImplementation,
-    WorkflowServing,
+    WorkflowCode,
 } from "../src/index.ts";
 import { NOTES } from "./package.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The person starting the runs, who owns the space. */
 export const alice = principal.user.reference(
@@ -65,25 +66,29 @@ export const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields: { owner: field.subject().caller(), title: field.string() },
-        permissions: {
-            read: relation("owner"),
-            write: relation("owner"),
-            approve: relation("owner"),
-            publish: relation("owner"),
-            archive: relation("owner"),
-        },
-        // ask several factors within fifteen minutes to archive a note
-        elevated: { archive: { assurance: 2, maxAge: ARCHIVE_AGE } },
         attachments: [approval.attach({ by: "approve" }), changeRequest.attach({ by: "approve" })],
+        access: {
+            permissions: {
+                read: relation("owner"),
+                write: relation("owner"),
+                approve: relation("owner"),
+                publish: relation("owner"),
+                archive: relation("owner"),
+            },
+            // ask several factors within fifteen minutes to archive a note
+            elevated: { archive: { assurance: 2, maxAge: ARCHIVE_AGE } },
+        },
     },
     (method) => ({
         publish: method.mutation({
+            title: t`Publish`,
             permission: "publish",
             input: schema.object({ title: schema.string() }),
         }),
-        archive: method.mutation({ permission: "archive" }),
+        archive: method.mutation({ title: t`Archive`, permission: "archive" }),
     }),
     NOTES,
 );
@@ -97,7 +102,7 @@ const servedNote = note.implement({
 });
 
 /** The notes application's package, which clients call for notes. */
-export const notesPackage = PackageHandle.of(note.package, { objects: { note } });
+export const notesPackage = Package.of(note.package, { objects: [note] });
 
 /** A space serving notes, the workflow package and a workflow, on a simulated clock. */
 export interface TestWorkflow {
@@ -133,14 +138,22 @@ export interface TestWorkflow {
 export async function openWorkflow<Input, Output, Waits extends ObjectType>(
     workflow: Workflow<Input, Output, Waits>,
     code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
-    serving: (space: Environment<HostCapability>) => Promise<WorkflowServing> = async () => ({}),
+    serving: (
+        space: Environment<HostCapability>,
+    ) => Promise<Omit<WorkflowCode, "run">> = async () => ({}),
     objects: readonly ObjectType[] = [],
 ): Promise<TestWorkflow> {
     // serve the workflow in the space's world
     const simulation = testSimulation();
     const served = await serving(simulation.environment(SPACE_NODE));
 
-    return openServed(workflow, workflow.implement(code, served), [], objects, simulation);
+    return openServed(
+        workflow,
+        workflow.implement({ run: code, ...served }),
+        [],
+        objects,
+        simulation,
+    );
 }
 
 /** A further workflow a fixture serves, which the main workflow's runs invoke. */
@@ -164,14 +177,14 @@ export async function openServed<Input, Output>(
     const declared = [
         ...Object.values(notesPackage.objects),
         ...objects,
-        ...workflows.flatMap((each) => Object.values(each.objects)),
+        ...workflows.flatMap((each) => each.objects),
     ];
     const webhooks = workflow.triggers.flatMap((trigger) =>
         trigger.kind === "webhook" ? [trigger.webhook] : [],
     );
-    const handle = PackageHandle.of(note.package, {
-        objects: Object.fromEntries(declared.map((type) => [type.name, type])),
-        adapters: Object.fromEntries(webhooks.map((webhook) => [webhook.name, webhook])),
+    const handle = Package.of(note.package, {
+        objects: declared,
+        mounts: webhooks,
     });
 
     // serve the universe where people grant, in the simulated world

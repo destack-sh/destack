@@ -16,6 +16,7 @@ import {
 } from "./workflow.ts";
 import { NOTES } from "./package.ts";
 import { TEST_START } from "@destack/object/test";
+import { t } from "@destack/locale";
 
 /** A minute, in milliseconds. */
 const MINUTE = 60_000;
@@ -27,6 +28,7 @@ const ReviewInput = schema.object({ id: schema.string() });
 const review = defineWorkflow(
     {
         name: "review",
+        title: t`Review`,
         input: ReviewInput,
         output: schema.enum(["requested", "approved", "rejected"]),
         waits: [approval],
@@ -130,6 +132,7 @@ async function decideApproval(
 const release = defineWorkflow(
     {
         name: "release",
+        title: t`Release`,
         input: schema.object({ id: schema.string() }),
         output: schema.object({ title: schema.string() }),
     },
@@ -225,6 +228,7 @@ test("wait at a call alice's grant lacks, ask her to make it as herself, and ans
 const tidy = defineWorkflow(
     {
         name: "tidy",
+        title: t`Tidy`,
         input: schema.object({ id: schema.string() }),
         output: schema.object({ title: schema.string() }),
     },

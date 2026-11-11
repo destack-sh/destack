@@ -11,6 +11,7 @@ import { actor, alice, bob, note, openWorkflow, type TestWorkflow } from "./work
 import { TEST_START } from "@destack/object/test";
 import { NOTES } from "./package.ts";
 import { NO_OUTPUT } from "../src/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A minute, in milliseconds. */
 const MINUTE = 60_000;
@@ -20,6 +21,7 @@ test("retry a failing advance after its backoff until it succeeds, keeping the l
     const flaky = defineWorkflow(
         {
             name: "flaky",
+            title: t`Flaky`,
             input: schema.object({ succeedAt: schema.number() }),
             output: schema.number(),
             retries: { initialInterval: 1000, backoffCoefficient: 2 },
@@ -50,6 +52,7 @@ test("fail a run once its attempts run out, keeping the last failure", async () 
     const brittle = defineWorkflow(
         {
             name: "brittle",
+            title: t`Brittle`,
             input: schema.object({}),
             retries: { initialInterval: 1000, maximumAttempts: 2 },
             output: NO_OUTPUT,
@@ -71,7 +74,13 @@ test("fail a run once its attempts run out, keeping the last failure", async () 
 
 test("time a run out at its deadline while it sleeps past it", async () => {
     const slow = defineWorkflow(
-        { name: "slow", input: schema.object({}), timeout: { hours: 1 }, output: NO_OUTPUT },
+        {
+            name: "slow",
+            title: t`Slow`,
+            input: schema.object({}),
+            timeout: { hours: 1 },
+            output: NO_OUTPUT,
+        },
         NOTES,
     );
     const fixture = await openWorkflow(slow, async (step) => {
@@ -97,6 +106,7 @@ test("start a run at its time, answer the live run of a key, and replace one tha
     const digest = defineWorkflow(
         {
             name: "digest",
+            title: t`Digest`,
             input: schema.object({ topic: schema.string() }),
             output: schema.string(),
         },
@@ -134,7 +144,7 @@ test("start a run at its time, answer the live run of a key, and replace one tha
 
 test("pause, resume and cancel a run as its actor, a resumed run due at its sleep's end", async () => {
     const wait = defineWorkflow(
-        { name: "wait", input: schema.object({}), output: NO_OUTPUT },
+        { name: "wait", title: t`Wait`, input: schema.object({}), output: NO_OUTPUT },
         NOTES,
     );
     const fixture = await openWorkflow(wait, async (step) => {
@@ -164,6 +174,7 @@ test("reset a completed run to a step, running that step and the later ones agai
     const tally = defineWorkflow(
         {
             name: "tally",
+            title: t`Tally`,
             input: schema.object({}),
             output: schema.number(),
         },
@@ -205,14 +216,17 @@ test("reset a completed run to a step, running that step and the later ones agai
     });
 });
 
-test("start runs at the workflow's rate, and advance one singleton run of a key at a time", async () => {
+test("start runs at the workflow's rate, and advance one run of a key at a time, which keeps its slot until it ends", async () => {
     // start one run a minute, and hold one slot per space from a run's start to its end
     const report = defineWorkflow(
         {
             name: "report",
+            title: t`Report`,
             input: schema.object({ title: schema.string() }),
-            limits: { rate: { count: 1, every: { minutes: 1 } }, concurrency: { slots: 1 } },
-            singleton: true,
+            limits: {
+                rate: { count: 1, every: { minutes: 1 } },
+                concurrency: { slots: 1, until: "end" },
+            },
             output: NO_OUTPUT,
         },
         NOTES,
@@ -242,7 +256,7 @@ test("start runs at the workflow's rate, and advance one singleton run of a key 
 
 test("take a call step hours after the run started, past a request's retry period", async () => {
     const late = defineWorkflow(
-        { name: "late", input: schema.object({}), output: NO_OUTPUT },
+        { name: "late", title: t`Late`, input: schema.object({}), output: NO_OUTPUT },
         NOTES,
     );
     const fixture = await openWorkflow(late, async (step) => {
@@ -265,7 +279,7 @@ test("take a call step hours after the run started, past a request's retry perio
 
 test("fail a run acting for a user who granted its installation nothing, as no consent lets it act", async () => {
     const write = defineWorkflow(
-        { name: "write", input: schema.object({}), output: NO_OUTPUT },
+        { name: "write", title: t`Write`, input: schema.object({}), output: NO_OUTPUT },
         NOTES,
     );
     const fixture = await openWorkflow(write, async (step) => {
@@ -291,7 +305,7 @@ test("fail a run acting for a user who granted its installation nothing, as no c
 
 test("refuse a stranger controlling another's run", async () => {
     const idle = defineWorkflow(
-        { name: "idle", input: schema.object({}), output: NO_OUTPUT },
+        { name: "idle", title: t`Idle`, input: schema.object({}), output: NO_OUTPUT },
         NOTES,
     );
     const fixture = await openWorkflow(idle, async (step) => {
@@ -312,7 +326,7 @@ test("refuse a stranger controlling another's run", async () => {
 test("fail a run whose function takes other steps on a later advance than it recorded", async () => {
     // take a step named after the advance, then sleep, so the second advance takes another name first
     const fickle = defineWorkflow(
-        { name: "fickle", input: schema.object({}), output: NO_OUTPUT },
+        { name: "fickle", title: t`Fickle`, input: schema.object({}), output: NO_OUTPUT },
         NOTES,
     );
     let advances = 0;
@@ -342,13 +356,17 @@ const stamp = defineObject(
     {
         name: "stamp",
         plural: "stamps",
+        title: t`${plural(argument("count"), { one: "Stamp", other: "Stamps" })}`,
         scope: space,
         fields: { owner: field.subject().caller(), title: field.string() },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["title"] }),
         issue: method.mutation({
+            title: t`Issue`,
             permission: "write",
             prepared: schema.number(),
             output: schema.number(),
@@ -375,6 +393,7 @@ test("make a preparing call once across a crash between its commit and its step'
     const press = defineWorkflow(
         {
             name: "press",
+            title: t`Press`,
             input: schema.object({}),
             output: schema.number(),
         },
@@ -422,6 +441,7 @@ test("wait until a run ends and answer it as it ended, and refuse a wait its sig
     const answer = defineWorkflow(
         {
             name: "answer",
+            title: t`Answer`,
             input: schema.object({ isSleeping: schema.boolean() }),
             output: schema.number(),
         },

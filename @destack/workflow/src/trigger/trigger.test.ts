@@ -5,6 +5,7 @@ import { describeWorkflow } from "../inspect/index.ts";
 import { defineWorkflow } from "../workflow/workflow.ts";
 import { ChangeTrigger, ScheduleTrigger, WebhookTrigger } from "./trigger.ts";
 import { NO_OUTPUT } from "../workflow/workflow.ts";
+import { t } from "@destack/locale";
 
 /** The module the tests declare their workflows in: this package. */
 const MODULE = { package: import.meta.destack.package };
@@ -16,9 +17,11 @@ const note = { package: import.meta.destack.package, name: "note" };
 const summarize = defineWorkflow(
     {
         name: "summarize",
+        title: t`Summarize`,
         input: schema.object({ id: schema.string() }),
-        triggers: {
-            daily: {
+        triggers: [
+            {
+                name: "daily",
                 kind: "schedule",
                 schedule: {
                     timing: { timing: "cron", cron: "0 9 * * *", timezone: "UTC" },
@@ -27,7 +30,8 @@ const summarize = defineWorkflow(
                 },
                 input: (occurrence) => ({ id: String(occurrence.at) }),
             },
-            published: {
+            {
+                name: "published",
                 kind: "change",
                 change: {
                     object: note,
@@ -36,7 +40,7 @@ const summarize = defineWorkflow(
                 },
                 input: (change) => ({ id: schema.string().parse(change.after?.["id"]) }),
             },
-        },
+        ],
         output: NO_OUTPUT,
     },
     MODULE,

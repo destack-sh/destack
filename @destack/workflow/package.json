@@ -21,6 +21,7 @@
         "@destack/environment": "workspace:*",
         "@destack/error": "workspace:*",
         "@destack/identity": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/resource": "workspace:*",

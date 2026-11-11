@@ -30,6 +30,10 @@ import {
     triggerOf,
 } from "../trigger/trigger.ts";
 import { TriggerServer } from "../trigger/server.ts";
+import { WorkflowError } from "../error/index.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
+import type { Message } from "@destack/locale";
 
 /** The type-only key branding a run type with its workflow's name. */
 declare const WORKFLOW: unique symbol;
@@ -56,6 +60,8 @@ export interface Workflow<
     readonly scope: "space" | "universe";
     /** The schema of a run's input. */
     readonly input: schema.Schema<Input>;
+    /** The workflow as people read it, such as in a list of workflows. */
+    readonly title: Message;
     /** The schema of a run's output, `NO_OUTPUT` for a workflow returning nothing. */
     readonly output: schema.Schema<Output>;
     /** The object types a run waits for, whose writes wake it, always change requests. */
@@ -68,8 +74,6 @@ export interface Workflow<
     readonly expiring: Duration | undefined;
     /** How often runs start and how many advance at once. */
     readonly limits: Limits;
-    /** Whether a run takes its concurrency slot from its start to its end. */
-    readonly isSingleton: boolean;
     /** The declared triggers starting runs: schedules, object changes and webhook deliveries. */
     readonly triggers: readonly Trigger<Input>[];
     /** The workflow's runs. */
@@ -79,14 +83,11 @@ export interface Workflow<
     /** The triggers starting its runs: each declared one, and each schedule a person created. */
     readonly trigger: TriggerType;
     /** The object types the workflow declares: its runs, their steps and its triggers. */
-    readonly objects: Readonly<Record<string, ObjectType>>;
+    readonly objects: readonly ObjectType[];
     /** Build the call starting a run, which a method makes in its own transaction. */
     readonly start: (input: NoInfer<Input>, options: RunStart) => Call<Run["row"]>;
-    /** Implement the workflow with its function and the triggers starting it. */
-    readonly implement: (
-        run: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
-        options?: WorkflowServing,
-    ) => WorkflowImplementation;
+    /** Implement the workflow with its code, serving the triggers starting it. */
+    readonly implement: (code: WorkflowCode<Input, Output, Waits>) => WorkflowImplementation;
 }
 
 /** A workflow as its declarations read it, apart from the function implementing it. */
@@ -95,8 +96,10 @@ export type WorkflowDeclaration<Input = unknown, Output = unknown> = Omit<
     "implement"
 >;
 
-/** What a server needs beside a workflow's function: the installation its webhooks verify with. */
-export interface WorkflowServing {
+/** The code implementing a workflow: its run function, and what its webhooks bind. */
+export interface WorkflowCode<Input = unknown, Output = unknown, Waits extends ObjectType = never> {
+    /** Advance a run through its steps from its input. */
+    readonly run: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>;
     /** The installation's resources, which bind its webhooks' secrets. */
     readonly server?: Pick<ServerContext, "resources">;
 }
@@ -132,6 +135,8 @@ export interface WorkflowDefinition<
 > {
     /** The workflow's name, unique among the package's declarations. */
     readonly name: Name;
+    /** The workflow's name as people read it, such as in a run's history. */
+    readonly title: Message;
     /** Where its runs live: in a space by default, or in the universe. */
     readonly scope?: "space" | "universe";
     /** The schema of a run's input. */
@@ -148,10 +153,8 @@ export interface WorkflowDefinition<
     readonly expiring?: { readonly after: Duration };
     /** How often runs start and how many advance at once. */
     readonly limits?: Limits;
-    /** Whether a run takes its concurrency slot from its start to its end. */
-    readonly singleton?: boolean;
-    /** The declared triggers starting runs, by name. */
-    readonly triggers?: Readonly<Record<string, TriggerDefinition<Input>>>;
+    /** The declared triggers starting runs, each with its name. */
+    readonly triggers?: readonly TriggerDefinition<Input>[];
 }
 
 /** The output of a workflow returning nothing, which its runs record as null. */
@@ -167,12 +170,19 @@ export function defineWorkflow<
     definition: WorkflowDefinition<Input, Output, Waits, Name>,
     module?: ModuleMetadata,
 ): Workflow<Input, Output, Waits, Name> {
-    // stamp the declaring package, and refuse a singleton without a concurrency limit
+    // stamp the declaring package
     const owner = ModuleMetadata.require(module, "defineWorkflow").package;
     const name = DeclarationName.parse(definition.name);
     const limits = definition.limits ?? {};
-    if (definition.singleton === true && limits.concurrency === undefined) {
-        throw new TypeError(`singleton workflow '${name}' declares no concurrency limit`);
+
+    // refuse two triggers of one name
+    const triggerNames = (definition.triggers ?? []).map((each) => each.name);
+    const duplicate = triggerNames.find((each, index) => triggerNames.indexOf(each) !== index);
+    if (duplicate !== undefined) {
+        throw WorkflowError.of(
+            "TRIGGER_INVALID",
+            `trigger '${duplicate}' of workflow '${name}' is invalid: it is a duplicate`,
+        );
     }
 
     // declare the runs, their steps and the triggers starting them, where the workflow places them
@@ -193,6 +203,7 @@ export function defineWorkflow<
     const workflow: Workflow<Input, Output, Waits, Name> = Object.freeze({
         kind: "workflow" as const,
         name,
+        title: definition.title,
         package: owner,
         scope: placement,
         input: definition.input,
@@ -202,14 +213,11 @@ export function defineWorkflow<
         timeout,
         expiring: definition.expiring?.after,
         limits,
-        isSingleton: definition.singleton === true,
-        triggers: Object.entries(definition.triggers ?? {}).map(([named, declared]) =>
-            triggerOf(named, declared),
-        ),
+        triggers: (definition.triggers ?? []).map((declared) => triggerOf(declared)),
         run,
         step,
         trigger,
-        objects: { [`${name}Run`]: run, [`${name}Step`]: step, [`${name}Trigger`]: trigger },
+        objects: [run, step, trigger],
         start: (input: Input, options: RunStart) =>
             run.call("create", {
                 input: recorded(definition.input.parse(input)),
@@ -218,19 +226,16 @@ export function defineWorkflow<
                 ...(options.at === undefined ? {} : { wakeAt: options.at }),
                 ...ObjectReference.columns("actor", options.actor),
             }),
-        implement: (
-            code: (step: Step<WaitOf<Waits>>, input: Input, context: RunContext) => Promise<Output>,
-            options: WorkflowServing = {},
-        ) => {
+        implement: (code: WorkflowCode<Input, Output, Waits>) => {
             // serve the triggers through the workflow's server
             const triggers = new TriggerServer(workflow);
-            const webhooks = triggers.webhooks(options.server);
+            const webhooks = triggers.webhooks(code.server);
 
             // advance each run of a reconciliation through the workflow's code
             const advance = async (reconciliation: ObjectReconciliation<typeof run>) => {
                 await Promise.all(
                     reconciliation.rows.map((row) =>
-                        new Run(workflow, row).advance(code, reconciliation),
+                        new Run(workflow, row).advance(code.run, reconciliation),
                     ),
                 );
             };
@@ -326,6 +331,7 @@ function declareRun(
         {
             name: `${name}-run`,
             plural: `${name}-runs`,
+            title: t`${plural(argument("count"), { one: "Run", other: "Runs" })}`,
             identity: "run",
             scope,
             fields: {
@@ -402,12 +408,6 @@ function declareRun(
                 /** The failure the run last answered, its final one once failed. */
                 failure: field.json(Failure).optional(),
             },
-            permissions: {
-                // let the actor read and control a run, and its code advance it through its role
-                read: relation("actor"),
-                control: relation("actor"),
-                advance: none(),
-            },
             constraints: {
                 key: {
                     kind: "index",
@@ -427,6 +427,14 @@ function declareRun(
                           },
                       ],
                   }),
+            access: {
+                permissions: {
+                    // let the actor read and control a run, and its code advance it through its role
+                    read: relation("actor"),
+                    control: relation("actor"),
+                    advance: none(),
+                },
+            },
         },
         () => ({
             create: method.create("advance", {
@@ -455,6 +463,7 @@ function declareRun(
             }),
             /** Run a run again from a step, forgetting that step and every later one. */
             reset: method.mutation({
+                title: t`Reset`,
                 permission: "control",
                 input: schema.object({ step: schema.string().min(1) }),
                 output: schema.object({ forgotten: schema.number().int() }),
@@ -476,9 +485,9 @@ function declareStep(
         {
             name: `${name}-step`,
             plural: `${name}-steps`,
+            title: t`${plural(argument("count"), { one: "Step", other: "Steps" })}`,
             identity: "step",
             scope,
-            nested: { in: run, receive: "advance", delete: "cascade" },
             fields: {
                 /** The step's name, unique within its run. */
                 name: field.string().immutable(),
@@ -499,8 +508,11 @@ function declareStep(
                 /** Whether an invoke step's run is cancelled with this run or runs on. */
                 onParentClose: field.enum(["cancel", "abandon"]).optional(),
             },
-            permissions: { read: through("parent", "read"), advance: none() },
             constraints: { name: { kind: "unique", on: ["parentId", "name"] } },
+            access: {
+                permissions: { read: through("parent", "read"), advance: none() },
+            },
+            traits: [nested({ in: run, add: "advance", delete: "cascade" })],
         },
         () => ({
             create: method.create("advance", { visibility: "package" }),
@@ -525,6 +537,7 @@ function declareTrigger(
         {
             name: `${name}-trigger`,
             plural: `${name}-triggers`,
+            title: t`${plural(argument("count"), { one: "Trigger", other: "Triggers" })}`,
             identity: "trigger",
             scope,
             fields: {
@@ -563,13 +576,15 @@ function declareTrigger(
                 /** The latest skipped occurrence and why it was skipped. */
                 lastSkip: field.json(ScheduleSkip).optional(),
             },
-            permissions: {
-                // let the space's readers read and its managers create and pause triggers, and the store fire them
-                read: through("scope", "read"),
-                manage: through("scope", "manage"),
-                advance: none(),
-            },
             constraints: { name: { kind: "unique", on: ["scope", "name"] } },
+            access: {
+                permissions: {
+                    // let the space's readers read and its managers create and pause triggers, and the store fire them
+                    read: through("scope", "read"),
+                    manage: through("scope", "manage"),
+                    advance: none(),
+                },
+            },
         },
         () => ({
             create: method.create("manage", { fields: ["name", "schedule", "input"] }),
