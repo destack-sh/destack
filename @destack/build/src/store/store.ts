@@ -60,7 +60,7 @@ const USE_MILLISECONDS = 24 * 60 * 60_000;
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
 
-/** Where a closure starts: at what a build runs, or at every export a dependent may import. */
+/** What a closure follows: what a build runs, or every export of every build it reaches. */
 export type ClosureEntries = "run" | "export";
 
 /** Read a build's manifest at a package's registry, absent where none is stored. */
@@ -872,7 +872,7 @@ export class BuildStore<
         return [...units];
     }
 
-    /** Read the manifests a build's entries import on a runtime: what it runs, or every export. */
+    /** Read the manifests a build imports on a runtime, from what it runs or every export. */
     async closure(
         start: Digest,
         packageId: PackageId,
@@ -913,15 +913,13 @@ export class BuildStore<
         });
 
         // follow each export once to the dependency exports its chunks import, keeping each npm unit's importer
-        const units = new Map<
-            Digest,
-            {
-                readonly located: PackageId;
-                readonly beside: Readonly<Record<string, DependencyRelease>>;
-            }
+        const importers = new Map<
+            Readonly<Record<string, DependencyRelease>>,
+            { readonly located: PackageId; readonly units: Set<Digest> }
         >();
         const closure = new Set<Digest>([start]);
         const visited = new Set<string>();
+        const expanded = new Set<Digest>();
         for (let next = pending.pop(); next !== undefined; next = pending.pop()) {
             const key = `${next.manifest} ${next.runtime} ${next.subpath}`;
             const found = visited.has(key) ? undefined : await once(next.manifest, next.packageId);
@@ -931,6 +929,13 @@ export class BuildStore<
                     Object.values(found.outputs).find((each) => each.runtime === next.runtime),
                     `the ${next.runtime} output of ${next.manifest}`,
                 );
+                // follow every export of a reached build, so its tree is the same whoever reaches it
+                if (entries === "export" && !expanded.has(next.manifest)) {
+                    expanded.add(next.manifest);
+                    for (const subpath of Object.keys(output.exports)) {
+                        pending.push({ ...next, subpath });
+                    }
+                }
                 const { imports } = present(
                     output.exports[next.subpath],
                     `the export ${next.subpath} of ${next.manifest}`,
@@ -943,10 +948,12 @@ export class BuildStore<
                     // collect an npm unit beside its importer
                     if (dependency.kind === "npm") {
                         closure.add(dependency.manifest);
-                        units.set(dependency.manifest, {
+                        const importer = importers.get(output.dependencies) ?? {
                             located: next.packageId,
-                            beside: output.dependencies,
-                        });
+                            units: new Set<Digest>(),
+                        };
+                        importer.units.add(dependency.manifest);
+                        importers.set(output.dependencies, importer);
                     }
                     // follow a Destack export, leaving a builtin to the runtime that links it
                     else if (dependency.kind === "destack") {
@@ -963,11 +970,11 @@ export class BuildStore<
         }
 
         // add the npm units each imported unit depends on, found at its dependent's registry, and the peers its importer provides
-        const peered = new Set<Digest>();
-        for (const [unit, { located, beside }] of units) {
-            const reaching = [unit];
+        for (const [beside, { located, units }] of importers) {
+            const peered = new Set<Digest>();
+            const reaching = [...units];
             for (let next = reaching.pop(); next !== undefined; next = reaching.pop()) {
-                // add the unit and those it depends on once, then each peer they declare
+                // add the unit and those it depends on once, then each peer they declare from each importer
                 for (const needed of [next, ...(await this.units(next, located, once))]) {
                     closure.add(needed);
                     if (!peered.has(needed)) {
