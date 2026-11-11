@@ -4,6 +4,7 @@ import type { Architecture, Environment, FileSystem } from "@destack/environment
 import { Distribution, Manifest } from "@destack/update";
 import type { Target } from "@destack/update/release";
 import { schema } from "@destack/schema";
+import { TOOLCHAIN_PACKAGES } from "@destack/package/build";
 import { parseSync, Visitor } from "rolldown/utils";
 import MagicString from "magic-string";
 import { Platform } from "./platform.ts";
@@ -47,10 +48,22 @@ export async function buildToolchain(
     directories: Readonly<Record<PackagePlace, string>>,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
-    // copy each package into its place's flat node_modules, the programs' first, so the toolchain leaves theirs out
+    // copy each package into its place's node_modules, the programs' first, so the toolchain leaves theirs out
     const { files } = environment;
-    const copied = new Map<string, string>();
-    const packages = toolchainPackages(target).toSorted(
+    const nodeModules = new NodeModules(files);
+
+    // refuse a toolchain leaving out a package the builds take from it
+    const listed = toolchainPackages(target);
+    const shipped = new Set(listed.flatMap((entry) => entry.chain));
+    const missing = [...TOOLCHAIN_PACKAGES].filter((name) => !shipped.has(name));
+    if (missing.length > 0) {
+        throw new Error(
+            `the toolchain leaves out ${missing.join(", ")}, which builds take from it`,
+        );
+    }
+
+    // order the packages, the programs' first
+    const packages = listed.toSorted(
         (left, right) => Number(left.place === "toolchain") - Number(right.place === "toolchain"),
     );
     for (const entry of packages) {
@@ -70,9 +83,9 @@ export async function buildToolchain(
                 await files.copyFile(join(directory, file), join(modules, name, file));
             }
         }
-        // copy the package with its dependencies and refuse two copies of one name
+        // copy the package with its dependencies
         else {
-            await copyPackage(name, directory, modules, copied, files);
+            await nodeModules.copy(name, directory, modules);
         }
     }
 
@@ -161,6 +174,7 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     const native = `${os}-${cpu}${abi === undefined ? "" : `-${abi}`}`;
     const build = "@destack/build";
     const check = "@destack/check";
+    const view = "@destack/view";
 
     return [
         // the TypeScript compiler
@@ -181,6 +195,30 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
         // the CSS transformer
         {
             chain: [build, "vite", "lightningcss", `lightningcss-${native}`],
+            contents: "dependencies",
+            place: "toolchain",
+        },
+
+        // the view compiler and the image renderer, with their native bindings
+        { chain: [view, "@solidjs/vite-plugin"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [
+                view,
+                "@solidjs/vite-plugin",
+                "@solidjs/compiler",
+                `@solidjs/compiler-${native}`,
+            ],
+            contents: "dependencies",
+            place: "toolchain",
+        },
+        { chain: [view, "sharp"], contents: "dependencies", place: "toolchain" },
+        {
+            chain: [view, "sharp", `@img/sharp-${os}-${cpu}`],
+            contents: "dependencies",
+            place: "toolchain",
+        },
+        {
+            chain: [view, "sharp", `@img/sharp-${os}-${cpu}`, `@img/sharp-libvips-${os}-${cpu}`],
             contents: "dependencies",
             place: "toolchain",
         },
@@ -219,36 +257,70 @@ function toolchainPackages(target: Target): readonly ToolchainPackage[] {
     ];
 }
 
-/** Copy a package and its dependencies into a flat node_modules, refusing duplicate names. */
-async function copyPackage(
-    name: string,
-    directory: string,
-    modules: string,
-    copied: Map<string, string>,
-    files: FileSystem,
-): Promise<void> {
-    // copy each installation once, refusing another installation of the same name
-    const real = await files.realPath(directory);
-    const previous = copied.get(name);
-    if (previous === real) {
-        return;
-    } else if (previous !== undefined) {
-        throw new Error(
-            `the toolchain needs two installations of ${name}: ${previous} and ${real}`,
-        );
+/** The node_modules directories a distribution writes, laid out as npm installs packages. */
+class NodeModules {
+    /** The installation each hoisted name has, across every place. */
+    readonly #hoisted = new Map<string, string>();
+    /** The installation each nested directory has. */
+    readonly #nested = new Map<string, string>();
+    /** The file system the directories live on. */
+    readonly #files: FileSystem;
+
+    /** Lay out node_modules directories on a file system. */
+    constructor(files: FileSystem) {
+        this.#files = files;
     }
-    copied.set(name, real);
 
-    // copy the package's own files, leaving out its installed dependencies
-    await copyTree(real, join(modules, name), files);
+    /** Copy a package and its dependencies, hoisted, else nested under the dependent. */
+    async copy(
+        name: string,
+        directory: string,
+        modules: string,
+        ancestors: readonly string[] = [],
+    ): Promise<void> {
+        // find the installation Node resolves from the dependent: the nearest nested one, else the hoisted one
+        const files = this.#files;
+        const real = await files.realPath(directory);
+        const nearest = ancestors
+            .toReversed()
+            .map((each) => this.#nested.get(join(each, name)))
+            .find((each) => each !== undefined);
+        const resolved = nearest ?? this.#hoisted.get(name);
+        const parent = ancestors.at(-1);
 
-    // copy its dependencies, resolved from the package
-    const manifest = PackageManifest.parse(
-        JSON.parse(await files.readTextFile(join(real, "package.json"))),
-    );
-    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
-        const located = await locate(dependency, real, files);
-        await copyPackage(dependency, located, modules, copied, files);
+        // keep an installation the dependent already resolves
+        if (resolved === real) {
+            return;
+        }
+        // hoist a package no place has yet
+        else if (resolved === undefined) {
+            this.#hoisted.set(name, real);
+        }
+        // nest another version under its dependent, as the root has one
+        else if (parent !== undefined && !this.#nested.has(join(parent, name))) {
+            this.#nested.set(join(parent, name), real);
+        }
+        // refuse a second version where nothing can nest it
+        else {
+            throw new Error(
+                `the toolchain needs two installations of ${name}: ${resolved} and ${real}`,
+            );
+        }
+
+        // copy the package's own files, leaving out its installed dependencies
+        const destination =
+            resolved === undefined ? join(modules, name) : join(parent ?? modules, name);
+        await copyTree(real, destination, files);
+
+        // copy its dependencies, resolved from the package, as seen from its own node_modules
+        const manifest = PackageManifest.parse(
+            JSON.parse(await files.readTextFile(join(real, "package.json"))),
+        );
+        const below = [...ancestors, join(destination, "node_modules")];
+        for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+            const located = await locate(dependency, real, files);
+            await this.copy(dependency, located, modules, below);
+        }
     }
 }
 
