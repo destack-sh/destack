@@ -37,8 +37,8 @@ test("resume multipart uploads after restart and retain files when completion fa
         const multipart = bucket.resumeMultipartUpload("document", uploadId);
         expect(await refusal(multipart.complete([{ ...selected, etag: "changed" }]))).toEqual([
             "BAD_REQUEST",
-            "INVALID_PART",
-            "a selected part is missing or has changed",
+            "PART_INVALID",
+            "selected part is invalid: it is missing or has changed",
         ]);
         expect(await present(await bucket.get("document"), "document").text()).toBe("original");
         const file = present(await multipart.complete([selected]), "file");
@@ -50,8 +50,8 @@ test("resume multipart uploads after restart and retain files when completion fa
         });
         expect(await refusal(multipart.complete([selected]))).toEqual([
             "NOT_FOUND",
-            "NO_SUCH_UPLOAD",
-            "multipart upload does not exist",
+            "UPLOAD_NOT_FOUND",
+            "multipart upload not found",
         ]);
     }
     {
@@ -86,8 +86,8 @@ test("reject undersized completion and an upload part that finishes after abort"
         ];
         expect(await refusal(multipart.complete(uploaded))).toEqual([
             "BAD_REQUEST",
-            "INVALID_PART",
-            "multipart parts require equal sizes of at least five MiB, except the final part",
+            "PART_INVALID",
+            "multipart part size is invalid: parts need equal sizes of at least five MiB, except the final part",
         ]);
         expect(await bucket.head("document")).toEqual(original);
 
@@ -110,8 +110,8 @@ test("reject undersized completion and an upload part that finishes after abort"
         finish.resolve();
         expect(await refusal(writing)).toEqual([
             "NOT_FOUND",
-            "NO_SUCH_UPLOAD",
-            "multipart upload does not exist",
+            "UPLOAD_NOT_FOUND",
+            "multipart upload not found",
         ]);
         expect(await bucket.head("document")).toEqual(original);
     }
@@ -239,13 +239,13 @@ test("list uploads and parts, and copy parts from files", async () => {
         await refusal(first.uploadPartCopy(3, "source", { onlyIf: { etagMatches: "other" } })),
     ).toEqual([
         "PRECONDITION_FAILED",
-        "PRECONDITION_UNMET",
-        "at least one of the preconditions did not hold",
+        "PRECONDITION_BLOCKED",
+        "cannot write the file: at least one of the preconditions did not hold",
     ]);
     expect(await refusal(first.uploadPartCopy(3, "missing"))).toEqual([
         "NOT_FOUND",
-        "NO_SUCH_KEY",
-        "the source file does not exist",
+        "KEY_NOT_FOUND",
+        "source file 'missing' not found",
     ]);
     const parts = await first.listParts();
     expect(parts).toEqual({
@@ -262,8 +262,8 @@ test("list uploads and parts, and copy parts from files", async () => {
     await other.abort();
     expect(await refusal(other.listParts())).toEqual([
         "NOT_FOUND",
-        "NO_SUCH_UPLOAD",
-        "multipart upload does not exist",
+        "UPLOAD_NOT_FOUND",
+        "multipart upload not found",
     ]);
     await first.abort();
     await second.abort();

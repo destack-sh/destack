@@ -128,7 +128,7 @@ test("answer failures with S3 error documents", async () => {
     const requestId = anonymous.headers.get("x-amz-request-id");
     expect({ status: anonymous.status, body: await anonymous.text() }).toEqual({
         status: 403,
-        body: `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>anonymous requests are not allowed</Message><Resource>/files/readme.txt</Resource><RequestId>${requestId}</RequestId></Error>`,
+        body: `<?xml version="1.0" encoding="UTF-8"?><Error><Code>AccessDenied</Code><Message>request is forbidden: anonymous requests are not allowed</Message><Resource>/files/readme.txt</Resource><RequestId>${requestId}</RequestId></Error>`,
     });
     const client = new S3Client({
         region: REGION,
@@ -187,7 +187,7 @@ test("answer CORS preflights and expose headers to allowed origins", async () =>
         code: /<Code>(\w+)<\/Code>/u.exec(await refused.text())?.[1],
     }).toEqual({
         status: 403,
-        code: "AccessForbidden",
+        code: "AccessDenied",
     });
     const actual = await fixture.fetch("http://s3.test/files/readme.txt", {
         headers: { origin: "https://app.example.com" },

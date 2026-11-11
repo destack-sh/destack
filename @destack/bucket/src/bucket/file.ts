@@ -193,7 +193,10 @@ export class BucketFileBody extends BucketFile {
 function read(value: string): StorageClass {
     const storageClass = STORAGE_CLASSES.find((entry) => entry === value);
     if (storageClass === undefined) {
-        throw BucketError.of("INVALID_STORAGE_CLASS", `unknown storage class ${value}`);
+        throw BucketError.of(
+            "STORAGE_CLASS_INVALID",
+            `storage class '${value}' is invalid: it is unknown`,
+        );
     }
 
     return storageClass;

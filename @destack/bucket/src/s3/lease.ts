@@ -44,7 +44,7 @@ export const BucketLease = {
         // refuse a URL that left the bucket's path, which only a malformed key causes
         const bucketPath = `${S3Location.url(location).pathname}/`;
         if (!url.pathname.startsWith(bucketPath)) {
-            throw new TypeError(`key ${lease.key} is outside its bucket's path`);
+            throw new TypeError(`key '${lease.key}' is outside its bucket's path`);
         }
 
         // sign the request at the time, keeping the headers the caller sends

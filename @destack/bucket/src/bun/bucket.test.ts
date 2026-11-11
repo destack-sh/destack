@@ -52,8 +52,8 @@ test("retain local files across reopen and failed streamed uploads", async () =>
     // refuse creating a bucket without the scope it belongs to
     expect(await refusal(LocalBucket.open(directory, undefined, world))).toEqual([
         "NOT_FOUND",
-        "NO_SUCH_BUCKET",
-        `no bucket at ${directory}`,
+        "BUCKET_NOT_FOUND",
+        `bucket at '${directory}' not found`,
     ]);
 
     {
@@ -71,7 +71,11 @@ test("retain local files across reopen and failed streamed uploads", async () =>
         await expect(bucket.put("document", body)).rejects.toThrow(failure);
         expect(
             await refusal(bucket.put("document", "changed", { sha256: "0".repeat(64) })),
-        ).toEqual(["BAD_REQUEST", "BAD_DIGEST", "object checksum does not match its contents"]);
+        ).toEqual([
+            "BAD_REQUEST",
+            "CONTENT_INVALID",
+            "object checksum is invalid: it does not match its contents",
+        ]);
     }
     await using restored = await LocalBucket.open(directory, "space-test", world);
     const document = present(await restored.get("document"), "document");
@@ -220,7 +224,7 @@ test("report reclamation failures separately from committed file replacements", 
         expect(await bucket.head("document")).toEqual(replacement);
         expect(await refusal(collectLater(simulation, bucket))).toEqual([
             "CONFLICT",
-            "ALREADY_EXISTS",
+            "FILE_EXISTS",
             `cannot remove ${path}: ENOTEMPTY`,
         ]);
         expect(await present(await bucket.get("document"), "document").text()).toBe("replacement");
@@ -271,15 +275,15 @@ test("copy files by sharing their contents until the last reference goes", async
     // refuse a missing source, and return null when a source precondition fails
     expect(await refusal(bucket.copy("missing", "copy"))).toEqual([
         "NOT_FOUND",
-        "NO_SUCH_KEY",
-        "the source file does not exist",
+        "KEY_NOT_FOUND",
+        "source file 'missing' not found",
     ]);
     expect(
         await refusal(bucket.copy("source", "copy", { onlyIf: { etagMatches: "other" } })),
     ).toEqual([
         "PRECONDITION_FAILED",
-        "PRECONDITION_UNMET",
-        "at least one of the preconditions did not hold",
+        "PRECONDITION_BLOCKED",
+        "cannot write the file: at least one of the preconditions did not hold",
     ]);
 
     // keep the one blob, named by its digest, while any copy references it
@@ -315,8 +319,8 @@ test("record storage classes and refuse storage classes R2 does not offer", asyn
     // refuse storage classes R2 does not offer when reading them from a caller
     expect(await refusal(Promise.try(() => StorageClass.read("Glacier")))).toEqual([
         "BAD_REQUEST",
-        "INVALID_STORAGE_CLASS",
-        "unknown storage class Glacier",
+        "STORAGE_CLASS_INVALID",
+        "storage class 'Glacier' is invalid: it is unknown",
     ]);
 });
 
@@ -361,13 +365,25 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
         ].map((pending) => refusal(pending)),
     );
     expect(refusals).toEqual([
-        ["BAD_REQUEST", "INVALID_REQUEST", "the file is encrypted with another customer key"],
-        ["BAD_REQUEST", "INVALID_REQUEST", "the file is encrypted with another customer key"],
-        ["BAD_REQUEST", "INVALID_REQUEST", "the file is not encrypted with a customer key"],
         [
             "BAD_REQUEST",
-            "INVALID_REQUEST",
-            "a customer key must be 32 bytes or 64 hexadecimal digits",
+            "REQUEST_INVALID",
+            "customer key is invalid: the file is encrypted with another customer key",
+        ],
+        [
+            "BAD_REQUEST",
+            "REQUEST_INVALID",
+            "customer key is invalid: the file is encrypted with another customer key",
+        ],
+        [
+            "BAD_REQUEST",
+            "REQUEST_INVALID",
+            "customer key is invalid: the file is not encrypted with a customer key",
+        ],
+        [
+            "BAD_REQUEST",
+            "REQUEST_INVALID",
+            "customer key is invalid: it must be 32 bytes or 64 hexadecimal digits",
         ],
     ]);
 
@@ -375,8 +391,8 @@ test("encrypt files under customer keys, reading ranges with the key and refusin
     const upload = await bucket.createMultipartUpload("parts", { ssecKey });
     expect(await refusal(upload.uploadPart(1, "first"))).toEqual([
         "BAD_REQUEST",
-        "INVALID_REQUEST",
-        "the file is encrypted with another customer key",
+        "REQUEST_INVALID",
+        "customer key is invalid: the file is encrypted with another customer key",
     ]);
     const part = await upload.uploadPart(1, "parted contents", { ssecKey });
     const completed = await upload.complete([part]);
@@ -434,8 +450,16 @@ test("refuse replacing or deleting a locked file until its retain-until date, th
     await simulation.jump(simulation.clock.now() + 250);
     await bucket.delete("audit/segment");
     expect([replaced, deleted, held, await bucket.head("audit/segment")]).toEqual([
-        ["FORBIDDEN", "ACCESS_DENIED", "file audit/segment is retained until its lock expires"],
-        ["FORBIDDEN", "ACCESS_DENIED", "file audit/segment is retained until its lock expires"],
+        [
+            "FORBIDDEN",
+            "ACCESS_DENIED",
+            "file 'audit/segment' is forbidden: it is retained until its lock expires",
+        ],
+        [
+            "FORBIDDEN",
+            "ACCESS_DENIED",
+            "file 'audit/segment' is forbidden: it is retained until its lock expires",
+        ],
         [retainUntil.getTime(), false],
         null,
     ]);
@@ -529,16 +553,16 @@ test("clone a plain file's bytes to a path, refusing a missing, encrypted or mul
     }).toEqual({
         cloned: "plain contents",
         refusals: [
-            ["NOT_FOUND", "NO_SUCH_KEY", "no file at missing"],
+            ["NOT_FOUND", "KEY_NOT_FOUND", "file 'missing' not found"],
             [
-                "UNPROCESSABLE_CONTENT",
-                "FILE_NOT_CLONABLE",
-                "cloning needs a plain single-part file: sealed",
+                "NOT_IMPLEMENTED",
+                "CLONE_UNSUPPORTED",
+                "cloning file 'sealed' is not supported: it is not a plain single-part file",
             ],
             [
-                "UNPROCESSABLE_CONTENT",
-                "FILE_NOT_CLONABLE",
-                "cloning needs a plain single-part file: parts",
+                "NOT_IMPLEMENTED",
+                "CLONE_UNSUPPORTED",
+                "cloning file 'parts' is not supported: it is not a plain single-part file",
             ],
         ],
     });

@@ -14,71 +14,72 @@ export type PreconditionFailure = schema.Infer<typeof PreconditionFailure>;
 
 /** The bucket package's failures, each reason with the call error code it answers. */
 export const BucketError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    AUTHORIZATION_HEADER_MALFORMED: { code: "BAD_REQUEST" },
-    BAD_DIGEST: { code: "BAD_REQUEST" },
-    CONTENT_SHA256_MISMATCH: { code: "BAD_REQUEST" },
-    INCOMPLETE_BODY: { code: "BAD_REQUEST" },
-    INVALID_ARGUMENT: { code: "BAD_REQUEST" },
-    INVALID_AUTHORIZATION_QUERY: { code: "BAD_REQUEST" },
-    INVALID_DIGEST: { code: "BAD_REQUEST" },
-    INVALID_ENCRYPTION_ALGORITHM: { code: "BAD_REQUEST" },
-    INVALID_PART: { code: "BAD_REQUEST" },
-    INVALID_PART_ORDER: { code: "BAD_REQUEST" },
-    INVALID_RANGE: { code: "BAD_REQUEST" },
-    INVALID_REQUEST: { code: "BAD_REQUEST" },
-    INVALID_STORAGE_CLASS: { code: "BAD_REQUEST" },
-    INVALID_TOKEN: { code: "BAD_REQUEST" },
-    INVALID_URI: { code: "BAD_REQUEST" },
-    MALFORMED_REQUEST: { code: "BAD_REQUEST" },
-    MALFORMED_XML: { code: "BAD_REQUEST" },
-    MAX_MESSAGE_LENGTH_EXCEEDED: { code: "BAD_REQUEST" },
-    METADATA_TOO_LARGE: { code: "BAD_REQUEST" },
-    MISSING_CONTENT_LENGTH: { code: "BAD_REQUEST" },
-
-    // forbidden
-    ACCESS_DENIED: { code: "FORBIDDEN" },
-    ACCESS_FORBIDDEN: { code: "FORBIDDEN" },
-    INVALID_ACCESS_KEY_ID: { code: "FORBIDDEN" },
-    REQUEST_TIME_TOO_SKEWED: { code: "FORBIDDEN" },
-    SIGNATURE_DOES_NOT_MATCH: { code: "FORBIDDEN" },
-
     // not found
-    NO_SUCH_BUCKET: { code: "NOT_FOUND" },
-    NO_SUCH_KEY: { code: "NOT_FOUND" },
-    NO_SUCH_UPLOAD: { code: "NOT_FOUND" },
+    BUCKET_NOT_FOUND: {},
+    KEY_NOT_FOUND: {},
+    UPLOAD_NOT_FOUND: {},
 
-    // method not supported
-    METHOD_NOT_ALLOWED: { code: "METHOD_NOT_SUPPORTED" },
+    // invalid
+    ARGUMENT_INVALID: {},
+    AUTHORIZATION_HEADER_INVALID: {},
+    AUTHORIZATION_QUERY_INVALID: {},
+    BODY_INVALID: {},
+    CONTENT_INVALID: {},
+    CONTENT_SHA256_INVALID: {},
+    DIGEST_INVALID: {},
+    ENCRYPTION_ALGORITHM_INVALID: {},
+    MAX_MESSAGE_LENGTH_INVALID: {},
+    METADATA_INVALID: {},
+    PART_INVALID: {},
+    PART_ORDER_INVALID: {},
+    RANGE_INVALID: {},
+    REQUEST_BODY_INVALID: {},
+    REQUEST_INVALID: {},
+    STORAGE_CLASS_INVALID: {},
+    TOKEN_INVALID: {},
+    URI_INVALID: {},
+    XML_INVALID: {},
 
-    // precondition failed
-    PRECONDITION_UNMET: { code: "PRECONDITION_FAILED", data: PreconditionFailure },
+    // required
+    CONTENT_LENGTH_REQUIRED: {},
 
-    // unprocessable content
-    FILE_NOT_CLONABLE: { code: "UNPROCESSABLE_CONTENT" },
+    // denied
+    ACCESS_DENIED: {},
+    ACCESS_KEY_DENIED: {},
+    CORS_DENIED: {},
+    REQUEST_TIME_DENIED: {},
+    SIGNATURE_DENIED: {},
 
-    // internal server error
-    WRITE_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    // blocked
+    PRECONDITION_BLOCKED: { data: PreconditionFailure },
 
-    // not implemented
-    UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+    // unsupported
+    CLONE_UNSUPPORTED: {},
+    METHOD_UNSUPPORTED: {},
+    OPERATION_UNSUPPORTED: {},
 
-    // bad gateway
-    UNEXPECTED_STATUS: { code: "BAD_GATEWAY" },
-    UNKNOWN_S3_CODE: { code: "BAD_GATEWAY" },
+    // unavailable
+    BUCKET_UNAVAILABLE: {},
 
-    // service unavailable
-    BUSY: { code: "SERVICE_UNAVAILABLE" },
-    CLOSED: { code: "SERVICE_UNAVAILABLE" },
-    UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    // unreachable
+    S3_UNREACHABLE: {},
+
+    // broken
+    WRITE_BROKEN: {},
 });
 
 /** A stable cause of bucket failures. */
 export type BucketReason = ReasonOf<typeof BucketError>;
 
 /** Refuse a write whose preconditions did not hold, with the file the key holds now. */
-export function preconditionFailed(current: BucketFile | null): FamilyError<"PRECONDITION_UNMET"> {
-    return BucketError.of("PRECONDITION_UNMET", "at least one of the preconditions did not hold", {
-        data: { current: current === null ? null : current.describe() },
-    });
+export function preconditionFailed(
+    current: BucketFile | null,
+): FamilyError<"PRECONDITION_BLOCKED"> {
+    return BucketError.of(
+        "PRECONDITION_BLOCKED",
+        "cannot write the file: at least one of the preconditions did not hold",
+        {
+            data: { current: current === null ? null : current.describe() },
+        },
+    );
 }

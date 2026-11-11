@@ -42,7 +42,9 @@ async function request(path: string, method = "GET", body?: RequestInit["body"])
     );
     const result = ManagementResult.parse(await response.json());
     if (!response.ok || !result.success) {
-        throw new Error(`${method} ${path}: ${response.status} ${JSON.stringify(result.errors)}`);
+        throw new Error(
+            `request '${method}' to '${path}' answered ${response.status}: ${JSON.stringify(result.errors)}`,
+        );
     }
 
     return result.result;
@@ -125,7 +127,8 @@ try {
     );
     const result = await response.text();
     if (!response.ok || result !== '{"status":"passed"}') {
-        throw new Error(`hosted storage check: ${response.status} ${result.slice(0, 2000)}`);
+        const detail = result.slice(0, 2000);
+        throw new Error(`hosted storage check answered ${response.status}:\n${detail}`);
     }
     await environment.process.stdout.write("Hosted R2 check passed.\n");
 } catch (error) {

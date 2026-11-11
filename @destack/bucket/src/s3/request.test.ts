@@ -33,7 +33,7 @@ test("write a customer key's SSE-C headers, which a request reads back as the ke
 test("refuse writing the headers of a key other than 32 bytes of base64", async () => {
     expect(await refusal(() => customerKeyHeaders(new Uint8Array(16).toBase64()))).toEqual([
         "BAD_REQUEST",
-        "INVALID_ARGUMENT",
-        "the customer key must be 32 bytes of base64",
+        "ARGUMENT_INVALID",
+        "customer key is invalid: it must be 32 bytes of base64",
     ]);
 });

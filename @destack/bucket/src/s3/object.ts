@@ -125,7 +125,10 @@ async function putObject(call: S3Request, bucket: S3Bucket): Promise<Response> {
     call.checkParameters([]);
     const condition = call.condition();
     if (condition?.etagDoesNotMatch !== undefined && condition.etagDoesNotMatch !== "*") {
-        throw BucketError.of("UNSUPPORTED", "conditional writes support only If-None-Match: *");
+        throw BucketError.of(
+            "OPERATION_UNSUPPORTED",
+            "a conditional write other than If-None-Match: * is not supported",
+        );
     }
     const resolution = await S3Condition.resolve(condition, () => bucket.head(call.key));
     if ("failed" in resolution) {
@@ -164,7 +167,7 @@ async function deleteObject(call: S3Request, bucket: S3Bucket): Promise<Response
     // refuse parameters and conditions, then delete
     call.checkParameters([]);
     if (call.condition() !== undefined) {
-        throw BucketError.of("UNSUPPORTED", "conditional deletes are not supported");
+        throw BucketError.of("OPERATION_UNSUPPORTED", "a conditional delete is not supported");
     }
     await bucket.delete(call.key);
 
@@ -182,8 +185,8 @@ async function copyObject(
     const directive = call.headers.get("x-amz-metadata-directive") ?? "COPY";
     if (directive !== "COPY" && directive !== "REPLACE") {
         throw BucketError.of(
-            "INVALID_ARGUMENT",
-            "x-amz-metadata-directive must be COPY or REPLACE",
+            "ARGUMENT_INVALID",
+            "x-amz-metadata-directive is invalid: it must be COPY or REPLACE",
         );
     }
     const storageClass = S3Headers.storageClass(call.headers);
@@ -194,12 +197,12 @@ async function copyObject(
         storageClass === undefined
     ) {
         throw BucketError.of(
-            "INVALID_REQUEST",
-            "this copy request is illegal because it copies an object to itself without changing its metadata or storage class",
+            "REQUEST_INVALID",
+            "copy request is invalid: it copies an object to itself without changing its metadata or storage class",
         );
     }
     if (call.ssecKey() !== undefined) {
-        throw BucketError.of("UNSUPPORTED", "customer keys are not supported on copies");
+        throw BucketError.of("OPERATION_UNSUPPORTED", "a customer key on a copy is not supported");
     }
 
     // copy under the source's conditions, with replaced metadata when asked
@@ -284,8 +287,8 @@ async function deleteObjects(call: S3Request, bucket: S3Bucket): Promise<Respons
     );
     if (!hasChecksum) {
         throw BucketError.of(
-            "INVALID_REQUEST",
-            "missing required header for this request: content-md5",
+            "REQUEST_INVALID",
+            "request is invalid: it misses required header content-md5",
         );
     }
 
@@ -294,8 +297,8 @@ async function deleteObjects(call: S3Request, bucket: S3Bucket): Promise<Respons
     const objects = document.all("Object");
     if (document.name !== "Delete" || objects.length === 0 || objects.length > MAX_BATCH_FILES) {
         throw BucketError.of(
-            "MALFORMED_XML",
-            "the document must name 1 through 1000 objects to delete",
+            "XML_INVALID",
+            "document is invalid: it must name 1 through 1000 objects to delete",
         );
     }
     const isQuiet = document.value("Quiet") === "true";
@@ -353,7 +356,7 @@ function isChecksummed(call: S3Request): boolean {
 /** Require an existing file. */
 function requireFile<File extends BucketFile>(file: File | null): File {
     if (file === null) {
-        throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
+        throw BucketError.of("KEY_NOT_FOUND", "file key not found");
     }
 
     return file;
@@ -386,7 +389,7 @@ function preconditionFailure(file: BucketFile, condition: S3Condition | undefine
 /** Refuse a failed write precondition: 404 when If-Match targets an absent key, else 412. */
 function writeConditionFailure(call: S3Request, current: BucketFile | null): never {
     if (call.headers.has("if-match") && current === null) {
-        throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
+        throw BucketError.of("KEY_NOT_FOUND", "file key not found");
     }
     throw preconditionFailed(current);
 }
@@ -413,7 +416,9 @@ export function writeHeaders(call: S3Request, file: BucketFile): Headers {
 function keyFailure(key: string, versionId: string | undefined): S3Answer | undefined {
     // refuse versions, which are out of scope
     if (versionId !== undefined) {
-        return S3Answer.write(BucketError.of("UNSUPPORTED", "deleting versions is not supported"));
+        return S3Answer.write(
+            BucketError.of("OPERATION_UNSUPPORTED", "deleting versions is not supported"),
+        );
     }
 
     // refuse keys the bucket would refuse

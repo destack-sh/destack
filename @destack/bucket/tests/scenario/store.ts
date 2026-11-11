@@ -55,7 +55,7 @@ export async function exerciseBlobStorage(bucket: Bucket, random: Random): Promi
     // refuse a body read under another digest, leaving the packs as they were
     const before = (await Array.fromAsync(store.packs())).toSorted();
     await assert.rejects(store.write([{ body: chunked(long), digest: SHORT_DIGEST }]), {
-        message: `expected blob ${SHORT_DIGEST}, got ${LONG_DIGEST}`,
+        message: `blob '${LONG_DIGEST}' is invalid: its digest must be '${SHORT_DIGEST}'`,
     });
     assert.deepStrictEqual((await Array.fromAsync(store.packs())).toSorted(), before);
 

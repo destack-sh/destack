@@ -107,8 +107,8 @@ export class MemoryBucket implements Bucket {
                 const actual = createHash(algorithm).update(bytes).digest("hex");
                 if (ContentDigest.hex(supplied) !== actual) {
                     throw BucketError.of(
-                        "BAD_DIGEST",
-                        "object checksum does not match its contents",
+                        "CONTENT_INVALID",
+                        "object checksum is invalid: it does not match its contents",
                     );
                 }
                 digests[algorithm] = actual;
@@ -137,7 +137,10 @@ export class MemoryBucket implements Bucket {
         // check every key and lock before deleting any
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw BucketError.of("INVALID_ARGUMENT", "a delete accepts at most 1000 files");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "delete is invalid: it accepts at most 1000 files",
+            );
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -202,19 +205,25 @@ export class MemoryBucket implements Bucket {
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     createMultipartUpload(): Promise<MultipartUpload> {
         return Promise.reject(
-            BucketError.of("UNSUPPORTED", "a memory bucket does not support multipart uploads"),
+            BucketError.of(
+                "OPERATION_UNSUPPORTED",
+                "a multipart upload on a memory bucket is not supported",
+            ),
         );
     }
 
     /** Refuse a multipart upload, which a memory bucket does not keep. */
     resumeMultipartUpload(): MultipartUpload {
-        throw BucketError.of("UNSUPPORTED", "a memory bucket does not support multipart uploads");
+        throw BucketError.of(
+            "OPERATION_UNSUPPORTED",
+            "a multipart upload on a memory bucket is not supported",
+        );
     }
 
     /** Refuse to replace or delete a file its lock keeps. */
     #requireUnlocked(file: BucketFile | null): void {
         if (file?.isLocked(this.#clock.now()) === true) {
-            throw BucketError.of("ACCESS_DENIED", `file ${file.key} is locked`);
+            throw BucketError.of("ACCESS_DENIED", `file '${file.key}' is forbidden: it is locked`);
         }
     }
 }

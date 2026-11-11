@@ -145,7 +145,7 @@ function seconds(time: Date): number {
 
 /** Read the file a refused precondition met, null where none exists. */
 function failed(error: unknown): BucketFile | null {
-    if (BucketError.is(error, "PRECONDITION_UNMET")) {
+    if (BucketError.is(error, "PRECONDITION_BLOCKED")) {
         const { current } = error.data;
 
         return current === null ? null : BucketFile.read(current);

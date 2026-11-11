@@ -26,7 +26,7 @@ export function xmlResponse(name: string, root: XmlElement): Response {
 export function keyEncoder(call: S3Request): (value: string) => string {
     const encoding = call.query.get("encoding-type");
     if (encoding !== undefined && encoding !== "url") {
-        throw BucketError.of("INVALID_ARGUMENT", "encoding-type must be url");
+        throw BucketError.of("ARGUMENT_INVALID", "encoding-type is invalid: it must be url");
     }
 
     return encoding === "url" ? (value) => encodeUri(value, true) : (value) => value;

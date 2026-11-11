@@ -57,13 +57,13 @@ async function exerciseMetadata(bucket: R2Bucket): Promise<void> {
     await assert.rejects(
         bucket.put("document", "wrong", { onlyIf: { etagDoesNotMatch: "*" } }),
         (error: unknown) =>
-            BucketError.is(error, "PRECONDITION_UNMET") &&
+            BucketError.is(error, "PRECONDITION_BLOCKED") &&
             error.data.current?.etag === original.etag,
     );
     await assert.rejects(
         bucket.get("document", { onlyIf: { etagMatches: "wrong" } }),
         (error: unknown) =>
-            BucketError.is(error, "PRECONDITION_UNMET") &&
+            BucketError.is(error, "PRECONDITION_BLOCKED") &&
             error.data.current?.etag === original.etag,
     );
 }
@@ -85,14 +85,14 @@ async function exerciseRanges(bucket: R2Bucket): Promise<void> {
             const file = present(await bucket.get("document", { range }), "file");
             assert.equal(await file.text(), expected);
         } catch (error) {
-            throw new Error(`range ${JSON.stringify(range)}: ${String(error)}`, {
+            throw new Error(`could not read range ${JSON.stringify(range)}`, {
                 cause: error,
             });
         }
     }
     await assert.rejects(async () => bucket.get("document", { range: { offset: 2 } }), {
-        reason: "INVALID_RANGE",
-        message: "the requested file range is not satisfiable",
+        reason: "RANGE_INVALID",
+        message: "file range is invalid: the requested file range is not satisfiable",
     });
     await bucket.put("empty", null);
     assert.equal(await present(await bucket.get("empty"), "empty").text(), "");

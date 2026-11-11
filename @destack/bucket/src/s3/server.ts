@@ -129,7 +129,7 @@ export class S3Server {
         const bucketName = decodeUri(separator === -1 ? path : path.slice(0, separator));
         const key = separator === -1 ? "" : decodeUri(path.slice(separator + 1));
         if (bucketName === "") {
-            throw BucketError.of("UNSUPPORTED", "listing buckets is not supported");
+            throw BucketError.of("OPERATION_UNSUPPORTED", "listing buckets is not supported");
         }
 
         // authorize the request, then open the bucket its access key can use
@@ -166,7 +166,10 @@ export class S3Server {
         }
         // refuse other bucket operations
         else {
-            throw BucketError.of("UNSUPPORTED", `the bucket operation ${method} is not supported`);
+            throw BucketError.of(
+                "OPERATION_UNSUPPORTED",
+                `the bucket operation '${method}' is not supported`,
+            );
         }
     }
 
@@ -220,8 +223,8 @@ export class S3Server {
         // refuse other methods
         else {
             throw BucketError.of(
-                "METHOD_NOT_ALLOWED",
-                `the method ${method} is not allowed on objects`,
+                "METHOD_UNSUPPORTED",
+                `the method '${method}' on objects is not supported`,
             );
         }
     }
@@ -230,7 +233,7 @@ export class S3Server {
     async #bucket(call: S3Request, bucketName: string): Promise<S3Bucket> {
         const bucket = await this.#open(bucketName, call.authorization.accessKeyId);
         if (bucket === undefined) {
-            throw BucketError.of("NO_SUCH_BUCKET", "the specified bucket does not exist");
+            throw BucketError.of("BUCKET_NOT_FOUND", `bucket '${bucketName}' not found`);
         }
 
         return bucket;
@@ -250,7 +253,7 @@ export class S3Server {
             sourceBucket.head(source.key),
         );
         if ("failed" in resolution && resolution.failed === null) {
-            throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
+            throw BucketError.of("KEY_NOT_FOUND", "file key not found");
         } else if ("failed" in resolution) {
             throw preconditionFailed(resolution.failed);
         }

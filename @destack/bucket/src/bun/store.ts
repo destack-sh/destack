@@ -60,7 +60,10 @@ export class LocalBlobStorage implements BlobStorage {
     /** Build the path of a blob's file, refusing anything but a digest. */
     path(digest: Digest): string {
         if (!Digest.safeParse(digest).success) {
-            throw BucketError.of("INVALID_ARGUMENT", `not a blob digest: ${digest}`);
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                `blob digest '${digest}' is invalid: it is not a blob digest`,
+            );
         }
 
         return join(this.directory, digest);
@@ -183,7 +186,7 @@ export class LocalBlobStorage implements BlobStorage {
             const file = await this.#files
                 .open(path, { write: true, createNew: true, mode: 0o600 })
                 .catch((error: unknown) => {
-                    if (FileSystemError.is(error, "ALREADY_EXISTS")) {
+                    if (FileSystemError.is(error, "FILE_EXISTS")) {
                         return undefined;
                     }
                     throw error;

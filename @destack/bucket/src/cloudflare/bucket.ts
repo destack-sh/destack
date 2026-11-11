@@ -115,8 +115,8 @@ export class R2Bucket implements Bucket {
         const { retainUntil, ...written } = options;
         if (retainUntil !== undefined) {
             throw BucketError.of(
-                "UNSUPPORTED",
-                "R2 does not lock single files: use bucket lock rules",
+                "OPERATION_UNSUPPORTED",
+                "locking a single file on R2 is not supported: use bucket lock rules",
             );
         }
         const value = body === null ? null : R2Body.write(body);
@@ -134,7 +134,10 @@ export class R2Bucket implements Bucket {
         // validate the keys before deleting
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw BucketError.of("INVALID_ARGUMENT", "delete accepts at most 1000 file keys");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "delete is invalid: it accepts at most 1000 file keys",
+            );
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -152,8 +155,8 @@ export class R2Bucket implements Bucket {
         const { retainUntil, ...created } = options;
         if (retainUntil !== undefined) {
             throw BucketError.of(
-                "UNSUPPORTED",
-                "R2 does not lock single files: use bucket lock rules",
+                "OPERATION_UNSUPPORTED",
+                "locking a single file on R2 is not supported: use bucket lock rules",
             );
         }
         this.#operations.classA += 1;
@@ -209,9 +212,13 @@ function readError(error: unknown): unknown {
         "code" in error &&
         error.code === INVALID_RANGE_CODE
     ) {
-        return BucketError.of("INVALID_RANGE", "the requested file range is not satisfiable", {
-            cause: error,
-        });
+        return BucketError.of(
+            "RANGE_INVALID",
+            "file range is invalid: the requested file range is not satisfiable",
+            {
+                cause: error,
+            },
+        );
     }
 
     return error;

@@ -33,7 +33,7 @@ test("presign the documented GET example", async () => {
     ).toBe(CREDENTIALS.accessKeyId);
     expect(
         await refusal(SIGNER.authenticate(new Request(url.href), lookup, NOW + 86401 * 1000)),
-    ).toEqual(["FORBIDDEN", "ACCESS_DENIED", "request has expired"]);
+    ).toEqual(["FORBIDDEN", "ACCESS_DENIED", "request is forbidden: it has expired"]);
 });
 
 test("sign the documented ranged GET example", async () => {
@@ -60,8 +60,8 @@ test("sign the documented ranged GET example", async () => {
     );
     expect(await refusal(SIGNER.authenticate(request, lookup, NOW + 15 * 60 * 1000 + 1))).toEqual([
         "FORBIDDEN",
-        "REQUEST_TIME_TOO_SKEWED",
-        "the request time differs too much from the server time",
+        "REQUEST_TIME_DENIED",
+        "request is forbidden: the request time differs too much from the server time",
     ]);
 });
 
@@ -84,8 +84,8 @@ test("decode the documented signed aws-chunked upload", async () => {
     const stream = Payload.open(changed, changed.headers, authorization);
     expect(await refusal(new Response(stream).text())).toEqual([
         "FORBIDDEN",
-        "SIGNATURE_DOES_NOT_MATCH",
-        "an aws-chunked chunk signature does not match",
+        "SIGNATURE_DENIED",
+        "aws-chunked chunk is forbidden: its signature does not match",
     ]);
 });
 

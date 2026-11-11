@@ -54,16 +54,16 @@ export class XmlNode {
             // refuse text the tokenizer cannot read and document type declarations
             if (match === null || match[2] !== undefined) {
                 throw BucketError.of(
-                    "MALFORMED_XML",
-                    "the XML document is not well-formed or uses unsupported markup",
+                    "XML_INVALID",
+                    "XML document is invalid: it is not well-formed or uses unsupported markup",
                 );
             }
             // close the current element by its name
             else if (match[3] !== undefined) {
                 if (open.length === 1 || localName(match[3]) !== current.name) {
                     throw BucketError.of(
-                        "MALFORMED_XML",
-                        "the XML document closes an element it did not open",
+                        "XML_INVALID",
+                        "XML document is invalid: it closes an element it did not open",
                     );
                 }
                 open.pop();
@@ -89,8 +89,8 @@ export class XmlNode {
         // require exactly one closed root element
         if (open.length !== 1 || root.children.length !== 1) {
             throw BucketError.of(
-                "MALFORMED_XML",
-                "the XML document must have exactly one root element",
+                "XML_INVALID",
+                "XML document is invalid: it must have exactly one root element",
             );
         }
 
@@ -106,7 +106,10 @@ export class XmlNode {
     value(name: string): string | undefined {
         const [child, ...rest] = this.all(name);
         if (rest.length > 0) {
-            throw BucketError.of("MALFORMED_XML", `the XML element ${this.name} repeats ${name}`);
+            throw BucketError.of(
+                "XML_INVALID",
+                `XML element '${this.name}' is invalid: it repeats '${name}'`,
+            );
         }
 
         return child?.text;
@@ -163,7 +166,7 @@ function decodeText(text: string): string {
         (reference, name: string | undefined) => {
             // refuse a bare ampersand and unknown entities
             if (name === undefined) {
-                throw BucketError.of("MALFORMED_XML", "the XML text has a bare ampersand");
+                throw BucketError.of("XML_INVALID", "XML text is invalid: it has a bare ampersand");
             }
             // decode character references
             else if (name.startsWith("#")) {
@@ -171,8 +174,8 @@ function decodeText(text: string): string {
                     name[1] === "x" ? Number.parseInt(name.slice(2), 16) : Number(name.slice(1));
                 if (codepoint > 0x10ffff) {
                     throw BucketError.of(
-                        "MALFORMED_XML",
-                        `the XML text references an invalid character ${reference}`,
+                        "XML_INVALID",
+                        `XML character reference '${reference}' is invalid: it is not an XML character`,
                     );
                 }
 
@@ -183,8 +186,8 @@ function decodeText(text: string): string {
                 const character = ENTITIES[name];
                 if (character === undefined) {
                     throw BucketError.of(
-                        "MALFORMED_XML",
-                        `the XML text references an unknown entity ${reference}`,
+                        "XML_INVALID",
+                        `XML entity '${reference}' is invalid: it is unknown`,
                     );
                 }
 

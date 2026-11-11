@@ -27,8 +27,8 @@ function preflight(rules: CorsRule[], request: Request): Response {
     const method = request.headers.get("access-control-request-method");
     if (origin === null || method === null) {
         throw BucketError.of(
-            "MALFORMED_REQUEST",
-            "a preflight request requires the origin and access-control-request-method headers",
+            "REQUEST_BODY_INVALID",
+            "preflight request is invalid: it requires the origin and access-control-request-method headers",
         );
     }
     const requested = (request.headers.get("access-control-request-headers") ?? "")
@@ -48,7 +48,10 @@ function preflight(rules: CorsRule[], request: Request): Response {
             ),
     );
     if (rule === undefined) {
-        throw BucketError.of("ACCESS_FORBIDDEN", "this CORS request is not allowed");
+        throw BucketError.of(
+            "ACCESS_DENIED",
+            "CORS request is forbidden: this CORS request is not allowed",
+        );
     }
 
     // grant the origin, the rule's methods and the requested headers

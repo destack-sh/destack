@@ -37,14 +37,14 @@ export class LocalBucket extends CatalogueBucket {
         const { files } = environment;
         if (!isAbsolute(directory)) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                `a bucket directory is absolute: ${directory}`,
+                "ARGUMENT_INVALID",
+                `bucket directory '${directory}' is invalid: it is relative`,
             );
         }
         const catalogue = join(directory, "bucket.db");
         const isNew = !(await files.exists(catalogue));
         if (isNew && scope === undefined) {
-            throw BucketError.of("NO_SUCH_BUCKET", `no bucket at ${directory}`);
+            throw BucketError.of("BUCKET_NOT_FOUND", `bucket at '${directory}' not found`);
         }
 
         // create the blob directory before publishing any catalogue entries, and share the bucket's lock until the open fails or the storage takes it
@@ -74,13 +74,13 @@ export class LocalBucket extends CatalogueBucket {
             // refuse a missing file, then one with several or encrypted segments
             const entry = await this.#storage.entry(key);
             if (!entry) {
-                throw BucketError.of("NO_SUCH_KEY", `no file at ${key}`);
+                throw BucketError.of("KEY_NOT_FOUND", `file '${key}' not found`);
             }
             const [segment, ...rest] = await this.#storage.segments(entry.version);
             if (segment === undefined || rest.length > 0 || segment.nonce !== null) {
                 throw BucketError.of(
-                    "FILE_NOT_CLONABLE",
-                    `cloning needs a plain single-part file: ${key}`,
+                    "CLONE_UNSUPPORTED",
+                    `cloning file '${key}' is not supported: it is not a plain single-part file`,
                 );
             }
 

@@ -180,7 +180,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // stream the file from its source
         const response = await this.#storage.environment.network.fetch(new Request(url));
         if (!response.ok) {
-            throw BucketError.of("WRITE_FAILED", `fetching ${key} returned ${response.status}`);
+            throw BucketError.of("WRITE_BROKEN", `fetching '${key}' returned ${response.status}`);
         }
         await this.restore(key, response.body, identity);
     }
@@ -294,7 +294,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             this.#storage.checkWritable();
             const entry = await this.#storage.entry(source);
             if (!entry) {
-                throw BucketError.of("NO_SUCH_KEY", "the source file does not exist");
+                throw BucketError.of("KEY_NOT_FOUND", `source file '${source}' not found`);
             }
             const current = CatalogueFile.describe(entry);
             if (!BucketCondition.matches(current, options.onlyIf)) {
@@ -330,7 +330,10 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // validate the complete request before deleting any keys
         const keys = typeof key === "string" ? [key] : key;
         if (keys.length > MAX_BATCH_FILES) {
-            throw BucketError.of("INVALID_ARGUMENT", "delete accepts at most 1000 file keys");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "delete is invalid: it accepts at most 1000 file keys",
+            );
         }
         for (const each of keys) {
             BucketKey.check(each);
@@ -354,7 +357,7 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
             if (locked.length > 0) {
                 throw BucketError.of(
                     "ACCESS_DENIED",
-                    `file ${locked.map((entry) => entry.key).join(", ")} is retained until its lock expires`,
+                    `file '${locked.map((entry) => entry.key).join(", ")}' is forbidden: it is retained until its lock expires`,
                 );
             }
 

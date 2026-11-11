@@ -9,7 +9,7 @@ async function refused(operation: Promise<unknown>): Promise<BucketFile | null> 
     try {
         await operation;
     } catch (error) {
-        if (BucketError.is(error, "PRECONDITION_UNMET")) {
+        if (BucketError.is(error, "PRECONDITION_BLOCKED")) {
             const { current } = error.data;
 
             return current === null ? null : BucketFile.read(current);
@@ -162,13 +162,13 @@ async function readRanges(bucket: Bucket, isSimulatedR2: boolean): Promise<void>
     // refuse a range starting at the end, which the simulator reports without R2's code
     if (!isSimulatedR2) {
         await assert.rejects(async () => bucket.get("📁/one", { range: { offset: 6 } }), {
-            reason: "INVALID_RANGE",
-            message: "the requested file range is not satisfiable",
+            reason: "RANGE_INVALID",
+            message: "file range is invalid: the requested file range is not satisfiable",
         });
     }
     await assert.rejects(async () => bucket.get("📁/one", { range: { offset: -1 } }), {
-        reason: "INVALID_RANGE",
-        message: "the requested file range is not satisfiable",
+        reason: "RANGE_INVALID",
+        message: "file range is invalid: the requested file range is not satisfiable",
     });
 }
 
@@ -209,7 +209,7 @@ async function replaceOnce(bucket: Bucket, first: BucketFile): Promise<void> {
                     : entry.status,
             )
             .toSorted(),
-        ["PRECONDITION_UNMET", "fulfilled"],
+        ["PRECONDITION_BLOCKED", "fulfilled"],
     );
     assert.deepStrictEqual(
         replacements.flatMap((entry) => (entry.status === "fulfilled" ? [entry.value] : [])),
@@ -229,7 +229,7 @@ export async function exerciseListing(bucket: Bucket): Promise<void> {
     ]);
     assert.strictEqual(page.truncated, true);
     await assert.rejects(async () => bucket.list({ prefix: "other/", cursor: page.cursor }), {
-        reason: "INVALID_ARGUMENT",
+        reason: "ARGUMENT_INVALID",
     });
     const last = await bucket.list({ prefix: "📁/", cursor: page.cursor, limit: 1 });
     assert.deepStrictEqual(last, {
@@ -301,8 +301,8 @@ export async function exerciseGroups(bucket: Bucket): Promise<void> {
     await assert.rejects(
         async () => bucket.list({ prefix: "files/", delimiter: "-", cursor: group.cursor }),
         {
-            reason: "INVALID_ARGUMENT",
-            message: "invalid file listing cursor",
+            reason: "ARGUMENT_INVALID",
+            message: "file listing cursor is invalid: it does not come from this listing",
         },
     );
 }

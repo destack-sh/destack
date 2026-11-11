@@ -136,7 +136,10 @@ export class BucketBlobStorage implements BlobStorage {
     /** Name a pack's file. */
     #key(pack: string): string {
         if (!BlobPack.isKey(pack)) {
-            throw BucketError.of("INVALID_ARGUMENT", `not a pack key: ${pack}`);
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                `pack key '${pack}' is invalid: it is not a pack key`,
+            );
         }
 
         return `${this.#prefix}${pack}`;

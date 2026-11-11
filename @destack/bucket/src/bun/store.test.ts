@@ -63,7 +63,11 @@ test("move a file into its blob once, refusing one whose bytes do not match its 
         moved: [expected, expected],
         blobs: [expected],
         left: ["blobs", "wrong"],
-        refused: ["BAD_REQUEST", "BAD_DIGEST", `expected blob ${expected}, got ${other}`],
+        refused: [
+            "BAD_REQUEST",
+            "DIGEST_INVALID",
+            `blob '${other}' is invalid: its digest must be '${expected}'`,
+        ],
     });
 });
 

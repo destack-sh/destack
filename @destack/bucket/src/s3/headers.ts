@@ -102,7 +102,7 @@ function read(key: string, size: number, headers: Headers): BucketFile {
     const etag = headers.get("etag");
     const modified = headers.get("last-modified");
     if (version === null || etag === null || modified === null) {
-        throw new TypeError(`the response for ${key} has no file version`);
+        throw new TypeError(`the response for '${key}' has no file version`);
     }
     const unquoted = etag.replace(/^"(.*)"$/u, "$1");
 
@@ -183,7 +183,10 @@ function httpMetadata(headers: Headers): BucketHttpMetadata {
     if (expires !== null) {
         const time = Date.parse(expires);
         if (!Number.isFinite(time)) {
-            throw BucketError.of("INVALID_ARGUMENT", "the expires header must be an HTTP date");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "expires header is invalid: it must be an HTTP date",
+            );
         }
         metadata.cacheExpiry = new Date(time);
     }
@@ -203,7 +206,10 @@ function customMetadata(headers: Headers): Record<string, string> {
 
     // refuse metadata beyond the limit
     if (BucketCustomMetadata.bytes(metadata) > MAX_CUSTOM_METADATA_BYTES) {
-        throw BucketError.of("METADATA_TOO_LARGE", "user metadata exceeds the 2 KiB limit");
+        throw BucketError.of(
+            "METADATA_INVALID",
+            "user metadata is invalid: it exceeds the 2 KiB limit",
+        );
     }
 
     return metadata;
@@ -217,13 +223,19 @@ function retainUntil(headers: Headers): Date | undefined {
     if (value === null) {
         return undefined;
     } else if (mode !== null && mode !== "COMPLIANCE") {
-        throw BucketError.of("INVALID_ARGUMENT", "object lock supports only the COMPLIANCE mode");
+        throw BucketError.of(
+            "ARGUMENT_INVALID",
+            "object lock mode is invalid: object lock supports only the COMPLIANCE mode",
+        );
     }
 
     // read the ISO 8601 date
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
-        throw BucketError.of("INVALID_ARGUMENT", `invalid object lock retain-until date: ${value}`);
+        throw BucketError.of(
+            "ARGUMENT_INVALID",
+            `object lock retain-until date '${value}' is invalid: it is not a date`,
+        );
     }
 
     return date;
@@ -240,7 +252,10 @@ function storageClass(headers: Headers): StorageClass | undefined {
 function storageClassNamed(name: string): StorageClass {
     const found = STORAGE_CLASSES.find((entry) => S3_STORAGE_CLASSES[entry] === name);
     if (found === undefined) {
-        throw BucketError.of("INVALID_STORAGE_CLASS", `the storage class ${name} is not supported`);
+        throw BucketError.of(
+            "STORAGE_CLASS_INVALID",
+            `storage class '${name}' is invalid: it is not supported`,
+        );
     }
 
     return found;
@@ -262,12 +277,19 @@ export function readCustomerKey(value: string): Uint8Array {
     try {
         bytes = Uint8Array.fromBase64(value);
     } catch (cause) {
-        throw BucketError.of("INVALID_ARGUMENT", "the customer key must be 32 bytes of base64", {
-            cause,
-        });
+        throw BucketError.of(
+            "ARGUMENT_INVALID",
+            "customer key is invalid: it must be 32 bytes of base64",
+            {
+                cause,
+            },
+        );
     }
     if (bytes.length !== CUSTOMER_KEY_BYTES) {
-        throw BucketError.of("INVALID_ARGUMENT", "the customer key must be 32 bytes of base64");
+        throw BucketError.of(
+            "ARGUMENT_INVALID",
+            "customer key is invalid: it must be 32 bytes of base64",
+        );
     }
 
     return bytes;

@@ -40,37 +40,37 @@ const S3_ERROR_STATUS = {
 /** The S3 error code of each bucket failure S3 has a code for, one failure per code. */
 const S3_ERROR_CODE: Partial<Record<BucketReason, S3ErrorCode>> = {
     ACCESS_DENIED: "AccessDenied",
-    ACCESS_FORBIDDEN: "AccessForbidden",
-    AUTHORIZATION_HEADER_MALFORMED: "AuthorizationHeaderMalformed",
-    BAD_DIGEST: "BadDigest",
-    CONTENT_SHA256_MISMATCH: "XAmzContentSHA256Mismatch",
-    INCOMPLETE_BODY: "IncompleteBody",
-    INVALID_ACCESS_KEY_ID: "InvalidAccessKeyId",
-    INVALID_ARGUMENT: "InvalidArgument",
-    INVALID_AUTHORIZATION_QUERY: "AuthorizationQueryParametersError",
-    INVALID_DIGEST: "InvalidDigest",
-    INVALID_ENCRYPTION_ALGORITHM: "InvalidEncryptionAlgorithmError",
-    INVALID_PART: "InvalidPart",
-    INVALID_PART_ORDER: "InvalidPartOrder",
-    INVALID_RANGE: "InvalidRange",
-    INVALID_REQUEST: "InvalidRequest",
-    INVALID_STORAGE_CLASS: "InvalidStorageClass",
-    INVALID_TOKEN: "InvalidToken",
-    INVALID_URI: "InvalidURI",
-    MALFORMED_REQUEST: "BadRequest",
-    MALFORMED_XML: "MalformedXML",
-    MAX_MESSAGE_LENGTH_EXCEEDED: "MaxMessageLengthExceeded",
-    METADATA_TOO_LARGE: "MetadataTooLarge",
-    METHOD_NOT_ALLOWED: "MethodNotAllowed",
-    MISSING_CONTENT_LENGTH: "MissingContentLength",
-    NO_SUCH_BUCKET: "NoSuchBucket",
-    NO_SUCH_KEY: "NoSuchKey",
-    NO_SUCH_UPLOAD: "NoSuchUpload",
-    PRECONDITION_UNMET: "PreconditionFailed",
-    REQUEST_TIME_TOO_SKEWED: "RequestTimeTooSkewed",
-    SIGNATURE_DOES_NOT_MATCH: "SignatureDoesNotMatch",
-    UNAVAILABLE: "ServiceUnavailable",
-    UNSUPPORTED: "NotImplemented",
+    CORS_DENIED: "AccessForbidden",
+    AUTHORIZATION_HEADER_INVALID: "AuthorizationHeaderMalformed",
+    CONTENT_INVALID: "BadDigest",
+    CONTENT_SHA256_INVALID: "XAmzContentSHA256Mismatch",
+    BODY_INVALID: "IncompleteBody",
+    ACCESS_KEY_DENIED: "InvalidAccessKeyId",
+    ARGUMENT_INVALID: "InvalidArgument",
+    AUTHORIZATION_QUERY_INVALID: "AuthorizationQueryParametersError",
+    DIGEST_INVALID: "InvalidDigest",
+    ENCRYPTION_ALGORITHM_INVALID: "InvalidEncryptionAlgorithmError",
+    PART_INVALID: "InvalidPart",
+    PART_ORDER_INVALID: "InvalidPartOrder",
+    RANGE_INVALID: "InvalidRange",
+    REQUEST_INVALID: "InvalidRequest",
+    STORAGE_CLASS_INVALID: "InvalidStorageClass",
+    TOKEN_INVALID: "InvalidToken",
+    URI_INVALID: "InvalidURI",
+    REQUEST_BODY_INVALID: "BadRequest",
+    XML_INVALID: "MalformedXML",
+    MAX_MESSAGE_LENGTH_INVALID: "MaxMessageLengthExceeded",
+    METADATA_INVALID: "MetadataTooLarge",
+    METHOD_UNSUPPORTED: "MethodNotAllowed",
+    CONTENT_LENGTH_REQUIRED: "MissingContentLength",
+    BUCKET_NOT_FOUND: "NoSuchBucket",
+    KEY_NOT_FOUND: "NoSuchKey",
+    UPLOAD_NOT_FOUND: "NoSuchUpload",
+    PRECONDITION_BLOCKED: "PreconditionFailed",
+    REQUEST_TIME_DENIED: "RequestTimeTooSkewed",
+    SIGNATURE_DENIED: "SignatureDoesNotMatch",
+    BUCKET_UNAVAILABLE: "ServiceUnavailable",
+    OPERATION_UNSUPPORTED: "NotImplemented",
 };
 
 /** The failure each S3 error code reads back as, all but a failed precondition. */
@@ -92,7 +92,7 @@ const STATUS_ERROR_CODES: Readonly<Record<number, S3ErrorCode>> = {
 };
 
 /** The reasons S3 error documents read back as, all but a failed precondition. */
-type ReadReason = Exclude<BucketReason, "PRECONDITION_UNMET">;
+type ReadReason = Exclude<BucketReason, "PRECONDITION_BLOCKED">;
 
 /** An S3 error code. */
 export type S3ErrorCode = keyof typeof S3_ERROR_STATUS;
@@ -128,8 +128,8 @@ export const S3Answer = {
 
         return reason === undefined
             ? BucketError.of(
-                  "UNKNOWN_S3_CODE",
-                  `the bucket answered unknown S3 error ${code}: ${message}`,
+                  "S3_UNREACHABLE",
+                  `could not map S3 error '${code}' from the bucket: ${message}`,
               )
             : BucketError.of(reason, message);
     },
@@ -140,8 +140,8 @@ export const S3Answer = {
 
         return code === undefined
             ? BucketError.of(
-                  "UNEXPECTED_STATUS",
-                  `the bucket answered status ${status} without a document`,
+                  "S3_UNREACHABLE",
+                  `could not read a document from the bucket's status ${status} answer`,
               )
             : S3Answer.read(code, message);
     },
@@ -149,5 +149,5 @@ export const S3Answer = {
 
 /** Report whether a value is the reason of a failure an S3 error document reads back as. */
 function isReadReason(value: string): value is ReadReason {
-    return Object.hasOwn(BucketError.reasons, value) && value !== "PRECONDITION_UNMET";
+    return Object.hasOwn(BucketError.reasons, value) && value !== "PRECONDITION_BLOCKED";
 }

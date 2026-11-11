@@ -58,7 +58,7 @@ async function outcome(operation: Promise<unknown>) {
 
         return "done";
     } catch (error) {
-        if (BucketError.is(error, "PRECONDITION_UNMET")) {
+        if (BucketError.is(error, "PRECONDITION_BLOCKED")) {
             const { current } = error.data;
 
             return {
@@ -235,8 +235,8 @@ test.for(CLIENTS)(
         }).toEqual({
             assembled: describe(await bucket.head("media/clip.bin")),
             aborted: [
-                { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
-                { code: "NO_SUCH_UPLOAD", message: "multipart upload does not exist" },
+                { code: "UPLOAD_NOT_FOUND", message: "multipart upload not found" },
+                { code: "UPLOAD_NOT_FOUND", message: "multipart upload not found" },
             ],
         });
 
@@ -253,11 +253,13 @@ test.for(CLIENTS)(
             deletes: [
                 {
                     code: "ACCESS_DENIED",
-                    message: "file documents/locked.txt is retained until its lock expires",
+                    message:
+                        "file 'documents/locked.txt' is forbidden: it is retained until its lock expires",
                 },
                 {
                     code: "ACCESS_DENIED",
-                    message: "file documents/locked.txt is retained until its lock expires",
+                    message:
+                        "file 'documents/locked.txt' is forbidden: it is retained until its lock expires",
                 },
                 "done",
                 "done",
@@ -284,8 +286,8 @@ test("refuse a client signing with another secret, keeping the bucket unchanged"
     }).toEqual({
         forged: [
             "FORBIDDEN",
-            "SIGNATURE_DOES_NOT_MATCH",
-            "the request signature does not match the signature calculated with the secret key",
+            "SIGNATURE_DENIED",
+            "request is forbidden: the request signature does not match the signature calculated with the secret key",
         ],
         kept: null,
     });

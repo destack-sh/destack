@@ -63,7 +63,10 @@ export class S3Request {
     checkParameters(allowed: string[]): void {
         for (const name of this.query.keys()) {
             if (name !== "x-id" && !allowed.includes(name)) {
-                throw BucketError.of("UNSUPPORTED", `the parameter ${name} is not supported`);
+                throw BucketError.of(
+                    "OPERATION_UNSUPPORTED",
+                    `the parameter '${name}' is not supported`,
+                );
             }
         }
     }
@@ -80,8 +83,8 @@ export class S3Request {
         const number = /^\d{1,15}$/u.test(value) ? Number(value) : Number.NaN;
         if (!(number >= minimum && number <= maximum)) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                `${name} must be an integer from ${minimum} through ${maximum}`,
+                "ARGUMENT_INVALID",
+                `'${name}' is invalid: it must be an integer from ${minimum} through ${maximum}`,
             );
         }
 
@@ -92,7 +95,10 @@ export class S3Request {
     uploadId(): string {
         const uploadId = this.query.get("uploadId");
         if (uploadId === undefined) {
-            throw BucketError.of("INVALID_ARGUMENT", "upload requests require an uploadId");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "upload request is invalid: it requires an uploadId",
+            );
         }
 
         return uploadId;
@@ -103,7 +109,10 @@ export class S3Request {
         // require the parameter within the part limit
         const partNumber = this.integer("partNumber", 0, Number.MAX_SAFE_INTEGER);
         if (partNumber === undefined) {
-            throw BucketError.of("INVALID_ARGUMENT", "part requests require a partNumber");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "part request is invalid: it requires a partNumber",
+            );
         }
         UploadedPart.checkNumber(partNumber);
 
@@ -167,8 +176,8 @@ export class S3Request {
         const last = match === null ? undefined : nth(match, 2);
         if (first === undefined || last === undefined || Number(last) < Number(first)) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                "x-amz-copy-source-range must have the form bytes=first-last",
+                "ARGUMENT_INVALID",
+                "x-amz-copy-source-range is invalid: it must have the form bytes=first-last",
             );
         }
 
@@ -184,10 +193,16 @@ export class S3Request {
         }
         const parts = value.split("?");
         if (parts.length > 1) {
-            throw BucketError.of("UNSUPPORTED", "copy sources with a version are not supported");
+            throw BucketError.of(
+                "OPERATION_UNSUPPORTED",
+                "a copy source with a version is not supported",
+            );
         }
         if (this.headers.has("x-amz-copy-source-server-side-encryption-customer-algorithm")) {
-            throw BucketError.of("UNSUPPORTED", "customer keys of copy sources are not supported");
+            throw BucketError.of(
+                "OPERATION_UNSUPPORTED",
+                "a customer key on a copy source is not supported",
+            );
         }
 
         // split the bucket from the key after an optional leading slash
@@ -195,8 +210,8 @@ export class S3Request {
         const separator = source.indexOf("/");
         if (separator <= 0 || separator === source.length - 1) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                "x-amz-copy-source must give a bucket and a key",
+                "ARGUMENT_INVALID",
+                "x-amz-copy-source is invalid: it must give a bucket and a key",
             );
         }
 
@@ -208,7 +223,7 @@ export class S3Request {
         // refuse server-managed encryption, which is out of scope
         if (this.headers.has("x-amz-server-side-encryption")) {
             throw BucketError.of(
-                "UNSUPPORTED",
+                "OPERATION_UNSUPPORTED",
                 "server-side encryption with managed keys is not supported",
             );
         }
@@ -222,8 +237,8 @@ export class S3Request {
         }
         if (algorithm !== "AES256") {
             throw BucketError.of(
-                "INVALID_ENCRYPTION_ALGORITHM",
-                "customer keys require the AES256 algorithm",
+                "ENCRYPTION_ALGORITHM_INVALID",
+                "customer key algorithm is invalid: customer keys require AES256",
             );
         }
 
@@ -232,7 +247,10 @@ export class S3Request {
         const digest = new CryptoHasher("md5");
         digest.update(bytes);
         if (digest.digest().toBase64() !== md5) {
-            throw BucketError.of("INVALID_ARGUMENT", "the customer key MD5 does not match the key");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "customer key MD5 is invalid: it does not match the key",
+            );
         }
 
         return bytes.toHex();
@@ -252,8 +270,8 @@ export class S3Request {
             size += chunk.length;
             if (size > MAX_DOCUMENT_BYTES) {
                 throw BucketError.of(
-                    "MAX_MESSAGE_LENGTH_EXCEEDED",
-                    "the request document is too large",
+                    "MAX_MESSAGE_LENGTH_INVALID",
+                    `request document is invalid: it exceeds ${MAX_DOCUMENT_BYTES} bytes`,
                 );
             }
             chunks.push(chunk);
@@ -272,9 +290,13 @@ export class S3Request {
             if (BucketError.is(cause)) {
                 throw cause;
             }
-            throw BucketError.of("MALFORMED_XML", "the request document is not valid UTF-8", {
-                cause,
-            });
+            throw BucketError.of(
+                "XML_INVALID",
+                "request document is invalid: it is not valid UTF-8",
+                {
+                    cause,
+                },
+            );
         }
     }
 }

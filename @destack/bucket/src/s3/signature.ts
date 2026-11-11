@@ -158,8 +158,8 @@ export class S3Signature {
         // refuse lifetimes S3 refuses
         if (!Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > MAX_EXPIRES) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                "presigned URLs must expire within 1 second and 7 days",
+                "ARGUMENT_INVALID",
+                "presigned URL is invalid: it must expire within 1 second and 7 days",
             );
         }
 
@@ -209,8 +209,8 @@ export class S3Signature {
         // accept exactly one authentication mechanism
         if (header !== null && isPresigned) {
             throw BucketError.of(
-                "INVALID_ARGUMENT",
-                "only one authentication mechanism is allowed",
+                "ARGUMENT_INVALID",
+                "request is invalid: only one authentication mechanism is allowed",
             );
         }
         // verify query authentication
@@ -223,7 +223,10 @@ export class S3Signature {
         }
         // refuse anonymous requests
         else {
-            throw BucketError.of("ACCESS_DENIED", "anonymous requests are not allowed");
+            throw BucketError.of(
+                "ACCESS_DENIED",
+                "request is forbidden: anonymous requests are not allowed",
+            );
         }
     }
 
@@ -242,8 +245,8 @@ export class S3Signature {
             );
         if (match === null) {
             const code = header.startsWith(AWS_ALGORITHM)
-                ? "AUTHORIZATION_HEADER_MALFORMED"
-                : "INVALID_REQUEST";
+                ? "AUTHORIZATION_HEADER_INVALID"
+                : "REQUEST_INVALID";
             throw BucketError.of(code, "the authorization header must use AWS4-HMAC-SHA256");
         }
         const credential = nth(match, 1);
@@ -255,27 +258,23 @@ export class S3Signature {
         if (date === null || time === undefined) {
             throw BucketError.of(
                 "ACCESS_DENIED",
-                "authentication requires a valid x-amz-date header",
+                "request is forbidden: authentication requires a valid x-amz-date header",
             );
         }
         if (Math.abs(now - time) > MAX_CLOCK_SKEW) {
             throw BucketError.of(
-                "REQUEST_TIME_TOO_SKEWED",
-                "the request time differs too much from the server time",
+                "REQUEST_TIME_DENIED",
+                "request is forbidden: the request time differs too much from the server time",
             );
         }
-        const accessKeyId = this.#checkCredential(
-            credential,
-            date,
-            "AUTHORIZATION_HEADER_MALFORMED",
-        );
+        const accessKeyId = this.#checkCredential(credential, date, "AUTHORIZATION_HEADER_INVALID");
 
         // require the payload hash and a signature over every x-amz header
         const payloadHash = request.headers.get(PAYLOAD_HASH_HEADER);
         if (payloadHash === null) {
             throw BucketError.of(
-                "INVALID_REQUEST",
-                `missing required header for this request: ${PAYLOAD_HASH_HEADER}`,
+                "REQUEST_INVALID",
+                `request is invalid: it misses required header '${PAYLOAD_HASH_HEADER}'`,
             );
         }
         checkSignedHeaders(request.headers, names);
@@ -311,13 +310,13 @@ export class S3Signature {
         const presigned = readPresigned(query);
         const { date, time, lifetime, names } = presigned;
         if (now > time + lifetime * 1000) {
-            throw BucketError.of("ACCESS_DENIED", "request has expired");
+            throw BucketError.of("ACCESS_DENIED", "request is forbidden: it has expired");
         }
         if (now < time - MAX_CLOCK_SKEW) {
-            throw BucketError.of("ACCESS_DENIED", "request is not valid yet");
+            throw BucketError.of("ACCESS_DENIED", "request is forbidden: it is not valid yet");
         }
         const credential = presigned.credential;
-        const code = "INVALID_AUTHORIZATION_QUERY";
+        const code = "AUTHORIZATION_QUERY_INVALID";
         const accessKeyId = this.#checkCredential(credential, date, code);
         checkSignedHeaders(request.headers, names);
 
@@ -372,7 +371,7 @@ export class S3Signature {
     #checkCredential(
         credential: string,
         date: string,
-        code: "AUTHORIZATION_HEADER_MALFORMED" | "INVALID_AUTHORIZATION_QUERY",
+        code: "AUTHORIZATION_HEADER_INVALID" | "AUTHORIZATION_QUERY_INVALID",
     ): string {
         // require the five scope parts with this service
         const [accessKeyId, day, region, service, terminator, ...rest] = credential.split("/");
@@ -413,8 +412,8 @@ export class S3Signature {
             !isEqual(expected, signature)
         ) {
             throw BucketError.of(
-                "SIGNATURE_DOES_NOT_MATCH",
-                "the request signature does not match the signature calculated with the secret key",
+                "SIGNATURE_DENIED",
+                "request is forbidden: the request signature does not match the signature calculated with the secret key",
             );
         }
 
@@ -459,7 +458,7 @@ async function requireCredentials(
 ): Promise<S3Credentials> {
     const credentials = await lookup(accessKeyId);
     if (credentials === undefined) {
-        throw BucketError.of("INVALID_ACCESS_KEY_ID", "the access key does not exist");
+        throw BucketError.of("ACCESS_KEY_DENIED", "access key is forbidden: it does not exist");
     }
 
     return credentials;
@@ -481,12 +480,15 @@ function readPresigned(query: [string, string][]): Presigned {
         signature === undefined
     ) {
         throw BucketError.of(
-            "INVALID_AUTHORIZATION_QUERY",
-            "query authentication requires the X-Amz-Algorithm, X-Amz-Credential, X-Amz-Signature, X-Amz-Date, X-Amz-SignedHeaders and X-Amz-Expires parameters",
+            "AUTHORIZATION_QUERY_INVALID",
+            "query authentication is invalid: it requires the X-Amz-Algorithm, X-Amz-Credential, X-Amz-Signature, X-Amz-Date, X-Amz-SignedHeaders and X-Amz-Expires parameters",
         );
     }
     if (parameters.has("X-Amz-Security-Token")) {
-        throw BucketError.of("INVALID_TOKEN", "session tokens are not supported");
+        throw BucketError.of(
+            "TOKEN_INVALID",
+            "session token is invalid: session tokens are not supported",
+        );
     }
 
     // require a valid lifetime of at most seven days
@@ -494,8 +496,8 @@ function readPresigned(query: [string, string][]): Presigned {
     const time = parseDate(date);
     if (!(lifetime >= 1 && lifetime <= MAX_EXPIRES) || time === undefined) {
         throw BucketError.of(
-            "INVALID_AUTHORIZATION_QUERY",
-            "X-Amz-Expires must be from 1 through 604800 seconds and X-Amz-Date a valid time",
+            "AUTHORIZATION_QUERY_INVALID",
+            "query authentication is invalid: X-Amz-Expires must be from 1 through 604800 seconds and X-Amz-Date a valid time",
         );
     }
 
@@ -530,11 +532,17 @@ function withHost(url: URL, headers: Headers): Headers {
 function checkSignedHeaders(headers: Headers, names: string[]): void {
     const signed = new Set(names);
     if (!signed.has("host")) {
-        throw BucketError.of("ACCESS_DENIED", "the host header must be signed");
+        throw BucketError.of(
+            "ACCESS_DENIED",
+            "request is forbidden: the host header must be signed",
+        );
     }
     for (const name of headers.keys()) {
         if (name.startsWith("x-amz-") && !signed.has(name)) {
-            throw BucketError.of("ACCESS_DENIED", `the header ${name} is present but not signed`);
+            throw BucketError.of(
+                "ACCESS_DENIED",
+                `header '${name}' is forbidden: it is present but not signed`,
+            );
         }
     }
 }

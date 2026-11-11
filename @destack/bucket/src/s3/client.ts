@@ -154,7 +154,7 @@ export class S3Client implements Bucket {
             throw preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            if (BucketError.is(failure, "NO_SUCH_KEY")) {
+            if (BucketError.is(failure, "KEY_NOT_FOUND")) {
                 return null;
             }
             throw failure;
@@ -194,7 +194,7 @@ export class S3Client implements Bucket {
             throw preconditionFailed(await this.head(key));
         } else if (!answer.ok) {
             const failure = await refusal(answer);
-            const isMissing = BucketError.is(failure, "NO_SUCH_KEY");
+            const isMissing = BucketError.is(failure, "KEY_NOT_FOUND");
             throw isMissing && options.onlyIf?.etagMatches !== undefined
                 ? preconditionFailed(null)
                 : failure;
@@ -215,7 +215,10 @@ export class S3Client implements Bucket {
 
         // delete several files with one document, checking every key first
         if (key.length > MAX_BATCH_FILES) {
-            throw BucketError.of("INVALID_ARGUMENT", "a delete accepts at most 1000 files");
+            throw BucketError.of(
+                "ARGUMENT_INVALID",
+                "delete is invalid: it accepts at most 1000 files",
+            );
         }
         for (const each of key) {
             BucketKey.check(each);
@@ -334,7 +337,7 @@ export class S3Client implements Bucket {
         // read the part's entity tag
         const etag = (await this.#expect(answer, key)).headers.get("etag");
         if (etag === null) {
-            throw new TypeError(`the part ${partNumber} of ${uploadId} returned no entity tag`);
+            throw new TypeError(`part ${partNumber} of upload '${uploadId}' has no entity tag`);
         }
 
         return { partNumber, etag: etag.replace(/^"(.*)"$/u, "$1") };
@@ -423,7 +426,7 @@ function readFailure(element: XmlNode): Error {
 function required(element: XmlNode, name: string): string {
     const value = element.value(name);
     if (value === undefined) {
-        throw new TypeError(`the S3 element ${element.name} has no ${name}`);
+        throw new TypeError(`the S3 element '${element.name}' has no '${name}'`);
     }
 
     return value;
@@ -482,7 +485,10 @@ function writeCondition(headers: Headers, condition: BucketCondition | undefined
     const times = [condition.uploadedBefore, condition.uploadedAfter];
     const isWhole = times.every((time) => time === undefined || time.getTime() % 1000 === 0);
     if (!isWhole && condition.secondsGranularity !== true) {
-        throw BucketError.of("UNSUPPORTED", "conditions over S3 compare only whole seconds");
+        throw BucketError.of(
+            "OPERATION_UNSUPPORTED",
+            "a condition over S3 with sub-second times is not supported",
+        );
     }
 
     // write each condition the caller sets

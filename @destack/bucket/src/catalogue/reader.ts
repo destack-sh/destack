@@ -94,8 +94,8 @@ export class ContentReader {
         }
         if (next.done === true) {
             throw BucketError.of(
-                "INCOMPLETE_BODY",
-                "stored file is shorter than its recorded size",
+                "BODY_INVALID",
+                "stored file is invalid: it is shorter than its recorded size",
             );
         }
 

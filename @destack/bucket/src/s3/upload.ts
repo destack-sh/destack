@@ -88,7 +88,7 @@ async function uploadPartCopy(
     } else {
         const file = await source.bucket.get(source.key, options);
         if (file === null) {
-            throw BucketError.of("NO_SUCH_KEY", "the specified key does not exist");
+            throw BucketError.of("KEY_NOT_FOUND", `source key '${source.key}' not found`);
         }
         part = await upload.uploadPart(partNumber, file.body);
     }
@@ -106,7 +106,10 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
         etag: (part.value("ETag") ?? "").replace(/^"(.*)"$/u, "$1"),
     }));
     if (document.name !== "CompleteMultipartUpload" || parts.length === 0) {
-        throw BucketError.of("MALFORMED_XML", "the document must list the parts to complete");
+        throw BucketError.of(
+            "XML_INVALID",
+            "document is invalid: it must list the parts to complete",
+        );
     }
 
     // require valid part numbers in ascending order
@@ -114,7 +117,10 @@ async function completeUpload(call: S3Request, bucket: S3Bucket): Promise<Respon
         UploadedPart.checkNumber(part.partNumber);
     }
     if (parts.slice(1).some((part, index) => part.partNumber <= nth(parts, index).partNumber)) {
-        throw BucketError.of("INVALID_PART_ORDER", "the list of parts was not in ascending order");
+        throw BucketError.of(
+            "PART_ORDER_INVALID",
+            "part list is invalid: the list of parts was not in ascending order",
+        );
     }
 
     // assemble the file

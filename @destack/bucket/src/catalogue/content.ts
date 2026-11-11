@@ -74,7 +74,10 @@ export class Content {
             return value === undefined ? [] : [{ name, value }];
         });
         if (supplied.length > 1) {
-            throw BucketError.of("BAD_DIGEST", "supply at most one checksum");
+            throw BucketError.of(
+                "CONTENT_INVALID",
+                "checksum is invalid: supply at most one checksum",
+            );
         }
         const [checksum] = supplied;
         const algorithm = checksum?.name;
@@ -138,6 +141,9 @@ async function* encode(
     hashes.etag = hashes.md5.digest("hex");
     hashes.actual = hashes.checksum === undefined ? hashes.etag : hashes.checksum.digest("hex");
     if (hashes.expected !== undefined && hashes.actual !== hashes.expected) {
-        throw BucketError.of("BAD_DIGEST", "object checksum does not match its contents");
+        throw BucketError.of(
+            "CONTENT_INVALID",
+            "object checksum is invalid: it does not match its contents",
+        );
     }
 }

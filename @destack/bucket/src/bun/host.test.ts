@@ -72,7 +72,7 @@ test("serve a host's buckets over S3 by name, presigned with the credentials of 
         "http://s3.localhost:4200",
         200,
         "first",
-        ["NOT_FOUND", "NO_SUCH_BUCKET", `this host has no credentials for ${foreign}`],
+        ["NOT_FOUND", "BUCKET_NOT_FOUND", `credentials for '${foreign}' on this host not found`],
     ]);
 });
 
@@ -120,8 +120,8 @@ test("open a bucket again after a failed open", async () => {
     // refuse a bucket never created, then create it in its scope and reuse it
     expect(await refusal(buckets.open(bucket))).toEqual([
         "NOT_FOUND",
-        "NO_SUCH_BUCKET",
-        `no bucket at ${buckets.path(bucket)}`,
+        "BUCKET_NOT_FOUND",
+        `bucket at '${buckets.path(bucket)}' not found`,
     ]);
     const created = await buckets.open(bucket, "space-test");
     expect(await buckets.open(bucket)).toBe(created);
@@ -185,7 +185,10 @@ test("fence a bucket during a transfer: finish the write in flight, refuse every
         world.clock.now(),
     );
     const put = await server.fetch(new Request(presigned.url, { method: "PUT", body: "fourth" }));
-    const fenced = BucketError.of("UNAVAILABLE", "bucket is fenced while a transfer copies it");
+    const fenced = BucketError.of(
+        "BUCKET_UNAVAILABLE",
+        "bucket is unavailable: it is fenced while a transfer copies it",
+    );
     const refusals = await Promise.all(
         [
             bucket.put("notes/d.txt", "fourth"),

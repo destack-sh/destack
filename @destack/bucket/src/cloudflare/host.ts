@@ -109,7 +109,7 @@ export class R2BucketHost extends CatalogueBucketHost {
         // refuse creating a bucket without the scope it belongs to
         const isNew = !(await this.#catalogues.has(bucketId));
         if (isNew && scope === undefined) {
-            throw BucketError.of("NO_SUCH_BUCKET", `bucket ${bucketId} not found`);
+            throw BucketError.of("BUCKET_NOT_FOUND", `bucket '${bucketId}' not found`);
         }
 
         // read whether a transfer fenced the bucket

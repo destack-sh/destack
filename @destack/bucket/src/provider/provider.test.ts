@@ -107,8 +107,8 @@ test("fence a bucket through its provider, reporting the one concurrent call tha
         set: [false, true],
         refused: [
             "SERVICE_UNAVAILABLE",
-            "UNAVAILABLE",
-            "bucket is fenced while a transfer copies it",
+            "BUCKET_UNAVAILABLE",
+            "bucket is unavailable: it is fenced while a transfer copies it",
         ],
         written: "first",
     });

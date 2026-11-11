@@ -16,9 +16,13 @@ export function decodeUri(value: string): string {
     try {
         return decodeURIComponent(value);
     } catch (cause) {
-        throw BucketError.of("INVALID_URI", "the request URI is not valid percent-encoded UTF-8", {
-            cause,
-        });
+        throw BucketError.of(
+            "URI_INVALID",
+            "request URI is invalid: it is not valid percent-encoded UTF-8",
+            {
+                cause,
+            },
+        );
     }
 }
 
