@@ -627,7 +627,7 @@ test("plan a setting's value change between releases: safe widenings, converted 
                 detail: `convert values to ${version}`,
             },
         ],
-        "setting/editor.mode: declare a conversion for 2026.9.0",
+        "cannot reach the desired state: setting/editor.mode: declare a conversion for 2026.9.0",
     ]);
 });
 

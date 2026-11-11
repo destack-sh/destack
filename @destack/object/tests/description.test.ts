@@ -408,10 +408,9 @@ test("refuse code and unknown declarations at their path", () => {
             "a description cannot store 'coded.methods.rename.mutation[0].inverse': no loaded package exports it",
         ),
     );
+    const key = JSON.stringify([note.package.id, "note"]);
     expect(() => ObjectTypePool.of([space]).declare([ObjectDescription.of(sample)])).toThrow(
-        new TypeError(
-            `a description refers to unknown object type '${JSON.stringify([note.package.id, "note"])}'`,
-        ),
+        new TypeError(`a description refers to unknown object type '${key}'`),
     );
 });
 

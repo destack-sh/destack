@@ -45,7 +45,7 @@ test("seal the keys a stage lacks inside KMS once, read them as each deploy does
 
     // refuse a machine whose key moved, sealing and deploying alike, and a stage never sealed
     const moved =
-        "the keys of machine machine-us are sealed under " +
+        "the keys of 'machine machine-us' are sealed under " +
         `${JSON.stringify(SEAL)}, not ${JSON.stringify(MOVED)}: rewrap them, never regenerate`;
     const missing = `${directory}/missing.json`;
     await expect(

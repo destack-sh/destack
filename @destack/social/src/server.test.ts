@@ -273,7 +273,11 @@ test("subscribe thread authors, repliers and mentioned principals to the thread,
         await subscriptions("carol"),
         await subscriptions("dave"),
     ]).toEqual([
-        ["FORBIDDEN", "RECIPIENT_DENIED", `user ${actors.dave.id} cannot read article ${draft.id}`],
+        [
+            "FORBIDDEN",
+            "RECIPIENT_DENIED",
+            `article '${draft.id}' is forbidden: user '${actors.dave.id}' cannot read it`,
+        ],
         [
             ["article", "author"],
             ["comment", "author"],
