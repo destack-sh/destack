@@ -660,7 +660,9 @@ test("fail installing a key generated in a vault the installation declares nowhe
         { package: APPLICATION },
     );
     const refused = await TestSpace.refusals(TestVault.open({ secrets: [lost] }));
-    expect(refused).toEqual([["BAD_REQUEST", "DECLARATION_INVALID", "vault 'mail' is invalid: it is unknown"]]);
+    expect(refused).toEqual([
+        ["BAD_REQUEST", "DECLARATION_INVALID", "vault 'mail' is invalid: it is unknown"],
+    ]);
 });
 
 test("bind a secret the stack declares at a fixed version, and trash it once the stack drops it", async () => {

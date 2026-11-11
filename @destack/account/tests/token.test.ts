@@ -280,11 +280,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
             "GRANT_INVALID",
             "the token endpoint refused the request: invalid_grant: authentication required: the personal access token is invalid",
         ],
-        again: [
-            "PRECONDITION_FAILED",
-            "CREDENTIAL_BLOCKED",
-            "cannot use client: it is revoked",
-        ],
+        again: ["PRECONDITION_FAILED", "CREDENTIAL_BLOCKED", "cannot use client: it is revoked"],
     });
 });
 

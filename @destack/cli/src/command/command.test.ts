@@ -39,7 +39,8 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                 JSON.stringify({
                     error: {
                         code: "BAD_REQUEST",
-                        message: "command 'destack self update' is invalid: it does not support '--check'",
+                        message:
+                            "command 'destack self update' is invalid: it does not support '--check'",
                     },
                 }),
             ],
@@ -52,7 +53,8 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                 JSON.stringify({
                     error: {
                         code: "BAD_REQUEST",
-                        message: "command 'destack apply' is invalid: it does not support '--archive'",
+                        message:
+                            "command 'destack apply' is invalid: it does not support '--archive'",
                     },
                 }),
             ],
@@ -79,7 +81,8 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                 JSON.stringify({
                     error: {
                         code: "BAD_REQUEST",
-                        message: "command 'destack self' is invalid: its help does not support '--json'",
+                        message:
+                            "command 'destack self' is invalid: its help does not support '--json'",
                     },
                 }),
             ],

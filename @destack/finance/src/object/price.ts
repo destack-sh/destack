@@ -188,10 +188,7 @@ export const Price = {
         // refuse a price or product taken off sale
         const owner = await reader.read(product.table).findFirst({ where: { id: row.parentId } });
         if (!row.active) {
-            throw FinanceError.of(
-                "PRICE_INVALID",
-                `price '${id}' is invalid: it is inactive`,
-            );
+            throw FinanceError.of("PRICE_INVALID", `price '${id}' is invalid: it is inactive`);
         } else if (!present(owner, "a price's product").active) {
             throw FinanceError.of(
                 "PRODUCT_INVALID",

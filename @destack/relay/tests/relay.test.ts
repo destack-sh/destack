@@ -185,11 +185,7 @@ test("refuse a forwarded request without its host, and one for a name another re
             "HOST_REQUIRED",
             "a forwarded host and protocol is required: the forwarded request has no host or protocol",
         ],
-        [
-            "MISDIRECTED_REQUEST",
-            "TUNNEL_MOVED",
-            `tunnel of '${site}' moved to another relay`,
-        ],
+        ["MISDIRECTED_REQUEST", "TUNNEL_MOVED", `tunnel of '${site}' moved to another relay`],
     ]);
 });
 

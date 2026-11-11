@@ -266,7 +266,11 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
                 proof,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission 'rotate' is forbidden: the caller lacks it"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'rotate' is forbidden: the caller lacks it",
+    ]);
 
     // revoke the machine as the owner
     await owner.client(accountPackage).machine.revoke({

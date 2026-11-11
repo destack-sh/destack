@@ -456,9 +456,7 @@ export class Selection extends Pipeline {
         );
         const rows = read.map((row, index) => {
             if (row === null) {
-                throw new TypeError(
-                    `arrangement of '${node.name}' has missing row ${keys[index]}`,
-                );
+                throw new TypeError(`arrangement of '${node.name}' has missing row ${keys[index]}`);
             }
 
             return row;

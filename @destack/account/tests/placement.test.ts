@@ -669,7 +669,11 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
                 "permission 'relay' is forbidden: the caller lacks it",
             ],
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'operate' is forbidden: the caller lacks it"],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'operate' is forbidden: the caller lacks it",
+        ],
         address,
         address,
         {

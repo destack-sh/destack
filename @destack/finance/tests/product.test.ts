@@ -191,16 +191,8 @@ test("refuse offering a price or a product taken off sale", async () => {
     );
     expect([before, inactivePrice, await offered()]).toEqual([
         "done",
-        [
-            "BAD_REQUEST",
-            "PRICE_INVALID",
-            `price '${offer.monthly.id}' is invalid: it is inactive`,
-        ],
-        [
-            "BAD_REQUEST",
-            "PRODUCT_INVALID",
-            `product '${offer.product}' is invalid: it is inactive`,
-        ],
+        ["BAD_REQUEST", "PRICE_INVALID", `price '${offer.monthly.id}' is invalid: it is inactive`],
+        ["BAD_REQUEST", "PRODUCT_INVALID", `product '${offer.product}' is invalid: it is inactive`],
     ]);
 });
 
