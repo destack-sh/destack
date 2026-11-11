@@ -142,8 +142,8 @@ export class DatabaseConnection<
         const open = this.state.openChannel;
         if (open === undefined) {
             throw DatabaseError.of(
-                "CHANNEL_MISSING",
-                `the connection is its database's only writer and has no channel ${name}`,
+                "CHANNEL_BROKEN",
+                `the connection is its database's only writer and has no channel '${name}'`,
             );
         }
 
@@ -524,7 +524,7 @@ export class DatabaseConnection<
         // forget a lost attempt's writes and token, then announce the written tables once committed
         return Transaction.retry(
             this,
-            "SERIALIZATION_FAILURE",
+            "TRANSACTION_CONFLICT",
             async () => {
                 written.clear();
                 scripted.clear();
@@ -821,7 +821,10 @@ export class ConnectionState {
     run<Value>(operation: () => PromiseLike<Value>): Promise<Value> {
         // reject work once closing
         if (this.#closing) {
-            throw DatabaseError.of("CONNECTION_CLOSED", "the connection is closing or closed");
+            throw DatabaseError.of(
+                "CONNECTION_UNAVAILABLE",
+                "the connection is unavailable: it is closing or closed",
+            );
         }
 
         // count and track the operation
@@ -1010,9 +1013,9 @@ export function requireDistinct(tables: readonly Table[], dialect: Dialect): voi
         // refuse query aliases and repeated tables
         const definition = table[TABLE];
         if (definition.source !== undefined) {
-            throw new TypeError(`query aliases cannot declare SQL tables: ${definition.name}`);
+            throw new TypeError(`query aliases cannot declare SQL tables: '${definition.name}'`);
         } else if (relations.has(definition.sqlName)) {
-            throw new TypeError(`duplicate SQL table: ${definition.sqlName}`);
+            throw new TypeError(`duplicate SQL table: '${definition.sqlName}'`);
         }
         relations.add(definition.sqlName);
     }
@@ -1026,7 +1029,7 @@ export function requireDistinct(tables: readonly Table[], dialect: Dialect): voi
             }
             const name = qualify(table[TABLE].package, constraint.name);
             if (relations.has(name)) {
-                throw new TypeError(`duplicate SQL relation name: ${name}`);
+                throw new TypeError(`duplicate SQL relation name: '${name}'`);
             }
             relations.add(name);
         }

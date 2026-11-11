@@ -106,7 +106,7 @@ test("refuse a stored identifier of another type, which no database check catche
             () => "read",
             (error: unknown) => (error instanceof Error ? error.message : "unknown"),
         );
-    expect(refused).toBe(`the database returned ${other} for a sample identifier`);
+    expect(refused).toBe(`the database returned '${other}' for a 'sample' identifier`);
 });
 
 test("key joined rows by their table names", async () => {

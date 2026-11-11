@@ -128,6 +128,6 @@ test("search rows by word prefixes, current through writes and a migration, alik
 
     // refuse a search of no words
     expect(() => Condition.render({ SEARCH: " - " }, note)).toThrow(
-        "a search needs 1 to 32 words, not 0:  - ",
+        "search ' - ' is invalid: it has 0 words, not 1 to 32",
     );
 });

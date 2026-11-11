@@ -332,7 +332,10 @@ async function read(
     // require a positive whole limit, and read nothing for no parents
     const { limit } = options;
     if (limit !== undefined && (!Number.isInteger(limit) || limit < 1)) {
-        throw DatabaseError.of("QUERY_INVALID", `query limit must be a positive integer: ${limit}`);
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `query limit ${limit} is invalid: it must be a positive integer`,
+        );
     } else if (link?.values.size === 0) {
         return [];
     }
@@ -440,7 +443,10 @@ function parentValue(parent: Parent, entry: Read): Comparable | undefined {
 function treeOf(table: Table) {
     const tree = table[TABLE].tree;
     if (tree === undefined) {
-        throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no tree`);
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `'${table[TABLE].name}' is invalid: it has no tree`,
+        );
     }
 
     return tree;

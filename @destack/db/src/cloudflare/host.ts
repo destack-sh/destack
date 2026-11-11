@@ -136,7 +136,7 @@ export class StorageTransaction {
         return this.#isOpen
             ? work()
             : Promise.reject(
-                  DatabaseError.of("TRANSACTION_REQUIRED", "the storage transaction closed"),
+                  DatabaseError.of("TRANSACTION_BROKEN", "the storage transaction closed"),
               );
     }
 
@@ -217,7 +217,10 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             !reference.startsWith(REFERENCE_PREFIX) ||
             reference.length === REFERENCE_PREFIX.length
         ) {
-            throw DatabaseError.of("RECORD_INVALID", `no Durable Object database ${reference}`);
+            throw DatabaseError.of(
+                "RECORD_INVALID",
+                `database reference '${reference}' is invalid: there is no Durable Object database of that name`,
+            );
         }
 
         return reference.slice(REFERENCE_PREFIX.length);
@@ -328,7 +331,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             if (authorization === null) {
                 throw DatabaseError.of(
                     "CONTENT_UNAVAILABLE",
-                    "a copy is missing the sender's credential",
+                    "copy content is unavailable: the copy is missing the sender's credential",
                 );
             }
 
@@ -378,7 +381,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
         if (body.operation !== "read") {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `this object only accepts reads, not ${body.operation}`,
+                `operation '${body.operation}' is invalid: this object only accepts reads`,
             );
         }
 
@@ -394,7 +397,10 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
             const query = new DurableObjectQuery(this, { kind: "joined", transaction });
             const read = await query.read(statement.sql, parameters, statement.rows);
             if (read.rowsWritten > 0) {
-                throw DatabaseError.of("QUERY_INVALID", "a read of another object wrote rows");
+                throw DatabaseError.of(
+                    "QUERY_INVALID",
+                    "read is invalid: a read of another object wrote rows",
+                );
             }
 
             return read.rows.map(encoded);

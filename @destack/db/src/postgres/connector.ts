@@ -17,7 +17,7 @@ export class PostgresConnector implements DatabaseConnector {
     constructor(cluster: URL) {
         // require a PostgreSQL URL
         if (cluster.protocol !== "postgres:" && cluster.protocol !== "postgresql:") {
-            throw new TypeError(`postgresql cluster must be a postgres URL: ${cluster.protocol}`);
+            throw new TypeError(`postgresql cluster must be a postgres URL: '${cluster.protocol}'`);
         }
         this.cluster = cluster;
     }
@@ -40,8 +40,8 @@ export class PostgresConnector implements DatabaseConnector {
         if (unapplied.length > 0) {
             await connection.close();
             throw DatabaseError.of(
-                "MIGRATION_PENDING",
-                `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
+                "MIGRATION_BLOCKED",
+                `cannot open database '${declaration.name}': it has not applied '${unapplied.join(", ")}'`,
             );
         }
 

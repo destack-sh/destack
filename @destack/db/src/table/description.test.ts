@@ -83,7 +83,7 @@ test("refuse a value outside an enum column's values in the database itself", as
                 sql`INSERT INTO ${sql.relation(lamp[TABLE].sqlName)} (id, state) VALUES ('c', 'dim')`,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "RECORD_INVALID", "a record fails a declared check"]);
+    ).toEqual(["BAD_REQUEST", "RECORD_INVALID", "record is invalid: it fails a declared check"]);
     expect((await storage.database.select().from(lamp)).length).toBe(2);
 });
 
@@ -147,6 +147,8 @@ test("refuse a table whose unique constraint and index share a name", () => {
     );
 
     expect(() => describeTable(label, "postgresql")).toThrow(
-        new TypeError(`table ${label[TABLE].sqlName} declares ${label[TABLE].sqlName}_code twice`),
+        new TypeError(
+            `table '${label[TABLE].sqlName}' declares '${label[TABLE].sqlName}_code' twice`,
+        ),
     );
 });

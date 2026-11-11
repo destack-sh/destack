@@ -123,8 +123,8 @@ export class DurableObjectReader implements SqliteConnectionClient {
         );
         if (!response.ok) {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `the object responded with ${response.status}: ${await response.text()}`,
+                "QUERY_BROKEN",
+                `the object responded with ${response.status}: '${await response.text()}'`,
             );
         }
 
@@ -135,7 +135,7 @@ export class DurableObjectReader implements SqliteConnectionClient {
     static #refusal(): FamilyError<"QUERY_INVALID"> {
         return DatabaseError.of(
             "QUERY_INVALID",
-            "a reader of another object's database can only run reads",
+            "query is invalid: a reader of another object's database can only run reads",
         );
     }
 }

@@ -26,7 +26,7 @@ test("describe the aggregates of the described tables alone, a replica's too, re
     // refuse an aggregate into a table the database lacks
     expect(() => declareState([item], "sqlite")).toThrow(
         new TypeError(
-            "aggregate of aggregate_item into aggregate_list references undeclared table aggregate_list",
+            "aggregate of 'aggregate_item' into 'aggregate_list' references undeclared table 'aggregate_list'",
         ),
     );
     expect({ placed, replicated, described }).toEqual({
@@ -57,7 +57,9 @@ test("describe a replicated table's dependents only where the database has their
 
     // refuse local posts without their remarks
     expect(() => declareState([post], "sqlite")).toThrow(
-        new TypeError("dependents of dependent_post reference undeclared table dependent_remark"),
+        new TypeError(
+            "dependents of 'dependent_post' reference undeclared table 'dependent_remark'",
+        ),
     );
     expect(
         [alone, beside].map((states) => states.map((state) => state.dependents?.length ?? 0)),

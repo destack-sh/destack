@@ -36,7 +36,7 @@ export const SQLValue = Object.assign(sqlValueSchema, {
 
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `cannot convert a ${typeof value} to JSON: SQL values are text, numbers, booleans, integers, bytes or null`,
+            `value of type '${typeof value}' is invalid: it cannot convert to JSON, as SQL values are text, numbers, booleans, integers, bytes or null`,
         );
     },
 

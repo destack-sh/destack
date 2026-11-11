@@ -19,7 +19,7 @@ const UTF8 = new TextEncoder();
 export function namespaceOf(owner: Package): string {
     const [account, name] = owner.name.slice(1).split("/");
     if (account === undefined || name === undefined) {
-        throw new TypeError(`package name is not scoped: ${owner.name}`);
+        throw new TypeError(`package name is not scoped: '${owner.name}'`);
     }
 
     return `${account}__${name}`.replace(/[^a-z0-9_]/gu, "_");
@@ -31,7 +31,7 @@ export function qualify(owner: Package, name: string): string {
     const qualified = `${namespaceOf(owner)}__${name}`;
     if (qualified.length > MAX_IDENTIFIER_LENGTH) {
         throw new TypeError(
-            `SQL identifier exceeds ${MAX_IDENTIFIER_LENGTH} characters: ${qualified}`,
+            `SQL identifier exceeds ${MAX_IDENTIFIER_LENGTH} characters: '${qualified}'`,
         );
     }
 

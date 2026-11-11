@@ -324,14 +324,14 @@ test("refuse a transaction another commit raced on a row it read or a row its sc
             .then(() => "committed"),
     ]).toEqual([
         [
-            "SERVICE_UNAVAILABLE",
-            "CONCURRENT_UPDATE",
-            "another commit changed what the transaction read",
+            "CONFLICT",
+            "UPDATE_CONFLICT",
+            "cannot commit the transaction: another commit changed what it read",
         ],
         [
-            "SERVICE_UNAVAILABLE",
-            "CONCURRENT_UPDATE",
-            "another commit changed what the transaction read",
+            "CONFLICT",
+            "UPDATE_CONFLICT",
+            "cannot commit the transaction: another commit changed what it read",
         ],
         "committed",
     ]);
@@ -540,14 +540,14 @@ test("refuse a write sharing a unique key with a committed row, the transaction'
         ]),
     }).toEqual({
         batches: [
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+            ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
             "written",
         ],
         written: [
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+            ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
             "written",
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
-            ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+            ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
+            ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
             "written",
         ],
         committed: [
@@ -636,7 +636,7 @@ test("refuse a write sharing a unique key that includes a JSON column, comparing
         await write("c", { x: 2, y: 1 }),
     ]).toEqual([
         "written",
-        ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+        ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
         "written",
     ]);
 });
@@ -673,7 +673,7 @@ test("refuse a write sharing a stored row's unique JSON key in another key order
 
     expect(await refusal(written)).toEqual([
         "CONFLICT",
-        "DUPLICATE",
+        "ROW_EXISTS",
         "a record with the same unique key already exists",
     ]);
 });
@@ -711,11 +711,11 @@ test("refuse a unique key a commit after the transaction's base took as a lost r
         await refusal(Transaction.run(database, (transaction) => write(transaction))),
     ]).toEqual([
         [
-            "SERVICE_UNAVAILABLE",
-            "CONCURRENT_UPDATE",
-            "another commit changed what the transaction read",
+            "CONFLICT",
+            "UPDATE_CONFLICT",
+            "cannot commit the transaction: another commit changed what it read",
         ],
-        ["CONFLICT", "DUPLICATE", "a record with the same unique key already exists"],
+        ["CONFLICT", "ROW_EXISTS", "a record with the same unique key already exists"],
     ]);
 });
 
@@ -742,9 +742,9 @@ test("refuse a unique key a commit took after the transaction checked it as a lo
 
     // refuse the commit's failed insert as a lost race, a run repeating it
     expect(await refusal(late.commit())).toEqual([
-        "SERVICE_UNAVAILABLE",
-        "CONCURRENT_UPDATE",
-        "another commit changed what the transaction read",
+        "CONFLICT",
+        "UPDATE_CONFLICT",
+        "cannot commit the transaction: another commit changed what it read",
     ]);
 });
 
@@ -1113,7 +1113,7 @@ test("refuse writing a predefined row, and write other rows of its table", async
         refused: [
             "BAD_REQUEST",
             "RECORD_INVALID",
-            `cannot write predefined row ["${unit[TABLE].sqlName}","metre"] of unit`,
+            `predefined row '["${unit[TABLE].sqlName}","metre"]' of 'unit' is invalid: it cannot be written`,
         ],
         rows: [
             { id: "foot", name: "Foot" },

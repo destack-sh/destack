@@ -53,8 +53,8 @@ test("refuse work whose turn does not come within the wait", async () => {
     expect([failure, later]).toEqual([
         [
             "SERVICE_UNAVAILABLE",
-            "CONNECTION_TIMEOUT",
-            "waited 1 ms for the connection: a transaction still has it",
+            "CONNECTION_UNAVAILABLE",
+            "the connection is unavailable: a transaction still had it after 1 ms",
         ],
         "later",
     ]);

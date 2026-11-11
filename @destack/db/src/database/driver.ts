@@ -309,8 +309,8 @@ export class DatabaseDriver {
         // refuse a known logged write outside a transaction
         else if (this.transaction === undefined && logging === "logged") {
             throw DatabaseError.of(
-                "TRANSACTION_REQUIRED",
-                `a logged write of ${logged.join(", ")} runs outside a transaction: run it in a transaction`,
+                "TRANSACTION_BROKEN",
+                `a logged write of '${logged.join(", ")}' runs outside a transaction: run it in a transaction`,
             );
         }
         // run any other write as it is, the triggers refusing an unknown table's logged change
@@ -335,7 +335,7 @@ async function failing<Value>(
             throw classified;
         }
 
-        throw DatabaseError.of("QUERY_FAILED", `query failed: ${statement.text}`, {
+        throw DatabaseError.of("QUERY_BROKEN", `query failed: '${statement.text}'`, {
             cause: error,
         });
     }

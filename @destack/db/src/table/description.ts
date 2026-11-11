@@ -174,7 +174,7 @@ function describe(table: Table, dialect: Dialect): TableDescription {
     const names = [...described.constraints, ...described.indexes].map((entry) => entry.name);
     const repeated = names.find((name, position) => names.indexOf(name) !== position);
     if (repeated !== undefined) {
-        throw new TypeError(`table ${definition.sqlName} declares ${repeated} twice`);
+        throw new TypeError(`table '${definition.sqlName}' declares '${repeated}' twice`);
     }
 
     return described;

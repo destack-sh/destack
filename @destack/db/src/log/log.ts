@@ -235,8 +235,8 @@ const LogEntry = {
     operation(value: unknown): LogEntry["operation"] {
         if (value !== "insert" && value !== "update" && value !== "delete") {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `expected an operation from the log, got ${String(value)}`,
+                "QUERY_BROKEN",
+                `expected an operation from the log, got '${String(value)}'`,
             );
         }
 
@@ -335,7 +335,7 @@ export class Log {
                 }
             } catch (error) {
                 // start over once the changes were compacted away
-                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     throw error;
                 }
             }
@@ -355,7 +355,7 @@ export class Log {
             if (read.sequence <= reached) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `the log ends at ${read.sequence}, before ${through}`,
+                    `log read is invalid: the log ends at ${read.sequence}, before '${through}'`,
                 );
             }
             reached = read.sequence;
@@ -554,8 +554,8 @@ export class Log {
         const isCompacted = selection.tables.some((table) => table[TABLE].retention === "window");
         if (isCompacted && selection.after < horizon) {
             throw DatabaseError.of(
-                "CHANGES_COMPACTED",
-                `changes after ${selection.after} were compacted: list the tables again`,
+                "CHANGES_NOT_FOUND",
+                `changes after '${selection.after}' not found: they were compacted, so list the tables again`,
             );
         }
 
@@ -760,8 +760,8 @@ export class Log {
         // refuse a checkpoint another cursor moved since the read
         if (moved.length === 0) {
             throw DatabaseError.of(
-                "CONCURRENT_UPDATE",
-                `checkpoint ${cursor.name} moved past ${from}`,
+                "UPDATE_CONFLICT",
+                `cannot read from checkpoint '${cursor.name}': it moved past '${from}'`,
             );
         }
     }
@@ -937,7 +937,7 @@ export class Log {
             bounds.startedAt === null ||
             bounds.committedAt === null
         ) {
-            throw DatabaseError.of("CHANGES_COMPACTED", `change ${sequence} is not in the log`);
+            throw DatabaseError.of("CHANGES_NOT_FOUND", `change ${sequence} not found`);
         }
 
         return {
@@ -1097,7 +1097,7 @@ function decodeKey<Definition extends Table>(
             if (value === undefined) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `logged key of ${table[TABLE].name} is missing ${property}`,
+                    `logged key of '${table[TABLE].name}' is invalid: it is missing '${property}'`,
                 );
             }
 
@@ -1130,7 +1130,7 @@ function tableOf<Definition extends Table>(
     if (table === undefined) {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `the log changed a table the read does not select: ${name}`,
+            `log read is invalid: the log changed table '${name}', which the read does not select`,
         );
     }
 

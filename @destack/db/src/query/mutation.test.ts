@@ -169,10 +169,10 @@ test("refuse inserting and updating properties of no column", async () => {
 
     // refuse the stray property in either write, writing nothing
     await expect(database.insert(counter).values(stray)).rejects.toThrow(
-        "mutation_counter has no column count",
+        "column 'count' is invalid: 'mutation_counter' has no such column",
     );
     await expect(
         database.update(counter).set(changes).where(eq(counter.owner, "ada")),
-    ).rejects.toThrow("mutation_counter has no column count");
+    ).rejects.toThrow("column 'count' is invalid: 'mutation_counter' has no such column");
     expect(await database.select().from(counter)).toEqual([]);
 });

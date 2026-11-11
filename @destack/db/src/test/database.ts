@@ -145,7 +145,7 @@ export class TestDatabase<
         const image = images?.[template.name]?.[dialect];
         if (image === undefined) {
             throw new TypeError(
-                `the run has no ${dialect} image of template ${template.name}: list it in its package's test templates`,
+                `the run has no '${dialect}' image of template '${template.name}': list it in its package's test templates`,
             );
         }
 
@@ -178,7 +178,9 @@ export class TestDatabase<
                 // refuse an image lacking the database
                 const source = image.sources[name];
                 if (source === undefined) {
-                    throw new TypeError(`the image of template ${template.name} has no ${name}`);
+                    throw new TypeError(
+                        `the image of template '${template.name}' has no '${name}'`,
+                    );
                 }
 
                 return [name, await TestDatabase.#copy(tables, source, environment)] as const;
@@ -830,7 +832,7 @@ class TestServer {
             await this.session`SELECT pg_advisory_unlock(hashtext(${name}))`.values()
         )[0]?.[0];
         if (isUnlocked !== true) {
-            throw new TypeError(`the claim of ${name} was lost`);
+            throw new TypeError(`the claim of '${name}' was lost`);
         }
         this.#claimed.delete(name);
     }

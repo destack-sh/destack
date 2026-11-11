@@ -179,7 +179,7 @@ function stepRunner(
         else {
             const open = transactions.get(step.transaction);
             if (open === undefined) {
-                throw DatabaseError.of("TRANSACTION_CLOSED", "the shared transaction has ended");
+                throw DatabaseError.of("TRANSACTION_BROKEN", "the shared transaction has ended");
             }
             await open.end(step.type === "commit");
 
@@ -197,7 +197,7 @@ async function runStatement(
     // find the open transaction and extend it
     const open = step.transaction === undefined ? undefined : transactions.get(step.transaction);
     if (step.transaction !== undefined && open === undefined) {
-        throw DatabaseError.of("TRANSACTION_CLOSED", "the shared transaction has ended");
+        throw DatabaseError.of("TRANSACTION_BROKEN", "the shared transaction has ended");
     }
     open?.touch();
     const target = open?.client ?? client;
@@ -509,7 +509,12 @@ export class Party {
     close(): void {
         this.#stop();
         for (const pending of this.#pending.values()) {
-            pending.reject(DatabaseError.of("CONNECTION_CLOSED", "the shared connection closed"));
+            pending.reject(
+                DatabaseError.of(
+                    "CONNECTION_UNAVAILABLE",
+                    "the shared connection is unavailable: it closed",
+                ),
+            );
         }
         this.#pending.clear();
     }
@@ -525,7 +530,10 @@ export class Party {
                 } else {
                     this.#pending.delete(id);
                     pending.reject(
-                        DatabaseError.of("OWNER_CHANGED", "the owner changed before responding"),
+                        DatabaseError.of(
+                            "OWNER_UNAVAILABLE",
+                            "the owner is unavailable: it changed before responding",
+                        ),
                     );
                 }
             }
@@ -552,7 +560,10 @@ export class Party {
         // refuse a step of a stopped owner
         if (asked !== undefined && asked !== this.#owner) {
             return Promise.reject(
-                DatabaseError.of("OWNER_CHANGED", "the owner of the transaction changed"),
+                DatabaseError.of(
+                    "OWNER_UNAVAILABLE",
+                    "the transaction owner is unavailable: it changed",
+                ),
             );
         }
 

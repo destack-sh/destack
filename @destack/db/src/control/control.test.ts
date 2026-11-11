@@ -379,10 +379,10 @@ test("refuse a pending condition comparing now anywhere but a field's upper boun
         );
 
     expect(declare({ dueAt: { gte: now } })).toThrow(
-        "controller job compares now outside a field's lt or lte at the top of its pending condition",
+        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition",
     );
     expect(declare({ OR: [{ dueAt: { lte: now } }] })).toThrow(
-        "controller job compares now outside a field's lt or lte at the top of its pending condition",
+        "controller 'job' compares now outside a field's lt or lte at the top of its pending condition",
     );
 });
 
@@ -551,7 +551,7 @@ test("report a key failing transiently only once its retries last past the windo
                 isMisrouted = false;
                 throw Failure.error({
                     code: "MISDIRECTED_REQUEST",
-                    reason: "PARTITION_MISDIRECTED",
+                    reason: "PARTITION_MOVED",
                     domain: "@example/space",
                     message: "space lives in another partition",
                 });
@@ -612,8 +612,16 @@ test("fail the loop, its run and its idle waiters, once a controller throws a fa
     // fail the run and the idle waiter with the controller's failure
     const [ran, idled] = await Promise.all([refusal(run), refusal(loop.idle())]);
     expect([ran, idled]).toEqual([
-        ["INTERNAL_SERVER_ERROR", "CONTROLLER_FAILED", 'job failed to reconcile {"id":"job"}'],
-        ["INTERNAL_SERVER_ERROR", "CONTROLLER_FAILED", 'job failed to reconcile {"id":"job"}'],
+        [
+            "INTERNAL_SERVER_ERROR",
+            "CONTROLLER_BROKEN",
+            "'job' did not reconcile '{\"id\":\"job\"}'",
+        ],
+        [
+            "INTERNAL_SERVER_ERROR",
+            "CONTROLLER_BROKEN",
+            "'job' did not reconcile '{\"id\":\"job\"}'",
+        ],
     ]);
 });
 

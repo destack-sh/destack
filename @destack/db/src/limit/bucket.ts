@@ -49,7 +49,9 @@ export const Bucket = {
         // refuse more tokens at once than the burst ever allows
         const { name, key, rate, burst, tokens = 1, now } = request;
         if (tokens > burst) {
-            throw new RangeError(`${tokens} tokens exceed the burst of ${burst} of limit ${name}`);
+            throw new RangeError(
+                `'${tokens}' tokens exceed the burst of '${burst}' of limit '${name}'`,
+            );
         }
 
         // advance the arrival time by the tokens' interval while it stays within the burst

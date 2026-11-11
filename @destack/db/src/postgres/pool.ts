@@ -196,8 +196,8 @@ export class PostgresPool {
                 return sql ?? (await released.promise);
             }
             throw DatabaseError.of(
-                "CONNECTION_TIMEOUT",
-                `waited ${this.#wait} ms for a connection: every one is in a transaction`,
+                "CONNECTION_UNAVAILABLE",
+                `connection is unavailable: every one stayed in a transaction for ${this.#wait} ms`,
             );
         } catch (error) {
             // leave the queue, handing on a connection a release gave the wait meanwhile

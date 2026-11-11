@@ -505,7 +505,7 @@ export class ControlLoop {
         // refuse the loop's time anywhere but a field's upper bound at the top of the condition
         if (ControlLoop.#countNows(controller.pending) !== terms.length) {
             throw new TypeError(
-                `controller ${controller.name} compares now outside a field's lt or lte at the top of its pending condition`,
+                `controller '${controller.name}' compares now outside a field's lt or lte at the top of its pending condition`,
             );
         }
 
@@ -627,7 +627,7 @@ export class ControlLoop {
                 }
             } catch (error) {
                 // list again after compaction
-                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     throw error;
                 }
             }
@@ -923,7 +923,7 @@ export class ControlLoop {
             return isFollowed;
         } catch (error) {
             // ask that follow to list again behind a compaction, a later one having listed
-            if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+            if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                 relisting.abort();
 
                 return false;
@@ -1142,8 +1142,8 @@ export class ControlLoop {
                     }
                     if (!reconciliation.signal.aborted) {
                         throw DatabaseError.of(
-                            "FOLLOW_ENDED",
-                            `${controller.name} stopped following ${key} without an abort`,
+                            "FOLLOW_BROKEN",
+                            `'${controller.name}' stopped following '${key}' without an abort`,
                         );
                     }
 
@@ -1176,8 +1176,8 @@ export class ControlLoop {
             if (!Failure.isDeclared(error)) {
                 this.#failing.abort(
                     DatabaseError.of(
-                        "CONTROLLER_FAILED",
-                        `${controller.name} failed to reconcile ${key}`,
+                        "CONTROLLER_BROKEN",
+                        `'${controller.name}' did not reconcile '${key}'`,
                         { cause: error },
                     ),
                 );
@@ -1225,7 +1225,9 @@ export class ControlLoop {
             }
             const rows = await this.#rows(compiled, key);
             if (rows.length === 0) {
-                stop.abort(new Error(`${compiled.controller.name} no longer has ${key} pending`));
+                stop.abort(
+                    new Error(`'${compiled.controller.name}' no longer has '${key}' pending`),
+                );
 
                 return;
             }

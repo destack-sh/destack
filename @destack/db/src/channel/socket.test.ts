@@ -145,7 +145,7 @@ test("refuse messages and listeners on a channel once it is closed", async () =>
     });
 
     expect(refusals).toEqual([
-        new TypeError(`the channel of ${path} is closed`),
-        new TypeError(`the channel of ${path} is closed`),
+        new TypeError(`the channel of '${path}' is closed`),
+        new TypeError(`the channel of '${path}' is closed`),
     ]);
 });

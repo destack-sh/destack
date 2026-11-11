@@ -98,8 +98,8 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     onTestFinished(serveDatabase(second.$client, join(TAB_CHANNEL), world));
     expect(await refusal(unanswered)).toEqual([
         "SERVICE_UNAVAILABLE",
-        "OWNER_CHANGED",
-        "the owner changed before responding",
+        "OWNER_UNAVAILABLE",
+        "the owner is unavailable: it changed before responding",
     ]);
 
     // fail a step of the first owner's transaction
@@ -116,8 +116,8 @@ test("queue requests until an owner serves, and fail requests a replaced owner l
     );
     expect(await refusal(stale)).toEqual([
         "SERVICE_UNAVAILABLE",
-        "OWNER_CHANGED",
-        "the owner of the transaction changed",
+        "OWNER_UNAVAILABLE",
+        "the transaction owner is unavailable: it changed",
     ]);
     expect((await replaced).id).toBe(0);
 });

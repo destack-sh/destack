@@ -56,6 +56,6 @@ test("refuse more tokens at once than the burst allows", async () => {
 
     // ask for four tokens of a burst of three
     await expect(Bucket.take(database, { ...LIMIT, tokens: 4, now: TEST_START })).rejects.toThrow(
-        new RangeError("4 tokens exceed the burst of 3 of limit note.create"),
+        new RangeError("'4' tokens exceed the burst of '3' of limit 'note.create'"),
     );
 });

@@ -39,9 +39,9 @@ test("refuse an unmigrated PostgreSQL database, then open the migrated one as it
 
     // refuse the schema before its tables exist
     expect(await refusal(connector.connect(binding, notes, world))).toEqual([
-        "INTERNAL_SERVER_ERROR",
-        "MIGRATION_PENDING",
-        "database notes has not applied destack__db__note",
+        "PRECONDITION_FAILED",
+        "MIGRATION_BLOCKED",
+        "cannot open database 'notes': it has not applied 'destack__db__note'",
     ]);
 
     // migrate the schema and write a note through a sole writer

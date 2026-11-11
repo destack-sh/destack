@@ -74,7 +74,7 @@ test("provision, plan and apply a SQLite database file, connect a workload to it
     await provider.provision.destroy(provisioned);
     const isGone = !(await HOST.files.exists(fileURLToPath(bound(reference).reference)));
     expect({ early, steps: plan.steps.map((step) => step.action), applied, isGone }).toEqual({
-        early: `database notes has not applied ${qualified}`,
+        early: `cannot open database 'notes': it has not applied '${qualified}'`,
         steps: ["create"],
         applied: "connected",
         isGone: true,
@@ -143,7 +143,7 @@ test("count a database's bytes as its file and its write-ahead log, and refuse a
         HOST.files.stat(file).then(
             (status) => status.size,
             (error: unknown) =>
-                FileSystemError.is(error, "NOT_FOUND") ? 0 : Promise.reject(error),
+                FileSystemError.is(error, "FILE_NOT_FOUND") ? 0 : Promise.reject(error),
         );
     const files = async () => (await size(path)) + (await size(`${path}-wal`));
 
@@ -153,7 +153,7 @@ test("count a database's bytes as its file and its write-ahead log, and refuse a
     await host.destroy({ ...record, reference });
     const refused = await host.bytes(reference).then(
         () => "counted",
-        (error: unknown) => (FileSystemError.is(error, "NOT_FOUND") ? "NOT_FOUND" : error),
+        (error: unknown) => (FileSystemError.is(error, "FILE_NOT_FOUND") ? "NOT_FOUND" : error),
     );
 
     // count exactly the file and its log, and refuse a missing file

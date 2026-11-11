@@ -64,7 +64,7 @@ export const Order = {
         if (order.length > ORDER_KEYS || columns.size < order.length) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `order has more than ${ORDER_KEYS} keys, or one column twice`,
+                `order is invalid: it has more than ${ORDER_KEYS} keys, or one column twice`,
             );
         }
 
@@ -80,11 +80,14 @@ export const Order = {
     column(table: Table, name: string): Column {
         const found = table[TABLE].columns[name];
         if (found === undefined) {
-            throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no column ${name}`);
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `column '${name}' is invalid: '${table[TABLE].name}' has no such column`,
+            );
         } else if (!ORDERED_KINDS.has(found.definition.kind)) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `${table[TABLE].name}.${name} is a ${found.definition.kind} column`,
+                `'${table[TABLE].name}.${name}' is invalid: it is a ${found.definition.kind} column`,
             );
         }
 
@@ -184,7 +187,10 @@ export const Order = {
         // order present values of one kind
         const compared = Order.values(left, right);
         if (compared === undefined) {
-            throw DatabaseError.of("QUERY_INVALID", "values of different kinds cannot be ordered");
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                "order is invalid: values of different kinds cannot be ordered",
+            );
         }
 
         return compared;

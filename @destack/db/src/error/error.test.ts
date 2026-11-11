@@ -52,7 +52,7 @@ test("classify driver failures and leave domain errors that wrap them alone", ()
     // classify the driver failure, and rethrow the domain error as thrown
     const classified = [classifyError(driver, NOTES), classifyError(domain, NOTES)];
     expect(classified.map((error) => (DatabaseError.is(error) ? error.reason : error))).toEqual([
-        "DUPLICATE",
+        "ROW_EXISTS",
         domain,
     ]);
 });
@@ -89,8 +89,8 @@ test("read the table and key columns a duplicate violates", async () => {
 
     // read the violated key by the names the table declares
     expect(
-        DatabaseError.is(failure, "DUPLICATE") ? [failure.reason, failure.data] : failure,
-    ).toEqual(["DUPLICATE", { table: label[TABLE].name, columns: ["folder", "name"] }]);
+        DatabaseError.is(failure, "ROW_EXISTS") ? [failure.reason, failure.data] : failure,
+    ).toEqual(["ROW_EXISTS", { table: label[TABLE].name, columns: ["folder", "name"] }]);
 });
 
 test("read the unique key a duplicate violates by its declared names from SQLite's message, a namespaced one included, and PostgreSQL's detail, absent for an index, an expression or an undeclared table", () => {

@@ -22,7 +22,9 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     constructor(root: URL, environment: Environment<"files" | "server">) {
         // require a directory URL
         if (root.protocol !== "file:" || !root.pathname.endsWith("/")) {
-            throw new TypeError(`sqlite database root must be a file directory URL: ${root.href}`);
+            throw new TypeError(
+                `sqlite database root must be a file directory URL: '${root.href}'`,
+            );
         }
         this.root = root;
         this.environment = environment;
@@ -55,7 +57,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
         const file = await files.stat(path);
         const log = await files.stat(`${path}-wal`).catch((error: unknown) => {
             // count no log once a checkpoint removed it
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return { size: 0 };
             }
 

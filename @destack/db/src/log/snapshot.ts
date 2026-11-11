@@ -749,8 +749,8 @@ export class Snapshot {
     #require(epoch: string, sequence: number): number {
         if (this.position !== undefined && epoch !== this.position.epoch) {
             throw DatabaseError.of(
-                "EPOCH_STALE",
-                `position of epoch ${this.position.epoch} is not in the log's epoch ${epoch}`,
+                "EPOCH_CONFLICT",
+                `cannot read position of epoch ${this.position.epoch}: it is not in the log's epoch ${epoch}`,
             );
         }
 

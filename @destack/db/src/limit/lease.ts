@@ -123,8 +123,8 @@ export const Lease = {
 
         // lose the race once every attempt lost its chosen slot to another holder
         throw DatabaseError.of(
-            "CONCURRENT_UPDATE",
-            `every slot of lease ${name} ${key} changed while taken`,
+            "UPDATE_CONFLICT",
+            `cannot take lease ${name} '${key}': every slot changed while taken`,
         );
     },
 

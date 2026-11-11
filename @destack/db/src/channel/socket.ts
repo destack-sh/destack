@@ -141,7 +141,7 @@ class SocketChannel implements Channel<unknown> {
     /** Refuse using a channel the party closed. */
     #requireOpen(): void {
         if (this.#isClosed) {
-            throw new TypeError(`the channel of ${this.#path} is closed`);
+            throw new TypeError(`the channel of '${this.#path}' is closed`);
         }
     }
 

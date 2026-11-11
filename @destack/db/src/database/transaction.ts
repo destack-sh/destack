@@ -74,7 +74,7 @@ export class TransactionState {
     assertActive(): void {
         this.signal?.throwIfAborted();
         if (!this.#isActive) {
-            throw DatabaseError.of("TRANSACTION_CLOSED", "the transaction has finished");
+            throw DatabaseError.of("TRANSACTION_BROKEN", "the transaction has finished");
         }
     }
 

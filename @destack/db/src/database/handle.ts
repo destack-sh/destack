@@ -81,7 +81,7 @@ export const DatabaseHandle = {
         await using database = await connect([]);
         const plan = await database.plan(mergeStates(desired));
         if ((await Plan.digest(plan, database.state.environment.crypto)) !== digest) {
-            throw DatabaseError.of("PLAN_CHANGED", `plan of ${id} changed since review`);
+            throw DatabaseError.of("PLAN_BROKEN", `plan of '${id}' changed since review`);
         }
         await database.apply(plan);
     },

@@ -91,7 +91,7 @@ export class Table<
         const keyed = new Set(key);
         const ordered = description.columns.filter((column) => keyed.has(column.name));
         if (ordered.map((column) => column.name).join() !== key.join()) {
-            throw new TypeError(`${description.name} has key columns out of declaration order`);
+            throw new TypeError(`'${description.name}' has key columns out of declaration order`);
         }
 
         // build each column by kind
@@ -186,7 +186,7 @@ export class Table<
             (property) => !Object.hasOwn(row, property),
         );
         if (missing !== undefined) {
-            throw new TypeError(`logged column ${missing} of ${definition.name} has no value`);
+            throw new TypeError(`logged column '${missing}' of '${definition.name}' has no value`);
         }
 
         return mapValues<Row, RowImage<Definition> & Row>(row, (value) => value);
@@ -202,7 +202,7 @@ export class Table<
             if (value === null && !table[TABLE].column(property).definition.nullable) {
                 throw DatabaseError.of(
                     "RECORD_INVALID",
-                    `column ${property} of ${table[TABLE].name} is not nullable`,
+                    `column '${property}' of '${table[TABLE].name}' is invalid: it is not nullable`,
                 );
             }
         }
@@ -395,7 +395,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
                 const columns = constraint.columns.map((column) => {
                     if (column instanceof SQL) {
                         throw new TypeError(
-                            `unique index ${constraint.name} cannot use an expression as key`,
+                            `unique index '${constraint.name}' cannot use an expression as key`,
                         );
                     }
 
@@ -479,7 +479,10 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Read the table's full-text index, refusing a table nothing searches. */
     requireFullText(): FullTextIndex {
         if (this.fullText === undefined) {
-            throw DatabaseError.of("QUERY_INVALID", `${this.name} has no text to search`);
+            throw DatabaseError.of(
+                "QUERY_INVALID",
+                `'${this.name}' is invalid: it has no text to search`,
+            );
         }
 
         return this.fullText;
@@ -489,7 +492,7 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     column(property: string): Column {
         const column = this.columns[property];
         if (column === undefined) {
-            throw new TypeError(`${this.name} has no column ${property}`);
+            throw new TypeError(`'${this.name}' has no column '${property}'`);
         }
 
         return column;
@@ -855,10 +858,12 @@ export function defineTable<Name extends string, Builders extends ColumnBuilderM
     for (const builder of Object.values(builders)) {
         const definition = builder.definition;
         if (definition.generated !== undefined && definition.default !== undefined) {
-            throw new TypeError(`generated SQL column cannot define defaults: ${definition.name}`);
+            throw new TypeError(
+                `generated SQL column cannot define defaults: '${definition.name}'`,
+            );
         }
         if (names.has(definition.name)) {
-            throw new TypeError(`duplicate SQL column: ${definition.name}`);
+            throw new TypeError(`duplicate SQL column: '${definition.name}'`);
         }
         names.add(definition.name);
     }
@@ -1001,13 +1006,13 @@ function fullTextOf(
     // index no text by default
     const search = options.fullText ?? [];
     if (search.length > 0 && options.log === undefined) {
-        throw new TypeError(`table ${name} searches text, so its changes must be logged`);
+        throw new TypeError(`table '${name}' searches text, so its changes must be logged`);
     }
 
     // require text columns
     const untexted = search.find((property) => columns[property]?.definition.kind !== "text");
     if (untexted !== undefined) {
-        throw new TypeError(`table ${name} searches ${untexted}, which is not text`);
+        throw new TypeError(`table '${name}' searches '${untexted}', which is not text`);
     }
 
     return search.length === 0

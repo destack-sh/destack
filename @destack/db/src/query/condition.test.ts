@@ -226,7 +226,7 @@ test("escape a pattern's wildcards with a backslash, refusing an escape ending i
     expect(await refusal(() => matching("a\\"))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
-        "a like pattern cannot end with its escape character",
+        "like pattern is invalid: it cannot end with its escape character",
     ]);
 });
 
@@ -242,7 +242,7 @@ test("refuse a descending character range, reading a mixed one as its characters
     // refuse z-a, and read Z-a as Z and a with a hyphen
     const fields = Namespace.fields(sample);
     expect(await refusal(() => Condition.resolve({ name: { characters: "z-a" } }, fields))).toEqual(
-        ["BAD_REQUEST", "QUERY_INVALID", "character range z-a is descending"],
+        ["BAD_REQUEST", "QUERY_INVALID", "character range 'z-a' is invalid: it is descending"],
     );
     const set = Predicate.compile(
         Condition.resolve({ name: { characters: "Z-a" } }, fields),
@@ -261,12 +261,12 @@ test("refuse comparing fields that order as different values, and a field the ta
     expect(await refusal(require({ name: { gt: { field: "count" } } }))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
-        "cannot compare condition_sample.name (text ordering) with count (number ordering)",
+        "comparison is invalid: 'condition_sample.name' ('text' ordering) cannot compare with 'count' ('number' ordering)",
     ]);
     expect(await refusal(require({ count: { gt: { field: "missing" } } }))).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
-        "condition_sample has no column missing",
+        "column 'missing' is invalid: 'condition_sample' has no such column",
     ]);
 });
 
@@ -318,7 +318,7 @@ test("refuse conditions beyond a thousand terms", () => {
     const fields = Namespace.fields(sample);
     Condition.resolve({ count: { in: values } }, fields);
     expect(() => Condition.resolve({ count: { in: values.slice(1) }, name: "a" }, fields)).toThrow(
-        "condition has 1001 terms, more than 1000",
+        "condition is invalid: it has 1001 terms, more than 1000",
     );
 });
 
@@ -370,7 +370,7 @@ test("decide relations through the binding, unknown until the relation is read",
 
     // refuse undeclared relations
     expect(() => Predicate.render(predicate, Predicate.bind(sample))).toThrow(
-        "condition follows relation marks, but condition_sample does not declare it",
+        "relation 'marks' is invalid: 'condition_sample' does not declare it",
     );
 });
 
@@ -456,5 +456,9 @@ test("resolve conditions by their row's fields in key order, and read their fiel
 
 /** Read the refusal of a field's comparisons that are neither a value nor known comparisons. */
 function invalidField(name: string): readonly string[] {
-    return ["BAD_REQUEST", "QUERY_INVALID", `condition field ${name} needs a value or comparisons`];
+    return [
+        "BAD_REQUEST",
+        "QUERY_INVALID",
+        `condition field '${name}' is invalid: it needs a value or comparisons`,
+    ];
 }

@@ -27,7 +27,7 @@ async function write(
             ? imported.templates
             : undefined;
     if (!Array.isArray(templates) || !templates.every((entry) => entry instanceof TestTemplate)) {
-        throw new TypeError(`${module} lists no templates`);
+        throw new TypeError(`'${module}' lists no templates`);
     }
 
     // drop expired schemas, then write each template's image in the run's database

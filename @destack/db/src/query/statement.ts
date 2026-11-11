@@ -114,7 +114,7 @@ export function elementValue(column: Column, index: number, dialect: Dialect): S
     if (dialect === "sqlite" && isBinary) {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `SQLite cannot read bytes from JSON: ${column.definition.name} is binary`,
+            `column '${column.definition.name}' is invalid: it is binary, and SQLite cannot read bytes from JSON`,
         );
     }
     // read SQLite values and PostgreSQL text as they are

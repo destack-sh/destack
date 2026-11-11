@@ -24,38 +24,39 @@ export type DeclaredNames = ReadonlyMap<
 
 /** The database package's failures, each reason with the call error code it answers. */
 export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    QUERY_INVALID: { code: "BAD_REQUEST" },
-    RECORD_INVALID: { code: "BAD_REQUEST" },
+    // not found
+    CHANGES_NOT_FOUND: {},
+
+    // exists
+    ROW_EXISTS: { data: ViolatedKey.nullable() },
 
     // conflict
-    BROKEN_REFERENCE: { code: "CONFLICT" },
-    DUPLICATE: { code: "CONFLICT", data: ViolatedKey.nullable() },
+    EPOCH_CONFLICT: {},
+    TRANSACTION_CONFLICT: {},
+    UPDATE_CONFLICT: {},
 
-    // gone
-    CHANGES_COMPACTED: { code: "GONE" },
-    EPOCH_STALE: { code: "GONE" },
+    // invalid
+    QUERY_INVALID: {},
+    RECORD_INVALID: {},
 
-    // internal server error
-    CONTROLLER_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    FOLLOW_ENDED: { code: "INTERNAL_SERVER_ERROR" },
-    MIGRATION_INVALID: { code: "INTERNAL_SERVER_ERROR" },
-    MIGRATION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    MIGRATION_PENDING: { code: "INTERNAL_SERVER_ERROR" },
-    CHANNEL_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-    PLAN_CHANGED: { code: "INTERNAL_SERVER_ERROR" },
-    QUERY_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    TRANSACTION_CLOSED: { code: "INTERNAL_SERVER_ERROR" },
-    TRANSACTION_REQUIRED: { code: "INTERNAL_SERVER_ERROR" },
-    TREE_NOT_FOUND: { code: "INTERNAL_SERVER_ERROR" },
+    // blocked
+    MIGRATION_BLOCKED: {},
+    REFERENCE_BLOCKED: {},
 
-    // service unavailable
-    CONCURRENT_UPDATE: { code: "SERVICE_UNAVAILABLE" },
-    CONNECTION_CLOSED: { code: "SERVICE_UNAVAILABLE" },
-    CONNECTION_TIMEOUT: { code: "SERVICE_UNAVAILABLE" },
-    CONTENT_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
-    OWNER_CHANGED: { code: "SERVICE_UNAVAILABLE" },
-    SERIALIZATION_FAILURE: { code: "SERVICE_UNAVAILABLE" },
+    // unavailable
+    CONNECTION_UNAVAILABLE: {},
+    CONTENT_UNAVAILABLE: {},
+    OWNER_UNAVAILABLE: {},
+
+    // broken
+    CHANNEL_BROKEN: {},
+    CONTROLLER_BROKEN: {},
+    FOLLOW_BROKEN: {},
+    MIGRATION_BROKEN: {},
+    PLAN_BROKEN: {},
+    QUERY_BROKEN: {},
+    TRANSACTION_BROKEN: {},
+    TREE_BROKEN: {},
 });
 
 /** A stable cause of database failures. */
@@ -91,7 +92,7 @@ export function violatedKeyOf(error: Error, declared: DeclaredNames): ViolatedKe
 
 /** Reject an unhandled variant. */
 export function assertNever(value: never): never {
-    throw new TypeError(`unhandled database variant: ${String(value)}`);
+    throw new TypeError(`unhandled database variant: '${String(value)}'`);
 }
 
 /** Classify a failed statement as a conflict, duplicate, broken reference or failed check. */
@@ -110,14 +111,14 @@ export function classifyError(error: unknown, declared: DeclaredNames): unknown 
         error.message.includes("database table is locked")
     ) {
         return DatabaseError.of(
-            "SERIALIZATION_FAILURE",
-            "a concurrent transaction conflicted with this one",
+            "TRANSACTION_CONFLICT",
+            "cannot commit the transaction: a concurrent transaction conflicted with it",
             {
                 cause: error,
             },
         );
     } else if (code === "23505" || error.message.includes("UNIQUE constraint failed")) {
-        return DatabaseError.of("DUPLICATE", "a record with the same unique key already exists", {
+        return DatabaseError.of("ROW_EXISTS", "a record with the same unique key already exists", {
             cause: error,
             data: violatedKeyOf(error, declared),
         });
@@ -127,20 +128,20 @@ export function classifyError(error: unknown, declared: DeclaredNames): unknown 
         error.message.includes("FOREIGN KEY constraint failed")
     ) {
         return DatabaseError.of(
-            "BROKEN_REFERENCE",
-            "the change would leave a reference to a missing record",
+            "REFERENCE_BLOCKED",
+            "cannot change the record: the change would leave a reference to a missing record",
             {
                 cause: error,
             },
         );
     } else if (code === "25P01" || OUTSIDE_TRANSACTION.test(error.message)) {
         return DatabaseError.of(
-            "TRANSACTION_REQUIRED",
+            "TRANSACTION_BROKEN",
             OUTSIDE_TRANSACTION.exec(error.message)?.[0] ?? error.message,
             { cause: error },
         );
     } else if (code === "23514" || error.message.includes("CHECK constraint failed")) {
-        return DatabaseError.of("RECORD_INVALID", "a record fails a declared check", {
+        return DatabaseError.of("RECORD_INVALID", "record is invalid: it fails a declared check", {
             cause: error,
         });
     }

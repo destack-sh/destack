@@ -87,7 +87,7 @@ export class ColumnCipher {
     ): ColumnCipher {
         if (cipher === undefined) {
             throw new TypeError(
-                `cannot encrypt sensitive column ${column.definition.name}: the database has no key`,
+                `cannot encrypt sensitive column '${column.definition.name}': the database has no key`,
             );
         }
 

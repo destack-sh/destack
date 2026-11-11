@@ -119,7 +119,7 @@ export function defineDatabase<
     for (const table of [...expandTrees(definition.tables), ...replicated]) {
         const { sqlName } = table[TABLE];
         if (names.has(sqlName)) {
-            throw new TypeError(`duplicate SQL table: ${sqlName}`);
+            throw new TypeError(`duplicate SQL table: '${sqlName}'`);
         }
         names.set(sqlName, table);
     }
@@ -130,7 +130,7 @@ export function defineDatabase<
     for (const [name, table] of Object.entries(relations.tables)) {
         if (!kept.has(table)) {
             throw new TypeError(
-                `relations reference table ${name}, but the database does not declare it`,
+                `relations reference table '${name}', but the database does not declare it`,
             );
         }
     }

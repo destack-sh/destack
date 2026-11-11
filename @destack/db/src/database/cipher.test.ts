@@ -208,6 +208,6 @@ test("refuse writing a sensitive value into a database opened without its key", 
     await expect(
         database.insert(credential).values({ id: "a", scope: "s", secret: "x", token: "y" }),
     ).rejects.toThrow(
-        new TypeError("cannot encrypt sensitive column secret: the database has no key"),
+        new TypeError("cannot encrypt sensitive column 'secret': the database has no key"),
     );
 });

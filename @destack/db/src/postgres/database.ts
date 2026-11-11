@@ -387,7 +387,7 @@ function parseFragment(
         position < 0 ||
         position >= total
     ) {
-        throw new TypeError(`malformed notification fragment on ${name}`);
+        throw new TypeError(`malformed notification fragment on '${name}'`);
     }
     const chunk = header.slice(sender.length + id.length + index.length + count.length + 4);
 

@@ -134,9 +134,9 @@ test("log committed changes of tables in commit order", async () => {
     const now = clock.now();
     await database.log.compact(now + 1, now);
     expect(await refusal(database.log.read({ tables, after: 0 }))).toEqual([
-        "GONE",
-        "CHANGES_COMPACTED",
-        "changes after 0 were compacted: list the tables again",
+        "NOT_FOUND",
+        "CHANGES_NOT_FOUND",
+        "changes after '0' not found: they were compacted, so list the tables again",
     ]);
     const history = await database.execute(
         sql`SELECT "table" FROM ${sql.relation("__destack_log")} ORDER BY sequence`,
@@ -250,7 +250,7 @@ test("preserve the log's identifier across a restore's new epoch, and refuse com
         true,
     ]);
     expect(() => LogPosition.isAfter(after, foreign)).toThrow(
-        new TypeError(`cannot compare positions of logs ${after.log} and ${foreign.log}`),
+        new TypeError(`cannot compare positions of logs '${after.log}' and '${foreign.log}'`),
     );
 });
 
@@ -434,8 +434,16 @@ test("move a consumer's checkpoint only from the position it read, refusing a co
     );
     expect({ refused, checkpoint: await database.log.checkpoint("rating") }).toEqual({
         refused: [
-            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "checkpoint rating moved past 0"],
-            ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "checkpoint rating moved past 3"],
+            [
+                "CONFLICT",
+                "UPDATE_CONFLICT",
+                "cannot read from checkpoint 'rating': it moved past '0'",
+            ],
+            [
+                "CONFLICT",
+                "UPDATE_CONFLICT",
+                "cannot read from checkpoint 'rating': it moved past '3'",
+            ],
         ],
         checkpoint: 5,
     });
@@ -546,7 +554,7 @@ test("refuse a logged script outside a transaction, and log one inside a transac
     expect({ outside, logged: changes.map((change) => change.operation) }).toEqual({
         outside: [
             "INTERNAL_SERVER_ERROR",
-            "TRANSACTION_REQUIRED",
+            "TRANSACTION_BROKEN",
             `a logged write of ${note[TABLE].sqlName} runs outside a transaction: run it in a transaction`,
         ],
         logged: ["insert"],
@@ -617,9 +625,9 @@ test("retain the changes after a consumer's checkpoint until it expires or is dr
     // compact past an expired and a dropped checkpoint
     await database.log.compact(now + 1, now + 120_000);
     expect(await refusal(database.log.read({ tables: [note], after: kept }))).toEqual([
-        "GONE",
-        "CHANGES_COMPACTED",
-        `changes after ${kept} were compacted: list the tables again`,
+        "NOT_FOUND",
+        "CHANGES_NOT_FOUND",
+        `changes after '${kept}' not found: they were compacted, so list the tables again`,
     ]);
     await database.log.drop("subscription");
     expect(
@@ -667,7 +675,7 @@ test("log the rows of a table without a scope column under its database's scope"
         DatabaseError.is(unscopedWrite) && unscopedWrite.cause instanceof Error
             ? [unscopedWrite.reason, unscopedWrite.cause.message]
             : unscopedWrite,
-    ).toEqual(["QUERY_FAILED", "the database has no scope for the rows of destack__db__setting"]);
+    ).toEqual(["QUERY_BROKEN", "the database has no scope for the rows of destack__db__setting"]);
 
     // file every change under the scope the database was created with
     const scoped = await TestDatabase.create([setting], { environment: world });

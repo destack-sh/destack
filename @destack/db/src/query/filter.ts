@@ -235,7 +235,7 @@ class FilterReader {
     #refuse(reason: string, offset: number): FamilyError<"QUERY_INVALID"> {
         return DatabaseError.of(
             "QUERY_INVALID",
-            `${reason} at ${offset} in filter ${this.#filter}`,
+            `filter '${this.#filter}' is invalid: '${reason}' at ${offset}`,
         );
     }
 }
@@ -273,7 +273,7 @@ function tokenize(filter: string): Token[] {
             if (index >= filter.length) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `unclosed text at ${start} in filter ${filter}`,
+                    `filter '${filter}' is invalid: unclosed text at ${start}`,
                 );
             }
             tokens.push({ kind: "text", text, start });
@@ -343,7 +343,7 @@ function escape(text: string): string {
 function nest(path: readonly string[], entry: Comparable | JsonCondition): JsonCondition {
     const [name, ...rest] = path;
     if (name === undefined) {
-        throw DatabaseError.of("QUERY_INVALID", "a filter restriction has no field");
+        throw DatabaseError.of("QUERY_INVALID", "filter restriction is invalid: it has no field");
     }
 
     return { [name]: rest.length === 0 ? entry : nest(rest, entry) };

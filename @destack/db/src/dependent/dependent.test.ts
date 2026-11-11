@@ -36,9 +36,9 @@ test("delete the rows referencing a deleted row of their type, also below foreig
 
     // refuse deleting the remarked photo
     expect(await refusal(() => database.delete(photo).where(eq(photo.id, "a")))).toEqual([
-        "CONFLICT",
-        "BROKEN_REFERENCE",
-        "the change would leave a reference to a missing record",
+        "PRECONDITION_FAILED",
+        "REFERENCE_BLOCKED",
+        "cannot change the record: the change would leave a reference to a missing record",
     ]);
     expect(await database.select().from(photo)).toEqual([{ id: "a" }]);
     expect(await read()).toEqual(["2", "4"]);

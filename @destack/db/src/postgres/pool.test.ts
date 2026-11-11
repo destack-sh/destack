@@ -34,8 +34,8 @@ test("refuse a reservation while the world's own work keeps every connection pas
     pool.release(again.sql);
     expect(refused).toEqual([
         "SERVICE_UNAVAILABLE",
-        "CONNECTION_TIMEOUT",
-        "waited 50 ms for a connection: every one is in a transaction",
+        "CONNECTION_UNAVAILABLE",
+        "connection is unavailable: every one stayed in a transaction for 50 ms",
     ]);
 });
 
@@ -74,8 +74,8 @@ test("end a timed-out wait behind another world's connection as peer work, leavi
     expect({ refused, afterwards }).toEqual({
         refused: [
             "SERVICE_UNAVAILABLE",
-            "CONNECTION_TIMEOUT",
-            "waited 50 ms for a connection: every one is in a transaction",
+            "CONNECTION_UNAVAILABLE",
+            "connection is unavailable: every one stayed in a transaction for 50 ms",
         ],
         afterwards: [],
     });

@@ -44,7 +44,7 @@ test("declare local and replicated tables, replicating a replicated tree's index
     // refuse a table both declared and replicated
     expect(() =>
         defineDatabase({ name: "main", tables: [note, user], replicated: [user] }),
-    ).toThrow(new TypeError("duplicate SQL table: destack__db__user"));
+    ).toThrow(new TypeError("duplicate SQL table: 'destack__db__user'"));
 });
 
 test("decide replicated tables on a connection by its declaration, and none over bare tables", async () => {

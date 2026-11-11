@@ -87,7 +87,7 @@ export class Projection implements Cursor {
         }
         // forget a position another instance moved past, reading the checkpoint again on the next take
         catch (error) {
-            if (!DatabaseError.is(error, "CONCURRENT_UPDATE")) {
+            if (!DatabaseError.is(error, "UPDATE_CONFLICT")) {
                 throw error;
             }
             this.#after = undefined;
@@ -133,7 +133,7 @@ export class Projection implements Cursor {
                 };
             } catch (error) {
                 // project everything once the log dropped the checkpoint's changes
-                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     throw error;
                 }
             }

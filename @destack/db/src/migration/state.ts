@@ -445,10 +445,10 @@ export async function readState(database: DatabaseConnection): Promise<TableStat
         const parsed = TableState.safeParse(JSON.parse(row.state));
         if (!parsed.success) {
             const name = await readName(database);
-            const problem = schema.prettifyError(parsed.error);
+            const detail = schema.prettifyError(parsed.error);
             throw DatabaseError.of(
-                "MIGRATION_INVALID",
-                `the applied state of table ${row.table} in database ${name} has an unknown format: ${problem}`,
+                "MIGRATION_BROKEN",
+                `the applied state of table '${row.table}' in database '${name}' has an unknown format: ${detail}`,
                 { cause: parsed.error },
             );
         }
@@ -528,7 +528,7 @@ function describePredefined(table: Table, dialect: Dialect): Record<string, stri
                     const value = row[property];
                     if (value === undefined) {
                         throw new TypeError(
-                            `predefined row of ${definition.name} has no ${property} value`,
+                            `predefined row of '${definition.name}' has no '${property}' value`,
                         );
                     }
 
@@ -562,7 +562,7 @@ function describeConversions(table: Table, dialect: Dialect): TableState["conver
                         kind === column.kind || (kind === "real" && column.kind === "integer");
                     if (!isSameKind) {
                         throw new TypeError(
-                            `conversion of ${definition.name}.${property} produces ${kind} for a ${column.kind} column`,
+                            `conversion of '${definition.name}.${property}' produces ${kind} for a ${column.kind} column`,
                         );
                     }
 
@@ -592,7 +592,7 @@ function describeAggregates(
                     continue;
                 }
                 throw new TypeError(
-                    `aggregate of ${definition.name} into ${holder[TABLE].name} references undeclared table ${missing[TABLE].name}`,
+                    `aggregate of '${definition.name}' into '${holder[TABLE].name}' references undeclared table '${missing[TABLE].name}'`,
                 );
             }
 
@@ -600,7 +600,7 @@ function describeAggregates(
             const [id, ...rest] = loggedKey(holder);
             if (id === undefined || rest.length > 0) {
                 throw new TypeError(
-                    `aggregate into ${holder[TABLE].name} needs a single-column key`,
+                    `aggregate into '${holder[TABLE].name}' needs a single-column key`,
                 );
             }
 
@@ -650,12 +650,12 @@ function describeDependents(
         const source = dependent.from();
         if (!tables.includes(source)) {
             throw new TypeError(
-                `dependents of ${definition.name} reference undeclared table ${source[TABLE].name}`,
+                `dependents of '${definition.name}' reference undeclared table '${source[TABLE].name}'`,
             );
         }
         const [id, ...rest] = loggedKey(table);
         if (id === undefined || rest.length > 0) {
-            throw new TypeError(`dependents of ${definition.name} need a single-column key`);
+            throw new TypeError(`dependents of '${definition.name}' need a single-column key`);
         }
 
         return {

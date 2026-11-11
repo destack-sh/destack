@@ -112,7 +112,7 @@ function characters(set: string): string {
     if (!CHARACTER_SET.test(set)) {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `character set ${set} accepts only letters, digits, their ranges and ._+/=:@*-`,
+            `character set '${set}' is invalid: it accepts only letters, digits, their ranges and ._+/=:@*-`,
         );
     }
 
@@ -122,7 +122,10 @@ function characters(set: string): string {
         (piece) => piece.length === 3 && piece.charAt(0) > piece.charAt(2),
     );
     if (descending !== undefined) {
-        throw DatabaseError.of("QUERY_INVALID", `character range ${descending} is descending`);
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `character range '${descending}' is invalid: it is descending`,
+        );
     }
 
     // move a literal hyphen last, where every dialect's class reads it literally
@@ -277,7 +280,7 @@ function requireSameOrdering(table: Table, left: string, right: string): void {
     if (leftOrdering !== rightOrdering) {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `cannot compare ${table[TABLE].name}.${left} (${leftOrdering} ordering) with ${right} (${rightOrdering} ordering)`,
+            `comparison is invalid: '${table[TABLE].name}.${left}' ('${leftOrdering}' ordering) cannot compare with '${right}' ('${rightOrdering}' ordering)`,
         );
     }
 }
@@ -286,7 +289,10 @@ function requireSameOrdering(table: Table, left: string, right: string): void {
 function columnOf(table: Table, name: string): Column {
     const column = table[TABLE].columns[name];
     if (column === undefined) {
-        throw DatabaseError.of("QUERY_INVALID", `${table[TABLE].name} has no column ${name}`);
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `column '${name}' is invalid: '${table[TABLE].name}' has no such column`,
+        );
     }
 
     return column;
@@ -298,7 +304,7 @@ function requireText(table: Table, name: string): void {
     if (column !== undefined && column.definition.kind !== "text") {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `field ${name} matches patterns, not ${column.definition.kind}`,
+            `field '${name}' is invalid: it matches patterns, not ${column.definition.kind}`,
         );
     }
 }
@@ -322,7 +328,7 @@ function bind(
             if (namespace.exists === undefined) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `condition follows relation ${via}, but ${table[TABLE].name} does not declare it`,
+                    `relation '${via}' is invalid: '${table[TABLE].name}' does not declare it`,
                 );
             }
 
@@ -434,7 +440,7 @@ function likeTokens(pattern: string): LikeToken[] {
             if (next === undefined) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    "a like pattern cannot end with its escape character",
+                    "like pattern is invalid: it cannot end with its escape character",
                 );
             }
             tokens.push({ literal: next });
@@ -656,7 +662,7 @@ function compileLike(predicate: Extract<Predicate, { readonly kind: "like" }>): 
         } else if (typeof value !== "string") {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `field ${name} matches patterns, not ${typeof value}`,
+                `field '${name}' is invalid: it matches patterns, not '${typeof value}'`,
             );
         }
 
@@ -698,7 +704,10 @@ function textOf(value: unknown, name: string): string | undefined {
     if (value === null || value === undefined) {
         return undefined;
     } else if (typeof value !== "string") {
-        throw DatabaseError.of("QUERY_INVALID", `field ${name} matches text, not ${typeof value}`);
+        throw DatabaseError.of(
+            "QUERY_INVALID",
+            `field '${name}' is invalid: it matches text, not '${typeof value}'`,
+        );
     }
 
     return value;
@@ -754,7 +763,7 @@ function compileSearch(predicate: Extract<Predicate, { readonly kind: "search" }
 
 /** Refuse a placeholder no value binds, as rendering refuses it. */
 function unbound(name: string): never {
-    throw DatabaseError.of("QUERY_INVALID", `no value for placeholder ${name}`);
+    throw DatabaseError.of("QUERY_INVALID", `placeholder '${name}' is invalid: it has no value`);
 }
 
 /** Decide a compiled predicate on a row with relations unknown. */

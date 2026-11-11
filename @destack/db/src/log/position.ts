@@ -17,8 +17,8 @@ export const LogColumn = {
                   : Number.NaN;
         if (!Number.isSafeInteger(number) || number < 0) {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `expected an integer from the log, got ${String(value)}`,
+                "QUERY_BROKEN",
+                `expected an integer from the log, got '${String(value)}'`,
             );
         }
 
@@ -34,8 +34,8 @@ export const LogColumn = {
     text(value: unknown): string {
         if (typeof value !== "string") {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `expected text from the log, got ${String(value)}`,
+                "QUERY_BROKEN",
+                `expected text from the log, got '${String(value)}'`,
             );
         }
 
@@ -52,8 +52,8 @@ export const LogColumn = {
         const parsed = parseJson(value, dialect);
         if (!Array.isArray(parsed)) {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `expected an array from the log, got ${String(value)}`,
+                "QUERY_BROKEN",
+                `expected an array from the log, got '${String(value)}'`,
             );
         }
 
@@ -65,8 +65,8 @@ export const LogColumn = {
         const parsed = parseJson(value, dialect);
         if (!isObject(parsed)) {
             throw DatabaseError.of(
-                "QUERY_FAILED",
-                `expected an object from the log, got ${String(value)}`,
+                "QUERY_BROKEN",
+                `expected an object from the log, got '${String(value)}'`,
             );
         }
 
@@ -92,7 +92,7 @@ export const LogPosition = Object.assign(logPositionSchema, {
     isAfter(position: LogPosition, other: LogPosition): boolean {
         if (position.log !== other.log) {
             throw new TypeError(
-                `cannot compare positions of logs ${position.log} and ${other.log}`,
+                `cannot compare positions of logs '${position.log}' and '${other.log}'`,
             );
         }
 

@@ -47,7 +47,7 @@ test("commit both of two concurrent transactions incrementing the same row, runn
     expect(await database.select({ value: tally.value }).from(tally)).toEqual([{ value: 2 }]);
 });
 
-test("answer a transaction that loses every race as unavailable after five attempts, and a failure of another kind at once", async () => {
+test("answer a transaction that loses every race as a conflict after five attempts, and a failure of another kind at once", async () => {
     // lose the race at each attempt, and fail otherwise once
     await using simulation = testSimulation();
     const { database } = await open(simulation.environment("test"));
@@ -73,7 +73,7 @@ test("answer a transaction that loses every race as unavailable after five attem
         failed,
     }).toEqual({
         losing: 5,
-        code: "SERVICE_UNAVAILABLE",
+        code: "CONFLICT",
         failing: 1,
         failed: new TypeError("not a race"),
     });

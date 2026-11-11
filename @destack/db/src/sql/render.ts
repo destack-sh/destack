@@ -125,7 +125,7 @@ export function fill(
         if (value === undefined) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `no value for placeholder ${parameter.placeholder}`,
+                `placeholder '${parameter.placeholder}' is invalid: it has no value`,
             );
         }
 
@@ -238,7 +238,7 @@ function bind(chunk: Parameter | Placeholder, target: Target): string {
         if (value instanceof Placeholder) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `declarations cannot bind placeholder ${value.placeholder}`,
+                `placeholder '${value.placeholder}' is invalid: declarations cannot bind it`,
             );
         }
 
@@ -296,7 +296,7 @@ function driverValue(value: unknown): DriverValue {
 
     throw DatabaseError.of(
         "QUERY_INVALID",
-        `cannot bind a ${typeof value} without its column: drivers accept text, numbers, booleans, bytes and null`,
+        `value of type '${typeof value}' is invalid: it cannot bind without its column, as drivers accept text, numbers, booleans, bytes and null`,
     );
 }
 
@@ -342,7 +342,7 @@ function define(table: CommonTable, target: Target): string {
     if (commons === undefined) {
         throw DatabaseError.of(
             "QUERY_INVALID",
-            `declarations cannot read common table ${table.name}`,
+            `common table '${table.name}' is invalid: declarations cannot read it`,
         );
     }
 

@@ -131,7 +131,7 @@ test("provision a PostgreSQL schema twice with the same log, plan and apply it, 
         reference: id,
         again: id,
         isLogUnchanged: true,
-        early: `database notes has not applied ${qualified}`,
+        early: `cannot open database 'notes': it has not applied '${qualified}'`,
         steps: [
             {
                 action: "create",
@@ -143,10 +143,10 @@ test("provision a PostgreSQL schema twice with the same log, plan and apply it, 
                 ],
             },
         ],
-        stale: ["INTERNAL_SERVER_ERROR", "PLAN_CHANGED", `plan of ${id} changed since review`],
+        stale: ["INTERNAL_SERVER_ERROR", "PLAN_BROKEN", `plan of '${id}' changed since review`],
         applied: "connected",
         isCounted: true,
-        refused: ["QUERY_FAILED", `schema "${id}" does not exist`],
+        refused: ["QUERY_BROKEN", `schema "${id}" does not exist`],
     });
 });
 

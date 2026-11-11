@@ -153,8 +153,8 @@ export class SqliteWorkQueue {
         return settled.then((isTurn) => {
             if (!isTurn) {
                 throw DatabaseError.of(
-                    "CONNECTION_TIMEOUT",
-                    `waited ${this.#wait} ms for the connection: a transaction still has it`,
+                    "CONNECTION_UNAVAILABLE",
+                    `the connection is unavailable: a transaction still had it after ${this.#wait} ms`,
                 );
             }
 

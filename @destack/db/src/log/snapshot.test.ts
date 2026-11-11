@@ -195,18 +195,18 @@ test("read history past compaction, and refuse compacted windows and other epoch
         { id: "r", scope: "inbox", title: "First" },
     ]);
     expect(await refusal(snapshot.read(item).findMany({ where: everything }))).toEqual([
-        "GONE",
-        "CHANGES_COMPACTED",
-        `changes after ${position.sequence} were compacted: list the tables again`,
+        "NOT_FOUND",
+        "CHANGES_NOT_FOUND",
+        `changes after '${position.sequence}' not found: they were compacted, so list the tables again`,
     ]);
 
     // refuse reads after a new epoch
     await database.log.renew();
     const { epoch } = await database.log.position();
     expect(await refusal(snapshot.read(revision).findMany({ where: everything }))).toEqual([
-        "GONE",
-        "EPOCH_STALE",
-        `position of epoch ${position.epoch} is not in the log's epoch ${epoch}`,
+        "CONFLICT",
+        "EPOCH_CONFLICT",
+        `cannot read position of epoch ${position.epoch}: it is not in the log's epoch ${epoch}`,
     ]);
 });
 

@@ -338,7 +338,7 @@ class TemplateCache {
         while (!(await HOST.files.exists(join(directory, LOCKFILE)))) {
             const parent = dirname(directory);
             if (parent === directory) {
-                throw new Error(`${path} is in no workspace with a ${LOCKFILE}`);
+                throw new Error(`'${path}' is in no workspace with a '${LOCKFILE}'`);
             }
             directory = parent;
         }
@@ -415,7 +415,7 @@ class TemplateCache {
         let directory = dirname(path);
         while (!(await HOST.files.exists(join(directory, "package.json")))) {
             if (directory === root) {
-                throw new Error(`${path} belongs to no package below ${root}`);
+                throw new Error(`'${path}' belongs to no package below '${root}'`);
             }
             directory = dirname(directory);
         }
@@ -437,7 +437,7 @@ class TemplateCache {
         const output = await listing.output();
         if (output.code !== 0) {
             const stderr = new TextDecoder().decode(output.stderr);
-            throw new Error(`listing the template sources failed: ${stderr}`);
+            throw new Error(`listing the template sources failed: '${stderr}'`);
         }
         const files = new TextDecoder()
             .decode(output.stdout)

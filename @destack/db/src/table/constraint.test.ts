@@ -99,5 +99,5 @@ test("refuse rows breaking each check of conditions, comparing with values the c
         ),
     );
 
-    expect(refused).toEqual(broken.map(() => "a record fails a declared check"));
+    expect(refused).toEqual(broken.map(() => "record is invalid: it fails a declared check"));
 });

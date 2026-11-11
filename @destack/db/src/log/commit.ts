@@ -22,7 +22,7 @@ import { RelationalQueryBuilder } from "./query.ts";
 const TRANSACTION_ATTEMPTS = 5;
 
 /** A race a transaction loses: the engine's serialization failure, or a stale read at commit. */
-export type LostRace = "SERIALIZATION_FAILURE" | "CONCURRENT_UPDATE";
+export type LostRace = "TRANSACTION_CONFLICT" | "UPDATE_CONFLICT";
 
 /** One row a change set writes: its image before the first and after the last write, or null. */
 export interface RowChange {
@@ -153,11 +153,11 @@ export class ChangeSet {
     write({ table, before, after }: RowChange): void {
         // key the row by its present image, refusing a table without a key
         if (table[TABLE].key.length === 0) {
-            throw new TypeError(`${table[TABLE].name} has no key to write rows by`);
+            throw new TypeError(`'${table[TABLE].name}' has no key to write rows by`);
         }
         const image = after ?? before;
         if (image === null) {
-            throw new TypeError(`a write to ${table[TABLE].name} has no row before or after`);
+            throw new TypeError(`a write to '${table[TABLE].name}' has no row before or after`);
         }
         const name = Key.name(table, image);
 
@@ -291,7 +291,7 @@ export class ChangeSet {
             );
         } catch (error) {
             // refuse a failed write as a lost race once a commit since the base touched a read
-            if (position !== undefined && !DatabaseError.is(error, "CONCURRENT_UPDATE")) {
+            if (position !== undefined && !DatabaseError.is(error, "UPDATE_CONFLICT")) {
                 await ChangeSet.requireCurrent(database, base, reads, position);
             }
             throw error;
@@ -400,7 +400,7 @@ export class ChangeSet {
         const { table, before, after } = change;
         if (before === null || after === null) {
             throw new TypeError(
-                `a change of a ${table[TABLE].name} row has no row before or after`,
+                `a change of a '${table[TABLE].name}' row has no row before or after`,
             );
         }
 
@@ -487,18 +487,18 @@ export class ChangeSet {
         // refuse a log that restarted since the base
         if (position.epoch !== base.epoch) {
             throw DatabaseError.of(
-                "CONCURRENT_UPDATE",
-                "the database log restarted since the transaction read it",
+                "UPDATE_CONFLICT",
+                "cannot commit the transaction: the database log restarted since the transaction read it",
             );
         }
 
         // read every change after the base, page by page, refusing once the log compacted some
         for (let after = base.sequence; after < position.sequence;) {
             const page = await transaction.log.read({ tables, after }).catch((error: unknown) => {
-                if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     throw DatabaseError.of(
-                        "CONCURRENT_UPDATE",
-                        "the log no longer has the changes the transaction read",
+                        "UPDATE_CONFLICT",
+                        "cannot commit the transaction: the log no longer has the changes the transaction read",
                     );
                 }
                 throw error;
@@ -508,8 +508,8 @@ export class ChangeSet {
             const committed = page.changes.filter((change) => change.sequence <= position.sequence);
             if (committed.some((change) => reads.touches(change))) {
                 throw DatabaseError.of(
-                    "CONCURRENT_UPDATE",
-                    "another commit changed what the transaction read",
+                    "UPDATE_CONFLICT",
+                    "cannot commit the transaction: another commit changed what it read",
                 );
             }
 
@@ -560,7 +560,7 @@ export class Transaction {
     ): Promise<Value> {
         return Transaction.retry(
             database,
-            "CONCURRENT_UPDATE",
+            "UPDATE_CONFLICT",
             async () => {
                 // run the attempt from the log's current position and commit it
                 const transaction = await Transaction.open(database);
@@ -734,7 +734,7 @@ export class Transaction {
             if (image !== null && Key.isPredefined(table, image)) {
                 throw DatabaseError.of(
                     "RECORD_INVALID",
-                    `cannot write predefined row ${Key.name(table, image)} of ${table[TABLE].name}`,
+                    `predefined row '${Key.name(table, image)}' of '${table[TABLE].name}' is invalid: it cannot be written`,
                 );
             }
         }
@@ -837,7 +837,7 @@ export class Transaction {
                 // refuse a key a later commit took as a lost race
                 await this.requireCurrent();
                 throw DatabaseError.of(
-                    "DUPLICATE",
+                    "ROW_EXISTS",
                     "a record with the same unique key already exists",
                     {
                         data: { table: definition.name, columns: [...key.columns] },

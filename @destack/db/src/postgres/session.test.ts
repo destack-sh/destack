@@ -33,7 +33,7 @@ test("refuse a nested transaction beside an open sibling", async () => {
     expect(siblings).toEqual([
         "BAD_REQUEST",
         "QUERY_INVALID",
-        "a nested transaction began while its sibling is open: run them in turn",
+        "nested transaction is invalid: it began while its sibling is open, so run them in turn",
     ]);
 });
 
@@ -49,7 +49,7 @@ test("refuse a transaction the server rolled back at its commit, after its work 
     );
     expect(committed).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "QUERY_FAILED",
+        "QUERY_BROKEN",
         "the transaction rolled back at its commit, after a statement in it failed",
     ]);
 });

@@ -28,7 +28,7 @@ export const SearchText = {
         if (words.length === 0 || words.length > MAX_SEARCH_WORDS) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `a search needs 1 to ${MAX_SEARCH_WORDS} words, not ${words.length}: ${text}`,
+                `search '${text}' is invalid: it has ${words.length} words, not 1 to ${MAX_SEARCH_WORDS}`,
             );
         }
 

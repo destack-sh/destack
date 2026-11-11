@@ -115,7 +115,9 @@ function next(script: string, index: number): { readonly token: number; readonly
 function transition(state: number, token: number): number {
     const target = TRANSITIONS[state]?.[token];
     if (target === undefined) {
-        throw new RangeError(`the statement machine has no transition from ${state} on ${token}`);
+        throw new RangeError(
+            `the statement machine has no transition from '${state}' on '${token}'`,
+        );
     }
 
     return target;

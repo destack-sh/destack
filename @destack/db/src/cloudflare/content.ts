@@ -27,7 +27,10 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
         const response = await this.#send(digest, "GET");
         if (response.body === null) {
-            throw DatabaseError.of("CONTENT_UNAVAILABLE", `content ${digest} has no body`);
+            throw DatabaseError.of(
+                "CONTENT_UNAVAILABLE",
+                `content '${digest}' is unavailable: it has no body`,
+            );
         }
 
         yield* response.body;
@@ -41,7 +44,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
         if (expected !== undefined && expected !== digest) {
             throw DatabaseError.of(
                 "RECORD_INVALID",
-                `content hash mismatch: expected ${expected}, got ${digest}`,
+                `content hash '${digest}' is invalid: expected '${expected}'`,
             );
         }
 
@@ -64,7 +67,7 @@ export class DurableObjectContentStore implements Pick<ContentStore, "read" | "w
             const text = await response.text();
             throw DatabaseError.of(
                 "CONTENT_UNAVAILABLE",
-                `the content object rejected ${method} ${digest}: ${response.status} ${text}`,
+                `content '${digest}' is unavailable: the content object rejected '${method}' with ${response.status} '${text}'`,
             );
         }
 

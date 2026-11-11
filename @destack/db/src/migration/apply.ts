@@ -70,8 +70,8 @@ async function applySteps(
                 pending = [];
                 await rebuildTree(transaction, step.tree).catch((cause: unknown) => {
                     throw DatabaseError.of(
-                        "MIGRATION_FAILED",
-                        `${step.target}: ${step.detail} failed`,
+                        "MIGRATION_BROKEN",
+                        `'${step.target}': ${step.detail} failed`,
                         {
                             cause,
                         },
@@ -106,8 +106,8 @@ async function applySteps(
             if (violations.length > 0) {
                 const tables = [...new Set(violations.map((row) => row.table))].join(", ");
                 throw DatabaseError.of(
-                    "MIGRATION_FAILED",
-                    `migration leaves foreign key violations in ${tables}`,
+                    "MIGRATION_BROKEN",
+                    `migration leaves foreign key violations in '${tables}'`,
                 );
             }
         }
@@ -129,7 +129,7 @@ async function runScript(
         await database.executeScript(statements.map((statement) => `${statement};`).join("\n"));
     } catch (cause) {
         const message = cause instanceof Error ? cause.message : String(cause);
-        throw DatabaseError.of("MIGRATION_FAILED", `migration failed: ${message}`, { cause });
+        throw DatabaseError.of("MIGRATION_BROKEN", `migration failed: ${message}`, { cause });
     }
 }
 
@@ -167,8 +167,8 @@ async function requireConverted(
             const parsed = json === null && column.nullable ? undefined : validator.safeParse(json);
             if (parsed !== undefined && !parsed.success) {
                 throw DatabaseError.of(
-                    "MIGRATION_FAILED",
-                    `conversion writes a value that ${converted.table}.${column.name} rejects: ${schema.prettifyError(parsed.error)}`,
+                    "MIGRATION_BROKEN",
+                    `conversion writes a value that '${converted.table}.${column.name}' rejects: '${schema.prettifyError(parsed.error)}'`,
                     { cause: parsed.error },
                 );
             }

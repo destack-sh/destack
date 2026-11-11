@@ -103,7 +103,7 @@ test("retire the blobs a write may let go: written blob columns' old values, con
         refused: [
             "BAD_REQUEST",
             "QUERY_INVALID",
-            "a delete of content_document lets blobs go, so it runs in a transaction",
+            "'delete' of 'content_document' is invalid: it lets blobs go, so it runs in a transaction",
         ],
     });
 });

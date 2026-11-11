@@ -909,7 +909,7 @@ function primaryKey(state: TableState): readonly string[] {
         constraint.kind === "primaryKey" ? [constraint.columns] : [],
     );
     if (key === undefined) {
-        throw new TypeError(`${state.table.name} has predefined rows but no primary key`);
+        throw new TypeError(`'${state.table.name}' has predefined rows but no primary key`);
     }
 
     return key;
@@ -985,7 +985,7 @@ function changeValues(
                 steps.push(step("update", change.target, change.risk, change.detail, []));
             }
         } catch (error) {
-            if (!ResourceError.is(error, "PLAN_UNREACHABLE")) {
+            if (!ResourceError.is(error, "PLAN_BLOCKED")) {
                 throw error;
             }
             problems.push(...error.data.problems);

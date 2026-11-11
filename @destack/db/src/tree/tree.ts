@@ -36,12 +36,12 @@ export class Tree {
         for (const name of [definition.id, definition.scope, definition.parent]) {
             const column = definition.table[TABLE].columns[name];
             if (column === undefined || column.definition.kind !== "text") {
-                throw DatabaseError.of("MIGRATION_INVALID", `unknown tree column: ${name}`);
+                throw DatabaseError.of("MIGRATION_BROKEN", `unknown tree column: '${name}'`);
             }
             if (column.definition.nullable !== (name === definition.parent)) {
                 throw DatabaseError.of(
-                    "MIGRATION_INVALID",
-                    `invalid tree column nullability: ${name}`,
+                    "MIGRATION_BROKEN",
+                    `tree column '${name}' has the wrong nullability`,
                 );
             }
         }
@@ -162,7 +162,7 @@ export class Tree {
             WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${id}
             RETURNING ${sql.identifier(tree.id)}`);
         if (rows.length === 0) {
-            throw DatabaseError.of("TREE_NOT_FOUND", "tree node not found");
+            throw DatabaseError.of("TREE_BROKEN", "tree node not found");
         }
     }
 
@@ -183,7 +183,7 @@ export class Tree {
                     schema.object({ parent: schema.string().nullable() }),
                 );
                 if (node === undefined) {
-                    throw DatabaseError.of("TREE_NOT_FOUND", "tree node not found");
+                    throw DatabaseError.of("TREE_BROKEN", "tree node not found");
                 }
 
                 // move the children to the parent

@@ -233,7 +233,7 @@ export class PostgresSession implements Session {
         if (this.#isNesting) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                "a nested transaction began while its sibling is open: run them in turn",
+                "nested transaction is invalid: it began while its sibling is open, so run them in turn",
             );
         }
 
@@ -314,7 +314,7 @@ async function block<Value>(
         const committed = await send(statements.commit);
         if (committed.command === "ROLLBACK") {
             throw DatabaseError.of(
-                "QUERY_FAILED",
+                "QUERY_BROKEN",
                 "the transaction rolled back at its commit, after a statement in it failed",
             );
         }

@@ -524,7 +524,9 @@ export function identifier<const Prefix extends string>(
             const read = stored(value, "string");
             const expected = typeof prefix === "function" ? prefix() : prefix;
             if (!read.startsWith(`${expected}-`)) {
-                throw new TypeError(`the database returned ${read} for a ${expected} identifier`);
+                throw new TypeError(
+                    `the database returned '${read}' for a '${expected}' identifier`,
+                );
             }
 
             // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- stored values passed their write's validator
@@ -653,7 +655,7 @@ interface StoredTypes {
 function stored<Type extends keyof StoredTypes>(value: unknown, type: Type): StoredTypes[Type] {
     // refuse a value of another type than the column stores
     if (!isStored(value, type)) {
-        throw new TypeError(`the database driver returned ${typeof value} for a ${type} column`);
+        throw new TypeError(`the database driver returned '${typeof value}' for a ${type} column`);
     }
 
     return value;

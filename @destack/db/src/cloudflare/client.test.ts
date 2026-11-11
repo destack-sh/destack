@@ -148,9 +148,9 @@ test("read another object's database through its reader, refusing other operatio
         {
             found: { id: "b", title: "Note b" },
             named: { id: "n", title: "Spaced" },
-            measured: "this object only accepts reads, not measure",
+            measured: "operation 'measure' is invalid: this object only accepts reads",
             files: [["f", "9007199254740991", "0001feff"]],
-            deleted: "a read of another object wrote rows",
+            deleted: "read is invalid: a read of another object wrote rows",
             kept: ["a", "b"],
         },
     ]);

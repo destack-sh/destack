@@ -16,8 +16,8 @@ export function durableObjectConnector(host: DurableObjectDatabaseHost): Databas
             if (unapplied.length > 0) {
                 await database.close();
                 throw DatabaseError.of(
-                    "MIGRATION_PENDING",
-                    `database ${declaration.name} has not applied ${unapplied.join(", ")}`,
+                    "MIGRATION_BLOCKED",
+                    `cannot open database '${declaration.name}': it has not applied '${unapplied.join(", ")}'`,
                 );
             }
 

@@ -120,7 +120,7 @@ test("run timers between the reconciliations of a synchronous database, one key 
 
 /** Fail on a reported reconciliation failure. */
 function fail(_controller: Controller | Cursor, key: string, error: unknown): void {
-    throw new Error(`reconciling ${key} failed`, { cause: error });
+    throw new Error(`reconciling '${key}' failed`, { cause: error });
 }
 
 /** Report a measured cost beside the test result. */

@@ -121,7 +121,7 @@ export class CommitWatch {
         return tables.map((table) => {
             const version = this.#versions.get(table);
             if (version === undefined) {
-                throw new TypeError(`table ${table} has no commit version`);
+                throw new TypeError(`table '${table}' has no commit version`);
             }
 
             return version;
