@@ -152,13 +152,15 @@ A `GrantRequest` declares what each delegator may grant a package or one of its 
 
 ```ts
 definePackage({
-    permissions: {
-        space: {
-            space: [note.permission("write")],
-            universe: [user.permission("recipient")],
+    access: {
+        permissions: {
+            space: {
+                space: [note.permission("write")],
+                universe: [user.permission("recipient")],
+            },
+            user: { home: [notification.permission("read")] },
+            optional: { home: [notification.permission("archive")] }, // asked when first used
         },
-        user: { home: [notification.permission("read")] },
-        optional: { home: [notification.permission("archive")] }, // asked when first used
     },
 });
 PermissionSet.grant(set, { space, home: [userId, homeId], account }); // [{ within: "home", permission }, …]
