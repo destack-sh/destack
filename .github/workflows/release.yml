@@ -109,7 +109,7 @@ jobs:
             - name: Pack distribution
               run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Upload unsigned distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: unsigned-${{ matrix.target }}
                   retention-days: 14
@@ -176,7 +176,7 @@ jobs:
             - name: Pack distribution
               run: bun run src/main.ts distribution pack ${{ matrix.target }}
             - name: Upload signed distribution
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: signed-${{ matrix.target }}
                   retention-days: 14
@@ -240,7 +240,7 @@ jobs:
             - name: Build installer
               run: bun run src/main.ts installer build ${{ matrix.name }}
             - name: Upload installer
-              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
               with:
                   name: installer-${{ matrix.name }}
                   retention-days: 14
