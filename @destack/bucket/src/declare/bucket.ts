@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
-import { ModuleMetadata } from "@destack/package";
-import { type Connector, defineResourceKind, ResourceDeclaration } from "@destack/resource";
+import { defineKind, ModuleMetadata } from "@destack/package";
+import { ResourceDeclaration } from "@destack/resource";
 import type { Bucket } from "../bucket/index.ts";
 import { S3Client } from "../s3/client.ts";
 
@@ -10,25 +10,20 @@ export const BucketSpec = schema.object({
     write: schema.literal("package").exactOptional(),
 });
 /** The bucket resource kind: file storage. */
-export const BucketKind = defineResourceKind("bucket", { spec: BucketSpec });
+export const BucketKind = defineKind({ name: "bucket", provisioned: { spec: BucketSpec } });
 /** A named file storage dependency. */
 export type BucketDescription = schema.Infer<typeof BucketKind.description>;
 
-/** A declared bucket, which a workload calls over S3 at its host's egress. */
-export class BucketDeclaration extends ResourceDeclaration<Bucket, BucketDescription> {
-    /** The connector of buckets a host serves over S3 at its egress. */
-    override get connectors(): { readonly s3: Connector<Bucket> } {
-        return { s3: S3Client.connector };
-    }
-}
-
 /** Declare a file storage dependency. */
 export function defineBucket(
-    declaration: Omit<BucketDescription, "kind">,
+    options: { readonly name: string; readonly spec?: schema.Input<typeof BucketSpec> },
     module?: ModuleMetadata,
-): BucketDeclaration {
+): ResourceDeclaration<Bucket, typeof BucketSpec> {
     const owner = ModuleMetadata.require(module, "defineBucket").package;
-    const description = BucketKind.description.parse({ ...declaration, kind: "bucket" });
 
-    return new BucketDeclaration(owner, description);
+    return new ResourceDeclaration(owner, BucketKind, {
+        name: options.name,
+        spec: BucketSpec.parse(options.spec ?? {}),
+        connectors: { s3: S3Client.connector },
+    });
 }

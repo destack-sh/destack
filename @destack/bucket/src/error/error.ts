@@ -13,59 +13,61 @@ export const PreconditionFailure = schema.object({
 export type PreconditionFailure = schema.Infer<typeof PreconditionFailure>;
 
 /** The bucket package's failures, each reason with the call error code it answers. */
-export const BucketError = defineErrorFamily(import.meta.destack.package, {
-    // not found
-    BUCKET_NOT_FOUND: {},
-    KEY_NOT_FOUND: {},
-    UPLOAD_NOT_FOUND: {},
+export const BucketError = defineErrorFamily({
+    reasons: {
+        // not found
+        BUCKET_NOT_FOUND: {},
+        KEY_NOT_FOUND: {},
+        UPLOAD_NOT_FOUND: {},
 
-    // invalid
-    ARGUMENT_INVALID: {},
-    AUTHORIZATION_HEADER_INVALID: {},
-    AUTHORIZATION_QUERY_INVALID: {},
-    BODY_INVALID: {},
-    CONTENT_INVALID: {},
-    CONTENT_SHA256_INVALID: {},
-    DIGEST_INVALID: {},
-    ENCRYPTION_ALGORITHM_INVALID: {},
-    MAX_MESSAGE_LENGTH_INVALID: {},
-    METADATA_INVALID: {},
-    PART_INVALID: {},
-    PART_ORDER_INVALID: {},
-    RANGE_INVALID: {},
-    REQUEST_BODY_INVALID: {},
-    REQUEST_INVALID: {},
-    STORAGE_CLASS_INVALID: {},
-    TOKEN_INVALID: {},
-    URI_INVALID: {},
-    XML_INVALID: {},
+        // invalid
+        ARGUMENT_INVALID: {},
+        AUTHORIZATION_HEADER_INVALID: {},
+        AUTHORIZATION_QUERY_INVALID: {},
+        BODY_INVALID: {},
+        CONTENT_INVALID: {},
+        CONTENT_SHA256_INVALID: {},
+        DIGEST_INVALID: {},
+        ENCRYPTION_ALGORITHM_INVALID: {},
+        MAX_MESSAGE_LENGTH_INVALID: {},
+        METADATA_INVALID: {},
+        PART_INVALID: {},
+        PART_ORDER_INVALID: {},
+        RANGE_INVALID: {},
+        REQUEST_BODY_INVALID: {},
+        REQUEST_INVALID: {},
+        STORAGE_CLASS_INVALID: {},
+        TOKEN_INVALID: {},
+        URI_INVALID: {},
+        XML_INVALID: {},
 
-    // required
-    CONTENT_LENGTH_REQUIRED: {},
+        // required
+        CONTENT_LENGTH_REQUIRED: {},
 
-    // denied
-    ACCESS_DENIED: {},
-    ACCESS_KEY_DENIED: {},
-    CORS_DENIED: {},
-    REQUEST_TIME_DENIED: {},
-    SIGNATURE_DENIED: {},
+        // denied
+        ACCESS_DENIED: {},
+        ACCESS_KEY_DENIED: {},
+        CORS_DENIED: {},
+        REQUEST_TIME_DENIED: {},
+        SIGNATURE_DENIED: {},
 
-    // blocked
-    PRECONDITION_BLOCKED: { data: PreconditionFailure },
+        // blocked
+        PRECONDITION_BLOCKED: { data: PreconditionFailure },
 
-    // unsupported
-    CLONE_UNSUPPORTED: {},
-    METHOD_UNSUPPORTED: {},
-    OPERATION_UNSUPPORTED: {},
+        // unsupported
+        CLONE_UNSUPPORTED: {},
+        METHOD_UNSUPPORTED: {},
+        OPERATION_UNSUPPORTED: {},
 
-    // unavailable
-    BUCKET_UNAVAILABLE: {},
+        // unavailable
+        BUCKET_UNAVAILABLE: {},
 
-    // unreachable
-    S3_UNREACHABLE: {},
+        // unreachable
+        S3_UNREACHABLE: {},
 
-    // broken
-    WRITE_BROKEN: {},
+        // broken
+        WRITE_BROKEN: {},
+    },
 });
 
 /** A stable cause of bucket failures. */

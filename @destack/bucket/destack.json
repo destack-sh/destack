@@ -47,8 +47,7 @@
         "defineBucket": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "bucket",
                     "function": "./inspect#describeBucket"
                 }
             ]
