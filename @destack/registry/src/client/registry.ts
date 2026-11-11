@@ -17,7 +17,7 @@ import { RequestId } from "@destack/sync";
 
 /** The forge a caller calls for a package. */
 type ForgeEndpoint = {
-    /** The forge's URL, its package's mount. */
+    /** The forge's URL, its package's path. */
     readonly url: string;
     /** The space storing the forge's packages, its residency home. */
     readonly space: string;
@@ -268,7 +268,7 @@ export class Registry {
         environment: Environment,
     ): Promise<void> {
         // upload below the package, which its forge stages for a publisher to release
-        const uploads = `${forge.url}${registryPackage.adapters.builds.path}/${packageId}/`;
+        const uploads = `${forge.url}${registryPackage.mounts.builds.path}/${packageId}/`;
         const client = new PackageClient(uploads, forge.fetch, environment);
 
         // push each npm unit, then the build
@@ -291,7 +291,7 @@ export class Registry {
         return {
             location: {
                 manifest,
-                url: `${forge.url}${registryPackage.adapters.builds.path}/${manifest}/`,
+                url: `${forge.url}${registryPackage.mounts.builds.path}/${manifest}/`,
             },
             fetch: (input, request) => forge.fetch(new Request(input.href, request)),
         };
