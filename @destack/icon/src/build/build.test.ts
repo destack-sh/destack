@@ -68,7 +68,7 @@ async function refusalOf(source: string, id: string): Promise<string> {
 
         return `${String(refusal?.loc?.line)}:${String(refusal?.loc?.column)} ${String(refusal?.message)}`;
     }
-    throw new TypeError(`expected the build of ${id} to fail`);
+    throw new TypeError(`expected the build of '${id}' to fail`);
 }
 
 /** A failed build's errors, each with its message and location. */

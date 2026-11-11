@@ -41,7 +41,7 @@ async function loadIcon(name: IconName): Promise<IconBodies> {
     // import the module the name selects and require its bodies
     const module: unknown = await import(`../phosphor/icon/${name}.ts`);
     if (!isIconModule(module)) {
-        throw new TypeError(`icon module without bodies: ${name}`);
+        throw new TypeError(`icon module without bodies: '${name}'`);
     }
 
     return module.default;

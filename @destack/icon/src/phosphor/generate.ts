@@ -50,7 +50,7 @@ async function generate(files: FileSystem): Promise<void> {
         // read the icon's metadata
         const icon = described.get(name);
         if (icon === undefined) {
-            throw new Error(`the ${name} icon has no metadata`);
+            throw new Error(`the '${name}' icon has no metadata`);
         }
         const tags = icon.tags.filter((tag) => !tag.startsWith("*"));
 
@@ -73,7 +73,7 @@ async function generate(files: FileSystem): Promise<void> {
         const entries = WEIGHTS.map((weight, index) => {
             const body = bodies[index]?.get(name);
             if (body === undefined) {
-                throw new Error(`the ${weight} weight has no ${name} icon`);
+                throw new Error(`the '${weight}' weight has no '${name}' icon`);
             }
 
             return `    ${weight}: ${JSON.stringify(body)},\n`;
@@ -104,7 +104,7 @@ async function readWeight(
     for (const file of names.toSorted()) {
         const match = SVG_ELEMENT.exec(await files.readTextFile(join(directory, file)));
         if (match?.groups?.["body"] === undefined) {
-            throw new Error(`${file} has no SVG element`);
+            throw new Error(`'${file}' has no SVG element`);
         }
         bodies.set(file.slice(0, -suffix.length), match.groups["body"]);
     }

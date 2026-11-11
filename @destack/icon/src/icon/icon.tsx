@@ -29,7 +29,7 @@ export function Icon(properties: IconProperties): JSX.Element {
     // draw the body of the passed bodies, which the build passes for a literal name
     const body = (): string => {
         if (properties.icon === undefined) {
-            throw new TypeError(`icon without bodies: ${properties.name ?? "unnamed"}`);
+            throw new TypeError(`icon without bodies: '${properties.name ?? "unnamed"}'`);
         }
 
         return properties.icon[properties.weight ?? "regular"];
