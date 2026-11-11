@@ -63,7 +63,7 @@ export const RepositoryOrigin = Object.assign(repositoryOrigin, {
         if (!parsed.success) {
             throw RegistryError.of(
                 "ORIGIN_INVALID",
-                "repository origin is not a platform, github, git or machine origin",
+                "repository origin is invalid: it must be a platform, github, git or machine origin",
             );
         }
 

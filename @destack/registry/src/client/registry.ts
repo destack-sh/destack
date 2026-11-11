@@ -87,8 +87,8 @@ export class Registry {
         const found = await Claim.lookup(packageObject, claims, "id", [owner.package]);
         if (found === undefined) {
             throw RegistryError.of(
-                "PUBLISHER_MISSING",
-                `${owner.package} has no publishing account`,
+                "PUBLISHER_NOT_FOUND",
+                `publishing account for '${owner.package}' not found`,
             );
         }
 
@@ -191,8 +191,8 @@ export class Registry {
         // refuse a version the forge has from another build
         else if (published.manifest !== manifest) {
             throw RegistryError.of(
-                "RELEASE_CONFLICT",
-                `${name}@${version} is published from another build`,
+                "RELEASE_EXISTS",
+                `release '${name}@${version}' already exists: another build published it`,
             );
         }
         // point the tag at the version the forge has from this build
@@ -252,8 +252,8 @@ export class Registry {
         // refuse a version unpublished, or published from another build
         if (published !== manifest) {
             throw RegistryError.of(
-                "DEPENDENCY_UNPUBLISHED",
-                `${built.name}@${built.version} is not published`,
+                "DEPENDENCY_BLOCKED",
+                `cannot publish this build: dependency '${built.name}@${built.version}' is not published`,
             );
         }
     }
@@ -315,8 +315,8 @@ export class Registry {
         if (!response.ok) {
             await response.body?.cancel();
             throw RegistryError.of(
-                "REMOTE_FAILED",
-                `the forge answered ${path} of ${manifest} with HTTP ${response.status}`,
+                "REMOTE_UNREACHABLE",
+                `could not read '${path}' of '${manifest}' from the forge: HTTP ${response.status}`,
             );
         }
 
@@ -347,8 +347,8 @@ export class Registry {
         const built = PackageManifest.package(reader.manifest);
         if (built.id !== packageId) {
             throw RegistryError.of(
-                "FOREIGN_MANIFEST",
-                `build ${manifest} is a build of ${built.name}, not of the requested package`,
+                "MANIFEST_INVALID",
+                `build '${manifest}' is invalid: it is a build of '${built.name}' instead of the requested package`,
             );
         }
 

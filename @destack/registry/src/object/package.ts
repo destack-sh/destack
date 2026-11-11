@@ -29,7 +29,10 @@ export const TagName = Object.assign(tagName, {
     /** Require a tag name that no version range reads as a range. */
     require(name: string): void {
         if (validRange(name) !== null) {
-            throw RegistryError.of("TAG_INVALID", `invalid distribution tag: ${name}`);
+            throw RegistryError.of(
+                "TAG_INVALID",
+                `distribution tag '${name}' is invalid: it must not be a version range`,
+            );
         }
     },
 });
