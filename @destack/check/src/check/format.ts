@@ -35,13 +35,13 @@ export async function formatSource(
     const entry = createRequire(join(directory, "package.json")).resolve("oxfmt");
     const loaded: unknown = await import(pathToFileURL(entry).href);
     if (!isFormatter(loaded)) {
-        throw CheckError.of("TOOL_FAILED", `the formatter has no format function: ${entry}`);
+        throw CheckError.of("TOOL_BROKEN", `the formatter has no format function: '${entry}'`);
     }
 
     // format with the fixed settings and reject parse failures
     const result = await loaded.format(filename, source, formatConfiguration);
     if (result.errors.length) {
-        throw CheckError.of("TOOL_FAILED", JSON.stringify(result.errors));
+        throw CheckError.of("TOOL_BROKEN", JSON.stringify(result.errors));
     }
 
     return result.code;

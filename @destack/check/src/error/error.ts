@@ -7,12 +7,12 @@ const DOMAIN = "@destack/check";
 export const CheckError = defineErrorFamily(
     { name: DOMAIN },
     {
-        // bad request
-        CONFIGURATION_INVALID: { code: "BAD_REQUEST" },
+        // invalid
+        CONFIGURATION_INVALID: {},
 
-        // internal server error
-        LANGUAGE_SERVICE_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-        TOOL_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        // broken
+        LANGUAGE_SERVICE_BROKEN: {},
+        TOOL_BROKEN: {},
     },
     { audience: "host" },
 );

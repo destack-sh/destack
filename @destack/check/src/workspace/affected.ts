@@ -11,7 +11,10 @@ export async function listAffected(
     // read the workspace enclosing the directory
     const workspace = await Workspace.read(directory, environment.files);
     if (workspace === undefined) {
-        throw CheckError.of("CONFIGURATION_INVALID", `${directory} is not inside a workspace`);
+        throw CheckError.of(
+            "CONFIGURATION_INVALID",
+            `directory '${directory}' is invalid: it is not inside a workspace`,
+        );
     }
 
     // list the files changed since the merge base with both sides of renames
@@ -23,7 +26,7 @@ export async function listAffected(
     const decoder = new TextDecoder();
     if (code !== 0) {
         const message = decoder.decode(stderr).trim();
-        throw CheckError.of("TOOL_FAILED", `git diff against ${base} failed: ${message}`);
+        throw CheckError.of("TOOL_BROKEN", `git diff against '${base}' failed: ${message}`);
     }
     const files = decoder
         .decode(stdout)

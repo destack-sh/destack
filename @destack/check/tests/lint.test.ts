@@ -200,8 +200,9 @@ tester.run("error-message-style", rules["error-message-style"], {
     valid: [
         'throw new Error("note not found");',
         'throw new Error("HTTP request failed");',
+        "throw new Error(`machine '${name}' stopped:\\n${log}`);",
         {
-            code: 'throw new CallError("NOT_FOUND", { message: `no note ${id}` });',
+            code: "throw new CallError(\"NOT_FOUND\", { message: `no note '${id}'` });",
             filename: SOURCE,
         },
         { code: "const failure = new CallError(code, options);", filename: SOURCE },
@@ -209,14 +210,28 @@ tester.run("error-message-style", rules["error-message-style"], {
             code: 'const failure = new CallError("FORBIDDEN", { ...options });',
             filename: SOURCE,
         },
-        'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", "invalid staged release digest");',
+        'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", "staged release digest must match its manifest");',
         "const failure = new NoteError(message);",
         'const Note = new Map(); Note.of("DRAFT", "Draft.");',
         'throw CallError.http("NOT_FOUND", { message: "note not found" });',
         'throw new FamilyError(failure, "note not found");',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_NOT_FOUND", `note \'${id}\' not found`);',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_UNREACHABLE", "could not reach the notes server");',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_INVALID", "note \'n1\' is invalid: its title must not be empty");',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_DENIED", "note \'n1\' is forbidden: the caller cannot write it");',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_BLOCKED", "cannot edit note \'n1\': it is locked");',
+        'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_UNAUTHENTICATED", "authentication required: token expired");',
+        "throw new Error(`note '${name}' is invalid: it takes ${size} bytes of at most ${MAX_NOTE_BYTES}`);",
+        "throw new Error(`note '${name}' is invalid: it takes ${size + 1} bytes`);",
+        "throw new Error(`residency '${residency.code}' is unavailable`);",
         'const notes = new Map([["Note", "Draft."]]);',
     ],
     invalid: [
+        {
+            code: "throw new Error(`note '${name}' is invalid: it has '${count}' tags of at most '${MAX_TAGS}'`);",
+            output: "throw new Error(`note '${name}' is invalid: it has ${count} tags of at most '${MAX_TAGS}'`);",
+            errors: [{ messageId: "unquote" }],
+        },
         {
             code: 'throw new Error("Note not found.");',
             output: 'throw new Error("note not found");',
@@ -228,13 +243,43 @@ tester.run("error-message-style", rules["error-message-style"], {
             errors: [{ messageId: "style" }],
         },
         {
-            code: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `Unsafe archive path: ${path}.`);',
-            output: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `unsafe archive path: ${path}`);',
+            code: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `Unsafe archive path: \'${path}\'.`);',
+            output: 'import { UpdateError } from "./error.ts"; throw UpdateError.of("INSTALL", `unsafe archive path: \'${path}\'`);',
             errors: [{ messageId: "style" }],
         },
         {
-            code: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "Invalid staged release digest.");',
-            output: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "invalid staged release digest");',
+            code: "throw new Error(`installation '${name}' not found in ${space}.`);",
+            output: "throw new Error(`installation '${name}' not found in '${space}'`);",
+            errors: [{ messageId: "quote" }],
+        },
+        {
+            code: 'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_NOT_FOUND", `no note \'${id}\'`);',
+            errors: [{ messageId: "shape" }],
+        },
+        {
+            code: 'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_INVALID", "the note is invalid");',
+            errors: [{ messageId: "shape" }],
+        },
+        {
+            code: 'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_BLOCKED", "note must be unlocked first");',
+            errors: [{ messageId: "shape" }],
+        },
+        {
+            code: 'import { NoteError } from "./error.ts"; throw NoteError.of("NOTE_INVALID", "note is invalid: an illegal title");',
+            errors: [{ messageId: "word" }],
+        },
+        {
+            code: 'throw new Error("failed to load the note");',
+            errors: [{ messageId: "word" }],
+        },
+        {
+            code: "throw new TypeError(`${owner}.${name} answered ${response.status}`);",
+            output: "throw new TypeError(`'${owner}.${name}' answered ${response.status}`);",
+            errors: [{ messageId: "quote" }],
+        },
+        {
+            code: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "Staged release digest must match its manifest.");',
+            output: 'const Update = defineErrorFamily(owner, {}); throw Update.of("INSTALL", "staged release digest must match its manifest");',
             errors: [{ messageId: "style" }],
         },
         {
@@ -911,7 +956,8 @@ tester.run("package-layout", rules["package-layout"], {
             settings: SETTINGS,
             errors: [
                 {
-                    message: "@destack/check imports @acme/notes/server, private to its app",
+                    message:
+                        "'@destack/check' is invalid: it imports '@acme/notes/server', private to its app",
                 },
             ],
         },
@@ -919,7 +965,12 @@ tester.run("package-layout", rules["package-layout"], {
             code: 'export { TestNotes } from "@destack/machine/test";',
             filename: SOURCE,
             settings: SETTINGS,
-            errors: [{ message: "@destack/check imports @destack/machine/test outside its tests" }],
+            errors: [
+                {
+                    message:
+                        "'@destack/check' is invalid: it imports '@destack/machine/test' outside its tests",
+                },
+            ],
         },
     ],
 });

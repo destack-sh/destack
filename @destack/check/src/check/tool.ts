@@ -41,14 +41,14 @@ export async function runTool(
                 },
             );
         } catch (error) {
-            throw CheckError.of("TOOL_FAILED", `cannot run ${tool}`, { cause: error });
+            throw CheckError.of("TOOL_BROKEN", `cannot run '${tool}'`, { cause: error });
         }
     })();
 
     // refuse a tool a signal ended
     const { code, signal, stdout, stderr } = await child.output();
     if (signal !== undefined) {
-        throw CheckError.of("TOOL_FAILED", `${tool} terminated by ${signal}`);
+        throw CheckError.of("TOOL_BROKEN", `'${tool}' terminated by '${signal}'`);
     }
     const decoder = new TextDecoder();
 
