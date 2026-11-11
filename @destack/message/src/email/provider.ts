@@ -9,7 +9,7 @@ export function emailProvider(transport: MailTransport): MessageProvider {
             // require an email message
             const { to, content } = message;
             if (to.channel !== "email" || content.channel !== "email") {
-                throw new TypeError(`message ${message.id} is not an email`);
+                throw new TypeError(`message '${message.id}' is not an email`);
             }
 
             // send the email, reading a mail failure as a refusal

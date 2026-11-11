@@ -345,8 +345,8 @@ function requireHeader(authentication: WebhookAuthentication): void {
         RESERVED_HEADERS.has(authentication.name.toLowerCase())
     ) {
         throw MessageError.of(
-            "HEADER_RESERVED",
-            `every webhook post sets ${authentication.name} itself`,
+            "HEADER_INVALID",
+            `webhook header '${authentication.name}' is invalid: every webhook post sets it itself`,
         );
     }
 }

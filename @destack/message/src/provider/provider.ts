@@ -12,19 +12,18 @@ const GONE_STATUSES: ReadonlySet<number> = new Set([404, 410]);
 
 /** The reasons a later try of the same message may get past. */
 const RETRIED_REASONS: ReadonlySet<RefusalReason> = new Set([
-    "COMMAND_DEFERRED",
-    "CREDENTIALS_EXPIRED",
-    "PROVIDER_THROTTLED",
-    "PROVIDER_TIMEOUT",
+    "COMMAND_UNAVAILABLE",
+    "CREDENTIALS_UNAVAILABLE",
+    "PROVIDER_EXHAUSTED",
     "PROVIDER_UNAVAILABLE",
     "PROVIDER_UNREACHABLE",
 ]);
 
 /** The reasons of statuses asking for a later try: a timeout, a request too early, a throttle. */
 const RETRIED_STATUSES: ReadonlyMap<number, MessageReason> = new Map([
-    [408, "PROVIDER_TIMEOUT"],
+    [408, "PROVIDER_UNREACHABLE"],
     [425, "PROVIDER_UNAVAILABLE"],
-    [429, "PROVIDER_THROTTLED"],
+    [429, "PROVIDER_EXHAUSTED"],
 ]);
 
 /** An HTTP date in the IMF-fixdate form senders generate (RFC 9110 5.6.7). */
@@ -76,9 +75,9 @@ export const Outcome = Object.assign(outcome, {
 
         // refuse a forgotten endpoint, a transient refusal or any other by its status
         const reason = GONE_STATUSES.has(status)
-            ? "RECIPIENT_GONE"
+            ? "RECIPIENT_GONE_NOT_FOUND"
             : (RETRIED_STATUSES.get(status) ??
-              (status >= SERVER_ERROR ? "PROVIDER_UNAVAILABLE" : "MESSAGE_REJECTED"));
+              (status >= SERVER_ERROR ? "PROVIDER_UNAVAILABLE" : "MESSAGE_INVALID"));
         const refusal = { reason, code: String(status), message: response.statusText };
 
         return Outcome.refuse(refusal, retryAfter(response.headers.get("Retry-After"), now));
@@ -98,7 +97,7 @@ export const Outcome = Object.assign(outcome, {
         // retry a timeout or a network failure
         const { failure } = sent;
         if (request.signal.aborted && failure === request.signal.reason) {
-            return Outcome.refuse({ reason: "PROVIDER_TIMEOUT", message: describe(failure) });
+            return Outcome.refuse({ reason: "PROVIDER_UNREACHABLE", message: describe(failure) });
         } else if (failure instanceof TypeError) {
             return Outcome.refuse({ reason: "PROVIDER_UNREACHABLE", message: failure.message });
         }

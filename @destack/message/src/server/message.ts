@@ -52,8 +52,8 @@ export function implementMessage(options: MessageOptions) {
                 const { to, ciphertext } = call.input;
                 if (to.channel !== "desktop" && options.providers[to.channel] === undefined) {
                     throw MessageError.of(
-                        "CHANNEL_UNSERVED",
-                        `this machine does not send ${to.channel} messages`,
+                        "CHANNEL_UNSUPPORTED",
+                        `sending ${to.channel} messages on this machine is not supported`,
                     );
                 }
 
@@ -70,8 +70,8 @@ export function implementMessage(options: MessageOptions) {
                     );
                     if (findBrowser(recipient, to.client) === undefined) {
                         throw MessageError.of(
-                            "RECIPIENT_GONE",
-                            `client ${to.client} receives no pushes`,
+                            "RECIPIENT_GONE_NOT_FOUND",
+                            `push subscription of client '${to.client}' not found`,
                         );
                     }
                 }
@@ -87,8 +87,8 @@ export function implementMessage(options: MessageOptions) {
                 // refuse a provider's message without its content
                 else if (ciphertext === undefined) {
                     throw MessageError.of(
-                        "SEALED_CONTENT_MISSING",
-                        `a message on ${to.channel} is missing its encrypted content`,
+                        "CONTENT_REQUIRED",
+                        `encrypted content is required: a message on ${to.channel} is missing it`,
                     );
                 }
 
@@ -99,8 +99,8 @@ export function implementMessage(options: MessageOptions) {
                 const push = options.providers.push;
                 if (push === undefined) {
                     throw MessageError.of(
-                        "CHANNEL_UNSERVED",
-                        "this machine does not send push messages",
+                        "CHANNEL_UNSUPPORTED",
+                        "sending push messages on this machine is not supported",
                     );
                 }
 
@@ -159,7 +159,7 @@ async function observe(
 ): Promise<void> {
     // forget a browser its push service forgot, as the space its recipient lets read its clients
     const { to } = row;
-    const isGone = to.channel === "push" && observed.fields.reason === "RECIPIENT_GONE";
+    const isGone = to.channel === "push" && observed.fields.reason === "RECIPIENT_GONE_NOT_FOUND";
     const forget = isGone
         ? [
               task.start(
@@ -232,7 +232,7 @@ async function attempt(
         return {
             kind: "failed",
             refusal: {
-                reason: "CHANNEL_UNSERVED",
+                reason: "CHANNEL_UNSUPPORTED",
                 message: `this machine does not send ${channel} messages`,
             },
         };
@@ -242,7 +242,7 @@ async function attempt(
     const delivery = await deliver(whole, store);
     if (delivery === undefined) {
         const refusal = {
-            reason: "RECIPIENT_GONE" as const,
+            reason: "RECIPIENT_GONE_NOT_FOUND" as const,
             message: "the browser receives no pushes",
         };
 

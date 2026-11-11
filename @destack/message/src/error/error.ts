@@ -5,38 +5,34 @@ import type {} from "@destack/package/import-meta";
 
 /** The message package's failures, each reason with the call error code it answers. */
 export const MessageError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    HEADER_RESERVED: { code: "BAD_REQUEST" },
-    SEALED_CONTENT_MISSING: { code: "BAD_REQUEST" },
-
-    // forbidden
-    CLIENT_FOREIGN: { code: "FORBIDDEN" },
-
     // not found
-    RECIPIENT_GONE: { code: "NOT_FOUND" },
+    RECIPIENT_GONE_NOT_FOUND: {},
 
-    // conflict
-    DESKTOP_MESSAGE_REQUIRED: { code: "CONFLICT" },
-    RECIPIENT_DISABLED: { code: "CONFLICT" },
-    SECRET_UNAVAILABLE: { code: "CONFLICT" },
+    // invalid
+    HEADER_INVALID: {},
+    MESSAGE_INVALID: {},
 
-    // unprocessable content
-    MESSAGE_REJECTED: { code: "UNPROCESSABLE_CONTENT" },
+    // required
+    CONTENT_REQUIRED: {},
 
-    // too many requests
-    PROVIDER_THROTTLED: { code: "TOO_MANY_REQUESTS" },
+    // denied
+    CLIENT_DENIED: {},
 
-    // bad gateway
-    PROVIDER_UNREACHABLE: { code: "BAD_GATEWAY" },
+    // blocked
+    ENDPOINT_BLOCKED: {},
+    MESSAGE_BLOCKED: {},
 
-    // service unavailable
-    PROVIDER_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    // exhausted
+    PROVIDER_EXHAUSTED: {},
 
-    // not implemented
-    CHANNEL_UNSERVED: { code: "NOT_IMPLEMENTED" },
+    // unsupported
+    CHANNEL_UNSUPPORTED: {},
 
-    // gateway timeout
-    PROVIDER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
+    // unavailable
+    PROVIDER_UNAVAILABLE: {},
+
+    // unreachable
+    PROVIDER_UNREACHABLE: {},
 });
 
 /** A stable cause of message failures. */

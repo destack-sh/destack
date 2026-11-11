@@ -22,7 +22,7 @@ export function pushProvider(vapid: () => Promise<Vapid>, fetch: Fetch): PushPro
             // require a push message
             const { to, content } = message;
             if (to.channel !== "push" || content.channel !== "push") {
-                throw new TypeError(`message ${message.id} is not a push`);
+                throw new TypeError(`message '${message.id}' is not a push`);
             }
 
             // encrypt the payload for the browser and post it signed by the installation under its topic

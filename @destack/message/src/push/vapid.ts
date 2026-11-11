@@ -19,7 +19,7 @@ export class Vapid {
     /** Create a sender from its keys and contact, refusing a contact push services cannot reach. */
     constructor(keys: KeyPair, subject: string, crypto: Crypto) {
         if (!/^(?:mailto:|https:)/u.test(subject)) {
-            throw new TypeError(`push sender contact ${subject} is not a mailto: or https: URL`);
+            throw new TypeError(`push sender contact '${subject}' is not a mailto: or https: URL`);
         }
         this.keys = keys;
         this.subject = subject;

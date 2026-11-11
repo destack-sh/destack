@@ -104,7 +104,7 @@ test("refuse a webhook message to an endpoint from a sender who does not manage 
     expect(await refusal(created)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: manage",
+        "permission 'manage' is forbidden: the caller lacks it",
     ]);
 });
 
@@ -136,8 +136,8 @@ test("let the installation consume an endpoint's new secret as the manager who s
             .client(vaultPackage)
             .secret.read({ scope: fixture.space.id, id: secret.identifier(kept.id) });
     expect({ refused, old: await refusal(read(first)), rotated: await read(rotated) }).toEqual({
-        refused: ["NOT_FOUND", "NOT_FOUND", `secret ${rotated.id} not found`],
-        old: ["NOT_FOUND", "NOT_FOUND", `secret ${first.id} not found`],
+        refused: ["NOT_FOUND", "NOT_FOUND", `secret '${rotated.id}' not found`],
+        old: ["NOT_FOUND", "NOT_FOUND", `secret '${first.id}' not found`],
         rotated: { version: 1, value: { encoding: "text", value: "whsec_cm90YXRlZA==" } },
     });
 });
@@ -323,9 +323,9 @@ test("fail a webhook message once its endpoint is disabled or deleted, or answer
         redirected: await read(redirected),
         posts: fixture.hooks.requests.length,
     }).toEqual({
-        disabled: ["failed", "RECIPIENT_DISABLED", ["deferred", "failed"]],
-        deleted: ["failed", "RECIPIENT_GONE", ["deferred", "failed"]],
-        redirected: ["failed", "MESSAGE_REJECTED", ["failed"]],
+        disabled: ["failed", "ENDPOINT_BLOCKED", ["deferred", "failed"]],
+        deleted: ["failed", "RECIPIENT_GONE_NOT_FOUND", ["deferred", "failed"]],
+        redirected: ["failed", "MESSAGE_INVALID", ["failed"]],
         posts: 3,
     });
 });
@@ -342,7 +342,15 @@ test("refuse an endpoint whose secret header is one every webhook post sets itse
             }),
         );
     expect([await subscribe("Webhook-Signature"), await subscribe("Content-Type")]).toEqual([
-        ["BAD_REQUEST", "HEADER_RESERVED", "every webhook post sets Webhook-Signature itself"],
-        ["BAD_REQUEST", "HEADER_RESERVED", "every webhook post sets Content-Type itself"],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            "webhook header 'Webhook-Signature' is invalid: every webhook post sets it itself",
+        ],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            "webhook header 'Content-Type' is invalid: every webhook post sets it itself",
+        ],
     ]);
 });

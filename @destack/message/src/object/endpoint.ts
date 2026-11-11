@@ -62,7 +62,7 @@ export const Endpoint = {
         // require an endpoint as the source
         if (!endpoint.is(source)) {
             throw new TypeError(
-                `a webhook message's source ${source.type} ${source.id} is not an endpoint`,
+                `a webhook message's source ${source.type} '${source.id}' is not an endpoint`,
             );
         }
 

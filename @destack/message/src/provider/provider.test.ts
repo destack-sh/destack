@@ -26,20 +26,23 @@ test("read an endpoint's answers as sent, gone, retried after their wait, or rej
     ];
     expect(answers.map((response) => Outcome.read(response, NOW))).toEqual([
         { kind: "sent" },
-        { kind: "failed", refusal: { reason: "RECIPIENT_GONE", code: "410", message: "Gone" } },
+        {
+            kind: "failed",
+            refusal: { reason: "RECIPIENT_GONE_NOT_FOUND", code: "410", message: "Gone" },
+        },
         {
             kind: "deferred",
             after: 30_000,
-            refusal: { reason: "PROVIDER_THROTTLED", code: "429", message: "" },
+            refusal: { reason: "PROVIDER_EXHAUSTED", code: "429", message: "" },
         },
-        { kind: "deferred", refusal: { reason: "PROVIDER_THROTTLED", code: "429", message: "" } },
-        { kind: "deferred", refusal: { reason: "PROVIDER_THROTTLED", code: "429", message: "" } },
-        { kind: "deferred", refusal: { reason: "PROVIDER_THROTTLED", code: "429", message: "" } },
+        { kind: "deferred", refusal: { reason: "PROVIDER_EXHAUSTED", code: "429", message: "" } },
+        { kind: "deferred", refusal: { reason: "PROVIDER_EXHAUSTED", code: "429", message: "" } },
+        { kind: "deferred", refusal: { reason: "PROVIDER_EXHAUSTED", code: "429", message: "" } },
         { kind: "deferred", refusal: { reason: "PROVIDER_UNAVAILABLE", code: "503", message: "" } },
-        { kind: "deferred", refusal: { reason: "PROVIDER_TIMEOUT", code: "408", message: "" } },
+        { kind: "deferred", refusal: { reason: "PROVIDER_UNREACHABLE", code: "408", message: "" } },
         {
             kind: "failed",
-            refusal: { reason: "MESSAGE_REJECTED", code: "400", message: "Bad Request" },
+            refusal: { reason: "MESSAGE_INVALID", code: "400", message: "Bad Request" },
         },
     ]);
 });
@@ -75,7 +78,7 @@ test("retry a post the network failed to deliver or its timeout ended, and rethr
         },
         timedOut: {
             kind: "deferred",
-            refusal: { reason: "PROVIDER_TIMEOUT", message: "the post timed out" },
+            refusal: { reason: "PROVIDER_UNREACHABLE", message: "the post timed out" },
         },
         failing: bug,
     });

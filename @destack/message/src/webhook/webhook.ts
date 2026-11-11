@@ -26,21 +26,21 @@ export function webhookProvider(fetch: Fetch): MessageProvider {
             // require a webhook message
             const { to, content } = message;
             if (to.channel !== "webhook" || content.channel !== "webhook") {
-                throw new TypeError(`message ${message.id} is not a webhook message`);
+                throw new TypeError(`message '${message.id}' is not a webhook message`);
             }
 
             // fail a message whose endpoint is gone, in the trash, or disabled
             const target = await Endpoint.read(store, message.source).catch(refused);
             if (target === undefined || target.deletedAt !== null) {
-                return failed("RECIPIENT_GONE", `endpoint ${message.source.id} is gone`);
+                return failed("RECIPIENT_GONE_NOT_FOUND", `endpoint ${message.source.id} is gone`);
             } else if (target.status === "disabled") {
-                return failed("RECIPIENT_DISABLED", `endpoint ${target.id} is disabled`);
+                return failed("ENDPOINT_BLOCKED", `endpoint ${target.id} is disabled`);
             }
 
             // fail a message whose endpoint's secret is unreadable, as the installation consuming it
             const value = await readSecret(store, target.secret).catch(refused);
             if (value === undefined) {
-                return failed("SECRET_UNAVAILABLE", `endpoint ${target.id} has no readable secret`);
+                return failed("ENDPOINT_BLOCKED", `endpoint ${target.id} has no readable secret`);
             }
 
             // encode the body, then sign it with the secret or put the secret in the endpoint's header

@@ -67,70 +67,100 @@ test("send an email message through the transport, keyed by its identifier with 
 
 test.each<[TestMailAnswer, Outcome]>([
     [
-        MailError.of("COMMAND_DEFERRED", "mailbox busy", {
-            data: { code: 450, enhancedCode: "4.2.1", text: "mailbox busy" },
-        }),
+        MailError.of(
+            "COMMAND_UNAVAILABLE",
+            "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
+            {
+                data: { code: 450, enhancedCode: "4.2.1", text: "mailbox busy" },
+            },
+        ),
         {
             kind: "deferred",
-            refusal: { reason: "COMMAND_DEFERRED", code: "450", message: "mailbox busy" },
+            refusal: {
+                reason: "COMMAND_UNAVAILABLE",
+                code: "450",
+                message: "command 'RCPT TO' is unavailable: the server answered 450 'mailbox busy'",
+            },
         },
     ],
     [
-        MailError.of("COMMAND_REJECTED", "no such user", {
-            data: { code: 550, enhancedCode: "5.1.1", text: "no such user" },
-        }),
+        MailError.of(
+            "COMMAND_INVALID",
+            "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
+            {
+                data: { code: 550, enhancedCode: "5.1.1", text: "no such user" },
+            },
+        ),
         {
             kind: "failed",
-            refusal: { reason: "COMMAND_REJECTED", code: "550", message: "no such user" },
+            refusal: {
+                reason: "COMMAND_INVALID",
+                code: "550",
+                message: "command 'RCPT TO' is invalid: the server answered 550 'no such user'",
+            },
         },
     ],
     [
-        MailError.of("PROVIDER_THROTTLED", "slow down", { data: { awsCode: "Throttling" } }),
+        MailError.of("PROVIDER_EXHAUSTED", "sending rate exceeds the SES limit", {
+            data: { awsCode: "Throttling" },
+        }),
         {
             kind: "deferred",
-            refusal: { reason: "PROVIDER_THROTTLED", code: "Throttling", message: "slow down" },
+            refusal: {
+                reason: "PROVIDER_EXHAUSTED",
+                code: "Throttling",
+                message: "sending rate exceeds the SES limit",
+            },
         },
     ],
     [
-        MailError.of("CREDENTIALS_EXPIRED", "expired", {
+        MailError.of("CREDENTIALS_UNAVAILABLE", "SES credential is unavailable: it expired", {
             data: { awsCode: "ExpiredTokenException" },
         }),
         {
             kind: "deferred",
             refusal: {
-                reason: "CREDENTIALS_EXPIRED",
+                reason: "CREDENTIALS_UNAVAILABLE",
                 code: "ExpiredTokenException",
-                message: "expired",
+                message: "SES credential is unavailable: it expired",
             },
         },
     ],
     [
-        MailError.of("PROVIDER_UNAVAILABLE", "unavailable", { data: {} }),
-        { kind: "deferred", refusal: { reason: "PROVIDER_UNAVAILABLE", message: "unavailable" } },
-    ],
-    [
-        MailError.of("PROVIDER_TIMEOUT", "timed out"),
-        { kind: "deferred", refusal: { reason: "PROVIDER_TIMEOUT", message: "timed out" } },
-    ],
-    [
-        MailError.of("PROVIDER_UNREACHABLE", "connection refused"),
+        MailError.of("PROVIDER_UNAVAILABLE", "SES is unavailable", { data: {} }),
         {
             kind: "deferred",
-            refusal: { reason: "PROVIDER_UNREACHABLE", message: "connection refused" },
+            refusal: { reason: "PROVIDER_UNAVAILABLE", message: "SES is unavailable" },
         },
     ],
     [
-        MailError.of("MESSAGE_REJECTED", "unverified", { data: { awsCode: "MessageRejected" } }),
+        MailError.of("PROVIDER_UNREACHABLE", "could not connect to SES"),
         {
-            kind: "failed",
-            refusal: { reason: "MESSAGE_REJECTED", code: "MessageRejected", message: "unverified" },
+            kind: "deferred",
+            refusal: { reason: "PROVIDER_UNREACHABLE", message: "could not connect to SES" },
         },
     ],
     [
-        MailError.of("ADDRESS_INVALID", "address is not a dot-atom addr-spec"),
+        MailError.of("MESSAGE_INVALID", "sender address is invalid: it is unverified", {
+            data: { awsCode: "MessageRejected" },
+        }),
         {
             kind: "failed",
-            refusal: { reason: "ADDRESS_INVALID", message: "address is not a dot-atom addr-spec" },
+            refusal: {
+                reason: "MESSAGE_INVALID",
+                code: "MessageRejected",
+                message: "sender address is invalid: it is unverified",
+            },
+        },
+    ],
+    [
+        MailError.of("ADDRESS_INVALID", "address is invalid: it is not a dot-atom addr-spec"),
+        {
+            kind: "failed",
+            refusal: {
+                reason: "ADDRESS_INVALID",
+                message: "address is invalid: it is not a dot-atom addr-spec",
+            },
         },
     ],
 ])("refuse an email message as its transport refuses it: %#", async (answer, outcome) => {

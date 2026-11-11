@@ -237,15 +237,15 @@ export const message = defineObject(
             // refuse a message no desktop shows
             else if (target.to.channel !== "desktop" || target.status !== "sent") {
                 throw MessageError.of(
-                    "DESKTOP_MESSAGE_REQUIRED",
-                    `message ${target.id} is not a sent desktop message`,
+                    "MESSAGE_BLOCKED",
+                    `cannot receive message '${target.id}': it is not a sent desktop message`,
                 );
             }
             // refuse any caller but the client it shows on
             else if (call.caller.credential?.client !== target.to.client) {
                 throw MessageError.of(
-                    "CLIENT_FOREIGN",
-                    `message ${target.id} shows on another client`,
+                    "CLIENT_DENIED",
+                    `message '${target.id}' is forbidden: it shows on another client`,
                 );
             }
 

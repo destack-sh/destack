@@ -99,7 +99,7 @@ test("sign VAPID tokens for the push service's origin, verifiable with the appli
 
     // refuse a contact push services cannot find
     expect(() => new Vapid(keys, "push@destack.app", world.crypto)).toThrow(
-        new TypeError("push sender contact push@destack.app is not a mailto: or https: URL"),
+        new TypeError("push sender contact 'push@destack.app' is not a mailto: or https: URL"),
     );
 });
 
@@ -214,7 +214,7 @@ async function readVapid(authorization: string) {
     // split the token and the key, and the token into its header, claims and signature
     const match = /^vapid t=([^,]+), k=(.+)$/u.exec(authorization);
     if (match === null) {
-        throw new TypeError(`authorization ${authorization} is not a vapid header`);
+        throw new TypeError(`authorization '${authorization}' is not a vapid header`);
     }
     const key = nth(match, 2);
     const segments = nth(match, 1).split(".");

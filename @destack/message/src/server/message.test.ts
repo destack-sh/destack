@@ -28,12 +28,12 @@ const COMPACT_JWE = /eyJ[\w-]+\.[\w-]*\.[\w-]+\.[\w-]+\.[\w-]+/u;
 const CLIENT = schema.identifier("client").parse("client-019f5530-8000-7000-8000-0000000000c1");
 
 /** A throttled send, which SES refuses with its AWS code. */
-const THROTTLED = MailError.of("PROVIDER_THROTTLED", "slow down", {
+const THROTTLED = MailError.of("PROVIDER_EXHAUSTED", "sending rate exceeds the SES limit", {
     data: { awsCode: "Throttling" },
 });
 
 /** A refusal for good of an unverified address. */
-const REJECTED = MailError.of("MESSAGE_REJECTED", "unverified", {
+const REJECTED = MailError.of("MESSAGE_INVALID", "sender address is invalid: it is unverified", {
     data: { awsCode: "MessageRejected" },
 });
 
@@ -133,14 +133,14 @@ test("fail a message its provider refuses for good, or that the retries exhaust"
     expect([await fixture.sending(refused), await fixture.sending(exhausted)]).toEqual([
         {
             status: "failed",
-            reason: "MESSAGE_REJECTED",
+            reason: "MESSAGE_INVALID",
             isErased: true,
             attempts: ["failed"],
             sent: ["false", "Failed"],
         },
         {
             status: "failed",
-            reason: "PROVIDER_THROTTLED",
+            reason: "PROVIDER_EXHAUSTED",
             isErased: true,
             attempts: Array.from({ length: 8 }, () => "deferred"),
             sent: ["false", "Failed"],
@@ -166,7 +166,7 @@ test("forget a browser its push service forgot, as the space, once its push fail
     }).toEqual({
         sending: {
             status: "failed",
-            reason: "RECIPIENT_GONE",
+            reason: "RECIPIENT_GONE_NOT_FOUND",
             isErased: true,
             attempts: ["failed"],
             sent: ["false", "Failed"],
@@ -249,17 +249,25 @@ test("send a provider's message as it is created, and show a desktop one at once
     }).toEqual({
         refused: [
             [
-                "CONFLICT",
-                "DESKTOP_MESSAGE_REQUIRED",
-                `message ${email} is not a sent desktop message`,
+                "PRECONDITION_FAILED",
+                "MESSAGE_BLOCKED",
+                `cannot receive message '${email}': it is not a sent desktop message`,
             ],
-            ["FORBIDDEN", "CLIENT_FOREIGN", `message ${foreign} shows on another client`],
+            [
+                "FORBIDDEN",
+                "CLIENT_DENIED",
+                `message '${foreign}' is forbidden: it shows on another client`,
+            ],
             [
                 "BAD_REQUEST",
-                "SEALED_CONTENT_MISSING",
-                "a message on push is missing its encrypted content",
+                "CONTENT_REQUIRED",
+                "encrypted content is required: a message on push is missing it",
             ],
-            ["NOT_FOUND", "RECIPIENT_GONE", `client ${CLIENT} receives no pushes`],
+            [
+                "NOT_FOUND",
+                "RECIPIENT_GONE_NOT_FOUND",
+                `push subscription of client '${CLIENT}' not found`,
+            ],
         ],
         rows: [
             ["sent", false],
@@ -292,8 +300,16 @@ test("sign pushes with the key browsers subscribe with, and refuse pushes on a m
     expect({ authorization, refused }).toEqual({
         authorization: [key],
         refused: [
-            ["NOT_IMPLEMENTED", "CHANNEL_UNSERVED", "this machine does not send push messages"],
-            ["NOT_IMPLEMENTED", "CHANNEL_UNSERVED", "this machine does not send push messages"],
+            [
+                "NOT_IMPLEMENTED",
+                "CHANNEL_UNSUPPORTED",
+                "sending push messages on this machine is not supported",
+            ],
+            [
+                "NOT_IMPLEMENTED",
+                "CHANNEL_UNSUPPORTED",
+                "sending push messages on this machine is not supported",
+            ],
         ],
     });
 });
