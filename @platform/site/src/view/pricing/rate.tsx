@@ -42,7 +42,9 @@ export function Rates(properties: { currency: Currency }) {
     return (
         <>
             <FigureLabel number={3} isOpen={false} stacked="unit prices" destacked="unit prices">
-                <span {...style.attrs(styles.caption)}>The same on every plan</span>
+                <span {...style.attrs(styles.caption)}>
+                    Cost-based, no credits, same on every plan
+                </span>
             </FigureLabel>
 
             {/* a card per resource */}

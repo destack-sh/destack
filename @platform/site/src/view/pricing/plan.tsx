@@ -86,7 +86,7 @@ type Topic = (typeof TOPICS)[number];
 /** Each plan's tagline, the same for people and organisations. */
 const taglines: Readonly<Record<Plan["key"], string>> = {
     free: "For your first apps",
-    go: "For your everyday stack",
+    go: "For your everyday software",
     plus: "For your daily work",
     pro: "For your critical software",
     enterprise: "For your whole organisation",

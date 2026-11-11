@@ -53,7 +53,7 @@ const bill: Form = {
     sense: {
         definition: "the price of silos",
         highlight: ["silos"],
-        sentence: "Pick your current silos. Integration not included.",
+        sentence: "Each silo sends its own bill. None of them connect.",
     },
 };
 
