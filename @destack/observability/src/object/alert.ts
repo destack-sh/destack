@@ -8,6 +8,7 @@ import { Digest, schema } from "@destack/schema";
 import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
 import { alertRule } from "./alert-rule.ts";
 import { issue } from "./issue.ts";
+import { expiring } from "@destack/object";
 
 /** The longest alert title: 500 characters, room for an issue's title and its labels. */
 export const ALERT_TITLE_LENGTH = 500;
@@ -41,8 +42,8 @@ export type AlertExcerpt = schema.Infer<typeof AlertExcerpt>;
 /** An alert rule fires. */
 export const firingAlert = defineNotification({
     name: "firingAlert",
-    title: "Alerts",
-    description: "An alert rule you follow fires.",
+    title: t`Alerts`,
+    description: t`An alert rule you follow fires.`,
     payload: AlertExcerpt,
     interruption: "timeSensitive",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -53,8 +54,8 @@ export const firingAlert = defineNotification({
 /** A firing alert resolves. */
 export const resolvedAlert = defineNotification({
     name: "resolvedAlert",
-    title: "Resolved alerts",
-    description: "An alert of a rule you follow resolves.",
+    title: t`Resolved alerts`,
+    description: t`An alert of a rule you follow resolves.`,
     payload: AlertExcerpt,
     interruption: "passive",
     preference: { channels: ["desktop"], delivery: "immediate" },
@@ -67,8 +68,8 @@ export const alert = defineObject(
     {
         name: "alert",
         plural: "alerts",
+        title: t`${plural(argument("count"), { one: "Alert", other: "Alerts" })}`,
         scope: space,
-        expiring: [{ after: RESOLVED_RETENTION, from: "resolvedAt" }],
         fields: {
             /** The rule that raised it. */
             rule: field.reference((): ObjectOf<{ identity: "alert-rule" }> => alertRule, {
@@ -99,18 +100,21 @@ export const alert = defineObject(
             /** When it resolved. */
             resolvedAt: field.time().optional(),
         },
-        permissions: {
-            read: none(),
-            write: none(),
-            manage: none(),
-            detect: none(),
-            // let people who write alerts and the rules' evaluation resolve them alike
-            resolve: union(permission("write"), permission("detect")),
-        },
         constraints: {
             series: { kind: "index", on: ["scope", "ruleId", "fingerprint", "createdAt"] },
             ruleIssue: { kind: "index", on: ["ruleId", "issueId", "createdAt"] },
         },
+        access: {
+            permissions: {
+                read: none(),
+                write: none(),
+                manage: none(),
+                detect: none(),
+                // let people who write alerts and the rules' evaluation resolve them alike
+                resolve: union(permission("write"), permission("detect")),
+            },
+        },
+        traits: [expiring([{ after: RESOLVED_RETENTION, from: "resolvedAt" }])],
     },
     (method) => ({
         create: false,
@@ -123,6 +127,7 @@ export const alert = defineObject(
         }),
         /** Announce a firing alert and start its response once, after any silence on it ends. */
         announce: method.mutation({
+            title: t`Announce`,
             permission: "detect",
             visibility: "package",
             input: schema.object({}),
@@ -139,4 +144,9 @@ const RespondInput = schema.object({
 });
 
 /** Run a fired alert's calls as the rule's author, each waiting on any approval it needs. */
-export const respond = defineWorkflow({ name: "respond", input: RespondInput, output: NO_OUTPUT });
+export const respond = defineWorkflow({
+    name: "respond",
+    title: t`Respond`,
+    input: RespondInput,
+    output: NO_OUTPUT,
+});

@@ -28,17 +28,19 @@ import observabilityPackage from "./package.ts";
 const AUTHORED_FIELDS = ["condition", "actions", "interval", "pending", "noData"] as const;
 
 /** The responses to fired alerts: their rules' calls, each waiting on any approval it needs. */
-const responses = respond.implement(async (step, input, run) => {
-    // read the alert and its rule, and make the rule's calls
-    const fired = await step.query(
-        "alert",
-        alert.call("get", alert.target({ scope: run.scope, id: input.alert })),
-    );
-    const rule = await step.query(
-        "rule",
-        alertRule.call("get", alertRule.target({ scope: run.scope, id: fired.ruleId })),
-    );
-    await new AlertRule(rule).act(step, fired);
+const responses = respond.implement({
+    run: async (step, input, run) => {
+        // read the alert and its rule, and make the rule's calls
+        const fired = await step.query(
+            "alert",
+            alert.call("get", alert.target({ scope: run.scope, id: input.alert })),
+        );
+        const rule = await step.query(
+            "rule",
+            alertRule.call("get", alertRule.target({ scope: run.scope, id: fired.ruleId })),
+        );
+        await new AlertRule(rule).act(step, fired);
+    },
 });
 
 /** The observability package's server: issues, alert rules, alerts, and the OTLP intake. */

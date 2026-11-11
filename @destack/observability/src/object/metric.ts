@@ -6,6 +6,7 @@ import { schema } from "@destack/schema";
 import { AttributeKey, Instrumentation } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The instruments a metric point aggregates. */
 export const INSTRUMENTS = ["sum", "gauge", "histogram"] as const;
@@ -29,6 +30,7 @@ export const metric = defineObject(
     {
         name: "metric",
         plural: "metrics",
+        title: t`${plural(argument("count"), { one: "Metric", other: "Metrics" })}`,
         scope: [space, machine],
         storage: {
             kind: "events",
@@ -57,10 +59,12 @@ export const metric = defineObject(
             /** The attributes, bounded as the metric declares them. */
             attributes: field.json(AttributeKey),
         },
-        permissions: {
-            read: union(through("installation", "observe"), through("scope", "observe")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "observe"), through("scope", "observe")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

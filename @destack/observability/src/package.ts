@@ -1,4 +1,4 @@
-import { defineAdapter, definePackage } from "@destack/object";
+import { defineMount, definePackage } from "@destack/object";
 import { rollout } from "@destack/stack/object";
 import { ObservabilityError } from "./error/error.ts";
 import {
@@ -18,10 +18,11 @@ import {
     visit,
     visitorSalt,
 } from "./object/index.ts";
+import { t } from "@destack/locale";
 
 /** The handle spaces serve issues, alerts, telemetry and analytics through. */
 export default definePackage({
-    objects: {
+    objects: [
         issue,
         issuePerson,
         exception,
@@ -36,30 +37,32 @@ export default definePackage({
         visit,
         action,
         ...respond.objects,
-    },
-    adapters: { otlp: defineAdapter("otlp", { path: "/v1" }) },
-    permissions: {
-        space: {
-            // group issues, evaluate alert rules, raise and fire alerts, and announce both
-            space: [
-                issue.permission("read"),
-                issue.permission("detect"),
-                alertRule.permission("read"),
-                alertRule.permission("control"),
-                alert.permission("detect"),
-            ],
+    ],
+    mounts: [defineMount({ name: "otlp", path: "/v1" })],
+    access: {
+        permissions: {
+            space: {
+                // group issues, evaluate alert rules, raise and fire alerts, and announce both
+                space: [
+                    issue.permission("read"),
+                    issue.permission("detect"),
+                    alertRule.permission("read"),
+                    alertRule.permission("control"),
+                    alert.permission("detect"),
+                ],
+            },
         },
     },
-    capabilities: {
-        // run alert rules' calls, such as rolling back an installation, as the people who write them
-        [RESPOND_CAPABILITY]: {
-            reason: "Roll back installations when an alert rule you write fires",
+    capabilities: [
+        {
+            name: RESPOND_CAPABILITY,
+            reason: t`Roll back installations when an alert rule you write fires`,
             optional: true,
             permissions: {
                 space: { space: [rollout.permission("apply")] },
                 user: { space: [rollout.permission("apply")] },
             },
         },
-    },
+    ],
     errors: ObservabilityError,
 });

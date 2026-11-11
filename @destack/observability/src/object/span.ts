@@ -10,6 +10,7 @@ import {
 } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A span's outcome, as OpenTelemetry's status codes name it. */
 export const SPAN_STATUSES = ["unset", "ok", "error"] as const;
@@ -49,6 +50,7 @@ export const span = defineObject(
     {
         name: "span",
         plural: "spans",
+        title: t`${plural(argument("count"), { one: "Span", other: "Spans" })}`,
         scope: [space, machine],
         storage: {
             kind: "events",
@@ -85,11 +87,13 @@ export const span = defineObject(
             /** The attributes, the personal ones left out. */
             attributes: field.json(AttributeKey),
         },
-        permissions: {
-            read: union(through("installation", "observe"), through("scope", "observe")),
-            unmask: union(through("installation", "unmask"), through("scope", "unmask")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "observe"), through("scope", "observe")),
+                unmask: union(through("installation", "unmask"), through("scope", "unmask")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

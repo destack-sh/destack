@@ -5,6 +5,7 @@ import { schema } from "@destack/schema";
 import { AttributeKey, Instrumentation, PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a log record keeps beside its keys. */
 export const LogData = schema.object({
@@ -27,6 +28,7 @@ export const log = defineObject(
     {
         name: "log",
         plural: "logs",
+        title: t`${plural(argument("count"), { one: "Log", other: "Logs" })}`,
         scope: [space, machine],
         storage: {
             kind: "events",
@@ -59,11 +61,13 @@ export const log = defineObject(
             /** The attributes, the personal ones left out. */
             attributes: field.json(AttributeKey),
         },
-        permissions: {
-            read: union(through("installation", "observe"), through("scope", "observe")),
-            unmask: union(through("installation", "unmask"), through("scope", "unmask")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "observe"), through("scope", "observe")),
+                unmask: union(through("installation", "unmask"), through("scope", "unmask")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

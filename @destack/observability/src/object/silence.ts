@@ -4,6 +4,8 @@ import { type ObjectOf, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { type Alert } from "./alert.ts";
 import { alertRule } from "./alert-rule.ts";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest comment a silence carries, a maintenance note's worth. */
 const COMMENT_LENGTH = 1000;
@@ -31,8 +33,8 @@ export const silence = defineObject(
     {
         name: "silence",
         plural: "silences",
+        title: t`${plural(argument("count"), { one: "Silence", other: "Silences" })}`,
         scope: space,
-        expiring: [{ after: ENDED_RETENTION, from: "endsAt" }],
         fields: {
             /** The rule whose alerts it silences, every rule's when absent. */
             rule: field
@@ -49,11 +51,14 @@ export const silence = defineObject(
             /** Why, such as a maintenance window. */
             comment: field.string(schema.string().min(1).max(COMMENT_LENGTH)),
         },
-        permissions: ["read", "write"],
         constraints: {
             window: { kind: "check", condition: { endsAt: { gt: { field: "startsAt" } } } },
             ends: { kind: "index", on: ["scope", "endsAt"] },
         },
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [expiring([{ after: ENDED_RETENTION, from: "endsAt" }])],
     },
     (method) => ({
         create: method.create("write", {

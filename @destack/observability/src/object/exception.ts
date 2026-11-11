@@ -5,6 +5,7 @@ import { schema } from "@destack/schema";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
 import { IssueOpening } from "./issue.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** What an exception keeps beside its keys: its issue's opening and its revision's time. */
 export const ExceptionData = schema.object({
@@ -21,6 +22,7 @@ export const exception = defineObject(
     {
         name: "exception",
         plural: "exceptions",
+        title: t`${plural(argument("count"), { one: "Exception", other: "Exceptions" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -41,10 +43,12 @@ export const exception = defineObject(
             /** Its issue's opening and its revision's time. */
             data: field.json(ExceptionData),
         },
-        permissions: {
-            read: through("scope", "observe"),
-            // let the machine serving the space append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: through("scope", "observe"),
+                // let the machine serving the space append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

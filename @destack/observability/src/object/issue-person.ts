@@ -3,27 +3,32 @@ import { space } from "@destack/account/object";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { issue } from "./issue.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A person an issue's exceptions happened to, with the last time one did. */
 export const issuePerson = defineObject(
     {
         name: "issue-person",
         plural: "issuePeople",
+        title: t`${plural(argument("count"), { one: "Issue person", other: "Issue people" })}`,
         scope: space,
-        nested: { in: issue, delete: "cascade", receive: "detect" },
         fields: {
             /** The person, as the exception named them. */
             person: field.string(),
             /** When an exception last happened to the person, in Unix milliseconds. */
             lastSeenAt: field.time(),
         },
-        permissions: {
-            read: through("parent", "read"),
-            detect: through("parent", "detect"),
-        },
         constraints: {
             person: { kind: "unique", on: ["parentId", "person"] },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                detect: through("parent", "detect"),
+            },
+        },
+        traits: [nested({ in: issue, delete: "cascade", add: "detect" })],
     },
     (method) => ({
         /** Record the first exception that happened to a person. */

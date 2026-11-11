@@ -5,6 +5,7 @@ import { schema } from "@destack/schema";
 import { AttributeKey, PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { analyticsRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** What an action keeps beside its keys. */
 export const ActionData = schema.object({
@@ -17,6 +18,7 @@ export const action = defineObject(
     {
         name: "action",
         plural: "actions",
+        title: t`${plural(argument("count"), { one: "Action", other: "Actions" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -47,11 +49,13 @@ export const action = defineObject(
             /** The action's properties, the personal ones left out. */
             attributes: field.json(AttributeKey),
         },
-        permissions: {
-            read: union(through("installation", "analyze"), through("scope", "analyze")),
-            unmask: union(through("installation", "unmask"), through("scope", "unmask")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "analyze"), through("scope", "analyze")),
+                unmask: union(through("installation", "unmask"), through("scope", "unmask")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

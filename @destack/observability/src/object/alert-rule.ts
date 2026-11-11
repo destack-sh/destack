@@ -53,6 +53,8 @@ import {
 } from "./alert.ts";
 import { issue, ISSUE_FILTER_FIELDS } from "./issue.ts";
 import { Silence, silence } from "./silence.ts";
+import { controlled } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The most keys a rule groups by: four, as each key multiplies the alerts one rule can raise. */
 const MAX_GROUP_KEYS = 4;
@@ -165,8 +167,8 @@ export const alertRule = defineObject(
     {
         name: "alert-rule",
         plural: "alertRules",
+        title: t`${plural(argument("count"), { one: "Alert rule", other: "Alert rules" })}`,
         scope: space,
-        controlled: true,
         fields: {
             /** The principal who last set the condition or actions, whom its calls act as. */
             author: field.subject().caller(),
@@ -187,12 +189,15 @@ export const alertRule = defineObject(
             /** When the evaluation next changes without new input, absent while none is due. */
             evaluateAt: field.time().optional(),
         },
-        permissions: ["read", "write", "manage"],
         attachments: [
             activity.attach({ by: "read" }),
             announcement.attach({ by: "read" }),
             subscription.attach({ by: "read" }),
         ],
+        access: {
+            permissions: ["read", "write", "manage"],
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write", {

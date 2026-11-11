@@ -1,14 +1,15 @@
 import { testHost } from "@destack/test/host";
 import { space } from "@destack/account/object";
 import { defineObject, field, OBJECT_KIND, ObjectDescription } from "@destack/object";
-import { graph, Package } from "@destack/package";
+import { graph, PackageVersion } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { Attribution, StackFrame, Symbolicator } from "@destack/package/stack";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** The notes application, whose builds the test space installs and whose failures it groups. */
-export const NOTES = Package.parse({
+export const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000b4",
     name: "@example/notes",
     version: "2026.9.0",
@@ -16,7 +17,13 @@ export const NOTES = Package.parse({
 
 /** The notes the notes application keeps, as its note module declares them. */
 export const note = defineObject(
-    { name: "note", plural: "notes", scope: space, fields: { title: field.string() } },
+    {
+        name: "note",
+        plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
+        scope: space,
+        fields: { title: field.string() },
+    },
     undefined,
     { package: NOTES },
 );

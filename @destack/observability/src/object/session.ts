@@ -6,6 +6,7 @@ import { SESSION_STATUSES } from "@destack/telemetry/otlp";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { telemetryRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a session keeps beside its keys. */
 export const SessionData = schema.object({
@@ -20,6 +21,7 @@ export const session = defineObject(
     {
         name: "session",
         plural: "sessions",
+        title: t`${plural(argument("count"), { one: "Session", other: "Sessions" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -42,11 +44,13 @@ export const session = defineObject(
             /** The signed-in person, whose key seals their personal values. */
             person: field.string().optional(),
         },
-        permissions: {
-            read: union(through("installation", "analyze"), through("scope", "analyze")),
-            unmask: union(through("installation", "unmask"), through("scope", "unmask")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "analyze"), through("scope", "analyze")),
+                unmask: union(through("installation", "unmask"), through("scope", "unmask")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

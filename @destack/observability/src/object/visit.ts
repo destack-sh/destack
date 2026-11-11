@@ -5,6 +5,7 @@ import { schema } from "@destack/schema";
 import { PersonalAttributes } from "../event/attribute.ts";
 import { EVENT_FLUSH } from "../event/policy.ts";
 import { analyticsRetention } from "../setting/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a visit keeps beside its keys. */
 export const VisitData = schema.object({
@@ -25,6 +26,7 @@ export const visit = defineObject(
     {
         name: "visit",
         plural: "visits",
+        title: t`${plural(argument("count"), { one: "Visit", other: "Visits" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -51,11 +53,13 @@ export const visit = defineObject(
             /** The signed-in person, whose key seals their personal values. */
             person: field.string().optional(),
         },
-        permissions: {
-            read: union(through("installation", "analyze"), through("scope", "analyze")),
-            unmask: union(through("installation", "unmask"), through("scope", "unmask")),
-            // let the machine serving the scope append what it forwards
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                read: union(through("installation", "analyze"), through("scope", "analyze")),
+                unmask: union(through("installation", "unmask"), through("scope", "unmask")),
+                // let the machine serving the scope append what it forwards
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

@@ -101,8 +101,8 @@ export type IssueExcerpt = schema.Infer<typeof IssueExcerpt>;
 /** A resolved issue fails again. */
 export const regressedIssue = defineNotification({
     name: "regressedIssue",
-    title: "Regressions",
-    description: "An issue you follow fails again after its resolution.",
+    title: t`Regressions`,
+    description: t`An issue you follow fails again after its resolution.`,
     payload: IssueExcerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -113,8 +113,8 @@ export const regressedIssue = defineNotification({
 /** Someone resolves an issue. */
 export const resolvedIssue = defineNotification({
     name: "resolvedIssue",
-    title: "Resolutions",
-    description: "Someone resolves an issue you follow.",
+    title: t`Resolutions`,
+    description: t`Someone resolves an issue you follow.`,
     payload: IssueExcerpt,
     interruption: "passive",
     preference: { channels: ["desktop"], delivery: "immediate" },
@@ -156,6 +156,7 @@ export const issue = defineObject(
     {
         name: "issue",
         plural: "issues",
+        title: t`${plural(argument("count"), { one: "Issue", other: "Issues" })}`,
         scope: space,
         fields: {
             /** The installation whose exceptions it groups. */
@@ -227,13 +228,6 @@ export const issue = defineObject(
             /** The comments on the issue. */
             commentCount: field.count(),
         },
-        permissions: {
-            read: none(),
-            write: none(),
-            manage: none(),
-            // let the machine serving the space record what it forwards, in the transaction appending it
-            detect: through("scope", "serve"),
-        },
         attachments: [
             comment.attach({ by: "read" }),
             activity.attach({ by: "read" }),
@@ -244,6 +238,15 @@ export const issue = defineObject(
             fingerprint: { kind: "unique", on: ["scope", "installationId", "fingerprint"] },
             lastSeen: { kind: "index", on: ["scope", "lastSeenAt"] },
             declaration: { kind: "index", on: ["scope", "declaration"] },
+        },
+        access: {
+            permissions: {
+                read: none(),
+                write: none(),
+                manage: none(),
+                // let the machine serving the space record what it forwards, in the transaction appending it
+                detect: through("scope", "serve"),
+            },
         },
     },
     (method) => ({
@@ -269,6 +272,7 @@ export const issue = defineObject(
         }),
         /** Count further exceptions and the people they affected into an issue. */
         occur: method.mutation({
+            title: t`Occur`,
             permission: "detect",
             visibility: "package",
             input: schema.object({
@@ -286,6 +290,7 @@ export const issue = defineObject(
         }),
         /** Record exceptions into their issue, opening or reopening it, as its reader does. */
         record: method.mutation({
+            title: t`Record`,
             permission: "detect",
             visibility: "package",
             target: "scope",
@@ -303,6 +308,7 @@ export const issue = defineObject(
         }),
         /** Count a claimed page of a space's exceptions into their issues, as their reader does. */
         count: method.mutation({
+            title: t`Count`,
             permission: "detect",
             visibility: "package",
             target: "scope",
