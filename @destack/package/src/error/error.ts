@@ -15,25 +15,27 @@ export type SandboxAbility = schema.Infer<typeof SandboxAbility>;
 
 /** The package package's failures, each reason with the call error code it answers. */
 export const PackageError = defineErrorFamily(
-    { name: DOMAIN },
     {
-        // invalid
-        ABILITY_INVALID: { data: SandboxAbility },
-        BUILD_INVALID: {},
-        DEFINITION_INVALID: {},
-        DEPENDENCY_INVALID: {},
-        EXPORT_INVALID: {},
-        FILE_INVALID: {},
-        HOST_MODULE_INVALID: {},
-        INSPECTION_INVALID: {},
-        LANGUAGE_INVALID: {},
-        TARGET_INVALID: {},
-        VIEW_INVALID: {},
-        VIEW_MAIN_INVALID: {},
+        reasons: {
+            // invalid
+            ABILITY_INVALID: { data: SandboxAbility },
+            BUILD_INVALID: {},
+            DEFINITION_INVALID: {},
+            DEPENDENCY_INVALID: {},
+            EXPORT_INVALID: {},
+            FILE_INVALID: {},
+            HOST_MODULE_INVALID: {},
+            INSPECTION_INVALID: {},
+            LANGUAGE_INVALID: {},
+            TARGET_INVALID: {},
+            VIEW_INVALID: {},
+            VIEW_MAIN_INVALID: {},
 
-        // unavailable
-        FILE_UNAVAILABLE: {},
+            // unavailable
+            FILE_UNAVAILABLE: {},
+        },
     },
+    { package: { name: DOMAIN } },
 );
 
 /** A stable cause of package failures. */

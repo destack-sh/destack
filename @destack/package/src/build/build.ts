@@ -2,7 +2,7 @@ import type { Environment } from "@destack/environment";
 import type { Plugin, PluginOption } from "vite";
 import type { Digest } from "@destack/schema";
 import type { Sandbox } from "../definition/sandbox.ts";
-import type { Package } from "../definition/package.ts";
+import type { PackageVersion } from "../definition/package.ts";
 import type { DeclarationDescription } from "../definition/declaration.ts";
 import type { OutputContent, PackageOutput } from "../manifest/index.ts";
 import type { Runtime } from "../runtime/index.ts";
@@ -34,7 +34,7 @@ export interface Prerender {
 /** A package build once its module outputs compiled, as extensions render pages from it. */
 export interface PrerenderContext {
     /** The package the build compiles. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The package's source directory. */
     readonly directory: string;
     /** The build directory, its module outputs written and its dependency builds linked. */
@@ -74,7 +74,7 @@ export interface TransformCache {
 /** One output a package build compiles, as extensions compile and describe it. */
 export interface Compilation {
     /** The package the build compiles. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The package's source directory. */
     readonly directory: string;
     /** The absolute source modules the output compiles, by export path, such as `./server`. */

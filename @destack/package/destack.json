@@ -15,10 +15,20 @@
         "./vite": { "runtimes": ["bun"] }
     },
     "stamps": {
-        "definePackage": { "module": 1 },
         "defineBenchmark": { "module": 1 },
         "defineExample": { "module": 1 },
         "defineScenario": { "module": 1 },
-        "defineDeclarationKind": { "module": 2 }
+        "defineKind": {
+            "module": 1
+        }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/definition/kind.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "defineKind states a declaration kind or a provisioned kind by its options, each signature typing the Kind it returns, as defineObject states its type (ruling 2026-11-11)"
+            }
+        ]
     }
 }

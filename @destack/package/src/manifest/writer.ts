@@ -3,7 +3,7 @@ import { canonicalize, type Commit, Digest, schema, type Version } from "@destac
 import type {
     DependencyResolution,
     NpmPackage,
-    Package,
+    PackageVersion,
     PackageRole,
 } from "../definition/index.ts";
 import { Declaration } from "../graph/declaration.ts";
@@ -125,7 +125,7 @@ export interface BuildStorage {
 /** What a build's manifest records beside its files. */
 export interface BuildContent {
     /** The package being built: a Destack package, or an npm release built as a unit. */
-    readonly package: Package | NpmPackage;
+    readonly package: PackageVersion | NpmPackage;
     /** What the package is, a library for an npm release. */
     readonly role: PackageRole;
     /** The Destack version whose toolchain builds it, and whose builtins it links. */

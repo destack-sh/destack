@@ -1,10 +1,11 @@
 import { schema, type JsonObject } from "@destack/schema";
-import { DeclarationName, Package, PackageId } from "../definition/package.ts";
+import { DeclarationName, PackageVersion, PackageId } from "../definition/package.ts";
+import type { Kind } from "../definition/kind.ts";
 
 /** A declared thing of a package with a name: a resource, secret, service, setting and so on. */
 export interface Declaration {
     /** The declaring package, supplied by the module transform. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The package-local declaration name. */
     readonly name: string;
 }
@@ -14,8 +15,8 @@ export type ResourceState = JsonObject;
 
 /** A resource a package requires, described by its kind and the state it must have. */
 export interface ResourceRequirement extends Declaration {
-    /** The resource kind, such as database. */
-    readonly kind: DeclarationName;
+    /** The resource kind: a provisioned one, such as database, or a bound one, such as secret. */
+    readonly kind: Kind;
     /** Describe the state the resource must have. */
     readonly state: () => ResourceState;
 }

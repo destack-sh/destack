@@ -9,7 +9,6 @@
         "./template": "./src/template/index.ts",
         "./error": "./src/error/index.ts",
         ".": "./src/index.ts",
-        "./package": "./src/package.ts",
         "./manifest": "./src/manifest/index.ts",
         "./stack": "./src/stack/index.ts",
         "./archive": "./src/archive/index.ts",

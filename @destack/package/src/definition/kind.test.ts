@@ -1,11 +1,11 @@
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { Declaration } from "../graph/declaration.ts";
-import { DeclarationKind } from "./kind.ts";
-import { Package } from "./package.ts";
+import { defineKind, Kind } from "./kind.ts";
+import { PackageVersion } from "./package.ts";
 
 /** The package declaring the settings and the command. */
-const owner = Package.parse({
+const owner = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000000a",
     name: "@example/notes",
     version: "2026.9.0",
@@ -30,15 +30,17 @@ test("select a kind's declarations by its package and name, parsing their descri
         declared("setting", "locale", { title: "Locale" }),
         declared("command", "archive", { title: "Archive" }),
     ];
-    const setting = new DeclarationKind(
+    const setting = new Kind(
         owner.id,
         "setting",
         schema.object({ title: schema.string() }),
+        undefined,
     );
-    const strict = new DeclarationKind(
+    const strict = new Kind(
         owner.id,
         "setting",
         schema.object({ order: schema.number() }),
+        undefined,
     );
 
     // select the settings with their titles, and refuse a description the kind's schema refuses
@@ -66,3 +68,38 @@ function issues(select: () => unknown): (readonly [string, string])[] {
     }
     throw new Error("the selection threw nothing");
 }
+
+test("tell a kind reconciling toward a desired state from one without", () => {
+    // declare a kind with a desired state and one without
+    const module = { package: owner };
+    const stateful = defineKind(
+        {
+            name: "table",
+            provisioned: {
+                spec: schema.object({}),
+                state: schema.object({ columns: schema.number() }),
+            },
+        },
+        module,
+    );
+    const stateless = defineKind(
+        { name: "link", provisioned: { spec: schema.object({}) } },
+        module,
+    );
+
+    expect([stateful.isStateful(), stateless.isStateful()]).toEqual([true, false]);
+});
+
+test("tell a kind outside Destack from one Destack creates", () => {
+    const module = { package: owner };
+    const api = defineKind(
+        { name: "api", provisioned: { spec: schema.object({}), management: "external" } },
+        module,
+    );
+    const link = defineKind({ name: "link", provisioned: { spec: schema.object({}) } }, module);
+
+    expect([api.provisioned.management, link.provisioned.management]).toEqual([
+        "external",
+        "internal",
+    ]);
+});

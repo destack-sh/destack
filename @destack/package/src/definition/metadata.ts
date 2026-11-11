@@ -1,11 +1,11 @@
 import { schema } from "@destack/schema";
-import { Package } from "./package.ts";
+import { PackageVersion } from "./package.ts";
 import { PackageError } from "../error/error.ts";
 
 /** The schema of the build metadata supplied to a module through import.meta.destack. */
 const moduleMetadataSchema = schema.object({
     /** The package containing this module, including modules bundled from dependencies. */
-    package: Package,
+    package: PackageVersion,
 });
 
 /** Immutable module metadata describing its package. */

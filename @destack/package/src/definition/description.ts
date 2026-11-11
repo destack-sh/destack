@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { DependencyName, Package } from "./package.ts";
+import { DependencyName, PackageVersion } from "./package.ts";
 import { PackageDefinition } from "./definition.ts";
 
 /** Dependency requirements keyed by their imported package names. */
@@ -27,7 +27,7 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
 /** A package's package.json, with its destack.json as its definition. */
 const packageJson = schema.object({
     /** The stable package ID, current name, and version. */
-    package: Package,
+    package: PackageVersion,
     /** Destack language, targets, workloads, and compute settings. */
     definition: PackageDefinition,
     /** Authored exports, retaining conditional order and fallback lists. */

@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
-import { Package, PackageId, PackageName } from "../definition/package.ts";
+import { PackageVersion, PackageId, PackageName } from "../definition/package.ts";
 
 /** Source files and selectable dependencies used to create a package. */
 export const TemplateDefinition = schema
@@ -22,7 +22,7 @@ export const TemplateInput = schema
         /** The generated package name. */
         name: PackageName,
         /** Replacements keyed by the template's original dependency names. */
-        dependencies: schema.record(PackageName, Package),
+        dependencies: schema.record(PackageName, PackageVersion),
     })
     .strict();
 /** The new package name and dependency selections. */

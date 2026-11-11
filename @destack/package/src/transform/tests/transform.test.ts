@@ -25,12 +25,12 @@ test("stamp declaration constructors and metadata reads with the calling module"
     const { files } = simulation.environment("test");
     const code = [
         'import { defineNote } from "./declare.ts";',
-        'import { definePackage } from "@destack/package";',
+        'import { defineKind } from "@destack/package";',
         'import * as notes from "./declare.ts";',
         'export const note = defineNote("note");',
         'export const other = notes.defineNote("other");',
         'export const owned = defineNote("owned", {}, import.meta.destack);',
-        "export const notes = definePackage({});",
+        "export const notes = defineKind({});",
         "export const id = import.meta.destack.package.id;",
     ].join("\n");
 
@@ -44,12 +44,12 @@ test("stamp declaration constructors and metadata reads with the calling module"
     expect(result.split("\n")).toEqual([
         `const __destackModule = Object.freeze(${metadata});`,
         'import { defineNote } from "./declare.ts";',
-        'import { definePackage } from "@destack/package";',
+        'import { defineKind } from "@destack/package";',
         'import * as notes from "./declare.ts";',
         'export const note = defineNote("note", undefined, __destackModule);',
         'export const other = notes.defineNote("other", undefined, __destackModule);',
         'export const owned = defineNote("owned", {}, __destackModule);',
-        "export const notes = definePackage({}, __destackModule);",
+        "export const notes = defineKind({}, __destackModule);",
         "export const id = __destackModule.package.id;",
     ]);
     expect(

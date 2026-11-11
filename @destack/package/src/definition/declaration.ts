@@ -1,7 +1,7 @@
 import { Digest, schema } from "@destack/schema";
 import { SourceLocation } from "../source/location.ts";
 import { DependencySymbol } from "../code/reference.ts";
-import { DeclarationName, Package } from "./package.ts";
+import { DeclarationName, PackageVersion } from "./package.ts";
 import { MemberSymbol } from "../graph/member.ts";
 
 /** Where a stamped declaration constructor was called, as the module transform records it. */
@@ -29,13 +29,15 @@ export const DeclarationDescription = schema.object({
     /** The description kind. */
     kind: DeclarationName,
     /** The package declaring the kind. */
-    package: Package,
+    package: PackageVersion,
     /** The original declaration in its exact source package. */
-    symbol: DependencySymbol.extend({ package: Package }),
+    symbol: DependencySymbol.extend({ package: PackageVersion }),
     /** The declaring module and source position. */
     source: SourceLocation,
     /** The description validated by its domain inspector. */
     description: schema.jsonObject(),
+    /** Whether providers provision the declaration, as its kind is provisioned. */
+    provisioned: schema.literal(true).exactOptional(),
     /** The declaration's terms, such as `object/note/relation/editor`, with digests. */
     vocabulary: schema.record(schema.string(), Digest).exactOptional(),
     /** The symbols its kind derives with their relationships, if any. */

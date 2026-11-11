@@ -1,6 +1,6 @@
 import type { Crypto } from "@destack/environment";
 import { found } from "@destack/schema";
-import type { Package } from "../definition/package.ts";
+import type { PackageVersion } from "../definition/package.ts";
 import { Declaration } from "../graph/declaration.ts";
 import { Moniker } from "../graph/moniker.ts";
 import { BuildReader } from "../manifest/reader.ts";
@@ -14,9 +14,6 @@ const DEFINITION_SCHEMA = "https://destack.app/schemas/2026.9.0/destack.json";
 
 /** The Destack version the fixtures are built with: this checkout's. */
 const DESTACK_VERSION = import.meta.destack.package.version;
-
-/** The parts of a declaration a fixture gives, its moniker and symbol filled from its module. */
-const Declared = Declaration.omit({ moniker: true, symbol: true });
 
 /** Builds in memory: written with `BuildWriter`, read with a digest-checking `BuildReader`. */
 export const MemoryBuild = {
@@ -57,8 +54,8 @@ export const MemoryBuild = {
 
     /** Write a package's build declaring some declarations, each in its module. */
     async of(
-        owner: Package,
-        declared: readonly (Pick<Declaration, "kind" | "name"> & {
+        owner: PackageVersion,
+        declared: readonly (Pick<Declaration, "kind" | "name" | "provisioned"> & {
             /** The package defining the kind, parsed as an identifier. */
             readonly kindPackageId: string;
             /** The description, parsed as JSON its kind takes. */
@@ -107,7 +104,12 @@ export const MemoryBuild = {
             files.set(path, new TextEncoder().encode("export {};\n"));
             for (const { module: _module, ...value } of values) {
                 const symbol = Moniker.of({ packageId: owner.id, module: path, name: value.name });
-                declarations.push(Declaration.at(symbol, Declared.parse(value)));
+                declarations.push(
+                    Declaration.at(
+                        symbol,
+                        Declaration.omit({ moniker: true, symbol: true }).parse(value),
+                    ),
+                );
             }
         }
 

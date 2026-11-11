@@ -17,6 +17,8 @@ export const Declaration = Object.assign(
         name: schema.string().min(1),
         /** The description, parsed by the kind's schema at read. */
         description: schema.jsonObject(),
+        /** Whether providers provision the declaration, as its kind is provisioned. */
+        provisioned: schema.literal(true).exactOptional(),
         /** The declaration's terms, such as `object/note/relation/editor`, with digests. */
         vocabulary: schema.record(schema.string(), Digest).exactOptional(),
     }),

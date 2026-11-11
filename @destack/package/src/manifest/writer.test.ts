@@ -1,13 +1,13 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
 import { Digest, found, schema } from "@destack/schema";
-import { Package } from "../definition/package.ts";
+import { PackageVersion } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
 import { BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
 
 /** The package whose build the writer writes. */
-const app = Package.parse({
+const app = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000001",
     name: "@example/notes",
     version: "2026.9.0",
@@ -72,7 +72,7 @@ test("write one manifest for one closure listed in any order", async () => {
     await using simulation = testSimulation();
     const { crypto } = simulation.environment("test");
     const schemaRelease = {
-        package: Package.parse({
+        package: PackageVersion.parse({
             ...app,
             name: "@example/schema",
             id: "package-01996ab0-0000-7000-8000-000000000002",
@@ -81,7 +81,7 @@ test("write one manifest for one closure listed in any order", async () => {
         kind: "destack" as const,
     };
     const dbRelease = {
-        package: Package.parse({
+        package: PackageVersion.parse({
             ...app,
             name: "@example/db",
             id: "package-01996ab0-0000-7000-8000-000000000003",

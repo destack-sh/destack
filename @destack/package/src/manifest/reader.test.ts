@@ -2,14 +2,14 @@ import { testSimulation } from "@destack/test/world";
 import { dirname, join } from "node:path";
 import { expect, refusal, test } from "@destack/test";
 import { Digest } from "@destack/schema";
-import { Package } from "../definition/package.ts";
+import { PackageVersion } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
 import { MemoryBuild } from "../test/memory.ts";
 import { BuildReader } from "./reader.ts";
 import { BuildWriter } from "./writer.ts";
 
 /** The package whose builds the reader opens. */
-const app = Package.parse({
+const app = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@example/app",
     version: "2026.9.0",
@@ -146,7 +146,7 @@ test("list the Destack releases a build resolved, leaving its npm dependencies o
     const { crypto } = simulation.environment("test");
     const vault = {
         kind: "destack" as const,
-        package: Package.parse({
+        package: PackageVersion.parse({
             id: "package-019f5530-8000-7000-8000-000000000003",
             name: "@example/vault",
             version: "2026.9.0",
@@ -252,7 +252,7 @@ test("read a build a directory keeps: its manifest, its file list and each file'
     const written = await writer.finish({
         destack: "2026.11.0",
         role: "app",
-        package: Package.parse({
+        package: PackageVersion.parse({
             id: "package-01996ab0-0000-7000-8000-0000000000a1",
             name: "@example/notes",
             version: "2026.9.0",

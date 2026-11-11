@@ -3,7 +3,7 @@ import {
     DeclarationName,
     Language,
     NpmPackage,
-    Package,
+    PackageVersion,
     PackageRole,
 } from "../definition/index.ts";
 import { PackageError } from "../error/error.ts";
@@ -35,7 +35,7 @@ const manifest = schema.object({
     /** The manifest format version, independent of the package version. */
     formatVersion: schema.literal(MANIFEST_FORMAT),
     /** The package being built: a Destack package, or an npm release built as a unit. */
-    package: schema.union([Package, NpmPackage]),
+    package: schema.union([PackageVersion, NpmPackage]),
     /** What the package is, a library for an npm release. */
     role: PackageRole,
     /** The Destack version whose toolchain built it, and whose builtins it links. */
@@ -55,12 +55,14 @@ const manifest = schema.object({
 /** The portable structure of a package build manifest. */
 export const PackageManifest = Object.assign(manifest, {
     /** Report whether a build builds a Destack package, not an npm unit. */
-    isPackage(value: PackageManifest): value is PackageManifest & { readonly package: Package } {
+    isPackage(
+        value: PackageManifest,
+    ): value is PackageManifest & { readonly package: PackageVersion } {
         return "id" in value.package;
     },
 
     /** Read the Destack package a build builds, refusing an npm unit's build. */
-    package(value: PackageManifest): Package {
+    package(value: PackageManifest): PackageVersion {
         // refuse an npm unit's build, which names no Destack package
         if (!PackageManifest.isPackage(value)) {
             const { name, version } = value.package;

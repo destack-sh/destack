@@ -115,16 +115,16 @@ const packageSchema = schema.object({
 });
 
 /** The immutable identity, current name and version declared by a Destack package. */
-export const Package = Object.assign(packageSchema, {
+export const PackageVersion = Object.assign(packageSchema, {
     /** Read the identity of a value with a package's, such as its handle. */
-    of(value: Package): Package {
+    of(value: PackageVersion): PackageVersion {
         const { id, name, version } = value;
 
         return { id, name, version };
     },
 
     /** Read the package a declaration has, under the package key or its `package` property. */
-    declaring(value: unknown): Package | undefined {
+    declaring(value: unknown): PackageVersion | undefined {
         // read no package from a value that is not an object
         if (typeof value !== "object" || value === null) {
             return undefined;
@@ -137,12 +137,12 @@ export const Package = Object.assign(packageSchema, {
 });
 
 /** A named, versioned package. */
-export type Package = Readonly<schema.Infer<typeof packageSchema>>;
+export type PackageVersion = Readonly<schema.Infer<typeof packageSchema>>;
 
 /** The structure of a package release. */
 const packageRelease = schema.object({
     /** The released package name and version. */
-    package: Package,
+    package: PackageVersion,
     /** The digest of its immutable build manifest. */
     manifest: Digest,
 });

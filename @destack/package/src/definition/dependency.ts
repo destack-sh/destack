@@ -1,5 +1,5 @@
 import { Digest, schema } from "@destack/schema";
-import { DependencyPackage, Package, PackageRelease } from "./package.ts";
+import { DependencyPackage, PackageVersion, PackageRelease } from "./package.ts";
 import { PackageFile } from "../file/file.ts";
 
 /** An npm release the lockfile pins: its package, registry and integrity. */
@@ -30,7 +30,7 @@ const dependencyRelease = schema.union([
         /** A builtin, which every runtime links at its platform's release. */
         kind: schema.literal("builtin"),
         /** The builtin package at the release the build compiled against. */
-        package: Package,
+        package: PackageVersion,
     }),
 ]);
 
@@ -55,7 +55,7 @@ export const DependencyResolution = schema.union([
         /** Source compiled directly from a local Destack package. */
         kind: schema.literal("source"),
         /** The source package's declared name and version. */
-        package: Package,
+        package: PackageVersion,
         /** Package declarations and source files consumed by the bundler. */
         files: schema.array(PackageFile),
     }),
