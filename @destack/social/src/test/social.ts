@@ -11,7 +11,7 @@ import { TestNotification } from "@destack/notification/test";
 import { ObjectType } from "@destack/object";
 import { ObjectClient } from "@destack/object/client";
 import { type TestCaller, type TestObjectStore, testBuild } from "@destack/object/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { nth, schema } from "@destack/schema";
 import { ids, TestPackage, TestSpace } from "@destack/stack/test";
@@ -59,7 +59,7 @@ export const PACKAGES: readonly TestPackage[] = [
 ];
 
 /** The agent package, whose installation comments and reacts beside the people. */
-const AGENT = Package.parse({
+const AGENT = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000e3",
     name: "@example/agent",
     version: "2026.10.0",

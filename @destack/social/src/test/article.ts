@@ -1,13 +1,15 @@
 import { space } from "@destack/account/object";
 import { activity, announcement, Subscription, subscription } from "@destack/notification/object";
-import { defineObject, field, PackageHandle } from "@destack/object";
+import { defineObject, field, Package } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { comment, favourite, presence, reaction, receipt } from "../object/index.ts";
+import { shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The articles application, whose articles carry every social attachment. */
-export const ARTICLES = Package.parse({
+export const ARTICLES = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-0000000000e2",
     name: "@example/articles",
     version: "2026.10.0",
@@ -18,6 +20,7 @@ export const article = defineObject(
     {
         name: "article",
         plural: "articles",
+        title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
         scope: space,
         fields: {
             /** The article title. */
@@ -29,7 +32,6 @@ export const article = defineObject(
             /** The number of reactions to the article. */
             reactionCount: field.count(),
         },
-        shareable: {},
         attachments: [
             comment.attach({ by: "comment" }),
             reaction.attach({ by: "comment" }),
@@ -40,6 +42,7 @@ export const article = defineObject(
             favourite.attach({ by: "read" }),
             presence.attach({ by: "read" }),
         ],
+        traits: [shareable({})],
     },
     (method) => ({
         create: method.create("manage"),
@@ -50,7 +53,7 @@ export const article = defineObject(
 );
 
 /** The articles package's handle. */
-export const articlesPackage = PackageHandle.of(ARTICLES, { objects: { article } });
+export const articlesPackage = Package.of(ARTICLES, { objects: [article] });
 
 /** The articles package's server, subscribing each article's creator to it. */
 export const articlesServer = implementPackage(articlesPackage, {

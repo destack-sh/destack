@@ -29,6 +29,7 @@ import {
 import { present, schema } from "@destack/schema";
 import { SocialError } from "../error/index.ts";
 import { reaction } from "./reaction.ts";
+import { nested } from "@destack/object";
 
 /** The longest comment text in UTF-16 code units, about four pages. */
 const TEXT_LENGTH = 10_000;
@@ -76,8 +77,8 @@ export const comment = defineObject(
     {
         name: "comment",
         plural: "comments",
+        title: t`${plural(argument("count"), { one: "Comment", other: "Comments" })}`,
         scope: space,
-        nested: { in: "any", receive: "comment" },
         fields: {
             /** The author. */
             author: field.subject().caller(),
@@ -97,13 +98,6 @@ export const comment = defineObject(
             resolvedBy: field.subject().optional(),
             /** The number of reactions. */
             reactionCount: field.count(),
-        },
-        permissions: {
-            read: through("parent", "read"),
-            comment: through("parent", "comment"),
-            write: intersection(relation("author"), through("parent", "comment")),
-            resolve: union(permission("write"), through("parent", "write")),
-            delete: union(permission("write"), through("parent", "manage")),
         },
         aggregates: { commentCount: { function: "count" } },
         attachments: [
@@ -127,12 +121,23 @@ export const comment = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                comment: through("parent", "comment"),
+                write: intersection(relation("author"), through("parent", "comment")),
+                resolve: union(permission("write"), through("parent", "write")),
+                delete: union(permission("write"), through("parent", "manage")),
+            },
+        },
+        traits: [nested({ in: "any", add: "comment" })],
     },
     (method) => ({
         create: method.create("comment", { fields: ["body", "selection"] }),
-        resolve: method.mutation({ permission: "resolve" }),
-        reopen: method.mutation({ permission: "resolve" }),
+        resolve: method.mutation({ title: t`Resolve`, permission: "resolve" }),
+        reopen: method.mutation({ title: t`Reopen`, permission: "resolve" }),
         reply: method.mutation({
+            title: t`Reply`,
             permission: "comment",
             input: Body.extend({ mentions: Body.shape.mentions.default([]) }),
         }),
@@ -314,8 +319,8 @@ const answer = {
 /** A comment mentions the recipient. */
 export const mention = defineNotification({
     name: "mention",
-    title: "Mentions",
-    description: "Someone mentions you in a comment.",
+    title: t`Mentions`,
+    description: t`Someone mentions you in a comment.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -327,8 +332,8 @@ export const mention = defineNotification({
 /** A comment starts a thread on a subscribed object. */
 export const thread = defineNotification({
     name: "thread",
-    title: "Threads",
-    description: "Someone starts a comment thread on something you subscribe to.",
+    title: t`Threads`,
+    description: t`Someone starts a comment thread on something you subscribe to.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },
@@ -340,8 +345,8 @@ export const thread = defineNotification({
 /** A comment replies in a subscribed thread. */
 export const reply = defineNotification({
     name: "reply",
-    title: "Replies",
-    description: "Someone replies in a comment thread you subscribe to.",
+    title: t`Replies`,
+    description: t`Someone replies in a comment thread you subscribe to.`,
     payload: Excerpt,
     interruption: "active",
     preference: { channels: ["desktop", "push", "email"], delivery: "immediate" },

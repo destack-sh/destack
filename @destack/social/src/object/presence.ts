@@ -2,6 +2,8 @@ import { space } from "@destack/account/object";
 import { intersection, relation, through } from "@destack/access";
 import { defineObject, field, Selection } from "@destack/object";
 import { schema } from "@destack/schema";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a present principal does, typing being editing with keystrokes now. */
 export const PRESENCE_STATES = ["viewing", "editing", "typing", "idle"] as const;
@@ -13,9 +15,9 @@ export const LOCATION_BYTES = 1024;
 export const presence = defineObject({
     name: "presence",
     plural: "presences",
+    title: t`${plural(argument("count"), { one: "Presence", other: "Presences" })}`,
     scope: space,
     storage: "ephemeral",
-    nested: { in: "any", receive: "present" },
     fields: {
         /** The principal. */
         principal: field.subject().caller(),
@@ -26,14 +28,17 @@ export const presence = defineObject({
         /** The principal's place outside text, such as a canvas cursor. */
         location: field.json(schema.json()).optional(),
     },
-    permissions: {
-        read: through("parent", "present"),
-        write: intersection(relation("principal"), through("parent", "present")),
-    },
     constraints: {
         writer: {
             kind: "unique",
             on: ["parentPackageId", "parentType", "parentId", "principalId", "writerId"],
         },
     },
+    access: {
+        permissions: {
+            read: through("parent", "present"),
+            write: intersection(relation("principal"), through("parent", "present")),
+        },
+    },
+    traits: [nested({ in: "any", add: "present" })],
 });
