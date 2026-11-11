@@ -5,19 +5,21 @@ const OWNER = { name: "@destack/environment" };
 
 /** The processes' failures, each reason with the call error code it answers. */
 export const ProcessError = defineErrorFamily(
-    OWNER,
     {
-        // not found
-        FILE_NOT_FOUND: {},
-        PROCESS_NOT_FOUND: {},
+        reasons: {
+            // not found
+            FILE_NOT_FOUND: {},
+            PROCESS_NOT_FOUND: {},
 
-        // denied
-        PERMISSION_DENIED: {},
+            // denied
+            PERMISSION_DENIED: {},
 
-        // broken
-        PROCESS_BROKEN: {},
+            // broken
+            PROCESS_BROKEN: {},
+        },
+        audience: "host",
     },
-    { audience: "host" },
+    { package: OWNER },
 );
 
 /** A stable cause of process failures. */

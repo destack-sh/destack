@@ -5,21 +5,23 @@ const OWNER = { name: "@destack/environment" };
 
 /** The file system's failures, each reason with the call error code it answers. */
 const family = defineErrorFamily(
-    OWNER,
     {
-        // not found
-        FILE_NOT_FOUND: {},
+        reasons: {
+            // not found
+            FILE_NOT_FOUND: {},
 
-        // exists
-        FILE_EXISTS: {},
+            // exists
+            FILE_EXISTS: {},
 
-        // denied
-        PERMISSION_DENIED: {},
+            // denied
+            PERMISSION_DENIED: {},
 
-        // broken
-        FILE_SYSTEM_BROKEN: {},
+            // broken
+            FILE_SYSTEM_BROKEN: {},
+        },
+        audience: "host",
     },
-    { audience: "host" },
+    { package: OWNER },
 );
 
 /** The file system's failures, each reason with the call error code it answers. */

@@ -5,12 +5,14 @@ const OWNER = { name: "@destack/environment" };
 
 /** The browser environment's failures, each reason with the call error code it answers. */
 export const BrowserError = defineErrorFamily(
-    OWNER,
     {
-        // blocked
-        CAPABILITY_BLOCKED: {},
+        reasons: {
+            // blocked
+            CAPABILITY_BLOCKED: {},
+        },
+        audience: "host",
     },
-    { audience: "host" },
+    { package: OWNER },
 );
 
 /** A stable cause of browser environment failures. */

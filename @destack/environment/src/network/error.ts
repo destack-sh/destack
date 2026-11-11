@@ -5,18 +5,20 @@ const OWNER = { name: "@destack/environment" };
 
 /** The network's failures, each reason with the call error code it answers. */
 export const NetworkError = defineErrorFamily(
-    OWNER,
     {
-        // denied
-        ADDRESS_PRIVATE_DENIED: {},
+        reasons: {
+            // denied
+            ADDRESS_PRIVATE_DENIED: {},
 
-        // unsupported
-        OPERATION_UNSUPPORTED: {},
+            // unsupported
+            OPERATION_UNSUPPORTED: {},
 
-        // unavailable
-        RESOLVE_UNAVAILABLE: {},
+            // unavailable
+            RESOLVE_UNAVAILABLE: {},
+        },
+        audience: "host",
     },
-    { audience: "host" },
+    { package: OWNER },
 );
 
 /** A stable cause of network failures. */
