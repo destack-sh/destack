@@ -91,7 +91,7 @@ export class Color {
     static channels(hex: string): Vector {
         // refuse anything but six hex digits
         if (!HEX.test(hex)) {
-            throw new RangeError(`invalid hex color: ${hex}`);
+            throw new RangeError(`invalid hex color: '${hex}'`);
         }
 
         // read each two-digit channel

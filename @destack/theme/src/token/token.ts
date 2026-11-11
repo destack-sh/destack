@@ -233,7 +233,7 @@ export class TokenEntry {
             const hex = Color.format(color.components);
             if (color.hex !== undefined && color.hex.toLowerCase() !== hex) {
                 throw new RangeError(
-                    `token ${this.path.join(".")} has hex ${color.hex}, but its color is ${hex}`,
+                    `token '${this.path.join(".")}' has hex '${color.hex}', but its color is '${hex}'`,
                 );
             }
         }
@@ -344,7 +344,7 @@ export class TokenTree {
     family(name: string): TokenGroup {
         const family = this.families.find((candidate) => candidate.name === name);
         if (family === undefined) {
-            throw new RangeError(`unknown token family: ${name}`);
+            throw new RangeError(`unknown token family: '${name}'`);
         }
 
         return family;
@@ -358,7 +358,7 @@ export class TokenTree {
             .flatMap((family) => family.entries)
             .find((candidate) => candidate.path.join(".") === key);
         if (entry === undefined) {
-            throw new RangeError(`unknown token: ${key}`);
+            throw new RangeError(`unknown token: '${key}'`);
         }
 
         return entry;

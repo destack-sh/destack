@@ -288,7 +288,7 @@ export class Theme {
                     const contrast = level === 0 ? "standard" : "more";
                     throw PackageError.of(
                         "DEFINITION_INVALID",
-                        `theme ${this.name}: ${name} on ${reading.on} reads at Lc ${lightness.toFixed(1)} in ${scheme} with ${contrast} contrast, below ${floor}`,
+                        `theme '${this.name}' is invalid: '${name}' on '${reading.on}' reads at Lc ${lightness.toFixed(1)} in '${scheme}' with '${contrast}' contrast, below ${floor}`,
                     );
                 }
             }
@@ -380,7 +380,7 @@ export class Theme {
             case "motion":
                 return 1;
             default:
-                throw new RangeError(`theme has no factor for token family ${family}`);
+                throw new RangeError(`theme has no factor for token family '${family}'`);
         }
     }
 
