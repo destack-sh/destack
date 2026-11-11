@@ -61,7 +61,8 @@ export function Rates(properties: { currency: Currency }) {
                     </h3>
                     <p {...style.attrs(styles.lede)}>
                         A machine of your own on Pro and Enterprise, billed by the second it is
-                        awake.
+                        awake. Its local disk is working space, and stored data is billed as
+                        Database and Files.
                     </p>
                 </div>
                 <table {...style.attrs(styles.table)}>
@@ -70,7 +71,7 @@ export function Rates(properties: { currency: Currency }) {
                             <th {...style.attrs(styles.head)}>Machine</th>
                             <th {...style.attrs(styles.head, styles.end)}>vCPU</th>
                             <th {...style.attrs(styles.head, styles.end)}>Memory</th>
-                            <th {...style.attrs(styles.head, styles.end)}>Disk</th>
+                            <th {...style.attrs(styles.head, styles.end)}>Local disk</th>
                             <th {...style.attrs(styles.head, styles.end)}>Per hour</th>
                         </tr>
                     </thead>
@@ -108,7 +109,7 @@ export function Rates(properties: { currency: Currency }) {
     );
 }
 
-/** Draw a resource's card: its first unit as the headline, then the rest, or Free when all are. */
+/** Draw a resource's card: its first unit or Free as the headline, then the units below. */
 function ResourceCard(properties: {
     resource: (typeof RESOURCES)[number];
     rate: (dollars: number) => string;
@@ -116,11 +117,10 @@ function ResourceCard(properties: {
     // read the resource's units, the first one leading
     const listed = units.filter((unit) => unit.resource === properties.resource.name);
     const first = present(listed[0], `the first ${properties.resource.name} unit`);
-    const rest = listed.slice(1);
     const isFree = listed.every((unit) => unit.price === 0);
 
-    // list the units of a free resource in one phrase, such as "Ingress and egress"
-    const names = listed.map((unit, index) => (index === 0 ? unit.name : unit.name.toLowerCase()));
+    // list every unit of a free resource, and the rest after the headline otherwise
+    const rest = isFree ? listed : listed.slice(1);
 
     return (
         <section {...style.attrs(lattice.cell, styles.card)}>
@@ -131,45 +131,51 @@ function ResourceCard(properties: {
                 {properties.resource.name}
             </h3>
 
-            {/* free for all of a free resource, within fair use */}
+            {/* free as the headline of a free resource, or the first unit */}
             {isFree ? (
                 <div {...style.attrs(styles.lead)}>
                     <p {...style.attrs(styles.fee)}>
                         <span {...style.attrs(styles.amount)}>Free</span>
                     </p>
-                    <p {...style.attrs(styles.per)}>
-                        <FairUseHint
-                            text={`${names.join(" and ")}, any amount`}
-                            detail="Data in and out of your spaces costs nothing."
-                        />
-                    </p>
+                    <p {...style.attrs(styles.per)}>Any amount</p>
                 </div>
             ) : (
-                <>
-                    {/* the first unit as the headline */}
-                    <div {...style.attrs(styles.lead)}>
-                        <p {...style.attrs(styles.fee)}>
-                            <span {...style.attrs(styles.amount)}>
-                                {properties.rate(first.price)}
-                            </span>
-                            <span {...style.attrs(styles.period)}>/ {first.per}</span>
-                        </p>
-                        <p {...style.attrs(styles.per)}>{first.name}</p>
-                    </div>
-
-                    {/* the other units */}
-                    {rest.map((unit) => (
-                        <div {...style.attrs(styles.unit)}>
-                            <span>{unit.name}</span>
-                            <span {...style.attrs(styles.figure)}>
-                                {properties.rate(unit.price)}
-                            </span>
-                            <span {...style.attrs(styles.per)}>per {unit.per}</span>
-                        </div>
-                    ))}
-                </>
+                <div {...style.attrs(styles.lead)}>
+                    <p {...style.attrs(styles.fee)}>
+                        <span {...style.attrs(styles.amount)}>{properties.rate(first.price)}</span>
+                        <span {...style.attrs(styles.period)}>/ {first.per}</span>
+                    </p>
+                    <p {...style.attrs(styles.per)}>{first.name}</p>
+                </div>
             )}
+
+            {/* the other units */}
+            {rest.map((unit) => (
+                <div {...style.attrs(styles.unit)}>
+                    <span>
+                        <UnitName unit={unit} />
+                    </span>
+                    <span {...style.attrs(styles.figure)}>{properties.rate(unit.price)}</span>
+                    <span {...style.attrs(styles.per)}>per {unit.per}</span>
+                </div>
+            ))}
         </section>
+    );
+}
+
+/** Draw a unit's name, marked as fair use when the unit is free. */
+function UnitName(properties: { unit: Unit }) {
+    return (
+        <>
+            {properties.unit.price === 0 ? (
+                <FairUseHint
+                    text={properties.unit.name}
+                    detail={`${properties.unit.name} costs nothing, any amount.`}
+                />
+            ) : (
+                properties.unit.name
+            )}
+        </>
     );
 }
 
