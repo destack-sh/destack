@@ -12,7 +12,7 @@ import { type DurableObjectState, DurableObjectWorkload } from "@destack/object/
 import type { Alarm } from "@destack/db";
 import { CallKey } from "@destack/object";
 import { TelemetryScope } from "@destack/telemetry";
-import { DistributionManifest, Package } from "@destack/package";
+import { DistributionManifest, PackageVersion } from "@destack/package";
 import { WorkerdDistribution } from "@destack/package/workerd";
 import { UNIVERSE_SCHEMA, Control, UniverseDefinition } from "@destack/control";
 import controlPackage from "@destack/control/package";
@@ -97,7 +97,7 @@ async function startUniverse(bindings: UniverseBindings, alarm: Alarm) {
 
     // read the declaration the deploy supplied, then start the universe, calling the machines and forges,
     //  and capture the failures no request answers on the environment's telemetry
-    const instruments = TelemetryScope.of(Package.of(controlPackage), environment.telemetry);
+    const instruments = TelemetryScope.of(PackageVersion.of(controlPackage), environment.telemetry);
     const declared: { readonly default: unknown } = await import("destack:universe");
     const releases = await BuildLayer.assets(bindings.RELEASES, environment.crypto);
     const universe = await Control.start({

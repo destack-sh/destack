@@ -14,7 +14,7 @@ import {
     DISTRIBUTION_LAYER,
     DISTRIBUTION_MANIFEST,
     DistributionManifest,
-    type Package,
+    type PackageVersion,
 } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { type Digest, type JsonValue, present, schema, type Version } from "@destack/schema";
@@ -49,7 +49,7 @@ export const RELEASES_DIRECTORY = "target/releases";
 /** A local build's versions. */
 export interface LocalBuild {
     /** Read the versions a local build starts its packages at, by package name. */
-    readonly versions: (packages: readonly Package[]) => Readonly<Record<string, Version>>;
+    readonly versions: (packages: readonly PackageVersion[]) => Readonly<Record<string, Version>>;
     /** Read the next versions for the packages a build changed, none once nothing changed. */
     readonly settle: (
         built: ReadonlyMap<string, Digest>,
