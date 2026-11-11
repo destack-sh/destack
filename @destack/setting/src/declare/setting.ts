@@ -64,7 +64,7 @@ export function defineSetting<
 
     // require exactly one of a default and a requirement, and a default the value's schema and JSON both take
     if ("default" in definition === "required" in definition) {
-        throw new TypeError(`setting ${definition.name} needs either a default or required`);
+        throw new TypeError(`setting '${definition.name}' needs either a default or required`);
     }
     if ("default" in definition) {
         valueSchema.parse(definition.default);
@@ -75,7 +75,7 @@ export function defineSetting<
     const described = toJsonSchema(valueSchema);
     if (metadata.merge === "key" && (described["type"] !== "object" || "properties" in described)) {
         throw new TypeError(
-            `setting ${definition.name} merges keys of a value that is not a record`,
+            `setting '${definition.name}' merges keys of a value that is not a record`,
         );
     }
 

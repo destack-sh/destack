@@ -139,7 +139,7 @@ export class Setting<
             ...definition
         } = description;
         if ((given === undefined) !== (required === true)) {
-            throw new TypeError(`setting ${definition.name} needs either a default or required`);
+            throw new TypeError(`setting '${definition.name}' needs either a default or required`);
         }
         const defaulted = given === undefined ? { required: true as const } : { default: given };
 
@@ -163,7 +163,7 @@ export class Setting<
         const key = DeclarationReference.key(reference);
         const setting = settings.find((each) => DeclarationReference.key(each.reference) === key);
         if (setting === undefined) {
-            throw SettingError.of("SETTING_UNDECLARED", `setting ${key} is not declared`);
+            throw SettingError.of("SETTING_NOT_FOUND", `setting '${key}' not found`);
         }
 
         return setting;
@@ -185,8 +185,8 @@ export class Setting<
         const key = DeclarationReference.key(this.reference);
         if (!Object.hasOwn(settings, key)) {
             throw SettingError.of(
-                "SETTING_UNDECLARED",
-                `the installation's machine did not resolve ${key}`,
+                "SETTING_NOT_FOUND",
+                `setting '${key}' on the installation's machine not found`,
             );
         }
 
@@ -225,11 +225,14 @@ export class Setting<
         // refuse a setting without a default that no scope placed, or placed only invalid values
         const key = DeclarationReference.key(this.reference);
         if (ordinary.length === 0 && enforced.length === 0 && invalid.length === 0) {
-            throw SettingError.of("SETTING_UNSET", `setting ${key} has no default and is not set`);
+            throw SettingError.of(
+                "SETTING_BLOCKED",
+                `cannot read setting '${key}': it has no default and is not set`,
+            );
         } else if (ordinary.length === 0 && enforced.length === 0) {
             throw SettingError.of(
-                "SETTING_INVALID",
-                `setting ${key} has no default and no valid value`,
+                "SETTING_BLOCKED",
+                `cannot read setting '${key}': it has no default and no valid value`,
             );
         }
 
@@ -270,7 +273,7 @@ export class Setting<
         if (!isSelectable) {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "setting scope does not match the selected scope",
+                "setting scope is invalid: it must match the selected scope",
             );
         }
     }
@@ -341,8 +344,8 @@ export class Setting<
                 equalValue(previous.value, current.value);
             if (compareRanks(previous, current) === 0 && !isShared) {
                 throw SettingError.of(
-                    "VALUES_CONFLICTING",
-                    "multiple setting values have the same precedence",
+                    "VALUES_INVALID",
+                    "setting values are invalid: several have the same precedence",
                 );
             }
         }
@@ -353,7 +356,10 @@ export class Setting<
             requirement !== undefined &&
             enforced.some((candidate) => !equalValue(candidate.value, requirement.value))
         ) {
-            throw SettingError.of("VALUES_CONFLICTING", "required setting values conflict");
+            throw SettingError.of(
+                "VALUES_INVALID",
+                "setting values are invalid: their required values conflict",
+            );
         }
 
         // take the requirements, or else the highest ranked candidates
@@ -419,7 +425,10 @@ export class Setting<
     requireValue(value: unknown): schema.Infer<Value> {
         const parsed = this.definition.schema.safeParse(value);
         if (!parsed.success) {
-            throw SettingError.of("VALUE_INVALID", "setting value does not match its declaration");
+            throw SettingError.of(
+                "VALUE_INVALID",
+                "setting value is invalid: it must match its declaration",
+            );
         }
 
         return parsed.data;
@@ -432,7 +441,7 @@ export class Setting<
         if (!converted.isConverted) {
             throw SettingError.of(
                 "VALUE_INVALID",
-                `setting value is at release ${write.release}, but its declaration is at ${this.package.version}`,
+                `setting value is invalid: its release '${write.release}' must match the declaration's release '${this.package.version}'`,
             );
         }
         this.requireValue(converted.value);
@@ -453,14 +462,14 @@ export class Setting<
         if (position === "declared" && value.mode !== "set") {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "setting value in its declared scope must be set",
+                "setting value is invalid: a value in its declared scope must be set",
             );
         }
         // require recommendations or requirements from enclosing scopes
         else if (position === "enclosing" && value.mode === "set") {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "setting value outside its declared scope must be a recommendation or a requirement",
+                "setting value is invalid: a value outside its declared scope must be a recommendation or a requirement",
             );
         }
 
@@ -468,7 +477,7 @@ export class Setting<
         if (value.installation !== undefined && value.space !== undefined) {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "setting value has both an installation and its space",
+                "setting value is invalid: it must have either an installation or its space",
             );
         }
 
@@ -487,7 +496,7 @@ export class Setting<
         if (overrides.some((override) => !permitted.includes(override))) {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "setting value uses an unsupported setting override",
+                "setting value is invalid: its setting override must be supported",
             );
         }
     }
@@ -529,7 +538,7 @@ export class Setting<
         } else if (!this.isDeviceStored()) {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                `devices cannot store values of ${DeclarationReference.key(this.reference)}`,
+                `setting '${DeclarationReference.key(this.reference)}' is invalid: devices cannot store its values`,
             );
         }
 
@@ -582,7 +591,7 @@ export class Setting<
         else if (value.mode === "set") {
             throw SettingError.of(
                 "PLACEMENT_INVALID",
-                "the resolution got a value set in another scope",
+                "setting value is invalid: the resolution got a value set in another scope",
             );
         }
         // rank a recommendation or requirement of an enclosing scope by its depth and its installation
@@ -592,7 +601,7 @@ export class Setting<
             if (depth === -1) {
                 throw SettingError.of(
                     "PLACEMENT_INVALID",
-                    "the resolution got a value from outside the selection's scope chain",
+                    "setting value is invalid: the resolution got a value from outside the selection's scope chain",
                 );
             }
             const nearness = (chain.length - depth) * DEPTH_WEIGHT;
@@ -705,7 +714,10 @@ function decideKey(
             (candidate) => !equalValue(entryOf(candidate), entryOf(requirement)),
         )
     ) {
-        throw SettingError.of("VALUES_CONFLICTING", `required values of ${key} conflict`);
+        throw SettingError.of(
+            "VALUES_INVALID",
+            `setting '${key}' is invalid: its required values conflict`,
+        );
     }
 
     // take the requirement or the highest ranked candidate, refusing a tie of different values
@@ -718,8 +730,8 @@ function decideKey(
         tied.some((candidate) => !equalValue(entryOf(candidate), entryOf(winner)))
     ) {
         throw SettingError.of(
-            "VALUES_CONFLICTING",
-            `multiple values of ${key} have the same precedence`,
+            "VALUES_INVALID",
+            `setting '${key}' is invalid: several values have the same precedence`,
         );
     }
 

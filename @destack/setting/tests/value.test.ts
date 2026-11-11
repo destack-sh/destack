@@ -79,7 +79,7 @@ test("write declared values at their placements and refuse invalid, undeclared a
     const mismatch = [
         "BAD_REQUEST",
         "VALUE_INVALID",
-        "setting value does not match its declaration",
+        "setting value is invalid: it must match its declaration",
     ];
     expect([
         await refusal(create()),
@@ -99,23 +99,31 @@ test("write declared values at their placements and refuse invalid, undeclared a
     ]).toEqual([
         [
             "CONFLICT",
-            "DUPLICATE",
-            "another setting has the same packageId, name, scope, package, space, and installation",
+            "OBJECT_EXISTS",
+            "'setting' with the same 'packageId, name, scope, package, space, and installation' already exists",
         ],
         mismatch,
         mismatch,
         [
             "BAD_REQUEST",
             "VALUE_INVALID",
-            "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
+            "setting value is invalid: its release '2026.10.0' must match the declaration's release '2026.9.0'",
         ],
         [
             "NOT_FOUND",
-            "SETTING_UNDECLARED",
-            `setting ${editor.reference.packageId}/editor.theme is not declared`,
+            "SETTING_NOT_FOUND",
+            `setting '${editor.reference.packageId}/editor.theme' not found`,
         ],
-        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value in its declared scope must be set"],
-        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value uses an unsupported setting override"],
+        [
+            "BAD_REQUEST",
+            "PLACEMENT_INVALID",
+            "setting value is invalid: a value in its declared scope must be set",
+        ],
+        [
+            "BAD_REQUEST",
+            "PLACEMENT_INVALID",
+            "setting value is invalid: its setting override must be supported",
+        ],
     ]);
 });
 
@@ -213,8 +221,8 @@ test("refuse reading the retention of a days setting declared without a default"
         ),
     ).toEqual([
         "PRECONDITION_FAILED",
-        "DEFAULT_MISSING",
-        `retention setting ${history.definition.name} of ${history.package.name} has no default`,
+        "DEFAULT_BLOCKED",
+        `cannot apply retention setting '${history.definition.name}' of '${history.package.name}': it has no default`,
     ]);
 });
 

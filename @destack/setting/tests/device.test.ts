@@ -262,7 +262,7 @@ async function follow(
         ),
         endpoint: served.as(alice).endpoint(settingPackage),
         reconnect: (cell) => {
-            throw new TypeError(`no scope moves in this test, yet one moved to ${cell}`);
+            throw new TypeError(`no scope moves in this test, yet one moved to '${cell}'`);
         },
     });
     const controller = new AbortController();

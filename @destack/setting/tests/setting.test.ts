@@ -91,7 +91,7 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
     const misplaced = [
         "BAD_REQUEST",
         "PLACEMENT_INVALID",
-        "the resolution got a value set in another scope",
+        "setting value is invalid: the resolution got a value set in another scope",
     ];
     expect([
         await refusal(() => editor.resolve(selection, [{ ...personal, scope: "user-bob" }], chain)),
@@ -105,7 +105,7 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
         [
             "BAD_REQUEST",
             "PLACEMENT_INVALID",
-            "the resolution got a value from outside the selection's scope chain",
+            "setting value is invalid: the resolution got a value from outside the selection's scope chain",
         ],
     ]);
     expect(editor.resolve(anonymous, [], chain)).toEqual({ ...standard, selection: anonymous });
@@ -117,8 +117,16 @@ test("refuse values set in other scopes or outside the chain, and disagreeing re
         ),
         await refusal(() => editor.resolve(SettingSelection.parse({ scope: space }), [], chain)),
     ]).toEqual([
-        ["CONFLICT", "VALUES_CONFLICTING", "required setting values conflict"],
-        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting scope does not match the selected scope"],
+        [
+            "BAD_REQUEST",
+            "VALUES_INVALID",
+            "setting values are invalid: their required values conflict",
+        ],
+        [
+            "BAD_REQUEST",
+            "PLACEMENT_INVALID",
+            "setting scope is invalid: it must match the selected scope",
+        ],
     ]);
 });
 
@@ -168,9 +176,9 @@ test("resolve each key of a merged setting from its own nearest placement, requi
             ),
         ),
     ).toEqual([
-        "CONFLICT",
-        "VALUES_CONFLICTING",
-        "multiple values of note.archive have the same precedence",
+        "BAD_REQUEST",
+        "VALUES_INVALID",
+        "setting 'note.archive' is invalid: several values have the same precedence",
     ]);
 });
 
@@ -256,7 +264,7 @@ test("describe a setting and read the settings a build declares", async () => {
     // refuse a setting the build does not declare
     expect(
         await refusal(() => Setting.find(settings, { ...editor.reference, name: "theme" })),
-    ).toEqual(["NOT_FOUND", "SETTING_UNDECLARED", `setting ${notes.id}/theme is not declared`]);
+    ).toEqual(["NOT_FOUND", "SETTING_NOT_FOUND", `setting '${notes.id}/theme' not found`]);
 });
 
 test("resolve space settings per installation and machine settings per machine", async () => {
@@ -334,7 +342,7 @@ test("resolve space settings per installation and machine settings per machine",
     ).toEqual([
         "BAD_REQUEST",
         "PLACEMENT_INVALID",
-        "the resolution got a value set in another scope",
+        "setting value is invalid: the resolution got a value set in another scope",
     ]);
 });
 
@@ -344,7 +352,7 @@ test("refuse placements and writes a setting does not permit", async () => {
     const unsupported = [
         "BAD_REQUEST",
         "PLACEMENT_INVALID",
-        "setting value uses an unsupported setting override",
+        "setting value is invalid: its setting override must be supported",
     ];
     expect([
         await refusal(() => plain.requirePlacement({ installation, mode: "set" }, "declared")),
@@ -359,18 +367,22 @@ test("refuse placements and writes a setting does not permit", async () => {
         [
             "BAD_REQUEST",
             "PLACEMENT_INVALID",
-            `devices cannot store values of ${DeclarationReference.key(plain.reference)}`,
+            `setting '${DeclarationReference.key(plain.reference)}' is invalid: devices cannot store its values`,
         ],
         [
             "BAD_REQUEST",
             "PLACEMENT_INVALID",
-            "setting value outside its declared scope must be a recommendation or a requirement",
+            "setting value is invalid: a value outside its declared scope must be a recommendation or a requirement",
         ],
-        ["BAD_REQUEST", "PLACEMENT_INVALID", "setting value in its declared scope must be set"],
         [
             "BAD_REQUEST",
             "PLACEMENT_INVALID",
-            "setting value has both an installation and its space",
+            "setting value is invalid: a value in its declared scope must be set",
+        ],
+        [
+            "BAD_REQUEST",
+            "PLACEMENT_INVALID",
+            "setting value is invalid: it must have either an installation or its space",
         ],
     ]);
 
@@ -386,9 +398,9 @@ test("refuse placements and writes a setting does not permit", async () => {
         [
             "BAD_REQUEST",
             "VALUE_INVALID",
-            "setting value is at release 2026.10.0, but its declaration is at 2026.9.0",
+            "setting value is invalid: its release '2026.10.0' must match the declaration's release '2026.9.0'",
         ],
-        ["BAD_REQUEST", "VALUE_INVALID", "setting value does not match its declaration"],
+        ["BAD_REQUEST", "VALUE_INVALID", "setting value is invalid: it must match its declaration"],
         "done",
     ]);
 });
@@ -488,7 +500,7 @@ test("convert stored values of earlier releases, and skip values of later releas
         ),
     ).toThrow(
         new TypeError(
-            "conversion of editor.mode is keyed by 2026.10.0, after its version 2026.9.0",
+            "conversion of 'editor.mode' is keyed by '2026.10.0', after its version '2026.9.0'",
         ),
     );
 });
@@ -550,9 +562,9 @@ test("resolve a value for its consuming package, and rank recommendations by the
         value: "standard",
     };
     expect(await refusal(() => shared.resolve(home, [nearer, sibling], chain))).toEqual([
-        "CONFLICT",
-        "VALUES_CONFLICTING",
-        "multiple setting values have the same precedence",
+        "BAD_REQUEST",
+        "VALUES_INVALID",
+        "setting values are invalid: several have the same precedence",
     ]);
 });
 
@@ -629,8 +641,8 @@ test("read a setting's value among an installation's resolved settings, refusing
     expect(() => editor.read({ [key]: "emacs" })).toThrow(schema.Error);
     expect(await refusal(() => editor.read({}))).toEqual([
         "NOT_FOUND",
-        "SETTING_UNDECLARED",
-        `the installation's machine did not resolve ${key}`,
+        "SETTING_NOT_FOUND",
+        `setting '${key}' on the installation's machine not found`,
     ]);
 });
 
@@ -660,7 +672,7 @@ test("describe a required setting without a default, rebuild it as required, and
     }).toEqual({
         described: { required: true, hasDefault: false },
         rebuilt: { required: true, hasDefault: false },
-        both: "setting editor.signature needs either a default or required",
+        both: "setting 'editor.signature' needs either a default or required",
     });
 });
 
@@ -676,11 +688,15 @@ test("refuse a setting without a default that no scope sets or sets only invalid
         await refusal(() => signature.resolve(selection, [invalid], chain)),
         signature.resolve(selection, [signed], chain).value,
     ]).toEqual([
-        ["PRECONDITION_FAILED", "SETTING_UNSET", `setting ${key} has no default and is not set`],
         [
             "PRECONDITION_FAILED",
-            "SETTING_INVALID",
-            `setting ${key} has no default and no valid value`,
+            "SETTING_BLOCKED",
+            `cannot read setting '${key}': it has no default and is not set`,
+        ],
+        [
+            "PRECONDITION_FAILED",
+            "SETTING_BLOCKED",
+            `cannot read setting '${key}': it has no default and no valid value`,
         ],
         "Alice",
     ]);

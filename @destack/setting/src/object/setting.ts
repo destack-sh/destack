@@ -117,15 +117,15 @@ export const SettingValue = {
             } = definition;
             if (!(value instanceof schema.Schema)) {
                 throw new TypeError(
-                    `setting ${String(metadata["name"])} of ${owner.name} has no value schema`,
+                    `setting '${String(metadata["name"])}' of '${owner.name}' has no value schema`,
                 );
             }
 
             // require a default, which a scope without a placed value resolves to
             if (declaredDefault === undefined) {
                 throw SettingError.of(
-                    "DEFAULT_MISSING",
-                    `retention setting ${String(metadata["name"])} of ${owner.name} has no default`,
+                    "DEFAULT_BLOCKED",
+                    `cannot apply retention setting '${String(metadata["name"])}' of '${owner.name}': it has no default`,
                 );
             }
             const defaultDays = schema.number().int().positive().parse(declaredDefault);
@@ -182,7 +182,7 @@ export const SettingValue = {
     async chain(reader: Pick<Snapshot, "read">, scope: string): Promise<string[]> {
         const chain = (await Scope.chain(reader, scope)).map((link) => link.object.id);
         if (chain.length === 0) {
-            throw SettingError.of("SCOPE_UNKNOWN", `unknown scope ${scope}`);
+            throw SettingError.of("SCOPE_NOT_FOUND", `scope '${scope}' not found`);
         }
 
         return chain;
