@@ -123,6 +123,9 @@
                 "@destack/vault": "builtin",
                 "@destack/account": "builtin",
                 "@destack/observability": "app",
+                "@destack/message": "app",
+                "@destack/notification": "app",
+                "@destack/social": "app",
                 "@destack/check": "library"
             }
         }

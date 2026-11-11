@@ -315,6 +315,10 @@
                     "name": "@destack/machine-mention-fixture"
                 },
                 {
+                    "directory": "@destack/machine/tests/fixture/regional",
+                    "name": "@destack/machine-regional-fixture"
+                },
+                {
                     "directory": "@destack/machine/tests/fixture/stack",
                     "name": "@destack/machine-stack-fixture"
                 },
@@ -435,6 +439,7 @@
                 "@destack/machine-apps-fixture": "app",
                 "@destack/machine-board-fixture": "app",
                 "@destack/machine-mention-fixture": "app",
+                "@destack/machine-regional-fixture": "app",
                 "@destack/machine-stack-fixture": "library",
                 "@destack/machine-start-fixture": "app",
                 "@acme/notebooks": "app",
