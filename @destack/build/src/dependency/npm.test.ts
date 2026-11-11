@@ -46,23 +46,19 @@ async function place(
             await files.writeFile(destination, await reader.load(file.path));
         }
     }
-    if (runtime === "workerd") {
-        // resolve the converted package by its manifest's exports, as a runtime's loader does
-        const output = present(
-            reader.manifest.outputs[runtime],
-            `the ${runtime} output of ${name}`,
-        );
-        const exports = Object.fromEntries(
-            Object.entries(output.exports).map(([subpath, module]) => [
-                subpath,
-                `./${module.path.slice(prefix.length)}`,
-            ]),
-        );
-        await files.writeTextFile(
-            join(directory, "node_modules", name, "package.json"),
-            JSON.stringify({ name, type: "module", exports }),
-        );
-    }
+
+    // resolve the converted package by its manifest's exports, as a runtime's loader does
+    const output = present(reader.manifest.outputs[runtime], `the ${runtime} output of ${name}`);
+    const exports = Object.fromEntries(
+        Object.entries(output.exports).map(([subpath, module]) => [
+            subpath,
+            `./${module.path.slice(prefix.length)}`,
+        ]),
+    );
+    await files.writeTextFile(
+        join(directory, "node_modules", name, "package.json"),
+        JSON.stringify({ name, type: "module", exports }),
+    );
 }
 
 /** List the runtimes a stored unit's build has outputs for. */
@@ -70,7 +66,7 @@ async function runtimesOf(store: LocalBuildStore, manifest: Digest): Promise<str
     return Object.keys((await store.contents(manifest)).manifest.outputs);
 }
 
-test("build an npm unit per runtime, as installed for Bun and as ESM for workerd, on its dependency's unit", async () => {
+test("build an npm unit per runtime as ES modules on its dependency's unit, and run it on each", async () => {
     // install a CommonJS package requiring another
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -97,33 +93,35 @@ test("build an npm unit per runtime, as installed for Bun and as ESM for workerd
     const reopened = new NpmInstallation(locked, store, CONTEXT, environment);
     const again = await reopened.store(await reopened.open(copy(root, "greeting")), "workerd");
 
-    // place each workerd output where node_modules resolves it, and run the converted module
-    const reader = await store.contents(stored.manifest);
-    const recorded = reader.manifest.outputs["workerd"]?.dependencies["word"];
-    if (recorded?.kind !== "npm") {
-        throw new TypeError("the workerd output records no npm unit of word");
-    }
-    const placed = join(root, "placed");
-    await place(store, stored.manifest, "greeting", "workerd", placed);
-    await place(store, recorded.manifest, "word", "workerd", placed);
-    const module = schema
-        .looseObject({ default: schema.string() })
-        .parse(await import(join(placed, "node_modules", "greeting", "index.js")));
+    // place each runtime's outputs where node_modules resolves them, and run the converted module
+    const run = async (manifest: Digest, runtime: "bun" | "workerd") => {
+        const reader = await store.contents(manifest);
+        const recorded = reader.manifest.outputs[runtime]?.dependencies["word"];
+        if (recorded?.kind !== "npm") {
+            throw new TypeError(`the ${runtime} output records no npm unit of word`);
+        }
+        const placed = join(root, `placed-${runtime}`);
+        await place(store, manifest, "greeting", runtime, placed);
+        await place(store, recorded.manifest, "word", runtime, placed);
 
-    // store Bun's copy as installed, record the release with its build, and reuse the stored build
+        return schema
+            .looseObject({ default: schema.string() })
+            .parse(await import(join(placed, "node_modules", "greeting", "index.js"))).default;
+    };
+    const reader = await store.contents(stored.manifest);
     const bun = await store.contents(installed.manifest);
+
+    // convert both, record the release with its build, and reuse the stored build
     expect({
         package: reader.manifest.package,
         outputs: [Object.keys(reader.manifest.outputs), Object.keys(bun.manifest.outputs)],
-        bun: new TextDecoder().decode(await bun.load("bun/index.js")),
-        greeting: module.default,
+        greeting: [await run(stored.manifest, "workerd"), await run(installed.manifest, "bun")],
         stored: { ...stored, manifest: "" },
         isReused: again.manifest === stored.manifest,
     }).toEqual({
         package: { name: "greeting", version: "1.0.0", integrity: "sha512-greeting" },
         outputs: [["workerd"], ["bun"]],
-        bun: 'module.exports = require("word") + ", world";\n',
-        greeting: "hello, world",
+        greeting: ["hello, world", "hello, world"],
         stored: { kind: "npm", ...locked["greeting@1.0.0"], manifest: "" },
         isReused: true,
     });
@@ -363,7 +361,7 @@ test("pin a required peer the install linked beside a unit, leaving an optional 
     });
 });
 
-test("refuse an npm unit with a missing dependency or a cycle, and a native addon and its importers off Bun", async () => {
+test("refuse an npm unit with a missing dependency or a cycle, and a native addon and its importers on every runtime", async () => {
     // install a native addon, a unit importing it, a missing dependency and a cycle
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
@@ -394,14 +392,16 @@ test("refuse an npm unit with a missing dependency or a cycle, and a native addo
     const build = async (name: string) =>
         await installation.store(await installation.open(copy(root, name)), "workerd");
 
-    // build Bun's copy of the native addon and its importer, and refuse workerd's and the others with their exact reasons
-    const native = await installation.store(await installation.open(copy(root, "native")), "bun");
-    expect(await runtimesOf(store, native.manifest)).toEqual(["bun"]);
+    // refuse the native addon and its importer on Bun as on workerd, and the others with their exact reasons
     const unloadable = [
         "UNPROCESSABLE_CONTENT",
         "RUNTIME_MODULE_UNSUPPORTED",
-        "native is a native addon, which workerd cannot load",
+        "native is a native addon, which no package may depend on",
     ];
+    const onBun = await refusal(
+        installation.store(await installation.open(copy(root, "native")), "bun"),
+    );
+    expect(onBun).toEqual(unloadable);
     expect(await refusal(build("native"))).toEqual(unloadable);
     expect(await refusal(build("importer"))).toEqual(unloadable);
     expect(await refusal(build("missing"))).toEqual([

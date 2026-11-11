@@ -491,8 +491,8 @@ test("bundle a dependency's file imported with a query through the extension tha
     }
 });
 
-test("refuse a workerd output importing an npm unit that workerd cannot load", async () => {
-    // install a native addon, which workerd cannot load
+test("refuse an output importing an npm unit with a native addon", async () => {
+    // install a native addon
     await using simulation = testSimulation();
     const environment = simulation.environment("test");
     const { files } = environment;
@@ -557,7 +557,7 @@ test("refuse a workerd output importing an npm unit that workerd cannot load", a
     expect(await refusal(built)).toEqual([
         "UNPROCESSABLE_CONTENT",
         "RUNTIME_MODULE_UNSUPPORTED",
-        "native is a native addon, which workerd cannot load",
+        "native is a native addon, which no package may depend on",
     ]);
     expect(await countObjects(store)).toBe(stored);
 });

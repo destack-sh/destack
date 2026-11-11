@@ -10,7 +10,7 @@ import { ModuleClosure } from "./closure.ts";
 const COMPILER_ENTRY = new URL("../main.ts", import.meta.url);
 
 /** The layout of cache keys, changed whenever keys derive from different inputs. */
-const KEY_LAYOUT = 4;
+const KEY_LAYOUT = 5;
 
 /** The workspace sources that shape build output and keys: the compiler, digests and catalogs. */
 const COMPILER_SOURCES: ReadonlySet<string> = new Set([

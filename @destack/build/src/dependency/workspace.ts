@@ -554,6 +554,7 @@ export class Workspace {
     ): Promise<Record<string, unknown>> {
         return {
             toolchain: this.#toolchain,
+            conversion: this.#npm.conversion,
             checkout,
             outputs: options.outputs,
             configuration:

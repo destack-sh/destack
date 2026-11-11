@@ -57,9 +57,6 @@ const EntryManifest = schema.looseObject({
     main: schema.string().exactOptional(),
 });
 
-/** The runtimes an npm package converts for, the ones loading ES modules only. */
-export type ConvertedRuntime = Exclude<Runtime, "bun">;
-
 /** A file a conversion wrote: a bundled module, or an installed file one loads by its URL. */
 interface ConvertedFile {
     /** The file's path in the package. */
@@ -78,12 +75,12 @@ export interface ConvertedPackage {
     readonly imported: ReadonlySet<string>;
 }
 
-/** The conversion of one npm package to ESM for workerd or the browser. */
+/** The conversion of one npm package to ESM for a runtime. */
 export class NpmConversion {
     /** The package's name. */
     readonly name: string;
     /** The runtime the converted modules load on. */
-    readonly runtime: ConvertedRuntime;
+    readonly runtime: Runtime;
     /** The installed packages it requires, which stay external. */
     readonly dependencies: ReadonlySet<string>;
     /** The peers it declares, which the tree it sits in provides. */
@@ -96,7 +93,7 @@ export class NpmConversion {
         name: string,
         dependencies: readonly string[],
         peers: readonly string[],
-        runtime: ConvertedRuntime,
+        runtime: Runtime,
         environment: Pick<Environment<"files">, "files" | "scheduler">,
     ) {
         // store the package's requirements, its runtime and the environment it converts in
@@ -285,9 +282,15 @@ export class NpmConversion {
     }
 
     /** Write the module standing in for a require, an absent package or an emptied host module. */
-    static #standIn(id: string, runtime: ConvertedRuntime): string | null {
+    static #standIn(id: string, runtime: Runtime): string | null {
+        // require a package on Bun only when the require runs, as CommonJS does
+        if (id.startsWith(REQUIRE_PREFIX) && runtime === "bun") {
+            const specifier = JSON.stringify(id.slice(REQUIRE_PREFIX.length));
+
+            return `import { createRequire } from "node:module";\nmodule.exports = createRequire(import.meta.url)(${specifier});\n`;
+        }
         // require a runtime module by its default, and a package by its `module.exports` export
-        if (id.startsWith(REQUIRE_PREFIX)) {
+        else if (id.startsWith(REQUIRE_PREFIX)) {
             const specifier = JSON.stringify(id.slice(REQUIRE_PREFIX.length));
             const exported = isBuiltin(id.slice(REQUIRE_PREFIX.length))
                 ? "m.default"

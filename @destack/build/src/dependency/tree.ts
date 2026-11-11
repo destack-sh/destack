@@ -625,15 +625,29 @@ export class DependencyTree {
             await DependencyTree.#symlink(placed, sibling, { staged, root }, files);
         }
 
-        // write its Bun output's files as the package, then move it into place
+        // write its Bun output's files as the package
         const prefix = `${output.directory}/`;
+        const placed = join(staged, "node_modules", name);
         await store.place(
             (await DependencyTree.#placed(reader, run))
                 .filter((file) => file.path.startsWith(prefix))
                 .map((file) => ({
                     file,
-                    destination: join(staged, "node_modules", name, file.path.slice(prefix.length)),
+                    destination: join(placed, file.path.slice(prefix.length)),
                 })),
+        );
+
+        // resolve its converted modules by the exports its build records, then move it into place
+        const exports = Object.fromEntries(
+            Object.entries(output.exports).map(([subpath, module]) => [
+                subpath,
+                `./${module.path.slice(prefix.length)}`,
+            ]),
+        );
+        await files.mkdir(placed, { recursive: true });
+        await files.writeTextFile(
+            join(placed, "package.json"),
+            JSON.stringify({ name, type: "module", exports }),
         );
         await DependencyTree.#move(staged, root, files);
 

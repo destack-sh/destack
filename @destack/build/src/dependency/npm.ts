@@ -8,7 +8,7 @@ import {
 } from "@destack/package";
 import { PackageLocator } from "@destack/package/locator";
 import { BuildReader, BuildWriter, type OutputContent } from "@destack/package/manifest";
-import { NATIVE_ADDON_RUNTIMES, Runtime } from "@destack/package/runtime";
+import { Runtime } from "@destack/package/runtime";
 import { NpmConversion } from "../compile/conversion.ts";
 import { Digest, found, nth, schema } from "@destack/schema";
 import { BuildError } from "../error/index.ts";
@@ -38,8 +38,8 @@ export class NpmInstallation {
     readonly locked: Readonly<Record<string, NpmRelease>>;
     /** The store of the units' builds. */
     readonly #store: BuildStore;
-    /** The identity of the npm conversion building the units, which their keys include. */
-    readonly #conversion: Digest;
+    /** The identity of the conversion building the units, which keys their builds. */
+    readonly conversion: Digest;
     /** The files the installed copies are read from, and the crypto keying their builds. */
     readonly #environment: Environment<"files">;
     /** The units opened so far, by their copy in Bun's store. */
@@ -57,7 +57,7 @@ export class NpmInstallation {
         // store the locked releases and what the units build with
         this.locked = locked;
         this.#store = store;
-        this.#conversion = conversion;
+        this.conversion = conversion;
         this.#environment = environment;
     }
 
@@ -178,7 +178,7 @@ export class NpmInstallation {
         const key = await Digest.json(
             {
                 kind: "npm",
-                conversion: this.#conversion,
+                conversion: this.conversion,
                 package: { ...released, integrity },
                 runtime,
                 closure: unit
@@ -239,6 +239,24 @@ export class NpmUnit {
         return this.peers.filter((peer) => !PackageJson.isOptional(this.requirements, peer));
     }
 
+    /** List the dependencies it imports, and those it installs as their required peers. */
+    #provided(imported: ReadonlySet<string>): [string, NpmUnit][] {
+        // take the imported ones, then each required peer of theirs that this unit installs
+        const included = new Set(
+            [...this.dependencies.keys()].filter((each) => imported.has(each)),
+        );
+        for (const name of included) {
+            const unit = this.dependencies.get(name);
+            for (const peer of unit?.requiredPeers ?? []) {
+                if (this.dependencies.has(peer)) {
+                    included.add(peer);
+                }
+            }
+        }
+
+        return [...this.dependencies].filter(([each]) => included.has(each));
+    }
+
     /** List this unit and every unit it requires, each once. */
     closure(): NpmUnit[] {
         // walk the dependencies once each
@@ -254,36 +272,33 @@ export class NpmUnit {
         return [...units];
     }
 
-    /** Build the unit for a runtime in memory: Bun's as installed, the others converted to ESM. */
+    /** Build the unit for a runtime in memory, converted to ES modules. */
     async build(
         runtime: Runtime,
         store: (dependency: NpmUnit) => Promise<NpmDependency>,
     ): Promise<BuildReader> {
-        // refuse a native addon on a runtime that cannot load it
+        // refuse a native addon, which only the machine's toolchain may use
         const files = await NpmUnit.files(this.directory, this.#environment.files);
         const isAddon = [...files.keys()].some((path) => path.endsWith(ADDON_EXTENSION));
         const { name } = this.release.package;
-        if (isAddon && !NATIVE_ADDON_RUNTIMES.has(runtime)) {
+        if (isAddon) {
             throw BuildError.of(
                 "RUNTIME_MODULE_UNSUPPORTED",
-                `${name} is a native addon, which ${runtime} cannot load`,
+                `${name} is a native addon, which no package may depend on`,
             );
         }
 
-        // take the installed files for Bun, which runs them as installed, else convert them
-        const converted =
-            runtime === "bun"
-                ? { files, exports: {}, imported: new Set(this.dependencies.keys()) }
-                : await new NpmConversion(
-                      name,
-                      [...this.dependencies.keys()],
-                      this.peers,
-                      runtime,
-                      this.#environment,
-                  ).convert(files);
+        // convert its modules to ES modules for the runtime
+        const converted = await new NpmConversion(
+            name,
+            [...this.dependencies.keys()],
+            this.peers,
+            runtime,
+            this.#environment,
+        ).convert(files);
 
-        // store the dependencies its modules import for the runtime, at once
-        const imported = [...this.dependencies].filter(([each]) => converted.imported.has(each));
+        // store the dependencies its modules import and the peers it installs for them
+        const imported = this.#provided(converted.imported);
         const dependencies = Object.fromEntries(
             await Promise.all(
                 imported.map(async ([each, unit]) => [each, await store(unit)] as const),
@@ -312,8 +327,10 @@ export class NpmUnit {
                 ]),
             ),
             dependencies,
+            // require only the peers its modules import
             peers: Object.fromEntries(
                 this.peers
+                    .filter((peer) => converted.imported.has(peer))
                     .toSorted()
                     .map((peer) => [
                         peer,
