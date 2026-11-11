@@ -40,7 +40,10 @@ export class ProcessOpener implements Opener {
         // refuse a failed command
         const code = await child.exited;
         if (code !== 0) {
-            throw ProcessError.of("PROCESS_FAILED", `the opener failed to open ${url}: ${code}`);
+            throw ProcessError.of(
+                "PROCESS_BROKEN",
+                `the opener exited with code ${code} for '${url}'`,
+            );
         }
     }
 }

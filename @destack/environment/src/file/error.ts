@@ -8,16 +8,16 @@ const family = defineErrorFamily(
     OWNER,
     {
         // not found
-        NOT_FOUND: { code: "NOT_FOUND" },
+        FILE_NOT_FOUND: {},
 
-        // forbidden
-        PERMISSION_DENIED: { code: "FORBIDDEN" },
+        // exists
+        FILE_EXISTS: {},
 
-        // conflict
-        ALREADY_EXISTS: { code: "CONFLICT" },
+        // denied
+        PERMISSION_DENIED: {},
 
-        // internal server error
-        FILE_SYSTEM_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        // broken
+        FILE_SYSTEM_BROKEN: {},
     },
     { audience: "host" },
 );
@@ -29,19 +29,19 @@ export const FileSystemError = Object.assign(family, {
         const message = `cannot ${action}: ${code}`;
         const options = cause === undefined ? {} : { cause };
         if (code === "ENOENT" || code === "ENOTDIR") {
-            return family.of("NOT_FOUND", message, options);
+            return family.of("FILE_NOT_FOUND", message, options);
         } else if (code === "EEXIST" || code === "ENOTEMPTY") {
-            return family.of("ALREADY_EXISTS", message, options);
+            return family.of("FILE_EXISTS", message, options);
         } else if (code === "EACCES" || code === "EPERM") {
             return family.of("PERMISSION_DENIED", message, options);
         } else {
-            return family.of("FILE_SYSTEM_FAILED", message, options);
+            return family.of("FILE_SYSTEM_BROKEN", message, options);
         }
     },
 
     /** Read a missing path as absent, rethrowing every other failure, as a read's `catch`. */
     absent: (error: unknown): undefined => {
-        if (!family.is(error, "NOT_FOUND")) {
+        if (!family.is(error, "FILE_NOT_FOUND")) {
             throw error;
         }
 

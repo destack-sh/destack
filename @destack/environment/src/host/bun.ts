@@ -15,7 +15,7 @@ export const BunHost = {
         const os = OPERATING_SYSTEMS.find((known) => known === process.platform);
         const architecture = ARCHITECTURES.find((known) => known === process.arch);
         if (os === undefined || architecture === undefined) {
-            throw new TypeError(`bun does not run on ${process.platform} ${process.arch}`);
+            throw new TypeError(`bun does not run on ${process.platform} '${process.arch}'`);
         }
 
         return { os, architecture, version: release(), hostname: hostname(), home: homedir() };

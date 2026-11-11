@@ -209,7 +209,7 @@ export class SimulatedNode {
     async start<Running>(work: NodeStart<Running>): Promise<Running> {
         // refuse a node already running work
         if (this.#stop !== undefined) {
-            throw new Error(`node ${this.name} is already running`);
+            throw new Error(`node '${this.name}' is already running`);
         }
 
         // start the work under a signal a crash aborts
@@ -232,7 +232,7 @@ export class SimulatedNode {
             at: this.#simulation.clock.now(),
             node: this.name,
         });
-        this.#stop?.abort(new Error(`node ${this.name} crashed`));
+        this.#stop?.abort(new Error(`node '${this.name}' crashed`));
         this.#process.release();
         this.#stop = undefined;
         this.#process = this.#spawn();
@@ -540,9 +540,9 @@ export class Simulation {
         // refuse an unknown node, and one reading the world's clock
         const view = this.#views.get(node);
         if (!this.#nodes.has(node)) {
-            throw new TypeError(`the world has no node ${node}`);
+            throw new TypeError(`the world has no node '${node}'`);
         } else if (view === undefined) {
-            throw new TypeError(`node ${node} reads the world's clock: give the world a skew`);
+            throw new TypeError(`node '${node}' reads the world's clock: give the world a skew`);
         }
 
         // move it, recording the bump
@@ -869,9 +869,12 @@ export class Simulation {
             const isShortStalled = scheduler.running.short > 0 && stalled >= stallTimeout;
             const isLongStalled = scheduler.real > 0 && stalled >= longStallTimeout;
             if (isShortStalled || isLongStalled) {
-                const { running, real } = scheduler;
+                // name the counts of the work in flight, then list it
+                const runningCount = scheduler.running.all;
+                const realCount = scheduler.real;
+                const shortCount = scheduler.running.short;
                 throw new Error(
-                    `work stayed in flight for ${stalled} ms without settling, ${running.all} of ${real} real work running (${running.short} short):\n${this.scheduler.pending().join("\n")}`,
+                    `work stayed in flight for ${stalled} ms without settling, ${runningCount} of ${realCount} real work running (${shortCount} short):\n${this.scheduler.pending().join("\n")}`,
                 );
             }
 

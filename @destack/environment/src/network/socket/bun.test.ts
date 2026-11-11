@@ -20,7 +20,7 @@ async function readBytes(reader: ReadableStreamDefaultReader<Uint8Array>, count:
     while (received < count) {
         const { value, done } = await reader.read();
         if (done) {
-            throw new Error(`the stream ended after ${received} of ${count} bytes`);
+            throw new Error(`the stream ended after '${received}' of ${count} bytes`);
         }
         chunks.push(value);
         received += value.byteLength;

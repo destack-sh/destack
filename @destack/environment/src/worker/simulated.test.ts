@@ -35,7 +35,7 @@ test("run a worker's body on a node of its own, answering messages as the world'
     // refuse a module the world defines no body for
     const missing = new URL("https://app.test/missing.js");
     expect(() => workers.start((Worker) => new Worker(missing, { type: "module" }))).toThrow(
-        new TypeError("this world defines no worker body for https://app.test/missing.js"),
+        new TypeError("this world defines no worker body for 'https://app.test/missing.js'"),
     );
 });
 

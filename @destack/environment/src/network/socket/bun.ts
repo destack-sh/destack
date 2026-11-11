@@ -121,7 +121,7 @@ class BunSocketEnd implements Socket {
             isRefused && address !== undefined
                 ? Object.assign(
                       new TypeError(
-                          `connection refused: nothing listens at ${socketName(address)}`,
+                          `connection refused: nothing listens at '${socketName(address)}'`,
                       ),
                       { code: "ConnectionRefused", cause: error },
                   )
@@ -264,9 +264,13 @@ export async function resolveHostname(hostname: string): Promise<readonly string
     // refuse a failed lookup, the resolver's error as its cause
     const addresses = await lookup(hostname.replace(/^\[|\]$/gu, ""), { all: true }).catch(
         (error: unknown) => {
-            throw NetworkError.of("RESOLVE_FAILED", `resolving ${hostname} failed`, {
-                cause: error,
-            });
+            throw NetworkError.of(
+                "RESOLVE_UNAVAILABLE",
+                `host name '${hostname}' is unavailable: it did not resolve`,
+                {
+                    cause: error,
+                },
+            );
         },
     );
 

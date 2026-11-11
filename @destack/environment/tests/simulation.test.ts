@@ -42,14 +42,14 @@ test("release a simulated clock's waits in deadline order as it moves in whole m
     // release passed waits in order
     expect([released, clock.next]).toEqual([[100, 200], START + 300]);
     expect(() => clock.set(START)).toThrow(
-        new RangeError(`a simulated clock at ${START + 250} cannot go back to ${START}`),
+        new RangeError(`a simulated clock at '${START + 250}' cannot go back to '${START}'`),
     );
 
     // round a fractional wait up to the next whole millisecond, and refuse a fractional time
     void clock.sleep(0.5).then(() => released.push(0.5));
     expect(clock.next).toBe(START + 251);
     expect(() => clock.set(START + 251.5)).toThrow(
-        new RangeError(`a simulated clock moves in whole milliseconds, not to ${START + 251.5}`),
+        new RangeError(`a simulated clock moves in whole milliseconds, not to '${START + 251.5}'`),
     );
 });
 
@@ -159,10 +159,10 @@ test("skew each node's clock from the seed, wait its own milliseconds on the wor
 
     // refuse a bump of an unknown node, and of a node in a world without skew
     await using plain = new Simulation({ seed: 1, start: START });
-    expect(() => plain.bump("node", 1)).toThrow(new TypeError("the world has no node node"));
+    expect(() => plain.bump("node", 1)).toThrow(new TypeError("the world has no node 'node'"));
     plain.environment("node");
     expect(() => plain.bump("node", 1)).toThrow(
-        new TypeError("node node reads the world's clock: give the world a skew"),
+        new TypeError("node 'node' reads the world's clock: give the world a skew"),
     );
 });
 

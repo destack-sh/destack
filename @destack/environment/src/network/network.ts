@@ -160,8 +160,8 @@ export const Network: {
         const internal = addresses.find((address) => !HostAddress.isPublic(address));
         if (first === undefined || internal !== undefined) {
             throw NetworkError.of(
-                "ADDRESS_PRIVATE",
-                `${hostname} resolves to ${internal ?? "no address"}, outside the public network`,
+                "ADDRESS_PRIVATE_DENIED",
+                `host '${hostname}' is forbidden: it resolves to '${internal ?? "no address"}', outside the public network`,
             );
         }
 
@@ -174,16 +174,16 @@ export const Network: {
             // refuse a client certificate or a Unix socket, which only a host network sends with
             if (options?.certificate !== undefined || options?.unix !== undefined) {
                 throw NetworkError.of(
-                    "UNSUPPORTED",
-                    "a client certificate or a Unix socket needs a host network",
+                    "OPERATION_UNSUPPORTED",
+                    "a client certificate or a Unix socket outside a host network is not supported",
                 );
             }
 
             // refuse keeping a response's encoding, which the web's fetch always decodes
             if (options?.decompress === false) {
                 throw NetworkError.of(
-                    "UNSUPPORTED",
-                    "keeping a response's encoding needs a host network",
+                    "OPERATION_UNSUPPORTED",
+                    "keeping a response's encoding outside a host network is not supported",
                 );
             }
 
@@ -191,15 +191,18 @@ export const Network: {
             const { hostname } = new URL(request.url);
             if (options?.isPublicOnly === true && !HostAddress.isPublic(hostname)) {
                 throw NetworkError.of(
-                    "ADDRESS_PRIVATE",
-                    `${hostname} resolves to ${hostname}, outside the public network`,
+                    "ADDRESS_PRIVATE_DENIED",
+                    `host '${hostname}' is forbidden: it is outside the public network`,
                 );
             }
 
             return fetch(request);
         },
         connect: () => {
-            throw NetworkError.of("UNSUPPORTED", "a socket connection needs a host network");
+            throw NetworkError.of(
+                "OPERATION_UNSUPPORTED",
+                "a socket connection outside a host network is not supported",
+            );
         },
         websocket: (url, protocols) =>
             new SystemSocket(
@@ -209,7 +212,10 @@ export const Network: {
                 ),
             ),
         resolve: () => {
-            throw NetworkError.of("UNSUPPORTED", "resolving a host name needs a host network");
+            throw NetworkError.of(
+                "OPERATION_UNSUPPORTED",
+                "resolving a host name outside a host network is not supported",
+            );
         },
     },
 };

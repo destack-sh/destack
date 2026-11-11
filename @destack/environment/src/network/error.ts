@@ -7,13 +7,14 @@ const OWNER = { name: "@destack/environment" };
 export const NetworkError = defineErrorFamily(
     OWNER,
     {
-        // not implemented
-        UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
-        // forbidden
-        ADDRESS_PRIVATE: { code: "FORBIDDEN" },
+        // denied
+        ADDRESS_PRIVATE_DENIED: {},
+
+        // unsupported
+        OPERATION_UNSUPPORTED: {},
 
         // unavailable
-        RESOLVE_FAILED: { code: "SERVICE_UNAVAILABLE" },
+        RESOLVE_UNAVAILABLE: {},
     },
     { audience: "host" },
 );

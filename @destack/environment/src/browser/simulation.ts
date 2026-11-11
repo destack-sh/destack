@@ -84,7 +84,7 @@ export class SimulatedLocks {
 
             // fail the node's requests, and grant the requests its holds blocked
             for (const hold of waiting.filter((each) => each.node === node)) {
-                hold.reject(new Error(`node ${node} crashed`));
+                hold.reject(new Error(`node '${node}' crashed`));
             }
             this.#grant(name);
         }

@@ -77,7 +77,7 @@ export class SimulatedWorkerHost {
         // refuse a module this world defines no body for
         const body = this.#bodies.get(url.href);
         if (body === undefined) {
-            throw new TypeError(`this world defines no worker body for ${url.href}`);
+            throw new TypeError(`this world defines no worker body for '${url.href}'`);
         }
 
         // name the worker's node after its parent and its order

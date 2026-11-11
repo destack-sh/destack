@@ -83,7 +83,7 @@ test("reject invalid paths without changing the filesystem", async () => {
         const path = join(directory, "missing", "owner.lock");
         expect(await refusal(BunFileLock.tryAcquire(path, "exclusive"))).toEqual([
             "NOT_FOUND",
-            "NOT_FOUND",
+            "FILE_NOT_FOUND",
             `cannot open ${path}: ${process.platform === "win32" ? 3 : "ENOENT"}`,
         ]);
 
@@ -91,8 +91,8 @@ test("reject invalid paths without changing the filesystem", async () => {
         const invalid = join(directory, "owner.lock") + "\0suffix";
         expect(await refusal(BunFileLock.tryAcquire(invalid, "exclusive"))).toEqual([
             "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
-            `cannot open ${invalid}: EINVAL`,
+            "FILE_SYSTEM_BROKEN",
+            `cannot open '${invalid}': EINVAL`,
         ]);
     } finally {
         await rm(directory, { recursive: true });

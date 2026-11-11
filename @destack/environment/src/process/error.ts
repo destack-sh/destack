@@ -8,13 +8,14 @@ export const ProcessError = defineErrorFamily(
     OWNER,
     {
         // not found
-        NOT_FOUND: { code: "NOT_FOUND" },
+        FILE_NOT_FOUND: {},
+        PROCESS_NOT_FOUND: {},
 
-        // forbidden
-        PERMISSION_DENIED: { code: "FORBIDDEN" },
+        // denied
+        PERMISSION_DENIED: {},
 
-        // internal server error
-        PROCESS_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        // broken
+        PROCESS_BROKEN: {},
     },
     { audience: "host" },
 );

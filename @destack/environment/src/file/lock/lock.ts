@@ -137,7 +137,7 @@ async function open(path: string): Promise<NativeLock> {
 
     // reject embedded terminators before passing the path to a native string API
     if (absolute.includes("\0")) {
-        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot open ${absolute}: EINVAL`);
+        throw FileSystemError.of("FILE_SYSTEM_BROKEN", `cannot open '${absolute}': EINVAL`);
     }
 
     // load only the current platform's system libraries
@@ -146,6 +146,6 @@ async function open(path: string): Promise<NativeLock> {
     } else if (process.platform === "darwin" || process.platform === "linux") {
         return await (await import("./unix.ts")).NativeLock.open(absolute);
     } else {
-        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${absolute}: ENOTSUP`);
+        throw FileSystemError.of("FILE_SYSTEM_BROKEN", `cannot lock '${absolute}': ENOTSUP`);
     }
 }

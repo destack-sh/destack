@@ -64,7 +64,7 @@ export class NativeLock {
         if (code === WOULD_BLOCK) {
             return false;
         }
-        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${this.path}: ${code}`);
+        throw FileSystemError.of("FILE_SYSTEM_BROKEN", `cannot lock '${this.path}': '${code}'`);
     }
 
     /** Close the file description and release its lock. */

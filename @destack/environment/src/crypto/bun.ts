@@ -24,7 +24,7 @@ async function digest(
     const name = typeof algorithm === "string" ? algorithm : algorithm.name;
     const native = HASHES.get(name.toUpperCase());
     if (native === undefined) {
-        throw new TypeError(`cannot hash with ${name}`);
+        throw new TypeError(`cannot hash with '${name}'`);
     }
 
     // hash the bytes, or each chunk as it arrives

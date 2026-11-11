@@ -200,7 +200,9 @@ class SimulatedListener<Attachment> implements Listener {
     #end(attachment: Attachment, handler: ServerSocketHandler<Attachment> | undefined): SocketEnd {
         // refuse sockets without a handler
         if (handler === undefined) {
-            throw new TypeError(`${this.url.origin} accepted a socket without a websocket handler`);
+            throw new TypeError(
+                `'${this.url.origin}' accepted a socket without a websocket handler`,
+            );
         }
 
         // hand the handler the server's socket once the connection opens
@@ -310,8 +312,8 @@ export class SimulatedNetwork {
                 const isPrivate = !("unix" in address) && !HostAddress.isPublic(address.hostname);
                 if (options?.isPublicOnly === true && isPrivate) {
                     throw NetworkError.of(
-                        "ADDRESS_PRIVATE",
-                        `${address.hostname} resolves to ${address.hostname}, outside the public network`,
+                        "ADDRESS_PRIVATE_DENIED",
+                        `host '${address.hostname}' is forbidden: it is outside the public network`,
                     );
                 }
 
@@ -582,7 +584,7 @@ export class SimulatedNetwork {
         const url = new URL(`http://${options.hostname ?? "localhost"}:${port}/`);
         const address = SimulatedNetwork.#address(url);
         if (this.#endpoints.has(address)) {
-            throw new TypeError(`${address} is already served`);
+            throw new TypeError(`'${address}' is already served`);
         }
 
         // answer as the node until the listener stops, closing its connections when asked
@@ -624,7 +626,7 @@ export class SimulatedNetwork {
         // refuse an address another listener has
         const address = socketKey(listened);
         if (this.#socketEndpoints.has(address)) {
-            throw new TypeError(`${address} is already listened at`);
+            throw new TypeError(`'${address}' is already listened at`);
         }
         const endpoint = { node, accept: options.accept };
         this.#socketEndpoints.set(address, endpoint);
@@ -907,7 +909,7 @@ export class SimulatedNetwork {
             from,
         );
         if (answer.kind === "socket") {
-            throw new TypeError(`${new URL(request.url).origin} upgraded a plain request`);
+            throw new TypeError(`'${new URL(request.url).origin}' upgraded a plain request`);
         }
 
         // send the response back after the latency, losing it to a partition or a node that left

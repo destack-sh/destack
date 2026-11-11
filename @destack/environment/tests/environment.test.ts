@@ -262,10 +262,14 @@ test("kill a detached child's process group by its negated id, read the signal t
         signal: "SIGKILL",
         ended: [
             "NOT_FOUND",
-            "NOT_FOUND",
-            `process ${-child.id} is not this node or a running child`,
+            "PROCESS_NOT_FOUND",
+            `process '${-child.id}' not found: it is not this node or a running child`,
         ],
-        foreign: ["NOT_FOUND", "NOT_FOUND", "process 2 is not this node or a running child"],
+        foreign: [
+            "NOT_FOUND",
+            "PROCESS_NOT_FOUND",
+            "process '2' not found: it is not this node or a running child",
+        ],
     });
 });
 
@@ -304,7 +308,7 @@ test("hash a stream of chunks as its whole bytes, natively and by gathering, cou
         native: hex(await Crypto.system.digest("SHA-256", whole)),
         gathered: hex(await Crypto.system.digest("SHA-256", whole)),
         whole: hex(await Crypto.system.digest("SHA-256", whole)),
-        refused: "TypeError: cannot hash with MD5",
+        refused: "TypeError: cannot hash with 'MD5'",
     });
 });
 

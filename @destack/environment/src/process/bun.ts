@@ -95,7 +95,7 @@ export class BunProcess implements Process {
         // read the script's path from the arguments, which Bun.main and Node's entry both equal
         const [, script] = process.argv;
         if (script === undefined) {
-            throw ProcessError.of("NOT_FOUND", "the process runs no script");
+            throw ProcessError.of("FILE_NOT_FOUND", "process script not found");
         }
 
         return script;
@@ -437,11 +437,11 @@ export class BunProcess implements Process {
         // refuse by the error code, keeping the host's failure as the cause
         const message = `cannot ${action}: ${error.code}`;
         if (error.code === "ESRCH") {
-            return ProcessError.of("NOT_FOUND", message, { cause: error });
+            return ProcessError.of("FILE_NOT_FOUND", message, { cause: error });
         } else if (error.code === "EPERM") {
             return ProcessError.of("PERMISSION_DENIED", message, { cause: error });
         } else {
-            return ProcessError.of("PROCESS_FAILED", message, { cause: error });
+            return ProcessError.of("PROCESS_BROKEN", message, { cause: error });
         }
     }
 }

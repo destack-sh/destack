@@ -7,8 +7,8 @@ const OWNER = { name: "@destack/environment" };
 export const BrowserError = defineErrorFamily(
     OWNER,
     {
-        // precondition failed
-        CAPABILITY_UNAVAILABLE: { code: "PRECONDITION_FAILED" },
+        // blocked
+        CAPABILITY_BLOCKED: {},
     },
     { audience: "host" },
 );

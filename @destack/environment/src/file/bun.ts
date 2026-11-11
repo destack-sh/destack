@@ -92,7 +92,7 @@ export class BunFileSystem implements FileSystem {
 
             return true;
         } catch (error) {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return false;
             }
             throw error;
@@ -441,7 +441,7 @@ export class BunFileSystem implements FileSystem {
         for await (const name of names) {
             // refuse a host that reports a change without its path
             if (name === null) {
-                throw new TypeError(`the host reported a change under ${path} without its path`);
+                throw new TypeError(`the host reported a change under '${path}' without its path`);
             }
 
             // classify the change by the names known
@@ -505,8 +505,8 @@ export class BunFileSystem implements FileSystem {
         // refuse a link, another user's directory, and one the group or others may open
         if (!status.isDirectory() || status.uid !== user || (status.mode & SHARED_MODE) !== 0) {
             throw FileSystemError.of(
-                "FILE_SYSTEM_FAILED",
-                `cannot trust runtime directory ${directory}: EACCES`,
+                "FILE_SYSTEM_BROKEN",
+                `cannot trust runtime directory '${directory}': EACCES`,
             );
         }
 

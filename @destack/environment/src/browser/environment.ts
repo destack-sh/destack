@@ -56,5 +56,8 @@ export const BrowserEnvironment = {
 
 /** Refuse a browser capability read in a server render. */
 function refuse(capability: BrowserCapability): never {
-    throw BrowserError.of("CAPABILITY_UNAVAILABLE", `a server render has no browser ${capability}`);
+    throw BrowserError.of(
+        "CAPABILITY_BLOCKED",
+        `cannot use browser '${capability}': a server render has no browser`,
+    );
 }

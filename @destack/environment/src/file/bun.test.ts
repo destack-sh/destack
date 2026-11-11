@@ -31,17 +31,17 @@ test("refuse a missing file as not found, a taken path as already existing, and 
     }).toEqual({
         missing: [
             "NOT_FOUND",
-            "NOT_FOUND",
+            "FILE_NOT_FOUND",
             `cannot read ${join(directory, "missing.json")}: ENOENT`,
         ],
         taken: [
             "CONFLICT",
-            "ALREADY_EXISTS",
+            "FILE_EXISTS",
             `cannot write ${join(directory, "present.json")}: EEXIST`,
         ],
         directory: [
             "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
+            "FILE_SYSTEM_BROKEN",
             `cannot read ${directory}: EISDIR`,
         ],
     });
@@ -71,18 +71,18 @@ test("create a user's private runtime directory once, refusing another user's, o
         mode: 0o700,
         other: [
             "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
-            `cannot trust runtime directory ${join(parent, "other")}: EACCES`,
+            "FILE_SYSTEM_BROKEN",
+            `cannot trust runtime directory '${join(parent, "other")}': EACCES`,
         ],
         opened: [
             "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
-            `cannot trust runtime directory ${opened}: EACCES`,
+            "FILE_SYSTEM_BROKEN",
+            `cannot trust runtime directory '${opened}': EACCES`,
         ],
         linked: [
             "INTERNAL_SERVER_ERROR",
-            "FILE_SYSTEM_FAILED",
-            `cannot trust runtime directory ${linked}: EACCES`,
+            "FILE_SYSTEM_BROKEN",
+            `cannot trust runtime directory '${linked}': EACCES`,
         ],
     });
 });
@@ -105,11 +105,7 @@ test("remove an empty directory without recursion and refuse a full one, and lis
 
     expect({ listed, refused }).toEqual({
         listed: ["empty", "full", "full/inner", "full-note.txt"],
-        refused: [
-            "CONFLICT",
-            "ALREADY_EXISTS",
-            `cannot remove ${join(directory, "full")}: ENOTEMPTY`,
-        ],
+        refused: ["CONFLICT", "FILE_EXISTS", `cannot remove ${join(directory, "full")}: ENOTEMPTY`],
     });
 });
 
@@ -124,7 +120,7 @@ test("remove a missing path when forced, and refuse it as not found otherwise", 
         refused: await refusal(files.remove(missing)),
     }).toEqual({
         forced: undefined,
-        refused: ["NOT_FOUND", "NOT_FOUND", `cannot remove ${missing}: ENOENT`],
+        refused: ["NOT_FOUND", "FILE_NOT_FOUND", `cannot remove ${missing}: ENOENT`],
     });
 });
 

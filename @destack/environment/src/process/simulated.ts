@@ -148,7 +148,10 @@ export class SimulatedProcess implements Process {
         else if (this.#children.has(Math.abs(id))) {
             this.#host.kill(id, signal);
         } else {
-            throw ProcessError.of("NOT_FOUND", `process ${id} is not this node or a running child`);
+            throw ProcessError.of(
+                "PROCESS_NOT_FOUND",
+                `process '${id}' not found: it is not this node or a running child`,
+            );
         }
     }
 

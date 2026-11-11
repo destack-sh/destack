@@ -173,7 +173,7 @@ test("release a crashed tab's locks and ports, failing its waiting requests", as
         send,
     }).toEqual({
         order: ["crashing", "other"],
-        waiting: "node crashing crashed",
+        waiting: "node 'crashing' crashed",
         send: "InvalidStateError",
     });
 });

@@ -64,7 +64,7 @@ export class NativeLock {
         if (handle === INVALID_HANDLE) {
             const code = SYSTEM.symbols.GetLastError();
             throw FileSystemError.of(
-                MISSING_CODES.has(code) ? "NOT_FOUND" : "FILE_SYSTEM_FAILED",
+                MISSING_CODES.has(code) ? "FILE_NOT_FOUND" : "FILE_SYSTEM_BROKEN",
                 `cannot open ${path}: ${code}`,
             );
         }
@@ -104,7 +104,7 @@ export class NativeLock {
         if (code === ERROR_LOCK_VIOLATION) {
             return false;
         }
-        throw FileSystemError.of("FILE_SYSTEM_FAILED", `cannot lock ${this.path}: ${code}`);
+        throw FileSystemError.of("FILE_SYSTEM_BROKEN", `cannot lock '${this.path}': '${code}'`);
     }
 
     /** Unlock the complete range. */
@@ -112,8 +112,8 @@ export class NativeLock {
         const overlapped = new Uint8Array(32);
         if (SYSTEM.symbols.UnlockFileEx(this.handle, 0, 0xffffffff, 0xffffffff, overlapped) === 0) {
             throw FileSystemError.of(
-                "FILE_SYSTEM_FAILED",
-                `cannot unlock ${this.path}: ${SYSTEM.symbols.GetLastError()}`,
+                "FILE_SYSTEM_BROKEN",
+                `cannot unlock '${this.path}': '${SYSTEM.symbols.GetLastError()}'`,
             );
         }
     }
@@ -127,8 +127,8 @@ export class NativeLock {
 
         if (SYSTEM.symbols.CloseHandle(this.handle) === 0) {
             throw FileSystemError.of(
-                "FILE_SYSTEM_FAILED",
-                `cannot close ${this.path}: ${SYSTEM.symbols.GetLastError()}`,
+                "FILE_SYSTEM_BROKEN",
+                `cannot close '${this.path}': '${SYSTEM.symbols.GetLastError()}'`,
             );
         }
 
