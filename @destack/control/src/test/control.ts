@@ -340,7 +340,7 @@ export class TestControl implements AsyncDisposable {
                     options.releases ?? {
                         open: async (packageId, release) => {
                             throw new TypeError(
-                                `the test universe opens no release ${packageId} ${release}`,
+                                `the test universe opens no release ${packageId} '${release}'`,
                             );
                         },
                         distribution: [],
@@ -662,7 +662,7 @@ export class TestControl implements AsyncDisposable {
             // refuse calls in a scope the universe does not serve
             if (scope !== "account") {
                 throw new TypeError(
-                    `the test universe serves accounts alone, not the example's ${scope}`,
+                    `the test universe serves accounts alone, not the example's '${scope}'`,
                 );
             }
 
@@ -678,7 +678,7 @@ export class TestControl implements AsyncDisposable {
                     method,
                 );
                 if (typeof procedure !== "function") {
-                    throw new TypeError(`${type.name} has no method ${method}`);
+                    throw new TypeError(`${type.name} has no method '${method}'`);
                 }
                 await Reflect.apply(procedure, undefined, [
                     {

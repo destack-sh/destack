@@ -289,8 +289,8 @@ export class Control implements AsyncDisposable {
             const run = await applying.ended(database, signal);
             if (run.row.state !== "completed") {
                 throw ControlError.of(
-                    "DEFINITION_NOT_APPLIED",
-                    `the run applying the definition ${digest} is ${run.row.state}`,
+                    "DEFINITION_UNAVAILABLE",
+                    `definition '${digest}' is unavailable: its run is '${run.row.state}'`,
                     { cause: run.row.failure },
                 );
             }
@@ -325,7 +325,7 @@ export class Control implements AsyncDisposable {
         // serve the issuer through the account package's server, which every universe serves
         const accounts = servers.get(accountPackage.id);
         if (accounts === undefined) {
-            throw ControlError.of("ISSUER_MISSING", "the universe serves no account package");
+            throw ControlError.of("ISSUER_BROKEN", "the universe serves no account package");
         }
         const control = new Control(definition, servers, store, accounts);
         serving.resolve(control);

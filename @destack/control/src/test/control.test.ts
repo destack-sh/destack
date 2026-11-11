@@ -21,7 +21,7 @@ test("sign a person up through the mailed code a native client redeems, make an 
     const listed = await ada.client(accountPackage).group.list({ scope: ada.account });
     expect(listed.items.map((item) => item.name)).toEqual(["Friends"]);
     await expect(universe.given({ objects: { space: [] } }, ada)).rejects.toThrow(
-        new TypeError("the test universe serves accounts alone, not the example's space"),
+        new TypeError("the test universe serves accounts alone, not the example's 'space'"),
     );
     await expect(
         universe.given(

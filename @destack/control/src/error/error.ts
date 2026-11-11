@@ -3,11 +3,11 @@ import type {} from "@destack/package/import-meta";
 
 /** The universe package's failures, each reason with the call error code it answers. */
 export const ControlError = defineErrorFamily(import.meta.destack.package, {
-    // internal
-    ISSUER_MISSING: { code: "INTERNAL_SERVER_ERROR" },
+    // unavailable
+    DEFINITION_UNAVAILABLE: {},
 
-    // service unavailable
-    DEFINITION_NOT_APPLIED: { code: "SERVICE_UNAVAILABLE" },
+    // broken
+    ISSUER_BROKEN: {},
 });
 
 /** A stable cause of universe failures. */
