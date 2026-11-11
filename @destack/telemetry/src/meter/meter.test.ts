@@ -41,8 +41,8 @@ test("key a meter's events by their attribute values, refusing values the meter 
         refusal({ direction: "read", region: "eu" }),
     ]).toEqual([
         "package-01996ab0-0000-7000-8000-0000000000d2/storage.operation direction=write",
-        'meter storage.operation takes attributes {"direction":["read","write"]}, not {}',
-        'meter storage.operation takes attributes {"direction":["read","write"]}, not {"direction":"delete"}',
-        'meter storage.operation takes attributes {"direction":["read","write"]}, not {"direction":"read","region":"eu"}',
+        'meter \'storage.operation\' takes attributes {"direction":["read","write"]}, not {}',
+        'meter \'storage.operation\' takes attributes {"direction":["read","write"]}, not {"direction":"delete"}',
+        'meter \'storage.operation\' takes attributes {"direction":["read","write"]}, not {"direction":"read","region":"eu"}',
     ]);
 });

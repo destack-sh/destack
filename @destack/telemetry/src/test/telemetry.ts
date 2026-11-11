@@ -110,7 +110,7 @@ export class TestTelemetry implements Disposable {
     [Symbol.dispose](): void {
         const described = this.describe();
         if (this.take().length > 0) {
-            throw new TypeError(`the test took no captured exceptions: ${described}`);
+            throw new TypeError(`the test took no captured exceptions: '${described}'`);
         }
     }
 

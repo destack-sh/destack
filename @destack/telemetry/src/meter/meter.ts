@@ -94,7 +94,7 @@ export class Meter {
         // require exactly the declared attributes, each at a declared value
         if (!this.accepts(attributes)) {
             throw new TypeError(
-                `meter ${this.name} takes attributes ${JSON.stringify(this.definition.attributes)}, not ${JSON.stringify(attributes)}`,
+                `meter '${this.name}' takes attributes ${JSON.stringify(this.definition.attributes)}, not ${JSON.stringify(attributes)}`,
             );
         }
 

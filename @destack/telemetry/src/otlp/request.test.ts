@@ -37,8 +37,8 @@ test("stamp each resource of an export with its forwarder's emitter, refusing an
     });
     expect(await refusal(Promise.resolve().then(claim))).toEqual([
         "FORBIDDEN",
-        "EMITTER_ATTRIBUTE_RESERVED",
-        "only the receiver can record an export's emitter, found destack.build.manifest, destack.installation.id",
+        "EMITTER_ATTRIBUTE_DENIED",
+        "export emitter 'destack.build.manifest, destack.installation.id' is forbidden: only the receiver can record an export's emitter",
     ]);
 });
 
@@ -55,6 +55,6 @@ test("read an empty export as one of no resources, refusing a malformed one", as
     expect(await refusal(Promise.resolve().then(malformed))).toEqual([
         "BAD_REQUEST",
         "EXPORT_INVALID",
-        "the traces export is invalid at resourceSpans: Invalid input: expected array, received string",
+        "the 'traces' export is invalid: 'resourceSpans: Invalid input: expected array, received string'",
     ]);
 });

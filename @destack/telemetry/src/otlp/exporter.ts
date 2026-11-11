@@ -184,14 +184,14 @@ export class OtlpExporter {
         // refuse a delivery the endpoint refused
         const text = await response.text();
         if (!response.ok) {
-            throw new Error(`otlp ${signal} export failed with ${response.status}: ${text}`);
+            throw new Error(`otlp '${signal}' export failed with ${response.status}: '${text}'`);
         }
 
         // refuse a delivery the endpoint accepted only in part
         const partial =
             text === "" ? undefined : ExportResponse.parse(JSON.parse(text)).partialSuccess;
         if (partial?.errorMessage !== undefined && partial.errorMessage !== "") {
-            throw new Error(`otlp ${signal} export partly rejected: ${partial.errorMessage}`);
+            throw new Error(`otlp '${signal}' export partly rejected: ${partial.errorMessage}`);
         }
     }
 
@@ -239,7 +239,7 @@ export class OtlpExporter {
     ): void {
         // fail a request the serializer could not encode
         if (body === undefined) {
-            const error = new Error(`otlp ${signal} request could not be serialized`);
+            const error = new Error(`otlp '${signal}' request could not be serialized`);
             this.#report(error);
             done({ code: ExportResultCode.FAILED, error });
 

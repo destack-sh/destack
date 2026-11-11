@@ -278,7 +278,7 @@ test("record visits and actions as the platform's destack.visit and destack.acti
             ],
             ["destack.action", { audience: "space", "destack.action.name": "note.shared" }],
         ],
-        refused: "log record names under destack. are reserved: destack.visit",
+        refused: "log record names under 'destack.' are reserved: 'destack.visit'",
     });
 });
 

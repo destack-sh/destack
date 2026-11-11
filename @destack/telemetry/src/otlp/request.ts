@@ -292,7 +292,7 @@ export class OtlpExport {
             );
             throw TelemetryError.of(
                 "EXPORT_INVALID",
-                `the ${this.signal} export is invalid at ${issues.join("; ")}`,
+                `the '${this.signal}' export is invalid: '${issues.join("; ")}'`,
             );
         }
 
@@ -319,8 +319,8 @@ export class OtlpExport {
         );
         if (claimed.size > 0) {
             throw TelemetryError.of(
-                "EMITTER_ATTRIBUTE_RESERVED",
-                `only the receiver can record an export's emitter, found ${[...claimed].join(", ")}`,
+                "EMITTER_ATTRIBUTE_DENIED",
+                `export emitter '${[...claimed].join(", ")}' is forbidden: only the receiver can record an export's emitter`,
             );
         }
 

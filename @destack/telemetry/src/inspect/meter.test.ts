@@ -59,6 +59,6 @@ test("plan a meter's change between releases: keep its aggregation and unit", ()
     // keep an unchanged meter, and refuse counting another way or in another unit
     expect([outcome("sum", "request"), outcome("max", "call")]).toEqual([
         [],
-        "meter/api.requests: keep aggregation sum, or declare a meter of aggregation max; meter/api.requests: keep unit request, or declare a meter of unit call",
+        "cannot reach the desired state: meter/api.requests: keep aggregation sum, or declare a meter of aggregation max; meter/api.requests: keep unit request, or declare a meter of unit call",
     ]);
 });

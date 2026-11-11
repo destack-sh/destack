@@ -204,7 +204,7 @@ export class Log {
         // refuse a name the platform reserves for its own records
         if (eventName.startsWith(RESERVED_EVENT_PREFIX)) {
             throw new TypeError(
-                `log record names under ${RESERVED_EVENT_PREFIX} are reserved: ${eventName}`,
+                `log record names under '${RESERVED_EVENT_PREFIX}' are reserved: '${eventName}'`,
             );
         }
         const { context, clock } = this.#telemetry;
