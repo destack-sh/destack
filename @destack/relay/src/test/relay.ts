@@ -19,7 +19,7 @@ import {
     SOCKET_PATH,
     WorkloadRunner,
 } from "@destack/object/workload";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, present, schema, Uuid } from "@destack/schema";
@@ -192,7 +192,7 @@ export class TestRelay implements AsyncDisposable {
         // start the root, or a machine's partition on its first call, as the machine starts them
         const build = await MemoryBuild.write(
             new Map(),
-            { role: "app", package: Package.of(relayPackage) },
+            { role: "app", package: PackageVersion.of(relayPackage) },
             environment.crypto,
         );
         const settings = {
