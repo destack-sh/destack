@@ -1827,6 +1827,62 @@ test("keep a replica live while its pages arrive within the lag, and end a strea
         stopped: false,
     });
 });
+test("stop a follow's silence timer when its stream fails, as when it stops", async () => {
+    // follow one page, then stop or fail, and count the timers still keeping the process alive
+    const waitsLeftAfter = async (end: "stop" | "failure") => {
+        await using simulation = new Simulation({ seed: 1, start: 1000 });
+        const local = await openReplica({ simulation });
+        const notes = new Replica({ name: "notes", scope: "inbox", tables: [note] });
+        const controller = new AbortController();
+        const following = notes
+            .follow(
+                local,
+                async function* (_from, signal) {
+                    yield {
+                        reset: true,
+                        complete: true,
+                        changes: [],
+                        position: {
+                            log: LOG,
+                            epoch: "01996ab0-0000-7000-8000-000000000001",
+                            sequence: 4,
+                        },
+                    };
+                    if (end === "failure") {
+                        throw new Error("the source closed");
+                    }
+                    await waitAborted(signal);
+                },
+                controller.signal,
+                { synced: () => {}, lag: 30_000 },
+            )
+            .then(
+                () => "stopped",
+                (error: unknown) => String(error),
+            );
+        await simulation.waitUntil(() => Replica.marked(local, "notes", "inbox") !== undefined);
+        if (end === "stop") {
+            controller.abort();
+        }
+        const outcome = await simulation.wait(following);
+
+        return { outcome, waits: simulation.clock.fail(new Error("the test ended")) };
+    };
+
+    // leave as many timers after a failure as after a stop
+    const stopped = await waitsLeftAfter("stop");
+    const failed = await waitsLeftAfter("failure");
+    expect({
+        stopped: stopped.outcome,
+        failed: failed.outcome,
+        isEqual: failed.waits === stopped.waits,
+    }).toEqual({
+        stopped: "stopped",
+        failed: "Error: the source closed",
+        isEqual: true,
+    });
+});
+
 test("keep a replica live across its follows while its pages arrive within the lag, past a follow's stop", async () => {
     await using simulation = new Simulation({ seed: 1, start: 1000 });
     const local = await openReplica({ simulation });

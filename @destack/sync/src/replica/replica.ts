@@ -1730,71 +1730,86 @@ export class Replica {
         // apply each stream from where the replica is until aborted, ending a silent one to resume
         await this.register(database, options);
         let silent = new AbortController();
-        const silence = this.#silence(database, options.lag, signal, () => silent.abort());
+        const ended = new AbortController();
+        const silence = this.#silence(
+            database,
+            options.lag,
+            AbortSignal.any([signal, ended.signal]),
+            () => silent.abort(),
+        );
         let isSynced = false;
         let lapses = 0;
-        while (!signal.aborted) {
-            let isReceived = false;
-            let isLapsed = false;
-            silent = new AbortController();
-            const streaming = AbortSignal.any([signal, silent.signal]);
+        try {
+            while (!signal.aborted) {
+                let isReceived = false;
+                let isLapsed = false;
+                silent = new AbortController();
+                const streaming = AbortSignal.any([signal, silent.signal]);
 
-            // take the subscription once, so the stream opens and records the same parameters
-            const { subscription } = options;
-            const from = await this.resume(database, subscription);
-            const pages = source(from, streaming, subscription);
-            const opened = subscription === undefined ? options : { ...options, subscription };
-            silence();
-            try {
-                for await (const page of this.apply(database, pages, opened)) {
-                    // report the replica synced at its first complete page
-                    isReceived = true;
-                    silence();
-                    if (page.complete && !isSynced) {
-                        isSynced = true;
-                        options.synced();
+                // take the subscription once, so the stream opens and records the same parameters
+                const { subscription } = options;
+                const from = await this.resume(database, subscription);
+                const pages = source(from, streaming, subscription);
+                const opened = subscription === undefined ? options : { ...options, subscription };
+                silence();
+                try {
+                    for await (const page of this.apply(database, pages, opened)) {
+                        // report the replica synced at its first complete page
+                        isReceived = true;
+                        silence();
+                        if (page.complete && !isSynced) {
+                            isSynced = true;
+                            options.synced();
+                        }
+                    }
+                } catch (error) {
+                    // resume with a fresh credential once the source refused the lapsed one
+                    isLapsed = SyncError.is(error, "CREDENTIAL_LAPSED");
+
+                    // end quietly on this follow's own abort or a silent stream's, failing on anything else
+                    const isAborted = signal.aborted && error === signal.reason;
+                    const isSilent = silent.signal.aborted && !signal.aborted;
+                    if (!isLapsed && !isAborted && !isSilent) {
+                        throw error;
                     }
                 }
-            } catch (error) {
-                // resume with a fresh credential once the source refused the lapsed one
-                isLapsed = SyncError.is(error, "CREDENTIAL_LAPSED");
 
-                // end quietly on this follow's own abort or a silent stream's, failing on anything else
-                const isAborted = signal.aborted && error === signal.reason;
-                const isSilent = silent.signal.aborted && !signal.aborted;
-                if (!isLapsed && !isAborted && !isSilent) {
-                    throw error;
+                // resume a stream ended for its silence like one that delivered pages
+                isReceived ||= silent.signal.aborted && !signal.aborted;
+
+                // reject a stream that ends without a page, other than one whose credential lapsed
+                if (!isReceived && !isLapsed && !signal.aborted) {
+                    throw SyncError.of(
+                        "STREAM_INVALID",
+                        `the source of ${this.scope} ended a stream without a page`,
+                    );
+                }
+                // fail once the source lapses every fresh credential
+                else if (
+                    !isReceived &&
+                    isLapsed &&
+                    !RetryPolicy.isRetried(LAPSE_RETRY, lapses + 1)
+                ) {
+                    throw SyncError.of(
+                        "CREDENTIAL_LAPSED",
+                        `the source of ${this.scope} lapsed ${lapses + 1} fresh credentials before any page`,
+                    );
+                }
+                // back off before resuming a stream whose fresh credential lapsed before any page
+                else if (!isReceived && isLapsed) {
+                    lapses += 1;
+                    const { clock } = database.state;
+                    const drawn = RetryPolicy.draw(`${this.name} ${this.scope} ${lapses}`);
+                    await RetryPolicy.pause(LAPSE_RETRY, lapses, clock, signal, () => drawn);
+                }
+                // resume at once after a stream that delivered pages
+                else {
+                    lapses = 0;
                 }
             }
-
-            // resume a stream ended for its silence like one that delivered pages
-            isReceived ||= silent.signal.aborted && !signal.aborted;
-
-            // reject a stream that ends without a page, other than one whose credential lapsed
-            if (!isReceived && !isLapsed && !signal.aborted) {
-                throw SyncError.of(
-                    "STREAM_INVALID",
-                    `the source of ${this.scope} ended a stream without a page`,
-                );
-            }
-            // fail once the source lapses every fresh credential
-            else if (!isReceived && isLapsed && !RetryPolicy.isRetried(LAPSE_RETRY, lapses + 1)) {
-                throw SyncError.of(
-                    "CREDENTIAL_LAPSED",
-                    `the source of ${this.scope} lapsed ${lapses + 1} fresh credentials before any page`,
-                );
-            }
-            // back off before resuming a stream whose fresh credential lapsed before any page
-            else if (!isReceived && isLapsed) {
-                lapses += 1;
-                const { clock } = database.state;
-                const drawn = RetryPolicy.draw(`${this.name} ${this.scope} ${lapses}`);
-                await RetryPolicy.pause(LAPSE_RETRY, lapses, clock, signal, () => drawn);
-            }
-            // resume at once after a stream that delivered pages
-            else {
-                lapses = 0;
-            }
+        } finally {
+            // stop the silence timer when the follow ends, also when it fails
+            ended.abort();
         }
     }
 
