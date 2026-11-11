@@ -33,7 +33,8 @@ await client
 A stack declares a space's values under `settings`, and stamps each with the release of the build declaring the setting.
 
 ```ts
-export default defineStack([settingPackage], {
+export default defineStack({
+    types: [settingPackage],
     settings: { editor: { ...editorMode.reference, value: "vim", mode: "recommend" } },
 });
 ```
