@@ -172,13 +172,7 @@ async function bundleDesktop(
     // build the native window with the stage's identity and icons
     const output = join(CHECKOUT, "dist/.native");
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    const configuration = await configureApplication(
-        CHECKOUT,
-        output,
-        stage,
-        version,
-        environment,
-    );
+    const configuration = await configureApplication(CHECKOUT, output, stage, version, environment);
     const { target, bundle } = platform;
     const arguments_ = ["run", tauri, "build", "--target", target, "--config", configuration];
     arguments_.push(
