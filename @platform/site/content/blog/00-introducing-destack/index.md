@@ -30,9 +30,8 @@ The contemporary stack is structurally broken.
 The "stack" is a thousand little silos, each with their own slightly incompatible slice of software, each demanding its own terms and standards.
 Our stack was never designed as one whole, and so nothing _quite_ fits together.
 
-Now, the technical debt accumulated over decades of organic software growth is coming due.
-Probabilistic computing is here, and we _could_ infuse intelligence into all software, but we're stuck on an opaque stack that rejects it at every layer.
-Instead, we got APIs and MCPs.
+The technical debt accumulated over decades of organic software growth is coming due.
+Probabilistic computing is here, and we _could_ infuse intelligence into all software, but we're stuck on an opaque stack that rejects integration at every layer - so, we got APIs and MCPs.
 
 > To put it quite bluntly: as long as there were no machines, programming was no problem at all; when we had a few weak computers, programming became a mild problem, and now we have gigantic computers, programming has become an equally gigantic problem.
 >
