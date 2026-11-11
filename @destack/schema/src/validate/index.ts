@@ -84,7 +84,7 @@ export {
     type Sensitivity,
 } from "./sensitive.ts";
 export { defined } from "./defined.ts";
-export { isOptional } from "./optional.ts";
+export { isOptional, unwrap } from "./optional.ts";
 export { anyIdentifier, identifier } from "../identifier/identifier.ts";
 export { json, jsonObject } from "./json.ts";
 export {
