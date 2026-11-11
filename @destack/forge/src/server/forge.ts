@@ -3,7 +3,7 @@ import registryPackage from "@destack/registry/package";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
-import { type BlobStore, eq, Snapshot, Transaction } from "@destack/db";
+import { type BlobStore, eq, inArray, or, Snapshot, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
 import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
@@ -405,25 +405,25 @@ export class Forge {
         return decision.isAllowed;
     }
 
-    /** Require a readable release of a build, or one listing it as a unit, yanked ones included. */
+    /** Require the caller to read a package that releases a build or lists it as a unit. */
     async #readable(digest: Digest, context: RequestContext, objects: ObjectStore): Promise<void> {
-        // find the releases of the build, and those listing it as a unit
+        // find the packages of the releases of the build, and of those listing it as a unit
         const table = release.table;
-        const released = await objects.database
-            .select({ scope: table.scope, id: table.id })
-            .from(table)
-            .where(eq(table.manifest, digest));
-        const listing = await objects.database
-            .select({ scope: unit.table.scope, id: unit.table.parentId })
+        const listing = objects.database
+            .select({ id: unit.table.parentId })
             .from(unit.table)
             .where(eq(unit.table.manifest, digest));
+        const rows = await objects.database
+            .selectDistinct({ scope: table.scope, id: table.parentId })
+            .from(table)
+            .where(or(eq(table.manifest, digest), inArray(table.id, listing)));
 
-        // pass at the first release the caller reads, concealing every refusal
-        for (const published of [...released, ...listing]) {
+        // pass at the first package the caller reads, concealing every refusal
+        for (const owner of rows) {
             const isReadable = await Forge.conceal("BUILD_NOT_FOUND", "build not found", () =>
                 objects.query(
-                    context.access(published.scope),
-                    release.call("get", { spaceId: published.scope, id: published.id }),
+                    context.access(owner.scope),
+                    packageObject.call("get", { spaceId: owner.scope, id: owner.id }),
                 ),
             ).then(
                 () => true,
