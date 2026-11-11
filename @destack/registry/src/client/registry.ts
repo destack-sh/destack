@@ -1,5 +1,5 @@
 import { Directory } from "@destack/account/address";
-import { PackageClient, type BuildStore } from "@destack/build/store";
+import { BuildStore, PackageClient } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import { type PackageId, PackageName, PackageRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
@@ -219,7 +219,7 @@ export class Registry {
         // order the build's closure with each dependency before the builds pinning it
         const root = PackageManifest.package((await store.contents(manifest)).manifest);
         const { handle } = PackageName.split(root.name);
-        const ordered = await Registry.#ordered(store, manifest, new Set());
+        const ordered = await BuildStore.ordered(store, [manifest]);
 
         // release the account's builds the forge lacks, and require every other one published
         const released: PackageRelease[] = [];
@@ -236,27 +236,6 @@ export class Registry {
         }
 
         return released;
-    }
-
-    /** List a build's Destack closure, each build after the builds it pins. */
-    static async #ordered(
-        store: Pick<BuildStore, "contents">,
-        manifest: Digest,
-        visited: Set<Digest>,
-    ): Promise<Digest[]> {
-        // visit each build once
-        if (visited.has(manifest)) {
-            return [];
-        }
-        visited.add(manifest);
-
-        // list its dependencies' closures, then the build
-        const ordered: Digest[] = [];
-        for (const dependency of await (await store.contents(manifest)).releases()) {
-            ordered.push(...(await Registry.#ordered(store, dependency.manifest, visited)));
-        }
-
-        return [...ordered, manifest];
     }
 
     /** Refuse a build of another account that its forge has not released at its version. */
