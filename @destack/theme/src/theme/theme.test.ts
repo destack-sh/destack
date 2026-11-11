@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { expect, refusal, test } from "@destack/test";
 import { defineTheme } from "../declare/index.ts";
 import { apca, Color, Palette, Srgb } from "../palette/index.ts";
@@ -16,7 +16,7 @@ import {
 import { TOKENS } from "../token/index.ts";
 
 /** The package release declaring the fixture's themes. */
-const notes = Package.parse({
+const notes = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@alice/notes",
     version: "2026.9.0",

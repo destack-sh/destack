@@ -1,4 +1,4 @@
-import { Package, PackageError } from "@destack/package";
+import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { apca, Palette, Seed, type Scheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
@@ -152,7 +152,7 @@ export type ThemeDefinition = schema.Infer<typeof ThemeDefinition>;
 /** A theme declaration as manifests describe it. */
 export const ThemeDescription = ThemeDefinition.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
 });
 /** A theme declaration as manifests describe it. */
 export type ThemeDescription = schema.Infer<typeof ThemeDescription>;
@@ -168,7 +168,7 @@ export type ThemeStyle = {
 /** A theme: palettes, roles, corners, scaling, fonts and density. */
 export class Theme {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name, seeds, corners, scaling, fonts, density and role replacements. */
     readonly definition: ThemeDefinition;
     /** The palettes of the theme's own accent. */
@@ -181,7 +181,7 @@ export class Theme {
     readonly #resolutions = new Map<string, Resolution>();
 
     /** Hold a theme, grow its palettes and apply its role replacements. */
-    constructor(owner: Package, definition: ThemeDefinition) {
+    constructor(owner: PackageVersion, definition: ThemeDefinition) {
         // hold the definition and replace the roles it overrides
         this.package = owner;
         this.definition = definition;
