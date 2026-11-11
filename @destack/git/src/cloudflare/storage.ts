@@ -3,7 +3,6 @@ import { schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { GitError } from "../error/index.ts";
 import { GitAdvertisement } from "../storage/index.ts";
-import type { GitStorageDeclaration } from "../storage/index.ts";
 import type { GitListing, GitStorage } from "../storage/index.ts";
 
 /** The provider code of Git storages in Cloudflare Artifacts. */
@@ -76,10 +75,7 @@ export class ArtifactsStorage implements GitStorage {
     }
 
     /** Build the connector opening the storages a host binds to a namespace. */
-    static connector(
-        namespace: ArtifactsNamespace,
-        fetch: Fetch,
-    ): Connector<GitStorage, GitStorageDeclaration> {
+    static connector(namespace: ArtifactsNamespace, fetch: Fetch): Connector<GitStorage> {
         return {
             code: ARTIFACTS_PROVIDER,
             connect: async (binding) =>

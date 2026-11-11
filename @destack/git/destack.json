@@ -22,8 +22,7 @@
         "defineGitStorage": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "git",
                     "function": "./inspect#describeGitStorage"
                 }
             ]

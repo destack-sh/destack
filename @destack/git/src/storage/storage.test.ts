@@ -20,7 +20,7 @@ import { advertise, git, History, temporary, Worktree } from "../test/index.ts";
 const host = testSimulation().environment("storage");
 
 /** The storage the tests connect, as a package declares one. */
-const repositoryStorage = defineGitStorage({ name: "repositories", spec: {} });
+const repositoryStorage = defineGitStorage({ name: "repositories" });
 
 test("create a local repository, push a branch and a tag into it, list them and delete it, each step again as well", async () => {
     const storage = new LocalGitStorage(await temporary("destack-storage-"), host);

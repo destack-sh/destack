@@ -3,7 +3,6 @@ import { join } from "node:path";
 import { type Environment, FileSystemError } from "@destack/environment";
 import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { found, Uuid, zip } from "@destack/schema";
-import type { GitStorageDeclaration } from "../storage/index.ts";
 import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
 import { Git } from "./git.ts";
 
@@ -55,10 +54,7 @@ export class LocalGitStorage implements GitStorage {
     }
 
     /** Open storages at their references below a host directory, as the local provider does. */
-    static connector(
-        directory: string,
-        environment: LocalGitEnvironment,
-    ): Connector<GitStorage, GitStorageDeclaration> {
+    static connector(directory: string, environment: LocalGitEnvironment): Connector<GitStorage> {
         return {
             code: LOCAL_PROVIDER,
             connect: async (binding) =>
