@@ -1,11 +1,9 @@
 import { type JsonValue, present, schema } from "@destack/schema";
-import type { CallErrorCode, DomainError } from "./error.ts";
+import { type CallErrorCode, type DomainError, ERROR_CONDITIONS, ErrorCondition } from "./error.ts";
 import { Failure } from "./failure.ts";
 
-/** A reason a family declares: the call error code it answers and the schema of its data. */
+/** A reason a family declares: the schema of its data; its condition sets its call error code. */
 export interface ReasonDeclaration {
-    /** The call error code a caller receives, such as NOT_FOUND. */
-    readonly code: CallErrorCode;
     /** The schema of the structured details the failure carries, none when absent. */
     readonly data?: schema.Schema<JsonValue>;
 }
@@ -142,7 +140,13 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
         const data = declared.data?.parse(options?.data);
 
         return new FamilyError(
-            { domain: this.domain, reason, code: declared.code, data, audience: this.audience },
+            {
+                domain: this.domain,
+                reason,
+                code: ErrorFamily.code(reason),
+                data,
+                audience: this.audience,
+            },
             message,
             options?.cause === undefined ? undefined : { cause: options.cause },
         );
@@ -175,11 +179,16 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
 
     /** Describe the family's reasons as the manifest lists them. */
     describe(): ReasonDescription[] {
-        return Object.entries(this.reasons).map(([reason, declared]) => ({
+        return Object.keys(this.reasons).map((reason) => ({
             domain: this.domain,
             reason,
-            code: declared.code,
+            code: ErrorFamily.code(reason),
         }));
+    }
+
+    /** Read the call error code a reason answers, by its condition. */
+    static code(reason: string): CallErrorCode {
+        return ERROR_CONDITIONS[ErrorCondition.of(reason)];
     }
 }
 
@@ -187,15 +196,19 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
 export type ReasonOf<Family> =
     Family extends ErrorFamily<infer Declared> ? keyof Declared & string : never;
 
-/** Declare a package's error family: each reason's call error code and data schema. */
+/** Declare a package's error family: its reasons, each `<NOUN>_<CONDITION>`, with their data. */
 export function defineErrorFamily<const Declared extends ReasonDeclarations>(
     owner: { readonly name: string },
-    reasons: Declared,
+    reasons: Declared & {
+        readonly [Name in keyof Declared]: Name extends `${string}_${ErrorCondition}`
+            ? ReasonDeclaration
+            : never;
+    },
     options: {
         /** Who the failures are for, callers by default. */
         readonly audience?: ErrorAudience;
     } = {},
 ): ErrorFamily<Declared> {
     // declare the family for callers unless it describes the host
-    return new ErrorFamily(owner.name, reasons, options.audience ?? "caller");
+    return new ErrorFamily<Declared>(owner.name, reasons, options.audience ?? "caller");
 }

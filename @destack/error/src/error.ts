@@ -49,6 +49,72 @@ export const CallErrorCode = {
     },
 };
 
+/** The conditions a reason ends with, after gRPC's canonical codes, with their call error codes. */
+export const ERROR_CONDITIONS = {
+    /** Not found, gRPC NOT_FOUND: `<noun> '<value>' not found`. */
+    NOT_FOUND: "NOT_FOUND",
+    /** Exists, gRPC ALREADY_EXISTS: `<noun> '<value>' already exists`. */
+    EXISTS: "CONFLICT",
+    /** Conflict, gRPC ABORTED: `cannot <verb> <noun> '<value>': <why>`. */
+    CONFLICT: "CONFLICT",
+    /** Invalid, gRPC INVALID_ARGUMENT: `<noun> '<value>' is invalid: <what> must …`. */
+    INVALID: "BAD_REQUEST",
+    /** Required, gRPC INVALID_ARGUMENT: `<what> is required`. */
+    REQUIRED: "BAD_REQUEST",
+    /** Unauthenticated, gRPC UNAUTHENTICATED: `authentication required: <why>`. */
+    UNAUTHENTICATED: "UNAUTHORIZED",
+    /** Denied, gRPC PERMISSION_DENIED: `<noun> '<value>' is forbidden: <who> cannot <verb>`. */
+    DENIED: "FORBIDDEN",
+    /** Blocked, gRPC FAILED_PRECONDITION: `cannot <verb> <noun> '<value>': <why>`. */
+    BLOCKED: "PRECONDITION_FAILED",
+    /** Exhausted, gRPC RESOURCE_EXHAUSTED: `<noun> '<value>' exceeds <limit>`. */
+    EXHAUSTED: "TOO_MANY_REQUESTS",
+    /** Unsupported, gRPC UNIMPLEMENTED: `<thing> is not supported`. */
+    UNSUPPORTED: "NOT_IMPLEMENTED",
+    /** Moved, HTTP 421: `<noun> '<value>' moved to '<where>'`, which a retry there reaches. */
+    MOVED: "MISDIRECTED_REQUEST",
+    /** Unavailable, gRPC UNAVAILABLE: `<noun> '<value>' is unavailable: <why>`, with a retry. */
+    UNAVAILABLE: "SERVICE_UNAVAILABLE",
+    /** Unreachable, gRPC DEADLINE_EXCEEDED or upstream: `could not <verb> <noun> '<value>'`. */
+    UNREACHABLE: "BAD_GATEWAY",
+    /** Cancelled, gRPC CANCELLED: `<what> was cancelled`. */
+    CANCELLED: "CLIENT_CLOSED_REQUEST",
+    /** Broken, gRPC INTERNAL: `<noun> '<value>' <fact that must never hold>`. */
+    BROKEN: "INTERNAL_SERVER_ERROR",
+} as const satisfies Readonly<Record<string, CallErrorCode>>;
+
+/** A condition a reason ends with. */
+export type ErrorCondition = keyof typeof ERROR_CONDITIONS;
+
+/** A reason: what failed, then its condition, such as INSTALLATION_NOT_FOUND. */
+export type Reason = `${string}_${ErrorCondition}`;
+
+/** Read conditions from reasons. */
+export const ErrorCondition = {
+    /** Check whether a name is an error condition. */
+    is(name: string): name is ErrorCondition {
+        return Object.hasOwn(ERROR_CONDITIONS, name);
+    },
+
+    /** Read the condition a reason ends with, refusing one that ends with none. */
+    of(reason: string): ErrorCondition {
+        const found = ErrorCondition.find(reason);
+        if (found === undefined) {
+            throw new TypeError(`reason '${reason}' must end with an error condition`);
+        }
+
+        return found;
+    },
+
+    /** Find the condition a reason ends with, the longest when several match. */
+    find(reason: string): ErrorCondition | undefined {
+        return Object.keys(ERROR_CONDITIONS)
+            .filter((name) => ErrorCondition.is(name))
+            .filter((condition) => reason.endsWith(`_${condition}`))
+            .toSorted((left, right) => right.length - left.length)[0];
+    },
+};
+
 /** A package's failure that knows the call error its caller receives. */
 export interface DomainError extends Error {
     /** Whether the failure is for callers or for the host alone. */

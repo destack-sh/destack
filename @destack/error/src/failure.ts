@@ -1,8 +1,15 @@
 import { JsonValue, schema } from "@destack/schema";
-import { CALL_ERROR_STATUSES, CallErrorCode, DomainError } from "./error.ts";
+import { CALL_ERROR_STATUSES, CallErrorCode, DomainError, ErrorCondition } from "./error.ts";
 
 /** The call error codes, in the order their statuses declare them. */
 const CALL_ERROR_CODES = Object.keys(CALL_ERROR_STATUSES).filter((code) => CallErrorCode.is(code));
+
+/** The conditions a later attempt may get past: a lost race, a move, an outage. */
+const TRANSIENT_CONDITIONS: ReadonlySet<ErrorCondition> = new Set([
+    "CONFLICT",
+    "MOVED",
+    "UNAVAILABLE",
+]);
 
 /** The codes of failures a later or rerouted attempt may not meet (RFC 9110, 6585). */
 const TRANSIENT_CODES: ReadonlySet<CallErrorCode> = new Set([
@@ -64,9 +71,24 @@ export const Failure = Object.assign(failureSchema, {
         return failure !== undefined && failure.code !== "INTERNAL_SERVER_ERROR";
     },
 
-    /** Report whether a later or rerouted attempt may succeed: a timeout, move, limit or outage. */
-    isTransient(failure: Pick<Failure, "code">): boolean {
-        return TRANSIENT_CODES.has(failure.code);
+    /** Report whether a later attempt may succeed, by the reason's condition, else by the code. */
+    isTransient(failure: Pick<Failure, "code" | "reason" | "data">): boolean {
+        const condition = ErrorCondition.find(failure.reason);
+
+        // read a failure without a condition by its code
+        if (condition === undefined) {
+            return TRANSIENT_CODES.has(failure.code);
+        }
+        // retry an exhausted resource only when it says when (AIP-194 RetryInfo)
+        else if (condition === "EXHAUSTED") {
+            const { data } = failure;
+
+            return typeof data === "object" && data !== null && "retryAfter" in data;
+        }
+        // retry a lost race, a move or an unavailable peer
+        else {
+            return TRANSIENT_CONDITIONS.has(condition);
+        }
     },
 
     /** Describe a failure no package gave a reason, as HTTP's: its code is its reason. */

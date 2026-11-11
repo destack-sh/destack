@@ -23,7 +23,7 @@ test("describe a domain error as its call error, a call error by its code and re
     const coded = Object.assign(new Error("moved"), { code: "MISDIRECTED_REQUEST", data: [1] });
     const reasoned = Object.assign(new Error("taken"), {
         code: "CONFLICT",
-        reason: "NAME_TAKEN",
+        reason: "NAME_EXISTS",
         domain: "@destack/note",
     });
     const named = Object.assign(new Error("closed"), { code: "ECONNREFUSED" });
@@ -51,7 +51,7 @@ test("describe a domain error as its call error, a call error by its code and re
             message: "moved",
             data: [1],
         },
-        { code: "CONFLICT", reason: "NAME_TAKEN", domain: "@destack/note", message: "taken" },
+        { code: "CONFLICT", reason: "NAME_EXISTS", domain: "@destack/note", message: "taken" },
         {
             code: "SERVICE_UNAVAILABLE",
             reason: "SERVICE_UNAVAILABLE",
@@ -76,7 +76,7 @@ test("describe a domain error as its call error, a call error by its code and re
 test("roundtrip a failure through the error it raises, with its cause", () => {
     const failure: Failure = {
         code: "CONFLICT",
-        reason: "NAME_TAKEN",
+        reason: "NAME_EXISTS",
         domain: "@destack/note",
         message: "taken",
         data: [1],
@@ -173,7 +173,7 @@ test("describe a failure without a package's reason as HTTP's, its code its reas
 });
 
 test("accept reasons of constant-case words of at most 63 characters only", () => {
-    const reasons = ["NAME_TAKEN", "A", "name_taken", "NAME_", "N".repeat(63), "N".repeat(64)];
+    const reasons = ["NAME_EXISTS", "A", "name_taken", "NAME_", "N".repeat(63), "N".repeat(64)];
 
     expect(reasons.map((reason) => FailureReason.safeParse(reason).success)).toEqual([
         true,
@@ -183,4 +183,27 @@ test("accept reasons of constant-case words of at most 63 characters only", () =
         true,
         false,
     ]);
+});
+
+test("retry a lost race, a move, an outage and a limit that says when, and nothing else", () => {
+    const reasons = [
+        "REVISION_CONFLICT",
+        "SCOPE_MOVED",
+        "SERVER_UNAVAILABLE",
+        "STORAGE_EXHAUSTED",
+        "RESPONSE_UNREACHABLE",
+        "BUILD_BLOCKED",
+        "NOTE_NOT_FOUND",
+        "RECORD_BROKEN",
+    ];
+    const limited = {
+        code: "TOO_MANY_REQUESTS",
+        reason: "RATE_EXHAUSTED",
+        data: { retryAfter: 1000 },
+    } as const;
+
+    expect([
+        ...reasons.map((reason) => Failure.isTransient({ code: "BAD_REQUEST", reason })),
+        Failure.isTransient(limited),
+    ]).toEqual([true, true, true, false, false, false, false, false, true]);
 });
