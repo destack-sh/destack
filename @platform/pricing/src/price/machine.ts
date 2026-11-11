@@ -14,7 +14,7 @@ const OBSERVED_AT = "2026-10-20";
 /** The seconds in an hour, the unit machine prices are set per. */
 const SECONDS_PER_HOUR = 3600;
 
-/** A dedicated machine size: its resources, its disk cleared on sleep, and its credit cents an hour. */
+/** A dedicated machine size: resources, disk cleared on sleep, and credit cents an hour. */
 export type Machine = MachineType & { readonly hourly: number };
 
 /** Destack's dedicated machines by size, 500 awake hours costing twice its share on its host. */

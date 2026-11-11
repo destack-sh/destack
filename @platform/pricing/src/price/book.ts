@@ -33,7 +33,7 @@ export const Fee = {
         }
         // refuse any other currency
         else {
-            throw new TypeError(`currency ${currency} has no conversion to US cents`);
+            throw new TypeError(`currency '${currency}' has no conversion to US cents`);
         }
     },
 
