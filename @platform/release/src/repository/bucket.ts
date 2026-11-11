@@ -140,7 +140,7 @@ export class R2ReleaseBucket {
         }
         // report object paths without exposing signed URLs
         else if (!response.ok) {
-            throw new Error(`release upload failed: '${path}' (${response.status})`);
+            throw new Error(`could not upload release file '${path}': status ${response.status}`);
         }
     }
 }

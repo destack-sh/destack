@@ -103,7 +103,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
     await bucket.put("metadata/timestamp.json", second, "application/json", false, revision);
     await expect(
         bucket.put("metadata/timestamp.json", first, "application/json", false, revision),
-    ).rejects.toThrow("release upload failed: metadata/timestamp.json (412)");
+    ).rejects.toThrow("could not upload release file 'metadata/timestamp.json': status 412");
     expect(await (await bucket.get("metadata/timestamp.json")).text()).toBe("second release");
     expect([...objects.keys()].toSorted()).toEqual([
         "/rehearsal/metadata/timestamp.json",
@@ -158,7 +158,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
     // resume after the public timestamp advances and accept a completed retry unchanged
     shouldRejectCatalog = true;
     await expect(publish(repository, configuration, environment)).rejects.toThrow(
-        "release upload failed: downloads.json (503)",
+        "could not upload release file 'downloads.json': status 503",
     );
     await publish(repository, configuration, environment);
     const published = new Map(objects);
