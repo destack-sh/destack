@@ -60,7 +60,7 @@ import { implementInstallationRevision } from "./installation/revision.ts";
 import { installationProvider, ProviderIndex, type SpaceProvider } from "./resource/resource.ts";
 import { implementSpace, type SpaceRole } from "./host/space.ts";
 import { implementTransfer, type TransferOptions } from "./host/transfer.ts";
-import { type Handoff, handoffAdapter } from "./host/handoff.ts";
+import { type Handoff, handoffMount } from "./host/handoff.ts";
 import type { EventStore } from "@destack/event";
 import {
     type BuildOptions,
@@ -71,7 +71,7 @@ import {
 import type { Forge } from "./installation/follow.ts";
 import { SpaceTransfer } from "./host/transfer.ts";
 import type { SpaceHost } from "./host/host.ts";
-import { hookAdapter } from "./installation/hook.ts";
+import { hookMount } from "./installation/hook.ts";
 import type { SocketRegistry } from "./host/socket.ts";
 import { implementRoute } from "./access/route.ts";
 import { implementRelationship, implementRole } from "./access/role.ts";
@@ -205,10 +205,10 @@ function stackServer(
             ...(isPrimary ? [Entitlement.follow, ...options.follows] : []),
         ],
         // answer moving spaces' targets and installations' hook sessions
-        adapters: {
-            handoff: handoffAdapter({ ...options, providers }),
-            push: options.builds.adapter(),
-            hook: hookAdapter,
+        mounts: {
+            handoff: handoffMount({ ...options, providers }),
+            push: options.builds.mount(),
+            hook: hookMount,
         },
         // receive moving spaces on a standby, run a primary's providers, and the host's own
         controllers: [

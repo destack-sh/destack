@@ -14,7 +14,7 @@ import { InstallationAccess } from "./access.ts";
 const DESCRIPTION: PackageDescription = {
     api: { name: "notes", procedures: [] },
     objects: {},
-    adapters: {},
+    mounts: {},
     views: [],
     permissions: {
         space: {

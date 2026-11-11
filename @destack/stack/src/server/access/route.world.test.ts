@@ -172,7 +172,7 @@ test("locate the route serving a host's path, the most specific first", async ()
     const wildcard = await fixture.serve(fixture.accountId, "*.example.com");
     const installation = { id: found(fixture.installations, first) };
 
-    // declare a view, a view of an object, a whole origin, a redirect and an adapter on the hostname, and one on its wildcard
+    // declare a view, a view of an object, a whole origin, a redirect and a mount on the hostname, and one on its wildcard
     const roadmap = ObjectReference.parse({
         packageId: "package-01996ab0-0000-7000-8000-0000000000c1",
         type: "note",
@@ -216,14 +216,14 @@ test("locate the route serving a host's path, the most specific first", async ()
             path: "/api",
             match: "prefix",
             installation,
-            rules: [{ entry: { kind: "adapter", adapter: "notes" } }],
+            rules: [{ entry: { kind: "mount", mount: "notes" } }],
         },
         names: {
             hostname: wildcard.name,
             path: "/",
             match: "prefix",
             installation,
-            rules: [{ entry: { kind: "adapter", adapter: "notes" } }],
+            rules: [{ entry: { kind: "mount", mount: "notes" } }],
         },
     });
 

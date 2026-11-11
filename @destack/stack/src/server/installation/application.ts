@@ -735,17 +735,17 @@ export class ApplicationInstallation {
             return StackError.of("HOOK_BLOCKED", message);
         }
 
-        // refuse a package declaring adapters that nothing answers: a workload of its build, or the store
-        const isAdapted = Object.keys(description?.adapters ?? {}).length > 0;
+        // refuse a package declaring mounts that nothing answers: a workload of its build, or the store
+        const isAdapted = Object.keys(description?.mounts ?? {}).length > 0;
         const isAnswered =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
                 Object.keys(output.workloads).some((workload) => workload !== HOOK_WORKLOAD),
             );
         if (isAdapted && !isAnswered) {
-            const message = `${build.manifest.package.name} declares adapters, but no workload of its build answers them`;
+            const message = `${build.manifest.package.name} declares mounts, but no workload of its build answers them`;
 
-            return StackError.of("ADAPTER_BLOCKED", message);
+            return StackError.of("MOUNT_BLOCKED", message);
         }
 
         // refuse allowing a capability or granting a directory the build does not declare

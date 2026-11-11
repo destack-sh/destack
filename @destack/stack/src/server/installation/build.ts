@@ -16,7 +16,7 @@ import { account, Space } from "@destack/account/object";
 import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "../../package.ts";
-import type { AdapterFetch, ObjectStore } from "@destack/object/server";
+import type { MountFetch, ObjectStore } from "@destack/object/server";
 import {
     BuildReader,
     type PackageLocation,
@@ -391,10 +391,10 @@ export class SpaceBuildStore {
         return this.cache.store.units(manifest, packageId, (digest) => this.get(digest));
     }
 
-    /** Serve the adapter taking the files and manifest a running build's runner pushes. */
-    adapter(): AdapterFetch {
+    /** Serve the mount taking the files and manifest a running build's runner pushes. */
+    mount(): MountFetch {
         return async (request, admitted, _context, store) => {
-            // read the build below the adapter, refusing a caller acting for none of its runners
+            // read the build below the mount, refusing a caller acting for none of its runners
             const url = new URL(request.url);
             const [, space = "", built = ""] = url.pathname.split("/");
             const spaceId = schema.identifier("space").parse(space);

@@ -1433,7 +1433,7 @@ export class TestSpace implements AsyncDisposable {
         target: { readonly spaceId: Identifier<"space">; readonly id: Identifier<"build"> },
         reader: BuildReader,
     ): Promise<readonly Digest[]> {
-        // report storing, then push the build to the space's builds adapter, recording each file uploaded
+        // report storing, then push the build to the space's builds mount, recording each file uploaded
         const client = runner.client(stackPackage);
         await client.build.progress({
             ...target,

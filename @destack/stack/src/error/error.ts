@@ -56,7 +56,7 @@ export const StackError = defineErrorFamily({
         SPACE_ONLY_DENIED: {},
 
         // blocked
-        ADAPTER_BLOCKED: {},
+        MOUNT_BLOCKED: {},
         BINDING_BLOCKED: {},
         BUILD_BLOCKED: {},
         BUILD_RUNNER_BLOCKED: {},

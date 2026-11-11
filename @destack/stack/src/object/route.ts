@@ -113,10 +113,10 @@ const RouteEntry = schema.discriminatedUnion("kind", [
         object: ObjectReference.exactOptional(),
     }),
     schema.object({
-        /** An adapter the installed package declares. */
-        kind: schema.literal("adapter"),
-        /** The adapter. */
-        adapter: DeclarationName,
+        /** A mount the installed package declares. */
+        kind: schema.literal("mount"),
+        /** The mount. */
+        mount: DeclarationName,
     }),
     schema.object({
         /** Another site, its origin fixed and the path below the route's appended. */

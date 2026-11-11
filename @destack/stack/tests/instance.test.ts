@@ -180,7 +180,7 @@ function requesting(permissions: GrantDeclaration): Declaration {
         description: {
             api: { name: "notes", procedures: [] },
             objects: {},
-            adapters: {},
+            mounts: {},
             views: [],
             permissions,
             capabilities: {},
@@ -1162,7 +1162,7 @@ test("deploy nothing of a build routing hooks without serving them, and report w
                     hooks: { create: ["handle"] },
                 },
             },
-            adapters: {},
+            mounts: {},
             views: [],
             permissions: {},
             capabilities: {},
@@ -1191,8 +1191,8 @@ test("deploy nothing of a build routing hooks without serving them, and report w
     });
 });
 
-test("deploy nothing of a build declaring adapters without a workload answering them, and report why", async () => {
-    // install notes declaring an adapter, built without any workload
+test("deploy nothing of a build declaring mounts without a workload answering them, and report why", async () => {
+    // install notes declaring a mount, built without any workload
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const adapted: Declaration = {
@@ -1200,7 +1200,7 @@ test("deploy nothing of a build declaring adapters without a workload answering 
         description: {
             api: { name: "notes", procedures: [] },
             objects: {},
-            adapters: { inbox: { path: "/inbox" } },
+            mounts: { inbox: { path: "/inbox" } },
             views: [],
             permissions: {},
             capabilities: {},
@@ -1215,7 +1215,7 @@ test("deploy nothing of a build declaring adapters without a workload answering 
     const { deployments } = await serveControllers(fixture);
 
     // refuse deploying it
-    const message = `${notesPackage.name} declares adapters, but no workload of its build answers them`;
+    const message = `${notesPackage.name} declares mounts, but no workload of its build answers them`;
     const refused = await refusal(deployments.reconcile(notes.installationId));
     const installed = await readInstalled(database, notes.installationId);
     expect({
@@ -1224,8 +1224,8 @@ test("deploy nothing of a build declaring adapters without a workload answering 
         synced: installed.installation.conditions["Synced"],
     }).toEqual({
         deployments: [],
-        refused: ["PRECONDITION_FAILED", "ADAPTER_BLOCKED", message],
-        synced: refusedCondition(installed, "ADAPTER_BLOCKED", message),
+        refused: ["PRECONDITION_FAILED", "MOUNT_BLOCKED", message],
+        synced: refusedCondition(installed, "MOUNT_BLOCKED", message),
     });
 });
 
@@ -1837,7 +1837,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
                 since: "2026.10.0",
                 api: { name: "notes", procedures: [] },
                 objects: {},
-                adapters: {},
+                mounts: {},
                 views: [],
                 permissions: {},
                 capabilities: {},

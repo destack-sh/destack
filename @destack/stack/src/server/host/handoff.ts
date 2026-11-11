@@ -16,7 +16,7 @@ import { createClient } from "@destack/object/client";
 import type { SpaceBuildStore } from "../installation/build.ts";
 import { type IdentityKeystore } from "@destack/account/identity";
 import type { MethodContext } from "@destack/object";
-import type { AdapterFetch } from "@destack/object/server";
+import type { MountFetch } from "@destack/object/server";
 import type { Runtime } from "../../runtime/index.ts";
 import { ResourceId, type Rewrapper, type BlobEntry } from "@destack/resource";
 import { Tarball } from "@destack/package/archive";
@@ -39,14 +39,14 @@ const TakenSnapshot = schema.object({
     digest: Digest,
 });
 
-/** The paths of a space's handoff below the adapter: rows, states, snapshots and blobs. */
+/** The paths of a space's handoff below the mount: rows, states, snapshots and blobs. */
 const HandoffPath = {
     /** Write the path of a space's handoff part. */
     of(spaceId: string, part: "watch" | "capture" | "states" | "snapshots" | "blobs"): string {
         return `/${spaceId}/${part}`;
     },
 
-    /** Read the space, the part and the rest of a path below the adapter, absent for another. */
+    /** Read the space, the part and the rest of a path below the mount, absent for another. */
     parse(
         path: string,
     ):
@@ -104,9 +104,9 @@ export const Handoff = {
         fetch: (request: Request) => Promise<Response>,
         environment: Environment,
     ): Handoff {
-        // call the source's stack package and its handoff adapter below it
+        // call the source's stack package and its handoff mount below it
         const stack = createClient(stackPackage, { url, fetch }, environment);
-        const adapter = `${url}${HANDOFF_PATH}`;
+        const mount = `${url}${HANDOFF_PATH}`;
         const send = async (request: Request): Promise<Response> => {
             // refuse a failed answer as the source answered it
             const response = await fetch(request);
@@ -123,11 +123,11 @@ export const Handoff = {
                     after === undefined
                         ? ""
                         : `?after=${encodeURIComponent(JSON.stringify(after))}`;
-                const path = `${adapter}${HandoffPath.of(spaceId, "watch")}${query}`;
+                const path = `${mount}${HandoffPath.of(spaceId, "watch")}${query}`;
                 yield* pagesOf(await send(new Request(path, { signal: options.signal ?? null })));
             },
             states: async (spaceId, options = {}) => {
-                const path = `${adapter}${HandoffPath.of(spaceId, "states")}`;
+                const path = `${mount}${HandoffPath.of(spaceId, "states")}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
 
                 return schema.array(DatabaseState).parse(await response.json());
@@ -139,7 +139,7 @@ export const Handoff = {
                     requestId: RequestId.create(environment),
                 }),
             capture: async function* ({ spaceId, recipient }, options = {}) {
-                const path = `${adapter}${HandoffPath.of(spaceId, "capture")}`;
+                const path = `${mount}${HandoffPath.of(spaceId, "capture")}`;
                 const request = new Request(path, {
                     method: "POST",
                     headers: { "content-type": "application/json" },
@@ -162,20 +162,20 @@ export const Handoff = {
 
                 // wait at the source until it took the snapshot
                 const query = new URLSearchParams({ recipient: input.recipient });
-                const path = `${adapter}${HandoffPath.of(transfer.scope, "snapshots")}/${encodeURIComponent(input.resourceId)}?${query}`;
+                const path = `${mount}${HandoffPath.of(transfer.scope, "snapshots")}/${encodeURIComponent(input.resourceId)}?${query}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
 
                 return TakenSnapshot.parse(await response.json()).digest;
             },
             blobs: async (spaceId, options = {}) => {
-                const path = `${adapter}${HandoffPath.of(spaceId, "blobs")}`;
+                const path = `${mount}${HandoffPath.of(spaceId, "blobs")}`;
                 const response = await send(new Request(path, { signal: options.signal ?? null }));
 
                 return schema.array(Digest).parse(await response.json());
             },
             batch: async function* (spaceId, digests, options = {}) {
                 // ask for the blobs in one request, reading the tarball of them as it streams
-                const path = `${adapter}${HandoffPath.of(spaceId, "blobs")}`;
+                const path = `${mount}${HandoffPath.of(spaceId, "blobs")}`;
                 const response = await send(
                     new Request(path, {
                         method: "POST",
@@ -268,12 +268,12 @@ export interface HandoffOptions {
 }
 
 /** Serve a moving space's target its rows and the blobs its rows reference. */
-export function handoffAdapter(options: HandoffOptions): AdapterFetch {
+export function handoffMount(options: HandoffOptions): MountFetch {
     const content = new HandoffContent(options.blobs);
 
     return async (request, admitted, context) => {
         // read the space and the part, refusing a caller acting for no machine the space moves to
-        const caller = present(admitted, "the machine the handoff adapter admits");
+        const caller = present(admitted, "the machine the handoff mount admits");
         const url = new URL(request.url);
         const parsed = HandoffPath.parse(url.pathname);
         if (parsed === undefined) {

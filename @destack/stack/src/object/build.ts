@@ -83,7 +83,7 @@ export const BuildProgress = schema.discriminatedUnion("phase", [
         commit: Commit.exactOptional(),
     }),
     schema.object({
-        /** Storing the compiled build through the space's builds adapter. */
+        /** Storing the compiled build through the space's builds mount. */
         phase: schema.literal("storing"),
     }),
 ]);
