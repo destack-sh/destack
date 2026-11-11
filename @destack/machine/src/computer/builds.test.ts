@@ -144,7 +144,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
                       .findFirst({ where: { id: installed.id } });
         const ready = row?.conditions["Ready"];
         throw new TypeError(
-            `the forge of ${residency} did not deploy: ${ready?.reason ?? "no condition"} ${ready?.message ?? ""}`,
+            `the forge of '${residency}' did not deploy: '${ready?.reason ?? "no condition"}' ${ready?.message ?? ""}`,
         );
     }
     const found = present(await deployed(), "the forge");
@@ -167,7 +167,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
             database.log.waitUntil(isServed, home.clock.timeout(DEPLOY_MILLISECONDS)),
         ))
     ) {
-        throw new TypeError(`the store of ${residency} serves no forge`);
+        throw new TypeError(`the store of '${residency}' serves no forge`);
     }
 
     return owner;
@@ -255,7 +255,7 @@ async function git(directory: string, ...command: string[]): Promise<string> {
         ran.exited,
     ]);
     if (code !== 0) {
-        throw new Error(`git ${command.join(" ")} failed: ${errors}`);
+        throw new Error(`git '${command.join(" ")}' failed: '${errors}'`);
     }
 
     return output.trim();
@@ -290,7 +290,7 @@ test(
             );
             if (!isDeployed) {
                 const builds = await served.select().from(build.table);
-                throw new Error(`commit ${commit} was not deployed: ${JSON.stringify(builds)}`);
+                throw new Error(`commit '${commit}' was not deployed: ${JSON.stringify(builds)}`);
             }
         };
         await wait(first);

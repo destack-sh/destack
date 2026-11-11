@@ -92,8 +92,8 @@ export const signIn = defineObject(
             const { state } = call.target;
             if (state.kind !== "waiting") {
                 throw MachineError.of(
-                    "SIGN_IN_NOT_WAITING",
-                    `sign-in ${call.target.id} waits for no code`,
+                    "SIGN_IN_BLOCKED",
+                    `cannot take a code for sign-in '${call.target.id}': it waits for no code`,
                 );
             }
 

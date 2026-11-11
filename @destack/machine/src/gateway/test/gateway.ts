@@ -17,7 +17,7 @@ const ACCOUNTS = "https://destack.cloud/packages/account";
 
 /** Refuse a call a test leaves to no fixture. */
 function refuse(verb: string): () => Promise<never> {
-    return () => Promise.reject(new Error(`the fixture cannot ${verb}`));
+    return () => Promise.reject(new Error(`the fixture cannot '${verb}'`));
 }
 
 /** Open the fixture space's gateway over its database, refusing what a test leaves out. */

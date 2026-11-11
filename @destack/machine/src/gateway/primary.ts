@@ -110,8 +110,8 @@ export class ScopePrimary {
                 mounted === undefined
             ) {
                 throw MachineError.of(
-                    "HOME_PATH_MISMATCH",
-                    `a page must call ${this.scope}'s packages below ${HOME_PATH}/${this.scope}`,
+                    "HOME_PATH_NOT_FOUND",
+                    `home path not found: a page must call '${this.scope}' packages below '${[HOME_PATH, this.scope].join("/")}'`,
                 );
             }
 
@@ -120,8 +120,8 @@ export class ScopePrimary {
         // refuse anything else of the universe
         else {
             throw MachineError.of(
-                "HOME_PATH_MISMATCH",
-                `a page must call the universe's primary at its store procedures`,
+                "HOME_PATH_NOT_FOUND",
+                "home path not found: a page must call the universe's primary at its store procedures",
             );
         }
     }
@@ -131,16 +131,16 @@ export class ScopePrimary {
         // read the push, refusing one to another scope
         if (request.method !== "POST") {
             throw MachineError.of(
-                "HOME_PATH_MISMATCH",
-                `a page must push to a scope's primary at ${HOME_PATH}/<scope>${PUSH_PATH}`,
+                "HOME_PATH_NOT_FOUND",
+                `home path not found: a page must push to a scope's primary at '${HOME_PATH}/<scope>${PUSH_PATH}'`,
             );
         }
         const body = await RequestBody.json(request, "a push", PUSH_BYTES);
         const pushed = Push.parse(body);
         if (pushed.scope !== this.scope) {
             throw MachineError.of(
-                "FOREIGN_SCOPE_PUSH",
-                `a push to the primary of ${this.scope} can only change rows of ${this.scope}`,
+                "PUSH_DENIED",
+                `push is forbidden: a push to the primary of '${this.scope}' can only change rows of '${this.scope}'`,
             );
         }
 
@@ -164,8 +164,8 @@ export class ScopePrimary {
         );
         if (isOutside) {
             throw MachineError.of(
-                "FOREIGN_SCOPE_PUSH",
-                `a push to the primary of ${this.scope} can only change rows of ${this.scope}`,
+                "PUSH_DENIED",
+                `push is forbidden: a push to the primary of '${this.scope}' can only change rows of '${this.scope}'`,
             );
         }
 

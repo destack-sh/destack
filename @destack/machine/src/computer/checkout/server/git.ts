@@ -29,10 +29,10 @@ export class Git {
         // require an absolute path before asking Git
         Git.#requireAbsolute(directory);
         const canonical = await this.host.files.realPath(directory).catch((error: unknown) => {
-            if (!FileSystemError.is(error, "NOT_FOUND")) {
+            if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 throw error;
             }
-            throw MachineError.of("DIRECTORY_NOT_FOUND", `no directory at ${directory}`);
+            throw MachineError.of("DIRECTORY_NOT_FOUND", `directory '${directory}' not found`);
         });
 
         // ask Git for the working tree's root
@@ -84,8 +84,8 @@ export class Git {
         // require the working tree moved away from its earlier directory
         if (await this.host.files.exists(previous)) {
             throw MachineError.of(
-                "TREE_NOT_MOVED",
-                `the working tree is still at ${previous}: move it before relocating the checkout`,
+                "TREE_BLOCKED",
+                `cannot relocate the checkout: the working tree is still at '${previous}', so move it first`,
             );
         }
 
@@ -102,7 +102,10 @@ export class Git {
     /** Refuse a checkout directory that is no absolute path. */
     static #requireAbsolute(directory: string): void {
         if (!isAbsolute(directory)) {
-            throw MachineError.of("RELATIVE_DIRECTORY", "checkout directory must be absolute");
+            throw MachineError.of(
+                "RELATIVE_DIRECTORY_INVALID",
+                "checkout directory is invalid: it must be absolute",
+            );
         }
     }
 

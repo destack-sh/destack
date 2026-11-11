@@ -31,8 +31,8 @@ export class ServerBundle {
             Object.entries(supplied.default).map(([name, server]) => {
                 if (!PackageImplementation.is(server)) {
                     throw MachineError.of(
-                        "SERVER_INVALID",
-                        `${name} exports no package implementation as its server`,
+                        "SERVER_BROKEN",
+                        `'${name}' exports no package implementation as its server`,
                     );
                 }
 
@@ -51,8 +51,8 @@ export class ServerBundle {
         );
         if (release === undefined) {
             throw MachineError.of(
-                "SERVER_INVALID",
-                `a cloud machine runs in its process only the servers its deploy ships, not build ${manifest}`,
+                "SERVER_BROKEN",
+                `a cloud machine runs in its process only the servers its deploy ships, not build '${manifest}'`,
             );
         }
 

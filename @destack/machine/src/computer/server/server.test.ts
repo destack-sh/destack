@@ -166,8 +166,8 @@ test("let clients call served services' own procedures, restricting machine proc
     ]).toEqual([
         "allowed",
         "allowed",
-        "only the owner can call machine procedures",
-        "only the owner can call the machine's own procedures",
+        "machine procedure is forbidden: only the owner can call machine procedures",
+        "machine procedure is forbidden: only the owner can call the machine's own procedures",
         "allowed",
     ]);
 });
@@ -193,8 +193,8 @@ test("take the owner's token only from this computer outside a browser, by the r
     // accept the direct call alone
     const refused = [
         "UNAUTHORIZED",
-        "FOREIGN_ORIGIN",
-        "the credential is not accepted from this origin",
+        "ORIGIN_UNAUTHENTICATED",
+        "authentication required: the credential is not accepted from this origin",
     ];
     expect([local, remote, browser]).toEqual(["done", refused, refused]);
 });
@@ -312,7 +312,7 @@ test("stop the machine as its device's owner, and refuse another device stopping
     // refuse another device, which sees nothing of this device's scope
     expect([await stop(deviceId), await stop(other)]).toEqual([
         "done",
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${deviceId} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${deviceId}' not found`],
     ]);
 });
 
@@ -456,8 +456,8 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
         revoked: { ...enrolled.enrollment, status: "revoked" },
         again: [
             "PRECONDITION_FAILED",
-            "MACHINE_REVOKED",
-            "this machine was revoked: a revoked machine can only enroll as a new machine",
+            "MACHINE_BLOCKED",
+            "cannot enroll this machine: it was revoked, and a revoked machine can only enroll as a new machine",
         ],
         registered: [{ name: "workstation", isRevoked: true }],
     });
@@ -486,8 +486,8 @@ test(
         const list = () => refusal(service.socket.list({ spaceId: created }));
         const paused = [
             "SERVICE_UNAVAILABLE",
-            "SERVER_DOWN",
-            `machine ${machine.id} is down: its account set its status to draining`,
+            "SERVER_UNAVAILABLE",
+            `server '${machine.id}' is unavailable: it is down: its account set its status to draining`,
         ];
 
         // drain the machine until it refuses the space's calls and starts
@@ -703,9 +703,9 @@ test("register a working tree's directory, build its stack in a space as the per
     // refuse a stack directory outside the working tree
     await expect(submit("..")).rejects.toEqual(
         new CallError("BAD_REQUEST", {
-            reason: "OUTSIDE_CHECKOUT",
+            reason: "OUTSIDE_CHECKOUT_INVALID",
             domain: "@destack/machine",
-            message: "package directory is outside the checkout",
+            message: "package directory is invalid: it is outside the checkout",
         }),
     );
 }, 90_000);

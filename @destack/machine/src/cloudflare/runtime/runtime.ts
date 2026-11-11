@@ -179,7 +179,10 @@ export class WorkerdRuntime implements Runtime {
         // require the build a secret proves
         const build = this.identify(secret)?.build;
         if (build === undefined) {
-            throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
+            throw MachineError.of(
+                "INSTANCE_SECRET_UNAUTHENTICATED",
+                "authentication required: the instance secret is invalid",
+            );
         }
 
         return this.#modules(build);
@@ -244,8 +247,8 @@ export class WorkerdRuntime implements Runtime {
         const text = await response.text();
         if (!response.ok) {
             throw MachineError.of(
-                "RUNTIME_ACTION_FAILED",
-                `call ${name} of ${path} failed with ${response.status}: ${text}`,
+                "RUNTIME_ACTION_UNREACHABLE",
+                `could not call '${name}' of '${path}': ${response.status} '${text}'`,
             );
         }
 
@@ -406,8 +409,8 @@ export class WorkerdRuntime implements Runtime {
         const text = await response.text();
         if (!response.ok) {
             throw MachineError.of(
-                "RUNTIME_ACTION_FAILED",
-                `${action} failed with ${response.status}: ${text}`,
+                "RUNTIME_ACTION_UNREACHABLE",
+                `could not run '${action}': ${response.status} '${text}'`,
             );
         }
     }

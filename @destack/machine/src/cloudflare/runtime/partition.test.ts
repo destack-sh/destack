@@ -124,7 +124,7 @@ async function converse(
     await new Promise<void>((resolve, reject) => {
         socket.addEventListener("open", () => resolve());
         socket.addEventListener("close", (event) =>
-            reject(new Error(`the object closed the WebSocket: ${event.code} ${event.reason}`)),
+            reject(new Error(`the object closed the WebSocket: ${event.code} '${event.reason}'`)),
         );
     });
 
@@ -242,8 +242,8 @@ test("move a facet's wake-up for the workload proving its installation's secret,
                 defined: true,
                 code: "UNAUTHORIZED",
                 status: 401,
-                message: "invalid instance secret",
-                reason: "INSTANCE_SECRET_INVALID",
+                message: "authentication required: the instance secret is invalid",
+                reason: "INSTANCE_SECRET_UNAUTHENTICATED",
                 domain: "@destack/machine",
             },
         ],

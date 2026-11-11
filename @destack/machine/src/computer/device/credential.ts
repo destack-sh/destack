@@ -67,7 +67,7 @@ export class MachineCredential implements LoginCredential {
         if (!response.ok) {
             throw (
                 CallError.fromJson(body) ??
-                MachineError.of("MACHINE_ANSWER_INVALID", `the machine answered ${response.status}`)
+                MachineError.of("MACHINE_ANSWER_BROKEN", `the machine answered ${response.status}`)
             );
         }
 

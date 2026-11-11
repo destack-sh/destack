@@ -132,8 +132,8 @@ export class Authenticator {
         // take a person's own client from this computer by its key's proof alone
         if (isOwner || !isLocal || !Proof.is(token)) {
             throw MachineError.of(
-                "FOREIGN_ORIGIN",
-                "the credential is not accepted from this origin",
+                "ORIGIN_UNAUTHENTICATED",
+                "authentication required: the credential is not accepted from this origin",
             );
         }
         const clientId = schema.identifier("client").parse(await this.#credential.verify(token));
@@ -171,7 +171,10 @@ export class Authenticator {
                 ),
             );
         if (signedIn === undefined) {
-            throw MachineError.of("SIGN_IN_REQUIRED", "no person signed in through the client");
+            throw MachineError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: no person signed in through the client",
+            );
         }
 
         return principal.user.reference(Scope.universe.id, signedIn.subject);
@@ -188,7 +191,7 @@ export class Authenticator {
         const { credential } = verified;
         const isPeer = credential.kind === "machine-key";
         if (credential.scope === undefined && (partition !== undefined || !isPeer)) {
-            throw MachineError.of("TOKEN_UNBOUND", UNBOUND_REFUSAL);
+            throw MachineError.of("TOKEN_UNAUTHENTICATED", UNBOUND_REFUSAL);
         }
         // require a space's token bound to it, or to the account the space is the home of
         else if (
@@ -208,8 +211,8 @@ export class Authenticator {
             credential.scope !== partition
         ) {
             throw MachineError.of(
-                "FOREIGN_PARTITION_TOKEN",
-                "the universe token is bound to another partition",
+                "PARTITION_TOKEN_DENIED",
+                "universe token is forbidden: it is bound to another partition",
             );
         }
 
@@ -230,8 +233,8 @@ export class Authenticator {
         const isOwn = typeof permission === "object" && "principals" in permission;
         if (credential.kind !== "local" && isOwn) {
             throw MachineError.of(
-                "OWNER_REQUIRED",
-                "only the owner can call the machine's own procedures",
+                "OWNER_DENIED",
+                "machine procedure is forbidden: only the owner can call the machine's own procedures",
             );
         }
     }
@@ -251,7 +254,10 @@ export class Authenticator {
 
         // refuse machine procedures to everyone but the owner
         if (credential.kind !== "local" && access.authentication === "machine") {
-            throw MachineError.of("OWNER_REQUIRED", "only the owner can call machine procedures");
+            throw MachineError.of(
+                "OWNER_DENIED",
+                "machine procedure is forbidden: only the owner can call machine procedures",
+            );
         }
     }
 

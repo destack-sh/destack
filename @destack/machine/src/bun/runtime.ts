@@ -181,8 +181,8 @@ export class BunRuntime implements Runtime {
                 : undefined;
         if (!PackageImplementation.is(exported)) {
             throw MachineError.of(
-                "SERVER_INVALID",
-                `${build.manifest.package.name} exports no package implementation as its server`,
+                "SERVER_BROKEN",
+                `'${build.manifest.package.name}' exports no package implementation as its server`,
             );
         }
 
@@ -402,8 +402,8 @@ export class BunRuntime implements Runtime {
         ]).finally(() => deadline.abort());
         if (exit.code !== 0) {
             throw MachineError.of(
-                "RUNTIME_ACTION_FAILED",
-                `call ${name} of ${module} failed with ${exit.signal ?? exit.code}: ${errors.trim()}`,
+                "RUNTIME_ACTION_UNREACHABLE",
+                `could not call '${name}' of '${module}': exit ${exit.signal ?? exit.code} '${errors.trim()}'`,
             );
         }
 
@@ -434,7 +434,10 @@ export class BunRuntime implements Runtime {
                 ? Reflect.get(imported, name)
                 : undefined;
         if (typeof exported !== "function") {
-            throw MachineError.of("RUNTIME_ACTION_FAILED", `${module} exports no function ${name}`);
+            throw MachineError.of(
+                "RUNTIME_ACTION_UNREACHABLE",
+                `could not call '${name}': '${module}' exports no such function`,
+            );
         }
 
         return JsonValue.of((await Reflect.apply(exported, undefined, [...input])) ?? null);
@@ -550,7 +553,10 @@ export class BunRuntime implements Runtime {
                 ? module[WORKLOAD_EXPORT]
                 : undefined;
         if (!BunRuntime.#isWorkload(exported)) {
-            throw MachineError.of("RUNNER_NOT_SERVING", `${entry} exports no workload`);
+            throw MachineError.of(
+                "RUNNER_BROKEN",
+                `workload runner '${entry}' exports no workload`,
+            );
         }
 
         return exported;
@@ -704,7 +710,7 @@ export class BunRuntime implements Runtime {
             );
             throw stopped === undefined
                 ? error
-                : new AggregateError([error, stopped], "a runner failed to start and to stop");
+                : new AggregateError([error, stopped], "a runner did not start, then did not stop");
         }
     }
 
@@ -756,8 +762,8 @@ export class BunRuntime implements Runtime {
             ]);
             if (first === undefined) {
                 throw MachineError.of(
-                    "RUNNER_NOT_SERVING",
-                    "the workload runner did not start serving",
+                    "RUNNER_UNAVAILABLE",
+                    "the workload runner is unavailable: it did not start serving",
                 );
             }
 

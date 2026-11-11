@@ -34,7 +34,10 @@ class PathPattern {
     constructor(text: string, file: string) {
         // refuse a relative pattern and a second splat
         if (!text.startsWith("/") || text.split("*").length > 2) {
-            throw MachineError.of("SITE_RULE_INVALID", `invalid ${file} path: ${text}`);
+            throw MachineError.of(
+                "SITE_RULE_INVALID",
+                `'${file}' path '${text}' is invalid: it must be absolute with at most one splat`,
+            );
         }
 
         // match each placeholder within one segment and the splat across segments
@@ -52,9 +55,13 @@ class PathPattern {
         try {
             this.#expression = new RegExp(`^${source}$`, "u");
         } catch (error) {
-            throw MachineError.of("SITE_RULE_INVALID", `invalid ${file} path: ${text}`, {
-                cause: error,
-            });
+            throw MachineError.of(
+                "SITE_RULE_INVALID",
+                `'${file}' path '${text}' is invalid: it must be absolute with at most one splat`,
+                {
+                    cause: error,
+                },
+            );
         }
     }
 
@@ -144,7 +151,10 @@ export class StaticHost {
 
         // take the route's view, else the build's one, refusing two
         if (view === undefined && sites.length > 1) {
-            throw MachineError.of("SITE_AMBIGUOUS", "a build serves at most one static view");
+            throw MachineError.of(
+                "SITE_INVALID",
+                "static views of the build are invalid: a build serves at most one",
+            );
         }
         const site = view === undefined ? sites[0] : sites.find((each) => each.name === view);
         if (site === undefined) {
@@ -285,7 +295,7 @@ export class StaticHost {
             if (destination === "" || rest.length > 0 || !REDIRECT_STATUSES.has(code)) {
                 throw MachineError.of(
                     "SITE_RULE_INVALID",
-                    `invalid ${REDIRECTS_FILE} line: ${line}`,
+                    `'${REDIRECTS_FILE}' line '${line}' is invalid: it must be a source, a destination and a redirect status`,
                 );
             }
 
@@ -325,7 +335,10 @@ export class StaticHost {
             }
             // refuse a header line outside a rule or without a name
             else {
-                throw MachineError.of("SITE_RULE_INVALID", `invalid ${HEADERS_FILE} line: ${line}`);
+                throw MachineError.of(
+                    "SITE_RULE_INVALID",
+                    `'${HEADERS_FILE}' line '${line}' is invalid: it must sit under a rule and have a name`,
+                );
             }
         }
 

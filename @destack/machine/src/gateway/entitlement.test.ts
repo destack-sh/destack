@@ -112,8 +112,8 @@ test("limit a space's request rate while its compute entitlement is exceeded, an
 
     expect(refused).toEqual([
         "TOO_MANY_REQUESTS",
-        "RATE_LIMITED",
-        `space ${ids.space} is rate-limited while its compute entitlement is exceeded`,
+        "RATE_EXHAUSTED",
+        `space '${ids.space}' exceeds its 'compute' entitlement and is rate-limited`,
     ]);
 });
 
@@ -133,7 +133,7 @@ test("limit a space's request rate while its network is exceeded, and leave it a
 
     expect(refused).toEqual([
         "TOO_MANY_REQUESTS",
-        "RATE_LIMITED",
-        `space ${ids.space} is rate-limited while its network entitlement is exceeded`,
+        "RATE_EXHAUSTED",
+        `space '${ids.space}' exceeds its 'network' entitlement and is rate-limited`,
     ]);
 });

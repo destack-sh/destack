@@ -202,7 +202,7 @@ export class SpaceMeter {
         const key = measured.meter.key(measured.attributes);
         const sku = skus.get(key);
         if (sku === undefined) {
-            throw MachineError.of("CONFIGURATION_INVALID", `the machine rates ${key} with no sku`);
+            throw MachineError.of("CONFIGURATION_BROKEN", `the machine rates '${key}' with no sku`);
         }
 
         return sku;

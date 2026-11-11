@@ -54,7 +54,7 @@ export class PreviewSource {
         // read the preview's package directory and the directories its build reads
         const [row] = rows;
         if (row === undefined) {
-            throw MachineError.of("PREVIEW_NOT_FOUND", "a followed preview has no row");
+            throw MachineError.of("PREVIEW_NOT_FOUND", "followed preview row not found");
         }
         const { id } = row;
         const located = await CheckoutServer.locate(this.#server.machine, {

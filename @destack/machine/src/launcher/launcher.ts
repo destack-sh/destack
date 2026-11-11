@@ -102,7 +102,10 @@ export class Launcher {
         });
         const [personal] = items;
         if (personal === undefined) {
-            throw AccountError.of("PERSONAL_ACCOUNT_MISSING", "the person has no personal account");
+            throw AccountError.of(
+                "PERSONAL_ACCOUNT_NOT_FOUND",
+                "personal account of the person not found",
+            );
         }
 
         return personal.id;
@@ -224,7 +227,7 @@ export class Launcher {
                     Text.compare(left.view, right.view),
             );
         if (found === undefined) {
-            throw MachineError.of("VIEW_NOT_FOUND", `${home} has no ${category} view`);
+            throw MachineError.of("VIEW_NOT_FOUND", `'${category}' view of '${home}' not found`);
         }
 
         return { space: home, installation: found.installation, view: found.view, path };
@@ -245,7 +248,10 @@ export class Launcher {
         // connect as the person to the package serving the objects
         const [first] = Object.values(objects);
         if (first === undefined) {
-            throw MachineError.of("OBJECTS_MISSING", "no objects to open");
+            throw MachineError.of(
+                "OBJECTS_REQUIRED",
+                "object is required: there are no objects to open",
+            );
         }
         const isSpace = "space" in location && location.installation === undefined;
         const serving = isSpace ? Package.of(stackPackage) : first.package;
@@ -331,8 +337,8 @@ export class Launcher {
         // ask the person otherwise, each permission as they read it
         else {
             throw MachineError.of(
-                "GRANT_REQUIRED",
-                `${view.space} ${view.installation} asks the person for a grant`,
+                "GRANT_DENIED",
+                `${view.space} '${view.installation}' is forbidden: it asks the person for a grant`,
                 {
                     data: {
                         delegate,
@@ -404,11 +410,11 @@ export class Launcher {
         if (matching.length === 1) {
             return (await this.machine.locate(nth(matching, 0))).placement.space;
         } else if (matching.length === 0) {
-            throw MachineError.of("SPACE_NOT_FOUND", `no space of yours is called ${name}`);
+            throw MachineError.of("SPACE_NOT_FOUND", `space '${name}' of yours not found`);
         } else {
             throw MachineError.of(
-                "SPACE_AMBIGUOUS",
-                `${name} matches several of your spaces: use one of ${matching.join(", ")}`,
+                "SPACE_INVALID",
+                `space '${name}' is invalid: it matches several of your spaces, so use one of '${matching.join(", ")}'`,
             );
         }
     }
@@ -452,7 +458,7 @@ export class Launcher {
         else {
             throw MachineError.of(
                 "TARGET_INVALID",
-                `${String(kind)} is no target: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>`,
+                `target '${String(kind)}' is invalid: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>`,
             );
         }
     }
@@ -601,7 +607,7 @@ export class Launcher {
         if (found === undefined) {
             throw MachineError.of(
                 "INSTALLATION_NOT_FOUND",
-                `${view.space} has no installation ${view.installation}`,
+                `installation '${view.installation}' of '${view.space}' not found`,
             );
         }
         const opened = InstallationView.parse(
@@ -717,7 +723,7 @@ export class Launcher {
             const missing = asked === undefined ? "no view" : `no view ${asked}`;
             throw MachineError.of(
                 "PRESENTER_NOT_FOUND",
-                `${object.scope} has no presenter ${missing} for ${object.type} objects`,
+                `presenter '${missing}' for ${object.type} objects of '${object.scope}' not found`,
             );
         }
 

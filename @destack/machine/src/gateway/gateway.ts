@@ -376,7 +376,7 @@ export class Gateway {
         if (origin.digest !== undefined) {
             throw MachineError.of(
                 "INSTALLATION_NOT_FOUND",
-                `${SpaceAddress.of(origin)} has no installation with digest ${origin.digest}`,
+                `installation with digest '${origin.digest}' in '${SpaceAddress.of(origin)}' not found`,
             );
         }
 
@@ -451,7 +451,7 @@ export class Gateway {
         if (authentication === undefined) {
             throw MachineError.of(
                 "CONNECTION_UNAUTHENTICATED",
-                "a call through a connection needs its caller",
+                "authentication required: a call through a connection needs its caller",
             );
         }
         const [named = "", ...rest] = url.pathname.slice(CONNECTION_PATH.length + 1).split("/");
@@ -488,7 +488,10 @@ export class Gateway {
     async #sockets(request: Request): Promise<Response> {
         const { hibernation } = this.#space.machine;
         if (hibernation === undefined) {
-            throw MachineError.of("SOCKETS_MISSING", "this machine has no sockets");
+            throw MachineError.of(
+                "SOCKETS_UNSUPPORTED",
+                "a socket on this machine is not supported",
+            );
         }
 
         return hibernation.answer(this.#instance(request).instanceId, request);
@@ -527,8 +530,8 @@ export class Gateway {
         // ask the caller to wait for a host installation the store does not serve now, such as one its stack moves
         else if (served.installation.isolation === "host") {
             throw StackError.of(
-                "INSTALLATION_NOT_SERVED",
-                `installation ${served.installation.name ?? installationId} in this space is not served yet`,
+                "INSTALLATION_UNAVAILABLE",
+                `installation '${served.installation.name ?? installationId}' in this space is unavailable: it is not served yet`,
                 { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
             );
         }
@@ -578,8 +581,8 @@ export class Gateway {
                     this.#space.instance.implements(handle, mounted.packageId, mounted.request)));
         if (mounted === undefined || !isServed) {
             throw MachineError.of(
-                "NOTHING_SERVED",
-                `the installation's package has nothing at ${path}`,
+                "ROUTE_NOT_FOUND",
+                `route '${path}' in the installation's package not found`,
             );
         }
         const audience = PackageId.parse(mounted.packageId);
@@ -780,14 +783,15 @@ export class Gateway {
             .findFirst({ where: { id: installationId } });
         if (installed !== undefined && Observation.progress(installed) === "waiting") {
             throw MachineError.of(
-                "DEPLOYMENT_STARTING",
-                `the deployment of this installation that ${serving} is starting`,
+                "DEPLOYMENT_UNAVAILABLE",
+                `deployment is unavailable: the deployment of this installation that '${serving}' is starting`,
                 { data: { retryAfter: DEPLOYMENT_RETRY_MILLISECONDS } },
             );
         } else {
             throw MachineError.of(
-                "RUNNING_DEPLOYMENT_MISSING",
-                `no running deployment of this installation ${serving}`,
+                "DEPLOYMENT_UNAVAILABLE",
+                `deployment of installation '${serving}' is unavailable: none is running`,
+                { data: {} },
             );
         }
     }
@@ -817,8 +821,8 @@ export class Gateway {
         });
         if (taken.kind === "limited") {
             throw MachineError.of(
-                "RATE_LIMITED",
-                `space ${scope} is rate-limited while its ${throttled} entitlement is exceeded`,
+                "RATE_EXHAUSTED",
+                `space '${scope}' exceeds its '${throttled}' entitlement and is rate-limited`,
                 { data: { retryAfter: taken.retryAfter } },
             );
         }
@@ -834,7 +838,10 @@ export class Gateway {
         // require an address
         const routed = Egress.of(request);
         if (routed === undefined) {
-            throw MachineError.of("EGRESS_ADDRESS_MISSING", "the request has no egress address");
+            throw MachineError.of(
+                "EGRESS_ADDRESS_NOT_FOUND",
+                "egress address of the request not found",
+            );
         }
 
         // drop the caller's secret and identity claims, and the route only a machine marks
@@ -964,15 +971,15 @@ export class Gateway {
             // refuse a path below no package mount
             if (mount === undefined) {
                 throw MachineError.of(
-                    "PACKAGE_MOUNT_MISSING",
-                    `${path} is not a package mount of installation ${peer.name}`,
+                    "PACKAGE_MOUNT_NOT_FOUND",
+                    `package mount '${path}' of installation '${peer.name}' not found`,
                 );
             }
             // refuse an installation the caller does not bind
             else if (!EgressCaller.binds(caller, peer, mount.path)) {
                 throw MachineError.of(
-                    "INSTALLATION_UNBOUND",
-                    `this installation does not bind installation ${peer.name}`,
+                    "INSTALLATION_DENIED",
+                    `installation '${peer.name}' is forbidden: this installation does not bind it`,
                 );
             }
 
@@ -998,7 +1005,10 @@ export class Gateway {
             (resource) => resource.kind === InstallationKind.name && resource.reference === address,
         );
         if (bound === undefined) {
-            throw MachineError.of("ADDRESS_UNBOUND", `this installation does not bind ${address}`);
+            throw MachineError.of(
+                "ADDRESS_DENIED",
+                `'${address}' is forbidden: this installation does not bind it`,
+            );
         }
         const audience = InstallationBindingSpec.parse(bound.spec).package;
 
@@ -1013,8 +1023,8 @@ export class Gateway {
         );
         if (!isBound) {
             throw MachineError.of(
-                "BUCKET_UNBOUND",
-                `this installation does not bind bucket ${bucketId}`,
+                "BUCKET_DENIED",
+                `bucket '${bucketId}' is forbidden: this installation does not bind it`,
             );
         }
         const { s3 } = this.#serving;
@@ -1076,7 +1086,7 @@ export class Gateway {
         if (found === undefined || found.installation.packageId !== audience) {
             throw MachineError.of(
                 "INSTALLATION_NOT_FOUND",
-                `installation ${address} of ${audience} not found in ${caller.scope}`,
+                `installation '${address}' of '${audience}' in '${caller.scope}' not found`,
             );
         }
 
@@ -1210,7 +1220,7 @@ export class Gateway {
         // read the export by its signal's path
         const signal = OtlpSignal.at(new URL(request.url).pathname);
         if (signal === undefined) {
-            throw MachineError.of("SIGNAL_UNKNOWN", "no OTLP signal at this path");
+            throw MachineError.of("SIGNAL_NOT_FOUND", "OTLP signal at this path not found");
         }
 
         // forward a machine's own export, its token bound to this space by the universe
@@ -1311,7 +1321,10 @@ export class Gateway {
                 ? undefined
                 : runtimes.map((runtime) => runtime.identify(secret)).find(Boolean);
         if (spec === undefined) {
-            throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
+            throw MachineError.of(
+                "INSTANCE_SECRET_UNAUTHENTICATED",
+                "authentication required: the instance secret is invalid",
+            );
         }
 
         return spec;
@@ -1321,7 +1334,10 @@ export class Gateway {
     #runtime(name: DeploymentRuntime): Runtime {
         const runtime = this.#runtimes.get(name);
         if (runtime === undefined) {
-            throw MachineError.of("RUNTIME_MISSING", `this machine has no ${name} runtime`);
+            throw MachineError.of(
+                "RUNTIME_UNSUPPORTED",
+                `runtime '${name}' on this machine is not supported`,
+            );
         }
 
         return runtime;

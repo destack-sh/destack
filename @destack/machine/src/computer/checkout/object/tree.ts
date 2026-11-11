@@ -46,7 +46,10 @@ export const WorkingTree = Object.assign(shape, {
         const path = resolve(root, directory);
         const below = WorkingTree.below(root, path);
         if (below === undefined) {
-            throw MachineError.of("OUTSIDE_CHECKOUT", "package directory is outside the checkout");
+            throw MachineError.of(
+                "OUTSIDE_CHECKOUT_INVALID",
+                "package directory is invalid: it is outside the checkout",
+            );
         }
 
         return { path, directory: below };

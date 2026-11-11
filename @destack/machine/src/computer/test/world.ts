@@ -392,7 +392,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
             ),
         );
         if (gone.includes(false)) {
-            throw new TypeError(`${object} ${id} stayed on member ${member}'s devices`, {
+            throw new TypeError(`${object} '${id}' stayed on member '${member}'s devices`, {
                 cause: [this.home.world.telemetry.describe(), ...this.#failures],
             });
         }
@@ -490,7 +490,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
 
         // require every reader's device to have every event
         if ((await Promise.all(received)).includes(false)) {
-            throw new TypeError(`${step.object} ${id} events did not reach every device`, {
+            throw new TypeError(`${step.object} '${id}' events did not reach every device`, {
                 cause: [this.home.world.telemetry.describe(), ...this.#failures],
             });
         }
@@ -533,7 +533,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         const id = present(this.#latest.get(step.object), `a created ${step.object}`);
         const typing = this.members.slice(0, step.members);
         if (typing.length < step.members) {
-            throw new TypeError(`${step.members} members type, but ${typing.length} joined`);
+            throw new TypeError(`'${step.members}' members type, but ${typing.length} joined`);
         }
         await Promise.all(
             typing.map(async (member) => {
@@ -565,9 +565,12 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
             }),
         );
         if (shown.includes(false)) {
-            throw new TypeError(`${step.object} ${id} ${step.field} did not reach every device`, {
-                cause: [this.home.world.telemetry.describe(), ...this.#failures],
-            });
+            throw new TypeError(
+                `field '${step.field}' of ${step.object} '${id}' did not reach every device`,
+                {
+                    cause: [this.home.world.telemetry.describe(), ...this.#failures],
+                },
+            );
         }
     }
 
@@ -625,7 +628,7 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
             ),
         );
         if (seen.includes(false)) {
-            throw new TypeError(`${object} ${id} did not reach every device`, {
+            throw new TypeError(`${object} '${id}' did not reach every device`, {
                 cause: [this.home.world.telemetry.describe(), ...this.#failures],
             });
         }

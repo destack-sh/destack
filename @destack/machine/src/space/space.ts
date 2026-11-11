@@ -121,7 +121,7 @@ export class Space {
         this.host = fields.host;
         this.blobs = fields.blobs;
         this.builds = fields.builds;
-        this.health = new Health(`space ${fields.host.id}`);
+        this.health = new Health(fields.host.id);
     }
 
     /** The space. */
@@ -217,7 +217,7 @@ export class Space {
     ): Promise<Response> {
         const served = this.instance.packages.find((handle) => handle.id === packageId);
         if (served === undefined) {
-            throw MachineError.of("PACKAGE_NOT_SERVED", "this space serves no such package");
+            throw MachineError.of("PACKAGE_NOT_FOUND", `package '${packageId}' not found`);
         }
 
         return this.instance.fetch(served, request, authentication);
@@ -408,7 +408,7 @@ export class Space {
 
         // retry once a build the space's forges cannot answer yet arrives, as an image pull backs off
         if (unavailable.length > 0) {
-            throw new Error(`space ${this.id} waits for builds ${unavailable.join(", ")}`);
+            throw new Error(`space '${this.id}' waits for builds '${unavailable.join(", ")}'`);
         }
     }
 
@@ -539,8 +539,8 @@ export class Space {
         if (!isServed) {
             const { status, reason } = this.health;
             throw MachineError.of(
-                "INSTALLATION_NOT_SERVED",
-                `installation ${name} of space ${this.id} serves nothing yet, the space is ${status}: ${reason}`,
+                "INSTALLATION_UNAVAILABLE",
+                `installation '${name}' of space '${this.id}' is unavailable: it serves nothing yet, as the space is ${status} ('${reason}')`,
             );
         }
     }
@@ -605,7 +605,10 @@ export class Space {
         const { environment } = this.machine;
         const acting = Exchange.of(caller);
         if (acting === undefined) {
-            throw MachineError.of("PUBLISHER_UNKNOWN", "a publish acts for a person or a delegate");
+            throw MachineError.of(
+                "PUBLISHER_DENIED",
+                "publish is forbidden: a publish acts for a person or a delegate",
+            );
         }
 
         // publish through the forges in the accounts' residency homes, calling each for the caller under the grant the space asks
@@ -664,8 +667,8 @@ export class Space {
             const answer = await response.text();
             if (!response.ok) {
                 throw MachineError.of(
-                    "TELEMETRY_REFUSED",
-                    `the telemetry receiver refused a ${signal} export with ${response.status}: ${answer}`,
+                    "TELEMETRY_UNAVAILABLE",
+                    `the telemetry receiver is unavailable: it refused a '${signal}' export with ${response.status} '${answer}'`,
                 );
             }
         }

@@ -25,8 +25,8 @@ function locate(directory: string): unknown {
 
 test("normalize package directories inside the working tree and refuse those outside it", () => {
     const outside = MachineError.of(
-        "OUTSIDE_CHECKOUT",
-        "package directory is outside the checkout",
+        "OUTSIDE_CHECKOUT_INVALID",
+        "package directory is invalid: it is outside the checkout",
     );
 
     // record the path below the root with forward slashes and refuse escapes
@@ -100,7 +100,10 @@ test("read a working tree's root, and its commit while clean but not with change
         undefined,
         undefined,
         { directory: repository, root: repository },
-        MachineError.of("RELATIVE_DIRECTORY", "checkout directory must be absolute"),
+        MachineError.of(
+            "RELATIVE_DIRECTORY_INVALID",
+            "checkout directory is invalid: it must be absolute",
+        ),
     ]);
 });
 
@@ -134,8 +137,8 @@ test("initialize a new repository, clone a remote at a tag, and relocate a worki
         { directory: join(scratch, "new", "notes"), root: join(scratch, "new", "notes") },
         tagged,
         MachineError.of(
-            "TREE_NOT_MOVED",
-            `the working tree is still at ${cloned.root}: move it before relocating the checkout`,
+            "TREE_BLOCKED",
+            `cannot relocate the checkout: the working tree is still at '${cloned.root}', so move it first`,
         ),
         { directory: join(scratch, "moved"), root: join(scratch, "moved") },
     ]);

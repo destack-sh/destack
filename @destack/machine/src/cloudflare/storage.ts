@@ -186,8 +186,8 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         // refuse a space other than the object's
         if (space !== this.#options.space) {
             throw MachineError.of(
-                "SPACE_NOT_STORED",
-                `the object of ${this.#options.space} has no space ${space}`,
+                "SPACE_NOT_FOUND",
+                `space '${space}' in the object of '${this.#options.space}' not found`,
             );
         }
 

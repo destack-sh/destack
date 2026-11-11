@@ -69,7 +69,7 @@ export const RouteRequest = {
         const id = schema.identifier("route").parse(header);
         const found = await Route.find(database, space, id);
         if (found === undefined) {
-            throw MachineError.of("ROUTE_NOT_FOUND", `space ${space} has no route ${id}`);
+            throw MachineError.of("ROUTE_NOT_FOUND", `route '${id}' of space '${space}' not found`);
         }
 
         // take the rule serving the request, refusing one no rule matches
@@ -109,7 +109,7 @@ export const RouteRequest = {
         const entry = rule.entry;
         const base = routed.path === "/" ? "" : routed.path;
         if (entry === undefined) {
-            throw MachineError.of("ROUTE_NOT_FOUND", `route ${id} has a rule without an entry`);
+            throw MachineError.of("ROUTE_NOT_FOUND", `entry of a rule of route '${id}' not found`);
         }
         // send the request on to the site, its origin fixed and the path below the route's appended
         else if (entry.kind === "url") {
@@ -131,7 +131,7 @@ export const RouteRequest = {
         if (installationId === null) {
             throw MachineError.of(
                 "ROUTE_NOT_FOUND",
-                `route ${id} serves an entry without its installation`,
+                `installation of an entry of route '${id}' not found`,
             );
         }
         // hand the installation's adapter the request at its path, the path below the route's after it
@@ -140,7 +140,7 @@ export const RouteRequest = {
             if (adapter === undefined) {
                 throw MachineError.of(
                     "ROUTE_NOT_FOUND",
-                    `route ${id} leads to adapter ${entry.adapter}, which installation ${installationId} does not declare`,
+                    `adapter '${entry.adapter}' of route '${id}' in installation '${installationId}' not found`,
                 );
             }
             const url = new URL(changed.url);

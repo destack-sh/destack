@@ -258,7 +258,10 @@ export class PartitionObject {
         const served = await this.#served;
         if (served === undefined) {
             return refusal(
-                MachineError.of("SPACE_STARTING", "no space runs here yet"),
+                MachineError.of(
+                    "SPACE_UNAVAILABLE",
+                    "space is unavailable: no space runs here yet",
+                ),
                 WorkerdEnvironment.system.telemetry,
             );
         }
@@ -324,7 +327,10 @@ export class PartitionObject {
             },
             identity: async () => {
                 if (served === undefined) {
-                    throw MachineError.of("SPACE_STARTING", `${space} is starting`);
+                    throw MachineError.of(
+                        "SPACE_UNAVAILABLE",
+                        `'${space}' is unavailable: it is starting`,
+                    );
                 }
 
                 return served.host.identity();
@@ -332,7 +338,10 @@ export class PartitionObject {
             random: cloud.environment.random,
             builds: () => {
                 if (served === undefined) {
-                    throw MachineError.of("SPACE_STARTING", `${space} is starting`);
+                    throw MachineError.of(
+                        "SPACE_UNAVAILABLE",
+                        `'${space}' is unavailable: it is starting`,
+                    );
                 }
 
                 return served.builds;
@@ -392,8 +401,8 @@ export class PartitionObject {
                 // refuse a token bound to another partition
                 else if (partition !== undefined) {
                     throw MachineError.of(
-                        "FOREIGN_PARTITION_TOKEN",
-                        "the universe token is bound to another partition",
+                        "PARTITION_TOKEN_DENIED",
+                        "universe token is forbidden: it is bound to another partition",
                     );
                 }
 
@@ -403,8 +412,8 @@ export class PartitionObject {
                 // refuse machine procedures, which only a computer's owner calls, and pass every other call
                 if (access.authentication === "machine") {
                     throw MachineError.of(
-                        "OWNER_MISSING",
-                        "no owner can call a cloud machine's machine procedures",
+                        "OWNER_DENIED",
+                        "machine procedure is forbidden: no owner can call a cloud machine's machine procedures",
                     );
                 }
             },

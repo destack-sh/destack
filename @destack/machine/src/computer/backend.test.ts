@@ -17,12 +17,12 @@ test("report a restarted machine's missing key as the failure of its start", asy
 
     // receive the failure its start met for want of the machine's key, captured once by its close
     const { code, reason, message } = Failure.of(await opened.reported);
-    const missing = "this machine has no key";
+    const missing = "key of this machine not found";
     await opened.close();
     expect({
         reported: [code, reason, message],
         captured: world.telemetry.take().map((captured) => captured.message),
-    }).toEqual({ reported: ["NOT_FOUND", "MACHINE_KEY_MISSING", missing], captured: [missing] });
+    }).toEqual({ reported: ["NOT_FOUND", "MACHINE_KEY_NOT_FOUND", missing], captured: [missing] });
 });
 
 test("start a space while the machine serves, and refuse to start it once the machine closed", async () => {
@@ -38,8 +38,8 @@ test("start a space while the machine serves, and refuse to start it once the ma
         spaceId,
         [
             "SERVICE_UNAVAILABLE",
-            "SERVER_STOPPED",
-            `machine ${home.machine.id} is stopped: it stopped serving`,
+            "SERVER_UNAVAILABLE",
+            `server '${home.machine.id}' is unavailable: it is stopped: it stopped serving`,
         ],
     ]);
 });

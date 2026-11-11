@@ -50,8 +50,12 @@ test("count the process CPU time of an instance's delta metrics export on the co
     const count = (exported: typeof bare) =>
         refusal(Promise.resolve().then(() => traffic.countMetrics(SPACE, INSTALLATION, exported)));
     expect([await count(cumulative), await count(bare)]).toEqual([
-        ["BAD_REQUEST", "METRIC_UNSUPPORTED", "process.cpu.time must be a delta sum"],
-        ["BAD_REQUEST", "POINT_WITHOUT_VALUE", "a point of process.cpu.time has no value"],
+        ["BAD_REQUEST", "METRIC_INVALID", "'process.cpu.time' is invalid: it must be a delta sum"],
+        [
+            "BAD_REQUEST",
+            "POINT_WITHOUT_VALUE_INVALID",
+            "a point of 'process.cpu.time' is invalid: it has no value",
+        ],
     ]);
     expect(Traffic.readings(traffic.take())).toEqual([
         {

@@ -100,7 +100,10 @@ export class BuildRunner {
 
                 return current === undefined || current.state === "running"
                     ? undefined
-                    : MachineError.of("BUILD_ENDED", `build ${replicated.id} already ended`);
+                    : MachineError.of(
+                          "BUILD_BLOCKED",
+                          `cannot end build '${replicated.id}': it already ended`,
+                      );
             },
             async (signal) => {
                 try {
@@ -248,8 +251,8 @@ export class BuildRunner {
         // refuse a release, which is born built and leases no runner
         else {
             throw MachineError.of(
-                "RELEASE_NOT_BUILT",
-                `build ${replicated.id} is a release and compiles nothing`,
+                "RELEASE_INVALID",
+                `build '${replicated.id}' is invalid: it is a release and compiles nothing`,
             );
         }
     }

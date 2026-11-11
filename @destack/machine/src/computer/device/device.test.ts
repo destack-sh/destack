@@ -62,9 +62,9 @@ test("act as the person of the login setting while several are signed in", async
         signedIn: [owner.name, other.name],
     }).toEqual({
         unchosen: [
-            "CONFLICT",
-            "PERSON_AMBIGUOUS",
-            "several people are signed in: choose one with the login setting",
+            "PRECONDITION_FAILED",
+            "PERSON_BLOCKED",
+            "cannot pick a person: several people are signed in, so choose one with the login setting",
         ],
         chosen: other.id,
         signedIn: [OWNER_EMAIL, OTHER_EMAIL],
@@ -77,8 +77,8 @@ test("refuse to read the account of a machine nobody enrolled", async () => {
     // read the account before anyone enrolled the machine
     expect(await refusal(device.account())).toEqual([
         "PRECONDITION_FAILED",
-        "ENROLLMENT_REQUIRED",
-        "this machine is not enrolled in a personal account: sign in to enroll it",
+        "ENROLLMENT_BLOCKED",
+        "cannot use this machine: it is not enrolled in a personal account, so sign in to enroll it",
     ]);
 });
 
@@ -167,7 +167,7 @@ test("forward the owner's calls as a signed-in person to a space's package, refu
         nowhere: [
             "BAD_REQUEST",
             "TARGET_INVALID",
-            "elsewhere is no target: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>",
+            "target 'elsewhere' is invalid: use universe/<package>, space/<space>/<package> or installation/<space>/<installation>/<package>",
         ],
     });
 });
@@ -191,7 +191,7 @@ test("resolve the owner's spaces by address, identifier, home and residency, ref
         nowhere: await refusal(session.resolve("nowhere", {})),
     }).toEqual({
         resolved: [world.owner.home, world.owner.home, world.owner.home, residency],
-        nowhere: ["NOT_FOUND", "SPACE_NOT_FOUND", "no space of yours is called nowhere"],
+        nowhere: ["NOT_FOUND", "SPACE_NOT_FOUND", "space 'nowhere' of yours not found"],
     });
 });
 

@@ -756,9 +756,9 @@ test(
             outside: "/evil.example/home",
             malformed: answered(
                 "FORBIDDEN",
-                "LINK_SECRET_INVALID",
+                "LINK_SECRET_DENIED",
                 403,
-                "invalid link secret",
+                "link secret is forbidden: it does not match",
                 "@destack/access",
             ),
         });
@@ -854,9 +854,9 @@ test(
             forged: [
                 ...answered(
                     "UNAUTHORIZED",
-                    "SESSION_INVALID",
+                    "SESSION_UNAUTHENTICATED",
                     401,
-                    "the page's session is invalid or expired",
+                    "authentication required: the page's session is invalid or expired",
                 ),
                 `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`,
             ],
@@ -928,8 +928,8 @@ test(
         const revoked = await read(visit(cookie));
         expect({ withLink, without, revoked }).toEqual({
             withLink: "Roadmap",
-            without: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${home.spaceId} not found`],
-            revoked: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${home.spaceId} not found`],
+            without: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
+            revoked: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
         });
     },
     SCENARIO_MILLISECONDS,
@@ -986,8 +986,8 @@ test(
             first: "done",
             again: [
                 "TOO_MANY_REQUESTS",
-                "RATE_LIMITED",
-                "article.update is limited to 1 calls per 3600000 ms",
+                "RATE_EXHAUSTED",
+                "'article.update' exceeds its limit of 1 calls per 3600000 ms",
             ],
             other: "done",
         });
@@ -1041,7 +1041,7 @@ test(
             unpresented: [
                 "NOT_FOUND",
                 "PRESENTER_NOT_FOUND",
-                `${opened.spaceId} has no presenter no view for folder objects`,
+                `presenter 'no view' for folder objects of '${opened.spaceId}' not found`,
             ],
         });
     },
@@ -1129,9 +1129,9 @@ test(
                     defined: true,
                     code: "FORBIDDEN",
                     status: 403,
-                    reason: "GRANT_INSUFFICIENT",
+                    reason: "GRANT_DENIED",
                     domain: "@destack/object",
-                    message: `grant ${page.grant.id} does not give read on rollout ${rolloutId}`,
+                    message: `'read' on rollout '${rolloutId}' is forbidden: grant '${page.grant.id}' does not give it`,
                     data: {
                         permission: stackObject.rollout.permission("read"),
                         object: stackObject.rollout.reference(home.spaceId, rolloutId),
@@ -1141,17 +1141,17 @@ test(
             ],
             undeclared: answered(
                 "FORBIDDEN",
-                "VIEW_PACKAGE_UNDECLARED",
+                "VIEW_PACKAGE_DENIED",
                 403,
-                `no view of tasks declares the ${observabilityPackage.id} package`,
+                `package '${observabilityPackage.id}' is forbidden: no view of 'tasks' declares it`,
             ),
             foreign: answered(
                 "FORBIDDEN",
-                "ORIGIN_MISMATCH",
+                "ORIGIN_DENIED",
                 403,
-                "a page's origin can only be called from the page itself",
+                "page origin is forbidden: it can only be called from the page itself",
             ),
-            unshared: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${home.spaceId} not found`],
+            unshared: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${home.spaceId}' not found`],
         });
     },
     SCENARIO_MILLISECONDS,
@@ -1214,13 +1214,13 @@ test(
             before: "done",
             revoked: [
                 "BAD_REQUEST",
-                "INVALID_GRANT",
-                `the token endpoint refused the request: invalid_grant: grant ${page.grant.id} is revoked`,
+                "GRANT_INVALID",
+                `the token endpoint refused the request: invalid_grant: authentication required: grant '${page.grant.id}' is revoked`,
             ],
             signedOut: [
                 "BAD_REQUEST",
-                "INVALID_GRANT",
-                "the token endpoint refused the request: invalid_grant: client is revoked",
+                "GRANT_INVALID",
+                "the token endpoint refused the request: invalid_grant: cannot use client: it is revoked",
             ],
         });
     },
@@ -1380,9 +1380,9 @@ test(
                 defined: true,
                 code: "FORBIDDEN",
                 status: 403,
-                reason: "GRANT_INSUFFICIENT",
+                reason: "GRANT_DENIED",
                 domain: "@destack/object",
-                message: `grant ${page.grant.id} does not give revoke on client ${client}`,
+                message: `'revoke' on client '${client}' is forbidden: grant '${page.grant.id}' does not give it`,
                 data: {
                     permission: accountObject.client.permission("revoke"),
                     object: accountObject.client.reference(owner.id, client),
@@ -1431,7 +1431,7 @@ test(
                 "NOT_FOUND",
                 "SCOPE_NOT_FOUND",
                 404,
-                `scope ${person} not found`,
+                `scope '${person}' not found`,
                 "@destack/object",
             ),
         });
@@ -1904,15 +1904,15 @@ test(
             source: [404, "<h1>Not found</h1>"],
             launched: answered(
                 "FORBIDDEN",
-                "INSTALLATION_ORIGIN_REQUIRED",
+                "INSTALLATION_ORIGIN_DENIED",
                 403,
-                "a route serves anonymous visitors: open the view at its installation's origin",
+                "view is forbidden: a route serves anonymous visitors, so open the view at its installation's origin",
             ),
             linked: answered(
                 "FORBIDDEN",
-                "INSTALLATION_ORIGIN_REQUIRED",
+                "INSTALLATION_ORIGIN_DENIED",
                 403,
-                "a route serves anonymous visitors: open links at the installation's origin",
+                "link is forbidden: a route serves anonymous visitors, so open links at the installation's origin",
             ),
         });
     },

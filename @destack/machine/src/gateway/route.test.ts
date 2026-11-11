@@ -170,7 +170,7 @@ test("act on routed requests by their route's most specific rule: redirect, rewr
         [
             "NOT_FOUND",
             "ROUTE_NOT_FOUND",
-            `route ${declared("api")} leads to adapter notes, which installation ${installation.id} does not declare`,
+            `adapter 'notes' of route '${declared("api")}' in installation '${installation.id}' not found`,
         ],
     ]);
 });

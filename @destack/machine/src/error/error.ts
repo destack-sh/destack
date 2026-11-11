@@ -5,136 +5,124 @@ import type {} from "@destack/package/import-meta";
 
 /** The machine package's failures, each reason with the call error code it answers. */
 const machineError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    OBJECTS_MISSING: { code: "BAD_REQUEST" },
-    RELEASE_NOT_BUILT: { code: "BAD_REQUEST" },
-    ENDPOINT_INVALID: { code: "BAD_REQUEST" },
-    REQUEST_INVALID: { code: "BAD_REQUEST" },
-    REGISTRATION_INVALID: { code: "BAD_REQUEST" },
-    TARGET_INVALID: { code: "BAD_REQUEST" },
-    PATH_INVALID: { code: "BAD_REQUEST" },
-    VERSION_INVALID: { code: "BAD_REQUEST" },
-    LAUNCH_TOKEN_MISSING: { code: "BAD_REQUEST" },
-    OUTSIDE_CHECKOUT: { code: "BAD_REQUEST" },
-    POINT_WITHOUT_VALUE: { code: "BAD_REQUEST" },
-    RELATIVE_DIRECTORY: { code: "BAD_REQUEST" },
-    RELOCATION_TARGET_REQUIRED: { code: "BAD_REQUEST" },
-    SETTING_SCOPE_MISMATCH: { code: "BAD_REQUEST" },
-    METRIC_UNSUPPORTED: { code: "BAD_REQUEST" },
-
-    // unauthorized
-    FOREIGN_ORIGIN: { code: "UNAUTHORIZED" },
-    INSTANCE_SECRET_INVALID: { code: "UNAUTHORIZED" },
-    SIGN_IN_REQUIRED: { code: "UNAUTHORIZED" },
-    TOKEN_WITHOUT_MACHINE: { code: "UNAUTHORIZED" },
-    TOKEN_UNBOUND: { code: "UNAUTHORIZED" },
-    COPY_CREDENTIAL_UNKNOWN: { code: "UNAUTHORIZED" },
-    SESSION_INVALID: { code: "UNAUTHORIZED" },
-    SIGN_IN_INVALID: { code: "UNAUTHORIZED" },
-    SIGN_IN_REFUSED: { code: "UNAUTHORIZED" },
-    PROOF_REQUIRED: { code: "UNAUTHORIZED" },
-
-    // forbidden
-    CONNECTION_UNAUTHENTICATED: { code: "UNAUTHORIZED" },
-    PUBLISHER_UNKNOWN: { code: "FORBIDDEN" },
-    SIGN_IN_FAILED: { code: "FORBIDDEN" },
-    FOREIGN_SCOPE_PUSH: { code: "FORBIDDEN" },
-    FOREIGN_PARTITION_TOKEN: { code: "FORBIDDEN" },
-    GRANT_REQUIRED: { code: "FORBIDDEN", data: GrantRequest },
-    OWNER_MISSING: { code: "FORBIDDEN" },
-    ORIGIN_MISMATCH: { code: "FORBIDDEN" },
-    OWNER_REQUIRED: { code: "FORBIDDEN" },
-    PERSON_REQUIRED: { code: "FORBIDDEN" },
-    ADDRESS_UNBOUND: { code: "FORBIDDEN" },
-    BUCKET_UNBOUND: { code: "FORBIDDEN" },
-    INSTALLATION_UNBOUND: { code: "FORBIDDEN" },
-    VIEW_GRANT_REQUIRED: { code: "FORBIDDEN" },
-    VIEW_PACKAGE_UNDECLARED: { code: "FORBIDDEN" },
-    INSTALLATION_ORIGIN_REQUIRED: { code: "FORBIDDEN" },
-
     // not found
-    SPACE_NOT_STORED: { code: "NOT_FOUND" },
-    SPACE_NOT_FOUND: { code: "NOT_FOUND" },
-    ACCOUNT_NOT_FOUND: { code: "NOT_FOUND" },
-    CHECKOUT_NOT_FOUND: { code: "NOT_FOUND" },
-    CHECKOUT_SPACE_ELSEWHERE: { code: "NOT_FOUND" },
-    CLIENT_PATH_NOT_FOUND: { code: "NOT_FOUND" },
-    DIRECTORY_NOT_FOUND: { code: "NOT_FOUND" },
-    HOME_PATH_MISMATCH: { code: "NOT_FOUND" },
-    INSTALLATION_NOT_FOUND: { code: "NOT_FOUND" },
-    NOTHING_SERVED: { code: "NOT_FOUND" },
-    CALLS_MISSING: { code: "NOT_FOUND" },
-    EGRESS_ADDRESS_MISSING: { code: "NOT_FOUND" },
-    PACKAGE_MOUNT_MISSING: { code: "NOT_FOUND" },
-    PLATFORM_SERVICE_MISSING: { code: "NOT_FOUND" },
-    PACKAGE_NOT_SERVED: { code: "NOT_FOUND" },
-    PRESENTER_NOT_FOUND: { code: "NOT_FOUND" },
-    PREVIEW_NOT_FOUND: { code: "NOT_FOUND" },
-    ROUTE_NOT_FOUND: { code: "NOT_FOUND" },
-    SIGNAL_UNKNOWN: { code: "NOT_FOUND" },
-    VIEW_NOT_FOUND: { code: "NOT_FOUND" },
+    ACCOUNT_NOT_FOUND: {},
+    CALLS_NOT_FOUND: {},
+    CHECKOUT_NOT_FOUND: {},
+    CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND: {},
+    CLIENT_PATH_NOT_FOUND: {},
+    DIRECTORY_NOT_FOUND: {},
+    EGRESS_ADDRESS_NOT_FOUND: {},
+    HOME_PATH_NOT_FOUND: {},
+    INSTALLATION_NOT_FOUND: {},
+    PACKAGE_MOUNT_NOT_FOUND: {},
+    PACKAGE_NOT_FOUND: {},
+    PLATFORM_SERVICE_NOT_FOUND: {},
+    PRESENTER_NOT_FOUND: {},
+    PREVIEW_NOT_FOUND: {},
+    ROUTE_NOT_FOUND: {},
+    SIGNAL_NOT_FOUND: {},
+    SPACE_NOT_FOUND: {},
+    VIEW_NOT_FOUND: {},
 
-    // method not supported
-    METHOD_UNSUPPORTED: { code: "METHOD_NOT_SUPPORTED" },
+    // invalid
+    ENDPOINT_INVALID: {},
+    METRIC_INVALID: {},
+    OUTSIDE_CHECKOUT_INVALID: {},
+    PATH_INVALID: {},
+    POINT_WITHOUT_VALUE_INVALID: {},
+    REGISTRATION_INVALID: {},
+    RELATIVE_DIRECTORY_INVALID: {},
+    RELEASE_INVALID: {},
+    REQUEST_INVALID: {},
+    SETTING_SCOPE_INVALID: {},
+    SITE_INVALID: {},
+    SITE_RULE_INVALID: {},
+    SPACE_INVALID: {},
+    TARGET_INVALID: {},
+    VERSION_INVALID: {},
 
-    // conflict
-    SITE_AMBIGUOUS: { code: "CONFLICT" },
-    SITE_RULE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    ALREADY_RUNNING: { code: "CONFLICT" },
-    PERSON_AMBIGUOUS: { code: "CONFLICT" },
-    SIGN_IN_NOT_WAITING: { code: "CONFLICT" },
-    SPACE_AMBIGUOUS: { code: "CONFLICT" },
-    BUILD_ENDED: { code: "CONFLICT" },
-    ENROLLED: { code: "CONFLICT" },
-    TREE_NOT_MOVED: { code: "CONFLICT" },
+    // required
+    LAUNCH_TOKEN_REQUIRED: {},
+    OBJECTS_REQUIRED: {},
+    RELOCATION_TARGET_REQUIRED: {},
 
-    // precondition failed
-    LOGIN_NOT_SIGNED_IN: { code: "PRECONDITION_FAILED" },
-    MACHINE_REVOKED: { code: "PRECONDITION_FAILED" },
-    ENROLLMENT_REQUIRED: { code: "PRECONDITION_FAILED" },
+    // unauthenticated
+    CONNECTION_UNAUTHENTICATED: {},
+    COPY_CREDENTIAL_UNAUTHENTICATED: {},
+    INSTANCE_SECRET_UNAUTHENTICATED: {},
+    ORIGIN_UNAUTHENTICATED: {},
+    PROOF_UNAUTHENTICATED: {},
+    SESSION_UNAUTHENTICATED: {},
+    SIGN_IN_UNAUTHENTICATED: {},
+    TOKEN_UNAUTHENTICATED: {},
+    TOKEN_WITHOUT_MACHINE_UNAUTHENTICATED: {},
 
-    // misdirected request
-    OBJECTS_MOVED: { code: "MISDIRECTED_REQUEST" },
+    // denied
+    ADDRESS_DENIED: {},
+    BUCKET_DENIED: {},
+    GRANT_DENIED: { data: GrantRequest },
+    INSTALLATION_DENIED: {},
+    INSTALLATION_ORIGIN_DENIED: {},
+    ORIGIN_DENIED: {},
+    OWNER_DENIED: {},
+    PARTITION_TOKEN_DENIED: {},
+    PERSON_DENIED: {},
+    PUBLISHER_DENIED: {},
+    PUSH_DENIED: {},
+    SIGN_IN_DENIED: {},
+    VIEW_GRANT_DENIED: {},
+    VIEW_PACKAGE_DENIED: {},
 
-    // too many requests
-    RATE_LIMITED: { code: "TOO_MANY_REQUESTS", data: ERROR_DATA.TOO_MANY_REQUESTS },
+    // blocked
+    BUILD_BLOCKED: {},
+    ENROLLMENT_BLOCKED: {},
+    LOGIN_BLOCKED: {},
+    MACHINE_BLOCKED: {},
+    PERSON_BLOCKED: {},
+    SIGN_IN_BLOCKED: {},
+    TREE_BLOCKED: {},
 
-    // internal server error
-    COMMAND_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    LISTENER_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-    COMMAND_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-    CONFIGURATION_INVALID: { code: "INTERNAL_SERVER_ERROR" },
-    START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    MACHINE_ANSWER_INVALID: { code: "INTERNAL_SERVER_ERROR" },
-    STOP_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    ROUTE_BASE_MISMATCH: { code: "INTERNAL_SERVER_ERROR" },
-    SERVER_INVALID: { code: "INTERNAL_SERVER_ERROR" },
+    // exhausted
+    RATE_EXHAUSTED: { data: ERROR_DATA.TOO_MANY_REQUESTS },
 
-    // not implemented
-    RUNTIME_MISSING: { code: "NOT_IMPLEMENTED" },
-    SOCKETS_MISSING: { code: "NOT_IMPLEMENTED" },
+    // unsupported
+    METHOD_UNSUPPORTED: {},
+    RUNTIME_UNSUPPORTED: {},
+    SOCKETS_UNSUPPORTED: {},
 
-    // bad gateway
-    MODULE_NOT_SERVED: { code: "BAD_GATEWAY" },
-    OBJECT_REFUSED: { code: "BAD_GATEWAY" },
-    RUNTIME_ACTION_FAILED: { code: "BAD_GATEWAY" },
-    SETTINGS_ENDED: { code: "BAD_GATEWAY" },
+    // moved
+    OBJECTS_MOVED: {},
 
-    // service unavailable
-    DEPLOYMENT_STARTING: { code: "SERVICE_UNAVAILABLE", data: RetryAfter },
-    INSTALLATION_NOT_SERVED: { code: "SERVICE_UNAVAILABLE" },
-    INSTANCE_NOT_RUNNING: { code: "SERVICE_UNAVAILABLE" },
-    MACHINE_STOPPED: { code: "SERVICE_UNAVAILABLE" },
-    REVISION_MISSING: { code: "SERVICE_UNAVAILABLE" },
-    RUNNING_DEPLOYMENT_MISSING: { code: "SERVICE_UNAVAILABLE" },
-    WORKLOAD_MISSING: { code: "SERVICE_UNAVAILABLE" },
-    RUNNER_NOT_SERVING: { code: "SERVICE_UNAVAILABLE" },
-    SPACE_STARTING: { code: "SERVICE_UNAVAILABLE" },
-    TRACE_REFUSED: { code: "SERVICE_UNAVAILABLE" },
-    TELEMETRY_REFUSED: { code: "SERVICE_UNAVAILABLE" },
+    // unavailable
+    DEPLOYMENT_UNAVAILABLE: { data: RetryAfter.partial() },
+    INSTALLATION_UNAVAILABLE: {},
+    INSTANCE_UNAVAILABLE: {},
+    MACHINE_UNAVAILABLE: {},
+    REVISION_UNAVAILABLE: {},
+    RUNNER_UNAVAILABLE: {},
+    SPACE_UNAVAILABLE: {},
+    TELEMETRY_UNAVAILABLE: {},
+    TRACE_UNAVAILABLE: {},
+    WORKLOAD_UNAVAILABLE: {},
 
-    // gateway timeout
-    BUILD_TIMED_OUT: { code: "GATEWAY_TIMEOUT" },
+    // unreachable
+    BUILD_UNREACHABLE: {},
+    MODULE_UNREACHABLE: {},
+    OBJECT_UNREACHABLE: {},
+    RUNTIME_ACTION_UNREACHABLE: {},
+    SETTINGS_UNREACHABLE: {},
+
+    // broken
+    COMMAND_BROKEN: {},
+    CONFIGURATION_BROKEN: {},
+    LISTENER_BROKEN: {},
+    MACHINE_ANSWER_BROKEN: {},
+    ROUTE_BASE_BROKEN: {},
+    RUNNER_BROKEN: {},
+    SERVER_BROKEN: {},
+    START_BROKEN: {},
+    STOP_BROKEN: {},
 });
 
 /** The machine package's failures, and the refusal of what a machine does only once enrolled. */
@@ -142,8 +130,8 @@ export const MachineError = Object.assign(machineError, {
     /** Refuse what a machine does only once enrolled, telling the person how to enroll it. */
     unenrolled(action: string) {
         return machineError.of(
-            "ENROLLMENT_REQUIRED",
-            `${action} needs an enrolled machine: sign in on this machine first`,
+            "ENROLLMENT_BLOCKED",
+            `cannot run '${action}': it needs an enrolled machine, so sign in on this machine first`,
         );
     },
 });

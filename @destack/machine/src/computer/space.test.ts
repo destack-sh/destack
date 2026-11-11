@@ -378,7 +378,7 @@ async function serving(
                 .where(eq(installation.table.id, installationId));
             const ready = row?.conditions["Ready"];
             throw new Error(
-                `${installationId} runs no instance: ${ready?.reason} ${ready?.message}`,
+                `'${installationId}' runs no instance: '${ready?.reason}' ${ready?.message}`,
                 {
                     cause: error,
                 },
@@ -606,7 +606,7 @@ test(
                 .catch((error: unknown) => (BucketError.is(error) ? error.reason : error));
         await caller.computer.waitUntil(
             replica,
-            async () => (await abandoned()) === "NO_SUCH_BUCKET",
+            async () => (await abandoned()) === "BUCKET_NOT_FOUND",
         );
 
         // rejoin the source computer to the relay, waiting for its tunnel
@@ -668,8 +668,8 @@ test(
                     defined: true,
                     code: "SERVICE_UNAVAILABLE",
                     status: 503,
-                    message: "the machine is disconnected",
-                    reason: "MACHINE_DISCONNECTED",
+                    message: "the machine is unavailable: it is disconnected",
+                    reason: "MACHINE_UNAVAILABLE",
                     domain: "@destack/relay",
                 },
             ],
@@ -815,18 +815,22 @@ test(
             outcomes: [
                 [
                     "UNAUTHORIZED",
-                    "TOKEN_UNBOUND",
+                    "TOKEN_UNAUTHENTICATED",
                     "universe tokens reach this machine bound to a partition",
                 ],
                 [
                     "FORBIDDEN",
-                    "FOREIGN_PARTITION_TOKEN",
-                    "the universe token is bound to another partition",
+                    "PARTITION_TOKEN_DENIED",
+                    "partition is forbidden: the universe token is bound to another partition",
                 ],
-                ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${other} not found`],
+                ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${other}' not found`],
                 "done",
             ],
-            revoked: ["UNAUTHORIZED", "KEY_REVOKED", "the machine token's key is no longer valid"],
+            revoked: [
+                "UNAUTHORIZED",
+                "KEY_UNAUTHENTICATED",
+                "authentication required: the machine token's key is no longer valid",
+            ],
         });
     },
 );
@@ -951,7 +955,7 @@ test(
             refused,
             captured: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
-            refused: `board failed to apply: @destack/stack PROCESS_ISOLATION_UNTRUSTED: ${message}`,
+            refused: `'board' did not apply: '@destack/stack PROCESS_ISOLATION_DENIED: ${message}'`,
             captured: [message],
         });
     },
@@ -1032,7 +1036,7 @@ test(
         }).toEqual({
             status: "starting",
             reason: lagging,
-            reported: "installation regional serves nothing: its server failed to start",
+            reported: "installation 'regional' serves nothing: its server did not start",
             answered: [503, "1"],
         });
     },

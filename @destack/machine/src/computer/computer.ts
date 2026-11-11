@@ -252,7 +252,10 @@ export class Computer implements AsyncDisposable {
         started.promise.catch(() => undefined);
         stack.defer(() =>
             started.reject(
-                MachineError.of("MACHINE_STOPPED", "the machine stopped while starting"),
+                MachineError.of(
+                    "MACHINE_UNAVAILABLE",
+                    "the machine is unavailable: it stopped while starting",
+                ),
             ),
         );
         const origin = `http://127.0.0.1:${options.port}`;
@@ -486,8 +489,8 @@ export class Computer implements AsyncDisposable {
             await using lock = await files.tryLock(join(directory, LOCK_FILE), "exclusive");
             if (lock === undefined) {
                 throw MachineError.of(
-                    "ALREADY_RUNNING",
-                    "stop the Destack machine before erasing it",
+                    "MACHINE_BLOCKED",
+                    "cannot erase the Destack machine: it is running, so stop it first",
                 );
             }
             await Device.forget(directory, keychain, [MACHINE_KEYS, ROOT_KEYS], environment);
@@ -928,8 +931,8 @@ export class Computer implements AsyncDisposable {
         const { universe } = home;
         if (!URL.canParse(universe)) {
             throw MachineError.of(
-                "CONFIGURATION_INVALID",
-                `DESTACK_UNIVERSE is not a URL: ${universe}`,
+                "CONFIGURATION_BROKEN",
+                `DESTACK_UNIVERSE is not a URL: '${universe}'`,
             );
         }
 
@@ -938,15 +941,15 @@ export class Computer implements AsyncDisposable {
         const port = configured === undefined ? MACHINE_PORT : Number(configured);
         if (!/^\d+$/u.test(configured ?? String(MACHINE_PORT)) || port < 1 || port > 65535) {
             throw MachineError.of(
-                "CONFIGURATION_INVALID",
-                `DESTACK_PORT is not a port: ${configured}`,
+                "CONFIGURATION_BROKEN",
+                `DESTACK_PORT is not a port: '${configured}'`,
             );
         }
 
         // open a tunnel to the relay at a URL, else to the account residency's in production
         const url = environment["DESTACK_RELAY"];
         if (url !== undefined && !URL.canParse(url)) {
-            throw MachineError.of("CONFIGURATION_INVALID", `DESTACK_RELAY is not a URL: ${url}`);
+            throw MachineError.of("CONFIGURATION_BROKEN", `DESTACK_RELAY is not a URL: '${url}'`);
         }
         const relay: ComputerOptions["relay"] =
             url !== undefined
@@ -963,7 +966,7 @@ export class Computer implements AsyncDisposable {
         const shipped = environment["DESTACK_DISTRIBUTION"] ?? bundled;
         if (shipped === undefined) {
             throw MachineError.of(
-                "CONFIGURATION_INVALID",
+                "CONFIGURATION_BROKEN",
                 "DESTACK_DISTRIBUTION is not set outside a release",
             );
         }
@@ -1007,7 +1010,10 @@ export class Computer implements AsyncDisposable {
         await using cleanup = new AsyncDisposableStack();
         const lock = await files.tryLock(join(directory, LOCK_FILE), "exclusive");
         if (!lock) {
-            throw MachineError.of("ALREADY_RUNNING", "the Destack machine is already running");
+            throw MachineError.of(
+                "MACHINE_BLOCKED",
+                "cannot start the Destack machine: it is already running",
+            );
         }
         cleanup.defer(() => lock.close());
 
@@ -1084,7 +1090,7 @@ export class Computer implements AsyncDisposable {
                 // require the listener's address
                 if (address === undefined) {
                     throw MachineError.of(
-                        "LISTENER_MISSING",
+                        "LISTENER_BROKEN",
                         "the machine does not listen on any address",
                     );
                 }

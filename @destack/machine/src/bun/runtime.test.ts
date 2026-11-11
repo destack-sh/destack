@@ -555,9 +555,9 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
         async () => {},
     );
     expect(await refusal(anyHost)).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "ABILITY_UNENFORCEABLE",
-        "connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
+        "BAD_REQUEST",
+        "ABILITY_INVALID",
+        "connect ability is invalid: connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
     ]);
     expect(answers).toEqual([
         { status: 200, text: "allowed" },

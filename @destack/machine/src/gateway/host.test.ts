@@ -67,12 +67,16 @@ test("refuse a redirect of an unknown status or two splats, and a header outside
         await refusal(() => parse("/a/*/b/* /c\n", undefined)),
         await refusal(() => parse(undefined, "  Cache-Control: no-store\n")),
     ]).toEqual([
-        ["UNPROCESSABLE_CONTENT", "SITE_RULE_INVALID", "invalid _redirects line: /a /b 200"],
-        ["UNPROCESSABLE_CONTENT", "SITE_RULE_INVALID", "invalid _redirects path: /a/*/b/*"],
+        ["BAD_REQUEST", "SITE_RULE_INVALID", "'_redirects' line '/a /b 200' is invalid: it must be a source, a destination and a redirect status"],
         [
-            "UNPROCESSABLE_CONTENT",
+            "BAD_REQUEST",
             "SITE_RULE_INVALID",
-            "invalid _headers line:   Cache-Control: no-store",
+            "'_redirects' path '/a/*/b/*' is invalid: it must be absolute with at most one splat",
+        ],
+        [
+            "BAD_REQUEST",
+            "SITE_RULE_INVALID",
+            "'_headers' line '  Cache-Control: no-store' is invalid: it must sit under a rule and have a name",
         ],
     ]);
 });

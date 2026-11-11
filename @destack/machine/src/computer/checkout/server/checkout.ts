@@ -67,10 +67,7 @@ export class CheckoutServer {
                 ),
             );
         if (registered === undefined) {
-            throw MachineError.of(
-                "CHECKOUT_NOT_FOUND",
-                `this machine has no registered checkout ${source.checkout}`,
-            );
+            throw MachineError.of("CHECKOUT_NOT_FOUND", `checkout '${source.checkout}' not found`);
         }
 
         return { root: registered.root, ...WorkingTree.package(registered.root, source.directory) };
@@ -103,7 +100,7 @@ export class CheckoutServer {
                         if (directory === undefined) {
                             throw MachineError.of(
                                 "RELOCATION_TARGET_REQUIRED",
-                                "relocate requires the directory the working tree moved to",
+                                "relocation target is required: relocate requires the directory the working tree moved to",
                             );
                         }
 
@@ -196,8 +193,8 @@ export class CheckoutServer {
         const { spaces } = this.machine;
         if (!(await spaces.list()).includes(spaceId)) {
             throw MachineError.of(
-                "CHECKOUT_SPACE_ELSEWHERE",
-                "the space is not served on this machine, which has the working tree",
+                "CHECKOUT_SPACE_ELSEWHERE_NOT_FOUND",
+                "space not found: it is not served on this machine, which has the working tree",
             );
         }
         const { database } = await this.machine.space(spaceId);
@@ -228,8 +225,8 @@ export class CheckoutServer {
         // refuse a build still running after the wait or one that did not succeed
         if (!Build.isFinished(current)) {
             throw MachineError.of(
-                "BUILD_TIMED_OUT",
-                `build ${created.id} did not finish in ${BUILD_WAIT_MILLISECONDS} ms`,
+                "BUILD_UNREACHABLE",
+                `could not finish build '${created.id}' within ${BUILD_WAIT_MILLISECONDS} ms`,
             );
         }
 

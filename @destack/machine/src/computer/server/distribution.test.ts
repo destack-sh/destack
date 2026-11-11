@@ -127,10 +127,10 @@ test("report a controller's failed reconciliation to the machine: a stage its re
             captured: world.telemetry.take().map((captured) => captured.message),
         }).toEqual({
             reported: [
-                `distribution failed to reconcile ${key}`,
-                "metadata refresh failed: metadata request failed: HTTP 404",
+                `'distribution' did not reconcile '${key}'`,
+                "metadata not found: metadata request failed: HTTP 404",
             ],
-            captured: ["metadata refresh failed: metadata request failed: HTTP 404"],
+            captured: ["metadata not found: metadata request failed: HTTP 404"],
         });
     } finally {
         await refusing.stop(true);
@@ -164,7 +164,7 @@ test("refuse staging on a machine running no installed distribution", async () =
 
     expect(refused).toEqual([
         "PRECONDITION_FAILED",
-        "DEVELOPMENT_BUILD",
-        "development builds cannot take published updates",
+        "DEVELOPMENT_BUILD_BLOCKED",
+        "cannot update: development builds cannot take published updates",
     ]);
 });

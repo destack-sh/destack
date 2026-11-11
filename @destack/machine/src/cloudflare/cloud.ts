@@ -100,8 +100,8 @@ function peersOf(bindings: MachineBindings): ReadonlyMap<string, Fetcher> {
             const binding: unknown = Reflect.get(bindings, name);
             if (!isFetcher(binding)) {
                 throw MachineError.of(
-                    "CONFIGURATION_INVALID",
-                    `no service binding ${name} for ${host}`,
+                    "CONFIGURATION_BROKEN",
+                    `no service binding '${name}' for '${host}'`,
                 );
             }
 
@@ -350,6 +350,9 @@ export class CloudMachine {
 
     /** Refuse a call to the replicas' packages, which serve nothing. */
     static #refusal() {
-        return MachineError.of("CALLS_MISSING", "a cloud machine object does not accept calls");
+        return MachineError.of(
+            "CALLS_NOT_FOUND",
+            "call not found: a cloud machine object does not accept calls",
+        );
     }
 }

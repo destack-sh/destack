@@ -433,7 +433,7 @@ export class TestComputer implements AsyncDisposable {
                       (machine) => machine.id === cloud.id,
                   )?.origin;
         if (cloud !== undefined && declared === undefined) {
-            throw new TypeError(`the universe declares no origin of ${cloud.id}`);
+            throw new TypeError(`the universe declares no origin of '${cloud.id}'`);
         }
         if (declared !== undefined) {
             const published = environment.server.http({
@@ -700,7 +700,7 @@ export class TestComputer implements AsyncDisposable {
         const codes = await this.world.universe.mail.codes();
         const code = codes.findLast((mailed) => mailed.email === email);
         if (code === undefined) {
-            throw new TypeError(`the universe mailed no code to ${email}`);
+            throw new TypeError(`the universe mailed no code to '${email}'`);
         }
 
         return started.verify(code.otp);
@@ -835,7 +835,7 @@ export class TestComputer implements AsyncDisposable {
         const row = await read();
         if (row !== undefined && Observation.progress(row.installation) === "failed") {
             throw new TypeError(
-                `${name} failed to apply: ${Observation.message(row.installation)}`,
+                `'${name}' did not apply: '${Observation.message(row.installation)}'`,
             );
         }
 
@@ -899,7 +899,7 @@ export class TestComputer implements AsyncDisposable {
         const pending = this.world.simulation.scheduler.pending();
 
         return new TypeError(
-            `${message}, its world capturing ${captured} with ${pending.length} in flight:\n${pending.join("\n")}`,
+            `${message}, its world capturing '${captured}' with ${pending.length} in flight:\n${pending.join("\n")}`,
             { cause },
         );
     }

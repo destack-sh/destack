@@ -137,8 +137,8 @@ export class Traffic {
             // refuse a sum that is no delta
             if (sum?.aggregationTemporality !== DELTA) {
                 throw MachineError.of(
-                    "METRIC_UNSUPPORTED",
-                    `${PROCESS_CPU_TIME} must be a delta sum`,
+                    "METRIC_INVALID",
+                    `'${PROCESS_CPU_TIME}' is invalid: it must be a delta sum`,
                 );
             }
 
@@ -148,8 +148,8 @@ export class Traffic {
                 const seconds = point.asDouble ?? point.asInt;
                 if (seconds === undefined) {
                     throw MachineError.of(
-                        "POINT_WITHOUT_VALUE",
-                        `a point of ${PROCESS_CPU_TIME} has no value`,
+                        "POINT_WITHOUT_VALUE_INVALID",
+                        `a point of '${PROCESS_CPU_TIME}' is invalid: it has no value`,
                     );
                 }
 

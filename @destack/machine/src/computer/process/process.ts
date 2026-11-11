@@ -80,7 +80,7 @@ export class MachineProcess {
     static isUnavailable(error: unknown): boolean {
         // recognize a stopped machine
         if (MachineError.is(error)) {
-            return error.reason === "MACHINE_STOPPED";
+            return error.reason === "MACHINE_UNAVAILABLE";
         }
         // look through the transport error's cause
         else if (error instanceof Error && error.cause !== undefined) {
@@ -174,7 +174,7 @@ export class MachineProcess {
             ) {
                 const seconds = STOP_TIMEOUT_MILLISECONDS / 1000;
                 throw MachineError.of(
-                    "STOP_FAILED",
+                    "STOP_BROKEN",
                     `machine did not stop within ${seconds} seconds`,
                     { cause },
                 );
@@ -270,8 +270,8 @@ export class MachineProcess {
 
         // report a machine that exited or did not answer in time
         throw MachineError.of(
-            "START_FAILED",
-            `machine did not start: read ${this.directory}/machine.log`,
+            "START_BROKEN",
+            `machine did not start: read '${this.directory}'/machine.log`,
             { cause: stopping.reason },
         );
     }

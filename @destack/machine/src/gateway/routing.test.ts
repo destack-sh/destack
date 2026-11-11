@@ -168,15 +168,15 @@ test("resolve each kind of address a workload calls", async () => {
             audience: ids.package,
             path: `${notesMount}/store/stream`,
         },
-        "FORBIDDEN: INSTALLATION_UNBOUND: this installation does not bind installation notes",
+        "FORBIDDEN: INSTALLATION_DENIED: installation 'notes' is forbidden: this installation does not bind it",
         {
             kind: "remote",
             scope: acme,
             url: `${acmeAt}/spaces/${acme}/installations/${peer}`,
             audience: stackPackage.id,
         },
-        `NOT_FOUND: PACKAGE_MOUNT_MISSING: /notes/list is not a package mount of installation ${peer}`,
-        `FORBIDDEN: INSTALLATION_UNBOUND: this installation does not bind installation ${unbound}`,
+        `NOT_FOUND: PACKAGE_MOUNT_NOT_FOUND: package mount '/notes/list' of installation '${peer}' not found`,
+        `FORBIDDEN: INSTALLATION_DENIED: installation '${unbound}' is forbidden: this installation does not bind it`,
         {
             kind: "remote",
             scope: acme,
@@ -203,14 +203,14 @@ test("resolve each kind of address a workload calls", async () => {
             audience: ids.package,
             path: `${notesMount}/notes/list`,
         },
-        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation notes.work.acme of ${ids.package} not found in ${ids.space}`,
+        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation 'notes.work.acme' of '${ids.package}' in '${ids.space}' not found`,
         {
             kind: "universe",
             url: `https://destack.cloud/${ACCOUNT_PACKAGE}`,
             audience: ACCOUNT_PACKAGE,
         },
-        "FORBIDDEN: ADDRESS_UNBOUND: this installation does not bind tasks",
-        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation notes of ${OTHER_PACKAGE} not found in ${ids.space}`,
+        "FORBIDDEN: ADDRESS_DENIED: 'tasks' is forbidden: this installation does not bind it",
+        `NOT_FOUND: INSTALLATION_NOT_FOUND: installation 'notes' of '${OTHER_PACKAGE}' in '${ids.space}' not found`,
     ]);
 });
 
@@ -273,8 +273,8 @@ test("hand an instance's telemetry to its space as the machine, stamped with its
         ],
         refused: [
             "FORBIDDEN",
-            "EMITTER_ATTRIBUTE_RESERVED",
-            "only the receiver can record an export's emitter, found destack.installation.id",
+            "EMITTER_ATTRIBUTE_DENIED",
+            "export emitter 'destack.installation.id' is forbidden: only the receiver can record an export's emitter",
         ],
     });
 });
@@ -337,7 +337,11 @@ test("resolve each bound connection to its own API, borrowing it as the installa
         lent,
     }).toEqual({
         resolved: ["https://api.example.com/v1/items", "https://api.other.com/items"],
-        unbound: ["FORBIDDEN", "ADDRESS_UNBOUND", `this installation does not bind ${unbound}`],
+        unbound: [
+            "FORBIDDEN",
+            "ADDRESS_DENIED",
+            `'${unbound}' is forbidden: this installation does not bind it`,
+        ],
         lent: [
             [first.id, run.installationId],
             [second.id, run.installationId],

@@ -130,8 +130,8 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     ): Promise<DatabaseHandle> {
         if ((await this.#object(record)) !== undefined) {
             throw StackError.of(
-                "UNSERVED",
-                `database ${record.id} belongs to its installation's facet, and only its workload can open it`,
+                "DATABASE_DENIED",
+                `database '${record.id}' is forbidden: only the workload of its installation's facet can open it`,
             );
         }
 
@@ -179,8 +179,8 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         const store = token === undefined ? undefined : this.#copies.get(token);
         if (store === undefined) {
             throw MachineError.of(
-                "COPY_CREDENTIAL_UNKNOWN",
-                "no copy in progress has this credential",
+                "COPY_CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: no copy in progress has this credential",
             );
         }
 
@@ -198,7 +198,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         else {
             throw MachineError.of(
                 "METHOD_UNSUPPORTED",
-                `content does not support ${request.method}`,
+                `content method '${request.method}' is not supported`,
             );
         }
     }
@@ -290,8 +290,8 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
         const text = await response.text();
         if (!response.ok) {
             throw MachineError.of(
-                "OBJECT_REFUSED",
-                `the object of ${object.name} rejected an operation: ${response.status} ${text}`,
+                "OBJECT_UNREACHABLE",
+                `could not run an operation on the object of ${object.name}: ${response.status} '${text}'`,
             );
         }
 

@@ -204,7 +204,7 @@ export class ViewOrigin {
         } catch (error) {
             // refuse, clearing a session cookie the space did not sign
             const refused = refusal(error, this.#space.machine.environment.telemetry);
-            if (MachineError.is(error, "SESSION_INVALID")) {
+            if (MachineError.is(error, "SESSION_UNAUTHENTICATED")) {
                 const url = new URL(given.url);
                 refused.headers.append("set-cookie", new OriginCookie(SESSION_COOKIE, url).clear());
             }
@@ -229,8 +229,8 @@ export class ViewOrigin {
         const posted = new URLSearchParams(form).get(TOKEN_PARAMETER);
         if (posted === null) {
             throw MachineError.of(
-                "LAUNCH_TOKEN_MISSING",
-                `the launch request is missing ${TOKEN_PARAMETER}`,
+                "LAUNCH_TOKEN_REQUIRED",
+                `'${TOKEN_PARAMETER}' is required: the launch request is missing it`,
             );
         }
 
@@ -244,7 +244,7 @@ export class ViewOrigin {
         if (!back.success) {
             throw MachineError.of(
                 "REQUEST_INVALID",
-                "a request returns to a path of its own origin",
+                "request is invalid: it must return to a path of its own origin",
             );
         }
 
@@ -269,7 +269,7 @@ export class ViewOrigin {
         } else {
             throw MachineError.of(
                 "REQUEST_INVALID",
-                "a request names a permission or an assurance",
+                "request is invalid: it must ask for a permission or an assurance",
             );
         }
     }
@@ -291,8 +291,8 @@ export class ViewOrigin {
         // require the installation's own origin, as a route serves anonymous visitors
         if (page.mount !== ROOT) {
             throw MachineError.of(
-                "INSTALLATION_ORIGIN_REQUIRED",
-                "a route serves anonymous visitors: open the view at its installation's origin",
+                "INSTALLATION_ORIGIN_DENIED",
+                "view is forbidden: a route serves anonymous visitors, so open the view at its installation's origin",
             );
         }
 
@@ -354,13 +354,13 @@ export class ViewOrigin {
         const refused = url.searchParams.get("error");
         if (attempt === undefined || attempt.state !== url.searchParams.get("state")) {
             throw MachineError.of(
-                "SIGN_IN_INVALID",
-                "the sign-in returned without the attempt this origin started",
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the sign-in returned without the attempt this origin started",
             );
         } else if (refused !== null) {
             throw MachineError.of(
-                "SIGN_IN_REFUSED",
-                `the issuer refused the sign-in: ${url.searchParams.get("error_description") ?? refused}`,
+                "SIGN_IN_UNAUTHENTICATED",
+                `authentication required: the issuer refused the sign-in with '${url.searchParams.get("error_description") ?? refused}'`,
             );
         }
 
@@ -400,7 +400,7 @@ export class ViewOrigin {
             });
         } catch (error) {
             // ask the person for a grant the view needs, signed in already
-            if (MachineError.is(error, "GRANT_REQUIRED")) {
+            if (MachineError.is(error, "GRANT_DENIED")) {
                 return await this.#signIn(url.origin, attempt.path, page, {
                     grant: error.data,
                     requested: attempt.requested,
@@ -462,7 +462,7 @@ export class ViewOrigin {
         if (view === undefined) {
             throw MachineError.of(
                 "VIEW_NOT_FOUND",
-                `${found.installation.name} mounts no view at ${asked}`,
+                `view '${asked}' of '${found.installation.name}' not found`,
             );
         }
         const rest = isNamed ? asked.slice(segment.length + 1) : asked;
@@ -486,8 +486,8 @@ export class ViewOrigin {
         // require the installation's own origin, as a route's hostname serves other installations too
         if (mount !== undefined) {
             throw MachineError.of(
-                "INSTALLATION_ORIGIN_REQUIRED",
-                "a route serves anonymous visitors: open the view at its installation's origin",
+                "INSTALLATION_ORIGIN_DENIED",
+                "view is forbidden: a route serves anonymous visitors, so open the view at its installation's origin",
             );
         }
 
@@ -498,8 +498,8 @@ export class ViewOrigin {
         const isWithin = credential.kind === "client" || credential.kind === "session";
         if (!isWithin || !within.success || grant === undefined || further.length > 0) {
             throw MachineError.of(
-                "VIEW_GRANT_REQUIRED",
-                "a person can only open a view under their grant, within their session or client",
+                "VIEW_GRANT_DENIED",
+                "view is forbidden: a person can only open a view under their grant, within their session or client",
             );
         }
 
@@ -558,8 +558,8 @@ export class ViewOrigin {
         const revision = await InstallationRevision.followed(this.#space.database, found);
         if (revision === undefined) {
             throw MachineError.of(
-                "REVISION_MISSING",
-                `${found.installation.name} has no revision to serve yet`,
+                "REVISION_UNAVAILABLE",
+                `'${found.installation.name}' is unavailable: it has no revision to serve yet`,
             );
         }
         const { manifest, reader } = await ViewOrigin.#memo(this.#builds, revision.id, async () => {
@@ -590,7 +590,10 @@ export class ViewOrigin {
         // refuse a session the space did not sign for this installation
         const session = await this.#read(PageSession, cookie);
         if (session === undefined || session.installation !== found.installationId) {
-            throw MachineError.of("SESSION_INVALID", "the page's session is invalid or expired");
+            throw MachineError.of(
+                "SESSION_UNAUTHENTICATED",
+                "authentication required: the page's session is invalid or expired",
+            );
         }
 
         return {
@@ -619,7 +622,10 @@ export class ViewOrigin {
 
         // refuse any caller but a person
         if (authentication === undefined || !principal.user.is(authentication.caller.subject)) {
-            throw MachineError.of("PERSON_REQUIRED", "only a person can open a view");
+            throw MachineError.of(
+                "PERSON_DENIED",
+                "view is forbidden: only a person can open a view",
+            );
         }
 
         return authentication;
@@ -669,16 +675,16 @@ export class ViewOrigin {
         const routed = PackageMount.of(new Request(below.href, request));
         if (routed === undefined) {
             throw MachineError.of(
-                "PLATFORM_SERVICE_MISSING",
-                `no platform service at ${url.pathname}`,
+                "PLATFORM_SERVICE_NOT_FOUND",
+                `platform service '${url.pathname}' not found`,
             );
         }
         const packageId = PackageId.parse(routed.packageId);
         const views = Object.values(ViewDescription.list(page.reader.manifest));
         if (!views.some((view) => view.packages.includes(packageId))) {
             throw MachineError.of(
-                "VIEW_PACKAGE_UNDECLARED",
-                `no view of ${page.rollout.installation.name} declares the ${packageId} package`,
+                "VIEW_PACKAGE_DENIED",
+                `package '${packageId}' is forbidden: no view of '${page.rollout.installation.name}' declares it`,
             );
         }
 
@@ -758,7 +764,10 @@ export class ViewOrigin {
         // act as the page's person, refusing a visitor
         const { visitor } = page;
         if (visitor.kind !== "person") {
-            throw MachineError.of("PERSON_REQUIRED", "only a person can register a client");
+            throw MachineError.of(
+                "PERSON_DENIED",
+                "client registration is forbidden: only a person can register a client",
+            );
         }
         const accounts = this.#accounts(page, visitor);
         const userId = schema.identifier("user").parse(visitor.subject.id);
@@ -791,7 +800,7 @@ export class ViewOrigin {
         else if (url.pathname !== CLIENT_PATH) {
             throw MachineError.of(
                 "CLIENT_PATH_NOT_FOUND",
-                `${url.pathname} not found below ${CLIENT_PATH}`,
+                `client path '${url.pathname}' not found`,
             );
         }
 
@@ -823,8 +832,8 @@ export class ViewOrigin {
         const proof = request.headers.get(PROOF_HEADER);
         if (proof === null) {
             throw MachineError.of(
-                "PROOF_REQUIRED",
-                `binding a client needs a ${PROOF_HEADER} proof of its key`,
+                "PROOF_UNAUTHENTICATED",
+                `authentication required: binding a client needs a '${PROOF_HEADER}' proof of its key`,
             );
         }
         const client = schema.identifier("client").parse(Proof.read(proof).subject);
@@ -873,7 +882,7 @@ export class ViewOrigin {
         const failure = Failure.of(error);
         const isHidden = failure.domain === HTTP_DOMAIN && failure.reason === "NOT_FOUND";
 
-        return AccountError.is(error, "CREDENTIAL_REVOKED") || isHidden;
+        return AccountError.is(error, "CREDENTIAL_BLOCKED") || isHidden;
     }
 
     /** Sign a cookie's claims with the space's derived session key, as a compact JWS (RFC 7515). */
@@ -955,7 +964,7 @@ export class ViewOrigin {
         // record it as the installation, under the build the page serves
         const signal = OtlpSignal.at(url.pathname);
         if (signal === undefined) {
-            throw MachineError.of("SIGNAL_UNKNOWN", "no OTLP signal at this path");
+            throw MachineError.of("SIGNAL_NOT_FOUND", "OTLP signal at this path not found");
         }
         const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
         await this.#gateway.record(
@@ -986,7 +995,7 @@ export class ViewOrigin {
             const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
             const reached = Digest.safeParse(digest);
             if (!reached.success || !closure.builds.has(reached.data)) {
-                throw MachineError.of("VIEW_NOT_FOUND", `the views reach no build ${digest}`);
+                throw MachineError.of("VIEW_NOT_FOUND", `build '${digest}' of the views not found`);
             }
             const dependency = await this.#space.builds.contents(reached.data);
             const file = await dependency.file(path.join("/"));
@@ -1069,7 +1078,10 @@ export class ViewOrigin {
 
         // refuse a catalog the builds lack, as a package without one has none
         if (catalog !== undefined) {
-            throw MachineError.of("VIEW_NOT_FOUND", `the views have no catalog at ${pathname}`);
+            throw MachineError.of(
+                "VIEW_NOT_FOUND",
+                `catalog of the views at '${pathname}' not found`,
+            );
         }
 
         // find the view a route fixes, else the one the path's first segment names, the main view at the root
@@ -1093,7 +1105,7 @@ export class ViewOrigin {
         else if (name === undefined || view === undefined || !isMounted) {
             throw MachineError.of(
                 "VIEW_NOT_FOUND",
-                `${found.installation.name} mounts no view ${name ?? "at its root"}`,
+                `view '${name ?? "at its root"}' of '${found.installation.name}' not found`,
             );
         }
         // sign an anonymous visitor in first on a page load of a view serving people
@@ -1188,7 +1200,7 @@ export class ViewOrigin {
             }
         }
 
-        throw MachineError.of("VIEW_NOT_FOUND", `the views reach no build of ${packageId}`);
+        throw MachineError.of("VIEW_NOT_FOUND", `build of '${packageId}' in the views not found`);
     }
 
     /** Write the Permissions Policy of an installation's pages from its views and capabilities. */
@@ -1277,8 +1289,8 @@ export class ViewOrigin {
         // require the installation's own origin, as a route's hostname serves other installations too
         if (mount !== undefined) {
             throw MachineError.of(
-                "INSTALLATION_ORIGIN_REQUIRED",
-                "a route serves anonymous visitors: open links at the installation's origin",
+                "INSTALLATION_ORIGIN_DENIED",
+                "link is forbidden: a route serves anonymous visitors, so open links at the installation's origin",
             );
         }
 
@@ -1324,8 +1336,8 @@ export class ViewOrigin {
         const { base } = mount;
         if (below.pathname !== base && !below.pathname.startsWith(`${base}/`)) {
             throw MachineError.of(
-                "ROUTE_BASE_MISMATCH",
-                `${below.pathname} is outside the route's path ${base}`,
+                "ROUTE_BASE_BROKEN",
+                `'${below.pathname}' is outside the route's path '${base}'`,
             );
         }
         below.pathname = below.pathname.slice(base.length) || "/";
@@ -1341,16 +1353,20 @@ export class ViewOrigin {
                 .map((segment) => {
                     const decoded = decodeURIComponent(segment);
                     if (decoded.includes("/") || decoded.includes("\\")) {
-                        throw new URIError(`${segment} encodes a separator`);
+                        throw new URIError(`'${segment}' encodes a separator`);
                     }
 
                     return decoded;
                 })
                 .join("/");
         } catch (error) {
-            throw MachineError.of("PATH_INVALID", `invalid path ${url.pathname}`, {
-                cause: error,
-            });
+            throw MachineError.of(
+                "PATH_INVALID",
+                `path '${url.pathname}' is invalid: it does not decode`,
+                {
+                    cause: error,
+                },
+            );
         }
     }
 
@@ -1420,9 +1436,13 @@ export class ViewOrigin {
     ): schema.Infer<Shape> {
         const parsed = shape.safeParse(body);
         if (!parsed.success) {
-            throw MachineError.of("REGISTRATION_INVALID", "invalid registration", {
-                cause: parsed.error,
-            });
+            throw MachineError.of(
+                "REGISTRATION_INVALID",
+                "registration is invalid: it does not match its schema",
+                {
+                    cause: parsed.error,
+                },
+            );
         }
 
         return parsed.data;
@@ -1437,8 +1457,8 @@ export class ViewOrigin {
                 : origin === url.origin;
         if (!isSame) {
             throw MachineError.of(
-                "ORIGIN_MISMATCH",
-                "a page's origin can only be called from the page itself",
+                "ORIGIN_DENIED",
+                "page origin is forbidden: it can only be called from the page itself",
             );
         }
     }
@@ -1458,7 +1478,7 @@ export class ViewOrigin {
         } catch (error) {
             throw MachineError.of(
                 "TARGET_INVALID",
-                `the ${TARGET_PARAMETER} parameter is not JSON`,
+                `the '${TARGET_PARAMETER}' parameter is invalid: it is not JSON`,
                 {
                     cause: error,
                 },
@@ -1468,7 +1488,7 @@ export class ViewOrigin {
         if (!parsed.success) {
             throw MachineError.of(
                 "TARGET_INVALID",
-                `the ${TARGET_PARAMETER} parameter is not an object`,
+                `the '${TARGET_PARAMETER}' parameter is invalid: it is not an object`,
             );
         }
 

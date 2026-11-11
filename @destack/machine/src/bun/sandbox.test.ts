@@ -195,8 +195,8 @@ test("open a workload's sandbox to exactly what its capabilities grant, refusing
         browser: new BunWorkloadSandbox(host).options(spec),
         refused: [
             "INTERNAL_SERVER_ERROR",
-            "COMMAND_MISSING",
-            "notes runs hg, which this machine lacks",
+            "COMMAND_BROKEN",
+            "'notes' runs 'hg', which this machine lacks",
         ],
     });
 });
@@ -208,9 +208,9 @@ test("refuse connecting to any host, which the sandbox cannot enforce", async ()
 
     expect(await refusal(() => new BunWorkloadSandbox(host).options({ ...spec, sandbox }))).toEqual(
         [
-            "UNPROCESSABLE_CONTENT",
-            "ABILITY_UNENFORCEABLE",
-            "connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
+            "BAD_REQUEST",
+            "ABILITY_INVALID",
+            "connect ability is invalid: connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
         ],
     );
 });

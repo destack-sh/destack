@@ -21,7 +21,7 @@ export class StartupShortcut implements AutostartRegistration {
         const applicationDirectory = environment.process.variables["APPDATA"];
         if (applicationDirectory === undefined || applicationDirectory === "") {
             throw MachineError.of(
-                "CONFIGURATION_INVALID",
+                "CONFIGURATION_BROKEN",
                 "APPDATA is required for per-user startup",
             );
         }

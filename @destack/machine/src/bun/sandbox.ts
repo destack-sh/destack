@@ -59,8 +59,8 @@ export class BunWorkloadSandbox {
         const connect = sandbox.network?.connect ?? [];
         if (connect.includes("*")) {
             throw PackageError.of(
-                "ABILITY_UNENFORCEABLE",
-                "connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
+                "ABILITY_INVALID",
+                "connect ability is invalid: connecting to any host is not enforced by this machine's sandbox, which allows listed hosts only",
                 { data: { ability: "network" } },
             );
         }
@@ -72,8 +72,8 @@ export class BunWorkloadSandbox {
             const path = machine.which(command);
             if (path === undefined) {
                 throw MachineError.of(
-                    "COMMAND_MISSING",
-                    `${spec.name} runs ${command}, which this machine lacks`,
+                    "COMMAND_BROKEN",
+                    `'${spec.name}' runs '${command}', which this machine lacks`,
                 );
             }
 

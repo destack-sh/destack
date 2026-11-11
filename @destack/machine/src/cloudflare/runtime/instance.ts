@@ -208,7 +208,10 @@ export class InstallationFacet {
     async #requireWorkload(request: Request): Promise<void> {
         const started = await this.#started();
         if (started?.workload.start.secret !== Bearer.require(request.headers)) {
-            throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
+            throw MachineError.of(
+                "INSTANCE_SECRET_UNAUTHENTICATED",
+                "authentication required: the instance secret is invalid",
+            );
         }
     }
 
@@ -260,7 +263,10 @@ export class InstallationFacet {
             ) {
                 const started = await this.#started();
                 if (started === undefined) {
-                    throw MachineError.of("WORKLOAD_MISSING", "no workload runs here");
+                    throw MachineError.of(
+                        "WORKLOAD_UNAVAILABLE",
+                        "workload is unavailable: no workload runs here",
+                    );
                 }
 
                 return await this.#space(started.space).fetch(request);
@@ -269,7 +275,10 @@ export class InstallationFacet {
             // hand a database operation or a request to the facet
             const started = await this.#started();
             if (started === undefined && pathname !== DATABASE_PATH) {
-                throw MachineError.of("WORKLOAD_MISSING", "no workload runs here");
+                throw MachineError.of(
+                    "WORKLOAD_UNAVAILABLE",
+                    "workload is unavailable: no workload runs here",
+                );
             }
 
             const response = await this.#facet(started).fetch(request);
@@ -369,7 +378,10 @@ export class InstallationFacet {
         const isSecret =
             secret !== undefined && given === (await Digest.of(`Bearer ${secret}`, crypto));
         if (!isSecret) {
-            throw MachineError.of("INSTANCE_SECRET_INVALID", "invalid instance secret");
+            throw MachineError.of(
+                "INSTANCE_SECRET_UNAUTHENTICATED",
+                "authentication required: the instance secret is invalid",
+            );
         }
 
         // list every accepted socket's description
@@ -509,8 +521,8 @@ export class InstallationFacet {
         );
         if (!response.ok) {
             throw MachineError.of(
-                "MODULE_NOT_SERVED",
-                `the space serves no modules: ${response.status} ${await response.text()}`,
+                "MODULE_UNREACHABLE",
+                `could not read the space's modules: ${response.status} '${await response.text()}'`,
             );
         }
         const modules = schema

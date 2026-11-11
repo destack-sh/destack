@@ -165,7 +165,7 @@ export class Device<
         await options.environment.files
             .writeTextFile(identity, created, { createNew: true, mode: IDENTITY_MODE })
             .catch((error: unknown) => {
-                if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+                if (!FileSystemError.is(error, "FILE_EXISTS")) {
                     throw error;
                 }
             });
@@ -285,12 +285,12 @@ export class Device<
         const text = await environment.files
             .readTextFile(join(home, IDENTITY_FILE))
             .catch((error: unknown) => {
-                if (!FileSystemError.is(error, "NOT_FOUND")) {
+                if (!FileSystemError.is(error, "FILE_NOT_FOUND")) {
                     throw error;
                 }
                 throw MachineError.of(
-                    "MACHINE_STOPPED",
-                    "the Destack machine has not started on this computer",
+                    "MACHINE_UNAVAILABLE",
+                    "the Destack machine is unavailable: it has not started on this computer",
                     { cause: error },
                 );
             });
@@ -334,14 +334,14 @@ export class Device<
                 fetch: async () => {
                     throw MachineError.of(
                         "METHOD_UNSUPPORTED",
-                        "local objects cannot call a server",
+                        "calling a server from local objects is not supported",
                     );
                 },
             },
             reconnect: () => {
                 throw MachineError.of(
                     "METHOD_UNSUPPORTED",
-                    "local objects cannot move to a machine",
+                    "moving local objects to a machine is not supported",
                 );
             },
         });
@@ -432,7 +432,7 @@ export class Device<
                 computer: await new Loopback(home, environment, new Bookmark()).computer(),
             };
         } catch (error) {
-            if (MachineError.is(error, "MACHINE_STOPPED")) {
+            if (MachineError.is(error, "MACHINE_UNAVAILABLE")) {
                 return { kind: "stopped" };
             }
             throw error;
@@ -481,7 +481,7 @@ export class Device<
             }
             // refuse a failed sign-in
             else if (state.kind === "failed") {
-                throw MachineError.of("SIGN_IN_FAILED", state.reason);
+                throw MachineError.of("SIGN_IN_DENIED", state.reason);
             }
             // show a step the first time the machine writes it
             else if (!shown.has(state.kind)) {
@@ -491,7 +491,10 @@ export class Device<
         }
 
         // refuse a sign-in removed or stopped before it ended
-        throw MachineError.of("SIGN_IN_FAILED", `sign-in ${id} ended before it signed anyone in`);
+        throw MachineError.of(
+            "SIGN_IN_DENIED",
+            `sign-in '${id}' is forbidden: it ended before it signed anyone in`,
+        );
     }
 
     /** Sign a person out on this computer, revoking this computer's client and their session. */
@@ -536,8 +539,8 @@ export class Device<
             const found = signedIn.find((item) => item.id === chosen);
             if (found === undefined) {
                 throw MachineError.of(
-                    "LOGIN_NOT_SIGNED_IN",
-                    `the login setting picks ${chosen}, who is not signed in`,
+                    "LOGIN_BLOCKED",
+                    `cannot sign in as '${chosen}': the login setting picks them, but they are not signed in`,
                 );
             }
 
@@ -546,8 +549,8 @@ export class Device<
         // refuse several people the setting chooses none of
         else if (other !== undefined) {
             throw MachineError.of(
-                "PERSON_AMBIGUOUS",
-                "several people are signed in: choose one with the login setting",
+                "PERSON_BLOCKED",
+                "cannot pick a person: several people are signed in, so choose one with the login setting",
             );
         }
         // take the one person signed in, none without one
@@ -566,7 +569,10 @@ export class Device<
         if (scope === "user") {
             const signedIn = await this.login();
             if (signedIn === undefined) {
-                throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
+                throw MachineError.of(
+                    "SIGN_IN_UNAUTHENTICATED",
+                    "authentication required: nobody is signed in",
+                );
             }
 
             // follow the person's values at the universe as the person
@@ -593,8 +599,8 @@ export class Device<
         }
 
         throw MachineError.of(
-            "SETTING_SCOPE_MISMATCH",
-            `a device can only resolve device and person settings, but ${declared.name} is a ${scope} setting`,
+            "SETTING_SCOPE_INVALID",
+            `setting '${declared.name}' is invalid: it is a '${scope}' setting, and a device can only resolve device and person settings`,
         );
     }
 
@@ -625,15 +631,18 @@ export class Device<
         // refuse any other scope but a person's
         else if (scope !== "user") {
             throw MachineError.of(
-                "SETTING_SCOPE_MISMATCH",
-                `a device can only set device and person settings, but ${declared.name} is a ${scope} setting`,
+                "SETTING_SCOPE_INVALID",
+                `setting '${declared.name}' is invalid: it is a '${scope}' setting, and a device can only set device and person settings`,
             );
         }
 
         // find the person's value set before in their scope at their account
         const signedIn = await this.login();
         if (signedIn === undefined) {
-            throw MachineError.of("SIGN_IN_REQUIRED", "nobody is signed in");
+            throw MachineError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: nobody is signed in",
+            );
         }
         const { session } = await this.launcher(signedIn.id);
         const values = createClient(
@@ -679,7 +688,10 @@ export class Device<
         const { machineId } = await this.loopback.computer();
         const [first] = Object.values(objects);
         if (first === undefined) {
-            throw MachineError.of("OBJECTS_MISSING", "no objects to follow");
+            throw MachineError.of(
+                "OBJECTS_REQUIRED",
+                "object is required: there are no objects to follow",
+            );
         }
         const isLocal = first.scopes.some((type) => type.name === device.name);
 
@@ -701,7 +713,7 @@ export class Device<
                 reconnect: (machine) => {
                     throw MachineError.of(
                         "OBJECTS_MOVED",
-                        `this computer's objects moved to ${machine}`,
+                        `this computer's objects moved to '${machine}'`,
                     );
                 },
             },
@@ -781,8 +793,8 @@ export class Device<
         const { enrollment } = await this.loopback.computer();
         if (enrollment?.status !== "enrolled" || enrollment.kind !== "personal") {
             throw MachineError.of(
-                "ENROLLMENT_REQUIRED",
-                "this machine is not enrolled in a personal account: sign in to enroll it",
+                "ENROLLMENT_BLOCKED",
+                "cannot use this machine: it is not enrolled in a personal account, so sign in to enroll it",
             );
         }
 
@@ -837,7 +849,10 @@ export class Device<
     async #login(loginId: Identifier<"login">): Promise<Login["row"]> {
         const signedIn = await this.logins.query.login.findFirst({ where: { id: loginId } });
         if (signedIn === undefined) {
-            throw MachineError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            throw MachineError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the person is not signed in",
+            );
         }
 
         return signedIn;

@@ -57,10 +57,14 @@ export class Loopback {
         try {
             text = await this.environment.files.readTextFile(join(this.directory, ENDPOINT_FILE));
         } catch (cause) {
-            if (FileSystemError.is(cause, "NOT_FOUND")) {
-                throw MachineError.of("MACHINE_STOPPED", "the Destack machine is not running", {
-                    cause,
-                });
+            if (FileSystemError.is(cause, "FILE_NOT_FOUND")) {
+                throw MachineError.of(
+                    "MACHINE_UNAVAILABLE",
+                    "the Destack machine is unavailable: it is not running",
+                    {
+                        cause,
+                    },
+                );
             }
             throw cause;
         }
@@ -69,9 +73,13 @@ export class Loopback {
         try {
             return LoopbackEndpoint.parse(JSON.parse(text));
         } catch (cause) {
-            throw MachineError.of("ENDPOINT_INVALID", "invalid local machine endpoint", {
-                cause,
-            });
+            throw MachineError.of(
+                "ENDPOINT_INVALID",
+                "the local machine endpoint is invalid: it is not a loopback endpoint",
+                {
+                    cause,
+                },
+            );
         }
     }
 
@@ -140,9 +148,13 @@ export class Loopback {
             // refuse a call nothing listens for, or whose connection the machine closed, as a stopped machine
             const code = error instanceof TypeError && "code" in error ? error.code : undefined;
             if (code === "ConnectionRefused" || code === "ConnectionClosed") {
-                throw MachineError.of("MACHINE_STOPPED", "cannot reach the local machine", {
-                    cause: error,
-                });
+                throw MachineError.of(
+                    "MACHINE_UNAVAILABLE",
+                    "the local machine is unavailable: it cannot be reached",
+                    {
+                        cause: error,
+                    },
+                );
             }
             throw error;
         }

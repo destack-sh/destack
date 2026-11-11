@@ -233,7 +233,7 @@ export class Machine {
     constructor(options: MachineOptions) {
         // set the machine's identity and its storage
         this.id = options.id;
-        this.health = new Health(`machine ${options.id}`);
+        this.health = new Health(options.id);
         this.health.set("starting", "it has not read its enrollment yet");
         this.environment = options.environment;
         this.identity = options.identity;
@@ -590,7 +590,10 @@ export class Machine {
         // require a peer machine as the subject
         const { subject } = authentication.caller;
         if (!principal.machine.is(subject)) {
-            throw MachineError.of("TOKEN_WITHOUT_MACHINE", "a machine key's token has no machine");
+            throw MachineError.of(
+                "TOKEN_WITHOUT_MACHINE_UNAUTHENTICATED",
+                "authentication required: a machine key's token has no machine",
+            );
         }
 
         // refuse a key the directory replica no longer lets authenticate: revoked, suspended or expired
@@ -638,7 +641,7 @@ export class Machine {
             ? { id: parsed.data }
             : await this.directory.find(accountObject.space, space);
         if (found === undefined) {
-            throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${space}`);
+            throw AccountError.of("ADDRESS_NOT_FOUND", `address '${space}' not found`);
         }
         const spaceId = schema.identifier("space").parse(found.id);
 
@@ -958,7 +961,7 @@ export class Machine {
             result.status === "rejected" ? [result.reason] : [],
         );
         if (failures.length > 0) {
-            throw new AggregateError(failures, "some spaces failed to close");
+            throw new AggregateError(failures, "some spaces did not close");
         }
     }
 

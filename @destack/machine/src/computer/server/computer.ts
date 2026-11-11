@@ -268,7 +268,7 @@ export class ComputerServer {
 
         // forward as that person, refusing a path without a login
         if (!loginId.success) {
-            throw MachineError.of("TARGET_INVALID", `${pathname} has no login`);
+            throw MachineError.of("TARGET_INVALID", `'${pathname}' is invalid: it has no login`);
         }
         const login = await this.device.signedIn(loginId.data);
         const [kind] = target;
@@ -347,8 +347,8 @@ export class ComputerServer {
         const name = Platform.ofNode(os);
         if (name === undefined) {
             throw MachineError.of(
-                "CONFIGURATION_INVALID",
-                `the machine does not run on ${os} computers`,
+                "CONFIGURATION_BROKEN",
+                `the machine does not run on '${os}' computers`,
             );
         }
 
@@ -365,8 +365,8 @@ export class ComputerServer {
                     const timeout = machine.clock.timeout(DIRECTORY_SYNC_MILLISECONDS);
                     if (!(await machine.synced(timeout))) {
                         throw ObjectError.of(
-                            "REPLICA_BEHIND",
-                            "the machine's directory has no complete snapshot yet",
+                            "REPLICA_UNAVAILABLE",
+                            "the machine's directory is unavailable: it has no complete snapshot yet",
                         );
                     }
 
@@ -378,7 +378,10 @@ export class ComputerServer {
                     const { handle } = call.input;
                     const id = await this.machine.directory.account(handle);
                     if (id === undefined) {
-                        throw MachineError.of("ACCOUNT_NOT_FOUND", `account @${handle} not found`);
+                        throw MachineError.of(
+                            "ACCOUNT_NOT_FOUND",
+                            `account @'${handle}' not found`,
+                        );
                     }
 
                     return { id };
@@ -430,13 +433,16 @@ export class ComputerServer {
         const target = context.target;
         // refuse an enrolled machine
         if (target.enrollment?.status === "enrolled") {
-            throw MachineError.of("ENROLLED", "machine is already enrolled");
+            throw MachineError.of(
+                "ENROLLMENT_BLOCKED",
+                "cannot enroll the machine: it is already enrolled",
+            );
         }
         // refuse a revoked identity
         else if (target.enrollment?.status === "revoked") {
             throw MachineError.of(
-                "MACHINE_REVOKED",
-                "this machine was revoked: a revoked machine can only enroll as a new machine",
+                "MACHINE_BLOCKED",
+                "cannot enroll this machine: it was revoked, and a revoked machine can only enroll as a new machine",
             );
         }
 

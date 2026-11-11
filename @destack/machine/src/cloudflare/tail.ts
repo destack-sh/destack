@@ -37,8 +37,8 @@ export class MachineTail {
         const answer = await response.text();
         if (!response.ok) {
             throw MachineError.of(
-                "TRACE_REFUSED",
-                `space ${scope} rejected traced work: ${response.status} ${answer}`,
+                "TRACE_UNAVAILABLE",
+                `space '${scope}' is unavailable: it rejected traced work with ${response.status} '${answer}'`,
             );
         }
     }

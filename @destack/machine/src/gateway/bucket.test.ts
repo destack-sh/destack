@@ -160,8 +160,8 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
         .catch((error: unknown) => Failure.of(error));
     expect(refused).toEqual({
         code: "FORBIDDEN",
-        reason: "BUCKET_UNBOUND",
+        reason: "BUCKET_DENIED",
         domain: "@destack/machine",
-        message: `this installation does not bind bucket ${UNBOUND_ID}`,
+        message: `bucket '${UNBOUND_ID}' is forbidden: this installation does not bind it`,
     });
 });

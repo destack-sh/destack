@@ -274,7 +274,7 @@ function movedAnswer(): Response {
     const misdirected = new CallError("MISDIRECTED_REQUEST", {
         reason: "SCOPE_MOVED",
         domain: "@destack/stack",
-        message: `${ids.space} moved`,
+        message: `'${ids.space}' moved`,
         data: { scope: ids.space, machine: ids.machine },
     });
 
@@ -318,8 +318,8 @@ test("route each call to the newest deployment serving the caller's release, and
         EARLIER.instanceId,
         NEWEST.instanceId,
         NEWEST.instanceId,
-        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.11.0`,
-        `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.11.0-dev.1`,
+        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0' is unavailable: none is running`,
+        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0-dev.1' is unavailable: none is running`,
         "BAD_REQUEST: VERSION_INVALID: requires Destack-Version",
         "BAD_REQUEST: VERSION_INVALID: invalid Destack-Version: next",
     ]);
@@ -400,7 +400,12 @@ test("send a workload's calls as its installation, signing only the calls that l
     const caller = principal.installation.reference(ids.space, tasks.installationId).id;
     const located = await space.machine.directory.locate(ids.space, space.machine.clock.now());
     expect({ statuses, forwarded: runtime.forwarded, served, sent }).toEqual({
-        statuses: [200, 200, 200, "UNAUTHORIZED: INSTANCE_SECRET_INVALID: invalid instance secret"],
+        statuses: [
+            200,
+            200,
+            200,
+            "UNAUTHORIZED: INSTANCE_SECRET_UNAUTHENTICATED: authentication required: the instance secret is invalid",
+        ],
         forwarded: [
             [NEWEST.instanceId, `${PackageMount.path(ids.package)}/notes/list`, caller, null],
         ],
@@ -530,7 +535,7 @@ test("forward a request at a sandboxed package's adapter to its newest deploymen
         refused: await answerOf(refused),
     }).toEqual({
         accepted: [200, [[NEWEST.instanceId, path, null, null]]],
-        refused: `SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation serves its adapters`,
+        refused: `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'serves its adapters' is unavailable: none is running`,
     });
 });
 
@@ -563,11 +568,11 @@ test("ask a caller to wait for an installation still deploying, and refuse a dep
     expect([deployed, await call()]).toEqual([
         [
             null,
-            "SERVICE_UNAVAILABLE: RUNNING_DEPLOYMENT_MISSING: no running deployment of this installation runs release 2026.9.0",
+            "SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.9.0' is unavailable: none is running",
         ],
         [
             "1",
-            "SERVICE_UNAVAILABLE: DEPLOYMENT_STARTING: the deployment of this installation that runs release 2026.9.0 is starting",
+            "SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment is unavailable: the deployment of this installation that 'runs release 2026.9.0' is starting",
         ],
     ]);
 });
@@ -614,9 +619,9 @@ test("relay an instance's OTLP export for the spec its secret proves", async () 
         observed,
     ]).toEqual([
         {},
-        "UNAUTHORIZED: INSTANCE_SECRET_INVALID: invalid instance secret",
-        "NOT_FOUND: SIGNAL_UNKNOWN: no OTLP signal at this path",
-        "BAD_REQUEST: BODY_NOT_JSON: an OTLP/JSON logs export is not JSON",
+        "UNAUTHORIZED: INSTANCE_SECRET_UNAUTHENTICATED: authentication required: the instance secret is invalid",
+        "NOT_FOUND: SIGNAL_NOT_FOUND: OTLP signal at this path not found",
+        "BAD_REQUEST: BODY_INVALID: 'an OTLP/JSON logs export' is invalid: it is not JSON",
         [["traces", { resourceSpans: [] }]],
     ]);
 });
@@ -778,9 +783,9 @@ test("send a call to the partition it addresses, and resend a call arriving at t
 
             // answer in the room's partition, and point any other partition there
             const misdirected = new CallError("MISDIRECTED_REQUEST", {
-                reason: "PARTITION_MISDIRECTED",
+                reason: "PARTITION_MOVED",
                 domain: "@destack/object",
-                message: `${room} is served by partition ${room}`,
+                message: `'${room}' is served by partition '${room}'`,
                 data: { scope: room, partition: room },
             });
 
@@ -827,7 +832,7 @@ test("refuse a request to an installation origin the space has no installation o
 
     expect([answered.status, await answerOf(answered)]).toEqual([
         404,
-        "NOT_FOUND: INSTALLATION_NOT_HERE: this machine does not serve installation nots in this space",
+        "NOT_FOUND: INSTALLATION_NOT_FOUND: installation 'nots' served by this machine in this space not found",
     ]);
 });
 

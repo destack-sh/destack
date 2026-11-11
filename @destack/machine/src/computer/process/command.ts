@@ -53,8 +53,8 @@ export const Command = {
         // refuse an exit it does not accept, with its diagnostic
         if (code !== 0 && !(options.accepted ?? []).includes(code)) {
             throw MachineError.of(
-                "COMMAND_FAILED",
-                `${name} failed with ${code}: ${errors.trim()}`,
+                "COMMAND_BROKEN",
+                `'${name}' failed with ${code}: '${errors.trim()}'`,
             );
         }
 
