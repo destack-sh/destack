@@ -17,7 +17,12 @@ import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "../../package.ts";
 import type { AdapterFetch, ObjectStore } from "@destack/object/server";
-import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
+import {
+    BuildReader,
+    type PackageLocation,
+    PackageManifest,
+    type PackageOutput,
+} from "@destack/package/manifest";
 import { DependencyRelease, PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
@@ -155,6 +160,29 @@ export class BuildCache {
         return await opened;
     }
 
+    /** Report whether the cache has each emitted output of a build the machine runs or serves. */
+    async serves(manifest: Digest): Promise<boolean> {
+        // take a build whose manifest the cache lacks as missing
+        const found = await this.store.find(manifest);
+        if (found === undefined) {
+            return false;
+        }
+
+        // require each output the machine runs or serves
+        const contained = await Promise.all(
+            this.served(found).map(([name]) => this.store.containsOutput(manifest, name)),
+        );
+
+        return contained.every(Boolean);
+    }
+
+    /** List a build's emitted outputs on the runtimes the machine runs or serves, by name. */
+    served(manifest: PackageManifest): [string, PackageOutput][] {
+        return Object.entries(manifest.outputs).filter(
+            ([, output]) => output.emit && this.runtimes.includes(output.runtime),
+        );
+    }
+
     /** Pull what the machine's runtimes load of a published build, with its runtime closures. */
     pull(
         registry: Pick<Registry, "locate">,
@@ -200,17 +228,19 @@ export class BuildCache {
                 .manifest;
         };
 
-        // copy the release whole, as its space reads its declarations and serves its files
-        if (!(await this.store.contains(manifest))) {
+        // pull the release's lists, then the outputs the machine runs and serves, unless the cache has them
+        if (!(await this.serves(manifest))) {
             const { location, fetch } = await locate(manifest, packageId);
-            await this.store.copy(location, fetch);
+            await this.store.pullLists(location, fetch);
+            const declared = present(await read(manifest, packageId), `the build ${manifest}`);
+            for (const [name] of this.served(declared)) {
+                await this.store.pull(location, fetch, name);
+            }
         }
 
         // pull what each emitted output the machine runs pins, as far as its runtime closure reaches
         const reader = await this.store.contents(manifest);
-        const emitted = Object.values(reader.manifest.outputs).filter(
-            (output) => output.emit && this.runtimes.includes(output.runtime),
-        );
+        const emitted = this.served(reader.manifest).map(([, output]) => output);
         for (const output of emitted) {
             const closure = await this.store.closure(manifest, packageId, output.runtime, read);
             const pulled = new Set<Digest>([manifest]);
@@ -310,9 +340,9 @@ export class SpaceBuildStore {
         this.cache = cache;
     }
 
-    /** Report whether the space or the machine stores a build. */
+    /** Report whether the space stores a build, or the machine has what it runs of it. */
     async contains(manifest: Digest): Promise<boolean> {
-        return (await this.space.contains(manifest)) || (await this.cache.store.contains(manifest));
+        return (await this.space.contains(manifest)) || (await this.cache.serves(manifest));
     }
 
     /** Open a build the space stores, else the machine's copy of it. */
@@ -567,13 +597,13 @@ export function implementBuild(options: BuildOptions) {
                     const source = BuildSource.parse(context.input.source);
                     if (source.kind === "release") {
                         const { manifest } = source;
-                        if (!(await options.builds.cache.store.contains(manifest))) {
+                        const pulled = await options.builds.cache.store.find(manifest);
+                        if (pulled === undefined) {
                             throw StackError.of(
                                 "RELEASE_NOT_PULLED",
                                 `pull release ${manifest} into the build store before creating its build`,
                             );
                         }
-                        const pulled = await options.builds.cache.store.get(manifest);
                         const built = PackageManifest.package(pulled);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw StackError.of(

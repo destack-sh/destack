@@ -122,7 +122,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
     const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"], new Map()));
     await builds.pull(recording, APPLICATION.id, applicationManifest);
 
-    // locate each build once, storing the release whole and only the Bun outputs of the builds its closure reaches
+    // locate each build once, storing only the Bun outputs of the release and the builds its closure reaches
     const store = builds.cache.store;
     const state = async (manifest: Digest) => [
         await store.contains(manifest),
@@ -144,7 +144,7 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
             [LIBRARY.id, unitManifest],
         ],
         states: [
-            [true, true],
+            [false, true],
             [false, true],
             [false, true],
         ],
