@@ -1,5 +1,5 @@
 import { refusal } from "@destack/object";
-import type { AdapterFetch } from "@destack/object/server";
+import type { MountFetch } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { SecretReading } from "@destack/resource";
 import type { Webhook, WebhookReceive } from "./webhook.ts";
@@ -31,7 +31,7 @@ export class WebhookServer {
     }
 
     /** Verify a delivery below the webhook's path with its secrets and hand it over. */
-    readonly fetch: AdapterFetch = async (request, _caller, _context, store) => {
+    readonly fetch: MountFetch = async (request, _caller, _context, store) => {
         // refuse a request that is no delivery
         if (request.method !== "POST") {
             return new Response(null, { status: METHOD_NOT_ALLOWED, headers: { allow: "POST" } });

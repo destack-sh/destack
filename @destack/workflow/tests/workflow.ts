@@ -112,7 +112,7 @@ export interface TestWorkflow {
     readonly simulation: Simulation;
     /** The world the space's store runs in. */
     readonly environment: Environment;
-    /** Send a request to the notes package below its mount, as its adapters answer it. */
+    /** Send a request to the notes package below its path, as its mounts answer it. */
     readonly fetch: (request: Request) => Promise<Response>;
     /** Call the space's objects by type name as a subject, such as a workflow's runs. */
     readonly objects: (subject: Subject) => DynamicObjectClient;
@@ -233,8 +233,8 @@ export async function openServed<Input, Output>(
                     ...objects,
                 ],
                 cursors: implementations.flatMap((each) => each.cursors),
-                adapters: Object.fromEntries(
-                    implementations.flatMap((each) => Object.entries(each.adapters)),
+                mounts: Object.fromEntries(
+                    implementations.flatMap((each) => Object.entries(each.mounts)),
                 ),
             }).at(context),
         ],

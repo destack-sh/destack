@@ -1,8 +1,8 @@
-import type { AdapterFetch, ObjectStore } from "@destack/object/server";
+import type { MountFetch, ObjectStore } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
 import { DeclarationName, defineKind, ModuleMetadata } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import type { AdapterDeclaration } from "@destack/object";
+import type { MountDeclaration } from "@destack/object";
 import type { ResourceHandle, Secret } from "@destack/resource";
 import { Instant, nth, schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
@@ -38,7 +38,7 @@ export type WebhookDelivery = schema.Infer<typeof WebhookDelivery>;
 export const WebhookDescription = schema.object({
     /** The package-local webhook name. */
     name: DeclarationName,
-    /** The path template below the webhook's adapter path, such as `/{repository}`. */
+    /** The path template below the webhook's mount path, such as `/{repository}`. */
     template: schema.string().regex(PATH_PATTERN),
     /** The name of the signature scheme, such as standard. */
     verification: schema.string().min(1),
@@ -54,13 +54,13 @@ export const WEBHOOK_KIND = defineKind({ name: "webhook", description: WebhookDe
 /** Take a webhook's verified delivery in the installation's store. */
 export type WebhookReceive = (delivery: WebhookDelivery, store: ObjectStore) => Promise<void>;
 
-/** A webhook other services deliver to: an adapter verifying each delivery before taking it. */
-export interface Webhook extends AdapterDeclaration {
+/** A webhook other services deliver to: a mount verifying each delivery before taking it. */
+export interface Webhook extends MountDeclaration {
     /** The declaration kind. */
     readonly kind: "webhook";
-    /** The adapter's path below the package's mount: `/webhooks/<name>`. */
+    /** The mount's path below the package's path: `/webhooks/<name>`. */
     readonly path: `/webhooks/${string}`;
-    /** The path template below the adapter's path. */
+    /** The path template below the mount's path. */
     readonly template: WebhookPath;
     /** The scheme verifying each delivery's signature. */
     readonly signature: WebhookSignature;
@@ -70,14 +70,14 @@ export interface Webhook extends AdapterDeclaration {
     readonly serve: (
         receive: WebhookReceive,
         server: Pick<ServerContext, "resources">,
-    ) => AdapterFetch;
+    ) => MountFetch;
 }
 
 /** What a webhook declares. */
 export interface WebhookDefinition {
     /** The webhook's name within its package. */
     readonly name: string;
-    /** The path template below the webhook's adapter path, `/` by default. */
+    /** The path template below the webhook's mount path, `/` by default. */
     readonly template?: string;
     /** The scheme verifying each delivery's signature. */
     readonly signature: WebhookSignature;

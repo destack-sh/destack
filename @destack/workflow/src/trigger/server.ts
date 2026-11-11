@@ -20,7 +20,7 @@ import {
     Transaction,
 } from "@destack/db";
 import { ObjectType, type ObjectReconciliation, ObjectWatch, refuseInput } from "@destack/object";
-import type { AdapterFetch, ObjectStore } from "@destack/object/server";
+import type { MountFetch, ObjectStore } from "@destack/object/server";
 import type { Cursor } from "@destack/db";
 import { RequestId, type Call, Scope } from "@destack/sync";
 import type { ServerContext } from "@destack/object/workload";
@@ -166,7 +166,7 @@ export class TriggerServer<Input> {
     /** Serve the triggers' webhooks, starting a run of each active trigger per delivery. */
     webhooks(
         server: Pick<ServerContext, "resources"> | undefined,
-    ): ReadonlyMap<string, AdapterFetch> {
+    ): ReadonlyMap<string, MountFetch> {
         // group the webhook triggers by their webhook, refusing to serve one without the installation
         const triggers = [...this.#declared.values()].filter((each) => isWebhook(each));
         const webhooks = Map.groupBy(triggers, (trigger) => trigger.webhook);
