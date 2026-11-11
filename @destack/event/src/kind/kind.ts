@@ -1,5 +1,5 @@
 import { integer, json, TABLE, text, type Row, type Table, type TableColumnMap } from "@destack/db";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { JsonValue, schema, toJsonSchema } from "@destack/schema";
 import { Histogram } from "./histogram.ts";
 
@@ -102,7 +102,11 @@ export type FlushPolicy = schema.Infer<typeof FlushPolicy>;
 export type EventRetention = number | { readonly setting: object };
 
 /** Read the milliseconds a scope retains segments under a package's setting. */
-export type SettingRetention = (setting: object, owner: Package, scope: string) => Promise<number>;
+export type SettingRetention = (
+    setting: object,
+    owner: PackageVersion,
+    scope: string,
+) => Promise<number>;
 
 /** When a scope's hot events flush and how long its segments stay. */
 export interface EventPolicy {
@@ -146,7 +150,7 @@ export const EventTable = {
 /** An event kind as the engine stores it: the object type's table, keys, data and settings. */
 export interface EventKindDescription<Fields extends EventKeyFields, Data extends JsonValue> {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The package-local name, such as call or log. */
     readonly name: string;
     /** The append-only table of the hot events, a column per key beside the event columns. */
@@ -173,7 +177,7 @@ export class EventKind<
     Data extends JsonValue = JsonValue,
 > {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name, keys, data, delivery, policy, lock and subject. */
     readonly #definition: EventKindDescription<Fields, Data>;
     /** The append-only table of the hot events. */

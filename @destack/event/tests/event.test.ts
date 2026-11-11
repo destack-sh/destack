@@ -2,7 +2,7 @@ import { TEST_START } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
 import { Filter, sql } from "@destack/db";
 import type { JsonCondition } from "@destack/db";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { eventSegment, segmentDeletion } from "../src/archive/catalog.ts";
@@ -11,7 +11,7 @@ import { TestEventStore, testKind } from "../src/test/index.ts";
 import { eventTables } from "../src/stack/db.ts";
 
 /** The package declaring the test kinds. */
-const meters = Package.parse({
+const meters = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000301",
     name: "@acme/meters",
     version: "2026.10.0",
