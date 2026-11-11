@@ -276,7 +276,7 @@ export class TestSocial implements AsyncDisposable {
             caller: caller.subject,
             endpoint: caller.endpoint(socialPackage),
             reconnect: (machine) => {
-                throw new TypeError(`no scope moves in this test, yet one moved to ${machine}`);
+                throw new TypeError(`no scope moves in this test, yet one moved to '${machine}'`);
             },
         });
 

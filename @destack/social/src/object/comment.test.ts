@@ -92,7 +92,11 @@ test("thread comments on an article, which commenters reply to, authors and edit
                 }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: comment"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'comment' is forbidden: the caller lacks it",
+    ]);
 
     // refuse a reply to a reply, and a reply's mentions past the end of its text
     const nested = fixture.call(
@@ -112,12 +116,12 @@ test("thread comments on an article, which commenters reply to, authors and edit
         [
             "BAD_REQUEST",
             "FIRST_COMMENT_REQUIRED",
-            "only a thread's first comment takes replies and resolves it",
+            "thread's first comment is required: only it takes replies and resolves the thread",
         ],
         [
             "BAD_REQUEST",
             "MENTIONS_INVALID",
-            "mentions must be ordered, disjoint spans within the text",
+            "mention list is invalid: mentions must be ordered, disjoint spans within the text",
         ],
     ]);
 
@@ -140,7 +144,11 @@ test("thread comments on an article, which commenters reply to, authors and edit
                 }),
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "SELECTION_UNKNOWN", "body has no such selection"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "SELECTION_INVALID",
+        "selection in 'body' is invalid: the host text has no such selection",
+    ]);
 
     // refuse a selection of a field with no text, and mentions past the end of the text
     const titled = fixture.call(
@@ -161,11 +169,15 @@ test("thread comments on an article, which commenters reply to, authors and edit
         }),
     );
     expect(await Promise.all([refusal(titled), refusal(overlong)])).toEqual([
-        ["BAD_REQUEST", "TEXT_FIELD_UNKNOWN", "article has no text field title"],
+        [
+            "BAD_REQUEST",
+            "TEXT_FIELD_INVALID",
+            "text field 'title' is invalid: article has no such text field",
+        ],
         [
             "BAD_REQUEST",
             "MENTIONS_INVALID",
-            "mentions must be ordered, disjoint spans within the text",
+            "mention list is invalid: mentions must be ordered, disjoint spans within the text",
         ],
     ]);
 
@@ -195,12 +207,20 @@ test("thread comments on an article, which commenters reply to, authors and edit
                 }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
 
     // refuse a commenter resolving another's thread
     expect(
         await refusal(fixture.call("bob", comment.call("resolve", { ...scope, id: first.id }))),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: resolve"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'resolve' is forbidden: the caller lacks it",
+    ]);
 
     // let an editor resolve the thread through its first comment once, and its author reopen it
     const resolvedAt = fixture.clock.now();
@@ -211,13 +231,17 @@ test("thread comments on an article, which commenters reply to, authors and edit
     expect(new Comment(resolved).resolution).toEqual({ at: resolvedAt, by: actors.dave });
     expect(
         await refusal(fixture.call("dave", comment.call("resolve", { ...scope, id: first.id }))),
-    ).toEqual(["CONFLICT", "THREAD_RESOLVED", "thread is already resolved"]);
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "THREAD_BLOCKED",
+        "cannot resolve the thread: it is already resolved",
+    ]);
     expect(
         await refusal(fixture.call("dave", comment.call("resolve", { ...scope, id: reply.id }))),
     ).toEqual([
         "BAD_REQUEST",
         "FIRST_COMMENT_REQUIRED",
-        "only a thread's first comment takes replies and resolves it",
+        "thread's first comment is required: only it takes replies and resolves the thread",
     ]);
     const reopened = await fixture.call(
         "alice",
@@ -226,7 +250,11 @@ test("thread comments on an article, which commenters reply to, authors and edit
     expect(new Comment(reopened).resolution).toBeUndefined();
     expect(
         await refusal(fixture.call("alice", comment.call("reopen", { ...scope, id: first.id }))),
-    ).toEqual(["CONFLICT", "THREAD_OPEN", "thread is already open"]);
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "THREAD_BLOCKED",
+        "cannot reopen the thread: it is already open",
+    ]);
 
     // let the owner delete another's comment, and refuse a commenter another's
     expect(
@@ -239,7 +267,11 @@ test("thread comments on an article, which commenters reply to, authors and edit
     );
     expect(
         await refusal(fixture.call("bob", comment.call("delete", { ...scope, id: first.id }))),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: delete"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'delete' is forbidden: the caller lacks it",
+    ]);
 
     // count the article's comments, and delete the thread's replies with its first comment
     expect(

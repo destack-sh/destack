@@ -63,7 +63,11 @@ test("let commenters react once per emoji to articles and their comments, counte
                 }),
             ),
         ),
-    ).toEqual(["CONFLICT", "DUPLICATE", "another reaction has the same parent, author, and emoji"]);
+    ).toEqual([
+        "CONFLICT",
+        "OBJECT_EXISTS",
+        "'reaction' with the same 'parent, author, and emoji' already exists",
+    ]);
     await fixture.call(
         "bob",
         reaction.call("create", { ...scope, ...TestSocial.host(article, draft.id), emoji: "👨🏻‍❤️‍💋‍👨🏼" }),
@@ -89,7 +93,11 @@ test("let commenters react once per emoji to articles and their comments, counte
                 }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: react"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'react' is forbidden: the caller lacks it",
+    ]);
     expect(
         await refusal(
             fixture.call(
@@ -101,7 +109,11 @@ test("let commenters react once per emoji to articles and their comments, counte
                 }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: react"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'react' is forbidden: the caller lacks it",
+    ]);
 
     // count the reactions on the article and on the comment
     expect([
@@ -114,7 +126,11 @@ test("let commenters react once per emoji to articles and their comments, counte
     // take back a reaction only as its author
     expect(
         await refusal(fixture.call("agent", reaction.call("delete", { ...scope, id: thumbs.id }))),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
     await fixture.call("bob", reaction.call("delete", { ...scope, id: thumbs.id }));
     const reactions = (await fixture.list("bob", reaction)).map((row) => [
         row.parentType,

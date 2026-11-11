@@ -188,7 +188,7 @@ export class Comment {
         if (this.row.threadId !== null) {
             throw SocialError.of(
                 "FIRST_COMMENT_REQUIRED",
-                "only a thread's first comment takes replies and resolves it",
+                "thread's first comment is required: only it takes replies and resolves the thread",
             );
         }
 
@@ -246,7 +246,7 @@ export class Comment {
             if (mentioned.offset < end || mentioned.offset + mentioned.length > body.text.length) {
                 throw SocialError.of(
                     "MENTIONS_INVALID",
-                    "mentions must be ordered, disjoint spans within the text",
+                    "mention list is invalid: mentions must be ordered, disjoint spans within the text",
                 );
             }
             end = mentioned.offset + mentioned.length;
@@ -266,8 +266,8 @@ export class Comment {
         // refuse unknown fields
         if (!type.text.includes(selection.field)) {
             throw SocialError.of(
-                "TEXT_FIELD_UNKNOWN",
-                `${host.type} has no text field ${selection.field}`,
+                "TEXT_FIELD_INVALID",
+                `text field '${selection.field}' is invalid: ${host.type} has no such text field`,
             );
         }
 
@@ -279,7 +279,10 @@ export class Comment {
         });
         const { isContained } = Containment.parse(await context.query(context.caller, asked));
         if (!isContained) {
-            throw SocialError.of("SELECTION_UNKNOWN", `${selection.field} has no such selection`);
+            throw SocialError.of(
+                "SELECTION_INVALID",
+                `selection in '${selection.field}' is invalid: the host text has no such selection`,
+            );
         }
     }
 }

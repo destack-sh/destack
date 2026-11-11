@@ -30,7 +30,10 @@ export default implementPackage(socialPackage, {
                     // refuse a resolved thread
                     const first = new Comment(context.target).requireFirst();
                     if (first.resolution !== undefined) {
-                        throw SocialError.of("THREAD_RESOLVED", "thread is already resolved");
+                        throw SocialError.of(
+                            "THREAD_BLOCKED",
+                            "cannot resolve the thread: it is already resolved",
+                        );
                     }
 
                     return context.update({
@@ -43,7 +46,10 @@ export default implementPackage(socialPackage, {
                     // refuse an open thread
                     const first = new Comment(context.target).requireFirst();
                     if (first.resolution === undefined) {
-                        throw SocialError.of("THREAD_OPEN", "thread is already open");
+                        throw SocialError.of(
+                            "THREAD_BLOCKED",
+                            "cannot reopen the thread: it is already open",
+                        );
                     }
 
                     return context.update({
@@ -165,8 +171,8 @@ function requireLocation(location: unknown): void {
     const bytes = new TextEncoder().encode(JSON.stringify(location ?? null)).length;
     if (bytes > LOCATION_BYTES) {
         throw SocialError.of(
-            "LOCATION_TOO_LARGE",
-            `presence locations take at most ${LOCATION_BYTES} bytes`,
+            "LOCATION_INVALID",
+            `presence location is invalid: it must take at most ${LOCATION_BYTES} bytes`,
         );
     }
 }

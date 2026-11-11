@@ -66,7 +66,7 @@ test("show an article's readers who is on it once per writer, what they do and w
                 }),
             ),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${draft.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article '${draft.id}' not found`]);
     const carol = await fixture.follow("carol");
     expect(await rows(carol)).toEqual([]);
 
@@ -91,7 +91,11 @@ test("show an article's readers who is on it once per writer, what they do and w
                 presence.call("update", { ...scope, id: viewing.id, status: "idle" }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
 
     // show the viewer alone once the owner leaves
     await fixture.call("alice", presence.call("delete", { ...scope, id: editing.id }));
@@ -111,8 +115,8 @@ test("show an article's readers who is on it once per writer, what they do and w
         ),
     ).toEqual([
         "CONFLICT",
-        "DUPLICATE",
-        "another presence has the same parent, principal, and writerId",
+        "OBJECT_EXISTS",
+        "'presence' with the same 'parent, principal, and writerId' already exists",
     ]);
 
     // let another principal reuse the writer only for its own row
@@ -136,7 +140,11 @@ test("show an article's readers who is on it once per writer, what they do and w
                 presence.call("update", { ...scope, id: reused.id, status: "editing" }),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
 });
 
 /** Read a follower's next rows as principal, status and selection, in a stable order. */
