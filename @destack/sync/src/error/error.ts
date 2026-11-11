@@ -2,30 +2,32 @@ import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
 /** The sync package's failures, each reason with the call error code it answers. */
-export const SyncError = defineErrorFamily(import.meta.destack.package, {
-    // not found
-    SCOPE_NOT_FOUND: {},
+export const SyncError = defineErrorFamily({
+    reasons: {
+        // not found
+        SCOPE_NOT_FOUND: {},
 
-    // invalid
-    PARAMETERS_INVALID: {},
-    SCOPE_INVALID: {},
+        // invalid
+        PARAMETERS_INVALID: {},
+        SCOPE_INVALID: {},
 
-    // unauthenticated
-    CREDENTIAL_UNAUTHENTICATED: {},
+        // unauthenticated
+        CREDENTIAL_UNAUTHENTICATED: {},
 
-    // blocked
-    FOLLOW_BLOCKED: {},
-    POSITION_BLOCKED: {},
+        // blocked
+        FOLLOW_BLOCKED: {},
+        POSITION_BLOCKED: {},
 
-    // exhausted
-    CAPACITY_EXHAUSTED: {},
+        // exhausted
+        CAPACITY_EXHAUSTED: {},
 
-    // unavailable
-    FEED_UNAVAILABLE: {},
-    REPLICA_UNAVAILABLE: {},
+        // unavailable
+        FEED_UNAVAILABLE: {},
+        REPLICA_UNAVAILABLE: {},
 
-    // unreachable
-    STREAM_UNREACHABLE: {},
+        // unreachable
+        STREAM_UNREACHABLE: {},
+    },
 });
 
 /** A stable cause of sync failures. */
