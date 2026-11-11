@@ -152,8 +152,8 @@ export class TokenVerifier {
                 )
             ) {
                 throw AccessError.of(
-                    "KEYS_INSECURE",
-                    "authentication requires HTTPS outside loopback",
+                    "KEYS_BLOCKED",
+                    "cannot authenticate: authentication requires HTTPS outside loopback",
                 );
             }
         }
@@ -201,7 +201,10 @@ export class TokenVerifier {
             result.data.sub !== result.data.caller.subject.id ||
             result.data.exp <= result.data.iat
         ) {
-            throw AccessError.of("TOKEN_INVALID", "invalid access token claims");
+            throw AccessError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: access token claims do not verify",
+            );
         }
 
         // refuse a token outliving its audience's lifetime
@@ -210,7 +213,10 @@ export class TokenVerifier {
         const verifiedAt = claims.iat * 1000;
         const lifetime = this.options.lifetime ?? TOKEN_LIFETIME_MILLISECONDS;
         if ((claims.exp - claims.iat) * 1000 > lifetime) {
-            throw AccessError.of("TOKEN_INVALID", "invalid access token claims");
+            throw AccessError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: access token claims do not verify",
+            );
         }
 
         // verify it for this audience in the partition it calls
@@ -257,7 +263,7 @@ export class TokenVerifier {
 
             return claims;
         } catch (error) {
-            throw Bearer.refusal(error, "TOKEN_INVALID", "invalid access token");
+            throw Bearer.refusal(error, "TOKEN_UNAUTHENTICATED", "invalid access token");
         }
     }
 }
@@ -330,7 +336,10 @@ function requireSpaceSubjects(space: string, caller: Caller, subjects: readonly 
         (principal.space.is(subject) && subject.id === space) ||
         (principal.installation.is(subject) && subject.scope === space);
     if (caller.contacts.length > 0 || caller.actors.length > 0 || !subjects.every(isSpaceSubject)) {
-        throw AccessError.of("TOKEN_OUTSIDE_AUTHORITY", "token exceeds issuer authority");
+        throw AccessError.of(
+            "TOKEN_OUTSIDE_AUTHORITY_UNAUTHENTICATED",
+            "authentication required: token exceeds issuer authority",
+        );
     }
 }
 
@@ -358,7 +367,10 @@ function requireDeployments(
         workloads.some((subject) => matching(subject) !== 1) ||
         actors.some((subject) => matching(subject) > 1)
     ) {
-        throw AccessError.of("WORKLOAD_IDENTITY_INVALID", "invalid workload token identity");
+        throw AccessError.of(
+            "WORKLOAD_IDENTITY_UNAUTHENTICATED",
+            "authentication required: workload token identity must bind each workload to one deployment",
+        );
     }
 
     // reject deployments of no asserted workload or actor
@@ -368,7 +380,10 @@ function requireDeployments(
             (deployment) => !bound.some((subject) => Subject.same(subject, deployment.subject)),
         )
     ) {
-        throw AccessError.of("WORKLOAD_IDENTITY_INVALID", "unexpected workload token identity");
+        throw AccessError.of(
+            "WORKLOAD_IDENTITY_UNAUTHENTICATED",
+            "authentication required: workload token has a deployment of no asserted subject",
+        );
     }
 }
 
@@ -388,6 +403,9 @@ function requireDelegation(caller: Caller): void {
             chain.slice(position + 1).some((other) => Subject.same(entry, other)),
         )
     ) {
-        throw AccessError.of("DELEGATION_INVALID", "invalid token delegation");
+        throw AccessError.of(
+            "DELEGATION_UNAUTHENTICATED",
+            "authentication required: token delegation does not verify",
+        );
     }
 }

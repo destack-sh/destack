@@ -320,7 +320,11 @@ test("bind roles on enclosing scopes and compose roles through includes", async 
                 (authorization) => Role.delete(object, reader, 1, authorization),
             ),
         ),
-    ).toEqual(["CONFLICT", "ROLE_IN_USE", "role is still bound or included"]);
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "ROLE_BLOCKED",
+        "cannot delete the role: it is still bound or included",
+    ]);
 });
 
 test("bind roles to groups, nested groups and verified subject sets", async () => {
@@ -486,7 +490,11 @@ test("bind only roles whose permissions the granting caller has at their approva
                     ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: edit"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'edit' is forbidden: the caller lacks it",
+    ]);
 
     // reject binding a role granting that permission on approvals too
     const gated = await defineRole(3, [{ ...cell.permission("edit"), approvals: 2 }]);
@@ -508,7 +516,11 @@ test("bind only roles whose permissions the granting caller has at their approva
                     ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: edit"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'edit' is forbidden: the caller lacks it",
+    ]);
 
     // refuse binding a role to a subject set that resolving never expands
     expect(
@@ -531,8 +543,8 @@ test("bind only roles whose permissions the granting caller has at their approva
         ),
     ).toEqual([
         "FORBIDDEN",
-        "ROLE_SUBJECT_REFUSED",
-        "a role cannot bind to node#viewer: roles bind to subject sets and scope relations",
+        "ROLE_SUBJECT_DENIED",
+        "subject 'node#viewer' is forbidden: roles bind to subject sets and scope relations",
     ]);
 });
 
@@ -576,7 +588,11 @@ test("let owners have everything in their scope, make owners, and never remove t
                     ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'share' is forbidden: the caller lacks it",
+    ]);
     const second = await Authorization.run(
         universe,
         database,
@@ -644,7 +660,11 @@ test("let owners have everything in their scope, make owners, and never remove t
                     ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "OWNER_REQUIRED", "only owners may bind a role granting everything"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "OWNER_DENIED",
+        "role granting everything is forbidden: only owners can bind it",
+    ]);
 
     // leave at least one owner
     const [first] = await database
@@ -677,9 +697,9 @@ test("let owners have everything in their scope, make owners, and never remove t
             ),
         ),
     ).toEqual([
-        "CONFLICT",
-        "LAST_RELATIONSHIP",
-        "the last owner of space personal cannot be removed",
+        "PRECONDITION_FAILED",
+        "RELATIONSHIP_BLOCKED",
+        "cannot remove 'owner' of space 'personal': it is the last one",
     ]);
 });
 
@@ -718,7 +738,7 @@ test("create a scope without separate owners, whose account's owners are its own
                 }),
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "SCOPE_REQUIRED", "only a scope can have owners"]);
+    ).toEqual(["BAD_REQUEST", "SCOPE_REQUIRED", "scope is required: only a scope can have owners"]);
     expect(decision.isAllowed).toBe(true);
 });
 
@@ -832,7 +852,11 @@ test("refuse an offer whose inviting principal lost the authority to grant it", 
                 (authorization) => Invitation.accept(offer.id, authorization),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'share' is forbidden: the caller lacks it",
+    ]);
 });
 
 /** Open the role fixture with carol as owner of the personal space, created in the universe. */
@@ -1002,12 +1026,12 @@ test("upsert a declaration's role as its manager, refuse it to others until rele
     expect({ declared, refused, changed, retaken }).toEqual({
         declared: "done",
         refused: [
-            "CONFLICT",
-            "MANAGED",
-            "role is managed by its declaration: detach it before changing it",
+            "PRECONDITION_FAILED",
+            "DECLARATION_BLOCKED",
+            "cannot change 'role': it is managed by its declaration, so detach it first",
         ],
         changed: "done",
-        retaken: ["CONFLICT", "ROLE_NAME_TAKEN", "role name is already in use"],
+        retaken: ["CONFLICT", "ROLE_NAME_EXISTS", "role name already exists"],
     });
 });
 
@@ -1145,7 +1169,11 @@ test("refuse upserting and assigning roles to a caller without the permissions",
                 ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: create"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'create' is forbidden: the caller lacks it",
+    ]);
     expect(
         await refusal(
             outsider((authorization) =>
@@ -1160,14 +1188,22 @@ test("refuse upserting and assigning roles to a caller without the permissions",
                 ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: update"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'update' is forbidden: the caller lacks it",
+    ]);
     expect(
         await refusal(
             outsider((authorization) =>
                 Role.assign(place, reader.id, [alice.subject], authorization),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'share' is forbidden: the caller lacks it",
+    ]);
 });
 
 test("bind a scope's owner at the home of the scope keeping the binding, and refuse it in a database homing another partition", async () => {
@@ -1191,8 +1227,8 @@ test("bind a scope's owner at the home of the scope keeping the binding, and ref
     ]).toEqual([
         [
             "FORBIDDEN",
-            "ACCESS_NOT_LOCAL",
-            "cannot write the access of space personal here: it lives at the home of universe",
+            "ACCESS_DENIED",
+            "access of space 'personal' is forbidden: scope 'universe' has its home in another database",
         ],
         undefined,
     ]);
@@ -1265,8 +1301,12 @@ test("define a role giving a permission on approvals only at as many as the defi
     ]).toEqual([
         "two",
         "three",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
-        ["BAD_REQUEST", "PERMISSION_REPEATED", "a role grants node.read once"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
+        [
+            "BAD_REQUEST",
+            "PERMISSION_INVALID",
+            "role permission 'node.read' is invalid: a role grants it once",
+        ],
     ]);
 });

@@ -36,7 +36,10 @@ export class Nonce {
             .onConflictDoNothing()
             .returning({ id: nonce.id });
         if (spent === undefined) {
-            throw AccessError.of("ASSERTION_REUSED", "assertion was already used");
+            throw AccessError.of(
+                "ASSERTION_UNAUTHENTICATED",
+                "authentication required: assertion was already used",
+            );
         }
     }
 }

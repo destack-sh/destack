@@ -89,12 +89,24 @@ test("authenticate a machine by its assertion once, refusing replayed, expired, 
             },
         },
         refusals: [
-            ["UNAUTHORIZED", "ASSERTION_REUSED", "assertion was already used"],
-            ["UNAUTHORIZED", "ASSERTION_EXPIRED", "assertion expired"],
-            ["UNAUTHORIZED", "ASSERTION_INVALID", "invalid assertion"],
-            ["UNAUTHORIZED", "ASSERTION_KEY_UNKNOWN", "assertion has no standing key"],
-            ["UNAUTHORIZED", "ASSERTION_INVALID", "invalid assertion"],
-            ["UNAUTHORIZED", "ASSERTION_INVALID", "invalid assertion"],
+            [
+                "UNAUTHORIZED",
+                "ASSERTION_UNAUTHENTICATED",
+                "authentication required: assertion was already used",
+            ],
+            [
+                "UNAUTHORIZED",
+                "ASSERTION_UNAUTHENTICATED",
+                "authentication required: assertion expired",
+            ],
+            ["UNAUTHORIZED", "ASSERTION_UNAUTHENTICATED", "invalid assertion"],
+            [
+                "UNAUTHORIZED",
+                "ASSERTION_KEY_UNAUTHENTICATED",
+                "authentication required: assertion has no standing key",
+            ],
+            ["UNAUTHORIZED", "ASSERTION_UNAUTHENTICATED", "invalid assertion"],
+            ["UNAUTHORIZED", "ASSERTION_UNAUTHENTICATED", "invalid assertion"],
         ],
     });
 });
@@ -148,8 +160,8 @@ test("authenticate a space and its installation by the space's key, refusing a s
         space: [principal.space.reference(Scope.universe.id, spaceId), "space-key", undefined],
         refused: [
             "UNAUTHORIZED",
-            "ASSERTION_OUTSIDE_AUTHORITY",
-            "assertion subject is outside its key's authority",
+            "ASSERTION_OUTSIDE_AUTHORITY_UNAUTHENTICATED",
+            "authentication required: assertion subject is outside its key's authority",
         ],
     });
 });

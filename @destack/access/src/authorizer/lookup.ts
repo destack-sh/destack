@@ -184,12 +184,12 @@ export class Lookup {
             placeholder: (name) => AccessContext.attribute(context, name),
             exists: (via) => {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `policy conditions cannot follow relations: ${via}`,
+                    "DECLARATION_BROKEN",
+                    `policy conditions cannot follow relations: '${via}'`,
                 );
             },
             search: () => {
-                throw AccessError.of("DECLARATION_INVALID", "policy conditions cannot search");
+                throw AccessError.of("DECLARATION_BROKEN", "policy conditions cannot search");
             },
         };
 

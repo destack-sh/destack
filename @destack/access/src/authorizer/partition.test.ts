@@ -119,8 +119,8 @@ test("store a space's own access beside its row in its account's home, refusing 
         granted: userSubject("bob"),
         refused: [
             "FORBIDDEN",
-            "ACCESS_NOT_LOCAL",
-            "cannot write the access of space personal here: it lives at the home of account-1",
+            "ACCESS_DENIED",
+            "access of space 'personal' is forbidden: scope 'account-1' has its home in another database",
         ],
         chain: [
             ["personal", "personal"],

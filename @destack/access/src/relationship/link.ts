@@ -29,7 +29,10 @@ export class LinkSecret {
     static async digest(secret: string, crypto: DigestCrypto): Promise<Digest> {
         // reject secrets access never created
         if (!SECRET.test(secret)) {
-            throw AccessError.of("LINK_SECRET_INVALID", "invalid link secret");
+            throw AccessError.of(
+                "LINK_SECRET_DENIED",
+                "link secret is forbidden: it does not match",
+            );
         }
 
         // hash the secret

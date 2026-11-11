@@ -21,12 +21,18 @@ export class TokenIssuer {
         const { caller, credential } = authentication;
         Credential.requireCurrent(credential, credential.audience, now, credential.scope);
         if (Caller.isAnonymous(caller)) {
-            throw AccessError.of("ANONYMOUS_CALLER", "an anonymous caller cannot get a token");
+            throw AccessError.of(
+                "CALLER_UNAUTHENTICATED",
+                "authentication required: an anonymous caller cannot get a token",
+            );
         }
         const expiresAt = Math.floor(credential.expiresAt / 1000);
         const issuedAt = Math.floor(credential.verifiedAt / 1000);
         if (expiresAt * 1000 <= now || expiresAt <= issuedAt) {
-            throw AccessError.of("VERIFICATION_EXPIRED", "the caller's verification expired");
+            throw AccessError.of(
+                "VERIFICATION_UNAUTHENTICATED",
+                "authentication required: the caller's verification expired",
+            );
         }
 
         // require the caller's claims within the issuer's authority
@@ -36,7 +42,10 @@ export class TokenIssuer {
         const sender = Caller.sender(caller);
         const client = AccessToken.shape.client_id.safeParse(credential.client ?? sender.id);
         if (!client.success) {
-            throw AccessError.of("CLIENT_REQUIRED", "a user's token needs a client");
+            throw AccessError.of(
+                "CLIENT_UNAUTHENTICATED",
+                "authentication required: a user's token needs a client",
+            );
         }
 
         // sign the registered claims with the caller

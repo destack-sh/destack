@@ -353,7 +353,10 @@ export const Relationship = {
         }
         // refuse a caller applying no declaration
         else {
-            throw AccessError.of("MANAGER_REQUIRED", "only a declaration can manage relationships");
+            throw AccessError.of(
+                "MANAGER_DENIED",
+                "relationship management is forbidden: only a declaration can manage relationships",
+            );
         }
 
         return transaction
@@ -400,7 +403,7 @@ export const Relationship = {
             return { role: row.roleId };
         } else {
             throw new TypeError(
-                `relationship ${row.id} does not have exactly one relation or role`,
+                `relationship '${row.id}' does not have exactly one relation or role`,
             );
         }
     },
@@ -664,8 +667,8 @@ async function requireReplaced(
         if (kept.length === 0 && replaced.length === 0) {
             const name = row.relation ?? "owner";
             throw AccessError.of(
-                "LAST_RELATIONSHIP",
-                `the last ${name} of ${relationship.object.type} ${relationship.object.id} cannot be removed`,
+                "RELATIONSHIP_BLOCKED",
+                `cannot remove '${name}' of ${relationship.object.type} '${relationship.object.id}': it is the last one`,
             );
         }
     }
@@ -693,8 +696,8 @@ async function requireRemaining(
     if (same.length === 1 && nth(same, 0).id === row.id) {
         const name = row.relation ?? "owner";
         throw AccessError.of(
-            "LAST_RELATIONSHIP",
-            `the last ${name} of ${relationship.object.type} ${relationship.object.id} cannot be removed`,
+            "RELATIONSHIP_BLOCKED",
+            `cannot remove '${name}' of ${relationship.object.type} '${relationship.object.id}': it is the last one`,
         );
     }
 }

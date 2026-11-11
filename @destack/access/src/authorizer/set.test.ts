@@ -169,6 +169,6 @@ test("decide a relation the caller states on an object without its row, and refu
     // allow the caller stating the owner set, refuse the other on the missing row
     expect(decided).toEqual([
         [true, "allowed"],
-        [false, "permission denied: read"],
+        [false, "permission 'read' is forbidden: the caller lacks it"],
     ]);
 });

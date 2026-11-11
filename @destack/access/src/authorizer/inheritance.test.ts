@@ -206,7 +206,7 @@ test("refuse a permission read through an enclosing scope that its chain's relat
         permissions: { read: through("folder", "read") },
     });
     expect(() => new Authorizer([org, narrowed, inside], [{ ...mapping, policy: inside }])).toThrow(
-        "folder.read is a chain permission: it can use relations only",
+        "'folder.read' is a chain permission: it can use relations only",
     );
 });
 

@@ -164,8 +164,8 @@ test("relay an account's access through the space's database into an app's, and 
     await app.simulation.run(app.simulation.clock.now() + notes.lag);
     expect(await resolving).toEqual([
         "SERVICE_UNAVAILABLE",
-        "STALE",
-        "the access replica of personal is not live: no page within 30000 ms",
+        "REPLICA_UNAVAILABLE",
+        "access replica of 'personal' is unavailable: no page within 30000 ms",
     ]);
 
     // relay the revocation: carol reads nothing, and the app's replica reflects the universe's position
@@ -196,8 +196,8 @@ test("relay an account's access through the space's database into an app's, and 
         ),
     ).toEqual([
         "FORBIDDEN",
-        "ACCESS_NOT_LOCAL",
-        "cannot write the access of account account-1 here: this database has a replica of universe",
+        "ACCESS_DENIED",
+        "access of account 'account-1' is forbidden: this database has a replica of scope 'universe'",
     ]);
 
     // read the app's relationships, about its notes, through a fresh snapshot of the space's replica
@@ -275,8 +275,8 @@ test("write a space's own access beside its row where its creator stores it, and
     await grant(accounts, global.database);
     expect(await refusal(grant(spaces, home.database))).toEqual([
         "FORBIDDEN",
-        "ACCESS_NOT_LOCAL",
-        "cannot write the access of space personal here: this database has a replica of account-1",
+        "ACCESS_DENIED",
+        "access of space 'personal' is forbidden: this database has a replica of scope 'account-1'",
     ]);
 });
 

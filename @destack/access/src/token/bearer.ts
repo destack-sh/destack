@@ -29,7 +29,10 @@ export const Bearer = {
     require(headers: Headers): string {
         const token = Bearer.read(headers);
         if (token === undefined) {
-            throw AccessError.of("BEARER_INVALID", "invalid bearer credential");
+            throw AccessError.of(
+                "BEARER_UNAUTHENTICATED",
+                "authentication required: bearer credential does not verify",
+            );
         }
 
         return token;
@@ -40,7 +43,7 @@ export const Bearer = {
         try {
             return Jwt.claims(token).iss;
         } catch (error) {
-            if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
+            if (!IdentityError.is(error, "TOKEN_UNAUTHENTICATED")) {
                 throw error;
             }
 
@@ -49,12 +52,20 @@ export const Bearer = {
     },
 
     /** Answer a failed verification of a signed token. */
-    refusal(error: unknown, reason: "ASSERTION_INVALID" | "TOKEN_INVALID", message: string): Error {
+    refusal(
+        error: unknown,
+        reason: "ASSERTION_UNAUTHENTICATED" | "TOKEN_UNAUTHENTICATED",
+        message: string,
+    ): Error {
         // answer unavailable keys as such
         if (IdentityError.is(error, "KEY_SET_UNAVAILABLE")) {
-            return AccessError.of("KEYS_UNAVAILABLE", "authentication keys are unavailable", {
-                cause: error,
-            });
+            return AccessError.of(
+                "KEYS_UNAVAILABLE",
+                "authentication key set is unavailable: the keys did not load",
+                {
+                    cause: error,
+                },
+            );
         }
         // refuse a token that fails its checks
         else if (IdentityError.is(error)) {
@@ -66,9 +77,13 @@ export const Bearer = {
         }
         // answer any other failure as unavailable keys
         else {
-            return AccessError.of("KEYS_UNAVAILABLE", "authentication keys are unavailable", {
-                cause: error,
-            });
+            return AccessError.of(
+                "KEYS_UNAVAILABLE",
+                "authentication key set is unavailable: the keys did not load",
+                {
+                    cause: error,
+                },
+            );
         }
     },
 };

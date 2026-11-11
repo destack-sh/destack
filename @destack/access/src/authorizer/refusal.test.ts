@@ -40,7 +40,7 @@ test("refuse a reader of a suspended space for its suspension, and a stranger as
         return refused?.message;
     };
     expect([await refusal(bob), await refusal(alice)]).toEqual([
-        "scope suspended is suspended",
+        "scope 'suspended' is forbidden: it is suspended",
         undefined,
     ]);
 });

@@ -41,7 +41,9 @@ test("ask the egress to act as a served person, or as a subject under the grants
         read: { subject: person, grants: [grant] },
         none: {},
     });
-    expect(malformed).toThrow(`invalid ${Exchange.header}`);
+    expect(malformed).toThrow(
+        `header '${Exchange.header}' is invalid: it must be a token exchange header`,
+    );
 });
 
 /** Build a served caller without groups or contacts. */

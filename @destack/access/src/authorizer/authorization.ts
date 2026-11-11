@@ -312,7 +312,10 @@ export class Authorization {
         // refuse owners of an object that is not a scope
         const definition = this.authorizer.policy(object).definition;
         if (definition.scope !== true && creation.owner !== undefined) {
-            throw AccessError.of("SCOPE_REQUIRED", "only a scope can have owners");
+            throw AccessError.of(
+                "SCOPE_REQUIRED",
+                "scope is required: only a scope can have owners",
+            );
         }
         const context = this.context();
 
@@ -381,7 +384,7 @@ export class Authorization {
     async #parent(scope: string): Promise<RowImage<typeof Scope.table>> {
         const [row] = await Scope.read(this.snapshot, [scope]);
         if (row === undefined) {
-            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${scope}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `scope '${scope}' not found`);
         }
 
         return row;
@@ -457,8 +460,8 @@ export class Authorization {
             ![Scope.universe.id, object.scope, ...chain].includes(subject.scope);
         if (isOutside && !(await this.authorizer.isHome(this.snapshot, subject.scope))) {
             throw AccessError.of(
-                "SUBJECT_OUTSIDE_CHAIN",
-                `${subject.type}#${subject.relation} in ${subject.scope} is outside the scope chain of ${object.scope}`,
+                "SUBJECT_OUTSIDE_CHAIN_DENIED",
+                `subject '${subject.type}#${subject.relation}' in '${subject.scope}' is forbidden: it is outside the scope chain of '${object.scope}'`,
             );
         }
     }
@@ -492,8 +495,8 @@ export class Authorization {
             !(await this.authorizer.isOwner(this.snapshot, request.object, access))
         ) {
             throw AccessError.of(
-                "OWNER_REQUIRED",
-                "only owners may bind a role granting everything",
+                "OWNER_DENIED",
+                "role granting everything is forbidden: only owners can bind it",
             );
         }
 
@@ -536,7 +539,10 @@ export class Authorization {
                 ? policy.definition.grantedBy
                 : this.authorizer.relation(policy, relation).grantedBy;
         if (grant === undefined) {
-            throw AccessError.of("UNGRANTABLE", "relationship cannot be granted");
+            throw AccessError.of(
+                "UNGRANTABLE_DENIED",
+                "relationship is forbidden: it cannot be granted",
+            );
         }
 
         return policy.permission(grant);
@@ -549,7 +555,10 @@ export class Authorization {
     ): Promise<void> {
         // require a scope homed here
         if (this.authorizer.policy(object).definition.scope !== true) {
-            throw AccessError.of("SCOPE_REQUIRED", `${object.type} is not a scope`);
+            throw AccessError.of(
+                "SCOPE_REQUIRED",
+                `scope is required: ${object.type} is not a scope`,
+            );
         }
         await this.authorizer.requireHome(this.transaction, object, object.id);
 
@@ -558,7 +567,7 @@ export class Authorization {
             .read(Scope.table)
             .findFirst({ where: { scope: object.id } });
         if (row === undefined) {
-            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${object.id}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `scope '${object.id}' not found`);
         }
         await this.transaction.write({
             table: Scope.table,

@@ -2,14 +2,18 @@ import { expect, test } from "@destack/test";
 import { AccessError } from "./error.ts";
 
 test("challenge a caller with the step-up an insufficient authentication names", () => {
-    const refused = AccessError.of("AUTHENTICATION_INSUFFICIENT", "authenticate again", {
-        data: { assurance: 3 },
-    });
+    const refused = AccessError.of(
+        "ASSURANCE_UNAUTHENTICATED",
+        "authentication required: authenticate again",
+        {
+            data: { assurance: 3 },
+        },
+    );
     expect(refused.toCallError()).toEqual({
         code: "UNAUTHORIZED",
-        reason: "AUTHENTICATION_INSUFFICIENT",
+        reason: "ASSURANCE_UNAUTHENTICATED",
         domain: "@destack/access",
-        message: "authenticate again",
+        message: "authentication required: authenticate again",
         data: { assurance: 3 },
     });
 });

@@ -264,7 +264,11 @@ test("relate a subject once however often touched, set a new expiry on the same 
         .where(eq(accessRelationship.objectId, "b"))
         .orderBy(asc(accessRelationship.subjectId));
     expect({ refused, again: again.id, lapsing: lapsing.id, rows }).toEqual({
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"],
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ],
         again: first.id,
         lapsing: first.id,
         rows: [
@@ -341,16 +345,16 @@ test("keep an object's last relationship of a required relation through revoking
         .from(accessRelationship)
         .where(eq(accessRelationship.relation, "root"));
     const last = [
-        "CONFLICT",
-        "LAST_RELATIONSHIP",
-        "the last root of account account-1 cannot be removed",
+        "PRECONDITION_FAILED",
+        "RELATIONSHIP_BLOCKED",
+        "cannot remove 'root' of account 'account-1': it is the last one",
     ];
     expect({ refused, lapsing, emptied, roots }).toEqual({
         refused: last,
         lapsing: [
             "BAD_REQUEST",
             "RELATIONSHIP_EXPIRY_INVALID",
-            "a required relationship cannot expire",
+            "relationship expiry is invalid: a required relationship cannot expire",
         ],
         emptied: last,
         roots: [{ subjectId: "alice" }],
@@ -434,7 +438,11 @@ test("replace a subject's relationships through a relation with exactly the want
                 (authorization) => Relationship.replace(selection, wanting(second), authorization),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'share' is forbidden: the caller lacks it",
+    ]);
 });
 
 test("store a declaration's relationships under stable identifiers, refuse revoking them from anyone else, and leave them once released", async () => {
@@ -505,11 +513,12 @@ test("store a declaration's relationships under stable identifiers, refuse revok
             Relationship.revoke(node.reference("personal", "c"), released, authorization),
         ),
     );
-    const message = "relationship is managed by its declaration: detach it before changing it";
+    const message =
+        "cannot change 'relationship': it is managed by its declaration, so detach it first";
     expect({ refused, moved: moved.map(([objectId]) => objectId), kept, revoked }).toEqual({
         refused: [
-            ["CONFLICT", "MANAGED", message],
-            ["CONFLICT", "MANAGED", message],
+            ["PRECONDITION_FAILED", "DECLARATION_BLOCKED", message],
+            ["PRECONDITION_FAILED", "DECLARATION_BLOCKED", message],
         ],
         moved: ["c"],
         kept: moved,

@@ -115,7 +115,11 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                     ),
             ),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'share' is forbidden: the caller lacks it",
+    ]);
 
     // select each example's editable rows for its caller
     const elevated = {
@@ -198,11 +202,11 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     }
     expect(refusals).toEqual([
         [
-            "AUTHENTICATION_INSUFFICIENT",
-            "authentication assurance is too low: authenticate again",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
             { assurance: 2, maxAge: 15 * 60 * 1000 },
         ],
-        ["PERMISSION_DENIED", "permission denied: edit", undefined],
+        ["PERMISSION_DENIED", "permission 'edit' is forbidden: the caller lacks it", undefined],
     ]);
 });
 
@@ -430,7 +434,11 @@ databaseTest(
                         ),
                 ),
             ),
-        ).toEqual(["BAD_REQUEST", "PAGE_INVALID", "invitation page limit must be 1 to 100"]);
+        ).toEqual([
+            "BAD_REQUEST",
+            "PAGE_INVALID",
+            "invitation page limit is invalid: it must be 1 to 100",
+        ]);
         expect(
             await refusal(
                 Authorization.run(
@@ -441,7 +449,11 @@ databaseTest(
                     (authorization) => Invitation.accept(asked.id, authorization),
                 ),
             ),
-        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        ).toEqual([
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ]);
         expect(
             await refusal(
                 Authorization.run(
@@ -457,7 +469,11 @@ databaseTest(
                         ),
                 ),
             ),
-        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        ).toEqual([
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ]);
         await Authorization.run(
             authorizer,
             database,
@@ -505,7 +521,11 @@ databaseTest(
                         ),
                 ),
             ),
-        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        ).toEqual([
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ]);
         expect(
             await refusal(
                 Authorization.run(
@@ -518,8 +538,8 @@ databaseTest(
             ),
         ).toEqual([
             "FORBIDDEN",
-            "INVITATION_ADDRESSEE_MISMATCH",
-            "invitation is addressed to someone else",
+            "INVITATION_ADDRESSEE_DENIED",
+            "invitation is forbidden: it is addressed to someone else",
         ]);
         const agent = principal.installation.reference("personal", "assistant");
         expect(
@@ -545,8 +565,8 @@ databaseTest(
             ),
         ).toEqual([
             "FORBIDDEN",
-            "INVITATION_ADDRESSEE_MISMATCH",
-            "invitation is addressed to someone else",
+            "INVITATION_ADDRESSEE_DENIED",
+            "invitation is forbidden: it is addressed to someone else",
         ]);
         await Authorization.run(
             authorizer,
@@ -609,7 +629,11 @@ databaseTest(
                     (authorization) => Invitation.withdraw(rejected.id, authorization),
                 ),
             ),
-        ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"]);
+        ).toEqual([
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ]);
         await Authorization.run(
             authorizer,
             database,
@@ -706,8 +730,8 @@ databaseTest(
         }).toEqual({
             delegateScopes: ["personal", "personal"],
             refusals: [
-                "FOREIGN_AUTHORITY: a principal can grant only its own authority",
-                "DELEGATE_REQUIRED: a grant needs one other principal as delegate",
+                "AUTHORITY_DENIED: authority is forbidden: a principal can grant only its own authority",
+                "DELEGATE_DENIED: grant is forbidden: it needs one other principal as delegate",
             ],
         });
     },
@@ -763,9 +787,9 @@ databaseTest(
         }).toEqual({
             grants: [later.id],
             caller: [alice.subject, [assistant], [Grant.claim(later)]],
-            lapsed: "GRANT_REQUIRED: installation assistant has no grant to act for user alice",
+            lapsed: "GRANT_DENIED: user 'alice' is forbidden: installation 'assistant' has no grant to act for it",
             unlinked:
-                "GRANT_REQUIRED: installation subagent has no grant to act for installation assistant",
+                "GRANT_DENIED: installation 'assistant' is forbidden: installation 'subagent' has no grant to act for it",
         });
     },
 );
@@ -882,12 +906,12 @@ test("resolve the policy of an identifier by its prefix, refusing a prefix of no
     // find each identifier's type, and refuse one of no registered type and one two packages share
     expect(found.map((id) => authorizer.policyOf(id))).toEqual([cell, entity]);
     expect(() => authorizer.policyOf(unknown)).toThrow(
-        AccessError.of("DECLARATION_INVALID", `no known type has identifiers like ${unknown}`),
+        AccessError.of("DECLARATION_BROKEN", `no known type has identifiers like '${unknown}'`),
     );
     expect(() => authorizer.policyOf(shared)).toThrow(
         AccessError.of(
-            "DECLARATION_INVALID",
-            `several known types have identifiers like ${shared}`,
+            "DECLARATION_BROKEN",
+            `several known types have identifiers like '${shared}'`,
         ),
     );
 });
@@ -912,8 +936,8 @@ test("follow a scope relation of several scope types to the nearest scope only, 
     ]).toEqual([["space"], ["account"]]);
     expect(() => new Authorizer([...policies, badgePolicy([account, group])], mappings)).toThrow(
         AccessError.of(
-            "DECLARATION_INVALID",
-            "badge.scope is a scope relation: it accepts scope types only",
+            "DECLARATION_BROKEN",
+            "'badge.scope' is a scope relation: it accepts scope types only",
         ),
     );
 });
@@ -1204,8 +1228,8 @@ test("refuse binding a role to a scope relation a field decides", () => {
     expect(bind("member")).not.toThrow();
     expect(bind("lead")).toThrow(
         AccessError.of(
-            "ROLE_SUBJECT_REFUSED",
-            "a role cannot bind to workspace#lead: roles bind to subject sets and scope relations",
+            "ROLE_SUBJECT_DENIED",
+            "subject 'workspace#lead' is forbidden: roles bind to subject sets and scope relations",
         ),
     );
 });
@@ -1253,8 +1277,8 @@ databaseTest(
                     }),
             );
         const refused = AccessError.of(
-            "SUBJECT_OUTSIDE_CHAIN",
-            "group#member in account-2 is outside the scope chain of personal",
+            "SUBJECT_OUTSIDE_CHAIN_DENIED",
+            "subject 'group#member' in 'account-2' is forbidden: it is outside the scope chain of 'personal'",
         );
         await expect(share("account-2")).rejects.toEqual(refused);
         await expect(create()).rejects.toEqual(refused);
@@ -1275,8 +1299,8 @@ test("refuse universe subject sets that nest without end", () => {
     // refuse the declaration, listing the cycle
     expect(declare).toThrow(
         AccessError.of(
-            "DECLARATION_INVALID",
-            "universe subject sets nest in a cycle: crew -> crew",
+            "DECLARATION_BROKEN",
+            "universe subject sets nest in a cycle: 'crew -> crew'",
         ),
     );
 });

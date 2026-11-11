@@ -281,8 +281,8 @@ export class Authorizer {
             const target = this.#policies.get(ObjectTypeReference.key(entry));
             if (target?.definition.relations[entry.relation]?.open !== true) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `${type.name} cannot contribute to ${entry.type}.${entry.relation}: it is not an open relation`,
+                    "DECLARATION_BROKEN",
+                    `${type.name} cannot contribute to '${entry.type}.${entry.relation}': it is not an open relation`,
                 );
             }
 
@@ -373,7 +373,7 @@ export class Authorizer {
         const registered = this.policy({ packageId: definition.packageId, type: definition.name });
         if (!Authorizer.#isSameType(registered, mapping.policy)) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
+                "DECLARATION_BROKEN",
                 "mapping must reference the registered object declaration",
             );
         }
@@ -384,7 +384,7 @@ export class Authorizer {
             type: definition.name,
         });
         if (this.#mappings.has(key)) {
-            throw AccessError.of("DECLARATION_INVALID", `duplicate database mapping: ${key}`);
+            throw AccessError.of("DECLARATION_BROKEN", `duplicate database mapping: '${key}'`);
         }
 
         // validate the columns and the compiled expressions before registering
@@ -497,8 +497,8 @@ export class Authorizer {
         if (path.some((step) => ObjectTypeReference.key(step.typeReference) === key)) {
             const cycle = [...path, policy].map((step) => step.name).join(" -> ");
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `universe subject sets nest in a cycle: ${cycle}`,
+                "DECLARATION_BROKEN",
+                `universe subject sets nest in a cycle: '${cycle}'`,
             );
         }
 
@@ -640,8 +640,8 @@ export class Authorizer {
                 });
                 if (!decided.has(name) && !sets.has(key) && !parents.has(key)) {
                     throw AccessError.of(
-                        "DECLARATION_INVALID",
-                        `no permission uses relation ${definition.name}.${name}`,
+                        "DECLARATION_BROKEN",
+                        `no permission uses relation '${definition.name}.${name}'`,
                     );
                 }
             }
@@ -675,8 +675,8 @@ export class Authorizer {
         const policy = this.#policies.get(ObjectTypeReference.key(reference));
         if (!policy) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `unknown object type ${reference.type} of ${reference.packageId}`,
+                "DECLARATION_BROKEN",
+                `unknown object type ${reference.type} of '${reference.packageId}'`,
             );
         }
 
@@ -697,10 +697,10 @@ export class Authorizer {
         );
         if (policy === undefined || others.length > 0) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
+                "DECLARATION_BROKEN",
                 policy === undefined
-                    ? `no known type has identifiers like ${id}`
-                    : `several known types have identifiers like ${id}`,
+                    ? `no known type has identifiers like '${id}'`
+                    : `several known types have identifiers like '${id}'`,
             );
         }
 
@@ -734,7 +734,7 @@ export class Authorizer {
             ? definition.permissions[reference.name]
             : undefined;
         if (expression === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `unknown permission: ${reference.name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `unknown permission: '${reference.name}'`);
         }
 
         // give an unreserved permission to the installations of the packages declaring and serving its type
@@ -791,7 +791,7 @@ export class Authorizer {
             ? type.definition.relations[name]
             : undefined;
         if (relation === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `unknown relation: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `unknown relation: '${name}'`);
         }
 
         // add the types contributing to an open relation
@@ -815,7 +815,7 @@ export class Authorizer {
         const mapping = this.mapping(reference);
         if (!mapping) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
+                "DECLARATION_BROKEN",
                 `missing database mapping: ${reference.type}`,
             );
         }
@@ -853,8 +853,8 @@ export class Authorizer {
         const key = PermissionReference.key(reference);
         if (visited.has(key)) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `cyclic scope chain: ${reference.type}.${reference.name}`,
+                "DECLARATION_BROKEN",
+                `cyclic scope chain: '${reference.type}.${reference.name}'`,
             );
         }
         const { relations, contained, enclosing } = this.deciding(reference);
@@ -902,7 +902,7 @@ export class Authorizer {
         // read the related identifier, or the key the subject holds
         const field = mapping.relations[relation];
         if (field === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `${relation} is not a field relation`);
+            throw AccessError.of("DECLARATION_BROKEN", `'${relation}' is not a field relation`);
         }
         const value = row[field.column];
         if (value === null || value === undefined) {
@@ -1047,24 +1047,26 @@ export class Authorizer {
         // name the scope this database lacks, the one it replicates, or the one homed elsewhere
         const view = transaction.view();
         const [row] = await Scope.read(view, [scope]);
-        const refused = `cannot write the access of ${object.type} ${object.id} here`;
 
         // refuse a scope this database lacks
         if (row === undefined) {
-            return AccessError.of("ACCESS_NOT_LOCAL", `${refused}: this database lacks ${scope}`);
+            return AccessError.of(
+                "ACCESS_DENIED",
+                `access of ${object.type} '${object.id}' is forbidden: this database lacks scope '${scope}'`,
+            );
         }
         // refuse a scope this database replicates
         else if (await Authorizer.#isCopied(view, scope)) {
             return AccessError.of(
-                "ACCESS_NOT_LOCAL",
-                `${refused}: this database has a replica of ${scope}`,
+                "ACCESS_DENIED",
+                `access of ${object.type} '${object.id}' is forbidden: this database has a replica of scope '${scope}'`,
             );
         }
         // refuse a scope another database homes
         else {
             return AccessError.of(
-                "ACCESS_NOT_LOCAL",
-                `${refused}: it lives at the home of ${scope}`,
+                "ACCESS_DENIED",
+                `access of ${object.type} '${object.id}' is forbidden: scope '${scope}' has its home in another database`,
             );
         }
     }
@@ -1267,7 +1269,7 @@ export class Authorizer {
         }
         // refuse a type that is neither propagated, a scope nor replicated through its scopes
         else if (mapping.policy.definition.scope !== true) {
-            throw AccessError.of("PROPAGATED_ROWS_MISSING", `no propagated rows of ${type.type}`);
+            throw AccessError.of("ROWS_NOT_FOUND", `propagated rows of ${type.type} not found`);
         }
         // replicate the scope objects' rows whose identifiers are of the scope type
         else {
@@ -1285,8 +1287,8 @@ export class Authorizer {
         const mapping = this.#mappings.get(ObjectTypeReference.key(type));
         if (mapping === undefined || mapping.table === Scope.table) {
             throw AccessError.of(
-                "REPLICATED_TYPE_MISSING",
-                `no object type ${type.type} to replicate`,
+                "TYPE_NOT_FOUND",
+                `object type ${type.type} to replicate not found`,
             );
         }
 
@@ -1382,13 +1384,16 @@ export class Authorizer {
             !accepts(this.relation(this.policy(request.object), request.relation), subject)
         ) {
             throw AccessError.of(
-                "SUBJECT_REFUSED",
-                `relation ${request.relation} does not accept the subject`,
+                "SUBJECT_INVALID",
+                `subject is invalid: relation '${request.relation}' does not accept it`,
             );
         }
         // refuse a wildcard as a role's subject
         else if (isRole && subject !== undefined && (subject.id === "*" || subject.scope === "*")) {
-            throw AccessError.of("WILDCARD_ROLE", "a role cannot bind to a wildcard");
+            throw AccessError.of(
+                "WILDCARD_ROLE_INVALID",
+                "role binding is invalid: a role cannot bind to a wildcard",
+            );
         }
         // require a role's subject set to be one that caller resolution expands
         else if (
@@ -1402,20 +1407,20 @@ export class Authorizer {
             )
         ) {
             throw AccessError.of(
-                "ROLE_SUBJECT_REFUSED",
-                `a role cannot bind to ${subject.type}#${subject.relation}: roles bind to subject sets and scope relations`,
+                "ROLE_SUBJECT_DENIED",
+                `subject '${subject.type}#${subject.relation}' is forbidden: roles bind to subject sets and scope relations`,
             );
         }
         // refuse an expiry on a relationship that must stay, and require a future one elsewhere
         else if (expiresAt !== null && this.isRequired(request)) {
             throw AccessError.of(
                 "RELATIONSHIP_EXPIRY_INVALID",
-                "a required relationship cannot expire",
+                "relationship expiry is invalid: a required relationship cannot expire",
             );
         } else if (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= now)) {
             throw AccessError.of(
                 "RELATIONSHIP_EXPIRY_INVALID",
-                "a relationship must expire in the future",
+                "relationship expiry is invalid: it must be in the future",
             );
         }
     }
@@ -1653,14 +1658,17 @@ export class Authorizer {
         const stepUp = await this.challenge(snapshot, permission, access, allows);
         if (stepUp !== undefined) {
             return AccessError.of(
-                "AUTHENTICATION_INSUFFICIENT",
-                "authentication assurance is too low: authenticate again",
+                "ASSURANCE_UNAUTHENTICATED",
+                "authentication required: authentication assurance is too low",
                 { data: stepUp },
             );
         }
         // refuse a caller its suspended scope alone denies
         else if (access.isSuspended && (await allows(access.active()))) {
-            return AccessError.of("SCOPE_SUSPENDED", `scope ${access.scope} is suspended`);
+            return AccessError.of(
+                "SCOPE_DENIED",
+                `scope '${access.scope}' is forbidden: it is suspended`,
+            );
         }
 
         return undefined;
@@ -1753,7 +1761,7 @@ export class Authorizer {
         // find the scope's object on the access's chain, which lives in its enclosing scope
         const scoped = access.scopes.find((link) => link.id === scope);
         if (scoped === undefined) {
-            throw AccessError.of("ACCESS_UNRESOLVED", `access is not resolved in ${scope}`);
+            throw AccessError.of("ACCESS_BROKEN", `access is not resolved in '${scope}'`);
         }
 
         // list the subjects the authority matches in the scope and its enclosing scope
@@ -1868,15 +1876,15 @@ export class Authorizer {
         // read the object as a row of its type
         if (permission.packageId !== target.packageId || permission.type !== target.type) {
             throw AccessError.of(
-                "PERMISSION_TYPE_MISMATCH",
-                "the permission must belong to the object's type",
+                "PERMISSION_TYPE_INVALID",
+                "permission is invalid: it must belong to the object's type",
             );
         }
         const mapping = this.requireMapping(target);
         const reader = this.reader(snapshot, access.scopes);
         const found = await reader.row(mapping, target);
         if (found === undefined) {
-            throw AccessError.of("OBJECT_NOT_FOUND", `${target.type} ${target.id} not found`);
+            throw AccessError.of("OBJECT_NOT_FOUND", `${target.type} '${target.id}' not found`);
         }
 
         // decide the authority by the permission's tree, and by each tuple alone
@@ -1928,7 +1936,11 @@ export class Authorizer {
             async (each) => (await this.check(snapshot, permission, target, each)).isAllowed,
         );
         throw (
-            refused ?? AccessError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`)
+            refused ??
+            AccessError.of(
+                "PERMISSION_DENIED",
+                `permission '${permission.name}' is forbidden: the caller lacks it`,
+            )
         );
     }
 
@@ -2039,16 +2051,16 @@ export class Authorizer {
                 mapping.trees?.[expression.relation] === undefined
             ) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `missing tree mapping: ${expression.relation}`,
+                    "DECLARATION_BROKEN",
+                    `missing tree mapping: '${expression.relation}'`,
                 );
             } else if (
                 (expression.kind === "granters" || expression.kind === "readers") &&
                 mapping.references?.[expression.reference] === undefined
             ) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `unmapped reference: ${expression.reference}`,
+                    "DECLARATION_BROKEN",
+                    `unmapped reference: '${expression.reference}'`,
                 );
             }
         }
@@ -2101,8 +2113,8 @@ export class Authorizer {
         const [only, ...others] = this.relation(type, name).subjects;
         if (only === undefined || others.length > 0) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `relation ${type.definition.name}#${name} needs exactly one subject type`,
+                "DECLARATION_BROKEN",
+                `relation '${type.definition.name}#${name}' needs exactly one subject type`,
             );
         }
 
@@ -2120,16 +2132,16 @@ export class Authorizer {
         );
         if (!isScopeTypes) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `${type.name}.${name} is a scope relation: it accepts scope types only`,
+                "DECLARATION_BROKEN",
+                `'${type.name}.${name}' is a scope relation: it accepts scope types only`,
             );
         }
         if (
             this.mapping({ packageId: type.definition.packageId, type: type.name })?.relations[name]
         ) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `${type.name}.${name} is a scope relation: a field cannot store it`,
+                "DECLARATION_BROKEN",
+                `'${type.name}.${name}' is a scope relation: a field cannot store it`,
             );
         }
     }
@@ -2140,13 +2152,13 @@ export class Authorizer {
         const type = this.policy(subject);
         if (subject.relation !== undefined) {
             if (subject.wildcard) {
-                throw AccessError.of("DECLARATION_INVALID", "a subject set cannot be a wildcard");
+                throw AccessError.of("DECLARATION_BROKEN", "a subject set cannot be a wildcard");
             }
             // accept a scope's contents, a relation, or a permission the object's relations decide
             if (subject.relation === CONTAINED) {
                 if (type.definition.scope !== true) {
                     throw AccessError.of(
-                        "DECLARATION_INVALID",
+                        "DECLARATION_BROKEN",
                         `${type.name} is no scope: it contains nothing`,
                     );
                 }
@@ -2204,8 +2216,8 @@ export class Authorizer {
         const isField = this.mapping(reference)?.relations[name] !== undefined;
         if (isScope || isField) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `${reference.type}.${reference.name} cannot use ${name}: it is a ${isScope ? "scope" : "field"} relation`,
+                "DECLARATION_BROKEN",
+                `'${reference.type}.${reference.name}' cannot use '${name}': it is a '${isScope ? "scope" : "field"}' relation`,
             );
         }
     }
@@ -2264,8 +2276,8 @@ export class Authorizer {
             // refuse what relationships on the chain cannot decide
             else {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `${reference.type}.${reference.name} is a chain permission: it can use relations only`,
+                    "DECLARATION_BROKEN",
+                    `'${reference.type}.${reference.name}' is a chain permission: it can use relations only`,
                 );
             }
         }
@@ -2303,7 +2315,7 @@ export class Authorizer {
         // detect recursion by the complete permission reference
         const key = PermissionReference.key(reference);
         if (parents.has(key)) {
-            throw AccessError.of("DECLARATION_INVALID", `cyclic permission: ${reference.name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `cyclic permission: '${reference.name}'`);
         }
 
         // retain the named permission path while checking its expression
@@ -2356,8 +2368,8 @@ export class Authorizer {
         const { packageId, name } = type.definition;
         if (!TableMapping.isPrincipalType({ packageId, type: name })) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `${name} is not a principal, so self allows no one`,
+                "DECLARATION_BROKEN",
+                `'${name}' is not a principal, so self allows no one`,
             );
         }
     }
@@ -2390,8 +2402,8 @@ export class Authorizer {
             // refuse an arrow to a subject set or a wildcard
             if (subject.relation !== undefined || subject.wildcard) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `an arrow requires plain object subjects: ${expression.relation}`,
+                    "DECLARATION_BROKEN",
+                    `an arrow requires plain object subjects: '${expression.relation}'`,
                 );
             }
 
@@ -2403,7 +2415,7 @@ export class Authorizer {
                     subject.type !== definition.name)
             ) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
+                    "DECLARATION_BROKEN",
                     "ancestor traversal requires a same-type relation",
                 );
             }
@@ -2452,13 +2464,13 @@ export class Authorizer {
         const [relation] = Predicate.relations(predicate);
         if (relation !== undefined && Object.hasOwn(definition.relations, relation.via)) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `policy conditions cannot follow relations: ${relation.via}`,
+                "DECLARATION_BROKEN",
+                `policy conditions cannot follow relations: '${relation.via}'`,
             );
         } else if (relation !== undefined) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `undeclared ${isObject ? "object" : "request"} attribute: ${relation.via}`,
+                "DECLARATION_BROKEN",
+                `undeclared '${isObject ? "object" : "request"}' attribute: '${relation.via}'`,
             );
         }
 
@@ -2490,7 +2502,7 @@ export class Authorizer {
                 // require a text attribute for a pattern
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
                     throw AccessError.of(
-                        "DECLARATION_INVALID",
+                        "DECLARATION_BROKEN",
                         "pattern applies to text attributes only",
                     );
                 }
@@ -2499,7 +2511,7 @@ export class Authorizer {
                 // require a text attribute for a character set
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
                     throw AccessError.of(
-                        "DECLARATION_INVALID",
+                        "DECLARATION_BROKEN",
                         "character set applies to text attributes only",
                     );
                 }
@@ -2508,7 +2520,7 @@ export class Authorizer {
                 // require a text attribute, and compare its length as a number
                 if (Authorizer.#attributeType(predicate.name, declared) !== "string") {
                     throw AccessError.of(
-                        "DECLARATION_INVALID",
+                        "DECLARATION_BROKEN",
                         "length applies to text attributes only",
                     );
                 }
@@ -2529,11 +2541,11 @@ export class Authorizer {
                 break;
             case "exists":
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `policy conditions cannot follow relations: ${predicate.via}`,
+                    "DECLARATION_BROKEN",
+                    `policy conditions cannot follow relations: '${predicate.via}'`,
                 );
             case "search":
-                throw AccessError.of("DECLARATION_INVALID", "policy conditions cannot search");
+                throw AccessError.of("DECLARATION_BROKEN", "policy conditions cannot search");
         }
     }
 
@@ -2557,15 +2569,15 @@ export class Authorizer {
         // order only numbers
         if (isOrdered && attribute !== "number") {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `ordered comparisons require a number attribute: ${predicate.name}`,
+                "DECLARATION_BROKEN",
+                `ordered comparisons require a number attribute: '${predicate.name}'`,
             );
         }
         // compare only values of the attribute's type
         else if (valueType !== attribute) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `comparisons require a ${attribute} value: ${predicate.name}`,
+                "DECLARATION_BROKEN",
+                `comparisons require a '${attribute}' value: '${predicate.name}'`,
             );
         }
     }
@@ -2579,8 +2591,8 @@ export class Authorizer {
         const attribute = Authorizer.#attributeType(predicate.name, declared);
         if (predicate.values.some((value) => typeof value !== attribute)) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `listed values require ${attribute} values: ${predicate.name}`,
+                "DECLARATION_BROKEN",
+                `listed values require '${attribute}' values: '${predicate.name}'`,
             );
         }
     }
@@ -2592,7 +2604,7 @@ export class Authorizer {
     ): AttributeType {
         const type = Object.hasOwn(declared, name) ? declared[name] : undefined;
         if (type === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `undeclared attribute: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `undeclared attribute: '${name}'`);
         }
 
         return type;
@@ -2606,11 +2618,11 @@ export class Authorizer {
         // refuse placeholders in request conditions, which read request attributes directly
         if (placeholders === undefined) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `request conditions cannot read placeholders: ${name}`,
+                "DECLARATION_BROKEN",
+                `request conditions cannot read placeholders: '${name}'`,
             );
         } else if (!Object.hasOwn(placeholders, name)) {
-            throw AccessError.of("DECLARATION_INVALID", `undeclared request attribute: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `undeclared request attribute: '${name}'`);
         }
 
         return Authorizer.#attributeType(name, placeholders);
@@ -2673,8 +2685,8 @@ export class Authorizer {
         // require an index or the primary key
         if (!isIndexed && subjectColumn.definition.primaryKey !== true) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `subject set ${mapping.policy.definition.name}#${relation} needs an index on ${field.column}`,
+                "DECLARATION_BROKEN",
+                `subject set '${mapping.policy.definition.name}#${relation}' needs an index on ${field.column}`,
             );
         }
     }
@@ -2758,7 +2770,7 @@ export class Authorizer {
         // delete the rows with the subject: by its typed columns, else by its id within its type
         for (const { mapping, name, column } of cascading) {
             if (column === undefined) {
-                throw new TypeError(`relation ${name} can only cascade from a column`);
+                throw new TypeError(`relation '${name}' can only cascade from a column`);
             }
             const typed = column.subject;
             const rows = await transaction.read(mapping.table).findMany({

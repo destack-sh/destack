@@ -132,7 +132,10 @@ export const TableMapping = {
             : [mapping.id, mapping.scope]) {
             const attribute = TableMapping.column(mapping.table, name).definition;
             if (attribute.kind !== "text" || attribute.nullable) {
-                throw AccessError.of("DECLARATION_INVALID", `invalid object key column: ${name}`);
+                throw AccessError.of(
+                    "DECLARATION_BROKEN",
+                    `object key column '${name}' does not match the declaration`,
+                );
             }
         }
     },
@@ -147,8 +150,8 @@ export const TableMapping = {
                 continue;
             } else if (mapped === undefined) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `attribute ${name} of ${definition.name} has no column`,
+                    "DECLARATION_BROKEN",
+                    `attribute '${name}' of '${definition.name}' has no column`,
                 );
             }
 
@@ -163,8 +166,8 @@ export const TableMapping = {
                       : kind;
             if (type !== expected) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `incompatible attribute column: ${name}`,
+                    "DECLARATION_BROKEN",
+                    `incompatible attribute column: '${name}'`,
                 );
             }
         }
@@ -188,7 +191,10 @@ export const TableMapping = {
         // require each to be text
         for (const name of typed) {
             if (TableMapping.column(mapping.table, name).definition.kind !== "text") {
-                throw AccessError.of("DECLARATION_INVALID", `invalid reference column: ${name}`);
+                throw AccessError.of(
+                    "DECLARATION_BROKEN",
+                    `reference column '${name}' does not match the declaration`,
+                );
             }
         }
     },
@@ -207,8 +213,8 @@ export const TableMapping = {
                     relation.subjects.some((subject) => TableMapping.isPrincipalType(subject)))
             ) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `invalid relation mapping: ${mapping.policy.name}.${name}`,
+                    "DECLARATION_BROKEN",
+                    `relation mapping '${mapping.policy.name}.${name}' does not match the declaration`,
                 );
             }
         }
@@ -216,9 +222,12 @@ export const TableMapping = {
         // require an owner mapped to a field relating one type
         const { owner } = mapping;
         if (owner !== undefined && mapping.relations[owner]?.subject !== undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `invalid owner mapping: ${owner}`);
+            throw AccessError.of(
+                "DECLARATION_BROKEN",
+                `owner mapping '${owner}' does not match the declaration`,
+            );
         } else if (owner !== undefined && mapping.relations[owner] === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `owner ${owner} is not a mapped relation`);
+            throw AccessError.of("DECLARATION_BROKEN", `owner '${owner}' is not a mapped relation`);
         }
     },
 
@@ -239,7 +248,10 @@ export const TableMapping = {
                 tree.definition.id !== mapping.id ||
                 tree.definition.scope !== mapping.scope
             ) {
-                throw AccessError.of("DECLARATION_INVALID", `invalid tree mapping: ${name}`);
+                throw AccessError.of(
+                    "DECLARATION_BROKEN",
+                    `tree mapping '${name}' does not match the declaration`,
+                );
             }
         }
     },
@@ -249,8 +261,8 @@ export const TableMapping = {
         // refuse a parent stored as relationships
         if (mapping.parent !== undefined && !mapping.relations[mapping.parent]) {
             throw AccessError.of(
-                "DECLARATION_INVALID",
-                `owning parent must be a field relation: ${mapping.parent}`,
+                "DECLARATION_BROKEN",
+                `owning parent must be a field relation: '${mapping.parent}'`,
             );
         }
         // require one subject type of a parent stored in a field
@@ -326,7 +338,7 @@ export const TableMapping = {
     text(row: Row, name: string): string {
         const value = row[name];
         if (typeof value !== "string") {
-            throw new TypeError(`column ${name} is not text`);
+            throw new TypeError(`column '${name}' is not text`);
         }
 
         return value;
@@ -338,7 +350,7 @@ export const TableMapping = {
             ? mapping.attributes[name]
             : undefined;
         if (mapped === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `attribute ${name} has no column`);
+            throw AccessError.of("DECLARATION_BROKEN", `attribute '${name}' has no column`);
         }
 
         return mapped;
@@ -350,7 +362,7 @@ export const TableMapping = {
         const trees = mapping.trees ?? {};
         const tree = Object.hasOwn(trees, relation) ? trees[relation] : undefined;
         if (tree === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `${relation} has no ancestor index`);
+            throw AccessError.of("DECLARATION_BROKEN", `'${relation}' has no ancestor index`);
         }
 
         return tree;
@@ -362,7 +374,7 @@ export const TableMapping = {
             ? mapping.relations[relation]
             : undefined;
         if (field === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `${relation} is not a field relation`);
+            throw AccessError.of("DECLARATION_BROKEN", `'${relation}' is not a field relation`);
         }
 
         return field;
@@ -374,7 +386,7 @@ export const TableMapping = {
         const references = mapping.references ?? {};
         const columns = Object.hasOwn(references, name) ? references[name] : undefined;
         if (columns === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `unknown object reference: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `unknown object reference: '${name}'`);
         }
 
         return columns;
@@ -394,7 +406,7 @@ export const TableMapping = {
             ? table[TABLE].columns[name]
             : undefined;
         if (found === undefined) {
-            throw AccessError.of("DECLARATION_INVALID", `unknown mapped column: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `unknown mapped column: '${name}'`);
         }
 
         return found;

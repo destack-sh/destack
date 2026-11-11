@@ -93,7 +93,7 @@ export const Invitation = {
         if (!Number.isInteger(page.limit) || page.limit < 1 || page.limit > INVITATION_PAGE) {
             throw AccessError.of(
                 "PAGE_INVALID",
-                `invitation page limit must be 1 to ${INVITATION_PAGE}`,
+                `invitation page limit is invalid: it must be 1 to ${INVITATION_PAGE}`,
             );
         }
 
@@ -132,7 +132,10 @@ export const Invitation = {
 
         // refuse a settled invitation
         if (row.status !== "pending") {
-            throw AccessError.of("INVITATION_NOT_PENDING", `invitation is ${row.status}`);
+            throw AccessError.of(
+                "INVITATION_BLOCKED",
+                `cannot accept the invitation: it is ${row.status}`,
+            );
         }
 
         return Invitation.decode(row);
@@ -257,7 +260,7 @@ export const Invitation = {
             if (!Number.isFinite(expiresAt) || expiresAt <= context.now) {
                 throw AccessError.of(
                     "INVITATION_EXPIRY_INVALID",
-                    "invitation must expire in the future",
+                    "invitation expiry is invalid: it must be in the future",
                 );
             }
 
@@ -269,8 +272,8 @@ export const Invitation = {
                     invited.subject.scope === "*"
                 ) {
                     throw AccessError.of(
-                        "INVITATION_SUBJECT_INVALID",
-                        "invitation subject must be one principal",
+                        "INVITATION_SUBJECT_DENIED",
+                        "invitation subject is forbidden: it must be one principal",
                     );
                 }
                 await authorization.authorizeGrant(invited);
@@ -309,7 +312,7 @@ export const Invitation = {
             const context = authorization.context();
             const invitation = await Invitation.read(authorization.transaction, id);
             if (invitation.expiresAt <= context.now) {
-                throw AccessError.of("INVITATION_LAPSED", "invitation expired");
+                throw AccessError.of("INVITATION_DENIED", "invitation is forbidden: it expired");
             }
 
             // require a grantor for a request
@@ -324,13 +327,13 @@ export const Invitation = {
                 const accepting = Caller.principal(context);
                 if (Caller.isAnonymous(context)) {
                     throw AccessError.of(
-                        "IDENTITY_REQUIRED",
-                        "accepting an offer needs an identity",
+                        "IDENTITY_DENIED",
+                        "offer is forbidden: accepting it needs an identity",
                     );
                 } else if (!Invitation.addresses(invitation, accepting, context)) {
                     throw AccessError.of(
-                        "INVITATION_ADDRESSEE_MISMATCH",
-                        "invitation is addressed to someone else",
+                        "INVITATION_ADDRESSEE_DENIED",
+                        "invitation is forbidden: it is addressed to someone else",
                     );
                 }
                 subject = accepting;
@@ -446,7 +449,10 @@ async function settle(
         .read(accessInvitation)
         .findFirst({ where: { id: Invitation.id(id) } });
     if (row === undefined || row.status !== "pending") {
-        throw AccessError.of("INVITATION_NOT_PENDING", "invitation is no longer pending");
+        throw AccessError.of(
+            "INVITATION_BLOCKED",
+            "cannot accept the invitation: it is no longer pending",
+        );
     }
 
     // mark it settled

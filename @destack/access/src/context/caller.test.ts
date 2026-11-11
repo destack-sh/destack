@@ -29,8 +29,8 @@ test("forward a caller with its credential to a runner and read them back, refus
     const absent = Caller.forwarded(new Request("http://runner.test"));
     const malformed = [
         "BAD_REQUEST",
-        "FORWARDED_CALLER_INVALID",
-        "the forwarded caller is malformed",
+        "CALLER_INVALID",
+        "forwarded caller is invalid: it is malformed",
     ];
 
     expect([read, absent, await refusedHeader("{}"), await refusedHeader("{")]).toEqual([
@@ -55,12 +55,20 @@ test("require a credential current for its audience and scope until it lapses", 
         scope: await current(NOW, "space-b"),
     }).toEqual({
         live: "done",
-        lapsed: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
-        early: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
+        lapsed: [
+            "UNAUTHORIZED",
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: caller authentication is not current",
+        ],
+        early: [
+            "UNAUTHORIZED",
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: caller authentication is not current",
+        ],
         scope: [
             "UNAUTHORIZED",
-            "AUDIENCE_MISMATCH",
-            "caller authentication has a different audience or scope",
+            "AUDIENCE_UNAUTHENTICATED",
+            "authentication required: caller authentication has a different audience or scope",
         ],
     });
 });
@@ -106,9 +114,21 @@ test("require a grant per actor or none, and actors to act for an identified sub
         "done",
         "done",
         "done",
-        ["UNAUTHORIZED", "DELEGATION_INVALID", "a delegation chain needs a grant per actor"],
-        ["UNAUTHORIZED", "DELEGATION_INVALID", "a delegation chain needs a grant per actor"],
-        ["UNAUTHORIZED", "DELEGATION_INVALID", "delegation chain is inconsistent"],
+        [
+            "UNAUTHORIZED",
+            "DELEGATION_UNAUTHENTICATED",
+            "authentication required: a delegation chain needs a grant per actor",
+        ],
+        [
+            "UNAUTHORIZED",
+            "DELEGATION_UNAUTHENTICATED",
+            "authentication required: a delegation chain needs a grant per actor",
+        ],
+        [
+            "UNAUTHORIZED",
+            "DELEGATION_UNAUTHENTICATED",
+            "authentication required: delegation chain is inconsistent",
+        ],
     ]);
 });
 

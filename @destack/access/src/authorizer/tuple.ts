@@ -165,7 +165,7 @@ export class Reader {
     ): Promise<Tree> {
         const [tree] = await this.trees(permission, [row], mapping);
         if (tree === undefined) {
-            throw new TypeError(`permission ${permission.name} has no tuple tree for the row`);
+            throw new TypeError(`permission '${permission.name}' has no tuple tree for the row`);
         }
 
         return tree;
@@ -1250,13 +1250,13 @@ export const Tree = {
                         placeholder: request,
                         exists: (via) => {
                             throw AccessError.of(
-                                "DECLARATION_INVALID",
-                                `policy conditions cannot follow relations: ${via}`,
+                                "DECLARATION_BROKEN",
+                                `policy conditions cannot follow relations: '${via}'`,
                             );
                         },
                         search: () => {
                             throw AccessError.of(
-                                "DECLARATION_INVALID",
+                                "DECLARATION_BROKEN",
                                 "policy conditions cannot search",
                             );
                         },

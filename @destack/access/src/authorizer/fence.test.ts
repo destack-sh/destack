@@ -54,5 +54,5 @@ test("fence a scope for a transfer, moving it and the scopes below it until unfe
                 Scope.fence(transaction, "account-z", "machine-b", 2000),
             ),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", "unknown scope: account-z"]);
+    ).toEqual(["NOT_FOUND", "SCOPE_NOT_FOUND", "scope 'account-z' not found"]);
 });

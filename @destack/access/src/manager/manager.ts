@@ -128,8 +128,8 @@ export const Manager = {
             (manager === null || !Manager.manages(columns, manager))
         ) {
             throw AccessError.of(
-                "MANAGED",
-                `${name} is managed by its declaration: detach it before changing it`,
+                "DECLARATION_BLOCKED",
+                `cannot change '${name}': it is managed by its declaration, so detach it first`,
             );
         }
     },

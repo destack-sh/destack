@@ -48,7 +48,7 @@ export class TestAccess {
                       .from(Scope.table)
                       .where(eq(Scope.table.scope, scope.scope));
         if (parent === undefined) {
-            throw AccessError.of("SCOPE_NOT_FOUND", `unknown scope: ${scope.scope}`);
+            throw AccessError.of("SCOPE_NOT_FOUND", `scope '${scope.scope}' not found`);
         }
 
         // record the scope below it

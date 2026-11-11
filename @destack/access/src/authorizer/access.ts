@@ -175,7 +175,10 @@ export class Access {
     ): Promise<Access> {
         // reject invalid request time before reading expiring records
         if (!Number.isFinite(context.now)) {
-            throw AccessError.of("REQUEST_TIME_INVALID", "request time must be finite");
+            throw AccessError.of(
+                "REQUEST_TIME_INVALID",
+                "request time is invalid: it must be finite",
+            );
         }
 
         // read the chain, unless the caller read it in the same snapshot already
@@ -191,8 +194,8 @@ export class Access {
             !(await Scope.chain(snapshot, confined)).some((link) => link.object.id === scope);
         if (isConfined) {
             throw AccessError.of(
-                "CREDENTIAL_CONFINED",
-                `the caller's credential only applies to ${confined}`,
+                "CREDENTIAL_UNAUTHENTICATED",
+                `authentication required: the caller's credential only applies to '${confined}'`,
             );
         }
 
@@ -463,7 +466,7 @@ export class Access {
                 ...related.flatMap((row) => {
                     // refuse a role binding among the memberships
                     if (row.relation === null) {
-                        throw new TypeError(`membership ${row.id} has no relation`);
+                        throw new TypeError(`membership '${row.id}' has no relation`);
                     }
 
                     const type = { packageId: row.objectPackageId, type: row.objectType };
@@ -733,8 +736,8 @@ export class Access {
         const stale = await Replica.waitLive(database, CHAIN_PUBLICATION, chain, lag, deadline);
         if (stale !== undefined) {
             throw AccessError.of(
-                "STALE",
-                `the access replica of ${stale} is not live: no page within ${lag} ms`,
+                "REPLICA_UNAVAILABLE",
+                `access replica of '${stale}' is unavailable: no page within ${lag} ms`,
             );
         }
     }

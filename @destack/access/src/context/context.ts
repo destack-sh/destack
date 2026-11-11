@@ -167,7 +167,10 @@ export const Credential = Object.assign(credentialSchema, {
             credential.verifiedAt > now + CLOCK_TOLERANCE_MILLISECONDS ||
             now >= credential.expiresAt
         ) {
-            throw AccessError.of("AUTHENTICATION_EXPIRED", "caller authentication is not current");
+            throw AccessError.of(
+                "SESSION_UNAUTHENTICATED",
+                "authentication required: caller authentication is not current",
+            );
         }
     },
 
@@ -179,8 +182,8 @@ export const Credential = Object.assign(credentialSchema, {
             (credential.scope !== undefined && credential.scope !== scope)
         ) {
             throw AccessError.of(
-                "AUDIENCE_MISMATCH",
-                "caller authentication has a different audience or scope",
+                "AUDIENCE_UNAUTHENTICATED",
+                "authentication required: caller authentication has a different audience or scope",
             );
         }
 
@@ -322,11 +325,14 @@ export const Caller = {
     requireChain(caller: Caller): void {
         if (caller.grants.length > 0 && caller.grants.length !== caller.actors.length) {
             throw AccessError.of(
-                "DELEGATION_INVALID",
-                "a delegation chain needs a grant per actor",
+                "DELEGATION_UNAUTHENTICATED",
+                "authentication required: a delegation chain needs a grant per actor",
             );
         } else if (caller.actors.length > 0 && Caller.isAnonymous(caller)) {
-            throw AccessError.of("DELEGATION_INVALID", "delegation chain is inconsistent");
+            throw AccessError.of(
+                "DELEGATION_UNAUTHENTICATED",
+                "authentication required: delegation chain is inconsistent",
+            );
         }
     },
 
@@ -346,7 +352,7 @@ export const Caller = {
         // refuse a header that is not a JSON caller with its credential
         const parsed = Authentication.safeParse(JsonValue.parse(forwarded));
         if (!parsed.success) {
-            throw AccessError.of("FORWARDED_CALLER_INVALID", "the forwarded caller is malformed");
+            throw AccessError.of("CALLER_INVALID", "forwarded caller is invalid: it is malformed");
         }
 
         return parsed.data;
@@ -438,7 +444,7 @@ export const AccessContext = {
         if (value === undefined || (typeof value === "number" && !Number.isFinite(value))) {
             throw AccessError.of(
                 "ATTRIBUTE_INVALID",
-                `missing or invalid context attribute: ${name}`,
+                `context attribute '${name}' is invalid: it is missing or does not match its schema`,
             );
         }
 

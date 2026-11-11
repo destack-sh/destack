@@ -108,7 +108,7 @@ export class Policy<
     permission(name: Name): Permission {
         // require a declared permission
         if (!Object.hasOwn(this.definition.permissions, name)) {
-            throw AccessError.of("DECLARATION_INVALID", `unknown permission: ${name}`);
+            throw AccessError.of("DECLARATION_BROKEN", `unknown permission: '${name}'`);
         }
 
         return Permission.parse({
@@ -155,7 +155,10 @@ export class Policy<
         // parse `type`, `type#relation` and `type:*`
         const match = /^([a-z][a-z0-9-]*)(?:#([a-z][a-z0-9-]*)|(:\*))?$/u.exec(subject);
         if (!match) {
-            throw AccessError.of("DECLARATION_INVALID", `invalid subject type: ${subject}`);
+            throw AccessError.of(
+                "DECLARATION_BROKEN",
+                `subject type '${subject}' does not match the declaration`,
+            );
         }
 
         return SubjectType.parse({
@@ -203,8 +206,8 @@ export class Policy<
                 relation.isScope !== true
             ) {
                 throw AccessError.of(
-                    "DECLARATION_INVALID",
-                    `relation ${name} has no subject type and is not open`,
+                    "DECLARATION_BROKEN",
+                    `relation '${name}' has no subject type and is not open`,
                 );
             }
         }

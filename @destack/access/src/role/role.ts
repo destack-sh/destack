@@ -31,8 +31,8 @@ export const RolePermission = Object.assign(rolePermissionSchema, {
         );
         if (repeated !== undefined) {
             throw AccessError.of(
-                "PERMISSION_REPEATED",
-                `a role grants ${repeated.type}.${repeated.name} once`,
+                "PERMISSION_INVALID",
+                `role permission '${repeated.type}.${repeated.name}' is invalid: a role grants it once`,
             );
         }
     },
@@ -246,7 +246,7 @@ export const Role = {
             defined?.id ??
             (await Role.define(transaction, scope.id, request, now, null, environment));
         if (role === undefined) {
-            throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
+            throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
         }
         if (defined !== undefined) {
             await Role.replace(transaction, role, scope.id, request.permissions, environment);
@@ -361,7 +361,7 @@ export const Role = {
                 authorization.environment,
             );
             if (id === undefined) {
-                throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
+                throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
             }
             const record = await Role.read(authorization.transaction, scope.id, id);
 
@@ -381,7 +381,10 @@ export const Role = {
             const context = authorization.context();
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== changes.revision) {
-                throw AccessError.of("REVISION_STALE", "role revision has changed");
+                throw AccessError.of(
+                    "REVISION_CONFLICT",
+                    "cannot update the role: its revision changed",
+                );
             }
             await authorization.authorizeRole(
                 scope,
@@ -434,7 +437,10 @@ export const Role = {
             // require an editable role at the revision and permission to delete roles
             const record = await Role.read(authorization.transaction, scope.id, id);
             if (record.revision !== revision) {
-                throw AccessError.of("REVISION_STALE", "role revision has changed");
+                throw AccessError.of(
+                    "REVISION_CONFLICT",
+                    "cannot update the role: its revision changed",
+                );
             }
             await authorization.authorizeRole(
                 scope,
@@ -458,7 +464,10 @@ export const Role = {
                 limit: 1,
             });
             if (bindings.length > 0) {
-                throw AccessError.of("ROLE_IN_USE", "role is still bound or included");
+                throw AccessError.of(
+                    "ROLE_BLOCKED",
+                    "cannot delete the role: it is still bound or included",
+                );
             }
 
             // delete the role with its permissions
@@ -510,7 +519,7 @@ export const Role = {
             // refuse a role of the name the declaration does not manage
             const { manager } = authorization;
             if (manager !== null && !Manager.manages(existing, manager)) {
-                throw AccessError.of("ROLE_NAME_TAKEN", "role name is already in use");
+                throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
             }
             const granted = await Role.permissions(authorization.transaction, existing.id);
             const isGranted = isSamePermissions(granted, request.permissions);

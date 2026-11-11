@@ -58,7 +58,10 @@ export const Assertion = {
         // claim the key's principal for the endpoint, living a minute, under a fresh identifier
         const [algorithm] = PublicKey.algorithms(key.publicKey);
         if (algorithm === undefined) {
-            throw AccessError.of("KEYS_INSECURE", "the assertion key has no signing algorithm");
+            throw AccessError.of(
+                "KEYS_BLOCKED",
+                "cannot use the assertion key: it has no signing algorithm",
+            );
         }
         const issuedAt = Math.floor(now / 1000);
         const claims = {
@@ -98,7 +101,10 @@ export class AssertionVerifier {
                 ? undefined
                 : await this.options.keys(kid, iss, now);
         if (key === undefined) {
-            throw AccessError.of("ASSERTION_KEY_UNKNOWN", "assertion has no standing key");
+            throw AccessError.of(
+                "ASSERTION_KEY_UNAUTHENTICATED",
+                "authentication required: assertion has no standing key",
+            );
         }
 
         // verify the signature, the type, and the claims of the key's principal and this endpoint
@@ -119,15 +125,25 @@ export class AssertionVerifier {
             crypto,
         );
         const { claims } = await verifying.catch((error: unknown) => {
-            throw IdentityError.is(error, "TOKEN_EXPIRED")
-                ? AccessError.of("ASSERTION_EXPIRED", "assertion expired", { cause: error })
-                : Bearer.refusal(error, "ASSERTION_INVALID", "invalid assertion");
+            throw IdentityError.is(error, "TOKEN_UNAUTHENTICATED")
+                ? AccessError.of(
+                      "ASSERTION_UNAUTHENTICATED",
+                      "authentication required: assertion expired",
+                      { cause: error },
+                  )
+                : Bearer.refusal(error, "ASSERTION_UNAUTHENTICATED", "invalid assertion");
         });
         const { sub, iat, exp, jti } = claims;
         if (sub === undefined || iat === undefined || exp === undefined || jti === undefined) {
-            throw AccessError.of("ASSERTION_INVALID", "invalid assertion");
+            throw AccessError.of(
+                "ASSERTION_UNAUTHENTICATED",
+                "authentication required: assertion does not verify",
+            );
         } else if ((exp - iat) * 1000 > ASSERTION_LIFETIME_MILLISECONDS) {
-            throw AccessError.of("ASSERTION_TOO_LONG", "assertion lifetime exceeds five minutes");
+            throw AccessError.of(
+                "ASSERTION_UNAUTHENTICATED",
+                "authentication required: assertion lifetime exceeds five minutes",
+            );
         }
 
         // spend it once under its key, refusing one spent before, and answer the key's principal
@@ -201,8 +217,8 @@ function assertedSubject(key: AssertionKey, sub: string): Subject {
 
     // refuse any other subject
     throw AccessError.of(
-        "ASSERTION_OUTSIDE_AUTHORITY",
-        "assertion subject is outside its key's authority",
+        "ASSERTION_OUTSIDE_AUTHORITY_UNAUTHENTICATED",
+        "authentication required: assertion subject is outside its key's authority",
     );
 }
 
@@ -211,9 +227,13 @@ function refused<Value>(read: () => Value): Value {
     try {
         return read();
     } catch (error) {
-        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
+        if (!IdentityError.is(error, "TOKEN_UNAUTHENTICATED")) {
             throw error;
         }
-        throw AccessError.of("ASSERTION_INVALID", "invalid assertion", { cause: error });
+        throw AccessError.of(
+            "ASSERTION_UNAUTHENTICATED",
+            "authentication required: assertion does not verify",
+            { cause: error },
+        );
     }
 }
