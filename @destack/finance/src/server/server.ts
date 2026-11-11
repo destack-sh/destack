@@ -50,7 +50,7 @@ export function implementFinance(
             implementCharge(metering),
         ],
 
-        adapters: {
+        mounts: {
             stripe:
                 webhook ??
                 (async () => {

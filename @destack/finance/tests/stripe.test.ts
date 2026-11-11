@@ -32,7 +32,7 @@ import { Finance, ids, resolved } from "./fixture/finance.ts";
 import { Period } from "../src/rate/period.ts";
 import { calls, disk, diskSku, requests, storage } from "./fixture/storage.ts";
 
-/** The URL finance takes Stripe's deliveries at: its webhook adapter below its package's mount. */
+/** The URL finance takes Stripe's deliveries at: its webhook mount below its package's path. */
 const WEBHOOK = `https://finance--home--destack.destack.space${PackageMount.path(financePackage.id)}/webhooks/stripe`;
 
 /** The pages Checkout returns buyers to. */
