@@ -520,6 +520,10 @@ export class ApplicationInstallation {
             fresh.length === 0 &&
             replaced.length === 0
         ) {
+            // grant again once the space serves the revision and what its grant names
+            if (await this.#waitForSpace(call, revision, description)) {
+                return;
+            }
             await InstallationAccess.upsert(call, target, description);
             await this.#redeclare(call, revision);
             await this.#observeApplied(call, workloads.length);
@@ -603,15 +607,7 @@ export class ApplicationInstallation {
         }
 
         // wait for the space to serve the revision once its targets are bound, and the packages whose types its grants name
-        const unserved = await this.#describeUnserved(call, revision, description);
-        if (unserved !== undefined) {
-            await call.observe(installation, target.installation, {
-                conditions: {
-                    Bound: BOUND,
-                    Ready: Rollout.waiting("WaitingForSpace", unserved),
-                },
-            });
-
+        if (await this.#waitForSpace(call, revision, description)) {
             return;
         }
 
@@ -806,6 +802,23 @@ export class ApplicationInstallation {
                 ? `${target.installation.name} needs ${name} installed`
                 : `capability ${missing.capability} needs ${name} installed`,
         );
+    }
+
+    /** Wait while the space does not serve the revision or what its grant names. */
+    async #waitForSpace(
+        call: MethodContextOf<typeof rollout, "deploy">,
+        revision: InstallationRevision,
+        description: PackageDescription | undefined,
+    ): Promise<boolean> {
+        // report the wait on its bound targets' readiness
+        const unserved = await this.#describeUnserved(call, revision, description);
+        if (unserved !== undefined) {
+            await call.observe(installation, this.#target.installation, {
+                conditions: { Bound: BOUND, Ready: Rollout.waiting("WaitingForSpace", unserved) },
+            });
+        }
+
+        return unserved !== undefined;
     }
 
     /** Describe what the space does not serve yet: the revision, or a package it needs. */

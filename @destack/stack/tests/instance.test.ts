@@ -393,6 +393,7 @@ async function serveControllers(
 
                 return reconcile(store, "rollout", { installationId: id });
             },
+            pass: (id: string) => reconcile(store, "rollout", { installationId: id }),
         },
         instances: {
             reconcile: (id: string) => reconcile(store, "deployment", { id }),
@@ -578,6 +579,48 @@ test("deploy each workload with its bound resources, and drain and retire it onc
         "stopped",
         [running.id],
     ]);
+});
+
+test("wait to grant an applied application again until its space serves its revision once more, as after a restart", async () => {
+    // deploy notes once its space serves the revision
+    const fixture = await TestSpace.open();
+    const { database } = fixture;
+    const notes = await installNotes(fixture);
+    const { deployments, resources } = await serveControllers(fixture);
+    await deployments.deploy(notes.installationId);
+    await resources.reconcile(ids.space);
+    await deployments.deploy(notes.installationId);
+    const applied = await readInstalled(database, notes.installationId);
+
+    // stop serving the applied revision, as a space does between a restart and its store's start
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(object.rollout.table)
+                .set({ servedRevisionId: null })
+                .where(eq(object.rollout.table.installationId, notes.installationId)),
+    );
+    await deployments.pass(notes.installationId);
+
+    // wait for the space instead of granting, keeping the applied revision and its deployment
+    const waiting = await readInstalled(database, notes.installationId);
+    expect({
+        applied: [applied.appliedRevisionId, applied.installation.conditions["Ready"]?.status],
+        waiting: [
+            waiting.appliedRevisionId,
+            waiting.installation.conditions["Ready"]?.reason,
+            waiting.installation.conditions["Ready"]?.message,
+        ],
+        deployments: (await database.select().from(object.deployment.table)).length,
+    }).toEqual({
+        applied: [applied.revisionId, "true"],
+        waiting: [
+            applied.revisionId,
+            "WaitingForSpace",
+            `waiting for the space to serve revision ${applied.revisionId}`,
+        ],
+        deployments: 1,
+    });
 });
 
 test("apply an application's tables from its revision to the space's main database, start its instance once main applies them, and retain them for approval once it uninstalls", async () => {
