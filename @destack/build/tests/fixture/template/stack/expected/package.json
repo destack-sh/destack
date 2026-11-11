@@ -26,6 +26,9 @@
         "@destack/bucket": "2026.11.0",
         "@destack/vault": "2026.11.0",
         "@destack/account": "2026.11.0",
-        "@destack/observability": "2026.11.0"
+        "@destack/observability": "2026.11.0",
+        "@destack/message": "2026.11.0",
+        "@destack/notification": "2026.11.0",
+        "@destack/social": "2026.11.0"
     }
 }
