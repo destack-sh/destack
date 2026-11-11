@@ -24,38 +24,33 @@ export type SesFailure = schema.Infer<typeof SesFailure>;
 
 /** The mail package's failures, each reason with the call error code it answers. */
 export const MailError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    ADDRESS_INVALID: { code: "BAD_REQUEST" },
-    DATE_INVALID: { code: "BAD_REQUEST" },
-    ENVELOPE_INVALID: { code: "BAD_REQUEST" },
-    HEADER_INVALID: { code: "BAD_REQUEST" },
-    KEY_INVALID: { code: "BAD_REQUEST" },
-    REQUEST_INVALID: { code: "BAD_REQUEST", data: SesFailure },
+    // invalid
+    ADDRESS_INVALID: {},
+    COMMAND_INVALID: { data: SmtpReply },
+    DATE_INVALID: {},
+    ENVELOPE_INVALID: {},
+    HEADER_INVALID: {},
+    KEY_INVALID: {},
+    MESSAGE_INVALID: { data: SesFailure },
+    REQUEST_INVALID: { data: SesFailure },
+    SENDER_INVALID: { data: SesFailure },
 
-    // unprocessable content
-    COMMAND_DEFERRED: { code: "UNPROCESSABLE_CONTENT", data: SmtpReply },
-    COMMAND_REJECTED: { code: "UNPROCESSABLE_CONTENT", data: SmtpReply },
-    MESSAGE_REJECTED: { code: "UNPROCESSABLE_CONTENT", data: SesFailure },
-    SENDER_UNVERIFIED: { code: "UNPROCESSABLE_CONTENT", data: SesFailure },
+    // exhausted
+    PROVIDER_EXHAUSTED: { data: SesFailure },
 
-    // too many requests
-    PROVIDER_THROTTLED: { code: "TOO_MANY_REQUESTS", data: SesFailure },
+    // unavailable
+    COMMAND_UNAVAILABLE: { data: SmtpReply },
+    CREDENTIALS_UNAVAILABLE: { data: SesFailure },
+    PROVIDER_UNAVAILABLE: { data: SesFailure },
+    SENDING_UNAVAILABLE: { data: SesFailure },
 
-    // internal server error
-    CREDENTIALS_REFUSED: { code: "INTERNAL_SERVER_ERROR", data: SesFailure },
+    // unreachable
+    EXTENSION_UNREACHABLE: {},
+    PROVIDER_UNREACHABLE: {},
+    RESPONSE_UNREACHABLE: {},
 
-    // bad gateway
-    EXTENSION_UNSUPPORTED: { code: "BAD_GATEWAY" },
-    RESPONSE_INVALID: { code: "BAD_GATEWAY" },
-    PROVIDER_UNREACHABLE: { code: "BAD_GATEWAY" },
-
-    // service unavailable
-    CREDENTIALS_EXPIRED: { code: "SERVICE_UNAVAILABLE", data: SesFailure },
-    PROVIDER_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE", data: SesFailure },
-    SENDING_SUSPENDED: { code: "SERVICE_UNAVAILABLE", data: SesFailure },
-
-    // gateway timeout
-    PROVIDER_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
+    // broken
+    CREDENTIALS_BROKEN: { data: SesFailure },
 });
 
 /** A stable cause of mail failures. */

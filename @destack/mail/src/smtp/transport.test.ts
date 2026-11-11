@@ -116,44 +116,50 @@ test("submit the composed message from the sender to the address, its Message-ID
     ]);
 });
 
-test.each<[string, Readonly<Record<string, string>>, MailReason, SmtpReply]>([
+test.each<[string, Readonly<Record<string, string>>, MailReason, SmtpReply, string]>([
     [
         "a busy mailbox",
         { "RCPT TO:<ada@example.com>": "450 4.2.1 mailbox busy" },
-        "COMMAND_DEFERRED",
+        "COMMAND_UNAVAILABLE",
         { code: 450, enhancedCode: "4.2.1", text: "mailbox busy" },
+        "mail server is unavailable: it answered 450 'mailbox busy'",
     ],
     [
         "an unknown mailbox",
         { "RCPT TO:<ada@example.com>": "550 5.1.1 no such user" },
-        "COMMAND_REJECTED",
+        "COMMAND_INVALID",
         { code: 550, enhancedCode: "5.1.1", text: "no such user" },
+        "message is invalid: the mail server answered 550 'no such user'",
     ],
     [
         "a full disk at data",
         { DATA: "452 4.3.1 insufficient system storage" },
-        "COMMAND_DEFERRED",
+        "COMMAND_UNAVAILABLE",
         { code: 452, enhancedCode: "4.3.1", text: "insufficient system storage" },
+        "mail server is unavailable: it answered 452 'insufficient system storage'",
     ],
     [
         "rejected content",
         { ".": "554 5.7.1 message content rejected" },
-        "COMMAND_REJECTED",
+        "COMMAND_INVALID",
         { code: 554, enhancedCode: "5.7.1", text: "message content rejected" },
+        "message is invalid: the mail server answered 554 'message content rejected'",
     ],
     [
         "a closing server",
         { greeting: "421 4.3.2 service shutting down" },
-        "COMMAND_DEFERRED",
+        "COMMAND_UNAVAILABLE",
         { code: 421, enhancedCode: "4.3.2", text: "service shutting down" },
+        "mail server is unavailable: it answered 421 'service shutting down'",
     ],
     [
         "refused credentials",
         { "AUTH PLAIN AGFkYQBzZWNyZXQ=": "535 5.7.8 bad credentials" },
-        "COMMAND_REJECTED",
+        "COMMAND_INVALID",
         { code: 535, enhancedCode: "5.7.8", text: "bad credentials" },
+        "message is invalid: the mail server answered 535 'bad credentials'",
     ],
-])("refuse %s by the reply's class", async (_, answers, reason, reply) => {
+])("refuse %s by the reply's class", async (_, answers, reason, reply, message) => {
     const world = simulate();
     await using server = await TestMailServer.listen(world.serve, {
         secureTransport: "off",
@@ -161,11 +167,7 @@ test.each<[string, Readonly<Record<string, string>>, MailReason, SmtpReply]>([
         answers,
     });
 
-    expect(await send(world, server.port, MAIL)).toEqual({
-        reason,
-        data: reply,
-        message: reply.text,
-    });
+    expect(await send(world, server.port, MAIL)).toEqual({ reason, data: reply, message });
 });
 
 test("refuse a server it cannot connect to as unreachable", async () => {
@@ -180,7 +182,7 @@ test("refuse a server it cannot connect to as unreachable", async () => {
     expect(await send(world, port, MAIL)).toEqual({
         reason: "PROVIDER_UNREACHABLE",
         data: undefined,
-        message: `connection to 127.0.0.1:${port} failed: connection refused: nothing listens at 127.0.0.1:${port}`,
+        message: `could not connect to '127.0.0.1' on port ${port}`,
     });
 });
 
@@ -194,7 +196,7 @@ test("refuse an address the message cannot carry without connecting", async () =
     expect(await send(world, server.port, { ...MAIL, to: "not an address" })).toEqual({
         reason: "ADDRESS_INVALID",
         data: undefined,
-        message: 'address "not an address" is not a dot-atom addr-spec',
+        message: `address "not an address" is invalid: it is not a dot-atom addr-spec`,
     });
     expect(server.transcripts).toEqual([]);
 });

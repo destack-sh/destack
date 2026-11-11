@@ -68,9 +68,9 @@ export class MimeMessage {
     static async compose(draft: Draft, crypto: DigestCrypto): Promise<MimeMessage> {
         // refuse an empty key and an invalid date
         if (draft.key === "") {
-            throw MailError.of("KEY_INVALID", "message key is empty");
+            throw MailError.of("KEY_INVALID", "message key is invalid: it is empty");
         } else if (Number.isNaN(draft.date.getTime())) {
-            throw MailError.of("DATE_INVALID", "message date is invalid");
+            throw MailError.of("DATE_INVALID", "message date is invalid: it is not a date");
         }
 
         // derive the Message-ID and the boundary from the digest of the From address and the key
@@ -100,10 +100,13 @@ export class MimeMessage {
             if (!FIELD_NAME.test(name)) {
                 throw MailError.of(
                     "HEADER_INVALID",
-                    `header name ${JSON.stringify(name)} contains a character outside printable ASCII or a colon`,
+                    `header name ${JSON.stringify(name)} is invalid: it contains a character outside printable ASCII or a colon`,
                 );
             } else if (STRUCTURAL_HEADERS.has(name.toLowerCase())) {
-                throw MailError.of("HEADER_INVALID", `header ${name} is set by the composer`);
+                throw MailError.of(
+                    "HEADER_INVALID",
+                    `header '${name}' is invalid: the composer sets it`,
+                );
             }
             headers.push(Header.unstructured(name, value));
         }

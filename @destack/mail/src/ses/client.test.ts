@@ -54,13 +54,13 @@ const REFUSALS: [string, () => Response, MailReason, string | undefined][] = [
     [
         "throttling",
         () => refused(429, "TooManyRequestsException", "Maximum sending rate exceeded."),
-        "PROVIDER_THROTTLED",
+        "PROVIDER_EXHAUSTED",
         "TooManyRequestsException",
     ],
     [
         "an exceeded quota",
         () => refused(400, "LimitExceededException", "Daily message quota exceeded."),
-        "PROVIDER_THROTTLED",
+        "PROVIDER_EXHAUSTED",
         "LimitExceededException",
     ],
     [
@@ -83,38 +83,38 @@ const REFUSALS: [string, () => Response, MailReason, string | undefined][] = [
                 "ExpiredTokenException",
                 "The security token included in the request is expired",
             ),
-        "CREDENTIALS_EXPIRED",
+        "CREDENTIALS_UNAVAILABLE",
         "ExpiredTokenException",
     ],
     [
         "a rejected message",
         () => refused(400, "MessageRejected", "Email address is not verified."),
-        "MESSAGE_REJECTED",
+        "MESSAGE_INVALID",
         "MessageRejected",
     ],
     [
         "an unverified MAIL FROM domain",
         () =>
             refused(400, "MailFromDomainNotVerifiedException", "MAIL FROM domain is not verified."),
-        "SENDER_UNVERIFIED",
+        "SENDER_INVALID",
         "MailFromDomainNotVerifiedException",
     ],
     [
         "a suspended account",
         () => refused(400, "AccountSuspendedException", "Account suspended."),
-        "SENDING_SUSPENDED",
+        "SENDING_UNAVAILABLE",
         "AccountSuspendedException",
     ],
     [
         "paused sending",
         () => refused(400, "SendingPausedException", "Sending paused."),
-        "SENDING_SUSPENDED",
+        "SENDING_UNAVAILABLE",
         "SendingPausedException",
     ],
     [
         "a bad signature",
         () => refused(403, "InvalidSignatureException", "Signature mismatch."),
-        "CREDENTIALS_REFUSED",
+        "CREDENTIALS_BROKEN",
         "InvalidSignatureException",
     ],
     [
@@ -133,7 +133,7 @@ const REFUSALS: [string, () => Response, MailReason, string | undefined][] = [
         "REQUEST_INVALID",
         "BadRequestException",
     ],
-    ["an answer without a MessageId", () => Response.json({}), "RESPONSE_INVALID", undefined],
+    ["an answer without a MessageId", () => Response.json({}), "RESPONSE_UNREACHABLE", undefined],
 ];
 
 /** A fake SES answering every request with one response, recording what it received. */
@@ -292,7 +292,7 @@ test.each(REFUSALS)("map %s to its failure with the AWS code", async (_, answer,
 
     const error = await client.send(ENVELOPE, MESSAGE, SENT_AT).catch((caught: unknown) => caught);
     if (!MailError.is(error)) {
-        throw new TypeError(`expected a MailError, got ${String(error)}`);
+        throw new TypeError(`expected a MailError, got '${String(error)}'`);
     }
     expect([error.reason, SesFailure.safeParse(error.data).data?.awsCode]).toEqual([code, awsCode]);
 });
@@ -310,7 +310,7 @@ test("map a failed connection to a retryable failure carrying its cause", async 
 
     const error = await client.send(ENVELOPE, MESSAGE, SENT_AT).catch((caught: unknown) => caught);
     if (!MailError.is(error)) {
-        throw new TypeError(`expected a MailError, got ${String(error)}`);
+        throw new TypeError(`expected a MailError, got '${String(error)}'`);
     }
     expect([error.reason, error.cause]).toEqual(["PROVIDER_UNREACHABLE", cause]);
 });

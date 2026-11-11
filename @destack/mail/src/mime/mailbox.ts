@@ -42,7 +42,7 @@ export class Mailbox {
         if (!Mailbox.isAddress(address)) {
             throw MailError.of(
                 "ADDRESS_INVALID",
-                `address ${JSON.stringify(address)} is not a dot-atom addr-spec`,
+                `address ${JSON.stringify(address)} is invalid: it is not a dot-atom addr-spec`,
             );
         }
         this.address = address;

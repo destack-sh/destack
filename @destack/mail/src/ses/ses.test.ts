@@ -90,16 +90,11 @@ test("send the composed message from the sender to the address, its Message-ID d
 });
 
 test.each([
-    ["throttling", 429, "TooManyRequestsException", "PROVIDER_THROTTLED"],
+    ["throttling", 429, "TooManyRequestsException", "PROVIDER_EXHAUSTED"],
     ["an outage", 503, "ServiceUnavailable", "PROVIDER_UNAVAILABLE"],
-    ["a rejected message", 400, "MessageRejected", "MESSAGE_REJECTED"],
-    ["a suspended account", 400, "AccountSuspendedException", "SENDING_SUSPENDED"],
-    [
-        "an unverified MAIL FROM domain",
-        400,
-        "MailFromDomainNotVerifiedException",
-        "SENDER_UNVERIFIED",
-    ],
+    ["a rejected message", 400, "MessageRejected", "MESSAGE_INVALID"],
+    ["a suspended account", 400, "AccountSuspendedException", "SENDING_UNAVAILABLE"],
+    ["an unverified MAIL FROM domain", 400, "MailFromDomainNotVerifiedException", "SENDER_INVALID"],
 ] as const)("refuse %s with its reason and AWS code", async (_, status, awsCode, reason) => {
     const { mail } = transport(refused(status, awsCode));
 
@@ -116,7 +111,7 @@ test("fail an address the message cannot carry without asking SES", async () => 
     expect(await refusal(mail.send({ ...MAIL, to: "not an address" }))).toEqual({
         reason: "ADDRESS_INVALID",
         data: undefined,
-        message: 'address "not an address" is not a dot-atom addr-spec',
+        message: `address "not an address" is invalid: it is not a dot-atom addr-spec`,
     });
     expect(bodies).toEqual([]);
 });
@@ -143,7 +138,7 @@ async function refusal(sending: Promise<void>) {
         (caught: unknown) => caught,
     );
     if (!MailError.is(error)) {
-        throw new TypeError(`expected a MailError, got ${String(error)}`);
+        throw new TypeError(`expected a MailError, got '${String(error)}'`);
     }
 
     return { reason: error.reason, data: error.data, message: error.message };

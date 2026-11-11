@@ -102,7 +102,7 @@ export class SmtpClient {
 
         // require TLS off loopback
         if (options.secureTransport === "off" && !isLoopback(options.host)) {
-            throw new TypeError(`plain text requires a loopback host, not ${options.host}`);
+            throw new TypeError(`plain text requires a loopback host, not '${options.host}'`);
         }
         this.options = options;
     }
@@ -114,12 +114,12 @@ export class SmtpClient {
             if (!Mailbox.isAddress(address)) {
                 throw MailError.of(
                     "ENVELOPE_INVALID",
-                    `address ${JSON.stringify(address)} is not a dot-atom addr-spec`,
+                    `address ${JSON.stringify(address)} is invalid: it is not a dot-atom addr-spec`,
                 );
             }
         }
         if (envelope.recipients.length === 0) {
-            throw MailError.of("ENVELOPE_INVALID", "envelope has no recipients");
+            throw MailError.of("ENVELOPE_INVALID", "envelope is invalid: it has no recipients");
         }
 
         // connect with only the transport options
@@ -158,8 +158,8 @@ export class SmtpClient {
         // upgrade, refusing a server that offers no STARTTLS
         if (!extensions.has("STARTTLS")) {
             throw MailError.of(
-                "EXTENSION_UNSUPPORTED",
-                `${this.#address()} does not offer STARTTLS`,
+                "EXTENSION_UNREACHABLE",
+                `could not start TLS: '${this.#address()}' does not offer STARTTLS`,
             );
         }
         (await connection.command("STARTTLS", STEP_TIMEOUTS.command)).require("STARTTLS");
@@ -183,8 +183,8 @@ export class SmtpClient {
         const mechanism = authentication.kind === "plain" ? "PLAIN" : "XOAUTH2";
         if (!extensions.has("AUTH", mechanism)) {
             throw MailError.of(
-                "EXTENSION_UNSUPPORTED",
-                `${this.#address()} does not offer AUTH ${mechanism}`,
+                "EXTENSION_UNREACHABLE",
+                `could not authenticate: '${this.#address()}' does not offer AUTH '${mechanism}'`,
             );
         }
 
@@ -236,8 +236,8 @@ export class SmtpClient {
                 data = start;
             } else {
                 throw MailError.of(
-                    "RESPONSE_INVALID",
-                    `server responded to DATA with ${start.code} instead of 354`,
+                    "RESPONSE_UNREACHABLE",
+                    `could not send DATA: server replied ${start.code} instead of 354`,
                 );
             }
         }

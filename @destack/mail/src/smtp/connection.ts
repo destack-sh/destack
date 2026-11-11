@@ -111,8 +111,8 @@ export class SmtpConnection {
             () =>
                 this.#fail(
                     MailError.of(
-                        "PROVIDER_TIMEOUT",
-                        `${host}:${port} timed out after ${timeout} ms`,
+                        "PROVIDER_UNREACHABLE",
+                        `could not reach '${host}' on port ${port} within ${timeout} ms`,
                     ),
                 ),
             () => undefined,
@@ -135,8 +135,8 @@ export class SmtpConnection {
         // refuse text the server sent ahead of the handshake
         if (this.#received.length > 0 || this.#lines.length > 0 || this.#replies.length > 0) {
             const error = MailError.of(
-                "RESPONSE_INVALID",
-                "server sent data after its STARTTLS reply",
+                "RESPONSE_UNREACHABLE",
+                "could not start TLS: server sent data after its STARTTLS reply",
             );
             this.#fail(error);
             throw error;
@@ -181,11 +181,10 @@ export class SmtpConnection {
         // read a failed dial or handshake as an unreachable server
         const { host, port } = this.#options;
         const opened = socket.opened.catch((error: unknown) => {
-            // fail the connection with the dial's or handshake's reason
-            const reason = error instanceof Error ? error.message : String(error);
+            // fail the connection with the dial's or handshake's error as the cause
             const failure = MailError.of(
                 "PROVIDER_UNREACHABLE",
-                `connection to ${host}:${port} failed: ${reason}`,
+                `could not connect to '${host}' on port ${port}`,
                 {
                     cause: error,
                 },
@@ -240,8 +239,8 @@ export class SmtpConnection {
         if (this.#received.length >= MAX_REPLY_LINE_OCTETS) {
             this.#fail(
                 MailError.of(
-                    "RESPONSE_INVALID",
-                    `server sent a reply line longer than ${MAX_REPLY_LINE_OCTETS} octets`,
+                    "RESPONSE_UNREACHABLE",
+                    `could not read a server reply line longer than ${MAX_REPLY_LINE_OCTETS} octets`,
                 ),
             );
         }
@@ -267,8 +266,8 @@ export class SmtpConnection {
         if (first !== undefined && first.code !== parsed.code) {
             this.#fail(
                 MailError.of(
-                    "RESPONSE_INVALID",
-                    `server continued a ${first.code} reply with a ${parsed.code} line`,
+                    "RESPONSE_UNREACHABLE",
+                    `could not read a ${first.code} reply continued by a ${parsed.code} line`,
                 ),
             );
 
@@ -308,7 +307,12 @@ export class SmtpConnection {
     /** Fail the connection when the server ends it. */
     #closed(): void {
         const { host, port } = this.#options;
-        this.#fail(MailError.of("PROVIDER_UNREACHABLE", `connection to ${host}:${port} closed`));
+        this.#fail(
+            MailError.of(
+                "PROVIDER_UNREACHABLE",
+                `could not keep the connection to '${host}' on port ${port}: it closed`,
+            ),
+        );
     }
 
     /** End the connection with its first failure, settling the waiting step with it. */

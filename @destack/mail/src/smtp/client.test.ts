@@ -150,9 +150,9 @@ test("reject a refused XOAUTH2 token after answering its challenge with an empty
         ),
     ).toEqual({
         refusal: [
-            "UNPROCESSABLE_CONTENT",
-            "COMMAND_REJECTED",
-            "server responded to AUTH XOAUTH2 with 535 authentication failed",
+            "BAD_REQUEST",
+            "COMMAND_INVALID",
+            "command 'AUTH XOAUTH2' is invalid: the server answered 535 'authentication failed'",
         ],
         reply: { code: 535, enhancedCode: "5.7.8", text: "authentication failed" },
     });
@@ -179,8 +179,8 @@ test("refuse a server that does not list the authentication mechanism", async ()
     expect(await readFailure(createClient(world, server).submit(ENVELOPE, message))).toEqual({
         refusal: [
             "BAD_GATEWAY",
-            "EXTENSION_UNSUPPORTED",
-            `127.0.0.1:${server.port} does not offer AUTH PLAIN`,
+            "EXTENSION_UNREACHABLE",
+            `could not authenticate: '127.0.0.1:${server.port}' does not offer AUTH 'PLAIN'`,
         ],
         reply: undefined,
     });
@@ -355,8 +355,8 @@ test("fail on a positive reply to DATA", async () => {
     expect(await readFailure(createClient(world, server).submit(ENVELOPE, message))).toEqual({
         refusal: [
             "BAD_GATEWAY",
-            "RESPONSE_INVALID",
-            "server responded to DATA with 250 instead of 354",
+            "RESPONSE_UNREACHABLE",
+            "could not send DATA: server replied 250 instead of 354",
         ],
         reply: undefined,
     });
@@ -448,8 +448,8 @@ test("refuse a server that does not support STARTTLS", async () => {
     expect(failure).toEqual({
         refusal: [
             "BAD_GATEWAY",
-            "EXTENSION_UNSUPPORTED",
-            `127.0.0.1:${server.port} does not offer STARTTLS`,
+            "EXTENSION_UNREACHABLE",
+            `could not start TLS: '127.0.0.1:${server.port}' does not offer STARTTLS`,
         ],
         reply: undefined,
     });
@@ -470,9 +470,9 @@ test("reject a refused STARTTLS with the server's reply", async () => {
 
     expect(failure).toEqual({
         refusal: [
-            "UNPROCESSABLE_CONTENT",
-            "COMMAND_REJECTED",
-            "server responded to STARTTLS with 454 TLS not available",
+            "SERVICE_UNAVAILABLE",
+            "COMMAND_UNAVAILABLE",
+            "command 'STARTTLS' is unavailable: the server answered 454 'TLS not available'",
         ],
         reply: { code: 454, enhancedCode: "4.7.0", text: "TLS not available" },
     });
@@ -503,7 +503,11 @@ test("refuse replies injected ahead of the TLS handshake", async () => {
     );
 
     expect(failure).toEqual({
-        refusal: ["BAD_GATEWAY", "RESPONSE_INVALID", "server sent data after its STARTTLS reply"],
+        refusal: [
+            "BAD_GATEWAY",
+            "RESPONSE_UNREACHABLE",
+            "could not start TLS: server sent data after its STARTTLS reply",
+        ],
         reply: undefined,
     });
 });
@@ -511,7 +515,7 @@ test("refuse replies injected ahead of the TLS handshake", async () => {
 test("refuse plain text to a host beyond loopback", async () => {
     const world = simulate();
     expect(() => createClient(world, { port: 25 }, { host: "mail.example.com" })).toThrow(
-        new TypeError("plain text requires a loopback host, not mail.example.com"),
+        new TypeError("plain text requires a loopback host, not 'mail.example.com'"),
     );
 });
 
@@ -572,25 +576,25 @@ test("reject a refused greeting, credentials or sender with the server's reply",
     expect(failures).toEqual([
         {
             refusal: [
-                "UNPROCESSABLE_CONTENT",
-                "COMMAND_REJECTED",
-                "server responded to greeting with 554 service unavailable",
+                "BAD_REQUEST",
+                "COMMAND_INVALID",
+                "command 'greeting' is invalid: the server answered 554 'service unavailable'",
             ],
             reply: { code: 554, enhancedCode: "5.3.2", text: "service unavailable" },
         },
         {
             refusal: [
-                "UNPROCESSABLE_CONTENT",
-                "COMMAND_REJECTED",
-                "server responded to AUTH PLAIN with 535 authentication failed",
+                "BAD_REQUEST",
+                "COMMAND_INVALID",
+                "command 'AUTH PLAIN' is invalid: the server answered 535 'authentication failed'",
             ],
             reply: { code: 535, enhancedCode: "5.7.8", text: "authentication failed" },
         },
         {
             refusal: [
-                "UNPROCESSABLE_CONTENT",
-                "COMMAND_REJECTED",
-                "server responded to MAIL FROM with 553 sender not allowed",
+                "BAD_REQUEST",
+                "COMMAND_INVALID",
+                "command 'MAIL FROM' is invalid: the server answered 553 'sender not allowed'",
             ],
             reply: { code: 553, enhancedCode: "5.7.1", text: "sender not allowed" },
         },
@@ -626,32 +630,32 @@ test("fail on malformed, mismatched and overlong replies", async () => {
         {
             refusal: [
                 "BAD_GATEWAY",
-                "RESPONSE_INVALID",
-                'server sent "hello", which is not a reply line',
+                "RESPONSE_UNREACHABLE",
+                `could not parse server reply line "hello"`,
             ],
             reply: undefined,
         },
         {
             refusal: [
                 "BAD_GATEWAY",
-                "RESPONSE_INVALID",
-                "server continued a 220 reply with a 250 line",
+                "RESPONSE_UNREACHABLE",
+                "could not read a 220 reply continued by a 250 line",
             ],
             reply: undefined,
         },
         {
             refusal: [
                 "BAD_GATEWAY",
-                "RESPONSE_INVALID",
-                "server sent a reply line longer than 512 octets",
+                "RESPONSE_UNREACHABLE",
+                "could not read a server reply line longer than 512 octets",
             ],
             reply: undefined,
         },
         {
             refusal: [
                 "BAD_GATEWAY",
-                "RESPONSE_INVALID",
-                "server sent a reply line longer than 512 octets",
+                "RESPONSE_UNREACHABLE",
+                "could not read a server reply line longer than 512 octets",
             ],
             reply: undefined,
         },
@@ -698,25 +702,9 @@ test("fail on a greeting silent or trickling past RFC 5321's five minutes, a tok
     expect(failures).toEqual([
         {
             refusal: [
-                "GATEWAY_TIMEOUT",
-                "PROVIDER_TIMEOUT",
-                `127.0.0.1:${silent.port} timed out after 300000 ms`,
-            ],
-            reply: undefined,
-        },
-        {
-            refusal: [
-                "GATEWAY_TIMEOUT",
-                "PROVIDER_TIMEOUT",
-                `127.0.0.1:${trickling.port} timed out after 300000 ms`,
-            ],
-            reply: undefined,
-        },
-        {
-            refusal: [
-                "GATEWAY_TIMEOUT",
-                "PROVIDER_TIMEOUT",
-                `127.0.0.1:${stalled.port} timed out after 300000 ms`,
+                "BAD_GATEWAY",
+                "PROVIDER_UNREACHABLE",
+                `could not reach '127.0.0.1' on port ${silent.port} within 300000 ms`,
             ],
             reply: undefined,
         },
@@ -724,7 +712,23 @@ test("fail on a greeting silent or trickling past RFC 5321's five minutes, a tok
             refusal: [
                 "BAD_GATEWAY",
                 "PROVIDER_UNREACHABLE",
-                `connection to 127.0.0.1:${closed.port} failed: connection refused: nothing listens at 127.0.0.1:${closed.port}`,
+                `could not reach '127.0.0.1' on port ${trickling.port} within 300000 ms`,
+            ],
+            reply: undefined,
+        },
+        {
+            refusal: [
+                "BAD_GATEWAY",
+                "PROVIDER_UNREACHABLE",
+                `could not reach '127.0.0.1' on port ${stalled.port} within 300000 ms`,
+            ],
+            reply: undefined,
+        },
+        {
+            refusal: [
+                "BAD_GATEWAY",
+                "PROVIDER_UNREACHABLE",
+                `could not connect to '127.0.0.1' on port ${closed.port}`,
             ],
             reply: undefined,
         },
@@ -753,9 +757,9 @@ test("fail on a server silent past RFC 5321's timeout for MAIL, RCPT, DATA and t
         [300_000, 300_000, 120_000, 600_000].map((timeout, index) => {
             const port = failures[index]?.port;
             const refusal = [
-                "GATEWAY_TIMEOUT",
-                "PROVIDER_TIMEOUT",
-                `127.0.0.1:${port} timed out after ${timeout} ms`,
+                "BAD_GATEWAY",
+                "PROVIDER_UNREACHABLE",
+                `could not reach '127.0.0.1' on port ${port} within ${timeout} ms`,
             ];
 
             return { port, failure: { refusal, reply: undefined }, waited: timeout };
@@ -783,7 +787,7 @@ test("refuse envelope addresses that could inject commands, and empty envelopes"
             refusal: [
                 "BAD_REQUEST",
                 "ENVELOPE_INVALID",
-                'address "a@b.example>\\r\\nRSET" is not a dot-atom addr-spec',
+                `address "a@b.example>\\r\\nRSET" is invalid: it is not a dot-atom addr-spec`,
             ],
             reply: undefined,
         },
@@ -791,12 +795,16 @@ test("refuse envelope addresses that could inject commands, and empty envelopes"
             refusal: [
                 "BAD_REQUEST",
                 "ENVELOPE_INVALID",
-                'address "<eve@example.com>" is not a dot-atom addr-spec',
+                `address "<eve@example.com>" is invalid: it is not a dot-atom addr-spec`,
             ],
             reply: undefined,
         },
         {
-            refusal: ["BAD_REQUEST", "ENVELOPE_INVALID", "envelope has no recipients"],
+            refusal: [
+                "BAD_REQUEST",
+                "ENVELOPE_INVALID",
+                "envelope is invalid: it has no recipients",
+            ],
             reply: undefined,
         },
     ]);

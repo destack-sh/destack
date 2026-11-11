@@ -41,8 +41,8 @@ export class Reply {
         // refuse a line over the limit
         if (bytes.length + 2 > MAX_REPLY_LINE_OCTETS) {
             throw MailError.of(
-                "RESPONSE_INVALID",
-                `server sent a reply line longer than ${MAX_REPLY_LINE_OCTETS} octets`,
+                "RESPONSE_UNREACHABLE",
+                `could not read a server reply line longer than ${MAX_REPLY_LINE_OCTETS} octets`,
             );
         }
 
@@ -51,17 +51,21 @@ export class Reply {
         try {
             line = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes);
         } catch (error) {
-            throw MailError.of("RESPONSE_INVALID", "server sent a reply line that is not UTF-8", {
-                cause: error,
-            });
+            throw MailError.of(
+                "RESPONSE_UNREACHABLE",
+                "could not decode a server reply line as UTF-8",
+                {
+                    cause: error,
+                },
+            );
         }
 
         // match the line's shape
         const parsed = REPLY_LINE.exec(line);
         if (parsed === null) {
             throw MailError.of(
-                "RESPONSE_INVALID",
-                `server sent ${JSON.stringify(line)}, which is not a reply line`,
+                "RESPONSE_UNREACHABLE",
+                `could not parse server reply line ${JSON.stringify(line)}`,
             );
         }
 
@@ -108,19 +112,34 @@ export class Reply {
             : { ...data, enhancedCode: this.enhancedCode };
     }
 
-    /** Refuse a send by a negative reply: a transient 4xx deferred, a permanent 5xx rejected. */
-    refuse(options?: ErrorOptions): FamilyError<"COMMAND_DEFERRED" | "COMMAND_REJECTED"> {
-        const reason = this.class === 4 ? "COMMAND_DEFERRED" : "COMMAND_REJECTED";
-
-        return MailError.of(reason, this.text, { ...options, data: this.data() });
+    /** Refuse a send by a negative reply: a transient 4xx unavailable, a permanent 5xx invalid. */
+    refuse(options?: ErrorOptions): FamilyError<"COMMAND_UNAVAILABLE" | "COMMAND_INVALID"> {
+        return this.class === 4
+            ? MailError.of(
+                  "COMMAND_UNAVAILABLE",
+                  `mail server is unavailable: it answered ${this.code} '${this.text}'`,
+                  { ...options, data: this.data() },
+              )
+            : MailError.of(
+                  "COMMAND_INVALID",
+                  `message is invalid: the mail server answered ${this.code} '${this.text}'`,
+                  { ...options, data: this.data() },
+              );
     }
 
     /** Return the reply when it completes positively, and reject the step otherwise. */
     require(step: string): Reply {
-        if (this.class !== 2) {
+        // refuse a transient 4xx as unavailable, and any other negative reply as invalid
+        if (this.class === 4) {
             throw MailError.of(
-                "COMMAND_REJECTED",
-                `server responded to ${step} with ${this.code} ${this.text}`,
+                "COMMAND_UNAVAILABLE",
+                `command '${step}' is unavailable: the server answered ${this.code} '${this.text}'`,
+                { data: this.data() },
+            );
+        } else if (this.class !== 2) {
+            throw MailError.of(
+                "COMMAND_INVALID",
+                `command '${step}' is invalid: the server answered ${this.code} '${this.text}'`,
                 { data: this.data() },
             );
         }

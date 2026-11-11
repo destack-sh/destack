@@ -29,7 +29,10 @@ export class SmtpTransport implements MailTransport {
         const envelope = { sender: this.#sender, recipients: [mail.to] };
         const submission = await this.client.submit(envelope, message).catch((error: unknown) => {
             // refuse a session's rejection by its reply's class
-            if (MailError.is(error, "COMMAND_REJECTED")) {
+            if (
+                MailError.is(error, "COMMAND_INVALID") ||
+                MailError.is(error, "COMMAND_UNAVAILABLE")
+            ) {
                 const { code, enhancedCode, text } = error.data;
                 throw new Reply(code, enhancedCode, text).refuse({ cause: error });
             }

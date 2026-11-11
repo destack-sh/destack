@@ -29,15 +29,13 @@ const THROTTLING = new Set([
 const EXPIRED = new Set(["ExpiredTokenException", "ExpiredToken", "RequestExpired"]);
 
 /** The failure reasons of permanent refusals, by AWS error code. */
-const PERMANENT: ReadonlyMap<
-    string,
-    "MESSAGE_REJECTED" | "SENDER_UNVERIFIED" | "SENDING_SUSPENDED"
-> = new Map([
-    ["MessageRejected", "MESSAGE_REJECTED"],
-    ["MailFromDomainNotVerifiedException", "SENDER_UNVERIFIED"],
-    ["AccountSuspendedException", "SENDING_SUSPENDED"],
-    ["SendingPausedException", "SENDING_SUSPENDED"],
-]);
+const PERMANENT: ReadonlyMap<string, "MESSAGE_INVALID" | "SENDER_INVALID" | "SENDING_UNAVAILABLE"> =
+    new Map([
+        ["MessageRejected", "MESSAGE_INVALID"],
+        ["MailFromDomainNotVerifiedException", "SENDER_INVALID"],
+        ["AccountSuspendedException", "SENDING_UNAVAILABLE"],
+        ["SendingPausedException", "SENDING_UNAVAILABLE"],
+    ]);
 
 /** SES's answer to a sent message. */
 const Sent = schema.looseObject({ MessageId: schema.string().min(1) });
@@ -144,7 +142,7 @@ export class SesClient {
         try {
             response = await environment.network.fetch(request);
         } catch (error) {
-            const reason = signal.aborted ? "PROVIDER_TIMEOUT" : "PROVIDER_UNREACHABLE";
+            const reason = signal.aborted ? "PROVIDER_UNREACHABLE" : "PROVIDER_UNREACHABLE";
             throw MailError.of(reason, `SES at ${endpoint} did not respond`, { cause: error });
         }
 
@@ -154,7 +152,10 @@ export class SesClient {
         }
         const sent = Sent.safeParse(await response.json().catch(() => undefined));
         if (!sent.success) {
-            throw MailError.of("RESPONSE_INVALID", "SES responded to a send without a MessageId");
+            throw MailError.of(
+                "RESPONSE_UNREACHABLE",
+                "could not read the MessageId of an SES send",
+            );
         }
 
         return sent.data.MessageId;
@@ -183,15 +184,15 @@ async function refusal(response: Response): Promise<FamilyError> {
     const message = `SES refused the send with HTTP ${status}${awsCode === undefined ? "" : ` ${awsCode}`}: ${detail}`;
     const permanent = awsCode === undefined ? undefined : PERMANENT.get(awsCode);
     if (status === 429 || (awsCode !== undefined && THROTTLING.has(awsCode))) {
-        return MailError.of("PROVIDER_THROTTLED", message, { data });
+        return MailError.of("PROVIDER_EXHAUSTED", message, { data });
     } else if (status >= 500) {
         return MailError.of("PROVIDER_UNAVAILABLE", message, { data });
     } else if (awsCode !== undefined && EXPIRED.has(awsCode)) {
-        return MailError.of("CREDENTIALS_EXPIRED", message, { data });
+        return MailError.of("CREDENTIALS_UNAVAILABLE", message, { data });
     } else if (permanent !== undefined) {
         return MailError.of(permanent, message, { data });
     } else if (status === 401 || status === 403) {
-        return MailError.of("CREDENTIALS_REFUSED", message, { data });
+        return MailError.of("CREDENTIALS_BROKEN", message, { data });
     } else {
         return MailError.of("REQUEST_INVALID", message, { data });
     }

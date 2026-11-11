@@ -285,25 +285,33 @@ test("refuse structural and malformed headers", async () => {
     );
 
     expect(failures).toEqual([
-        ["BAD_REQUEST", "HEADER_INVALID", "header Subject is set by the composer"],
-        ["BAD_REQUEST", "HEADER_INVALID", "header bcc is set by the composer"],
+        ["BAD_REQUEST", "HEADER_INVALID", "header 'Subject' is invalid: the composer sets it"],
+        ["BAD_REQUEST", "HEADER_INVALID", "header 'bcc' is invalid: the composer sets it"],
         [
             "BAD_REQUEST",
             "HEADER_INVALID",
-            "header Content-Transfer-Encoding is set by the composer",
+            "header 'Content-Transfer-Encoding' is invalid: the composer sets it",
         ],
         [
             "BAD_REQUEST",
             "HEADER_INVALID",
-            'header name "X Kind" contains a character outside printable ASCII or a colon',
+            `header name "X Kind" is invalid: it contains a character outside printable ASCII or a colon`,
         ],
         [
             "BAD_REQUEST",
             "HEADER_INVALID",
-            'header name "X-Kind:" contains a character outside printable ASCII or a colon',
+            `header name "X-Kind:" is invalid: it contains a character outside printable ASCII or a colon`,
         ],
-        ["BAD_REQUEST", "HEADER_INVALID", `header ${longName} has a line over 998 characters`],
-        ["BAD_REQUEST", "HEADER_INVALID", "header Subject has a line over 998 characters"],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            `header '${longName}' is invalid: a line exceeds 998 characters`,
+        ],
+        [
+            "BAD_REQUEST",
+            "HEADER_INVALID",
+            "header 'Subject' is invalid: a line exceeds 998 characters",
+        ],
     ]);
 });
 
@@ -326,26 +334,30 @@ test("refuse invalid addresses, keys and dates", async () => {
         [
             "BAD_REQUEST",
             "ADDRESS_INVALID",
-            'address "ada@example.com>\\r\\nBcc: eve@example.com" is not a dot-atom addr-spec',
+            `address "ada@example.com>\\r\\nBcc: eve@example.com" is invalid: it is not a dot-atom addr-spec`,
         ],
         [
             "BAD_REQUEST",
             "ADDRESS_INVALID",
-            'address "ada at example.com" is not a dot-atom addr-spec',
+            `address "ada at example.com" is invalid: it is not a dot-atom addr-spec`,
         ],
         [
             "BAD_REQUEST",
             "ADDRESS_INVALID",
-            `address "${"a".repeat(65)}@example.com" is not a dot-atom addr-spec`,
+            `address "${"a".repeat(65)}@example.com" is invalid: it is not a dot-atom addr-spec`,
         ],
         [
             "BAD_REQUEST",
             "ADDRESS_INVALID",
-            `address "ada@${"a".repeat(64)}.example.com" is not a dot-atom addr-spec`,
+            `address "ada@${"a".repeat(64)}.example.com" is invalid: it is not a dot-atom addr-spec`,
         ],
-        ["BAD_REQUEST", "ADDRESS_INVALID", 'address "notices" is not a dot-atom addr-spec'],
-        ["BAD_REQUEST", "KEY_INVALID", "message key is empty"],
-        ["BAD_REQUEST", "DATE_INVALID", "message date is invalid"],
+        [
+            "BAD_REQUEST",
+            "ADDRESS_INVALID",
+            `address "notices" is invalid: it is not a dot-atom addr-spec`,
+        ],
+        ["BAD_REQUEST", "KEY_INVALID", "message key is invalid: it is empty"],
+        ["BAD_REQUEST", "DATE_INVALID", "message date is invalid: it is not a date"],
     ]);
 });
 
@@ -397,7 +409,7 @@ function decodeSubject(content: string): string {
     const words = value.split(" ").map((word) => {
         const encoded = /^=\?UTF-8\?B\?(.*)\?=$/u.exec(word);
         if (encoded === null) {
-            throw new TypeError(`subject word ${word} is not an encoded-word`);
+            throw new TypeError(`subject word '${word}' is not an encoded-word`);
         }
 
         return nth(encoded, 1);

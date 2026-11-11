@@ -101,7 +101,7 @@ export class Header {
         if (lines.some((written) => written.length > MAX_LINE_LENGTH)) {
             throw MailError.of(
                 "HEADER_INVALID",
-                `header ${this.name} has a line over ${MAX_LINE_LENGTH} characters`,
+                `header '${this.name}' is invalid: a line exceeds ${MAX_LINE_LENGTH} characters`,
             );
         }
 
