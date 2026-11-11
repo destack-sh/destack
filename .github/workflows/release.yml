@@ -113,14 +113,14 @@ jobs:
               with:
                   name: unsigned-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/*/*.tar.gz
+                  path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
             - name: Upload unsigned toolchain
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
                   name: toolchain-unsigned-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/*/${{ matrix.target }}/toolchain
+                  path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
                   if-no-files-found: error
 
     sign:
@@ -180,14 +180,14 @@ jobs:
               with:
                   name: signed-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/*/*.tar.gz
+                  path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
             - name: Upload signed toolchain
               uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
               with:
                   name: toolchain-signed-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/*/${{ matrix.target }}/toolchain
+                  path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && matrix.signer == 'apple'
@@ -244,7 +244,7 @@ jobs:
               with:
                   name: installer-${{ matrix.name }}
                   retention-days: 14
-                  path: dist/*/destack-*-${{ matrix.name }}.${{ matrix.format }}
+                  path: dist/${{ needs.prepare.outputs.version }}/destack-*-${{ matrix.name }}.${{ matrix.format }}
                   if-no-files-found: error
             - name: Remove Apple signing credentials
               if: always() && needs.prepare.outputs.publish == 'true' && matrix.signer == 'apple'
