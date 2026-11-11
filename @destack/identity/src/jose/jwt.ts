@@ -93,29 +93,50 @@ export const Jwt = {
         const tolerance = options.clockTolerance ?? 0;
         const now = Math.floor(options.now / 1000);
         if (options.typ !== undefined && !sameType(header.typ, options.typ)) {
-            throw IdentityError.of("CLAIM_INVALID", `the token's type is not ${options.typ}`);
+            throw IdentityError.of(
+                "CLAIM_UNAUTHENTICATED",
+                `authentication required: the token's type is not '${options.typ}'`,
+            );
         }
         for (const claim of options.requiredClaims ?? []) {
             if (!(claim in claims)) {
-                throw IdentityError.of("CLAIM_INVALID", `the token has no ${claim} claim`);
+                throw IdentityError.of(
+                    "CLAIM_UNAUTHENTICATED",
+                    `authentication required: the token has no '${claim}' claim`,
+                );
             }
         }
 
         // refuse an expired token and one not valid yet
         if (claims.exp !== undefined && claims.exp <= now - tolerance) {
-            throw IdentityError.of("TOKEN_EXPIRED", "the token expired");
+            throw IdentityError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: token expired",
+            );
         } else if (claims.nbf !== undefined && claims.nbf > now + tolerance) {
-            throw IdentityError.of("TOKEN_NOT_YET_VALID", "the token is not valid yet");
+            throw IdentityError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the token is not valid yet",
+            );
         }
 
         // refuse a token older than the longest age, or issued in the future
         if (options.maxTokenAge !== undefined) {
             if (claims.iat === undefined) {
-                throw IdentityError.of("CLAIM_INVALID", "the token has no iat claim");
+                throw IdentityError.of(
+                    "CLAIM_UNAUTHENTICATED",
+                    "authentication required: the token has no iat claim",
+                );
             } else if (now - claims.iat > options.maxTokenAge + tolerance) {
-                throw IdentityError.of("TOKEN_EXPIRED", "the token is older than its longest age");
+                throw IdentityError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    "authentication required: the token is older than its longest age",
+                );
             } else if (claims.iat > now + tolerance) {
-                throw IdentityError.of("CLAIM_INVALID", "the token was issued in the future");
+                throw IdentityError.of(
+                    "CLAIM_UNAUTHENTICATED",
+                    "authentication required: the token was issued in the future",
+                );
             }
         }
 
@@ -124,11 +145,20 @@ export const Jwt = {
         const audiences = options.audience === undefined ? undefined : [options.audience].flat();
         const named = claims.aud === undefined ? [] : [claims.aud].flat();
         if (issuers !== undefined && (claims.iss === undefined || !issuers.includes(claims.iss))) {
-            throw IdentityError.of("ISSUER_REFUSED", "the token comes from another issuer");
+            throw IdentityError.of(
+                "ISSUER_UNAUTHENTICATED",
+                "authentication required: the token comes from another issuer",
+            );
         } else if (audiences !== undefined && !named.some((each) => audiences.includes(each))) {
-            throw IdentityError.of("AUDIENCE_REFUSED", "the token is for another audience");
+            throw IdentityError.of(
+                "AUDIENCE_UNAUTHENTICATED",
+                "authentication required: the token is for another audience",
+            );
         } else if (options.subject !== undefined && claims.sub !== options.subject) {
-            throw IdentityError.of("CLAIM_INVALID", "the token is for another subject");
+            throw IdentityError.of(
+                "CLAIM_UNAUTHENTICATED",
+                "authentication required: the token is for another subject",
+            );
         }
     },
 };
@@ -137,7 +167,10 @@ export const Jwt = {
 function parseClaims(value: Record<string, unknown>): JwtClaims {
     const parsed = JwtClaims.safeParse(value);
     if (!parsed.success) {
-        throw IdentityError.of("TOKEN_MALFORMED", "the token has invalid claims");
+        throw IdentityError.of(
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token has invalid claims",
+        );
     }
 
     return parsed.data;

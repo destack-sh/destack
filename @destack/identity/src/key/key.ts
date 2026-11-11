@@ -68,7 +68,9 @@ export const PublicKey = Object.assign(publicKey, {
         try {
             return await crypto.importKey("jwk", key, algorithm, false, ["verify"]);
         } catch (error) {
-            throw IdentityError.of("KEY_INVALID", "invalid public key", { cause: error });
+            throw IdentityError.of("KEY_INVALID", "public key is invalid: it does not import", {
+                cause: error,
+            });
         }
     },
 

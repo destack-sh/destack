@@ -34,6 +34,6 @@ test("derive apart by label, by context and by where the label ends, and refuse 
     }).toEqual({
         distinct: 6,
         again: true,
-        overlong: `label ${"x".repeat(244)} or its context is too long`,
+        overlong: `label '${"x".repeat(244)}' or its context is too long`,
     });
 });

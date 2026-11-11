@@ -18,7 +18,7 @@ test("seal bytes to a recipient, which alone opens them under the same context",
     expect([...(await recipient.open(sealed, context))]).toEqual([1, 2, 3]);
     const failed = [
         "INTERNAL_SERVER_ERROR",
-        "DECRYPTION_FAILED",
+        "DECRYPTION_BROKEN",
         "ciphertext authentication failed",
     ];
     expect(await refusal(recipient.open(sealed, other))).toEqual(failed);

@@ -63,7 +63,7 @@ test("decrypt the ciphertexts the jose library wrote, under a wrapped key and an
     ]).toEqual([
         [PLAINTEXT, PLAINTEXT],
         "key-1",
-        ["INTERNAL_SERVER_ERROR", "DECRYPTION_FAILED", "ciphertext authentication failed"],
-        ["INTERNAL_SERVER_ERROR", "DECRYPTION_FAILED", "ciphertext authentication failed"],
+        ["INTERNAL_SERVER_ERROR", "DECRYPTION_BROKEN", "ciphertext authentication failed"],
+        ["INTERNAL_SERVER_ERROR", "DECRYPTION_BROKEN", "ciphertext authentication failed"],
     ]);
 });

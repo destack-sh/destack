@@ -49,7 +49,7 @@ export const IdentityOperation = Object.assign(identityOperation, {
         if (alg === undefined) {
             throw IdentityError.of(
                 "KEY_INVALID",
-                "the rotation key is not an Ed25519 or P-256 key",
+                "rotation key is invalid: it is not an Ed25519 or P-256 key",
             );
         }
         const payload = new TextEncoder().encode(JSON.stringify(operation));
@@ -63,7 +63,7 @@ export const IdentityOperation = Object.assign(identityOperation, {
         if (!claims.success) {
             throw IdentityError.of(
                 "OPERATION_INVALID",
-                "the operation is not an identity operation",
+                "operation is invalid: it is not an identity operation",
             );
         }
 
@@ -108,7 +108,7 @@ function decode(operation: string): unknown {
             ? Base64Url.json(Jws.payload(operation))
             : undefined;
     } catch (error) {
-        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
+        if (!IdentityError.is(error, "TOKEN_UNAUTHENTICATED")) {
             throw error;
         }
 

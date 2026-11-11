@@ -24,7 +24,7 @@ export const Label = {
         const prefixed = encoder.encode(`${LABEL_PREFIX}${label.label}`);
         const context = encoder.encode(label.context);
         if (prefixed.length > MAX_LABEL_BYTES || context.length > MAX_CONTEXT_BYTES) {
-            throw new TypeError(`label ${label.label} or its context is too long`);
+            throw new TypeError(`label '${label.label}' or its context is too long`);
         }
 
         // write each field after its length, uint8 for the label and uint16 for the context

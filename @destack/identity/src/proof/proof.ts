@@ -199,7 +199,7 @@ function decodeSegment(decode: () => unknown): unknown {
     try {
         return decode();
     } catch (error) {
-        if (!IdentityError.is(error, "TOKEN_MALFORMED")) {
+        if (!IdentityError.is(error, "TOKEN_UNAUTHENTICATED")) {
             throw error;
         }
         throw invalid("key proof is not a compact JWS", error);

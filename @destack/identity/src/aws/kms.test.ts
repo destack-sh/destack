@@ -64,18 +64,18 @@ test("refuse unsealing for another owner, under a denied key, and continuing a k
     }).toEqual({
         owner: [
             "INTERNAL_SERVER_ERROR",
-            "DECRYPTION_FAILED",
+            "DECRYPTION_BROKEN",
             "KMS refused Decrypt with HTTP 400 InvalidCiphertextException: The ciphertext is invalid.",
         ],
         denied: [
             "INTERNAL_SERVER_ERROR",
-            "KMS_REFUSED",
+            "KMS_BROKEN",
             "KMS refused Decrypt with HTTP 400 AccessDeniedException: User is not authorized to use the key.",
         ],
         other: [
             "INTERNAL_SERVER_ERROR",
-            "ROOT_KEY_INVALID",
-            `the keyset is sealed under ${TEST_KMS_KEY_ID}, not ${TEST_KMS_DENIED_KEY_ID}`,
+            "ROOT_KEY_BROKEN",
+            `the keyset is sealed under '${TEST_KMS_KEY_ID}', not '${TEST_KMS_DENIED_KEY_ID}'`,
         ],
     });
 });

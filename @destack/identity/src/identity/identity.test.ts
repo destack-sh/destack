@@ -41,6 +41,6 @@ test("refuse reading a token that is no identity operation", async () => {
     expect(await refusal(() => IdentityOperation.read("eyJhbGciOiJub25lIn0.e30."))).toEqual([
         "BAD_REQUEST",
         "OPERATION_INVALID",
-        "the operation is not an identity operation",
+        "operation is invalid: it is not an identity operation",
     ]);
 });

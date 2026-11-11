@@ -22,12 +22,12 @@ export const Base64Url = {
     /** Decode a segment, refusing one with other characters. */
     decode(segment: string): Uint8Array<ArrayBuffer> {
         if (!SEGMENT.test(segment)) {
-            throw IdentityError.of("TOKEN_MALFORMED", INVALID_SEGMENT);
+            throw IdentityError.of("TOKEN_UNAUTHENTICATED", INVALID_SEGMENT);
         }
         try {
             return Uint8Array.fromBase64(segment, { alphabet: "base64url" });
         } catch (error) {
-            throw IdentityError.of("TOKEN_MALFORMED", INVALID_SEGMENT, { cause: error });
+            throw IdentityError.of("TOKEN_UNAUTHENTICATED", INVALID_SEGMENT, { cause: error });
         }
     },
 
@@ -43,15 +43,22 @@ export const Base64Url = {
         try {
             value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
         } catch (error) {
-            throw IdentityError.of("TOKEN_MALFORMED", "the token has an invalid JSON segment", {
-                cause: error,
-            });
+            throw IdentityError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the token has an invalid JSON segment",
+                {
+                    cause: error,
+                },
+            );
         }
 
         // refuse a value other than an object
         const parsed = JSON_OBJECT.safeParse(value);
         if (!parsed.success || Array.isArray(value)) {
-            throw IdentityError.of("TOKEN_MALFORMED", "the token's JSON segment is not an object");
+            throw IdentityError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the token's JSON segment is not an object",
+            );
         }
 
         return parsed.data;

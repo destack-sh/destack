@@ -50,7 +50,7 @@ export class Envelope {
         if (configuration.kind === "local") {
             this.#kms = undefined;
         } else if (credentials === undefined) {
-            throw IdentityError.of("KMS_REFUSED", "the aws-kms envelope needs KMS credentials");
+            throw IdentityError.of("KMS_BROKEN", "the aws-kms envelope needs KMS credentials");
         } else {
             const client = new AwsKms({
                 region: configuration.region,

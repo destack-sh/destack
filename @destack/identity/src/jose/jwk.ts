@@ -43,11 +43,17 @@ export const Jwk = Object.assign(jwkSchema, {
         // order the key type's required members by name, refusing a missing one
         const members = THUMBPRINT_MEMBERS.get(jwk.kty);
         if (members === undefined) {
-            throw IdentityError.of("KEY_INVALID", `a ${jwk.kty} key has no thumbprint`);
+            throw IdentityError.of(
+                "KEY_INVALID",
+                `key type '${jwk.kty}' is invalid: it has no thumbprint`,
+            );
         }
         const missing = members.find((member) => typeof jwk[member] !== "string");
         if (missing !== undefined) {
-            throw IdentityError.of("KEY_INVALID", `the ${jwk.kty} key has no ${missing}`);
+            throw IdentityError.of(
+                "KEY_INVALID",
+                `'${jwk.kty}' key is invalid: it has no '${missing}'`,
+            );
         }
         const ordered = Object.fromEntries(members.map((member) => [member, jwk[member]]));
 

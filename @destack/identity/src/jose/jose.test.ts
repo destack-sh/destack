@@ -92,10 +92,26 @@ test("refuse an unsigned token, an algorithm other than the key's, a key of anot
         forged: await refusal(verify(forged)),
     }).toEqual({
         accepted: { sub: "ada" },
-        unsigned: ["UNAUTHORIZED", "ALGORITHM_REFUSED", "the algorithm none is refused"],
-        hmac: ["UNAUTHORIZED", "KEY_NOT_FOUND", "no key of the set signed the token"],
-        other: ["UNAUTHORIZED", "KEY_NOT_FOUND", "no key of the set signed the token"],
-        forged: ["UNAUTHORIZED", "SIGNATURE_INVALID", "the token's signature is invalid"],
+        unsigned: [
+            "UNAUTHORIZED",
+            "ALGORITHM_UNAUTHENTICATED",
+            "authentication required: algorithm 'none' is refused",
+        ],
+        hmac: [
+            "UNAUTHORIZED",
+            "KEY_UNAUTHENTICATED",
+            "authentication required: no key of the set signed the token",
+        ],
+        other: [
+            "UNAUTHORIZED",
+            "KEY_UNAUTHENTICATED",
+            "authentication required: no key of the set signed the token",
+        ],
+        forged: [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: the token's signature is invalid",
+        ],
     });
 });
 
@@ -121,11 +137,27 @@ test("check a token's expiry, start, issuer and audience at the time of the chec
         issuer: await refusal(check(TEST_START + 120_000, "other")),
         audience: await refusal(check(TEST_START + 120_000, "issuer", "three")),
     }).toEqual({
-        early: ["UNAUTHORIZED", "TOKEN_NOT_YET_VALID", "the token is not valid yet"],
+        early: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token is not valid yet",
+        ],
         tolerated: claims,
-        expired: ["UNAUTHORIZED", "TOKEN_EXPIRED", "the token expired"],
-        issuer: ["UNAUTHORIZED", "ISSUER_REFUSED", "the token comes from another issuer"],
-        audience: ["UNAUTHORIZED", "AUDIENCE_REFUSED", "the token is for another audience"],
+        expired: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: token expired",
+        ],
+        issuer: [
+            "UNAUTHORIZED",
+            "ISSUER_UNAUTHENTICATED",
+            "authentication required: the token comes from another issuer",
+        ],
+        audience: [
+            "UNAUTHORIZED",
+            "AUDIENCE_UNAUTHENTICATED",
+            "authentication required: the token is for another audience",
+        ],
     });
 });
 
@@ -167,7 +199,7 @@ test("encrypt to an AES-GCM key and to an ECDH key, opening each with its key al
         header: "1",
         stranger: [
             "INTERNAL_SERVER_ERROR",
-            "DECRYPTION_FAILED",
+            "DECRYPTION_BROKEN",
             "ciphertext authentication failed",
         ],
     });
@@ -222,7 +254,18 @@ test("fetch a remote key set once while it is fresh, again once it is stale, and
     await simulation.run(TEST_START + 72_000);
     await lookup("key-2");
 
-    expect(lookups).toEqual([1, 1, 1, 1, 1, 2, "no key of the set signed the token", 2, 1, 3]);
+    expect(lookups).toEqual([
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        "authentication required: no key of the set signed the token",
+        2,
+        1,
+        3,
+    ]);
 });
 
 /** The payload of RFC 7515 Appendices A.1 and A.2. */
@@ -318,7 +361,11 @@ test("sign with an ES384 key and an RS256 key a PKCS #8 PEM holds, and verify ea
             ["RS256", "assertion"],
         ],
         signature: 96,
-        refused: ["BAD_REQUEST", "KEY_INVALID", "the key is not a PKCS #8 PEM private key"],
+        refused: [
+            "BAD_REQUEST",
+            "KEY_INVALID",
+            "key is invalid: it is not a PKCS #8 PEM private key",
+        ],
     });
 });
 
@@ -364,14 +411,34 @@ test("refuse weak and unfitting keys, a JWS marking an extension critical, and a
         ),
         prototype: await refusal(Jwk.thumbprint({ kty: "toString" }, world.crypto)),
     }).toEqual({
-        short: ["BAD_REQUEST", "KEY_INVALID", "the RS256 key has 1024 bits"],
-        secret: ["BAD_REQUEST", "KEY_INVALID", "the HS256 key has 128 bits"],
-        unfitting: ["BAD_REQUEST", "KEY_INVALID", "the key does not sign ES256"],
-        encryption: ["BAD_REQUEST", "KEY_INVALID", "the key is not an ES256 key"],
-        confused: ["UNAUTHORIZED", "ALGORITHM_REFUSED", "no key verifies the algorithm HS256"],
-        critical: ["UNAUTHORIZED", "TOKEN_MALFORMED", "the token marks an extension critical"],
-        thumbprint: ["BAD_REQUEST", "KEY_INVALID", "the EC key has no y"],
-        prototype: ["BAD_REQUEST", "KEY_INVALID", "a toString key has no thumbprint"],
+        short: [
+            "BAD_REQUEST",
+            "KEY_INVALID",
+            "'RS256' key is invalid: it has 1024 bits, below 2048 bits",
+        ],
+        secret: [
+            "BAD_REQUEST",
+            "KEY_INVALID",
+            "'HS256' key is invalid: it has 128 bits, below 256 bits",
+        ],
+        unfitting: ["BAD_REQUEST", "KEY_INVALID", "key is invalid: it does not sign 'ES256'"],
+        encryption: ["BAD_REQUEST", "KEY_INVALID", "key is invalid: it is not an 'ES256' key"],
+        confused: [
+            "UNAUTHORIZED",
+            "ALGORITHM_UNAUTHENTICATED",
+            "authentication required: no key verifies algorithm 'HS256'",
+        ],
+        critical: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token marks an extension critical",
+        ],
+        thumbprint: ["BAD_REQUEST", "KEY_INVALID", "'EC' key is invalid: it has no 'y'"],
+        prototype: [
+            "BAD_REQUEST",
+            "KEY_INVALID",
+            "key type 'toString' is invalid: it has no thumbprint",
+        ],
     });
 });
 
@@ -412,16 +479,20 @@ test("refuse a JWE header with crit, zip, apu or apv, a tag of another length, a
         management: await refusal(Jwe.decrypt(compact, recipient.privateKey, world.crypto)),
     }).toEqual({
         members: [
-            ["BAD_REQUEST", "CIPHERTEXT_MALFORMED", "the ciphertext header has crit"],
-            ["BAD_REQUEST", "CIPHERTEXT_MALFORMED", "the ciphertext header has zip"],
-            ["BAD_REQUEST", "CIPHERTEXT_MALFORMED", "the ciphertext header has apu"],
-            ["BAD_REQUEST", "CIPHERTEXT_MALFORMED", "the ciphertext header has apv"],
+            ["BAD_REQUEST", "CIPHERTEXT_INVALID", "ciphertext header is invalid: it has 'crit'"],
+            ["BAD_REQUEST", "CIPHERTEXT_INVALID", "ciphertext header is invalid: it has 'zip'"],
+            ["BAD_REQUEST", "CIPHERTEXT_INVALID", "ciphertext header is invalid: it has 'apu'"],
+            ["BAD_REQUEST", "CIPHERTEXT_INVALID", "ciphertext header is invalid: it has 'apv'"],
         ],
-        tag: ["BAD_REQUEST", "CIPHERTEXT_MALFORMED", "the ciphertext's tag has 20 bytes, not 16"],
+        tag: [
+            "BAD_REQUEST",
+            "CIPHERTEXT_INVALID",
+            "ciphertext is invalid: its 'tag' has 20 bytes, not 16",
+        ],
         management: [
             "INTERNAL_SERVER_ERROR",
-            "DECRYPTION_FAILED",
-            "the ciphertext is sealed by A256GCMKW, the key opens ECDH-ES+A256KW",
+            "DECRYPTION_BROKEN",
+            "the ciphertext is sealed by 'A256GCMKW', the key opens 'ECDH-ES+A256KW'",
         ],
     });
 });
@@ -453,9 +524,25 @@ test("refuse a token older than its maximum age, issued in the future, of anothe
         type: await check({ typ: "JWT" }),
         required: await check({ requiredClaims: ["jti"] }),
     }).toEqual({
-        old: ["UNAUTHORIZED", "TOKEN_EXPIRED", "the token is older than its longest age"],
-        future: ["UNAUTHORIZED", "CLAIM_INVALID", "the token was issued in the future"],
-        type: ["UNAUTHORIZED", "CLAIM_INVALID", "the token's type is not JWT"],
-        required: ["UNAUTHORIZED", "CLAIM_INVALID", "the token has no jti claim"],
+        old: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token is older than its longest age",
+        ],
+        future: [
+            "UNAUTHORIZED",
+            "CLAIM_UNAUTHENTICATED",
+            "authentication required: the token was issued in the future",
+        ],
+        type: [
+            "UNAUTHORIZED",
+            "CLAIM_UNAUTHENTICATED",
+            "authentication required: the token's type is not 'JWT'",
+        ],
+        required: [
+            "UNAUTHORIZED",
+            "CLAIM_UNAUTHENTICATED",
+            "authentication required: the token has no 'jti' claim",
+        ],
     });
 });

@@ -70,12 +70,12 @@ test("refuse a secret sealed for another owner, and a KMS envelope without crede
     }).toEqual({
         owner: [
             "INTERNAL_SERVER_ERROR",
-            "DECRYPTION_FAILED",
+            "DECRYPTION_BROKEN",
             "KMS refused Decrypt with HTTP 400 InvalidCiphertextException: The ciphertext is invalid.",
         ],
         credentials: [
             "INTERNAL_SERVER_ERROR",
-            "KMS_REFUSED",
+            "KMS_BROKEN",
             "the aws-kms envelope needs KMS credentials",
         ],
     });

@@ -103,8 +103,8 @@ export class AwsKms {
         const keys = sealed === undefined ? undefined : parse(sealed);
         if (keys !== undefined && keys.keyId !== keyId) {
             throw IdentityError.of(
-                "ROOT_KEY_INVALID",
-                `the keyset is sealed under ${keys.keyId}, not ${keyId}`,
+                "ROOT_KEY_BROKEN",
+                `the keyset is sealed under '${keys.keyId}', not '${keyId}'`,
             );
         }
 
@@ -207,9 +207,13 @@ export class AwsKms {
         try {
             response = await environment.network.fetch(request);
         } catch (error) {
-            throw IdentityError.of("KMS_UNAVAILABLE", `KMS at ${endpoint} did not respond`, {
-                cause: error,
-            });
+            throw IdentityError.of(
+                "KMS_UNAVAILABLE",
+                `KMS at '${endpoint}' is unavailable: it did not respond`,
+                {
+                    cause: error,
+                },
+            );
         }
 
         // answer the body, or the refusal
@@ -225,7 +229,7 @@ export class AwsKms {
 function parse(sealed: string): SealedKeyset {
     const read = SealedKeyset.safeParse(JSON.parse(sealed));
     if (!read.success) {
-        throw IdentityError.of("ROOT_KEY_INVALID", "the sealed keyset is malformed");
+        throw IdentityError.of("ROOT_KEY_BROKEN", "the sealed keyset is malformed");
     }
 
     return read.data;
@@ -251,8 +255,8 @@ async function refusal(operation: string, response: Response) {
     if (response.status >= 500 || (type !== undefined && UNAVAILABLE.has(type))) {
         return IdentityError.of("KMS_UNAVAILABLE", message);
     } else if (type !== undefined && MISMATCHED.has(type)) {
-        return IdentityError.of("DECRYPTION_FAILED", message);
+        return IdentityError.of("DECRYPTION_BROKEN", message);
     } else {
-        return IdentityError.of("KMS_REFUSED", message);
+        return IdentityError.of("KMS_BROKEN", message);
     }
 }

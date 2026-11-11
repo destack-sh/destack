@@ -21,7 +21,7 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
         await refusal(
             first.decrypt(encrypted, { label: "@destack/identity/test", context: "context-2" }),
         ),
-    ).toEqual(["INTERNAL_SERVER_ERROR", "DECRYPTION_FAILED", "ciphertext authentication failed"]);
+    ).toEqual(["INTERNAL_SERVER_ERROR", "DECRYPTION_BROKEN", "ciphertext authentication failed"]);
 
     // rotate to a new active key that still decrypts the old key's ciphertexts
     const rotated = await LocalKeyring.rotate(keychain, name, world);
@@ -34,18 +34,18 @@ test("open root keys a keychain stores, refuse another context, rotate them, and
     // retire only the old key
     expect(await refusal(LocalKeyring.retire(keychain, name, rotated.active, world))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "ROOT_KEY_INVALID",
+        "ROOT_KEY_BROKEN",
         "cannot retire the active root key",
     ]);
     expect(await refusal(LocalKeyring.retire(keychain, name, 99, world))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "ROOT_KEY_INVALID",
-        `root key 99 not found in ${name}`,
+        "ROOT_KEY_BROKEN",
+        `root key '99' not found in '${name}'`,
     ]);
     const retired = await LocalKeyring.retire(keychain, name, first.active, world);
     expect(await refusal(retired.decrypt(encrypted, context))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "KEY_UNAVAILABLE",
+        "KEY_BROKEN",
         "required root key is unavailable",
     ]);
     expect([...(await retired.decrypt(reencrypted, context))]).toEqual([...plaintext]);

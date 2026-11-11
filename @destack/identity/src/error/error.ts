@@ -3,30 +3,30 @@ import type {} from "@destack/package/import-meta";
 
 /** The identity package's failures, each reason with the call error code it answers. */
 export const IdentityError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    OPERATION_INVALID: { code: "BAD_REQUEST" },
-    PROOF_INVALID: { code: "BAD_REQUEST" },
-    KEY_INVALID: { code: "BAD_REQUEST" },
-    CIPHERTEXT_MALFORMED: { code: "BAD_REQUEST" },
+    // invalid
+    CIPHERTEXT_INVALID: {},
+    KEY_INVALID: {},
+    OPERATION_INVALID: {},
+    PROOF_INVALID: {},
 
-    // unauthorized
-    TOKEN_MALFORMED: { code: "UNAUTHORIZED" },
-    ALGORITHM_REFUSED: { code: "UNAUTHORIZED" },
-    KEY_NOT_FOUND: { code: "UNAUTHORIZED" },
-    SIGNATURE_INVALID: { code: "UNAUTHORIZED" },
-    TOKEN_EXPIRED: { code: "UNAUTHORIZED" },
-    TOKEN_NOT_YET_VALID: { code: "UNAUTHORIZED" },
-    ISSUER_REFUSED: { code: "UNAUTHORIZED" },
-    AUDIENCE_REFUSED: { code: "UNAUTHORIZED" },
-    CLAIM_INVALID: { code: "UNAUTHORIZED" },
+    // unauthenticated
+    ALGORITHM_UNAUTHENTICATED: {},
+    AUDIENCE_UNAUTHENTICATED: {},
+    CLAIM_UNAUTHENTICATED: {},
+    ISSUER_UNAUTHENTICATED: {},
+    KEY_UNAUTHENTICATED: {},
+    SIGNATURE_UNAUTHENTICATED: {},
+    TOKEN_UNAUTHENTICATED: {},
 
-    // internal server error
-    DECRYPTION_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-    ROOT_KEY_INVALID: { code: "INTERNAL_SERVER_ERROR" },
-    KEY_UNAVAILABLE: { code: "INTERNAL_SERVER_ERROR" },
-    KMS_REFUSED: { code: "INTERNAL_SERVER_ERROR" },
-    KEY_SET_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
-    KMS_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    // unavailable
+    KEY_SET_UNAVAILABLE: {},
+    KMS_UNAVAILABLE: {},
+
+    // broken
+    DECRYPTION_BROKEN: {},
+    KEY_BROKEN: {},
+    KMS_BROKEN: {},
+    ROOT_KEY_BROKEN: {},
 });
 
 /** A stable cause of identity failures. */

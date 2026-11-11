@@ -35,7 +35,10 @@ export const Jwks = {
             // refuse a header without a key of its algorithm, or with a key identifier no key has
             const found = matchKeys(set, header);
             if (found === undefined) {
-                throw IdentityError.of("KEY_NOT_FOUND", "no key of the set signed the token");
+                throw IdentityError.of(
+                    "KEY_UNAUTHENTICATED",
+                    "authentication required: no key of the set signed the token",
+                );
             }
 
             // import each matched key once, and use the keys that import
@@ -54,7 +57,7 @@ export const Jwks = {
                 const reasons = settled.flatMap((each): unknown[] =>
                     each.status === "rejected" ? [each.reason] : [],
                 );
-                throw IdentityError.of("KEY_INVALID", "no key of the set imports", {
+                throw IdentityError.of("KEY_INVALID", "key set is invalid: no key of it imports", {
                     cause: new AggregateError(reasons),
                 });
             }
@@ -180,7 +183,7 @@ async function fetchKeys(url: URL, options: RemoteJwksOptions, clock: Clock): Pr
 
         return JwkSet.parse(await response.json());
     } catch (error) {
-        throw IdentityError.of("KEY_SET_UNAVAILABLE", `the key set at ${url.href} is unavailable`, {
+        throw IdentityError.of("KEY_SET_UNAVAILABLE", `key set at '${url.href}' is unavailable`, {
             cause: error,
         });
     }

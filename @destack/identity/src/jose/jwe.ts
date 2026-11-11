@@ -112,11 +112,17 @@ export const Jwe = {
         const members = Base64Url.object(encodedHeader);
         const refused = REFUSED_MEMBERS.find((member) => member in members);
         if (refused !== undefined) {
-            throw IdentityError.of("CIPHERTEXT_MALFORMED", `the ciphertext header has ${refused}`);
+            throw IdentityError.of(
+                "CIPHERTEXT_INVALID",
+                `ciphertext header is invalid: it has '${refused}'`,
+            );
         }
         const parsed = JweHeader.safeParse(members);
         if (!parsed.success) {
-            throw IdentityError.of("CIPHERTEXT_MALFORMED", "the ciphertext has an invalid header");
+            throw IdentityError.of(
+                "CIPHERTEXT_INVALID",
+                "ciphertext is invalid: it has an invalid header",
+            );
         }
         const header = parsed.data;
 
@@ -124,8 +130,8 @@ export const Jwe = {
         const management = MANAGEMENT.get(key.algorithm.name);
         if (management !== header.alg) {
             throw IdentityError.of(
-                "DECRYPTION_FAILED",
-                `the ciphertext is sealed by ${header.alg}, the key opens ${management ?? "none"}`,
+                "DECRYPTION_BROKEN",
+                `the ciphertext is sealed by '${header.alg}', the key opens '${management ?? "none"}'`,
             );
         }
 
@@ -156,7 +162,7 @@ export const Jwe = {
 
             return { header, plaintext: new Uint8Array(plaintext) };
         } catch (error) {
-            throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed", {
+            throw IdentityError.of("DECRYPTION_BROKEN", "ciphertext authentication failed", {
                 cause: error,
             });
         }
@@ -284,7 +290,10 @@ function readWrap(members: Record<string, unknown>) {
 function readMember<Value>(member: schema.Schema<Value>, value: unknown, label: string): Value {
     const parsed = member.safeParse(value);
     if (!parsed.success) {
-        throw IdentityError.of("CIPHERTEXT_MALFORMED", `the ciphertext has an invalid ${label}`);
+        throw IdentityError.of(
+            "CIPHERTEXT_INVALID",
+            `ciphertext is invalid: its '${label}' is invalid`,
+        );
     }
 
     return parsed.data;
@@ -298,8 +307,8 @@ function sized(
 ): Uint8Array<ArrayBuffer> {
     if (bytes.length !== length) {
         throw IdentityError.of(
-            "CIPHERTEXT_MALFORMED",
-            `the ciphertext's ${label} has ${bytes.length} bytes, not ${length}`,
+            "CIPHERTEXT_INVALID",
+            `ciphertext is invalid: its '${label}' has ${bytes.length} bytes, not ${length}`,
         );
     }
 
@@ -340,7 +349,10 @@ function segments(compact: string): readonly [string, string, string, string, st
         body === undefined ||
         tag === undefined
     ) {
-        throw IdentityError.of("CIPHERTEXT_MALFORMED", "the ciphertext is not a compact JWE");
+        throw IdentityError.of(
+            "CIPHERTEXT_INVALID",
+            "ciphertext is invalid: it is not a compact JWE",
+        );
     }
 
     return [header, key, iv, body, tag];

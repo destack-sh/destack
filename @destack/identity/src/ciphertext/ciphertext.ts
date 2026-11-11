@@ -41,7 +41,7 @@ export const Ciphertext = Object.assign(schema.string().regex(COMPACT_JWE), {
         // decrypt it, then require the context it was encrypted under
         const decrypted = await Jwe.decrypt(ciphertext, key, crypto);
         if (decrypted.header["ctx"] !== (await digest(Label.encode(context), crypto))) {
-            throw IdentityError.of("DECRYPTION_FAILED", "ciphertext authentication failed");
+            throw IdentityError.of("DECRYPTION_BROKEN", "ciphertext authentication failed");
         }
 
         return decrypted.plaintext;

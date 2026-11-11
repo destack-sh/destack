@@ -74,13 +74,19 @@ export const Jws = {
         const [encodedHeader, encodedPayload, encodedSignature] = segments(compact);
         const header = parseHeader(encodedHeader);
         if ("crit" in header) {
-            throw IdentityError.of("TOKEN_MALFORMED", "the token marks an extension critical");
+            throw IdentityError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the token marks an extension critical",
+            );
         }
 
         // refuse an algorithm outside the allowed ones, such as none
         const algorithm = JwsAlgorithm.safeParse(header.alg).data;
         if (algorithm === undefined || !algorithms.includes(algorithm)) {
-            throw IdentityError.of("ALGORITHM_REFUSED", `the algorithm ${header.alg} is refused`);
+            throw IdentityError.of(
+                "ALGORITHM_UNAUTHENTICATED",
+                `authentication required: algorithm '${header.alg}' is refused`,
+            );
         }
 
         // filter the candidate keys of the algorithm, refusing a key of another
@@ -88,8 +94,8 @@ export const Jws = {
         const fitting = candidates.filter((key) => fits(key, algorithm));
         if (fitting.length === 0) {
             throw IdentityError.of(
-                "ALGORITHM_REFUSED",
-                `no key verifies the algorithm ${algorithm}`,
+                "ALGORITHM_UNAUTHENTICATED",
+                `authentication required: no key verifies algorithm '${algorithm}'`,
             );
         }
 
@@ -114,7 +120,10 @@ export const Jws = {
         }
 
         // refuse a signature no candidate verifies
-        throw IdentityError.of("SIGNATURE_INVALID", "the token's signature is invalid");
+        throw IdentityError.of(
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: the token's signature is invalid",
+        );
     },
 
     /** Read a JWS's protected header without verifying it. */
@@ -135,7 +144,10 @@ export const Jws = {
     async importJwk(jwk: Jwk, algorithm: JwsAlgorithm, crypto: Crypto): Promise<CryptoKey> {
         // refuse a key of another type, curve or algorithm
         if (!Jwk.fits(jwk, algorithm)) {
-            throw IdentityError.of("KEY_INVALID", `the key is not an ${algorithm} key`);
+            throw IdentityError.of(
+                "KEY_INVALID",
+                `key is invalid: it is not an '${algorithm}' key`,
+            );
         }
 
         // sign and verify with a secret, sign with a private key, and verify with a public one
@@ -153,7 +165,10 @@ export const Jws = {
         // read the PEM's base64 body, refusing another label
         const body = PKCS8_PEM.exec(pem.trim())?.[1];
         if (body === undefined) {
-            throw IdentityError.of("KEY_INVALID", "the key is not a PKCS #8 PEM private key");
+            throw IdentityError.of(
+                "KEY_INVALID",
+                "key is invalid: it is not a PKCS #8 PEM private key",
+            );
         }
 
         // decode its DER for signing
@@ -161,7 +176,7 @@ export const Jws = {
         try {
             der = Uint8Array.fromBase64(body.replaceAll(/\s/gu, ""));
         } catch (error) {
-            throw IdentityError.of("KEY_INVALID", "the PEM body is invalid base64", {
+            throw IdentityError.of("KEY_INVALID", "PEM body is invalid: it is not base64", {
                 cause: error,
             });
         }
@@ -181,7 +196,7 @@ async function signingKey(
 ): Promise<CryptoKey> {
     // refuse a key of another algorithm
     if (!fits(key, algorithm)) {
-        throw IdentityError.of("KEY_INVALID", `the key does not sign ${algorithm}`);
+        throw IdentityError.of("KEY_INVALID", `key is invalid: it does not sign '${algorithm}'`);
     }
 
     return key instanceof Uint8Array ? importSecret(key, algorithm, "sign", crypto) : key;
@@ -207,7 +222,9 @@ async function checkKey(imported: Promise<CryptoKey>, algorithm: JwsAlgorithm): 
     try {
         key = await imported;
     } catch (error) {
-        throw IdentityError.of("KEY_INVALID", `the ${algorithm} key is invalid`, { cause: error });
+        throw IdentityError.of("KEY_INVALID", `'${algorithm}' key is invalid: it does not import`, {
+            cause: error,
+        });
     }
 
     // refuse a short RSA modulus or HMAC secret
@@ -219,7 +236,10 @@ async function checkKey(imported: Promise<CryptoKey>, algorithm: JwsAlgorithm): 
     const bits = isHmac ? keyAlgorithm.length : keyAlgorithm.modulusLength;
     const least = isHmac ? HMAC_SECRET_BITS : RSA_MODULUS_BITS;
     if (bits !== undefined && bits < least) {
-        throw IdentityError.of("KEY_INVALID", `the ${algorithm} key has ${bits} bits`);
+        throw IdentityError.of(
+            "KEY_INVALID",
+            `'${algorithm}' key is invalid: it has ${bits} bits, below ${least} bits`,
+        );
     }
 
     return key;
@@ -229,7 +249,10 @@ async function checkKey(imported: Promise<CryptoKey>, algorithm: JwsAlgorithm): 
 function parseHeader(encodedHeader: string): JwsHeader {
     const parsed = JwsHeader.safeParse(Base64Url.object(encodedHeader));
     if (!parsed.success) {
-        throw IdentityError.of("TOKEN_MALFORMED", "the token has an invalid header");
+        throw IdentityError.of(
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token has an invalid header",
+        );
     }
 
     return parsed.data;
@@ -246,7 +269,10 @@ function segments(compact: string): readonly [string, string, string] {
         payload === undefined ||
         signature === undefined
     ) {
-        throw IdentityError.of("TOKEN_MALFORMED", "the token is not a compact JWS");
+        throw IdentityError.of(
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: the token is not a compact JWS",
+        );
     }
 
     return [header, payload, signature];
