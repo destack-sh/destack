@@ -215,7 +215,7 @@ test("refuse a rule calling an installation's method from an editor who does not
     expect(await refusal(calling)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: manage",
+        "permission 'manage' is forbidden: the caller lacks it",
     ]);
 });
 
@@ -248,8 +248,8 @@ test("refuse a rule calling an installation once the space's owner withdraws obs
         ),
     ).toEqual([
         "PRECONDITION_FAILED",
-        "RESPOND_CAPABILITY_MISSING",
-        `a call action needs observability's ${RESPOND_CAPABILITY} capability`,
+        "RESPOND_CAPABILITY_BLOCKED",
+        `cannot add a call action: it needs observability's '${RESPOND_CAPABILITY}' capability`,
     ]);
 });
 
@@ -358,7 +358,7 @@ test("declare alert rules as code through the space's stack, checking each rule 
     ]);
     expect(refused).toEqual([
         "failed",
-        "@destack/observability EVENTS_TYPE_UNKNOWN: the space has no events type page-view",
+        "@destack/observability EVENTS_TYPE_INVALID: events type page-view is invalid: the space has no such type",
     ]);
 });
 
@@ -389,10 +389,14 @@ test("refuse an events rule calling an installation its group names none of, and
     expect({ calling, unserved }).toEqual({
         calling: [
             "BAD_REQUEST",
-            "CALL_GROUP_MISSING",
-            "a call action needs a group by installation or issue",
+            "CALL_GROUP_REQUIRED",
+            "call action group by installation or issue is required",
         ],
-        unserved: ["BAD_REQUEST", "EVENTS_TYPE_UNKNOWN", "the space has no events type page-view"],
+        unserved: [
+            "BAD_REQUEST",
+            "EVENTS_TYPE_INVALID",
+            "events type page-view is invalid: the space has no such type",
+        ],
     });
 });
 

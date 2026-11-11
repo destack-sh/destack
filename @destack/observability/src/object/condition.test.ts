@@ -30,8 +30,12 @@ test("refuse a pending issue condition, a quantile of a kind without distributio
         await check({ ...ERRORS, fold: "p99" }),
         await check({ ...ERRORS, fold: "sum" }),
     ]).toEqual([
-        ["BAD_REQUEST", "ISSUE_PENDING_UNSUPPORTED", "an issue condition takes no pending time"],
-        ["BAD_REQUEST", "DISTRIBUTION_MISSING", "a p99 fold can only read a kind's distributions"],
-        ["BAD_REQUEST", "MEASURE_MISSING", "a sum fold needs a measured key"],
+        ["BAD_REQUEST", "ISSUE_INVALID", "issue condition is invalid: it takes no pending time"],
+        [
+            "BAD_REQUEST",
+            "DISTRIBUTION_REQUIRED",
+            "kind distribution is required: a 'p99' fold can only read a kind's distributions",
+        ],
+        ["BAD_REQUEST", "MEASURE_REQUIRED", "measured key is required: a 'sum' fold reads it"],
     ]);
 });

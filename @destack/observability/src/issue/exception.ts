@@ -137,7 +137,10 @@ function parseGrouping(value: Attributes[string]): readonly string[] {
     // read a list as it is, and a key's list from its JSON
     const list: unknown = Array.isArray(value) ? value : parseJson(String(value));
     if (!Array.isArray(list)) {
-        throw ObservabilityError.of("FINGERPRINT_INVALID", "exception.fingerprint is not a list");
+        throw ObservabilityError.of(
+            "FINGERPRINT_INVALID",
+            "exception.fingerprint is invalid: it must be a list",
+        );
     }
 
     return list.map(String);
@@ -150,7 +153,7 @@ function parseJson(json: string): unknown {
     } catch (error) {
         throw ObservabilityError.of(
             "FINGERPRINT_INVALID",
-            "exception.fingerprint is not valid JSON",
+            "exception.fingerprint is invalid: it must be JSON",
             {
                 cause: error,
             },
@@ -165,9 +168,13 @@ function readFrames(text: string): StackFrame[] {
     try {
         parsed = JSON.parse(text);
     } catch (error) {
-        throw ObservabilityError.of("FRAMES_INVALID", "the exception's frames are not JSON", {
-            cause: error,
-        });
+        throw ObservabilityError.of(
+            "FRAMES_INVALID",
+            "exception frame list is invalid: it must be JSON",
+            {
+                cause: error,
+            },
+        );
     }
 
     // refuse JSON that is not a list of frames
@@ -175,7 +182,7 @@ function readFrames(text: string): StackFrame[] {
     if (!frames.success) {
         throw ObservabilityError.of(
             "FRAMES_INVALID",
-            "the exception's frames are not a list of frames",
+            "exception frame list is invalid: it must be a list of frames",
         );
     }
 

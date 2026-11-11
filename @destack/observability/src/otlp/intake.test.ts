@@ -178,10 +178,14 @@ test("keep an issue ignored for good through further failures, reopen it until i
         refused: [
             [
                 "BAD_REQUEST",
-                "REVISION_UNKNOWN",
-                `revision ${foreign} is not a revision of this installation`,
+                "REVISION_INVALID",
+                `revision '${foreign}' is invalid: it is not a revision of this installation`,
             ],
-            ["BAD_REQUEST", "UNTIL_PASSED", "the issue counted 2 events, at or past 2"],
+            [
+                "BAD_REQUEST",
+                "UNTIL_INVALID",
+                "until count is invalid: the issue counted 2 events, at or past 2",
+            ],
         ],
     });
 });

@@ -352,11 +352,14 @@ export const Issue = {
         const { target } = call;
         if (until.kind === "count" && until.count <= target.count) {
             throw ObservabilityError.of(
-                "UNTIL_PASSED",
-                `the issue counted ${target.count} events, at or past ${until.count}`,
+                "UNTIL_INVALID",
+                `until count is invalid: the issue counted ${target.count} events, at or past ${until.count}`,
             );
         } else if (until.kind === "time" && until.at <= call.now) {
-            throw ObservabilityError.of("UNTIL_PASSED", `the time ${until.at} has passed`);
+            throw ObservabilityError.of(
+                "UNTIL_INVALID",
+                `until time '${until.at}' is invalid: it has passed`,
+            );
         }
 
         // refuse a revision of another installation or none
@@ -366,8 +369,8 @@ export const Issue = {
             });
             if (found === undefined) {
                 throw ObservabilityError.of(
-                    "REVISION_UNKNOWN",
-                    `revision ${until.after} is not a revision of this installation`,
+                    "REVISION_INVALID",
+                    `revision '${until.after}' is invalid: it is not a revision of this installation`,
                 );
             }
         }

@@ -253,7 +253,7 @@ class OtlpDecoder {
                 if (end < start) {
                     throw ObservabilityError.of(
                         "SPAN_TIMES_INVALID",
-                        `span ${span.spanId} ends before it starts`,
+                        `span '${span.spanId}' is invalid: it ends before it starts`,
                     );
                 }
                 const split = this.#split(attributesOf(span.attributes));
@@ -330,8 +330,8 @@ class OtlpDecoder {
                     const value = each.asInt ?? each.asDouble;
                     if (value === undefined) {
                         throw ObservabilityError.of(
-                            "POINT_VALUE_MISSING",
-                            `metric ${metric.name} has a point with no value`,
+                            "POINT_VALUE_REQUIRED",
+                            `point value of metric '${metric.name}' is required`,
                         );
                     }
 
@@ -370,8 +370,8 @@ class OtlpDecoder {
         // refuse explicit-bucket histograms
         else {
             throw ObservabilityError.of(
-                "METRIC_UNSUPPORTED",
-                `metric ${metric.name} is not a delta sum, gauge or exponential histogram`,
+                "METRIC_INVALID",
+                `metric '${metric.name}' is invalid: it must be a delta sum, gauge or exponential histogram`,
             );
         }
     }
@@ -428,9 +428,12 @@ class OtlpDecoder {
                 ? record.body?.stringValue
                 : record.eventName;
         if (name === undefined || name === "") {
-            throw ObservabilityError.of("LOG_EVENT_MISSING", "the log record has no event name");
+            throw ObservabilityError.of("LOG_EVENT_REQUIRED", "log record event name is required");
         } else if (time === undefined) {
-            throw ObservabilityError.of("LOG_TIME_MISSING", `log record ${name} has no time`);
+            throw ObservabilityError.of(
+                "LOG_TIME_REQUIRED",
+                `time of log record '${name}' is required`,
+            );
         }
 
         // read the body as text, the trace and the attributes
@@ -492,7 +495,7 @@ class OtlpDecoder {
         // refuse a visit naming no route
         const route = text(ANALYTICS_ATTRIBUTES.route);
         if (route === undefined) {
-            throw ObservabilityError.of("VISIT_ROUTE_MISSING", "the visit has no route");
+            throw ObservabilityError.of("VISIT_ROUTE_REQUIRED", "visit route is required");
         }
 
         return {
@@ -522,7 +525,7 @@ class OtlpDecoder {
             ...properties
         } = read.split.attributes;
         if (typeof name !== "string" || name === "") {
-            throw ObservabilityError.of("ACTION_NAME_MISSING", "the action has no name");
+            throw ObservabilityError.of("ACTION_NAME_REQUIRED", "action name is required");
         }
 
         return {
@@ -546,11 +549,14 @@ class OtlpDecoder {
         const value = read.split.attributes[SESSION_STATUS_ATTRIBUTE];
         const status = SESSION_STATUSES.find((each) => each === value);
         if (value === undefined) {
-            throw ObservabilityError.of("SESSION_STATUS_MISSING", "the session end has no status");
+            throw ObservabilityError.of(
+                "SESSION_STATUS_REQUIRED",
+                "session end status is required",
+            );
         } else if (status === undefined) {
             throw ObservabilityError.of(
                 "SESSION_STATUS_INVALID",
-                `unknown session status ${JSON.stringify(value)}`,
+                `session status ${JSON.stringify(value)} is invalid: it must be a known status`,
             );
         }
 
@@ -576,8 +582,8 @@ class OtlpDecoder {
         const { person: verified, instance } = this.emitter;
         if (instance === undefined && claimed !== undefined && claimed !== verified) {
             throw ObservabilityError.of(
-                "PERSON_UNVERIFIED",
-                `a page record names person ${claimed}, whom its machine did not verify`,
+                "PERSON_DENIED",
+                `person '${claimed}' is forbidden: a page record names it, and its machine did not verify it`,
             );
         }
         const person = verified ?? claimed ?? null;
@@ -639,8 +645,8 @@ class OtlpDecoder {
 function requireDelta(metric: OtlpMetric, temporality: number | undefined): void {
     if (temporality !== undefined && temporality !== DELTA) {
         throw ObservabilityError.of(
-            "TEMPORALITY_UNSUPPORTED",
-            `metric ${metric.name} is cumulative: export deltas`,
+            "TEMPORALITY_INVALID",
+            `metric '${metric.name}' is invalid: it is cumulative and must export deltas`,
         );
     }
 }

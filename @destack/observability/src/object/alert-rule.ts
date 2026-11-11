@@ -260,8 +260,8 @@ export class AlertRule {
             }
             if (Duration.milliseconds(rule.pending) > 0) {
                 throw ObservabilityError.of(
-                    "ISSUE_PENDING_UNSUPPORTED",
-                    "an issue condition takes no pending time",
+                    "ISSUE_INVALID",
+                    "issue condition is invalid: it takes no pending time",
                 );
             }
         }
@@ -280,8 +280,8 @@ export class AlertRule {
         if (rule.actions.some((action) => action.kind === "call")) {
             if (!writing.enabled(RESPOND_CAPABILITY)) {
                 throw ObservabilityError.of(
-                    "RESPOND_CAPABILITY_MISSING",
-                    `a call action needs observability's ${RESPOND_CAPABILITY} capability`,
+                    "RESPOND_CAPABILITY_BLOCKED",
+                    `cannot add a call action: it needs observability's '${RESPOND_CAPABILITY}' capability`,
                 );
             }
             const reference = alertRule.reference(rule.scope, rule.id);
@@ -853,13 +853,13 @@ export class AlertRule {
         const isDistributed = kind.distribution !== undefined && condition.measure === undefined;
         if (isQuantile && (!isDistributed || condition.per !== undefined)) {
             throw ObservabilityError.of(
-                "DISTRIBUTION_MISSING",
-                `a ${condition.fold} fold can only read a kind's distributions`,
+                "DISTRIBUTION_REQUIRED",
+                `kind distribution is required: a '${condition.fold}' fold can only read a kind's distributions`,
             );
         } else if (condition.measure === undefined && condition.fold !== "count" && !isQuantile) {
             throw ObservabilityError.of(
-                "MEASURE_MISSING",
-                `a ${condition.fold} fold needs a measured key`,
+                "MEASURE_REQUIRED",
+                `measured key is required: a '${condition.fold}' fold reads it`,
             );
         } else if (
             rule.actions.some((action) => action.kind === "call") &&
@@ -867,8 +867,8 @@ export class AlertRule {
             !condition.group.includes("issue")
         ) {
             throw ObservabilityError.of(
-                "CALL_GROUP_MISSING",
-                "a call action needs a group by installation or issue",
+                "CALL_GROUP_REQUIRED",
+                "call action group by installation or issue is required",
             );
         }
     }
@@ -904,8 +904,8 @@ function eventsTypeOf(objects: readonly ObjectType[], reference: ObjectTypeRefer
     );
     if (found === undefined) {
         throw ObservabilityError.of(
-            "EVENTS_TYPE_UNKNOWN",
-            `the space has no events type ${reference.type}`,
+            "EVENTS_TYPE_INVALID",
+            `events type ${reference.type} is invalid: the space has no such type`,
         );
     }
 

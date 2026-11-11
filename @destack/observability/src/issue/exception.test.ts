@@ -73,15 +73,23 @@ const framed = (frames: string) => () =>
 
 test("refuse symbolicated frames that are not JSON, or JSON but not a list of frames", async () => {
     expect([await refusal(framed("frames")), await refusal(framed('[{"line":"one"}]'))]).toEqual([
-        ["BAD_REQUEST", "FRAMES_INVALID", "the exception's frames are not JSON"],
-        ["BAD_REQUEST", "FRAMES_INVALID", "the exception's frames are not a list of frames"],
+        ["BAD_REQUEST", "FRAMES_INVALID", "exception frame list is invalid: it must be JSON"],
+        [
+            "BAD_REQUEST",
+            "FRAMES_INVALID",
+            "exception frame list is invalid: it must be a list of frames",
+        ],
     ]);
 });
 
 test("refuse a requested grouping that is not a list", async () => {
     // read a key's grouping that is not JSON, and one that is JSON but not a list
     expect([await refusal(grouped("quota")), await refusal(grouped('{"quota":1}'))]).toEqual([
-        ["BAD_REQUEST", "FINGERPRINT_INVALID", "exception.fingerprint is not valid JSON"],
-        ["BAD_REQUEST", "FINGERPRINT_INVALID", "exception.fingerprint is not a list"],
+        ["BAD_REQUEST", "FINGERPRINT_INVALID", "exception.fingerprint is invalid: it must be JSON"],
+        [
+            "BAD_REQUEST",
+            "FINGERPRINT_INVALID",
+            "exception.fingerprint is invalid: it must be a list",
+        ],
     ]);
 });

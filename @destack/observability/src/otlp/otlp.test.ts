@@ -204,8 +204,8 @@ test("identify the same records alike in one scope and apart across scopes, and 
         elsewhere: ["log-dec32677-842b-8d83-941d-52adfba1e94b"],
         cumulative: [
             "BAD_REQUEST",
-            "TEMPORALITY_UNSUPPORTED",
-            "metric note.render.cumulative is cumulative: export deltas",
+            "TEMPORALITY_INVALID",
+            "metric 'note.render.cumulative' is invalid: it is cumulative and must export deltas",
         ],
     });
 });
@@ -250,21 +250,29 @@ test("refuse records and points missing what their kind requires", async () => {
         unvalued: await decode("metrics", unvalued),
         bucketed: await decode("metrics", bucketed),
     }).toEqual({
-        unnamed: ["BAD_REQUEST", "LOG_EVENT_MISSING", "the log record has no event name"],
-        untimed: ["BAD_REQUEST", "LOG_TIME_MISSING", "log record note.saved has no time"],
-        unrouted: ["BAD_REQUEST", "VISIT_ROUTE_MISSING", "the visit has no route"],
-        nameless: ["BAD_REQUEST", "ACTION_NAME_MISSING", "the action has no name"],
-        unended: ["BAD_REQUEST", "SESSION_STATUS_MISSING", "the session end has no status"],
-        unknown: ["BAD_REQUEST", "SESSION_STATUS_INVALID", 'unknown session status "lost"'],
+        unnamed: ["BAD_REQUEST", "LOG_EVENT_REQUIRED", "log record event name is required"],
+        untimed: [
+            "BAD_REQUEST",
+            "LOG_TIME_REQUIRED",
+            "time of log record 'note.saved' is required",
+        ],
+        unrouted: ["BAD_REQUEST", "VISIT_ROUTE_REQUIRED", "visit route is required"],
+        nameless: ["BAD_REQUEST", "ACTION_NAME_REQUIRED", "action name is required"],
+        unended: ["BAD_REQUEST", "SESSION_STATUS_REQUIRED", "session end status is required"],
+        unknown: [
+            "BAD_REQUEST",
+            "SESSION_STATUS_INVALID",
+            `session status "lost" is invalid: it must be a known status`,
+        ],
         unvalued: [
             "BAD_REQUEST",
-            "POINT_VALUE_MISSING",
-            "metric note.saves has a point with no value",
+            "POINT_VALUE_REQUIRED",
+            "point value of metric 'note.saves' is required",
         ],
         bucketed: [
             "BAD_REQUEST",
-            "METRIC_UNSUPPORTED",
-            "metric note.render is not a delta sum, gauge or exponential histogram",
+            "METRIC_INVALID",
+            "metric 'note.render' is invalid: it must be a delta sum, gauge or exponential histogram",
         ],
     });
 });
@@ -286,8 +294,8 @@ test("take a page's person from its machine alone, refusing a page record naming
     // keep the verified person and the person a workload's record names, and refuse a page's claim of dana
     const refusedClaim = [
         "FORBIDDEN",
-        "PERSON_UNVERIFIED",
-        "a page record names person dana, whom its machine did not verify",
+        "PERSON_DENIED",
+        "person 'dana' is forbidden: a page record names it, and its machine did not verify it",
     ];
     expect({
         verified: await personsOf(page(verifiedPerson).logs([{ time: START, name: "note.saved" }])),
