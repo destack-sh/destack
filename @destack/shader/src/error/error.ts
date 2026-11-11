@@ -2,20 +2,22 @@ import { defineErrorFamily, type FamilyFailure, type ReasonOf } from "@destack/e
 import type {} from "@destack/package/import-meta";
 
 /** The shader package's failures, each reason with the call error code it answers. */
-export const ShaderError = defineErrorFamily(import.meta.destack.package, {
-    // invalid
-    COLOR_INVALID: {},
-    COMPILE_INVALID: {},
-    LINK_INVALID: {},
-    UNIFORM_INVALID: {},
+export const ShaderError = defineErrorFamily({
+    reasons: {
+        // invalid
+        COLOR_INVALID: {},
+        COMPILE_INVALID: {},
+        LINK_INVALID: {},
+        UNIFORM_INVALID: {},
 
-    // blocked
-    CONTEXT_LOST_BLOCKED: {},
-    IMAGE_BLOCKED: {},
+        // blocked
+        CONTEXT_LOST_BLOCKED: {},
+        IMAGE_BLOCKED: {},
 
-    // unsupported
-    CANVAS_UNSUPPORTED: {},
-    WEBGL_UNSUPPORTED: {},
+        // unsupported
+        CANVAS_UNSUPPORTED: {},
+        WEBGL_UNSUPPORTED: {},
+    },
 });
 
 /** A stable cause of shader failures. */
