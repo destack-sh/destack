@@ -13,13 +13,13 @@ import { account, Account, HOME_APPLICATION, HOME_SPACE } from "../object/accoun
 
 /** A person's home: where Home answers in their personal account's home space. */
 export const Home = {
-    /** Read where a person's Home answers, starting while no machine serves their home. */
+    /** Read where a person's Home answers, starting until its machine reports it serving. */
     async locate(userId: string, database: DatabaseConnection, now: number): Promise<HomeLocation> {
         // find the machine answering for the person's home space
         const accountId = Account.personal(userId);
         const snapshot = Snapshot.live(database);
         const located = await new Directory(snapshot).serving(Account.home(accountId), now);
-        if (located === undefined) {
+        if (located?.status !== "serving") {
             return { status: "starting" };
         }
 

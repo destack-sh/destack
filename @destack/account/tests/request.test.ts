@@ -316,33 +316,43 @@ test("refuse reviewing a request without its reference, and deciding one by a ma
     ]);
 });
 
-test("locate a signed-in person's Home, starting while their home's machine answers nowhere, and refuse a signed-out browser", async () => {
-    // sign a person up, which places their home at the residency's machine
+test("locate a signed-in person's Home once its machine reports it serving, starting before and while the machine answers nowhere, and refuse a signed-out browser", async () => {
+    // sign a person up, which places their home at the residency's machine, starting
     await using fixture = await TestAccountStore.open();
     const { person, browser } = await fixture.signInBrowser("ada@example.com", "ada");
-    const serving: unknown = await (await browser.fetch(HOME_LOCATION_PATH)).json();
+    const located = async (): Promise<unknown> =>
+        await (await browser.fetch(HOME_LOCATION_PATH)).json();
+    const placed = await located();
 
-    // withdraw the endpoint of the machine serving their home, and locate it again
+    // report the home serving as its machine does, then withdraw the machine's endpoint
     const home = Account.home(Account.personal(person.id));
-    const placed = single(
+    const row = single(
         await fixture.database
             .select()
             .from(placement.table)
             .where(eq(placement.table.spaceId, home)),
     );
-    await TestDirectory.publish(
-        fixture.database,
-        placed.machineId,
-        placed.scope,
-        null,
-        fixture.clock,
+    await fixture.database.transaction(
+        async (transaction) =>
+            await transaction
+                .update(placement.table)
+                .set({ status: "serving" })
+                .where(eq(placement.table.spaceId, home)),
     );
-    const starting: unknown = await (await browser.fetch(HOME_LOCATION_PATH)).json();
+    const serving = await located();
+    await TestDirectory.publish(fixture.database, row.machineId, row.scope, null, fixture.clock);
+    const unanswered = await located();
     const signedOut = await fixture.browser().fetch(HOME_LOCATION_PATH);
 
-    expect({ serving, starting, signedOut: [signedOut.status, await signedOut.json()] }).toEqual({
+    expect({
+        placed,
+        serving,
+        unanswered,
+        signedOut: [signedOut.status, await signedOut.json()],
+    }).toEqual({
+        placed: { status: "starting" },
         serving: { status: "serving", url: "https://home--home--ada.destack.space/" },
-        starting: { status: "starting" },
+        unanswered: { status: "starting" },
         signedOut: [
             401,
             {
