@@ -26,6 +26,7 @@ import {
     type PackageImplementation,
 } from "@destack/object/server";
 import { PackageId } from "@destack/package";
+import { PackageError } from "@destack/package/error";
 import { type Lease, ResourceHandle } from "@destack/resource";
 import { ResourceContext } from "@destack/resource/context";
 import { Health, type PackageHandler } from "@destack/object/server";
@@ -144,6 +145,7 @@ export class Space {
             const builds = new SpaceBuildStore(
                 new BuildStore({ blobs, environment }),
                 machine.cache,
+                machine.releases,
             );
 
             // lend the machine's directory, universe and the space's builds to its host
@@ -273,15 +275,8 @@ export class Space {
         // serve a primary's applied installations, applying their changes in this start
         const hosted = await this.host.options();
         const { role } = hosted;
-        const installed =
-            role === "primary"
-                ? await Database.installed(
-                      Snapshot.live(database),
-                      this.id,
-                      (packageId, manifest) =>
-                          this.builds.pull(machine.releases, packageId, manifest),
-                  )
-                : [];
+        const { installed } =
+            role === "primary" ? await this.#installed("cache") : { installed: [] };
         await this.#root(installed);
         this.#serving = {
             adapters: Space.#adapters(installed),
@@ -396,13 +391,10 @@ export class Space {
     async #reconcile(): Promise<void> {
         // apply a primary's installed set in this start, recording its served revisions
         const serving = present(this.#serving, `the serving of ${this.id}`);
+        let unavailable: readonly Digest[] = [];
         if (serving.role === "primary") {
-            const installed = await Database.installed(
-                Snapshot.live(this.database),
-                this.id,
-                (packageId, manifest) =>
-                    this.builds.pull(this.machine.releases, packageId, manifest),
-            );
+            const { installed, unavailable: waiting } = await this.#installed("forges");
+            unavailable = waiting;
             await this.#root(installed);
             await serving.apply(installed);
         }
@@ -413,6 +405,46 @@ export class Space {
         if (serving.role === "primary") {
             await this.#reportServing();
         }
+
+        // retry once a build the space's forges cannot answer yet arrives, as an image pull backs off
+        if (unavailable.length > 0) {
+            throw new Error(`space ${this.id} waits for builds ${unavailable.join(", ")}`);
+        }
+    }
+
+    /** Read a primary's installed set from the cache or its forges, leaving out absent builds. */
+    async #installed(source: "cache" | "forges"): Promise<{
+        readonly installed: Awaited<ReturnType<typeof Database.installed>>;
+        readonly unavailable: readonly Digest[];
+    }> {
+        // open each build the cache has, or pull it, noting one that is absent or a forge answers as unavailable
+        const unavailable: Digest[] = [];
+        const open = async (packageId: PackageId, manifest: Digest) => {
+            // open a cached build, a builtin's linked one, as a start makes no network calls
+            if (source === "cache") {
+                const resolved = this.builds.cache.resolve(packageId, manifest);
+                const isCached = await this.builds.contains(resolved);
+                if (!isCached) {
+                    unavailable.push(manifest);
+                }
+
+                return isCached ? await this.builds.contents(resolved) : undefined;
+            }
+            // pull a build, noting one its forge cannot answer yet
+            else {
+                return await this.builds.pull(packageId, manifest).catch((error: unknown) => {
+                    if (!PackageError.is(error, "FILE_UNAVAILABLE")) {
+                        throw error;
+                    }
+                    unavailable.push(manifest);
+
+                    return undefined;
+                });
+            }
+        };
+        const installed = await Database.installed(Snapshot.live(this.database), this.id, open);
+
+        return { installed, unavailable };
     }
 
     /** Report to the universe that this machine serves the space, unless its placement says so. */

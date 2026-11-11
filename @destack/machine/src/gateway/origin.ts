@@ -569,7 +569,6 @@ export class ViewOrigin {
                 revision.buildId,
             );
             const pulled = await this.#space.builds.pull(
-                this.#space.machine.releases,
                 PackageId.parse(found.installation.packageId),
                 built.manifest,
             );
