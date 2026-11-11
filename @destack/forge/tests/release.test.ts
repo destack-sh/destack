@@ -4,7 +4,7 @@ import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
 import { Commit, Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { BuildStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
@@ -594,7 +594,7 @@ test("publish a builtin under the platform's organization, which owns the forge'
         person: TestPerson,
     ) => {
         const build = await MemoryBuild.of(
-            Package.parse({ id, name: `@${handle}/kernel`, version: "2026.9.0" }),
+            PackageVersion.parse({ id, name: `@${handle}/kernel`, version: "2026.9.0" }),
             [],
             crypto,
             { role: "builtin", commit: Commit.parse(COMMIT) },
@@ -651,7 +651,7 @@ function stored(reader: BuildReader) {
 }
 
 /** List releases as their package names and versions. */
-function versionsOf(published: readonly { readonly package: Package }[]): string[] {
+function versionsOf(published: readonly { readonly package: PackageVersion }[]): string[] {
     return published.map((release) => `${release.package.name}@${release.package.version}`);
 }
 

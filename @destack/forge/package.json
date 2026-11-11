@@ -28,6 +28,7 @@
         "@destack/error": "workspace:*",
         "@destack/event": "workspace:*",
         "@destack/git": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/package": "workspace:*",
         "@destack/registry": "workspace:*",

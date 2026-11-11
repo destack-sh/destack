@@ -21,7 +21,7 @@ import registryPackage from "@destack/registry/package";
 import objectPackage from "@destack/object/package";
 import type { TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
-import { Package, PackageName, type PackageId } from "@destack/package";
+import { PackageVersion, PackageName, type PackageId } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
@@ -48,7 +48,10 @@ import { GITHUB_API } from "../github/index.ts";
 import { APP_ID, GITHUB_HOST, GitHubStandIn, githubPrivateKey, WEBHOOK_SECRET } from "./github.ts";
 
 /** The connection a person's GitHub installation is: GitHub's API, which the forge's app calls. */
-const GITHUB_CONNECTION = defineConnection("github", { resource: "https://api.github.com" });
+const GITHUB_CONNECTION = defineConnection({
+    name: "github",
+    spec: { resource: "https://api.github.com" },
+});
 /** The node GitHub's stand-in answers on in the world's network. */
 const GITHUB_NODE = "github";
 
@@ -98,7 +101,7 @@ const TEMPLATE_TENANTS = 2;
 const MACHINE_ORIGIN = "https://machine.relay.test/";
 
 /** The vault the residency's stack declares for the platform's secrets. */
-const PLATFORM_VAULT = defineVault({ name: "platform", spec: {} });
+const PLATFORM_VAULT = defineVault({ name: "platform" });
 
 /** The forge as the machine ships it, beside the vault, with Git storage below its files. */
 export const FORGE: TestPackage = {
@@ -121,7 +124,7 @@ export const FORGE: TestPackage = {
 
 /** The connections and their vault of an account's home stack, as the platform declares them. */
 const HOME_STACK = {
-    vaults: { credentials: connectionVault.declare() },
+    vaults: { credentials: connectionVault.provision() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
@@ -140,8 +143,8 @@ const HOME_TYPES = [vaultPackage, forgePackage, gitStorage] as const;
 
 /** The home's stack, as the residency's declares it: the forge with its resources and issuer. */
 const RESIDENCY_STACK = {
-    vaults: { platform: PLATFORM_VAULT.declare(), credentials: credentialVault.declare() },
-    gitStorages: { repositories: repositoryStorage.declare() },
+    vaults: { platform: PLATFORM_VAULT.provision(), credentials: credentialVault.provision() },
+    gitStorages: { repositories: repositoryStorage.provision() },
     issuers: { github: {} },
     secrets: {
         "github-webhook": { parent: "platform", name: "github-webhook" },
@@ -595,7 +598,7 @@ export class TestForge {
             requestId: RequestId.create(this.environment),
             issuer: {
                 kind: "installation",
-                package: Package.of(forgePackage),
+                package: PackageVersion.of(forgePackage),
                 name: FORGE_INSTALLATION,
                 issuer: issuer.reference(this.space, id),
             },
@@ -610,7 +613,7 @@ export class TestForge {
         const created = await owner.connection.create({
             scope,
             requestId: RequestId.create(this.environment),
-            ...GITHUB_CONNECTION.declare(),
+            ...GITHUB_CONNECTION.provision(),
             name: "github",
             protocol: { kind: "installation" },
             integration: integration.reference(scope, app.id),

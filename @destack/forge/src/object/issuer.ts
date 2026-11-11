@@ -4,6 +4,7 @@ import { Issuer } from "@destack/connection/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** The GitHub App's issuers in a residency's home, called by its accounts' installations. */
 export const issuer = defineObject(
@@ -27,6 +28,7 @@ export const appInstallation = defineObject(
     {
         name: "app-installation",
         plural: "app-installations",
+        title: t`${plural(argument("count"), { one: "App installation", other: "App installations" })}`,
         scope: space,
         fields: {
             /** GitHub's identifier of the installation. */
@@ -36,9 +38,11 @@ export const appInstallation = defineObject(
             /** The connection installation that completed the setup, the one issuing its tokens. */
             claimer: field.string(schema.identifier("installation")),
         },
-        permissions: { read: none(), manage: none() },
         constraints: {
             installation: { kind: "unique", on: ["scope", "installation"] },
+        },
+        access: {
+            permissions: { read: none(), manage: none() },
         },
     },
     (method) => ({

@@ -13,7 +13,7 @@ import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";
 import { COMMIT } from "./fixture/package.ts";
 import { MemoryBuild } from "@destack/package/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { testHost } from "@destack/test/host";
 
 /** The email a person without access to the account signs in with. */
@@ -26,7 +26,7 @@ const GRACE_MILLISECONDS = 60 * 60_000;
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
 
 /** The package whose build depends on the tiny npm unit. */
-const CLOSURE = Package.parse({
+const CLOSURE = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000c105",
     name: "@example/closure",
     version: "2026.9.0",

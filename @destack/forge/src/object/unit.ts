@@ -3,19 +3,20 @@ import { space } from "@destack/account/object";
 import type { Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { release } from "@destack/registry/object";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The build of an npm package a release depends on, which the release's readers read. */
 export const unit = defineObject(
     {
         name: "unit",
         plural: "units",
+        title: t`${plural(argument("count"), { one: "Unit", other: "Units" })}`,
         scope: space,
-        nested: { in: release, receive: "publish", delete: "cascade" },
         fields: {
             /** The SHA-256 digest of the unit's build manifest. */
             manifest: field.blob(),
         },
-        permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
         constraints: {
             manifest: {
                 kind: "check",
@@ -24,6 +25,10 @@ export const unit = defineObject(
             unit: { kind: "unique", on: ["parentId", "manifest"] },
             build: { kind: "index", on: ["manifest"] },
         },
+        access: {
+            permissions: { read: through("parent", "read"), publish: through("parent", "publish") },
+        },
+        traits: [nested({ in: release, add: "publish", delete: "cascade" })],
     },
     (method) => ({
         create: method.create("publish", { fields: ["manifest"] }),

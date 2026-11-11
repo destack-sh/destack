@@ -1,5 +1,6 @@
 import { schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
+import { t } from "@destack/locale";
 
 /** The GitHub App a forge opens connected GitHub repositories through. */
 export const ForgeGitHub = schema.discriminatedUnion("kind", [
@@ -20,8 +21,8 @@ export type ForgeGitHub = schema.Infer<typeof ForgeGitHub>;
 /** The forge installation's GitHub App, which its stack places. */
 export const github = defineSetting({
     name: "github",
-    title: "GitHub App",
-    description: "The GitHub App the forge opens repositories connected at GitHub through.",
+    title: t`GitHub App`,
+    description: t`The GitHub App the forge opens repositories connected at GitHub through.`,
     schema: ForgeGitHub,
     default: { kind: "none" },
     scope: "space",

@@ -4,7 +4,8 @@ import { GitHubSignature } from "../github/signature.ts";
 import { githubWebhookSecret } from "./secret.ts";
 
 /** The deliveries of the forge's GitHub App, signed with the secret its stack binds. */
-export const githubWebhook = defineWebhook("github", {
+export const githubWebhook = defineWebhook({
+    name: "github",
     signature: new GitHubSignature(),
     secret: githubWebhookSecret,
 });
