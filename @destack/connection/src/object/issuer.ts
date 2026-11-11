@@ -2,10 +2,11 @@ import { type AccessExpression, none, type RelationInput } from "@destack/access
 import type { Table } from "@destack/db";
 import { space } from "@destack/account/object";
 import { MethodBuilder, ObjectType } from "@destack/object";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { type DigestCrypto, Identifier, schema, type Uuid } from "@destack/schema";
 import type { ObjectReference } from "@destack/sync";
 import { Token } from "../credential/credential.ts";
+import { argument, type Message, plural, t } from "@destack/locale";
 
 /** Destack's issuer namespace: the DNS namespace's UUIDv8 of issuer.destack.app. */
 const ISSUER_NAMESPACE: Uuid = "d8bd2c32-e5f0-8339-b3c3-547bc2215fba";
@@ -47,14 +48,22 @@ export const Issuer = {
     ): {
         readonly name: "issuer";
         readonly plural: "issuers";
+        readonly title: Message<"count">;
         readonly scope: typeof space;
         readonly fields: Record<never, never>;
     } & Access {
-        return { name: "issuer", plural: "issuers", scope: space, fields: {}, ...access };
+        return {
+            name: "issuer",
+            plural: "issuers",
+            title: t`${plural(argument("count"), { one: "Issuer", other: "Issuers" })}`,
+            scope: space,
+            fields: {},
+            ...access,
+        };
     },
 
     /** Declare an issuing package's issuer type, as connection calls it under that package. */
-    type(issuing: Package): ObjectType {
+    type(issuing: PackageVersion): ObjectType {
         const access = {
             relations: {},
             permissions: { read: none(), manage: none(), issue: none() },
@@ -83,6 +92,7 @@ export const Issuer = {
         delete: method.delete("manage"),
         /** Issue a token of an installation, narrowed to a grant. */
         issue: method.query({
+            title: t`Issue`,
             permission: "issue",
             input: schema.object({
                 /** The app's installation on an external account. */
@@ -96,6 +106,7 @@ export const Issuer = {
         }),
         /** Remove the app from the external account of an installation. */
         uninstall: method.mutation({
+            title: t`Uninstall`,
             permission: "issue",
             input: schema.object({
                 /** The app's installation on an external account. */
@@ -107,6 +118,7 @@ export const Issuer = {
         }),
         /** Claim the installation a completed installation page redirects back with. */
         installation: method.mutation({
+            title: t`Read installation`,
             permission: "issue",
             input: schema.object({
                 /** The redirect's query parameters. */

@@ -39,7 +39,7 @@ async function create(fixture: TestConnection, input: Created): Promise<ObjectRe
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
-                    ...TEST_CONNECTION.declare(),
+                    ...TEST_CONNECTION.provision(),
                     ...rest,
                     id,
                     name: id,

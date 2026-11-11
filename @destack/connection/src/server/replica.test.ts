@@ -66,7 +66,7 @@ async function connect(
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
-                    ...TEST_CONNECTION.declare(),
+                    ...TEST_CONNECTION.provision(),
                     name: "referencing",
                     protocol: { kind: input.kind ?? "authorization-code" },
                     integration: fixture.registered,
@@ -123,7 +123,7 @@ async function bindAtPrimary(
             calls: [
                 connection.call("create", {
                     scope: primary.scope.id,
-                    ...TEST_CONNECTION.declare(),
+                    ...TEST_CONNECTION.provision(),
                     name: "account",
                     protocol: { kind: "client-credentials" },
                     integration: registered,
@@ -235,7 +235,7 @@ test("register the client of a space's connection without an integration at the 
             calls: [
                 connection.call("create", {
                     scope: space.scope.id,
-                    ...TEST_CONNECTION.declare(),
+                    ...TEST_CONNECTION.provision(),
                     name: "dynamic",
                     spec: { resource: RESOURCE, scopes: [] },
                     protocol: { kind: "authorization-code" },
@@ -298,7 +298,7 @@ test("lease a connection its primary stores to a space's bound installation thro
                 calls: [
                     connection.call("create", {
                         scope: space.scope.id,
-                        ...TEST_CONNECTION.declare(),
+                        ...TEST_CONNECTION.provision(),
                         name: "installed",
                         protocol: { kind: "installation" },
                         integration: registered,

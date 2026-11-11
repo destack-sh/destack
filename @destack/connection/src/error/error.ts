@@ -21,47 +21,49 @@ export const OAuthRefusal = Object.assign(oauthRefusal, {
 export type OAuthRefusal = schema.Infer<typeof oauthRefusal>;
 
 /** The connection package's failures, each reason with the call error code it answers. */
-export const ConnectionError = defineErrorFamily(import.meta.destack.package, {
-    // not found
-    AUTHORIZATION_NOT_FOUND: {},
-    CONNECTION_NOT_FOUND: {},
-    INSTALLATION_PAGE_NOT_FOUND: {},
-    INTEGRATION_NOT_FOUND: {},
+export const ConnectionError = defineErrorFamily({
+    reasons: {
+        // not found
+        AUTHORIZATION_NOT_FOUND: {},
+        CONNECTION_NOT_FOUND: {},
+        INSTALLATION_PAGE_NOT_FOUND: {},
+        INTEGRATION_NOT_FOUND: {},
 
-    // invalid
-    AUTHORIZATION_INVALID: {},
-    MATERIAL_INVALID: {},
-    REDIRECT_URI_INVALID: {},
-    SECRET_INVALID: {},
-    SIGNING_KEY_INVALID: {},
+        // invalid
+        AUTHORIZATION_INVALID: {},
+        MATERIAL_INVALID: {},
+        REDIRECT_URI_INVALID: {},
+        SECRET_INVALID: {},
+        SIGNING_KEY_INVALID: {},
 
-    // required
-    CLIENT_SECRET_REQUIRED: {},
-    INTEGRATION_REQUIRED: {},
-    REDIRECT_URI_REQUIRED: {},
+        // required
+        CLIENT_SECRET_REQUIRED: {},
+        INTEGRATION_REQUIRED: {},
+        REDIRECT_URI_REQUIRED: {},
 
-    // denied
-    EXCHANGE_SOURCE_DENIED: {},
-    PRIMARY_DENIED: {},
-    SESSION_DENIED: {},
+        // denied
+        EXCHANGE_SOURCE_DENIED: {},
+        PRIMARY_DENIED: {},
+        SESSION_DENIED: {},
 
-    // blocked
-    CONNECTION_BLOCKED: {},
-    CREDENTIAL_BLOCKED: {},
-    ISSUER_BLOCKED: {},
-    REFRESH_TOKEN_BLOCKED: {},
+        // blocked
+        CONNECTION_BLOCKED: {},
+        CREDENTIAL_BLOCKED: {},
+        ISSUER_BLOCKED: {},
+        REFRESH_TOKEN_BLOCKED: {},
 
-    // unsupported
-    ENDPOINT_UNSUPPORTED: {},
-    REGISTRATION_UNSUPPORTED: {},
+        // unsupported
+        ENDPOINT_UNSUPPORTED: {},
+        REGISTRATION_UNSUPPORTED: {},
 
-    // unavailable
-    TOKEN_UNAVAILABLE: {},
+        // unavailable
+        TOKEN_UNAVAILABLE: {},
 
-    // unreachable
-    AUTHORIZATION_UNREACHABLE: { data: OAuthRefusal },
-    RESPONSE_UNREACHABLE: {},
-    SERVER_UNREACHABLE: {},
+        // unreachable
+        AUTHORIZATION_UNREACHABLE: { data: OAuthRefusal },
+        RESPONSE_UNREACHABLE: {},
+        SERVER_UNREACHABLE: {},
+    },
 });
 
 /** A stable cause of connection failures. */

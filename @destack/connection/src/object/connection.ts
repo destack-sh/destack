@@ -7,6 +7,8 @@ import { ObjectReference } from "@destack/sync";
 import { Credential, Material } from "../credential/credential.ts";
 import { ConnectionKind } from "../declare/connection.ts";
 import { account, space } from "@destack/account/object";
+import { bindable, propagated, provisioned } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The token type of an access token exchanged for another (RFC 8693 3). */
 export const ACCESS_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:access_token";
@@ -151,12 +153,8 @@ export const connection = defineObject(
     {
         name: "connection",
         plural: "connections",
+        title: t`${plural(argument("count"), { one: "Connection", other: "Connections" })}`,
         scope: [space, account],
-        provisioned: { kind: ConnectionKind },
-        // let people bind a connection they manage to one installation at a time, such as per repository
-        bindable: { by: "manage" },
-        // replicate the connections of accounts and organizations into their scopes
-        propagated: {},
         fields: {
             /** How the connection authenticates. */
             protocol: field.json(ConnectionProtocol),
@@ -177,18 +175,27 @@ export const connection = defineObject(
             /** When the controller next refreshes, retries or polls, absent while none is due. */
             renewAt: field.time().optional(),
         },
-        // let its consumers and the servers of its scope read it, and its consumers use it
-        permissions: {
-            read: union(relation(CONSUMER), through("scope", "serve")),
-            manage: none(),
-            // let the people managing connections declare them, and an account's home its stacks' ones
-            declare: union(permission("manage"), through("scope", "provision")),
-            // let its consumers use it through the egress, and the people managing it through their tools
-            use: union(relation(CONSUMER), permission("manage")),
-            // let the installations of an account's primary control the account's connections
-            control: through("scope", "provision"),
+        access: {
+            // let its consumers and the servers of its scope read it, and its consumers use it
+            permissions: {
+                read: union(relation(CONSUMER), through("scope", "serve")),
+                manage: none(),
+                // let the people managing connections declare them, and an account's home its stacks' ones
+                declare: union(permission("manage"), through("scope", "provision")),
+                // let its consumers use it through the egress, and the people managing it through their tools
+                use: union(relation(CONSUMER), permission("manage")),
+                // let the installations of an account's primary control the account's connections
+                control: through("scope", "provision"),
+            },
+            reserved: ["use"],
         },
-        reserved: ["use"],
+        traits: [
+            provisioned({ kind: ConnectionKind }),
+            // let people bind a connection they manage to one installation at a time, such as per repository
+            bindable({ by: "manage" }),
+            // replicate the connections of accounts and organizations into their scopes
+            propagated({}),
+        ],
     },
     (method) => ({
         /** Declare a connection of a spec, its credential then rotated in or authorized. */
@@ -207,6 +214,7 @@ export const connection = defineObject(
         }),
         /** Replace a supplied credential's material, storing it in the vault first. */
         rotate: method.mutation({
+            title: t`Rotate`,
             permission: "manage",
             input: schema.object({
                 /** The material the connection's kind sends, such as a new API key. */
@@ -217,6 +225,7 @@ export const connection = defineObject(
         }),
         /** Lease the connection's protocol and current credential to a call its egress sends. */
         lease: method.query({
+            title: t`Lease`,
             permission: "use",
             output: schema.sensitive(ConnectionLease),
             prepared: schema.sensitive(ConnectionLease),
@@ -224,6 +233,7 @@ export const connection = defineObject(
         }),
         /** Start authorizing the external account, answering the page a person approves it on. */
         authorize: method.mutation({
+            title: t`Authorize`,
             permission: "manage",
             input: schema.object({
                 /** The URI the authorization server redirects the person back to. */
@@ -239,6 +249,7 @@ export const connection = defineObject(
         }),
         /** Complete the authorization with the authorization server's redirect parameters. */
         complete: method.mutation({
+            title: t`Complete`,
             permission: "manage",
             input: schema.object({
                 /** The redirect's query parameters, its state and code among them. */
@@ -247,7 +258,7 @@ export const connection = defineObject(
             prepared: AuthorizationGrant,
         }),
         /** Disconnect the external account, whose controller revokes the credential. */
-        disconnect: method.mutation({ permission: "manage" }),
+        disconnect: method.mutation({ title: t`Disconnect`, permission: "manage" }),
         delete: method.delete("manage"),
     }),
 );

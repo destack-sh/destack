@@ -20,7 +20,7 @@ async function createKey(fixture: TestConnection) {
             calls: [
                 connection.call("create", {
                     scope: fixture.scope.id,
-                    ...TEST_CONNECTION.declare(),
+                    ...TEST_CONNECTION.provision(),
                     name: "key",
                     protocol: { kind: "key", header: "x-api-key" },
                 }),

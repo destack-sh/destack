@@ -3,12 +3,14 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { InstallationName } from "@destack/object";
 import { ConnectionError } from "../error/error.ts";
 import { Token } from "../credential/credential.ts";
 import { DeviceRequest, AuthorizationGrant, TokenRevocation } from "../oauth/grant.ts";
 import { DeviceAuthorization } from "../oauth/server.ts";
+import { propagated } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** How a client authenticates at a token endpoint, with the method names of RFC 7591. */
 export const CLIENT_AUTHENTICATIONS = [
@@ -52,7 +54,7 @@ export const IntegrationIssuer = Object.assign(
         schema.object({
             kind: schema.literal("installation"),
             /** The package whose installation issues the tokens, at its registered release. */
-            package: Package,
+            package: PackageVersion,
             /** The issuing installation's name in its space. */
             name: InstallationName,
             /** The issuer object in the installation's space. */
@@ -97,8 +99,7 @@ export const integration = defineObject(
     {
         name: "integration",
         plural: "integrations",
-        // replicate the integrations of platforms and organizations into their scopes and the spaces connecting through them
-        propagated: {},
+        title: t`${plural(argument("count"), { one: "Integration", other: "Integrations" })}`,
         fields: {
             /** Who issues the integration's tokens. */
             issuer: field.json(IntegrationIssuer),
@@ -113,24 +114,30 @@ export const integration = defineObject(
             /** Whether the owner registered the client or a connection did (RFC 7591). */
             registration: field.enum(["static", "dynamic"]).default("static"),
         },
-        relations: {
-            // every space a public integration serves, beside its owner's spaces and the spaces below them
-            public: { subjects: [anyone.all()], grantedBy: null },
-            // the installation issuing its tokens, related as it is created
-            issuer: { subjects: [principal.installation], grantedBy: null },
+        access: {
+            relations: {
+                // every space a public integration serves, beside its owner's spaces and the spaces below them
+                public: { subjects: [anyone.all()], grantedBy: null },
+                // the installation issuing its tokens, related as it is created
+                issuer: { subjects: [principal.installation], grantedBy: null },
+            },
+            // let the spaces it serves, its issuing installation and its residency's servers replicate it, and its connection installations request its tokens by possession
+            permissions: {
+                read: union(
+                    contained(principal.space),
+                    relation("public"),
+                    relation("issuer"),
+                    through("scope", "serve"),
+                ),
+                manage: none(),
+                request: union(contained(principal.installation), relation("public")),
+            },
+            reserved: ["request"],
         },
-        // let the spaces it serves, its issuing installation and its residency's servers replicate it, and its connection installations request its tokens by possession
-        permissions: {
-            read: union(
-                contained(principal.space),
-                relation("public"),
-                relation("issuer"),
-                through("scope", "serve"),
-            ),
-            manage: none(),
-            request: union(contained(principal.installation), relation("public")),
-        },
-        reserved: ["request"],
+        traits: [
+            // replicate the integrations of platforms and organizations into their scopes and the spaces connecting through them
+            propagated({}),
+        ],
     },
     (method) => ({
         /** Register an integration, storing the secret its client authenticates with. */
@@ -159,6 +166,7 @@ export const integration = defineObject(
         }),
         /** Start a device authorization for another space's connection (RFC 8628 3.1). */
         authorizeDevice: method.query({
+            title: t`Authorize device`,
             permission: "request",
             input: schema.object({
                 /** The scopes and resource asked for. */
@@ -170,6 +178,7 @@ export const integration = defineObject(
         }),
         /** Request a token for another space's connection as the client (RFC 6749 3.2). */
         requestToken: method.query({
+            title: t`Request token`,
             permission: "request",
             input: schema.object({
                 /** The grant proving possession of the connection's authorization. */
@@ -181,6 +190,7 @@ export const integration = defineObject(
         }),
         /** Revoke a token of another space's connection as the client (RFC 7009 2.1). */
         revokeToken: method.query({
+            title: t`Revoke token`,
             permission: "request",
             input: schema.object({
                 /** The token revoked. */

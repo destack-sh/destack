@@ -1,7 +1,6 @@
-import { ModuleMetadata } from "@destack/package";
+import { defineKind, ModuleMetadata } from "@destack/package";
 import {
     type Connector,
-    defineResourceKind,
     EGRESS_PROVIDER,
     type ExternalClient,
     type ResourceBinding,
@@ -20,9 +19,9 @@ export const ConnectionSpec = schema.object({
 export type ConnectionSpec = schema.Infer<typeof ConnectionSpec>;
 
 /** The connection kind: an external account's credential, which a person or a stack supplies. */
-export const ConnectionKind = defineResourceKind("connection", {
-    spec: ConnectionSpec,
-    management: "external",
+export const ConnectionKind = defineKind({
+    name: "connection",
+    provisioned: { spec: ConnectionSpec, management: "external" },
 });
 /** A connection a package declares. */
 export type ConnectionDescription = schema.Infer<typeof ConnectionKind.description>;
@@ -56,27 +55,16 @@ const connectionConnector: Connector<ExternalClient> = {
     },
 };
 
-/** A package's declaration of a connection it calls an API through. */
-export class ConnectionDeclaration extends ResourceDeclaration<
-    ExternalClient,
-    ConnectionDescription
-> {
-    /** The connector calling the bound connection's API, by provider code. */
-    override get connectors(): Readonly<Record<string, Connector<ExternalClient>>> {
-        return { [connectionConnector.code]: connectionConnector };
-    }
-}
-
 /** Declare a connection a package calls an API through, bound by name at install. */
 export function defineConnection(
-    name: string,
-    spec: schema.Input<typeof ConnectionSpec>,
+    options: { readonly name: string; readonly spec: schema.Input<typeof ConnectionSpec> },
     module?: ModuleMetadata,
-): ConnectionDeclaration {
+): ResourceDeclaration<ExternalClient, typeof ConnectionSpec> {
     const owner = ModuleMetadata.require(module, "defineConnection").package;
 
-    return new ConnectionDeclaration(
-        owner,
-        ConnectionKind.description.parse({ name, kind: ConnectionKind.name, spec }),
-    );
+    return new ResourceDeclaration<ExternalClient, typeof ConnectionSpec>(owner, ConnectionKind, {
+        name: options.name,
+        spec: ConnectionSpec.parse(options.spec),
+        connectors: { [connectionConnector.code]: connectionConnector },
+    });
 }

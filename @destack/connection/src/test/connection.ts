@@ -1,4 +1,4 @@
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import {
     ControlLoop,
     type DatabaseConnection,
@@ -17,13 +17,7 @@ import { AccessContext, Authentication, Caller, principal, relation } from "@des
 import { TestAccess } from "@destack/access/test";
 import { STACKS } from "@destack/account/test";
 import { TestDatabase, reconciliation } from "@destack/db/test";
-import {
-    defineObject,
-    type ObjectType,
-    Egress,
-    PackageHandle,
-    PackageMount,
-} from "@destack/object";
+import { defineObject, type ObjectType, Egress, Package, PackageMount } from "@destack/object";
 import {
     Health,
     implementPackage,
@@ -67,6 +61,7 @@ import type { Environment } from "@destack/environment";
 import { Simulation } from "@destack/environment/simulation";
 import { tablesOf } from "@destack/object";
 import objectPackage from "@destack/object/package";
+import { argument, plural, t } from "@destack/locale";
 
 /** The issuer of the test authorization server. */
 export const ISSUER = "https://auth.test";
@@ -83,7 +78,7 @@ const ISSUER_INSTALLATION = schema
 export const RESOURCE = "https://mcp.test/mcp";
 
 /** The declaration the tests' connections satisfy: the test server's API, no scopes required. */
-export const TEST_CONNECTION = defineConnection("api", { resource: RESOURCE });
+export const TEST_CONNECTION = defineConnection({ name: "api", spec: { resource: RESOURCE } });
 
 /** How long the test server's access tokens last, in seconds. */
 const TOKEN_SECONDS = 3600;
@@ -133,6 +128,7 @@ export const placementTable = defineTable(
 export const placement = defineObject({
     name: "placement",
     plural: "placements",
+    title: t`${plural(argument("count"), { one: "Placement", other: "Placements" })}`,
     mapping: {
         table: placementTable,
         id: "id",
@@ -140,8 +136,10 @@ export const placement = defineObject({
         attributes: {},
         relations: { self: { column: "id", scope: Scope.universe.id } },
     },
-    relations: { self: { subjects: [principal.space], grantedBy: null } },
-    permissions: { read: relation("self") },
+    access: {
+        relations: { self: { subjects: [principal.space], grantedBy: null } },
+        permissions: { read: relation("self") },
+    },
 });
 
 /** A database of connections and their vaults, as a space stores it. */
@@ -628,7 +626,11 @@ export class TestConnection {
             TestConnection.#principal(scope).id,
         );
         const installed = {
-            ...(await testServerContext(Package.of(connectionPackage), serving.id, environment)),
+            ...(await testServerContext(
+                PackageVersion.of(connectionPackage),
+                serving.id,
+                environment,
+            )),
             installation: INSTALLATION,
         };
 
@@ -655,7 +657,7 @@ export class TestConnection {
             database,
             callKey: testCallKey,
             events,
-            origin: { package: Package.of(connectionPackage) },
+            origin: { package: PackageVersion.of(connectionPackage) },
             // store the chain above the serving space, which lives in the account, as its placed primary does
             chain: async () => ({
                 kind: "home",
@@ -680,7 +682,7 @@ export class TestConnection {
     ): Promise<ObjectStore> {
         const serving = TestConnection.#principal(scope);
         const issuing = {
-            ...(await testServerContext(Package.of(ISSUING), serving.id, environment)),
+            ...(await testServerContext(PackageVersion.of(ISSUING), serving.id, environment)),
             installation: ISSUER_INSTALLATION,
         };
 
@@ -703,7 +705,7 @@ export class TestConnection {
     }
 
     /** Answer clients sending their principal, leaving the controllers to the test. */
-    static #serve(objects: ObjectStore, handle: PackageHandle): Server {
+    static #serve(objects: ObjectStore, handle: Package): Server {
         return Server.start({
             environment: objects.environment,
             ...objects.package(handle),
@@ -719,7 +721,7 @@ export class TestConnection {
 
     /** Declare the issuing package's handle with its issuer type. */
     static #issuing(issuer: ObjectType) {
-        return PackageHandle.of(ISSUING, { objects: { issuer } });
+        return Package.of(ISSUING, { objects: [issuer] });
     }
 
     /** Store the primary's account, or a space in an account, with their rows. */

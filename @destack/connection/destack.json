@@ -25,8 +25,7 @@
         "defineConnection": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "connection",
                     "function": "./inspect#describeConnection"
                 }
             ]
@@ -34,7 +33,7 @@
     },
     "stamps": {
         "defineConnection": {
-            "module": 2
+            "module": 1
         }
     }
 }
