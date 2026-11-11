@@ -23,6 +23,7 @@ export const PackageError = defineErrorFamily(
         DEPENDENCY_INVALID: { code: "BAD_REQUEST" },
         EXPORT_INVALID: { code: "BAD_REQUEST" },
         FILE_INVALID: { code: "BAD_REQUEST" },
+        FILE_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
 
         // unprocessable content
         ABILITY_UNENFORCEABLE: { code: "UNPROCESSABLE_CONTENT", data: SandboxAbility },

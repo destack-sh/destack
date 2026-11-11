@@ -18,6 +18,9 @@ import { PackageLocation, PackageManifest } from "./manifest.ts";
 /** The path of a build's root manifest beside its files, in stores and running workloads. */
 export const MANIFEST_PATH = "manifest.json";
 
+/** The status of a server unable to answer now, Service Unavailable (RFC 9110 15.6.4). */
+const SERVICE_UNAVAILABLE = 503;
+
 /** A build's manifest and files, read through a file transport. */
 export class BuildReader {
     /** Manifest describing the stored package. */
@@ -351,8 +354,10 @@ export class BuildReader {
         if (!response.ok) {
             await response.body?.cancel();
             const address = `${url.origin}${url.pathname}`;
+            const reason =
+                response.status === SERVICE_UNAVAILABLE ? "FILE_UNAVAILABLE" : "FILE_INVALID";
             throw PackageError.of(
-                "FILE_INVALID",
+                reason,
                 `package read failed: HTTP ${response.status} at ${address}`,
             );
         }
