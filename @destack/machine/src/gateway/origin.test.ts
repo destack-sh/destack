@@ -23,7 +23,7 @@ import objectPackage from "@destack/object/package";
 import { DynamicObjectClient, createClient } from "@destack/object/client";
 import { describeObject, describePackage } from "@destack/object/inspect";
 import observabilityPackage from "@destack/observability/package";
-import { Package, PackageId, Sandbox } from "@destack/package";
+import { PackageVersion, PackageId, Sandbox } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
@@ -43,26 +43,28 @@ import {
     SCENARIO_MILLISECONDS,
 } from "../computer/test/index.ts";
 import { TestViewBuild } from "./test/view.ts";
+import { argument, plural, t } from "@destack/locale";
+import { presentable, shareable } from "@destack/object";
 
 /** The address of a second person signing in on the owner's computer. */
 const MEMBER_EMAIL = "member@example.test";
 
 /** The greeting package, whose view reads its own catalogs and its widget library's. */
-const GREETING = Package.parse({
+const GREETING = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
     name: "@acme/greeting",
     version: "2026.9.0-dev.1",
 });
 
 /** The widget library the greeting package pins as a release, with catalogs of its own. */
-const WIDGETS = Package.parse({
+const WIDGETS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
     name: "@acme/widgets",
     version: "2026.9.0-dev.1",
 });
 
 /** The notes package whose views the launches open. */
-const notes = Package.parse({
+const notes = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
     name: "@acme/notes",
     version: "2026.9.0-dev.1",
@@ -71,19 +73,21 @@ const notes = Package.parse({
 /** The notes package: it reads the person's settings, writes them once asked, and scans notes. */
 const notesPackage = definePackage(
     {
-        permissions: {
-            user: { home: [setting.permission("read")] },
-            optional: { home: [setting.permission("write")] },
+        access: {
+            permissions: {
+                user: { home: [setting.permission("read")] },
+                optional: { home: [setting.permission("write")] },
+            },
         },
-        capabilities: {
-            camera: { reason: "Scan notes", optional: true, sandbox: { camera: {} } },
-        },
+        capabilities: [
+            { name: "camera", reason: t`Scan notes`, optional: true, sandbox: { camera: {} } },
+        ],
     },
     { package: notes },
 );
 
 /** The tasks package, whose objects its own installation serves: tasks their owner completes. */
-const tasks = Package.parse({
+const tasks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c4",
     name: "@acme/tasks",
     version: "2026.10.0-dev.1",
@@ -94,6 +98,7 @@ const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: space,
         fields: {
             /** The person who created the task. */
@@ -106,8 +111,10 @@ const task = defineObject(
                 transitions: { complete: { from: ["open"], to: "done", permission: "manage" } },
             }),
         },
-        presentable: { icon: false, color: false },
-        permissions: { read: relation("owner"), manage: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), manage: relation("owner") },
+        },
+        traits: [presentable({ icon: false, color: false })],
     },
     (method) => ({
         create: method.create("manage", { fields: ["title"] }),
@@ -118,8 +125,10 @@ const task = defineObject(
 /** The tasks package's handle: its board reads and manages the person's tasks in the space. */
 const tasksPackage = definePackage(
     {
-        objects: { task },
-        permissions: { user: { space: [task.permission("read"), task.permission("manage")] } },
+        objects: [task],
+        access: {
+            permissions: { user: { space: [task.permission("read"), task.permission("manage")] } },
+        },
     },
     { package: tasks },
 );
@@ -225,7 +234,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
 }
 
 /** The articles package, whose articles their owner publishes through links. */
-const articles = Package.parse({
+const articles = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
     name: "@acme/articles",
     version: "2026.10.0-dev.1",
@@ -236,30 +245,35 @@ const article = defineObject(
     {
         name: "article",
         plural: "articles",
+        title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
         scope: space,
         fields: {
             /** The title. */
             title: field.string(schema.string().min(1)),
         },
-        presentable: { icon: false, color: false },
-        shareable: { isPublic: true },
-        limits: { update: { rate: { count: 1, every: { hours: 1 } }, key: "caller" } },
+        traits: [presentable({ icon: false, color: false }), shareable({ isPublic: true })],
     },
-    undefined,
+    (method) => ({
+        update: method.update("write", {
+            limits: { rate: { count: 1, every: { hours: 1 } }, key: "caller" },
+        }),
+    }),
     { package: articles },
 );
 
 /** The articles package's handle: its reader reads, writes and shares the person's articles. */
 const articlesPackage = definePackage(
     {
-        objects: { article },
-        permissions: {
-            user: {
-                space: [
-                    article.permission("read"),
-                    article.permission("write"),
-                    article.permission("manage"),
-                ],
+        objects: [article],
+        access: {
+            permissions: {
+                user: {
+                    space: [
+                        article.permission("read"),
+                        article.permission("write"),
+                        article.permission("manage"),
+                    ],
+                },
             },
         },
     },
@@ -1715,7 +1729,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
         ],
         ["src/server.ts", encoder.encode("export const secret = 1;")],
     ]);
-    const site = Package.parse({
+    const site = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
         name: "@acme/site",
         version: "2026.9.0-dev.1",

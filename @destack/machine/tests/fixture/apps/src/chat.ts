@@ -2,6 +2,8 @@ import { space } from "@destack/account/object";
 import { intersection, principal, relation, through, union } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { nested, shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a channel member's presence shows. */
 const PRESENCE_STATES = ["viewing", "typing", "idle"] as const;
@@ -11,18 +13,14 @@ export const presence = defineObject(
     {
         name: "presence",
         plural: "presences",
+        title: t`${plural(argument("count"), { one: "Presence", other: "Presences" })}`,
         scope: space,
         storage: "ephemeral",
-        nested: { in: "any", receive: "present" },
         fields: {
             /** The present principal. */
             principal: field.subject().caller(),
             /** What the principal does. */
             status: field.enum(PRESENCE_STATES),
-        },
-        permissions: {
-            read: through("parent", "present"),
-            write: intersection(relation("principal"), through("parent", "present")),
         },
         constraints: {
             writer: {
@@ -30,6 +28,13 @@ export const presence = defineObject(
                 on: ["parentPackageId", "parentType", "parentId", "principalId", "writerId"],
             },
         },
+        access: {
+            permissions: {
+                read: through("parent", "present"),
+                write: intersection(relation("principal"), through("parent", "present")),
+            },
+        },
+        traits: [nested({ in: "any", add: "present" })],
     },
     (method) => ({
         create: method.create("write", { fields: ["status"] }),
@@ -42,6 +47,7 @@ export const channel = defineObject(
     {
         name: "channel",
         plural: "channels",
+        title: t`${plural(argument("count"), { one: "Channel", other: "Channels" })}`,
         scope: space,
         fields: {
             /** The principal who created the channel. */
@@ -49,14 +55,16 @@ export const channel = defineObject(
             /** The channel's name. */
             name: field.string(schema.string().min(1).max(100)),
         },
-        relations: { member: { subjects: [principal.user] } },
-        permissions: {
-            read: union(relation("owner"), relation("member")),
-            write: union(relation("owner"), relation("member")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [presence.attach({ by: "read" })],
+        access: {
+            relations: { member: { subjects: [principal.user] } },
+            permissions: {
+                read: union(relation("owner"), relation("member")),
+                write: union(relation("owner"), relation("member")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({ create: method.create("manage", { fields: ["name"] }) }),
 );
@@ -66,15 +74,18 @@ export const message = defineObject(
     {
         name: "message",
         plural: "messages",
+        title: t`${plural(argument("count"), { one: "Message", other: "Messages" })}`,
         scope: space,
-        nested: { in: channel, delete: "cascade", receive: "write" },
         fields: {
             /** The principal who posted the message. */
             author: field.subject().caller(),
             /** The message's text. */
             text: field.string(schema.string().min(1).max(4000)),
         },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [nested({ in: channel, delete: "cascade", add: "write" })],
     },
     (method) => ({ create: method.create("write", { fields: ["text"] }) }),
 );

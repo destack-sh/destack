@@ -7,14 +7,16 @@ import { PackagePath } from "@destack/package/file";
 import { schema } from "@destack/schema";
 import { ViewDescription } from "@destack/package/manifest";
 import { checkout } from "./checkout.ts";
+import { controlled } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A checkout's package running live against a space: its build watched and workloads run. */
 export const preview = defineObject(
     {
         name: "preview",
         plural: "previews",
+        title: t`${plural(argument("count"), { one: "Preview", other: "Previews" })}`,
         scope: accountObject.machine,
-        controlled: true,
         fields: {
             /** The checkout with the package. */
             checkout: field.reference(checkout, { delete: "cascade" }),
@@ -29,12 +31,15 @@ export const preview = defineObject(
             /** The views the current build's outputs mount, keyed by name. */
             views: field.json(schema.record(DeclarationName, ViewDescription)).default({}),
         },
-        // let the machine's local client and the people who operate the machine run its previews
-        permissions: {
-            read: union(contained(principal.machine), through("scope", "operate")),
-            start: union(contained(principal.machine), through("scope", "operate")),
-            stop: union(contained(principal.machine), through("scope", "operate")),
+        access: {
+            // let the machine's local client and the people who operate the machine run its previews
+            permissions: {
+                read: union(contained(principal.machine), through("scope", "operate")),
+                start: union(contained(principal.machine), through("scope", "operate")),
+                stop: union(contained(principal.machine), through("scope", "operate")),
+            },
         },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("start", {

@@ -2,7 +2,7 @@ import type { Select } from "@destack/db";
 import { join } from "node:path";
 import type { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
-import { type PackageHandle, PackageMount } from "@destack/object";
+import { type Package, PackageMount } from "@destack/object";
 import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import { type Environment, FileSystemError } from "@destack/environment";
 import { RequestId } from "@destack/sync";
@@ -84,7 +84,7 @@ export class Loopback {
     }
 
     /** Create a client of a package the machine mounts on loopback, as its owner. */
-    connect<Target extends PackageHandle>(target: Target) {
+    connect<Target extends Package>(target: Target) {
         return createClient<Target["router"]>(target, this.options(target.id), this.environment);
     }
 

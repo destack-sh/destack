@@ -31,7 +31,7 @@ import {
     ObjectClient,
     ObjectStoreDescription,
 } from "@destack/object/client";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import {
     type ViewCategory,
     ViewDescription,
@@ -254,7 +254,7 @@ export class Launcher {
             );
         }
         const isSpace = "space" in location && location.installation === undefined;
-        const serving = isSpace ? Package.of(stackPackage) : first.package;
+        const serving = isSpace ? PackageVersion.of(stackPackage) : first.package;
         const atMachine = (served: () => Promise<PlacementEndpoint>): ClientOptions => ({
             url: UNRESOLVED_ORIGIN,
             fetch: async (request) =>

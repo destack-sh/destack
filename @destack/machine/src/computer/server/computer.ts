@@ -3,17 +3,17 @@ import { principal, type TableMapping } from "@destack/access";
 import { assignment, placement, Platform } from "@destack/account/object";
 import type { Launcher } from "../../launcher/index.ts";
 import {
-    defineAdapter,
+    defineMount,
     type CallKey,
     type Follow,
     type MethodContextOf,
     ObjectError,
     type ObjectType,
-    PackageHandle,
+    Package,
 } from "@destack/object";
 import { eq } from "@destack/db";
 import type { TunnelStatus } from "@destack/tunnel";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import objectServer, {
     implementPackage,
     ObjectStore,
@@ -195,15 +195,12 @@ export class ComputerServer {
     /** Serve the computer's record in its device, beside this package's local objects. */
     #implementDevice(objects: readonly ObjectType[]): PackageImplementation {
         // declare the record beside the device's local types under this package
-        const handle = PackageHandle.of(Package.of(machinePackage), {
-            objects: Object.fromEntries([computer, ...objects].map((type) => [type.name, type])),
+        const handle = Package.of(PackageVersion.of(machinePackage), {
+            objects: [computer, ...objects],
             // forward the owner's calls as a person signed in here: /people/<login>/<target>
-            adapters: {
-                people: defineAdapter("people", {
-                    path: PEOPLE_PATH,
-                    callers: [principal.device],
-                }),
-            },
+            mounts: [
+                defineMount({ name: "people", path: PEOPLE_PATH, callers: [principal.device] }),
+            ],
         });
 
         return implementPackage(handle, {

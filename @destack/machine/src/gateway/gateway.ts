@@ -16,7 +16,7 @@ import {
     InstallationKind,
     InstallationMount,
     Observation,
-    type PackageHandle,
+    type Package,
     PackageMount,
     refusal,
     RequestBody,
@@ -216,7 +216,7 @@ export class Gateway {
     /** What the workload's run serves with: the S3 API over the space's buckets. */
     readonly #serving: Pick<SpaceRun, "s3">;
     /** What the space's store serves: the packages its workloads call by package name. */
-    readonly #served: { readonly packages: readonly { readonly package: PackageHandle }[] };
+    readonly #served: { readonly packages: readonly { readonly package: Package }[] };
     /** The runtimes running the space's instances, by server runtime. */
     readonly #runtimes: ReadonlyMap<string, Runtime>;
     /** How the space acts for its installations' subjects under their grants. */
@@ -231,7 +231,7 @@ export class Gateway {
     constructor(
         space: GatewaySpace,
         serving: Pick<SpaceRun, "s3">,
-        store: { readonly packages: readonly { readonly package: PackageHandle }[] },
+        store: { readonly packages: readonly { readonly package: Package }[] },
         tokens: TokenExchange = Gateway.#exchange(space),
     ) {
         // set the space, what its run serves with, its store and the runtimes by name
@@ -246,7 +246,7 @@ export class Gateway {
     }
 
     /** List the packages the space's store serves now. */
-    #packages(): readonly PackageHandle[] {
+    #packages(): readonly Package[] {
         return this.#served.packages.map((served) => served.package);
     }
 

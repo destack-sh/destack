@@ -7,6 +7,7 @@ import {
     type DatabaseHandle,
     type DatabaseHost,
     type DatabaseKind,
+    type DatabaseState,
     gathered,
 } from "@destack/db";
 import {
@@ -17,7 +18,7 @@ import {
     DurableObjectMeasurement,
 } from "@destack/db/cloudflare";
 import { PartitionName } from "./runtime/index.ts";
-import { type ContentStore, type KindState, Plan, type ResourceRecord } from "@destack/resource";
+import { type ContentStore, Plan, type ResourceRecord } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { Bearer } from "@destack/access/token";
 import { StackError } from "@destack/stack/error";
@@ -91,7 +92,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     /** Plan the database's tables in its object. */
     async plan(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<Plan> {
         const object = await this.#object(record);
 
@@ -109,7 +110,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     /** Apply the reviewed plan in the database's object. */
     async apply(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
         digest: Digest,
     ): Promise<void> {
         const object = await this.#object(record);
@@ -126,7 +127,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     /** Open a space's own database. */
     async open(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle> {
         if ((await this.#object(record)) !== undefined) {
             throw StackError.of(
@@ -141,7 +142,7 @@ export class DurableObjectSpaceDatabaseHost implements DatabaseHost {
     /** Copy a database's rows into a store in its object. */
     async snapshot(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
         store: Pick<ContentStore, "read" | "batch" | "write" | "fetch">,
     ): Promise<Digest> {
         // copy the space's own database here

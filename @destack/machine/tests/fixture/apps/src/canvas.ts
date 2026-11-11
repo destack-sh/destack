@@ -2,6 +2,8 @@ import { space } from "@destack/account/object";
 import { principal, relation, through, union } from "@destack/access";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { nested, shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The kinds of a canvas's shapes. */
 const SHAPE_KINDS = ["rectangle", "ellipse", "text"] as const;
@@ -11,6 +13,7 @@ export const file = defineObject(
     {
         name: "file",
         plural: "files",
+        title: t`${plural(argument("count"), { one: "File", other: "Files" })}`,
         scope: space,
         fields: {
             /** The principal who created the file. */
@@ -18,13 +21,15 @@ export const file = defineObject(
             /** The file's name. */
             name: field.string(schema.string().min(1).max(100)),
         },
-        relations: { member: { subjects: [principal.user] } },
-        permissions: {
-            read: union(relation("owner"), relation("member")),
-            write: union(relation("owner"), relation("member")),
-            manage: relation("owner"),
+        access: {
+            relations: { member: { subjects: [principal.user] } },
+            permissions: {
+                read: union(relation("owner"), relation("member")),
+                write: union(relation("owner"), relation("member")),
+                manage: relation("owner"),
+            },
         },
-        shareable: { by: "manage" },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({ create: method.create("manage", { fields: ["name"] }) }),
 );
@@ -34,8 +39,8 @@ export const shape = defineObject(
     {
         name: "shape",
         plural: "shapes",
+        title: t`${plural(argument("count"), { one: "Shape", other: "Shapes" })}`,
         scope: space,
-        nested: { in: file, delete: "cascade", receive: "write" },
         fields: {
             /** What the shape draws. */
             kind: field.enum(SHAPE_KINDS).default("rectangle"),
@@ -48,7 +53,10 @@ export const shape = defineObject(
             /** The height, in canvas units. */
             height: field.integer().default(100),
         },
-        permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        access: {
+            permissions: { read: through("parent", "read"), write: through("parent", "write") },
+        },
+        traits: [nested({ in: file, delete: "cascade", add: "write" })],
     },
     (method) => ({
         create: method.create("write", { fields: ["kind", "x", "y", "width", "height"] }),

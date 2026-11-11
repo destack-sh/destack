@@ -4,6 +4,7 @@ import type { Select } from "@destack/db";
 import { defineObject, device, field } from "@destack/object";
 import { Identifier, schema, type Uuid } from "@destack/schema";
 import { ObjectReference, type Subject } from "@destack/sync";
+import { argument, plural, t } from "@destack/locale";
 
 /** The namespace of visits' identifiers: the DNS namespace's UUIDv8 of visit.destack.app. */
 const VISIT_NAMESPACE: Uuid = "a485f71a-e0ea-8189-89fa-34c9d70a0eb0";
@@ -13,6 +14,7 @@ export const visit = defineObject(
     {
         name: "visit",
         plural: "visits",
+        title: t`${plural(argument("count"), { one: "Visit", other: "Visits" })}`,
         scope: device,
         storage: "local",
         fields: {
@@ -25,11 +27,13 @@ export const visit = defineObject(
             /** When the person last opened it. */
             openedAt: field.time(),
         },
-        // let each person signed in on this computer record their own visits
-        permissions: {
-            read: intersection(relation("subject"), through("device", "use")),
-            delete: intersection(relation("subject"), through("device", "use")),
-            record: intersection(relation("subject"), through("device", "use")),
+        access: {
+            // let each person signed in on this computer record their own visits
+            permissions: {
+                read: intersection(relation("subject"), through("device", "use")),
+                delete: intersection(relation("subject"), through("device", "use")),
+                record: intersection(relation("subject"), through("device", "use")),
+            },
         },
     },
     (method) => ({

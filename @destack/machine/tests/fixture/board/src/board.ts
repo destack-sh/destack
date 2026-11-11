@@ -1,14 +1,16 @@
 import { space } from "@destack/account/object";
 import { principal, relation, union } from "@destack/access";
 import { defineCommand, defineObject, field } from "@destack/object";
-import { t } from "@destack/locale";
+import { argument, plural, t } from "@destack/locale";
 import { schema } from "@destack/schema";
+import { shareable } from "@destack/object";
 
 /** Cards their owner shares with viewers, who pin them in place. */
 export const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: {
             /** The principal who created the card. */
@@ -16,17 +18,19 @@ export const card = defineObject(
             /** The title. */
             title: field.string(schema.string().min(1)),
         },
-        relations: { viewer: { subjects: [principal.user] } },
-        permissions: {
-            read: union(relation("owner"), relation("viewer")),
-            manage: relation("owner"),
+        access: {
+            relations: { viewer: { subjects: [principal.user] } },
+            permissions: {
+                read: union(relation("owner"), relation("viewer")),
+                manage: relation("owner"),
+            },
         },
-        shareable: { by: "manage" },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage", { fields: ["title"] }),
         update: method.update("manage", { fields: ["title"] }),
-        pin: method.mutation({ permission: "read", input: schema.object({}) }),
+        pin: method.mutation({ title: t`Pin`, permission: "read", input: schema.object({}) }),
     }),
 );
 

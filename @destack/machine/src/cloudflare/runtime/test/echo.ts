@@ -1,10 +1,10 @@
-import { PackageHandle } from "@destack/object";
+import { Package } from "@destack/object";
 import { defineWorkload } from "@destack/object/workload";
 import { hostWorkload } from "@destack/stack/cloudflare";
 import { ECHO_PACKAGE } from "./package.ts";
 
 /** The echo package, mounting the route a client opens its WebSocket at. */
-export const echo = PackageHandle.of(ECHO_PACKAGE, {});
+export const echo = Package.of(ECHO_PACKAGE, {});
 
 /** The workload of the echo package. */
 export const workload = defineWorkload(

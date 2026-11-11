@@ -7,6 +7,7 @@ import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import { TUNNEL_STATUSES } from "@destack/tunnel";
+import { argument, plural, t } from "@destack/locale";
 
 /** Whether the machine's relay tunnel runs: none without a relay, else the tunnel's status. */
 export const COMPUTER_TUNNELS = ["none", ...TUNNEL_STATUSES] as const;
@@ -52,6 +53,7 @@ export const computer = defineObject(
     {
         name: "computer",
         plural: "computers",
+        title: t`${plural(argument("count"), { one: "Computer", other: "Computers" })}`,
         scope: device,
         key: "machineId",
         fields: {
@@ -115,11 +117,13 @@ export const computer = defineObject(
                 ),
             },
         },
-        permissions: {
-            read: contained(principal.device),
-            enroll: contained(principal.device),
-            record: contained(principal.device),
-            stop: contained(principal.device),
+        access: {
+            permissions: {
+                read: contained(principal.device),
+                enroll: contained(principal.device),
+                record: contained(principal.device),
+                stop: contained(principal.device),
+            },
         },
     },
     (method) => ({
@@ -130,6 +134,7 @@ export const computer = defineObject(
         }),
         link: method.update("record", { visibility: "package", fields: ["tunnel"] }),
         enroll: method.mutation({
+            title: t`Enroll`,
             permission: "enroll",
             input: schema.object({
                 /** The signed-in person approving the enrollment. */
@@ -141,10 +146,15 @@ export const computer = defineObject(
             }),
             prepared: MachineEnrollment,
         }),
-        revoke: method.mutation({ permission: "enroll", prepared: MachineEnrollment }),
+        revoke: method.mutation({
+            title: t`Revoke`,
+            permission: "enroll",
+            prepared: MachineEnrollment,
+        }),
 
         /** Locate a space by its identifier or address in this machine's directory replica. */
         locate: method.query({
+            title: t`Locate`,
             permission: "read",
             input: schema.object({
                 /** The space's identifier or address. */
@@ -154,6 +164,7 @@ export const computer = defineObject(
         }),
         /** Find the account claiming a handle in this machine's replica of the directory. */
         resolve: method.query({
+            title: t`Resolve`,
             permission: "read",
             input: schema.object({
                 /** The account's handle. */
@@ -165,6 +176,6 @@ export const computer = defineObject(
             }),
         }),
         /** Stop the machine process once the answer is sent. */
-        stop: method.mutation({ permission: "stop" }),
+        stop: method.mutation({ title: t`Stop`, permission: "stop" }),
     }),
 );

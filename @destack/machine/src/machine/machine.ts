@@ -33,7 +33,7 @@ import {
     type Fetch,
     type Follow,
     type MethodInput,
-    type PackageHandle,
+    type Package,
     PackageMount,
     refusal,
     SpaceMount,
@@ -654,7 +654,7 @@ export class Machine {
     }
 
     /** Connect to a package of the machine serving a space, calling it as this machine. */
-    async connect<Handle extends PackageHandle>(
+    async connect<Handle extends Package>(
         handle: Handle,
         spaceId: Identifier<"space">,
     ): Promise<ClientOf<Handle>> {
@@ -667,7 +667,7 @@ export class Machine {
 
     /** Read the client options of a package of the machine serving a space, as this machine. */
     async options(
-        handle: Pick<PackageHandle, "id">,
+        handle: Pick<Package, "id">,
         spaceId: Identifier<"space">,
     ): Promise<{ readonly url: string; readonly fetch: (request: Request) => Promise<Response> }> {
         // call the space at another machine's endpoint with this machine's token bound to the space
@@ -689,7 +689,7 @@ export class Machine {
     }
 
     /** Serve one of the spaces' packages below its mount, in the space each request names. */
-    package(handle: PackageHandle): Pick<Server, "fetch"> | undefined {
+    package(handle: Package): Pick<Server, "fetch"> | undefined {
         const { status } = this.health;
 
         return status === "up" || status === "down"
@@ -869,7 +869,7 @@ export class Machine {
     }
 
     /** Address a call below a package's mount, as it arrives. */
-    static #mounted(handle: PackageHandle, request: Request): Request {
+    static #mounted(handle: Package, request: Request): Request {
         const url = new URL(request.url);
         url.pathname = `${PackageMount.path(handle.id)}${url.pathname}`;
 

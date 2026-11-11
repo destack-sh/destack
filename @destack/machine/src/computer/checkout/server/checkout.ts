@@ -1,6 +1,6 @@
 import type { Environment, FileSystem } from "@destack/environment";
-import { ListPage, type MethodOutput, Observation, type PackageHandle } from "@destack/object";
-import type { Package } from "@destack/package";
+import { ListPage, type MethodOutput, Observation, type Package } from "@destack/object";
+import type { PackageVersion } from "@destack/package";
 import { preview, type Preview } from "../object/index.ts";
 import type { CommandHost } from "../../process/command.ts";
 import { join } from "node:path";
@@ -33,7 +33,7 @@ export class CheckoutServer {
     /** The machine registering the checkouts, building them and storing their builds. */
     readonly machine: Machine;
     /** Connect to a package of the machine serving a space as a person signed in on the machine. */
-    readonly connect: <Handle extends PackageHandle>(
+    readonly connect: <Handle extends Package>(
         handle: Handle,
         login: Identifier<"login">,
         spaceId: Identifier<"space">,
@@ -362,7 +362,7 @@ export class CheckoutServer {
         objects: ClientOf<typeof objectPackage>,
         spaceId: Identifier<"space">,
         selection: CheckoutSource,
-        built: Package,
+        built: PackageVersion,
         submitted: { readonly build: Identifier<"build">; readonly environment: Environment },
     ): Promise<void> {
         // install the package following the checkout once, its checkout directory naming the package

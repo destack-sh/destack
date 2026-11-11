@@ -68,7 +68,7 @@ const STACK_CHECKOUT: Readonly<Record<string, string>> = {
         runtimes: ["bun", "workerd"],
     }),
     "stack/src/index.ts":
-        'import { defineStack } from "@destack/stack";\n\n/** A space\'s stack, installing nothing. */\nexport const personal = defineStack([], {});\n',
+        'import { defineStack } from "@destack/stack";\n\n/** A space\'s stack, installing nothing. */\nexport const personal = defineStack({ types: [] });\n',
 };
 
 /** The space a watched preview names, which the test never builds in. */

@@ -14,7 +14,6 @@ import type { Environment } from "@destack/environment";
 import { DatabasePersonalKeyring, EventStore } from "@destack/event";
 import { LocalGitStorage, localGitProvider } from "@destack/git/local";
 import { gitStorage } from "@destack/stack/object";
-import type { MailDeclaration } from "@destack/mail/declare";
 import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import { type Identifier, schema } from "@destack/schema";
@@ -42,7 +41,7 @@ export interface LocalSpaceStorageOptions {
     /** The host the spaces run on: its clock, randomness, crypto, network, files and git. */
     readonly environment: Environment<"files" | "process" | "host" | "server">;
     /** The transport the spaces' mail goes out through, such as printing it. */
-    readonly mail: Connector<MailTransport, MailDeclaration>;
+    readonly mail: Connector<MailTransport>;
     /** Report a failure of the spaces' sockets. */
     readonly report: (error: unknown) => void;
 }

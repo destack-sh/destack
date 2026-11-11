@@ -6,10 +6,15 @@ import {
     type ObjectType,
     PACKAGE_KIND,
     PACKAGE_EXPORT,
-    type PackageHandle,
+    type Package,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import { type DependencyRelease, graph, type Package, type PackageRelease } from "@destack/package";
+import {
+    type DependencyRelease,
+    graph,
+    type PackageVersion,
+    type PackageRelease,
+} from "@destack/package";
 import {
     type BuildReader,
     PackageManifest,
@@ -17,7 +22,7 @@ import {
     type ViewRender,
 } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_KIND, ResourceDeclaration } from "@destack/resource";
+import { ResourceDeclaration } from "@destack/resource";
 import { Commit, type JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
@@ -36,13 +41,13 @@ const SHIPPED_COMMIT = Commit.parse("a".repeat(40));
 export const TestViewBuild = {
     /** Write a package's build in memory with a browser output that mounts views. */
     async of(
-        built: Package,
+        built: PackageVersion,
         views: Readonly<Record<string, ViewDescription>>,
         options: {
             /** The build's other files, by path. */
             readonly files?: ReadonlyMap<string, Uint8Array<ArrayBuffer>>;
             /** The package's definition, declared as its build would, with its object types. */
-            readonly package?: PackageHandle;
+            readonly package?: Package;
             /** The object types the package declares, its definition's when absent. */
             readonly objects?: readonly ObjectType[];
             /** The builds of the Destack packages it depends on, pinned with their closures. */
@@ -80,14 +85,10 @@ export const TestViewBuild = {
             ...Object.values(options.package?.resources ?? {})
                 .filter((value) => ResourceDeclaration.is(value))
                 .map((resource) => ({
-                    ...RESOURCE_KIND.identity,
+                    ...resource.kind.identity,
+                    provisioned: true as const,
                     name: resource.name,
-                    description: {
-                        name: resource.name,
-                        kind: resource.kind,
-                        spec: resource.spec,
-                        ...resource.state(),
-                    },
+                    description: { ...resource.describe(), ...resource.state() },
                 })),
             ...TestVault.declarations(
                 [],

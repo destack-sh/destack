@@ -1,4 +1,4 @@
-import { type Package, PackageId } from "@destack/package";
+import { type PackageVersion, PackageId } from "@destack/package";
 import {
     InstallationMount,
     PackageMount,
@@ -39,7 +39,7 @@ export class ScopePrimary {
     /** The scope. */
     readonly scope: string;
     /** The package of the scope's rows: a space's stack, or the universe's account package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The URL of that package's store at the scope's primary. */
     readonly url: string;
     /** Where the scope's primary lives. */

@@ -17,7 +17,7 @@ import {
     call,
     Egress,
     InstallationMount,
-    type PackageHandle,
+    type Package,
     SpaceMount,
     CallKey,
 } from "@destack/object";
@@ -857,7 +857,7 @@ export class Computer implements AsyncDisposable {
     }
 
     /** Connect to a package serving a space as a person signed in on this computer. */
-    static async #connect<Handle extends PackageHandle>(
+    static async #connect<Handle extends Package>(
         handle: Handle,
         options: Pick<ComputerOptions, "environment">,
         opened: Pick<Computer, "machine" | "device">,
@@ -1112,7 +1112,7 @@ export class Computer implements AsyncDisposable {
     }
 
     /** Serve one of a workload instance's packages through the gateway. */
-    static #serving(instance: WorkloadInstance, handle: PackageHandle): Pick<Server, "fetch"> {
+    static #serving(instance: WorkloadInstance, handle: Package): Pick<Server, "fetch"> {
         return { fetch: (request, caller) => instance.fetch(handle, request, caller) };
     }
 

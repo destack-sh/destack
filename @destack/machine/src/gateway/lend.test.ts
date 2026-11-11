@@ -21,7 +21,10 @@ import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 
 /** The external API the workload calls through its connection. */
-const github = defineConnection("github", { resource: "https://api.github.test/v3" });
+const github = defineConnection({
+    name: "github",
+    spec: { resource: "https://api.github.test/v3" },
+});
 
 /** The key the connection has, which only the upstream API sees. */
 const KEY = "ghp_lent0123456789";
@@ -53,7 +56,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
             calls: [
                 connection.call("create", {
                     scope: connections.scope.id,
-                    ...github.declare(),
+                    ...github.provision(),
                     name: github.name,
                     protocol: { kind: "key", header: "authorization", scheme: "token" },
                 }),

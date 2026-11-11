@@ -2,7 +2,7 @@ import { Catalog } from "@destack/locale";
 import * as accountObject from "@destack/account/object";
 import { AccountError } from "@destack/account/error";
 import { Failure, HTTP_DOMAIN } from "@destack/error";
-import { PackageId, Package, Sandbox } from "@destack/package";
+import { PackageId, PackageVersion, Sandbox } from "@destack/package";
 import { Digest, schema, type Identifier, present, Uuid } from "@destack/schema";
 import {
     InstallationOrigin,
@@ -714,12 +714,12 @@ export class ViewOrigin {
         const reached =
             located === undefined
                 ? {
-                      package: Package.of(accountPackage),
+                      package: PackageVersion.of(accountPackage),
                       url: PackageMount.url(new URL(universe.issuer).origin, accountPackage.id),
                       home: { kind: "universe" as const },
                   }
                 : {
-                      package: Package.of(stackPackage),
+                      package: PackageVersion.of(stackPackage),
                       url: new URL(
                           `${SpaceMount.path(scope)}${PackageMount.path(stackPackage.id)}`,
                           located,

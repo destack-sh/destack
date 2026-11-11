@@ -2,7 +2,7 @@ import type { LocalGitEnvironment } from "@destack/git/local";
 import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
 import { type CompilerPool, type DependencyBuild, outputsOf, Workspace } from "@destack/build";
-import type { Package, PackageId } from "@destack/package";
+import type { PackageVersion, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
@@ -193,7 +193,7 @@ export class BuildRunner {
     }
 
     /** Pull a release a build requires from its publisher's forge, with the releases it records. */
-    async #release(dependency: Package): Promise<DependencyBuild> {
+    async #release(dependency: PackageVersion): Promise<DependencyBuild> {
         // find the release of its version, then pull it and what it records into the compilers' store
         const { cache, releases } = this.#machine;
         const manifest = await releases.find(dependency.id, dependency.version);

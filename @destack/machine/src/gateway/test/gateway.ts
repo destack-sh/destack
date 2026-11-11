@@ -1,6 +1,6 @@
 import { Directory } from "@destack/account/address";
 import type { S3Server } from "@destack/bucket/s3";
-import { installation, type PackageHandle } from "@destack/object";
+import { installation, type Package } from "@destack/object";
 import { ids, insertRelease, insertRollout, type TestSpace, workload } from "@destack/stack/test";
 import { deployment, instance, installationRevision, rollout } from "@destack/stack/object";
 import { eq } from "@destack/db";
@@ -27,7 +27,7 @@ export function openGateway(
         /** The directory replica locating spaces, the hosting machine's by default. */
         readonly directory?: Directory;
         /** The packages the space's store serves. */
-        readonly packages?: readonly PackageHandle[];
+        readonly packages?: readonly Package[];
         /** Append an instance's telemetry export to its space. */
         readonly observe?: (signal: string, body: unknown) => Promise<void>;
         /** Borrow a connection's credential as a consumer. */

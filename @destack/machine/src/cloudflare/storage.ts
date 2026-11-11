@@ -30,7 +30,6 @@ import {
     artifactsProvider,
 } from "@destack/git/cloudflare";
 import { gitStorage } from "@destack/stack/object";
-import type { MailDeclaration } from "@destack/mail/declare";
 import { mailProvider, type MailTransport } from "@destack/mail/transport";
 import type { Keyring } from "@destack/identity";
 import type { Identifier } from "@destack/schema";
@@ -85,7 +84,7 @@ export interface DurableObjectSpaceStorageOptions {
     /** Send a request as the machine, as Artifacts calls go out. */
     readonly send: (request: Request) => Promise<Response>;
     /** The transport the space's mail goes out through. */
-    readonly mail: Connector<MailTransport, MailDeclaration>;
+    readonly mail: Connector<MailTransport>;
     /** Report a failure of the space's background work. */
     readonly report: (error: unknown) => void;
     /** The environment the spaces run in: its clock, randomness, crypto and network. */

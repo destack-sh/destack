@@ -13,7 +13,7 @@ import { TestDatabase, TestTemplate } from "@destack/db/test";
 import { Simulation, SimulatedClock } from "@destack/environment/simulation";
 import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
-import { installation, type ObjectType, type PackageHandle, PackageMount } from "@destack/object";
+import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import { Identifier, schema } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
@@ -673,7 +673,7 @@ export class TestComputer implements AsyncDisposable {
     }
 
     /** Connect to one of the computer's packages below its mount as its owner. */
-    connect<Target extends PackageHandle>(target: Target) {
+    connect<Target extends Package>(target: Target) {
         return createClient<Target["router"]>(
             target,
             {

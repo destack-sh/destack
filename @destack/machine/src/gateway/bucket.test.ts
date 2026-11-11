@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { LocalBucket } from "@destack/bucket/bun";
 import { defineBucket } from "@destack/bucket/declare";
-import { S3Server } from "@destack/bucket/s3";
+import { S3Client, S3Server } from "@destack/bucket/s3";
 import { Digest, present, schema } from "@destack/schema";
 import { Egress, refusal } from "@destack/object";
 import { Failure } from "@destack/error";
@@ -117,8 +117,8 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
     });
     secrets.push(start.secret);
     const binding = present(start.bindings[files.name], "the bucket's binding");
-    const client = await files.connectors.s3.connect(binding, files, testHost());
-    const unbound = await files.connectors.s3.connect(
+    const client = await S3Client.connector.connect(binding, files, testHost());
+    const unbound = await S3Client.connector.connect(
         { ...binding, resource: UNBOUND_ID, reference: Egress.url(egress, UNBOUND_ID) },
         files,
         testHost(),

@@ -6,12 +6,13 @@ import { defineNotification } from "@destack/notification/declare";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { Subject } from "@destack/sync";
+import { shareable } from "@destack/object";
 
 /** Someone mentions the recipient on a card. */
 export const mention = defineNotification({
     name: "mention",
-    title: "Mentions",
-    description: "Someone mentions you on a card.",
+    title: t`Mentions`,
+    description: t`Someone mentions you on a card.`,
     payload: schema.object({ text: schema.string() }),
     interruption: "active",
     preference: { channels: ["desktop"], delivery: "immediate" },
@@ -24,6 +25,7 @@ export const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: space,
         fields: {
             /** The principal who created the card. */
@@ -31,21 +33,24 @@ export const card = defineObject(
             /** The title. */
             title: field.string(schema.string().min(1)),
         },
-        relations: { viewer: { subjects: [principal.user] } },
-        permissions: {
-            read: union(relation("owner"), relation("viewer")),
-            manage: relation("owner"),
-        },
-        shareable: { by: "manage" },
         attachments: [
             activity.attach({ by: "read" }),
             announcement.attach({ by: "read" }),
             subscription.attach({ by: "read" }),
         ],
+        access: {
+            relations: { viewer: { subjects: [principal.user] } },
+            permissions: {
+                read: union(relation("owner"), relation("viewer")),
+                manage: relation("owner"),
+            },
+        },
+        traits: [shareable({ by: "manage" })],
     },
     (method) => ({
         create: method.create("manage", { fields: ["title"] }),
         remark: method.mutation({
+            title: t`Remark`,
             permission: "read",
             input: schema.object({ text: schema.string(), mentions: schema.array(Subject) }),
         }),

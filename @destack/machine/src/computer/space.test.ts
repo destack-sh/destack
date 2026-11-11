@@ -1,5 +1,5 @@
 import { Failure } from "@destack/error";
-import { RESOURCE_KIND } from "@destack/resource";
+import type { ResourceDeclaration } from "@destack/resource";
 import { log, LogData } from "@destack/observability/object";
 import { BunWorkload } from "@destack/stack/bun";
 import { MemoryBuild } from "@destack/package/test";
@@ -11,7 +11,7 @@ import type { Login } from "@destack/account/native";
 import { BuildStore } from "@destack/build/store";
 import { placement } from "@destack/account/object";
 import type { Crypto, Environment } from "@destack/environment";
-import { type DependencyResolution, Package } from "@destack/package";
+import { type DependencyResolution, PackageVersion } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { fixtureOutputs, LocalRuntime } from "@destack/stack/test";
 import { found, Identifier, present } from "@destack/schema";
@@ -55,7 +55,7 @@ import {
 const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
 
 /** The package both spaces install: one workload answering each call with its caller. */
-const echo = Package.parse({
+const echo = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a4",
     name: "@acme/echo",
     version: "2026.10.0-dev.1",
@@ -88,7 +88,7 @@ const echoWorkload = defineWorkload(
 );
 
 /** The package that calls an echo installation of another space. */
-const visitor = Package.parse({
+const visitor = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a5",
     name: "@acme/visitor",
     version: "2026.10.0-dev.1",
@@ -105,17 +105,18 @@ const visitorWorkload = defineWorkload(
 
 /** Write a package's build in memory. */
 async function workloadBuild(
-    built: Package,
-    declarations: readonly MemoryDeclaration[],
+    built: PackageVersion,
+    resources: readonly ResourceDeclaration<unknown>[],
     dependencies: readonly BuildReader[],
     crypto: Crypto,
 ): Promise<BuildReader> {
     return MemoryBuild.of(
         built,
-        declarations.map((declaration) => ({
-            ...RESOURCE_KIND.identity,
-            name: declaration.name,
-            description: declaration.description,
+        resources.map((resource) => ({
+            ...resource.kind.identity,
+            provisioned: true as const,
+            name: resource.name,
+            description: { ...resource.describe(), ...resource.state() },
         })),
         crypto,
         {
@@ -128,9 +129,9 @@ async function workloadBuild(
                         main: {
                             entrypoint: ".",
                             packages: [],
-                            resources: declarations.map((declaration) => ({
+                            resources: resources.map((resource) => ({
                                 packageId: built.id,
-                                name: declaration.name,
+                                name: resource.name,
                             })),
                             secrets: [],
                             compute: {},
@@ -161,14 +162,6 @@ async function releases(
     return resolved;
 }
 
-/** A resource a build in memory declares: its name and description. */
-interface MemoryDeclaration {
-    /** The declaration's name. */
-    readonly name: string;
-    /** The declaration's description. */
-    readonly description: Readonly<Record<string, unknown>>;
-}
-
 /** The echo build, declaring nothing beside its workload. */
 function echoBuild(crypto: Crypto): Promise<BuildReader> {
     return workloadBuild(echo, [], [], crypto);
@@ -176,10 +169,7 @@ function echoBuild(crypto: Crypto): Promise<BuildReader> {
 
 /** The visitor build, declaring its peer binding of the echo package at an echo release. */
 function visitorBuild(echoRelease: BuildReader, crypto: Crypto): Promise<BuildReader> {
-    const { name, kind, spec } = peerBinding;
-    const declared = [{ name, description: { name, kind, spec } }];
-
-    return workloadBuild(visitor, declared, [echoRelease], crypto);
+    return workloadBuild(visitor, [peerBinding], [echoRelease], crypto);
 }
 
 /** Run the echo scenarios' workloads in the test's own process, on a node's clock and network. */
@@ -275,7 +265,7 @@ async function keepBucket(
     definition: {
         readonly name: string;
         readonly spec: Record<string, never>;
-        readonly package: Pick<Package, "id" | "version">;
+        readonly package: Pick<PackageVersion, "id" | "version">;
     },
 ): Promise<Identifier<"bucket">> {
     // request the bucket in the space, as the space's stack declares it

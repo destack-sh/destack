@@ -31,9 +31,9 @@ import objectPackage from "@destack/object/package";
 import { distribution } from "@destack/update/object";
 import { implementPackage, ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { ObjectClient } from "@destack/object/client";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { Identifier, nth, present, schema } from "@destack/schema";
-import { type Fetch, PackageHandle, PackageMount, SpaceMount } from "@destack/object";
+import { type Fetch, Package, PackageMount, SpaceMount } from "@destack/object";
 import { Bookmark, createClient } from "@destack/object/client";
 import { type CallKey } from "@destack/object";
 import { RequestId, Scope, Subject } from "@destack/sync";
@@ -368,9 +368,7 @@ export class Device<
     servers(objects: readonly ObjectType[]): PackageImplementation[] {
         return [...Map.groupBy(objects, (type) => type.package.id).values()].map((types) => {
             const owner = nth(types, 0).package;
-            const handle = PackageHandle.of(owner, {
-                objects: Object.fromEntries(types.map((type) => [type.name, type])),
-            });
+            const handle = Package.of(owner, { objects: types });
 
             return implementPackage(handle, { objects: types });
         });
@@ -395,7 +393,7 @@ export class Device<
             callKey,
             events,
             environment: this.environment,
-            origin: { package: Package.of(machinePackage) },
+            origin: { package: PackageVersion.of(machinePackage) },
         });
 
         // receive the device's scope once, a root no other home knows

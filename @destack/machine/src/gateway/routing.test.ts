@@ -5,7 +5,7 @@ import { ConnectionKind } from "@destack/connection/declare";
 import { EGRESS_PROVIDER } from "@destack/resource";
 import { PackageMount } from "@destack/object";
 import { EgressCaller, type InstanceSpec, type WorkloadResource } from "@destack/stack/runtime";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, schema } from "@destack/schema";
 import { openGateway } from "./test/gateway.ts";
@@ -67,7 +67,7 @@ test("resolve each kind of address a workload calls", async () => {
     const fixture = await TestSpace.open();
     const served = await fixture.serve();
     const notesBuild = await MemoryBuild.of(
-        Package.parse({ id: ids.package, name: "@test/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@test/notes", version: "2026.9.0" }),
         [],
         served.environment.crypto,
     );

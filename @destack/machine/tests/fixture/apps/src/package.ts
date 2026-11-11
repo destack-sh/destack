@@ -6,5 +6,5 @@ import { comment, issue, team } from "./tracker.ts";
 
 /** The apps the product benchmarks run: a tracker, pages, a canvas and a chat. */
 export default definePackage({
-    objects: { team, issue, comment, workspace, page, file, shape, channel, message, presence },
+    objects: [team, issue, comment, workspace, page, file, shape, channel, message, presence],
 });

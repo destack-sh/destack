@@ -17,8 +17,9 @@ import vaultPackage from "@destack/vault/package";
 export const platformVault = defineVault({ name: "platform", spec: {} });
 
 /** The stack of every account's home: a start page, inbox, connections and observability. */
-export const HOME_STACK = defineStack([vaultPackage], {
-    vaults: { credentials: connectionVault.declare() },
+export const HOME_STACK = defineStack({
+    types: [vaultPackage],
+    vaults: { credentials: connectionVault.provision() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(
@@ -47,7 +48,8 @@ export const HOME_STACK = defineStack([vaultPackage], {
 });
 
 /** The stack of every other space, as the platform's: vault and observability with what it uses. */
-export const SPACE_STACK = defineStack([], {
+export const SPACE_STACK = defineStack({
+    types: [],
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         social: install(socialPackage, {}, { isolation: "host", name: "social" }),
@@ -62,13 +64,14 @@ export const SPACE_STACK = defineStack([], {
 });
 
 /** The stack of a residency's home that runs the forge. */
-export const RESIDENCY_STACK = defineStack([vaultPackage, forgePackage, gitStorage], {
+export const RESIDENCY_STACK = defineStack({
+    types: [vaultPackage, forgePackage, gitStorage],
     vaults: {
-        platform: platformVault.declare(),
-        credentials: credentialVault.declare(),
-        connections: connectionVault.declare(),
+        platform: platformVault.provision(),
+        credentials: credentialVault.provision(),
+        connections: connectionVault.provision(),
     },
-    gitStorages: { repositories: repositoryStorage.declare() },
+    gitStorages: { repositories: repositoryStorage.provision() },
     issuers: { github: {} },
     secrets: {
         "github-webhook": { parent: "platform", name: "github-webhook" },

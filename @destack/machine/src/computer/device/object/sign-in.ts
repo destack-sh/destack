@@ -2,6 +2,8 @@ import { none, through } from "@destack/access";
 import { defineObject, device, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { MachineError } from "../../../error/index.ts";
+import { controlled } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** How a person signs in on this computer: in the browser, with a device code, or by mail. */
 export const SignInMethod = schema.discriminatedUnion("kind", [
@@ -50,30 +52,36 @@ export const signIn = defineObject(
     {
         name: "sign-in",
         plural: "sign-ins",
+        title: t`${plural(argument("count"), { one: "Sign-in", other: "Sign-ins" })}`,
         scope: device,
         storage: "local",
-        // let the machine run each sign-in and write where it stands
-        controlled: true,
         fields: {
             /** How the person signs in. */
             method: field.json(SignInMethod).immutable(),
             /** Where the sign-in stands. */
             state: field.json(SignInState).default({ kind: "starting" }),
         },
-        // let the programs of this computer start, follow, answer and remove its sign-ins
-        permissions: {
-            read: through("device", "use"),
-            start: through("device", "use"),
-            answer: through("device", "use"),
-            remove: through("device", "use"),
-            record: none(),
+        access: {
+            // let the programs of this computer start, follow, answer and remove its sign-ins
+            permissions: {
+                read: through("device", "use"),
+                start: through("device", "use"),
+                answer: through("device", "use"),
+                remove: through("device", "use"),
+                record: none(),
+            },
         },
+        traits: [
+            // let the machine run each sign-in and write where it stands
+            controlled(),
+        ],
     },
     (method) => ({
         /** Start signing a person in. */
         start: method.create("start", { fields: ["method"] }),
         /** Answer the code mailed to the person. */
         answer: method.mutation({
+            title: t`Answer`,
             permission: "answer",
             input: schema.object({
                 /** The mailed code. */
