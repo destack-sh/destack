@@ -38,7 +38,7 @@ export function MissingPage(properties: MissingPageProperties) {
             <Metadata title="404" description={properties.description} robots={{ index: false }} />
 
             <section {...style.attrs(lattice.frame, lattice.ruleBottom, styles.page)}>
-                <p {...style.attrs(lattice.ruleRight, styles.label)}>{properties.label}</p>
+                <p {...style.attrs(lattice.bandRight, styles.label)}>{properties.label}</p>
                 <div {...style.attrs(styles.message)}>
                     <h1 {...style.attrs(styles.title)}>{properties.title}</h1>
                     <a {...style.attrs(text.subheadline, styles.action)} href={properties.backHref}>

@@ -8,6 +8,7 @@ import { Tally } from "../home/participle/tally";
 import { firstPicks } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
 import { commandEvents } from "../layout/command";
+import { Interval } from "../layout/sheet";
 import { lattice } from "../layout/lattice.stylex";
 import { screen } from "../layout/screen.stylex";
 import { type Currency, currencyOf } from "../pricing/money";
@@ -105,14 +106,14 @@ export function Pricing() {
                 />
                 <Plans audience={audience()} currency={currency()} />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
+            <Interval section={2} />
 
             {/* the plans compared */}
             <section {...style.attrs(lattice.frame, lattice.ruled)}>
                 <ComparisonLabel />
                 <Comparison audience={audience()} currency={currency()} />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
+            <Interval section={3} />
 
             {/* the rate card */}
             <section {...style.attrs(lattice.frame, lattice.ruled, styles.drawn)}>
@@ -120,7 +121,7 @@ export function Pricing() {
                 <Gauge />
                 <Rates currency={currency()} />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
+            <Interval section={4} />
 
             {/* the bill: your tools at seat prices, or your apps at usage prices */}
             <section
@@ -143,7 +144,7 @@ export function Pricing() {
                     onPick={pick}
                 />
             </section>
-            <div aria-hidden="true" {...style.attrs(lattice.interval)} />
+            <Interval />
         </>
     );
 }

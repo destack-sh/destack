@@ -20,6 +20,7 @@ import { firstPicks, promptOf } from "../home/participle/wall";
 import type { Tool } from "../home/tool/tool";
 import { destacked, PastParticiple } from "../home/past/past";
 import { Verb, verb } from "../home/verb/verb";
+import { Interval } from "../layout/sheet";
 import { lattice } from "../layout/lattice.stylex";
 import "../home/figure/figure.css";
 import { requestIdle } from "@destack/view/primitives/scheduled";
@@ -124,15 +125,25 @@ export function Home() {
         <>
             <Metadata alternates={{ canonical: "/" }} />
             <Verb isOpen={isOpenAt(0)} picks={picks()} onChoose={choose} />
-            <Interval number={2} form={noun} />
+            <Interval section={2}>
+                <RunningHead number={2} form={noun} />
+            </Interval>
             <Noun isOpen={isOpenAt(1)} />
-            <Interval number={3} form={destacked} />
+            <Interval section={3}>
+                <RunningHead number={3} form={destacked} />
+            </Interval>
             <PastParticiple isOpen={isOpenAt(2)} onChange={setIsOpen} />
-            <Interval number={4} form={destackable} />
+            <Interval section={4}>
+                <RunningHead number={4} form={destackable} />
+            </Interval>
             <Adjective isOpen={isOpenAt(3)} />
-            <Interval number={5} form={destackability} />
+            <Interval section={5}>
+                <RunningHead number={5} form={destackability} />
+            </Interval>
             <Command isOpen={isOpenAt(4)} />
-            <Interval number={6} form={participle} />
+            <Interval section={6}>
+                <RunningHead number={6} form={participle} />
+            </Interval>
             <Participle
                 isOpen={isOpenAt(5)}
                 picks={picks()}
@@ -152,7 +163,7 @@ function spansOf(): readonly (readonly Element[])[] {
     const starts = FIGURES.map((id) => {
         const section = document.getElementById(id)?.closest("section");
         if (section === null || section === undefined) {
-            throw new TypeError(`no section heads the figure ${id}`);
+            throw new TypeError(`no section heads the figure '${id}'`);
         }
 
         return section;
@@ -173,27 +184,12 @@ function spansOf(): readonly (readonly Element[])[] {
     });
 }
 
-/** Space two sections, or the last one and the footer, apart, with the next section's head. */
-function Interval(properties: { number?: number; form?: Form }) {
-    return (
-        <div aria-hidden="true" {...style.attrs(lattice.interval)}>
-            {properties.number === undefined || properties.form === undefined ? undefined : (
-                <RunningHead number={properties.number} form={properties.form} />
-            )}
-        </div>
-    );
-}
-
 /** Head the next section as a dictionary page does: number, part of speech, headword. */
 function RunningHead(properties: { number: number; form: Form }) {
     const number = String(properties.number).padStart(2, "0");
 
     return (
         <div {...style.attrs(lattice.head)}>
-            {/* mark the rails with the section's coordinate */}
-            <span {...style.attrs(lattice.coordinate, lattice.coordinateStart)}>{number}</span>
-            <span {...style.attrs(lattice.coordinate, lattice.coordinateEnd)}>{number}</span>
-
             {/* set the guide words */}
             <span {...style.attrs(lattice.guide)}>
                 <b {...style.attrs(lattice.number)}>§ {number}</b> /{" "}

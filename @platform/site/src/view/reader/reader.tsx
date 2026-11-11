@@ -62,7 +62,7 @@ export function Reader(properties: ReaderProperties) {
             data-publication={properties.publication}
         >
             <ReaderBehavior />
-            <aside {...style.attrs(text.subheadline, lattice.ruleRight, publicationStyles.sidebar)}>
+            <aside {...style.attrs(text.subheadline, lattice.bandRight, publicationStyles.sidebar)}>
                 <div {...style.attrs(publicationStyles.sidebarContent)}>
                     {properties.navigation()}
                 </div>

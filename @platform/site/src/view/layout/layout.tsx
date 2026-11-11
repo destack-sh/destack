@@ -10,6 +10,7 @@ import Shortcuts from "../islands/shortcuts";
 import TopBarIsland from "../islands/topbar";
 import { Footer } from "./footer";
 import { frame } from "./frame.stylex";
+import { Zones } from "./sheet";
 import { paper } from "./lattice.stylex";
 
 /** The metadata every page starts from: the site's name, origin, preview and icons. */
@@ -41,9 +42,12 @@ export function Layout(properties: RouteSectionProps) {
                 <Shortcuts />
                 <TopBarIsland path={location.pathname} />
                 <main {...style.attrs(styles.main)}>
+                    {/* number the sheet's columns under its top edge and over its bottom one */}
+                    <Zones />
                     <Loading>{properties.children}</Loading>
+                    <Zones isBottom />
                 </main>
-                <Footer />
+                <Footer path={location.pathname} />
             </div>
         </Metadata>
     );

@@ -7,14 +7,29 @@ import { screen } from "./screen.stylex";
 /** The rule colour: a faint, opaque tint of the text, so rules that cross or overlap stay even. */
 const RULE = `color-mix(in srgb, ${color.foreground} 10%, ${color.background})`;
 
+/** The ink of the rails, a little stronger than the rules so their dash and dot still read. */
+const RAIL_INK = `color-mix(in srgb, ${color.foreground} 20%, ${color.background})`;
+
+/** A rail as a drawing's centre line: a long dash, a gap, a dot, a gap, down the page. */
+const CHAIN = `repeating-linear-gradient(to bottom, ${RAIL_INK} 0 18px, transparent 0 22px, ${RAIL_INK} 0 24px, transparent 0 28px)`;
+
+/** The two hairlines edging a band, eight pixels apart, the band's height. */
+const BAND_EDGES = `linear-gradient(to bottom, ${RULE} 0 1px, transparent 0 7px, ${RULE} 0 8px, transparent 0)`;
+
 /** The ink of a mark where two rules cross: the signal orange. */
 const MARK_INK = color.primary;
 
 /** The length of each arm pair of a crossing mark, odd so it centres on a hairline. */
-const MARK = "9px";
+const MARK = "13px";
 
-/** How far an interval overlaps its neighbours, so its marks fit around its edge rules. */
-const EDGE = "4px";
+/** How far an interval overlaps its neighbours, half a mark less half a hairline. */
+const EDGE = "6px";
+
+/** The ink of the hatching in the gap between two sections. */
+const HATCH_INK = `color-mix(in srgb, ${color.foreground} 14%, ${color.background})`;
+
+/** The hatching of the gap between two sections, like the cut face in a section drawing. */
+const HATCH = `repeating-linear-gradient(-45deg, ${HATCH_INK} 0 ${stroke.border}, transparent 0 6px)`;
 
 /** The spacing of the dot grid. */
 const DOT_GRID = "16px";
@@ -30,6 +45,15 @@ const TICKS = {
     column: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${frame.width} / 12))`,
     quarter: `repeating-linear-gradient(to right, ${TICK_INK} 0 ${stroke.border}, transparent 0 calc(${frame.width} / 48))`,
 };
+
+/** A crop mark's stroke, in the ruler's ink. */
+const CROP_LINE = `linear-gradient(${TICK_INK}, ${TICK_INK})`;
+
+/** The length of a crop mark at a figure's corner. */
+const CROP = "9px";
+
+/** How far a crop mark's frame reaches past the figure, its mark plus a gap of three pixels. */
+const CROP_GAP = "12px";
 
 /** The blank gap that closes a section before the next one's running head. */
 const GAP = "3rem";
@@ -54,6 +78,12 @@ const MARK_ARMS = `linear-gradient(to right, ${MARK_INK} ${MARK}, transparent 0 
 
 /** A row of crossing marks' vertical arms, one on each rail. */
 const MARK_STEMS = `linear-gradient(to right, ${MARK_INK} ${stroke.border}, transparent 0 calc(100% - ${stroke.border}), ${MARK_INK} 0)`;
+
+/** A crossing mark's ring around a rail, centred on its arms like a registration mark. */
+const RING_START = `radial-gradient(circle at calc(${MARK} / 2) 50%, transparent 3px, ${MARK_INK} 3.5px 4.25px, transparent 4.75px)`;
+
+/** The ring of the crossing mark on the right rail. */
+const RING_END = `radial-gradient(circle at calc(100% - ${MARK} / 2) 50%, transparent 3px, ${MARK_INK} 3.5px 4.25px, transparent 4.75px)`;
 
 /** The width of a row of crossing marks' arms, reaching half an arm past each rail. */
 const ARMS_WIDTH = `calc(${frame.width} + ${MARK} - ${stroke.border})`;
@@ -99,17 +129,26 @@ export const surface = style.defineVars({
     cell: color.background,
 });
 
-/** The rule colours other site styles draw grid rules in. */
+/** The rules other site styles draw: the hairline colour, the hatched band and the stave. */
 export const rule = style.defineConsts({
     /** The colour of every grid rule. */
     color: "color-mix(in srgb, var(--destack-color-foreground) 10%, var(--destack-color-background))",
+    /** A heavy rule as a hatched band, drawn across a strip at the band's height. */
+    band: "repeating-linear-gradient(-45deg, color-mix(in srgb, var(--destack-color-foreground) 32%, transparent) 0 1.5px, transparent 0 5px)",
+    /** The height of a hatched band. */
+    bandHeight: "8px",
+    /** A stack of hairlines spreading apart downwards, as layers come off a stack. */
+    stave: "linear-gradient(to bottom, color-mix(in srgb, var(--destack-color-foreground) 24%, transparent) 0 1px, transparent 0 3px, color-mix(in srgb, var(--destack-color-foreground) 24%, transparent) 0 4px, transparent 0 8px, color-mix(in srgb, var(--destack-color-foreground) 24%, transparent) 0 9px, transparent 0 15px, color-mix(in srgb, var(--destack-color-foreground) 24%, transparent) 0 16px, transparent 0 24px, color-mix(in srgb, var(--destack-color-foreground) 24%, transparent) 0 25px, transparent 0)",
+    /** The height of a stave, its last hairline at the bottom. */
+    staveHeight: "25px",
 });
 
 /** The twelve-column frame and the rules drawn between its cells. */
 export const lattice = style.create({
     /** A full-width band on the shared columns, closed by the frame edges. */
     frame: {
-        borderInlineColor: RULE,
+        borderImageSlice: 1,
+        borderImageSource: CHAIN,
         borderInlineStyle: "solid",
         borderInlineWidth: { default: stroke.border, [media.maxMd]: 0 },
         display: "grid",
@@ -129,26 +168,33 @@ export const lattice = style.create({
         height: { default: frame.section, [screen.belowDesktop]: "auto" },
     },
 
-    /** A band whose cells sit on the rule colour a hairline apart. */
+    /** A band whose cells sit a hatched band apart. */
     ruled: {
         backgroundClip: "padding-box",
-        backgroundColor: RULE,
-        gap: stroke.border,
+        backgroundImage: rule.band,
+        gap: rule.bandHeight,
     },
 
-    /** A cell of a ruled band in the page colour, its top rule run across the window. */
+    /** A ruled band's cell in the page colour, its band's hairlines run across the window. */
     cell: {
         backgroundColor: surface.cell,
         backgroundImage: GRAIN,
         backgroundSize: GRAIN_SIZE,
-        borderImageOutset: `${stroke.border} 100vw 0`,
-        borderImageSlice: "1 0 0 0",
-        borderImageSource: {
-            default: `linear-gradient(${RULE}, ${RULE})`,
-            ":first-child": "none",
-        },
-        borderImageWidth: `${stroke.border} 0 0 0`,
+        borderImageOutset: `${rule.bandHeight} 100vw 0`,
+        borderImageSlice: "8 0 0 0",
+        // edge the band with hairlines that run on across the margins, the hatch staying in the frame
+        borderImageSource: { default: BAND_EDGES, ":first-child": "none" },
+        borderImageWidth: `${rule.bandHeight} 0 0 0`,
         minWidth: 0,
+    },
+
+    /** A band along the right edge of a block, dividing it from the block beside it. */
+    bandRight: {
+        backgroundImage: rule.band,
+        backgroundPosition: "right top",
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `${rule.bandHeight} 100%`,
+        paddingInlineEnd: rule.bandHeight,
     },
 
     /** A figure cell of a ruled band, dotted behind its figure and unrendered off screen. */
@@ -169,17 +215,24 @@ export const lattice = style.create({
         backgroundImage: {
             default: [
                 // mark the rails where the closing rule and both band rules cross them
+                RING_START,
+                RING_END,
+                RING_START,
+                RING_END,
+                RING_START,
+                RING_END,
                 MARK_ARMS,
                 MARK_ARMS,
                 MARK_ARMS,
                 MARK_STEMS,
                 MARK_STEMS,
                 MARK_STEMS,
-                // rule the close and both band edges, and run the rails through
+                // rule the close and both band edges
                 `linear-gradient(${RULE}, ${RULE})`,
                 `linear-gradient(${RULE}, ${RULE})`,
                 `linear-gradient(${RULE}, ${RULE})`,
-                `linear-gradient(to right, ${RULE} ${stroke.border}, transparent 0 calc(100% - ${stroke.border}), ${RULE} 0)`,
+                // hatch the gap between the close and the band
+                HATCH,
                 // measure the band's top rule like a ruler, by column and quarter column
                 TICKS.column,
                 TICKS.quarter,
@@ -192,6 +245,12 @@ export const lattice = style.create({
         },
         backgroundPosition: {
             default: [
+                "center top",
+                "center top",
+                `center top ${GAP}`,
+                `center top ${GAP}`,
+                "center bottom",
+                "center bottom",
                 `center top ${EDGE}`,
                 `center top calc(${EDGE} + ${GAP})`,
                 `center bottom ${EDGE}`,
@@ -201,7 +260,7 @@ export const lattice = style.create({
                 `center top ${EDGE}`,
                 `center top calc(${EDGE} + ${GAP})`,
                 `center bottom ${EDGE}`,
-                "center",
+                `center top calc(${EDGE} + ${stroke.border})`,
                 `center top calc(${EDGE} + ${GAP} + ${stroke.border})`,
                 `center top calc(${EDGE} + ${GAP} + ${stroke.border})`,
             ].join(", "),
@@ -214,6 +273,12 @@ export const lattice = style.create({
         backgroundRepeat: "no-repeat",
         backgroundSize: {
             default: [
+                `${ARMS_WIDTH} ${MARK}`,
+                `${ARMS_WIDTH} ${MARK}`,
+                `${ARMS_WIDTH} ${MARK}`,
+                `${ARMS_WIDTH} ${MARK}`,
+                `${ARMS_WIDTH} ${MARK}`,
+                `${ARMS_WIDTH} ${MARK}`,
                 `${ARMS_WIDTH} ${stroke.border}`,
                 `${ARMS_WIDTH} ${stroke.border}`,
                 `${ARMS_WIDTH} ${stroke.border}`,
@@ -223,7 +288,7 @@ export const lattice = style.create({
                 `100% ${stroke.border}`,
                 `100% ${stroke.border}`,
                 `100% ${stroke.border}`,
-                `${frame.width} 100%`,
+                `calc(${frame.width} - 2 * ${stroke.border}) calc(${GAP} - ${stroke.border})`,
                 `${frame.width} 8px`,
                 `${frame.width} 4px`,
             ].join(", "),
@@ -236,6 +301,8 @@ export const lattice = style.create({
         height: `calc(${GAP} + ${BAND} + 2 * ${EDGE})`,
         marginBlock: `calc(-1 * ${EDGE})`,
         position: "relative",
+        // lay the rail marks over the sections the interval overlaps
+        zIndex: 2,
         "::before": {
             backgroundImage: DOTS,
             backgroundPosition: "center",
@@ -247,6 +314,102 @@ export const lattice = style.create({
             pointerEvents: "none",
             position: "absolute",
         },
+        // run the rails through the gap as centre lines
+        "::after": {
+            borderBlockWidth: 0,
+            borderImageSlice: 1,
+            borderImageSource: CHAIN,
+            borderInlineStyle: "solid",
+            borderInlineWidth: stroke.border,
+            boxSizing: "border-box",
+            content: '""',
+            display: { default: "block", [media.maxMd]: "none" },
+            insetBlock: 0,
+            left: "50%",
+            pointerEvents: "none",
+            position: "absolute",
+            transform: "translateX(-50%)",
+            width: frame.width,
+        },
+    },
+
+    /** The section cut of an interval: a hatched block and a letter at each rail. */
+    cut: {
+        alignItems: "center",
+        bottom: `calc(${EDGE} + ${BAND})`,
+        color: MARK_INK,
+        columnGap: "0.5rem",
+        display: { default: "none", "@media (min-width: 1360px)": "flex" },
+        fontFamily: font.code,
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        letterSpacing: "0.1em",
+        pointerEvents: "none",
+        position: "absolute",
+        // centre the cut on the band's top rule
+        transform: "translateY(50%)",
+    },
+
+    /** The cut left of the left rail, its stroke reaching for the rail. */
+    cutStart: {
+        right: `calc(50% + ${frame.width} / 2 + 8px)`,
+    },
+
+    /** The cut right of the right rail, drawn as the left one's mirror. */
+    cutEnd: {
+        flexDirection: "row-reverse",
+        left: `calc(50% + ${frame.width} / 2 + 8px)`,
+    },
+
+    /** The end of a cut line: a short hatched block in the signal orange. */
+    cutStroke: {
+        backgroundImage: `repeating-linear-gradient(-45deg, currentColor 0 1.5px, transparent 0 4px)`,
+        borderColor: "currentColor",
+        borderStyle: "solid",
+        borderWidth: stroke.border,
+        height: "7px",
+        width: "1.5rem",
+    },
+
+    /** A stave along the top of a band, its hairlines spreading apart into the band. */
+    stave: {
+        backgroundImage: rule.stave,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% ${rule.staveHeight}`,
+        height: rule.staveHeight,
+        insetInline: 0,
+        pointerEvents: "none",
+        position: "absolute",
+        top: 0,
+    },
+
+    /** The zone strip along a sheet's edge: the twelve columns numbered over a ruler. */
+    zones: {
+        backgroundImage: {
+            default: `${TICKS.column}, ${TICKS.quarter}, ${rule.band}`,
+            [media.maxMd]: "none",
+        },
+        backgroundPosition: `left bottom ${rule.bandHeight}, left bottom ${rule.bandHeight}, left bottom`,
+        backgroundRepeat: "no-repeat",
+        backgroundSize: `100% 8px, 100% 4px, 100% ${rule.bandHeight}`,
+        display: { default: "grid", [media.maxMd]: "none" },
+        gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+        height: "1.75rem",
+    },
+
+    /** A zone strip under a sheet's bottom edge, its ruler hung from the top. */
+    zonesBottom: {
+        backgroundPosition: `left top ${rule.bandHeight}, left top ${rule.bandHeight}, left top`,
+    },
+
+    /** A zone's number, centred in its column. */
+    zone: {
+        alignSelf: "center",
+        color: TICK_INK,
+        fontFamily: font.code,
+        fontSize: "0.625rem",
+        letterSpacing: "0.1em",
+        textAlign: "center",
     },
 
     /** The running head of an interval, set on the frame's width over the dots. */
@@ -287,34 +450,12 @@ export const lattice = style.create({
         fontWeight: 600,
     },
 
-    /** A grid coordinate beside a rail at a running head's top rule, on wide windows only. */
-    coordinate: {
-        color: MARK_INK,
-        display: { default: "none", "@media (min-width: 1360px)": "block" },
-        fontFamily: font.code,
-        fontSize: "0.625rem",
-        letterSpacing: "0.1em",
-        position: "absolute",
-        top: 0,
-        transform: "translateY(-50%)",
-    },
-
-    /** A coordinate left of the left rail. */
-    coordinateStart: {
-        right: "calc(100% + 0.875rem)",
-    },
-
-    /** A coordinate right of the right rail. */
-    coordinateEnd: {
-        left: "calc(100% + 0.875rem)",
-    },
-
     /** A row of crossing marks where a full-width edge meets both rails, laid over the edge. */
     crossings: {
-        backgroundImage: `${MARK_ARMS}, ${MARK_STEMS}`,
+        backgroundImage: `${RING_START}, ${RING_END}, ${MARK_ARMS}, ${MARK_STEMS}`,
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
-        backgroundSize: `${ARMS_WIDTH} ${stroke.border}, ${frame.width} ${MARK}`,
+        backgroundSize: `${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${MARK}, ${ARMS_WIDTH} ${stroke.border}, ${frame.width} ${MARK}`,
         display: { default: "block", [media.maxMd]: "none" },
         height: MARK,
         insetInline: 0,
@@ -331,6 +472,48 @@ export const lattice = style.create({
     /** Crossing marks on a band's top edge. */
     crossingsTop: {
         top: `calc(-1 * ${EDGE})`,
+    },
+
+    /** A figure's frame with crop marks at its corners, as a print sheet trims its plates. */
+    crop: {
+        position: "relative",
+        "::before": {
+            backgroundImage: [
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+                CROP_LINE,
+            ].join(", "),
+            backgroundPosition: [
+                `left 0 top ${CROP_GAP}`,
+                `left ${CROP_GAP} top 0`,
+                `right 0 top ${CROP_GAP}`,
+                `right ${CROP_GAP} top 0`,
+                `left 0 bottom ${CROP_GAP}`,
+                `left ${CROP_GAP} bottom 0`,
+                `right 0 bottom ${CROP_GAP}`,
+                `right ${CROP_GAP} bottom 0`,
+            ].join(", "),
+            backgroundRepeat: "no-repeat",
+            backgroundSize: [
+                `${CROP} ${stroke.border}`,
+                `${stroke.border} ${CROP}`,
+                `${CROP} ${stroke.border}`,
+                `${stroke.border} ${CROP}`,
+                `${CROP} ${stroke.border}`,
+                `${stroke.border} ${CROP}`,
+                `${CROP} ${stroke.border}`,
+                `${stroke.border} ${CROP}`,
+            ].join(", "),
+            content: '""',
+            inset: `calc(-1 * ${CROP_GAP})`,
+            pointerEvents: "none",
+            position: "absolute",
+        },
     },
 
     /** A rule along the right edge of a cell. */
