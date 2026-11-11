@@ -17,17 +17,17 @@ const CONVERSIONS = schema.jsonObject();
 /** The address of a package's API in its release plans. */
 const API_TARGET = "api";
 
-/** The address of a package's adapters in its release plans. */
-const ADAPTER_TARGET = "adapter";
+/** The address of a package's mounts in its release plans. */
+const MOUNT_TARGET = "mount";
 
-/** Describe a package: the API its objects derive, its objects, adapters and views. */
+/** Describe a package: the API its objects derive, its objects, mounts and views. */
 export function describePackage(handle: Package): PackageDescription {
     return PackageDescription.parse({
         ...(handle.since === undefined ? {} : { since: handle.since }),
         api: describeRouter(handle.name, handle.router),
         objects: describeObjects(handle.id, handle.objects),
-        adapters: Object.fromEntries(
-            Object.values(handle.adapters).map((adapter) => [adapter.name, { path: adapter.path }]),
+        mounts: Object.fromEntries(
+            Object.values(handle.mounts).map((mount) => [mount.name, { path: mount.path }]),
         ),
         views: Object.keys(handle.views),
         permissions: handle.permissions,
@@ -63,7 +63,7 @@ export function describeRouter(name: string, router: ProcedureRouter): RouterDes
     return RouterDescription.parse({ name, procedures: describeProcedures(router) });
 }
 
-/** Plan a package's API and adapter changes between releases. */
+/** Plan a package's API and mount changes between releases. */
 export const comparePackage: Comparator = (earlier, later) => {
     // read both releases
     const before = PackageDescription.parse(earlier.description);
@@ -75,50 +75,50 @@ export const comparePackage: Comparator = (earlier, later) => {
 
     return Plan.join([
         () => compareApi(before, after, API_TARGET, releases),
-        () => compareAdapters(before.adapters, after.adapters),
+        () => compareMounts(before.mounts, after.mounts),
     ]);
 };
 
-/** Plan the adapter changes between releases for the callers of earlier ones. */
-function compareAdapters(
-    before: PackageDescription["adapters"],
-    after: PackageDescription["adapters"],
+/** Plan the mount changes between releases for the callers of earlier ones. */
+function compareMounts(
+    before: PackageDescription["mounts"],
+    after: PackageDescription["mounts"],
 ): Plan {
-    // plan each adapter either release declares
+    // plan each mount either release declares
     const names = new Set([...Object.keys(before), ...Object.keys(after)]);
     const steps = [...names].toSorted().flatMap((name): Step[] => {
-        // read the adapter in both releases
+        // read the mount in both releases
         const previous = before[name];
         const next = after[name];
-        const target = Address.join(ADAPTER_TARGET, name);
+        const target = Address.join(MOUNT_TARGET, name);
 
-        // add a new adapter
+        // add a new mount
         if (previous === undefined) {
-            return [{ action: "create", target, risk: "safe", detail: `add adapter ${name}` }];
+            return [{ action: "create", target, risk: "safe", detail: `add mount ${name}` }];
         }
-        // remove an adapter
+        // remove a mount
         else if (next === undefined) {
             return [
                 {
                     action: "delete",
                     target,
                     risk: "backward-incompatible",
-                    detail: `remove adapter ${name}`,
+                    detail: `remove mount ${name}`,
                 },
             ];
         }
-        // move an adapter to another path
+        // move a mount to another path
         else if (previous.path !== next.path) {
             return [
                 {
                     action: "update",
                     target,
                     risk: "backward-incompatible",
-                    detail: `move adapter ${name} from ${previous.path} to ${next.path}`,
+                    detail: `move mount ${name} from ${previous.path} to ${next.path}`,
                 },
             ];
         }
-        // skip an unchanged adapter
+        // skip an unchanged mount
         else {
             return [];
         }

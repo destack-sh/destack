@@ -79,8 +79,8 @@ export const ObjectRoute = schema.object({
 /** A route to an object type, with the phases the package's code attaches by method. */
 export type ObjectRoute = schema.Infer<typeof ObjectRoute>;
 
-/** The path below a package's mount an adapter answers, one or more segments such as /npm. */
-export const AdapterPath = schema.string().regex(/^(\/[^/]+)+$/u);
+/** The path below a package's path a mount answers, one or more segments such as /npm. */
+export const MountPath = schema.string().regex(/^(\/[^/]+)+$/u);
 
 /** A finance feature a capability needs the account's plan to include, by its package and name. */
 export const FeatureReference = schema.object({
@@ -118,7 +118,7 @@ export const PACKAGE_EXPORT = "default";
 /** The subpath a package's build exports its server under. */
 export const SERVER_EXPORT = "./server";
 
-/** A declared package: the API its objects derive, its adapters and its views. */
+/** A declared package: the API its objects derive, its mounts and its views. */
 const packageDescription = schema.object({
     /** The oldest caller release the package serves, every release when absent. */
     since: Version.exactOptional(),
@@ -126,12 +126,12 @@ const packageDescription = schema.object({
     api: RouterDescription,
     /** The object types it serves with its code's phases, by route name. */
     objects: schema.record(schema.string().min(1), ObjectRoute),
-    /** The adapters of protocols others define, by name. */
-    adapters: schema.record(
+    /** The mounts of protocols others define, by name. */
+    mounts: schema.record(
         DeclarationName,
         schema.object({
-            /** The path below the package's mount the adapter answers. */
-            path: AdapterPath,
+            /** The path below the package's path the mount answers. */
+            path: MountPath,
         }),
     ),
     /** The names of the views it offers. */
@@ -147,7 +147,7 @@ const packageDescription = schema.object({
 /** The kind of the declaration `definePackage` makes, which object defines. */
 export const PACKAGE_KIND = defineKind({ name: "package", description: packageDescription });
 
-/** A declared package: the API its objects derive, its adapters and its views. */
+/** A declared package: the API its objects derive, its mounts and its views. */
 export const PackageDescription = Object.assign(packageDescription, {
     /** Read the package a build declares, absent for a library. */
     async of(build: BuildReader): Promise<schema.Infer<typeof packageDescription> | undefined> {
@@ -165,5 +165,5 @@ export const PackageDescription = Object.assign(packageDescription, {
         return declared === undefined ? undefined : packageDescription.parse(declared.description);
     },
 });
-/** A declared package: its API, objects, adapters, views and requested permissions. */
+/** A declared package: its API, objects, mounts, views and requested permissions. */
 export type PackageDescription = schema.Infer<typeof PackageDescription>;

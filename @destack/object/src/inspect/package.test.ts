@@ -162,13 +162,13 @@ test("plan a package's API changes between releases, converting narrowed inputs 
     ]);
 });
 
-test("plan a package's adapter changes: adding is safe, removing or moving breaks callers", () => {
-    // describe a release of the package's adapters
-    const release = (adapters: Readonly<Record<string, `/${string}`>>) =>
+test("plan a package's mount changes: adding is safe, removing or moving breaks callers", () => {
+    // describe a release of the package's mounts
+    const release = (mounts: Readonly<Record<string, `/${string}`>>) =>
         describePackage(
             definePackage(
                 {
-                    mounts: Object.entries(adapters).map(([name, path]) =>
+                    mounts: Object.entries(mounts).map(([name, path]) =>
                         defineMount({ name, path }, MODULE),
                     ),
                 },
@@ -178,25 +178,25 @@ test("plan a package's adapter changes: adding is safe, removing or moving break
     const before = release({ feed: "/feed", npm: "/npm", retired: "/retired" });
     const after = release({ feed: "/feed", npm: "/registry", archive: "/archive" });
 
-    // plan the added, moved and removed adapters
+    // plan the added, moved and removed mounts
     expect(comparePackage(entry(before, "2026.8.0"), entry(after, RELEASE)).steps).toEqual([
         {
             action: "create",
-            target: "adapter/archive",
+            target: "mount/archive",
             risk: "safe",
-            detail: "add adapter archive",
+            detail: "add mount archive",
         },
         {
             action: "update",
-            target: "adapter/npm",
+            target: "mount/npm",
             risk: "backward-incompatible",
-            detail: "move adapter npm from /npm to /registry",
+            detail: "move mount npm from /npm to /registry",
         },
         {
             action: "delete",
-            target: "adapter/retired",
+            target: "mount/retired",
             risk: "backward-incompatible",
-            detail: "remove adapter retired",
+            detail: "remove mount retired",
         },
     ]);
 });
@@ -240,7 +240,7 @@ test("list a package's procedures as members the package serves", () => {
     ]);
 });
 
-test("describe a package's routes, adapters, views, requested permissions, capabilities and errors, with its types' hooks", () => {
+test("describe a package's routes, mounts, views, requested permissions, capabilities and errors, with its types' hooks", () => {
     // route the package's query with hooks
     const custom = { ...query({}), hooks: { create: ["authorize"] } };
     const user = new Policy(MODULE.package, { name: "user", permissions: { recipient: none() } });
@@ -275,7 +275,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
         objects: {
             query: { type: custom.typeReference, hooks: { create: ["authorize"] } },
         },
-        adapters: { npm: { path: "/npm" } },
+        mounts: { npm: { path: "/npm" } },
         views: [],
         permissions: {
             space: {

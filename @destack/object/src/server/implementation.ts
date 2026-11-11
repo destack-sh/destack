@@ -11,8 +11,8 @@ import type { ResourceControllerOptions } from "./provisioned.ts";
 import type { ObjectStore } from "./store.ts";
 import type { Bindable } from "../installation/bindable.ts";
 
-/** Answer a request below an adapter's mount over the package's store, as the authorized caller. */
-export type AdapterFetch = (
+/** Answer a request below a mount's path over the package's store, as the authorized caller. */
+export type MountFetch = (
     request: Request,
     caller: AccessContext,
     context: RequestContext,
@@ -29,7 +29,7 @@ export type ObjectPackage = Package & {
 export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = {
     /** The handle's object types with handlers; the others serve their declared defaults. */
     readonly objects?: readonly ObjectType[];
-    /** The other packages' handles whose types and adapters the package answers. */
+    /** The other packages' handles whose types and mounts the package answers. */
     readonly protocols?: readonly Package[];
     /** The controllers beside the objects' controllers, each built over the package's store. */
     readonly controllers?: readonly ((store: ObjectStore) => Controller)[];
@@ -49,16 +49,16 @@ export type ImplementationInput<Handle extends ObjectPackage = ObjectPackage> = 
     readonly access?: PackageHandler["access"];
     /** The headers every response of the package includes. */
     readonly responseHeaders?: PackageHandler["responseHeaders"];
-} & (string extends keyof Handle["adapters"]
+} & (string extends keyof Handle["mounts"]
     ? {
-          /** The answer of each adapter the package declares, by name. */
-          readonly adapters?: Readonly<Record<string, AdapterFetch>>;
+          /** The answer of each mount the package declares, by name. */
+          readonly mounts?: Readonly<Record<string, MountFetch>>;
       }
-    : Handle["adapters"] extends Readonly<Record<string, never>>
-      ? { readonly adapters?: never }
+    : Handle["mounts"] extends Readonly<Record<string, never>>
+      ? { readonly mounts?: never }
       : {
-            /** The answer of each adapter the handle declares, by name. */
-            readonly adapters: { readonly [Name in keyof Handle["adapters"]]: AdapterFetch };
+            /** The answer of each mount the handle declares, by name. */
+            readonly mounts: { readonly [Name in keyof Handle["mounts"]]: MountFetch };
         });
 
 /** A package's implementation: the package, its code, and the installation it serves as. */

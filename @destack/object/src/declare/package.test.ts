@@ -33,8 +33,8 @@ const note: ObjectDeclaration = {
     shared: { replica: { push } },
 };
 
-test("declare a package handle with its identity, the router its objects derive, and its adapters", async () => {
-    // declare notes with an npm adapter for anyone, a hook adapter for users and a sync adapter for itself
+test("declare a package handle with its identity, the router its objects derive, and its mounts", async () => {
+    // declare notes with an npm mount for anyone, a hook mount for users and a sync mount for itself
     const npm = defineMount({ name: "npm", path: "/npm" });
     const hook = defineMount({ name: "hook", path: "/hook", callers: [principal.user] });
     const sync = defineMount({ name: "sync", path: "/sync", callers: "self" });
@@ -50,13 +50,13 @@ test("declare a package handle with its identity, the router its objects derive,
         declaring: PackageVersion.declaring(handle),
         since: handle.since,
         routes: Object.keys(handle.router),
-        adapters: handle.adapters,
+        mounts: handle.mounts,
     }).toEqual({
         identity: ["package-01a0d462-1b26-7401-be27-6258e0a32141", "@destack/object"],
         declaring: { id: handle.id, name: handle.name, version: handle.version },
         since: "2026.9.0",
         routes: ["note", "replica"],
-        adapters: {
+        mounts: {
             npm: { package: declaring, name: "npm", path: "/npm" },
             hook: {
                 package: declaring,
@@ -69,31 +69,31 @@ test("declare a package handle with its identity, the router its objects derive,
     });
 });
 
-test("refuse adapters at an empty path, and adapters at or below another's path", async () => {
-    // refuse an adapter at the mount itself
+test("refuse mounts at an empty path, and mounts at or below another's path", async () => {
+    // refuse a mount at the mount itself
     expect(await refusal(() => defineMount({ name: "root", path: "/" }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
         "mount 'root' path '/' is invalid: it is not below the package",
     ]);
 
-    // refuse an adapter at another's path, and one below it
+    // refuse a mount at another's path, and one below it
     const npm = defineMount({ name: "npm", path: "/npm" });
     const twin = defineMount({ name: "twin", path: "/npm" });
     const nested = defineMount({ name: "nested", path: "/npm/tarballs" });
     expect(await refusal(() => definePackage({ mounts: [npm, twin] }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path '/npm' is invalid: it overlaps another",
+        "mount path '/npm' is invalid: it overlaps another",
     ]);
     expect(await refusal(() => definePackage({ mounts: [npm, nested] }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path '/npm/tarballs' is invalid: it overlaps another",
+        "mount path '/npm/tarballs' is invalid: it overlaps another",
     ]);
 });
 
-test("refuse an adapter at an object's routes, which would take its calls", async () => {
+test("refuse a mount at an object's routes, which would take its calls", async () => {
     const routed = {
         ...note,
         procedures: { create: create.route({ method: "POST", path: "/notes" }) },
@@ -103,7 +103,7 @@ test("refuse an adapter at an object's routes, which would take its calls", asyn
     expect(await refusal(() => definePackage({ objects: [routed], mounts: [notes] }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path '/notes' is invalid: it overlaps an object's routes",
+        "mount path '/notes' is invalid: it overlaps an object's routes",
     ]);
 });
 

@@ -7,7 +7,7 @@ import { schema } from "@destack/schema";
 import { defineMount, definePackage } from "@destack/object";
 import { testCallKey } from "@destack/object/test";
 import { testEvents } from "../src/test/index.ts";
-import { type AdapterFetch, implementPackage, type ObjectPackage } from "../src/server/index.ts";
+import { type MountFetch, implementPackage, type ObjectPackage } from "../src/server/index.ts";
 import { page, pageDatabase } from "./fixture/page.ts";
 import { openSpace, spacePrincipal, space } from "./fixture/space.ts";
 import { users } from "./fixture/user.ts";
@@ -19,32 +19,32 @@ import { Scope } from "@destack/sync";
 /** The space with the pages. */
 const spaceId = schema.identifier("space").parse(`space-01996ab0-0000-7000-8000-00000000a003`);
 
-/** The pages with a feed adapter answering below /feed. */
+/** The pages with a feed mount answering below /feed. */
 const pages = definePackage({
     objects: [page],
     mounts: [defineMount({ name: "feed", path: "/feed" })],
 });
 
-/** The pages with a feed adapter answering the space's installation alone. */
+/** The pages with a feed mount answering the space's installation alone. */
 const customPages = definePackage({
     objects: [page],
     mounts: [defineMount({ name: "feed", path: "/feed", callers: "self" })],
 });
 
 /** Answer a feed request with the path and query it arrived at. */
-const feed: AdapterFetch = async (request) => {
+const feed: MountFetch = async (request) => {
     const url = new URL(request.url);
 
     return Response.json({ path: url.pathname, query: url.search });
 };
 
-/** The pages as any served package, whose adapters any answers may claim to answer. */
+/** The pages as any served package, whose mounts any answers may claim to answer. */
 const served: ObjectPackage = pages;
 
-/** Serve the pages over a space's database, answering the given adapters. */
+/** Serve the pages over a space's database, answering the given mounts. */
 async function servePages(
     world: Environment,
-    adapters: Readonly<Record<string, AdapterFetch>>,
+    mounts: Readonly<Record<string, MountFetch>>,
     handle: ObjectPackage = served,
 ) {
     const storage = await TestDatabase.create(pageDatabase, {
@@ -57,7 +57,7 @@ async function servePages(
 
     return async () =>
         await TestObjectStore.receive(space.reference(Scope.universe.id, spaceId), {
-            servers: [implementPackage(handle, { adapters })],
+            servers: [implementPackage(handle, { mounts })],
             chain: async () => undefined,
             environment: world,
             origin: { package: PackageVersion.of(handle) },
@@ -68,7 +68,7 @@ async function servePages(
         });
 }
 
-test("answer each request at or below an adapter's path by its fetch, below the adapter's path", async () => {
+test("answer each request at or below a mount's path by its fetch, below the mount's path", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -94,7 +94,7 @@ test("answer each request at or below an adapter's path by its fetch, below the 
     ]).toEqual([{ path: "/rss", query: "?limit=2" }, { path: "/", query: "" }, 404]);
 });
 
-test("refuse a package's unanswered adapter and an answer of no declared adapter", async () => {
+test("refuse a package's unanswered mount and an answer of no declared mount", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 
@@ -103,14 +103,14 @@ test("refuse a package's unanswered adapter and an answer of no declared adapter
     const stray = await servePages(world, { feed, atom: feed });
 
     await expect(unanswered()).rejects.toThrow(
-        new TypeError(`package '${pages.name}' does not implement adapter 'feed'`),
+        new TypeError(`package '${pages.name}' does not implement mount 'feed'`),
     );
     await expect(stray()).rejects.toThrow(
-        new TypeError(`package '${pages.name}' does not declare adapter 'atom'`),
+        new TypeError(`package '${pages.name}' does not declare mount 'atom'`),
     );
 });
 
-test("answer an adapter declaring its installation's calls as that principal alone", async () => {
+test("answer a mount declaring its installation's calls as that principal alone", async () => {
     // run in a world of its own
     const world = testSimulation().environment("test");
 

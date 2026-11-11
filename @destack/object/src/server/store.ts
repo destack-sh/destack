@@ -85,7 +85,7 @@ import { type ServerAccess, type RequestContext } from "./context.ts";
 import { type PackageHandler } from "./http.ts";
 import { type ProcedureContext } from "./procedure.ts";
 import { Egress } from "../declare/egress.ts";
-import { type AdapterDeclaration, Package } from "../declare/package.ts";
+import { type MountDeclaration, Package } from "../declare/package.ts";
 import { type ProcedureRouter } from "../procedure/index.ts";
 import * as sync from "@destack/sync";
 import { type Follow, type FollowKey, type RowFollow, Shape } from "../replica/shape.ts";
@@ -123,7 +123,7 @@ import { TelemetryScope } from "@destack/telemetry";
 import { Claimant } from "../claim/claim.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { HookSandbox } from "../hook/sandbox.ts";
-import type { AdapterFetch, PackageImplementation } from "./implementation.ts";
+import type { MountFetch, PackageImplementation } from "./implementation.ts";
 import type { Clock, Environment } from "@destack/environment";
 
 import type {} from "@destack/package/import-meta";
@@ -3654,7 +3654,7 @@ export class ObjectStore {
         };
     }
 
-    /** Implement a served package: its routes, adapters, controllers, access and headers. */
+    /** Implement a served package: its routes, mounts, controllers, access and headers. */
     #packageHandler(
         entry: Catalog["served"][number],
         isFirst: boolean,
@@ -3664,7 +3664,7 @@ export class ObjectStore {
         const {
             controllers = [],
             cursors = [],
-            adapters = {},
+            mounts = {},
             access,
             responseHeaders,
         } = entry.definition;
@@ -3680,8 +3680,8 @@ export class ObjectStore {
             cursors: [...objects.cursors, ...cursors.map((cursor) => cursor(this))],
         });
 
-        // answer the package's adapters below its mount, and the routes of each protocol it implements
-        const fetch = ObjectStore.#adapterFetch(entry.package, adapters, this);
+        // answer the package's mounts below its path, and the routes of each protocol it implements
+        const fetch = ObjectStore.#mountFetch(entry.package, mounts, this);
         const protocols = new Map(
             (entry.definition.protocols ?? []).map((protocol) => [
                 protocol.id,
@@ -3704,19 +3704,19 @@ export class ObjectStore {
         };
     }
 
-    /** List the routes of a protocol a package implements, refusing a type or adapter it skips. */
+    /** List the routes of a protocol a package implements, refusing a type or mount it skips. */
     static #protocolRoutes(
         protocol: Package,
         entry: Catalog["served"][number],
     ): ReadonlySet<string> {
-        // require each of the protocol's types handled and each of its adapters answered
+        // require each of the protocol's types handled and each of its mounts answered
         const types: readonly ObjectType[] = Object.values(protocol.objects).filter(
             (type) => type instanceof ObjectType,
         );
         const unhandled = types.find((type) => !entry.objects.some((each) => each.same(type)));
-        const adapters: readonly AdapterDeclaration[] = Object.values(protocol.adapters);
-        const unanswered = adapters.find(
-            (adapter) => entry.definition.adapters?.[adapter.name] === undefined,
+        const mounts: readonly MountDeclaration[] = Object.values(protocol.mounts);
+        const unanswered = mounts.find(
+            (mount) => entry.definition.mounts?.[mount.name] === undefined,
         );
         if (unhandled !== undefined) {
             throw new TypeError(
@@ -3724,53 +3724,53 @@ export class ObjectStore {
             );
         } else if (unanswered !== undefined) {
             throw new TypeError(
-                `'${entry.package.name}' implements '${protocol.name}' without answering adapter '${unanswered.name}'`,
+                `'${entry.package.name}' implements '${protocol.name}' without answering mount '${unanswered.name}'`,
             );
         }
 
-        // route its types' collections and its adapters' paths
+        // route its types' collections and its mounts' paths
         return new Set([
             ...types.map((type) => `${type.route.prefix}/${Casing.kebab(type.plural)}`),
-            ...adapters.map((adapter) => adapter.path),
+            ...mounts.map((mount) => mount.path),
         ]);
     }
 
-    /** Route requests below a package's mount to the adapters answering their paths. */
-    static #adapterFetch(
+    /** Route requests below a package's path to the mounts answering their paths. */
+    static #mountFetch(
         handle: Package,
-        answers: Readonly<Record<string, AdapterFetch>>,
+        answers: Readonly<Record<string, MountFetch>>,
         store: ObjectStore,
     ): PackageHandler["fetch"] {
-        // pair each declared adapter with its answer, refusing an answer of none declared
-        const adapters = Object.values(handle.adapters).map((adapter) => {
-            const fetch = answers[adapter.name];
+        // pair each declared mount with its answer, refusing an answer of none declared
+        const mounts = Object.values(handle.mounts).map((mount) => {
+            const fetch = answers[mount.name];
             if (fetch === undefined) {
                 throw new TypeError(
-                    `package '${handle.name}' does not implement adapter '${adapter.name}'`,
+                    `package '${handle.name}' does not implement mount '${mount.name}'`,
                 );
             }
 
-            return { name: adapter.name, path: adapter.path, callers: adapter.callers, fetch };
+            return { name: mount.name, path: mount.path, callers: mount.callers, fetch };
         });
-        const stray = Object.keys(answers).find((name) => handle.adapters[name] === undefined);
+        const stray = Object.keys(answers).find((name) => handle.mounts[name] === undefined);
         if (stray !== undefined) {
-            throw new TypeError(`package '${handle.name}' does not declare adapter '${stray}'`);
-        } else if (adapters.length === 0) {
+            throw new TypeError(`package '${handle.name}' does not declare mount '${stray}'`);
+        } else if (mounts.length === 0) {
             return undefined;
         }
 
         return async (request, context) => {
-            // find the adapter whose path the request is at or below
+            // find the mount whose path the request is at or below
             const url = new URL(request.url);
-            const adapter = adapters.find(
+            const mount = mounts.find(
                 ({ path }) => url.pathname === path || url.pathname.startsWith(`${path}/`),
             );
-            if (adapter === undefined) {
+            if (mount === undefined) {
                 return undefined;
             }
 
-            // allow the installation itself or identified callers of the declared types, leaving an adapter declaring none its protocol
-            const { callers } = adapter;
+            // allow the installation itself or identified callers of the declared types, leaving a mount declaring none its protocol
+            const { callers } = mount;
             const caller =
                 callers === undefined
                     ? AccessContext.of(Caller.anonymous(), context.clock.now())
@@ -3791,24 +3791,19 @@ export class ObjectStore {
                 );
             } else if (!isDeclared) {
                 throw ObjectError.of(
-                    "ADAPTER_REFUSES_CALLER_DENIED",
-                    `caller ${caller.subject.type} '${caller.subject.id}' is forbidden: adapter '${adapter.name}' does not accept it`,
+                    "MOUNT_REFUSES_CALLER_DENIED",
+                    `caller ${caller.subject.type} '${caller.subject.id}' is forbidden: mount '${mount.name}' does not accept it`,
                 );
             }
 
-            // answer below the adapter's path, trusting a client's head from a machine's route or the installation alone
-            url.pathname = url.pathname.slice(adapter.path.length) || "/";
+            // answer below the mount's path, trusting a client's head from a machine's route or the installation alone
+            url.pathname = url.pathname.slice(mount.path.length) || "/";
             const headers = new Headers(request.headers);
             if (!request.headers.has(ROUTE_HEADER) && callers !== "self") {
                 headers.delete(CLIENT_HEAD_HEADER);
             }
 
-            return adapter.fetch(
-                copyRequest(request, { headers }, url.href),
-                caller,
-                context,
-                store,
-            );
+            return mount.fetch(copyRequest(request, { headers }, url.href), caller, context, store);
         };
     }
 

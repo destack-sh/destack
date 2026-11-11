@@ -626,12 +626,12 @@ export class Catalog {
                 }),
             );
 
-        // serve the package's objects, its adapters left to its workloads
+        // serve the package's objects, its mounts left to its workloads
         return local
             .filter((entry) => PACKAGE_KIND.has(entry))
             .map((entry) => PackageDescription.parse(entry.description))
             .flatMap((described): Served[] => {
-                // leave a package of no objects unserved, its adapters to its workloads
+                // leave a package of no objects unserved, its mounts to its workloads
                 if (Object.keys(described.objects).length === 0) {
                     return [];
                 }

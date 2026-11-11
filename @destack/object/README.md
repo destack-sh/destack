@@ -671,7 +671,7 @@ start: async ({ server, hibernation }) => ({
 server.partition; // the one partition the instance serves, from the Destack-Partition header
 server.at(Egress.address(alias, spaceId)); // another installation by its alias, through the egress
 await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
-ClientHead.restore(request); // in an adapter, the client's request a machine's route handed on
+ClientHead.restore(request); // in a mount, the client's request a machine's route handed on
 await instance.fetch(rooms, request); // a request to one served package
 await instance.reload(); // serve the next start once started, drain the previous beside it, fold reloads meanwhile
 { package: rooms, router: {}, controllers, activation }; // run its controllers once activation settles

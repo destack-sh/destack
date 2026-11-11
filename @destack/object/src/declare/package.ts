@@ -10,7 +10,7 @@ import {
 } from "@destack/package";
 import type { Declaration, ResourceRequirement } from "@destack/package/declare";
 import { mapValues, Version } from "@destack/schema";
-import { AdapterPath, Capability } from "./description.ts";
+import { MountPath, Capability } from "./description.ts";
 import type { Command } from "./command.ts";
 import type { ProcedureRouter } from "../procedure/index.ts";
 import { GrantDeclaration, type Policy } from "@destack/access";
@@ -18,11 +18,11 @@ import type { ObjectTypeReference } from "@destack/sync";
 import { ResourceDeclaration } from "@destack/resource";
 import { type CamelCase, Casing } from "../object/name.ts";
 
-/** A package's handler of a protocol others define, at a path below the package's mount. */
-export interface AdapterDeclaration extends Declaration {
-    /** The path below the package's mount the adapter answers, such as /npm. */
+/** A package's handler of a protocol others define, at a path below the package's path. */
+export interface MountDeclaration extends Declaration {
+    /** The path below the package's path the mount answers, such as /npm. */
     readonly path: `/${string}`;
-    /** The principal types whose callers the adapter answers, its installation alone, or anyone. */
+    /** The principal types whose callers the mount answers, its installation alone, or anyone. */
     readonly callers?: readonly ObjectTypeReference[] | "self";
 }
 
@@ -53,7 +53,7 @@ export interface PackageOptions {
     /** The commands the package declares on its objects. */
     readonly commands?: readonly Command[];
     /** The mounts serving protocols others define below the package. */
-    readonly mounts?: readonly AdapterDeclaration[];
+    readonly mounts?: readonly MountDeclaration[];
     /** The resources the package uses and the secrets it reads. */
     readonly resources?: readonly (ResourceRequirement | Declaration)[];
     /** Who the package's installations act as. */
@@ -84,7 +84,7 @@ export interface Package<Options extends PackageOptions = PackageOptions> extend
     /** The commands the package declares on its objects, by name. */
     readonly commands: ByName<Options["commands"]>;
     /** The mounts serving protocols others define below the package, by name. */
-    readonly adapters: ByName<Options["mounts"]>;
+    readonly mounts: ByName<Options["mounts"]>;
     /** The resources the package uses, by name. */
     readonly resources: Keyed<ResourceOf<Listed<Options["resources"]>>>;
     /** The secrets the package reads, by name. */
@@ -164,7 +164,7 @@ export const Package = {
         const objects = byRoute(options.objects ?? []);
         const views = byName(options.views ?? []);
         const commands = byName(options.commands ?? []);
-        const adapters = byName(options.mounts ?? []);
+        const mounts = byName(options.mounts ?? []);
         const bound = Object.values(byName(listed));
         const resources = byName(bound.filter((each) => isProvisioned(each)));
         const secrets = byName(bound.filter((each) => !isProvisioned(each)));
@@ -196,8 +196,8 @@ export const Package = {
             );
         }
 
-        // refuse an adapter answering at or below another's path
-        const paths = Object.values(adapters).map((adapter) => adapter.path);
+        // refuse a mount answering at or below another's path
+        const paths = Object.values(mounts).map((mount) => mount.path);
         const overlap = paths.find((path, index) =>
             paths.some(
                 (other, at) => at !== index && (path === other || path.startsWith(`${other}/`)),
@@ -206,11 +206,11 @@ export const Package = {
         if (overlap !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `adapter path '${overlap}' is invalid: it overlaps another`,
+                `mount path '${overlap}' is invalid: it overlaps another`,
             );
         }
 
-        // refuse an adapter answering below an object's routes, which would take its calls
+        // refuse a mount answering below an object's routes, which would take its calls
         const roots = new Set<string | undefined>();
         const routers: ProcedureRouter[] = Object.values(objects).map(
             (object) => object.procedures,
@@ -227,7 +227,7 @@ export const Package = {
         if (shadowing !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `adapter path '${shadowing}' is invalid: it overlaps an object's routes`,
+                `mount path '${shadowing}' is invalid: it overlaps an object's routes`,
             );
         }
 
@@ -256,10 +256,7 @@ export const Package = {
                 commands,
                 (each) => each,
             ),
-            adapters: mapValues<typeof adapters, ByName<Options["mounts"]>>(
-                adapters,
-                (each) => each,
-            ),
+            mounts: mapValues<typeof mounts, ByName<Options["mounts"]>>(mounts, (each) => each),
             resources: mapValues<typeof resources, Keyed<ResourceOf<Listed<Options["resources"]>>>>(
                 resources,
                 (each) => each,
@@ -293,11 +290,11 @@ export function defineMount<const Name extends string>(
         readonly callers?: readonly Pick<Policy, "definition">[] | "self";
     },
     module?: ModuleMetadata,
-): AdapterDeclaration & { readonly name: Name } {
+): MountDeclaration & { readonly name: Name } {
     // stamp the package and refuse a path of no segments
     const owner = PackageVersion.parse(ModuleMetadata.require(module, "defineMount").package);
     DeclarationName.parse(options.name);
-    if (!AdapterPath.safeParse(options.path).success) {
+    if (!MountPath.safeParse(options.path).success) {
         throw PackageError.of(
             "DEFINITION_INVALID",
             `mount '${options.name}' path '${options.path}' is invalid: it is not below the package`,

@@ -113,7 +113,7 @@ export const ObjectError = defineErrorFamily({
         TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED: {},
 
         // denied
-        ADAPTER_REFUSES_CALLER_DENIED: {},
+        MOUNT_REFUSES_CALLER_DENIED: {},
         APPROVAL_DENIED: { data: ApprovalRefusal },
         CALLER_KIND_DENIED: {},
         CHAIN_REPLICAS_DENIED: {},
