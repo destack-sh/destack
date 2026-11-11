@@ -86,7 +86,7 @@ export class Evaluation {
             if (!feed.tables.includes(node.table)) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `feed does not read ${node.table[TABLE].name}`,
+                    `table '${node.table[TABLE].name}' is invalid: the feed does not read it`,
                 );
             }
         }
@@ -318,8 +318,8 @@ export class Evaluation {
         const read = await this.#feed.changes(this.watches(), sequence);
         if (read === undefined) {
             throw DatabaseError.of(
-                "CHANGES_COMPACTED",
-                `log no longer has changes after ${sequence}`,
+                "CHANGES_NOT_FOUND",
+                `changes after ${sequence} in the log not found`,
             );
         }
 

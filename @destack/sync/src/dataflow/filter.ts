@@ -143,7 +143,7 @@ export class Filter {
                 if (column === undefined) {
                     throw DatabaseError.of(
                         "QUERY_INVALID",
-                        `rollup ${measure} over ${via} has no column`,
+                        `rollup '${measure}' over '${via}' is invalid: it has no column`,
                     );
                 }
 

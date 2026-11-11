@@ -169,7 +169,7 @@ export class Aggregation extends Pipeline {
                 const group = node.rowGroup(resolved, value);
                 const name = JSON.stringify(group);
                 if (!this.tallies.has(name) && sign < 0) {
-                    throw new TypeError(`tally of ${node.name} lost group ${name}`);
+                    throw new TypeError(`tally of '${node.name}' lost group '${name}'`);
                 }
                 this.#note(name, group);
                 const tally = this.#tally(name, group, sequence);
@@ -750,7 +750,7 @@ export class Mirror extends Pipeline {
         const groups = new Map<string, Group>();
         const upstream = this.context.upstream;
         if (upstream === undefined) {
-            throw new TypeError(`mirror of ${node.name} has no upstream`);
+            throw new TypeError(`mirror of '${node.name}' has no upstream`);
         }
         for (const group of await upstream.groups(node)) {
             const partition =

@@ -107,7 +107,10 @@ export class Stream {
             clock.sleep(lapsesAt - clock.now(), this.#disarm.signal).then(
                 () =>
                     this.#ended.abort(
-                        SyncError.of("CREDENTIAL_LAPSED", "the caller's session lapsed"),
+                        SyncError.of(
+                            "CREDENTIAL_UNAUTHENTICATED",
+                            "authentication required: the caller's session lapsed",
+                        ),
                     ),
                 () => {},
             );
@@ -175,7 +178,8 @@ export class Stream {
                     if (
                         !(
                             DatabaseError.is(error) &&
-                            (error.reason === "CHANGES_COMPACTED" || error.reason === "EPOCH_STALE")
+                            (error.reason === "CHANGES_NOT_FOUND" ||
+                                error.reason === "EPOCH_CONFLICT")
                         )
                     ) {
                         throw error;
@@ -533,7 +537,7 @@ export class Stream {
         for (const change of [...earlier.changes, ...later.changes]) {
             const table = tables.find((entry) => entry[TABLE].sqlName === change.table);
             if (table === undefined) {
-                throw new TypeError(`a merged page has an unknown table: ${change.table}`);
+                throw new TypeError(`a merged page has an unknown table: '${change.table}'`);
             }
             const key = JSON.stringify([
                 change.table,

@@ -225,7 +225,7 @@ function parseParameters<Parameters>(
     if (!parsed.success) {
         throw SyncError.of(
             "PARAMETERS_INVALID",
-            `invalid parameters of publication ${definition.name}: ${schema.describeIssues(parsed.error.issues)}`,
+            `publication '${definition.name}' is invalid: its parameters do not match: '${schema.describeIssues(parsed.error.issues)}'`,
         );
     }
 

@@ -392,7 +392,10 @@ test("end every subscriber with the failure once the database closes", async () 
     const feed = new Feed(database, [note]);
     const query = { table: note, scopes: ["inbox"] };
     const signal = AbortSignal.timeout(5000);
-    const closed = ["CONNECTION_CLOSED", "the connection is closing or closed"];
+    const closed = [
+        "CONNECTION_UNAVAILABLE",
+        "the connection is unavailable: it is closing or closed",
+    ];
 
     // follow the head with one subscriber page by page and one through merged pages
     const plain = feed.subscribe({ query }, undefined, signal);

@@ -366,7 +366,7 @@ export class Prediction {
         // match the row by its key
         const table = this.tables.get(change.table);
         if (table === undefined) {
-            throw new TypeError(`a prediction changed an unknown table: ${change.table}`);
+            throw new TypeError(`a prediction changed an unknown table: '${change.table}'`);
         }
         const row = Table.decode(table, change.row);
         const matched = Key.match(table, row);
@@ -378,7 +378,7 @@ export class Prediction {
         // restore the row before an update
         else if (change.operation === "update") {
             if (change.before === undefined) {
-                throw new TypeError(`a predicted update of ${change.table} has no before row`);
+                throw new TypeError(`a predicted update of '${change.table}' has no before row`);
             }
             await transaction.update(table).set(Table.decode(table, change.before)).where(matched);
         }
@@ -586,7 +586,7 @@ export class Prediction {
         if (change.operation !== "update") {
             return written;
         } else if (change.before === undefined) {
-            throw new TypeError(`a logged update of ${definition.name} has no before row`);
+            throw new TypeError(`a logged update of '${definition.name}' has no before row`);
         }
 
         return { ...written, before: definition.encode(change.before) };

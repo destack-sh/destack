@@ -221,7 +221,7 @@ function measureRelations(
         const relation = relationOf(query, relations, via, where);
         const path = relation.on;
         if (path.kind !== "key" && path.kind !== "junction") {
-            throw new TypeError(`relation ${via} follows a ${path.kind} path`);
+            throw new TypeError(`relation '${via}' follows a ${path.kind} path`);
         }
         const [partitionColumn, column] =
             path.kind === "key" ? [path.column, path.parent] : [path.from.column, path.from.key];
@@ -269,7 +269,7 @@ function selectIncludes(
             const path = include.on;
             for (const join of traversed.joins) {
                 if (path.kind !== "junction") {
-                    throw new TypeError(`include ${child} joins rows without a join table`);
+                    throw new TypeError(`include '${child}' joins rows without a join table`);
                 }
                 evaluation.contents.rows.set(
                     Key.name(path.table, join),
@@ -451,7 +451,7 @@ function rolledUp(measure: Rollup, column: string | undefined, rows: readonly Ro
     if (measure === "count") {
         return rows.length;
     } else if (column === undefined) {
-        throw new TypeError(`rollup ${measure} has no column`);
+        throw new TypeError(`rollup '${measure}' has no column`);
     }
 
     // add up or take the extreme of the present values
@@ -544,7 +544,9 @@ function measures(query: Level): {
             if (rollup.function === "count") {
                 use(rollup.via, rollup.where);
             } else if (column === undefined) {
-                throw new TypeError(`rollup ${rollup.function} over ${rollup.via} has no column`);
+                throw new TypeError(
+                    `rollup '${rollup.function}' over '${rollup.via}' has no column`,
+                );
             } else {
                 use(rollup.via, rollup.where, { function: rollup.function, column });
             }
@@ -692,7 +694,7 @@ function keyColumnOf(table: Table): string {
         table[TABLE].key.includes(column),
     );
     if (key === undefined) {
-        throw new TypeError(`${table[TABLE].name} has no key column`);
+        throw new TypeError(`'${table[TABLE].name}' has no key column`);
     }
 
     return key;
@@ -756,7 +758,7 @@ class Rows {
     all(table: Table): Row[] {
         const rows = this.#rows.get(table);
         if (rows === undefined) {
-            throw new TypeError(`${table[TABLE].name} was not read`);
+            throw new TypeError(`'${table[TABLE].name}' was not read`);
         }
 
         return rows;

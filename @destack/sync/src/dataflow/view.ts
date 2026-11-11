@@ -316,7 +316,7 @@ export class View {
             }
             // refuse relations of other paths
             else {
-                throw new TypeError(`relation ${relation.name} has no key or junction path`);
+                throw new TypeError(`relation '${relation.name}' has no key or junction path`);
             }
 
             // read the node's rows with each value then and now
@@ -510,7 +510,7 @@ export class View {
             if (matched === undefined) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `the audience decided no rows of ${table[TABLE].name} for this query's relations`,
+                    `table '${table[TABLE].name}' is invalid: the audience decided no rows of it for this query's relations`,
                 );
             }
 

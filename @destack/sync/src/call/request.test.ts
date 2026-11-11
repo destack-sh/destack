@@ -72,8 +72,8 @@ test("accept created and derived identifiers, and refuse other UUID versions and
         random: false,
         expired: [
             "PRECONDITION_FAILED",
-            "EXPIRED",
-            "request identifier is outside its retry period",
+            "POSITION_BLOCKED",
+            "cannot retry the request: its identifier is outside its retry period",
         ],
     });
 });

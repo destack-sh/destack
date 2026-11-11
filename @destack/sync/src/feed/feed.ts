@@ -252,7 +252,10 @@ export class Feed implements Cache {
 
         // refuse subscribers beyond the limit, then hand the caller its stream
         if (this.#subscribers >= this.#limit) {
-            throw SyncError.of("OVERLOADED", `feed already has ${subscribersOf(this.#limit)}`);
+            throw SyncError.of(
+                "FEED_UNAVAILABLE",
+                `feed is unavailable: it is at its limit of ${this.#limit} subscribers`,
+            );
         }
         options.opened?.(stream);
         this.#join();
@@ -342,7 +345,7 @@ export class Feed implements Cache {
         if (query.with !== undefined) {
             throw SyncError.of(
                 "SCOPE_INVALID",
-                `capture cannot read tables across scopes: ${query.table[TABLE].name}`,
+                `table '${query.table[TABLE].name}' is invalid: a capture cannot read tables across scopes`,
             );
         }
         const table = query.table;
@@ -400,7 +403,10 @@ export class Feed implements Cache {
             },
         );
         if (this.#subscribers >= this.#limit) {
-            throw SyncError.of("OVERLOADED", `feed already has ${subscribersOf(this.#limit)}`);
+            throw SyncError.of(
+                "FEED_UNAVAILABLE",
+                `feed is unavailable: it is at its limit of ${this.#limit} subscribers`,
+            );
         }
         this.#join();
         try {
@@ -503,7 +509,7 @@ export class Feed implements Cache {
             if (read === undefined) {
                 return undefined;
             } else if (read.sequence <= sequence) {
-                throw new TypeError(`log ends at ${read.sequence}, before ${through}`);
+                throw new TypeError(`log ends at ${read.sequence}, before '${through}'`);
             }
 
             // take the changes up to the end sequence
@@ -533,7 +539,7 @@ export class Feed implements Cache {
                 sequence: read.sequence,
             };
         } catch (error) {
-            if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+            if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                 return undefined;
             }
             throw error;
@@ -981,7 +987,9 @@ class Handoff<Value> {
     give(value: Value): Promise<void> {
         // refuse a value once the consumer stopped
         if (this.#isEnded) {
-            return Promise.reject(SyncError.of("STALE", "the capture's consumer stopped"));
+            return Promise.reject(
+                SyncError.of("REPLICA_UNAVAILABLE", "capture is unavailable: its consumer stopped"),
+            );
         }
 
         return new Promise((taken) => {
@@ -1036,11 +1044,6 @@ class Handoff<Value> {
         this.#waiting?.();
         this.#waiting = undefined;
     }
-}
-
-/** Count subscribers in words, as one subscriber or several subscribers. */
-function subscribersOf(count: number): string {
-    return count === 1 ? "1 subscriber" : `${count} subscribers`;
 }
 
 /** A request streams follow: its key and their handlers of its row. */

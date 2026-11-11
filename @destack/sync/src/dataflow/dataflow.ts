@@ -155,7 +155,7 @@ export class Dataflow implements Arrangement {
             if (watch.table[TABLE].retention === "none") {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `watched table is not logged: ${watch.table[TABLE].name}`,
+                    `watched table '${watch.table[TABLE].name}' is invalid: it is not logged`,
                 );
             }
         }
@@ -169,7 +169,7 @@ export class Dataflow implements Arrangement {
             if (read.length > 0) {
                 throw DatabaseError.of(
                     "QUERY_INVALID",
-                    `query ${node.name} reads concealable columns of ${node.table[TABLE].name}: ${read.join(", ")}`,
+                    `query '${node.name}' is invalid: it reads concealable columns '${read.join(", ")}' of '${node.table[TABLE].name}'`,
                 );
             }
         }
@@ -274,7 +274,7 @@ export class Dataflow implements Arrangement {
 
             // select the root's rows a page at a time
             if (!(pipeline instanceof Selection)) {
-                throw new TypeError(`root ${root.name} selects rows but has no selection`);
+                throw new TypeError(`root '${root.name}' selects rows but has no selection`);
             }
             let after = start;
             for (let isDone = false; !isDone;) {
@@ -355,7 +355,9 @@ export class Dataflow implements Arrangement {
             // require the upstream the mirror reads
             const upstream = this.#context.upstream;
             if (upstream === undefined) {
-                throw new TypeError(`mirror ${mirror.node.name} reads groups but has no upstream`);
+                throw new TypeError(
+                    `mirror '${mirror.node.name}' reads groups but has no upstream`,
+                );
             }
 
             // refresh a mirror whose rows or groups changed
@@ -374,7 +376,7 @@ export class Dataflow implements Arrangement {
     async read(name: string): Promise<readonly Item[]> {
         const pipeline = this.#root(name);
         if (!(pipeline instanceof Selection)) {
-            throw new TypeError(`dataflow query ${name} reads groups, not rows`);
+            throw new TypeError(`dataflow query '${name}' reads groups, not rows`);
         }
 
         return found(await this.#nest(pipeline, [""]), "");
@@ -384,7 +386,7 @@ export class Dataflow implements Arrangement {
     async results(name: string): Promise<readonly AggregateGroup[]> {
         const pipeline = this.#root(name);
         if (pipeline instanceof Selection) {
-            throw new TypeError(`dataflow query ${name} reads rows, not groups`);
+            throw new TypeError(`dataflow query '${name}' reads rows, not groups`);
         }
 
         return Dataflow.#groups(pipeline, "").map(({ group, values }) => ({ group, values }));
@@ -400,7 +402,7 @@ export class Dataflow implements Arrangement {
         }
         const root = this.roots.find((entry) => entry.name === name);
         if (root === undefined) {
-            throw new TypeError(`dataflow has no query ${name}`);
+            throw new TypeError(`dataflow has no query '${name}'`);
         }
 
         return found(this.#pipelines, root);
@@ -417,7 +419,7 @@ export class Dataflow implements Arrangement {
         if (this.#trace !== undefined && pipeline === undefined) {
             return this.#trace.measured(relation, value, run);
         } else if (!(pipeline instanceof Relation)) {
-            throw new TypeError(`relation ${relation.name} has no relation pipeline`);
+            throw new TypeError(`relation '${relation.name}' has no relation pipeline`);
         }
         const tally = pipeline.tallies.get(JSON.stringify(relation.groupFor(value)));
 
@@ -518,8 +520,8 @@ export class Dataflow implements Arrangement {
         const size = this.size;
         if (this.#capacity !== undefined && size > this.#capacity) {
             throw SyncError.of(
-                "OVER_CAPACITY",
-                `queries have ${size} rows and groups, more than ${this.#capacity}`,
+                "CAPACITY_EXHAUSTED",
+                `query state exceeds capacity ${this.#capacity} with ${size} rows and groups`,
             );
         }
     }
@@ -577,7 +579,7 @@ export class Dataflow implements Arrangement {
         const rowOf = (key: string) => {
             const row = found(pipeline.members, key).row;
             if (row === undefined) {
-                throw new TypeError(`member ${key} of ${node.name} has no row`);
+                throw new TypeError(`member '${key}' of '${node.name}' has no row`);
             }
 
             return row;
@@ -773,7 +775,7 @@ export class Dataflow implements Arrangement {
         // list the partition's groups
         const aggregate = child.aggregate;
         if (aggregate === undefined) {
-            throw new TypeError(`include ${child.name} has no measures`);
+            throw new TypeError(`include '${child.name}' has no measures`);
         }
         const partitionName = child.link().partitionName;
         const listed = (name === undefined ? [] : Dataflow.#groups(pipeline, name)).map(
@@ -798,7 +800,7 @@ export class Dataflow implements Arrangement {
                 .filter((tally) => !tally.isEmpty)
                 .map((tally) => ({ group: tally.group, values: tally.values() }));
         } else {
-            throw new TypeError(`node ${node.name} has groups without an aggregate pipeline`);
+            throw new TypeError(`node '${node.name}' has groups without an aggregate pipeline`);
         }
 
         // order the partition's groups
@@ -831,7 +833,7 @@ export class Dataflow implements Arrangement {
                     through,
                 );
             } catch (error) {
-                if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     return undefined;
                 }
                 throw error;

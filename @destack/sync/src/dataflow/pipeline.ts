@@ -94,7 +94,7 @@ export abstract class Pipeline {
     /** Read the parent node's pipeline, failing for a root. */
     protected requireParent(): Pipeline {
         if (this.parent === undefined) {
-            throw new TypeError(`root ${this.node.name} has no parent pipeline`);
+            throw new TypeError(`root '${this.node.name}' has no parent pipeline`);
         }
 
         return this.parent;

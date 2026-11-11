@@ -3,29 +3,29 @@ import type {} from "@destack/package/import-meta";
 
 /** The sync package's failures, each reason with the call error code it answers. */
 export const SyncError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    PARAMETERS_INVALID: { code: "BAD_REQUEST" },
-
     // not found
-    NOT_FOUND: { code: "NOT_FOUND" },
+    SCOPE_NOT_FOUND: {},
 
-    // conflict
-    CYCLE: { code: "CONFLICT" },
+    // invalid
+    PARAMETERS_INVALID: {},
+    SCOPE_INVALID: {},
 
-    // precondition failed
-    EXPIRED: { code: "PRECONDITION_FAILED" },
+    // unauthenticated
+    CREDENTIAL_UNAUTHENTICATED: {},
 
-    // unprocessable content
-    SCOPE_INVALID: { code: "UNPROCESSABLE_CONTENT" },
-    OVER_CAPACITY: { code: "UNPROCESSABLE_CONTENT" },
+    // blocked
+    FOLLOW_BLOCKED: {},
+    POSITION_BLOCKED: {},
 
-    // bad gateway
-    STREAM_INVALID: { code: "BAD_GATEWAY" },
-    CREDENTIAL_LAPSED: { code: "UNAUTHORIZED" },
+    // exhausted
+    CAPACITY_EXHAUSTED: {},
 
-    // service unavailable
-    OVERLOADED: { code: "SERVICE_UNAVAILABLE" },
-    STALE: { code: "SERVICE_UNAVAILABLE" },
+    // unavailable
+    FEED_UNAVAILABLE: {},
+    REPLICA_UNAVAILABLE: {},
+
+    // unreachable
+    STREAM_UNREACHABLE: {},
 });
 
 /** A stable cause of sync failures. */

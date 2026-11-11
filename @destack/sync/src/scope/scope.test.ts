@@ -39,8 +39,8 @@ test("read chains up to the universe, refuse unknown scopes, and fence a scope f
     });
     expect(await refusal(Scope.object(Snapshot.live(database), "unknown"))).toEqual([
         "NOT_FOUND",
-        "NOT_FOUND",
-        "unknown scope: unknown",
+        "SCOPE_NOT_FOUND",
+        "scope 'unknown' not found",
     ]);
 
     // fence a scope for its target machine and lift the fence

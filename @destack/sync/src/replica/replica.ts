@@ -449,14 +449,14 @@ export class Replica {
         if (this.within.size > 0) {
             throw SyncError.of(
                 "SCOPE_INVALID",
-                `replica ${this.name} replicates tables across scopes, but no capture can read them`,
+                `replica '${this.name}' is invalid: it replicates tables across scopes, and no capture can read them`,
             );
         }
         // refuse tables held through includes
         else if (this.tables.length > this.roots.length) {
             throw SyncError.of(
                 "SCOPE_INVALID",
-                `replica ${this.name} includes rows of other tables, but no capture can read them`,
+                `replica '${this.name}' is invalid: it includes rows of other tables, and no capture can read them`,
             );
         }
 
@@ -852,8 +852,8 @@ export class Replica {
         // refuse a position of an outdated history
         else if (origin.epoch > position.epoch) {
             throw DatabaseError.of(
-                "EPOCH_STALE",
-                `${scope} started a new epoch after the position`,
+                "EPOCH_CONFLICT",
+                `cannot follow '${scope}' from the position: it started a new epoch after it`,
             );
         }
         // arrive at the position within its epoch
@@ -981,7 +981,10 @@ export class Replica {
     ): Promise<void> {
         const record = await Replica.#find(database, name, scope);
         if (record !== undefined && Replica.#origin(record) === undefined) {
-            throw SyncError.of("STALE", `replica of ${scope} has no position yet`);
+            throw SyncError.of(
+                "REPLICA_UNAVAILABLE",
+                `replica of '${scope}' is unavailable: it has no position yet`,
+            );
         }
     }
 
@@ -1008,8 +1011,8 @@ export class Replica {
         if (cyclic !== undefined) {
             const table = found(this.#replicated, cyclic.shared)[TABLE].name;
             throw SyncError.of(
-                "CYCLE",
-                `replica ${this.name} of ${this.scope} would publish ${table} back to ${origin}, its source in replica ${cyclic.record.name} of ${cyclic.record.scope}`,
+                "FOLLOW_BLOCKED",
+                `cannot follow replica '${this.name}' of '${this.scope}': it would publish '${table}' back to '${origin}', its source in replica '${cyclic.record.name}' of '${cyclic.record.scope}'`,
             );
         }
     }
@@ -1505,7 +1508,10 @@ export class Replica {
             this.#recordedPosition({ ...position, layouts: registration.layouts }, layouts) ===
                 undefined
         ) {
-            throw SyncError.of("STALE", `replica of ${this.scope} has no position yet`);
+            throw SyncError.of(
+                "REPLICA_UNAVAILABLE",
+                `replica of '${this.scope}' is unavailable: it has no position yet`,
+            );
         }
 
         // drop the replica's records now
@@ -1764,7 +1770,7 @@ export class Replica {
                     }
                 } catch (error) {
                     // resume with a fresh credential once the source refused the lapsed one
-                    isLapsed = SyncError.is(error, "CREDENTIAL_LAPSED");
+                    isLapsed = SyncError.is(error, "CREDENTIAL_UNAUTHENTICATED");
 
                     // end quietly on this follow's own abort or a silent stream's, failing on anything else
                     const isAborted = signal.aborted && error === signal.reason;
@@ -1780,8 +1786,8 @@ export class Replica {
                 // reject a stream that ends without a page, other than one whose credential lapsed
                 if (!isReceived && !isLapsed && !signal.aborted) {
                     throw SyncError.of(
-                        "STREAM_INVALID",
-                        `the source of ${this.scope} ended a stream without a page`,
+                        "STREAM_UNREACHABLE",
+                        `could not read a page from the source of '${this.scope}' before the stream ended`,
                     );
                 }
                 // fail once the source lapses every fresh credential
@@ -1791,8 +1797,8 @@ export class Replica {
                     !RetryPolicy.isRetried(LAPSE_RETRY, lapses + 1)
                 ) {
                     throw SyncError.of(
-                        "CREDENTIAL_LAPSED",
-                        `the source of ${this.scope} lapsed ${lapses + 1} fresh credentials before any page`,
+                        "CREDENTIAL_UNAUTHENTICATED",
+                        `authentication required: the source of '${this.scope}' lapsed fresh credentials before any page after ${lapses + 1} attempts`,
                     );
                 }
                 // back off before resuming a stream whose fresh credential lapsed before any page
@@ -1867,8 +1873,8 @@ export class Replica {
                         recorded.epoch === page.position.epoch;
                     if (!run.isSnapshot && recorded !== undefined && !isContinued) {
                         throw DatabaseError.of(
-                            "EPOCH_STALE",
-                            `page of ${page.position.log}/${page.position.epoch} does not continue the replica of ${recorded.log}/${recorded.epoch}`,
+                            "EPOCH_CONFLICT",
+                            `cannot apply page of log '${page.position.log}' epoch ${page.position.epoch}: it does not continue the replica of log '${recorded.log}' epoch ${recorded.epoch}`,
                         );
                     }
 
@@ -2077,7 +2083,7 @@ export class Replica {
         );
         if (undeclared.length > 0) {
             throw new TypeError(
-                `replica ${this.name} of ${this.scope} has rows in ${undeclared.join(", ")}, but the database no longer declares them`,
+                `replica '${this.name}' of '${this.scope}' has rows in '${undeclared.join(", ")}', but the database no longer declares them`,
             );
         }
 
@@ -2201,8 +2207,8 @@ export class Replica {
             // refuse a table outside the replica
             else if (table === undefined) {
                 throw SyncError.of(
-                    "STREAM_INVALID",
-                    `page has a table outside replica ${this.name}: ${change.table}`,
+                    "STREAM_UNREACHABLE",
+                    `could not apply page table '${change.table}' outside replica '${this.name}'`,
                 );
             }
             // stage a replicated row's change with its machine-bound values opened
@@ -2225,7 +2231,10 @@ export class Replica {
                       ),
                   );
         if (origin === undefined) {
-            throw DatabaseError.of("EPOCH_STALE", `source stopped replicating ${this.scope}`);
+            throw DatabaseError.of(
+                "EPOCH_CONFLICT",
+                `cannot follow '${this.scope}': the source stopped replicating it`,
+            );
         }
 
         return origin;
@@ -2269,8 +2278,8 @@ export class Replica {
             // refuse a retained group without a row count
             else if (result.rows === undefined) {
                 throw SyncError.of(
-                    "STREAM_INVALID",
-                    `page has a group of ${result.query} without its rows`,
+                    "STREAM_UNREACHABLE",
+                    `could not read the rows of a group of '${result.query}' in the page`,
                 );
             }
             // write the group's values
@@ -2691,7 +2700,7 @@ export class Replica {
         // add to counts, sums and averages, and pass extremes on additions
         const aggregate = node.aggregate;
         if (aggregate === undefined) {
-            throw new TypeError(`node ${node.name} predicts groups without an aggregate`);
+            throw new TypeError(`node '${node.name}' predicts groups without an aggregate`);
         }
         for (const [name, measure] of Object.entries(aggregate.values)) {
             const current = known.values[name] ?? null;
@@ -2834,8 +2843,8 @@ export class Replica {
         const row = Table.decode(node.table, change.row);
         if (change.operation === "update" && change.before === undefined) {
             throw SyncError.of(
-                "STREAM_INVALID",
-                `predicted update of ${table.sqlName} has no before row`,
+                "STREAM_UNREACHABLE",
+                `could not read the before row of a predicted update of '${table.sqlName}'`,
             );
         }
 

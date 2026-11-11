@@ -356,7 +356,7 @@ export class Tally implements Result {
         const left = (counts.get(value) ?? 0) - 1;
         if (left < 0) {
             const shown = typeof value === "bigint" ? `${value}n` : JSON.stringify(value);
-            throw new TypeError(`a tally removed ${shown}, which it never added`);
+            throw new TypeError(`a tally removed '${shown}', which it never added`);
         }
         if (left === 0) {
             counts.delete(value);
@@ -612,7 +612,7 @@ export class Tally implements Result {
     /** Read an aggregate node's aggregate. */
     static #aggregate(node: Node): Aggregate {
         if (node.aggregate === undefined) {
-            throw new TypeError(`${node.name} is not an aggregate`);
+            throw new TypeError(`'${node.name}' is not an aggregate`);
         }
 
         return node.aggregate;

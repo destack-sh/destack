@@ -87,9 +87,9 @@ test("refuse queries reading what the audience or the feed hides", async () => {
             ),
         ]),
     ).toEqual([
-        "query query reads concealable columns of task: title",
-        "feed does not read note",
-        "query query reads concealable columns of task: title",
+        "query 'query' is invalid: it reads concealable columns 'title' of 'task'",
+        "table 'note' is invalid: the feed does not read it",
+        "query 'query' is invalid: it reads concealable columns 'title' of 'task'",
     ]);
 });
 
@@ -296,9 +296,9 @@ test("refuse queries whose windows outgrow the feed's capacity", async () => {
     );
     const refused = await refusal(take(pages, (sent) => sent.complete));
     expect(refused).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "OVER_CAPACITY",
-        "queries have 4 rows and groups, more than 3",
+        "TOO_MANY_REQUESTS",
+        "CAPACITY_EXHAUSTED",
+        "query state exceeds capacity 3 with 4 rows and groups",
     ]);
 });
 
@@ -313,7 +313,11 @@ test("refuse subscribers beyond a feed's limit", async () => {
     await served.next();
     const refused = await refusal(feed.subscribe(query, undefined, signal).next());
     await served.return(undefined);
-    expect(refused).toEqual(["SERVICE_UNAVAILABLE", "OVERLOADED", "feed already has 1 subscriber"]);
+    expect(refused).toEqual([
+        "SERVICE_UNAVAILABLE",
+        "FEED_UNAVAILABLE",
+        "feed is unavailable: it is at its limit of 1 subscribers",
+    ]);
 });
 
 test("page catch-up changes between transactions", async () => {

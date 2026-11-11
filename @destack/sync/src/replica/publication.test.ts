@@ -134,12 +134,12 @@ test("refuse a subscription whose parameters its publication rejects, reading va
         missing: [
             "BAD_REQUEST",
             "PARAMETERS_INVALID",
-            "invalid parameters of publication folder: folder: invalid input: expected string, received undefined",
+            "publication 'folder' is invalid: its parameters do not match: 'folder: invalid input: expected string, received undefined'",
         ],
         replica: [
             "BAD_REQUEST",
             "PARAMETERS_INVALID",
-            "invalid parameters of publication folder: folder: too small: expected string to have >=1 characters",
+            "publication 'folder' is invalid: its parameters do not match: 'folder: too small: expected string to have >=1 characters'",
         ],
     });
 });

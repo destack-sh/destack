@@ -277,18 +277,18 @@ test("refuse publishing a replicated table back to the database it replicates fr
     const archive = new Replica({ name: "archive", scope: "archive", tables: [note] });
     await expect(inbox.requireAcyclic(other, "third")).resolves.toBeUndefined();
     expect(await refusal(archive.requireAcyclic(other, homeOrigin))).toEqual([
-        "CONFLICT",
-        "CYCLE",
-        `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
+        "PRECONDITION_FAILED",
+        "FOLLOW_BLOCKED",
+        `cannot follow replica 'archive' of 'archive': it would publish 'note' back to '${homeOrigin}', its source in replica 'inbox' of 'inbox'`,
     ]);
 
     // refuse publishing the notes back once the replica from their home has none of them
     await other.transaction(async (transaction) => await transaction.delete(note));
     await other.transaction(async (transaction) => await transaction.delete(replicaKey));
     expect(await refusal(archive.requireAcyclic(other, homeOrigin))).toEqual([
-        "CONFLICT",
-        "CYCLE",
-        `replica archive of archive would publish note back to ${homeOrigin}, its source in replica inbox of inbox`,
+        "PRECONDITION_FAILED",
+        "FOLLOW_BLOCKED",
+        `cannot follow replica 'archive' of 'archive': it would publish 'note' back to '${homeOrigin}', its source in replica 'inbox' of 'inbox'`,
     ]);
 });
 
@@ -884,9 +884,9 @@ test("arrive at a position only through a replica that has it", async () => {
         },
     ]);
     expect(await refusal(confirm())).toEqual([
-        "GONE",
-        "EPOCH_STALE",
-        "inbox started a new epoch after the position",
+        "CONFLICT",
+        "EPOCH_CONFLICT",
+        "cannot follow 'inbox' from the position: it started a new epoch after it",
     ]);
 });
 
@@ -1202,8 +1202,8 @@ test("fail following once the source fails or ends a stream without a page", asy
     );
     expect(await refusal(empty)).toEqual([
         "BAD_GATEWAY",
-        "STREAM_INVALID",
-        "the source of inbox ended a stream without a page",
+        "STREAM_UNREACHABLE",
+        "could not read a page from the source of 'inbox' before the stream ended",
     ]);
 });
 
@@ -1221,7 +1221,10 @@ test("resume a follow after a backoff once its source refuses a fresh credential
         async function* () {
             requests.push(simulation.clock.now());
             if (requests.length === 1) {
-                throw SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed");
+                throw SyncError.of(
+                    "CREDENTIAL_UNAUTHENTICATED",
+                    "authentication required: the caller's credential lapsed",
+                );
             }
             yield { reset: true, complete: true, changes: [noteInsert("n1")], position };
             controller.abort();
@@ -1256,7 +1259,10 @@ test("fail a follow whose source lapses five fresh credentials in a row before a
                         requests.push(simulation.clock.now());
 
                         return Promise.reject(
-                            SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed"),
+                            SyncError.of(
+                                "CREDENTIAL_UNAUTHENTICATED",
+                                "authentication required: the caller's credential lapsed",
+                            ),
                         );
                     },
                 }),
@@ -1275,8 +1281,8 @@ test("fail a follow whose source lapses five fresh credentials in a row before a
         [1000, 2000, 4000, 8000, 16000],
         [
             "UNAUTHORIZED",
-            "CREDENTIAL_LAPSED",
-            "the source of inbox lapsed 5 fresh credentials before any page",
+            "CREDENTIAL_UNAUTHENTICATED",
+            "authentication required: the source of 'inbox' lapsed fresh credentials before any page after 5 attempts",
         ],
     ]);
 });
@@ -2296,9 +2302,9 @@ test("hold the comments a replica's task includes, querying the task alone and r
         tables: [task[TABLE].sqlName, comment[TABLE].sqlName],
         queried: [task[TABLE].sqlName, replicaPosition[TABLE].sqlName],
         captured: [
-            "UNPROCESSABLE_CONTENT",
+            "BAD_REQUEST",
             "SCOPE_INVALID",
-            "replica commented includes rows of other tables, but no capture can read them",
+            "replica 'commented' is invalid: it includes rows of other tables, and no capture can read them",
         ],
     });
 });

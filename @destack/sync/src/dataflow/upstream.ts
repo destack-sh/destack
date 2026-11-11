@@ -78,7 +78,7 @@ export class Trace implements Arrangement {
         const groups = this.#loaded.get(run)?.get(relation);
         if (groups === undefined) {
             throw new TypeError(
-                `cannot read measures of ${relation.name} before they are prepared`,
+                `cannot read measures of '${relation.name}' before they are prepared`,
             );
         }
 
@@ -110,7 +110,7 @@ export class Trace implements Arrangement {
         const input = this.#input(node);
         const path = node.path;
         if (path === undefined) {
-            throw new TypeError(`relation ${node.name} has no path`);
+            throw new TypeError(`relation '${node.name}' has no path`);
         }
         const link = node.link();
         const values = new Map<string, ColumnValue>();

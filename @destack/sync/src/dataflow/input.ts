@@ -227,7 +227,7 @@ export class TreeJoin extends Input {
         super(node);
         const [key] = node.key;
         if (key === undefined || node.key.length !== 1) {
-            throw new TypeError(`${node.name} must follow a tree by one key column`);
+            throw new TypeError(`'${node.name}' must follow a tree by one key column`);
         }
         this.#isIndexed = isIndexed;
         this.#isDown = path.kind === "descendants";
@@ -438,7 +438,7 @@ export class TreeJoin extends Input {
     #closure(): Table {
         const closure = this.node.closure;
         if (closure === undefined) {
-            throw new TypeError(`${this.node.name} reads a tree index it does not have`);
+            throw new TypeError(`'${this.node.name}' reads a tree index it does not have`);
         }
 
         return closure;

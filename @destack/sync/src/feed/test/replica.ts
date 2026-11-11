@@ -58,12 +58,12 @@ export class MemoryReplica implements Contents {
         for (const change of page.changes) {
             const table = this.#tables.get(change.table);
             if (table === undefined) {
-                throw new TypeError(`page changes an unknown table: ${change.table}`);
+                throw new TypeError(`page changes an unknown table: '${change.table}'`);
             }
             const key = Key.name(table, MemoryReplica.#key(table, change.row));
             if ((change.operation === "insert") === this.rows.has(key)) {
                 throw new Error(
-                    `page ${change.operation}s a row the replica ${this.rows.has(key) ? "has" : "lacks"}: ${key}`,
+                    `page '${change.operation}'s a row the replica '${this.rows.has(key) ? "has" : "lacks"}': '${key}'`,
                 );
             }
             if (change.operation === "delete") {
@@ -88,7 +88,7 @@ export class MemoryReplica implements Contents {
             } else if (result.values === null) {
                 if (!this.results.has(groupName(result.query, result.group))) {
                     throw new Error(
-                        `page removes a group the replica lacks: ${groupName(result.query, result.group)}`,
+                        `page removes a group the replica lacks: '${groupName(result.query, result.group)}'`,
                     );
                 }
                 this.results.delete(groupName(result.query, result.group));
