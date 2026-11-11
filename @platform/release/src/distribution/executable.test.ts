@@ -27,9 +27,6 @@ const TEMPLATE_STACK = join(ROOT, "@destack/template-stack");
 /** The keychain an isolated home keeps the machine's keys in, as a user's login keychain. */
 const KEYCHAIN = "login.keychain";
 
-/** The store keeping the universe's releases across runs, so warm runs skip their build. */
-const RELEASES = join(ROOT, "target", "test", "releases");
-
 /** The database of the loopback universe, dropped before and after each run. */
 const DATABASE = "destack_executable";
 
@@ -70,7 +67,6 @@ test.skipIf(HOST.host.os !== "darwin" || HOST.host.architecture !== "arm64")(
                 ...database,
                 root: ROOT,
                 directory: join(directory, "universe"),
-                releases: RELEASES,
                 layout,
                 print: (name, line) => mailbox.receive(name, line),
             }),

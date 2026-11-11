@@ -43,6 +43,9 @@ export const DESKTOP_ENTRY = "@destack/desktop/src/machine.ts";
 /** The desktop package, whose workspace builds the release of the program computers run. */
 const DESKTOP = "@destack/desktop";
 
+/** The checkout's store of first-party releases, which every stage and target shares. */
+export const RELEASES_DIRECTORY = "target/releases";
+
 /** A local build's versions. */
 export interface LocalBuild {
     /** Read the versions a local build starts its packages at, by package name. */
@@ -67,16 +70,15 @@ export class PlatformBuild implements AsyncDisposable {
         this.releases = releases;
     }
 
-    /** Build the stacks' closure and the published packages of a checkout into a store. */
+    /** Build the stacks' closure and the published packages of a checkout into its store. */
     static async build(
         root: string,
-        directory: string,
         host: Environment<"files" | "process" | "host">,
         local?: LocalBuild,
     ): Promise<PlatformBuild> {
         // open the store and the compilers, closing the store when a build fails
         await using opened = new AsyncDisposableStack();
-        const store = opened.use(await LocalBuildStore.open(directory, host));
+        const store = opened.use(await LocalBuildStore.open(join(root, RELEASES_DIRECTORY), host));
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
 
         // read the workspaces of the stacks and of the desktop, which runs the machine
@@ -159,7 +161,7 @@ export class PlatformBuild implements AsyncDisposable {
                 (output) => output.exports[SERVER_EXPORT] !== undefined,
             );
             if (inProcess.has(id) && !isServing) {
-                throw new Error(`${name} is installed on the host but exports no server`);
+                throw new Error(`'${name}' is installed on the host but exports no server`);
             } else if (
                 isServing &&
                 (inProcess.has(id) || (installed.has(id) && manifest.role === "builtin"))

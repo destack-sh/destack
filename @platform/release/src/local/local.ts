@@ -71,8 +71,6 @@ export interface DevelopmentOptions {
     readonly root: string;
     /** The directory keeping the universe's history and the cloud machines' state. */
     readonly directory: string;
-    /** The directory of the store keeping the first-party releases across runs. */
-    readonly releases: string;
     /** The PostgreSQL server's URL, without a database. */
     readonly server: string;
     /** The database keeping the account service's tables. */
@@ -129,12 +127,7 @@ export class LocalUniverse implements AsyncDisposable {
         const publication = await Publication.read(options.directory, options.environment.files);
         options.print("build", "building the first-party releases");
         const build = stack.use(
-            await PlatformBuild.build(
-                options.root,
-                options.releases,
-                options.environment,
-                publication.build,
-            ),
+            await PlatformBuild.build(options.root, options.environment, publication.build),
         );
 
         // record the build's local versions, then report the build

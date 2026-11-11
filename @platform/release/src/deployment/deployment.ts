@@ -50,6 +50,7 @@ import {
 import { S3Server } from "@destack/bucket/s3";
 import { LocalBucket } from "@destack/bucket/bun";
 import { LocalProcess } from "../local/process.ts";
+import { CHECKOUT } from "../distribution/distribution.ts";
 import { type LocalBuild, PlatformBuild } from "./build.ts";
 import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { Custody, type CustodyEnvelopes } from "./custody.ts";
@@ -94,9 +95,6 @@ const READY_LINE = "Ready on";
 
 /** The region an end-to-end run's files bucket signs for. */
 const PLACEHOLDER_REGION = "local";
-
-/** The repository's root, two levels above the release package. */
-export const REPOSITORY = resolve(ROOT, "../..");
 
 /** The access key a local run binds in place of a provisioned one. */
 const PLACEHOLDER_KEY = { accessKeyId: "local", secretAccessKey: "local" };
@@ -200,7 +198,7 @@ export class Deployment {
 
     /** The directory of the releases the Workers ship as their static assets, a build layer. */
     get releases(): string {
-        return resolve(REPOSITORY, "target", this.stage.name, "cloud");
+        return resolve(CHECKOUT, "target", this.stage.name, "cloud");
     }
 
     /** The origin of the universe the stage signs people in at. */
@@ -334,7 +332,7 @@ export class Deployment {
 
         // build the checkout at local prerelease versions, as the local stage does, as its working tree may be uncommitted
         const publication = await Publication.read(
-            resolve(REPOSITORY, "target", this.stage.name, E2E_DIRECTORY),
+            resolve(CHECKOUT, "target", this.stage.name, E2E_DIRECTORY),
             environment.files,
         );
         await using build = await this.#build(publication.build);
@@ -350,7 +348,7 @@ export class Deployment {
 
         // serve the universe's files from a local bucket over S3
         await using files = await LocalBucket.open(
-            resolve(REPOSITORY, "target", this.stage.name, E2E_DIRECTORY, "files"),
+            resolve(CHECKOUT, "target", this.stage.name, E2E_DIRECTORY, "files"),
             "universe",
             environment,
         );
@@ -440,7 +438,7 @@ export class Deployment {
                 child.exited.then(() => false),
             ]);
             if (!isServing) {
-                throw new Error(`${script.name} exited before it served`);
+                throw new Error(`'${script.name}' exited before it served`);
             }
 
             // require it to answer at its origin
@@ -661,7 +659,7 @@ export class Deployment {
         if (response.status >= 400) {
             const body = await response.text();
             throw new Error(
-                `${installation} in ${space} on ${residency.code} answered ${response.status}: ${body}`,
+                `'${installation}' in '${space}' on '${residency.code}' answered ${response.status}: '${body}'`,
             );
         }
     }
@@ -680,7 +678,7 @@ export class Deployment {
                 return;
             } else if (clock.now() >= deadline) {
                 throw new Error(
-                    `${space} on ${residency.code} is not ready: ${response.status} ${body}`,
+                    `'${space}' on '${residency.code}' is not ready: ${response.status} '${body}'`,
                 );
             } else {
                 await clock.sleep(READY_POLL_MILLISECONDS);
@@ -783,7 +781,7 @@ export class Deployment {
         const owner = async (handle: string) => {
             const claimed = await accounts.claim.owner(Claim.key(account, "handle", [handle]));
             if (claimed === null) {
-                throw new Error(`no account claims @${handle}`);
+                throw new Error(`no account claims '@${handle}'`);
             }
 
             return account.identifier(claimed.objectId);
@@ -793,7 +791,7 @@ export class Deployment {
         // call the forge on the platform residency's cloud machine, as the trusted publisher bound to the home
         const residency = RESIDENCIES.find((each) => each.code === PLATFORM.residencyId);
         if (residency === undefined) {
-            throw new Error(`no residency ${PLATFORM.residencyId} serves the platform`);
+            throw new Error(`no residency '${PLATFORM.residencyId}' serves the platform`);
         }
         const origin = InstallationMount.url(
             this.machineOrigin(residency),
@@ -921,12 +919,7 @@ export class Deployment {
 
     /** Build the checkout's first-party releases into the stage's store. */
     async #build(local?: LocalBuild): Promise<PlatformBuild> {
-        return await PlatformBuild.build(
-            REPOSITORY,
-            resolve(REPOSITORY, "target", this.stage.name, "releases"),
-            this.environment,
-            local,
-        );
+        return await PlatformBuild.build(CHECKOUT, this.environment, local);
     }
 
     /** Write the universe root's outputs an end-to-end run binds, its files at an S3 endpoint. */

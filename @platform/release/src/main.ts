@@ -24,6 +24,7 @@ import { verifyUpdate } from "./repository/verify.ts";
 import { signPlatform } from "./signing/sign.ts";
 import { verifyAttestations } from "./key/attestation.ts";
 import {
+    buildPlatform,
     checkPlatformFormat,
     deployPlatform,
     diffPlatform,
@@ -80,6 +81,7 @@ const COMMANDS: Readonly<Record<string, Command>> = {
     "platform format-check": checkPlatformFormat,
     "platform init": initializePlatform,
     "platform diff": diffPlatform,
+    "platform build": buildPlatform,
     "platform deploy": deployPlatform,
     "platform publish": publishPlatform,
     "custody seal": sealCustody,
@@ -104,5 +106,5 @@ if (selected !== undefined) {
 }
 // refuse an unknown noun and verb
 else {
-    throw new Error(`use ${Object.keys(COMMANDS).join(", ")}`);
+    throw new Error(`use '${Object.keys(COMMANDS).join(", ")}'`);
 }

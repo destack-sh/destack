@@ -47,7 +47,7 @@ export async function buildDistribution(
     const { packageManager } = await readWorkspace(CHECKOUT, environment);
     const runtime = (await read(environment.process.executable, ["--version"], environment)).trim();
     if (`bun@${runtime}` !== packageManager) {
-        throw new Error(`release builds require ${packageManager}`);
+        throw new Error(`release builds require '${packageManager}'`);
     }
 
     // build each native desktop on its matching operating system
@@ -63,7 +63,7 @@ export async function buildDistribution(
 
     // refuse a dev build's version, which the feed never publishes
     if (Version.isPrerelease(release.version)) {
-        throw new Error(`a distribution requires a release version, not ${release.version}`);
+        throw new Error(`a distribution requires a release version, not '${release.version}'`);
     }
 
     // stage the distribution while the previous build stays in place
@@ -157,11 +157,7 @@ async function compileExecutables(
     );
 
     // build the first-party releases from the checkout, reusing their store across builds
-    await using releases = await PlatformBuild.build(
-        CHECKOUT,
-        join(CHECKOUT, "dist/.releases"),
-        environment,
-    );
+    await using releases = await PlatformBuild.build(CHECKOUT, environment);
     await releases.writeDistribution(join(bin, DISTRIBUTION_DIRECTORY));
 }
 

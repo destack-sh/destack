@@ -3,7 +3,8 @@ import { StageHome } from "@destack/machine/computer";
 import { Stage } from "@destack/update/release";
 import type { Environment, HostCapability } from "@destack/environment";
 import { printStatus } from "../distribution/output.ts";
-import { LOOPBACK_LAYOUT, REPOSITORY } from "../deployment/deployment.ts";
+import { LOOPBACK_LAYOUT } from "../deployment/deployment.ts";
+import { CHECKOUT } from "../distribution/distribution.ts";
 import { type DevelopmentOptions, LocalUniverse } from "./local.ts";
 
 /** The local PostgreSQL server, the test server of `just postgres up`. */
@@ -24,7 +25,7 @@ export async function serveLocal(
     const options = localOptions(arguments_, environment);
     const universe = await LocalUniverse.start({
         ...options,
-        root: REPOSITORY,
+        root: CHECKOUT,
         print: (title, line) => printStatus(title, line, environment),
     });
     const machine = await universe.startMachine(options.home, LOOPBACK_LAYOUT.machine);
@@ -100,13 +101,12 @@ function localOptions(
     }
 
     // keep the default state in the local stage's own device directory, any other below its directory
-    const directory = resolve(REPOSITORY, "target", name);
+    const directory = resolve(CHECKOUT, "target", name);
     const stage = Stage.of("local");
     const user = environment.host.home;
 
     return {
         directory,
-        releases: resolve(REPOSITORY, "target", "releases"),
         server: SERVER,
         database: `destack_${name}`,
         home:

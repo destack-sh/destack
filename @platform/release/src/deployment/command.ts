@@ -1,6 +1,8 @@
 import type { Environment, HostCapability } from "@destack/environment";
 import { printStatus } from "../distribution/output.ts";
 import { SERVER } from "../local/command.ts";
+import { CHECKOUT } from "../distribution/distribution.ts";
+import { PlatformBuild } from "./build.ts";
 import { Deployment } from "./deployment.ts";
 import { Root } from "./root.ts";
 
@@ -73,11 +75,21 @@ export async function publishPlatform(
     // refuse arguments beyond the stage
     const [name, ...rest] = arguments_;
     if (rest.length > 0) {
-        throw new Error(`platform publish takes a stage, then nothing more: ${rest.join(" ")}`);
+        throw new Error(`platform publish takes a stage, then nothing more: '${rest.join(" ")}'`);
     }
     await Deployment.deployed(name, environment).publish((title, line) =>
         printStatus(title, line, environment),
     );
+}
+
+/** Build the checkout's first-party releases into its store. */
+export async function buildPlatform(
+    environment: Environment<HostCapability>,
+    arguments_: readonly string[],
+): Promise<void> {
+    none("platform build", arguments_);
+    await using build = await PlatformBuild.build(CHECKOUT, environment);
+    printStatus("build", `built ${build.readers.length} releases`, environment);
 }
 
 /** Seal the keys a deployed stage's custody record lacks, as the operator does once per key. */
@@ -88,7 +100,7 @@ export async function sealCustody(
     // refuse arguments beyond the stage
     const [name, ...rest] = arguments_;
     if (rest.length > 0) {
-        throw new Error(`custody seal takes a stage, then nothing more: ${rest.join(" ")}`);
+        throw new Error(`custody seal takes a stage, then nothing more: '${rest.join(" ")}'`);
     }
     await Deployment.deployed(name, environment).seal((title, line) =>
         printStatus(title, line, environment),
@@ -109,6 +121,6 @@ export async function testPlatform(
 /** Refuse any argument to a command that takes none. */
 function none(name: string, arguments_: readonly string[]): void {
     if (arguments_.length > 0) {
-        throw new Error(`${name} takes no arguments`);
+        throw new Error(`'${name}' takes no arguments`);
     }
 }
