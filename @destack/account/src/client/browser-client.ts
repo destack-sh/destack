@@ -187,8 +187,8 @@ export class BrowserClient {
         const again = await this.#bind(await this.#registered(registration));
         if (again === undefined) {
             throw AccountError.of(
-                "HOST_CONTRADICTED",
-                "the host removed the client it just registered",
+                "HOST_UNREACHABLE",
+                "could not find the client the host just registered",
             );
         }
 
@@ -234,8 +234,8 @@ export class BrowserClient {
         );
         if (client !== record.id) {
             throw AccountError.of(
-                "HOST_CONTRADICTED",
-                `expected the host to register client ${record.id}, got ${client}`,
+                "HOST_UNREACHABLE",
+                `could not register client '${record.id}' at the host: it registered '${client}'`,
             );
         }
         const proof = await Proof.sign(
@@ -278,8 +278,8 @@ export class BrowserClient {
         // refuse any other failure
         else if (!response.ok) {
             throw AccountError.of(
-                "HOST_REFUSED",
-                `the host responded to binding the client with HTTP ${response.status}`,
+                "HOST_UNREACHABLE",
+                `could not bind the client at the host: HTTP ${response.status}`,
             );
         }
         // read the bound client
@@ -300,8 +300,8 @@ export class BrowserClient {
         );
         if (response.status !== expected) {
             throw AccountError.of(
-                "HOST_REFUSED",
-                `the host responded to ${path} with HTTP ${response.status}: ${await response.text()}`,
+                "HOST_UNREACHABLE",
+                `could not call '${path}' at the host: HTTP ${response.status} '${await response.text()}'`,
             );
         }
 

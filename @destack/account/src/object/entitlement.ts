@@ -221,8 +221,8 @@ export const Entitlement = {
             const rows = await Entitlement.replicated(database, id);
             if (rows === undefined) {
                 throw AccountError.of(
-                    "ENTITLEMENTS_PENDING",
-                    `the entitlements of account ${id} have not replicated yet`,
+                    "ENTITLEMENTS_UNAVAILABLE",
+                    `the entitlement list of account '${id}' is unavailable: it has not replicated yet`,
                 );
             }
 
@@ -355,8 +355,8 @@ export const Entitlement = {
         );
         if (row === undefined) {
             throw AccountError.of(
-                "CUSTOM_DOMAINS_UNENTITLED",
-                `the plan of ${context.scope} does not allow custom domains`,
+                "CUSTOM_DOMAIN_EXHAUSTED",
+                `a custom domain of '${context.scope}' exceeds its plan: the plan does not allow custom domains`,
             );
         }
     },

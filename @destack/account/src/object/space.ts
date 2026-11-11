@@ -250,8 +250,8 @@ export const Space = {
         if (Space.isExceeded(row, resource)) {
             const { message } = present(row.conditions[resource], `the ${resource} condition`);
             throw AccountError.of(
-                "ENTITLEMENT_EXCEEDED",
-                `space ${row.id} exceeds its entitlement: ${message}`,
+                "ENTITLEMENT_EXHAUSTED",
+                `space '${row.id}' exceeds its entitlement: ${message}`,
             );
         }
     },

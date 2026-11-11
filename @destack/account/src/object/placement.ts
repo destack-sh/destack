@@ -104,8 +104,8 @@ export const Placement = Object.assign(PlacementSchema, {
                 ).residencyId;
         if (!isAccountMachine && !isShared) {
             throw AccountError.of(
-                "MACHINE_UNKNOWN",
-                `${target} is not a standing machine of the space's account or residency`,
+                "MACHINE_INVALID",
+                `machine '${target}' is invalid: it is not a standing machine of the space's account or residency`,
             );
         }
 
@@ -119,8 +119,8 @@ export const Placement = Object.assign(PlacementSchema, {
     ): void {
         if (row.epoch !== epoch) {
             throw AccountError.of(
-                "EPOCH_STALE",
-                `this space is no longer placed at epoch ${epoch}`,
+                "EPOCH_CONFLICT",
+                `cannot place this space at epoch ${epoch}: it is no longer placed at that epoch`,
             );
         }
     },

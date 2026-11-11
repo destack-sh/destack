@@ -279,14 +279,27 @@ test("sign a user in to another application through the authorization code flow 
             refresh_token: token,
             client_id: registered.clientId,
         });
-    const invalidGrant = [400, { error: "invalid_grant", error_description: "invalid code" }];
+    const invalidGrant = [
+        400,
+        {
+            error: "invalid_grant",
+            error_description: "code is invalid: it is unknown or belongs to another client",
+        },
+    ];
     expect([
         await answered(await redeem(code)),
         await answered(await refresh(present(tokens.refresh_token, "the refresh token"))),
         (await userinfo(tokens.access_token))[0],
     ]).toEqual([
         invalidGrant,
-        [400, { error: "invalid_grant", error_description: "invalid refresh token" }],
+        [
+            400,
+            {
+                error: "invalid_grant",
+                error_description:
+                    "refresh token is invalid: it is unknown or belongs to another client",
+            },
+        ],
         200,
     ]);
 
@@ -304,7 +317,7 @@ test("sign a user in to another application through the authorization code flow 
             400,
             {
                 error: "invalid_grant",
-                error_description: "the code verifier does not match its challenge",
+                error_description: "code verifier is invalid: it does not match its challenge",
             },
         ],
     ]);
@@ -348,7 +361,14 @@ test("sign a user in to another application through the authorization code flow 
     });
     const ended = await refresh(present(renewed.refresh_token, "the renewed refresh token"));
     expect([await answered(ended), (await userinfo(renewed.access_token))[0]]).toEqual([
-        [400, { error: "invalid_grant", error_description: "invalid refresh token" }],
+        [
+            400,
+            {
+                error: "invalid_grant",
+                error_description:
+                    "refresh token is invalid: it is unknown or belongs to another client",
+            },
+        ],
         200,
     ]);
 });
@@ -401,7 +421,14 @@ test("refuse a refresh token issued before a revoked consent was granted again",
 
     // refuse the token issued before the second grant, and refresh the one issued after it
     expect([await refresh(before), await refresh(after)]).toEqual([
-        [400, { error: "invalid_grant", error_description: "invalid refresh token" }],
+        [
+            400,
+            {
+                error: "invalid_grant",
+                error_description:
+                    "refresh token is invalid: it is unknown or belongs to another client",
+            },
+        ],
         [
             200,
             issued("openid profile email offline_access", ACCESS_SECONDS, {
@@ -420,7 +447,10 @@ test("refuse a device authorization asking scopes beyond the client's", async ()
     });
     expect(await answered(asked)).toEqual([
         400,
-        { error: "invalid_scope", error_description: "the client may not ask for these scopes" },
+        {
+            error: "invalid_scope",
+            error_description: "scope is invalid: the client may not ask for these scopes",
+        },
     ]);
 });
 
@@ -492,7 +522,13 @@ test("sign a device in to a confidential application through the device authoriz
     const issuedTokens = await exchange(credentials);
     const tokens = TokenResponse.parse(await issuedTokens.clone().json());
     expect([await answered(unauthenticated), await answered(issuedTokens)]).toEqual([
-        [401, { error: "invalid_client", error_description: "invalid client_secret" }],
+        [
+            401,
+            {
+                error: "invalid_client",
+                error_description: "authentication required: the client_secret is invalid",
+            },
+        ],
         [200, issued("openid profile offline_access", ACCESS_SECONDS, { refresh: true, id: true })],
     ]);
     const idToken = await fixture.verifyIdToken(present(tokens.id_token, "the ID token"));
@@ -515,7 +551,10 @@ test("sign a device in to a confidential application through the device authoriz
     });
     expect(await answered(suspended)).toEqual([
         400,
-        { error: "invalid_grant", error_description: "the user may no longer sign in" },
+        {
+            error: "invalid_grant",
+            error_description: "grant is invalid: the user may no longer sign in",
+        },
     ]);
 });
 
@@ -596,7 +635,7 @@ test("sign a device in as a new client through the browser once the person allow
             400,
             {
                 error: "invalid_grant",
-                error_description: "the code verifier does not match its challenge",
+                error_description: "code verifier is invalid: it does not match its challenge",
             },
         ],
         [
@@ -606,7 +645,13 @@ test("sign a device in as a new client through the browser once the person allow
                 id: true,
             }),
         ],
-        [400, { error: "invalid_grant", error_description: "invalid code" }],
+        [
+            400,
+            {
+                error: "invalid_grant",
+                error_description: "code is invalid: it is unknown or belongs to another client",
+            },
+        ],
     ]);
 
     // act as the person through the new client in the browser's session, registered as theirs at consent
@@ -793,7 +838,7 @@ test("sign a person in with a mailed code at the token endpoint as a new client,
     const issuedAt = Math.floor(fixture.clock.now() / 1000);
     const wrongCode = [
         400,
-        { error: "invalid_grant", error_description: "the code is wrong or expired" },
+        { error: "invalid_grant", error_description: "code is invalid: it is wrong or expired" },
     ];
     expect({
         wrong: await answered(wrong),
@@ -886,7 +931,7 @@ test("update, disable and delete an application", async () => {
     const refused = await browser.fetch(`/oauth2/authorize?${query}`);
     expect([refused.status, refused.headers.get("location")]).toEqual([
         302,
-        `${ORIGIN}/sign-in?error=unauthorized_client&error_description=client+is+disabled`,
+        `${ORIGIN}/sign-in?error=unauthorized_client&error_description=client+is+invalid%3A+it+is+disabled`,
     ]);
 
     // delete the client
@@ -901,7 +946,7 @@ test("update, disable and delete an application", async () => {
         await refusal(
             owner.client(accountPackage).application.get({ scope: owner.id, id: registered.id }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `application ${registered.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `application '${registered.id}' not found`]);
 });
 
 test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal is refused, rotate it at each use, revoke the family a spent token returns to, and refuse a lapsed code", async () => {
@@ -956,14 +1001,33 @@ test("redeem a code by RFC 7636's verifier, keep a refresh token whose renewal i
     expect({ narrowed, reused, revoked, lapsed }).toEqual({
         narrowed: [
             400,
-            { error: "invalid_target", error_description: "the request names no resource" },
+            {
+                error: "invalid_target",
+                error_description: "resource is invalid: the request names none",
+            },
         ],
         reused: [
             400,
-            { error: "invalid_grant", error_description: "the refresh token was used before" },
+            {
+                error: "invalid_grant",
+                error_description: "refresh token is invalid: it was used before",
+            },
         ],
-        revoked: [400, { error: "invalid_grant", error_description: "invalid refresh token" }],
-        lapsed: [400, { error: "invalid_grant", error_description: "invalid code" }],
+        revoked: [
+            400,
+            {
+                error: "invalid_grant",
+                error_description:
+                    "refresh token is invalid: it is unknown or belongs to another client",
+            },
+        ],
+        lapsed: [
+            400,
+            {
+                error: "invalid_grant",
+                error_description: "code is invalid: it is unknown or belongs to another client",
+            },
+        ],
     });
 });
 
@@ -1049,11 +1113,17 @@ test("answer tokens uncached, introspect only the asking client's own standing t
         renewed: 200,
         repeated: [
             400,
-            { error: "invalid_request", error_description: "a parameter is given more than once" },
+            {
+                error: "invalid_request",
+                error_description: "request is invalid: a parameter is given more than once",
+            },
         ],
         malformed: [
             401,
-            { error: "invalid_client", error_description: "malformed basic credentials" },
+            {
+                error: "invalid_client",
+                error_description: "authentication required: the basic credentials are malformed",
+            },
         ],
     });
 });

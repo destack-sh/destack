@@ -547,8 +547,8 @@ function generateIdentifier(model: string, environment: UuidEnvironment): string
     const prefix = Object.hasOwn(MODEL_PREFIXES, model) ? MODEL_PREFIXES[model] : undefined;
     if (prefix === undefined) {
         throw AccountError.of(
-            "AUTHENTICATION_MODEL_UNKNOWN",
-            `unknown authentication model: ${model}`,
+            "AUTHENTICATION_MODEL_BROKEN",
+            `unknown authentication model: '${model}'`,
         );
     }
 
@@ -571,8 +571,8 @@ async function mail(
     await options.mail.send(sent).catch((error: unknown) => {
         if (MailError.is(error)) {
             throw AccountError.of(
-                "MAIL_UNSENT",
-                `sign-in mail to ${address} was not sent: ${error.message}`,
+                "MAIL_UNAVAILABLE",
+                `sign-in mail to '${address}' is unavailable: it was not sent, ${error.message}`,
                 { cause: error },
             );
         }

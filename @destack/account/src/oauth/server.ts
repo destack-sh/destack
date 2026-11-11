@@ -22,7 +22,7 @@ import {
     TOKEN_PATH,
     USER_INFO_PATH,
 } from "../authentication/path.ts";
-import { ConsentRequest, OAuthError } from "../authentication/token.ts";
+import { ConsentRequest, OAUTH_ERROR_CODES, OAuthError } from "../authentication/token.ts";
 import { OAUTH_CLIENT_AUTHENTICATIONS } from "../object/application.ts";
 import { Prompt } from "../object/authorization-request.ts";
 import { AuthorizationEndpoint, AuthorizationRequestEndpoint, codeGrant } from "./authorization.ts";
@@ -173,7 +173,7 @@ export class AuthorizationServer {
         const path = new URL(request.url).pathname.slice(this.#base.length);
         const endpoint = this.#endpoints.get(path);
         if (endpoint === undefined) {
-            throw new TypeError(`no endpoint takes ${path}`);
+            throw new TypeError(`no endpoint takes '${path}'`);
         }
 
         // take the request at the endpoint, refusing as RFC 6749 5.2 does
@@ -203,11 +203,11 @@ export class AuthorizationServer {
 
         // answer the error, with the challenge of a refused token or client (RFC 6750 3, RFC 6749 5.2)
         const { reason, code, message, data } = Failure.of(error);
-        const wire = reason.toLowerCase();
+        const wire = OAUTH_ERROR_CODES[error.reason];
         const challenge =
-            reason === "INVALID_TOKEN"
+            reason === "TOKEN_UNAUTHENTICATED"
                 ? { "www-authenticate": `Bearer error="${wire}"` }
-                : reason === "INVALID_CLIENT"
+                : reason === "CLIENT_UNAUTHENTICATED"
                   ? { "www-authenticate": `Basic error="${wire}"` }
                   : undefined;
 

@@ -74,7 +74,10 @@ export function defineAccount(
     // require each role a binding refers to by name in the same declaration
     for (const binding of Object.values(account.bindings ?? {})) {
         if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) {
-            throw PackageError.of("DEFINITION_INVALID", `unknown role: ${binding.role}`);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `role '${binding.role}' is invalid: it is unknown`,
+            );
         }
     }
 

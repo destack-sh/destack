@@ -95,7 +95,7 @@ export function betterAuthModel(type: ObjectType): BetterAuthModel {
         // describe a value column by its type, refusing a type the adapter cannot write
         const kind = BETTER_AUTH_TYPES[field.type];
         if (kind === undefined) {
-            throw new TypeError(`${type.name}.${name} has no Better Auth type for ${field.type}`);
+            throw new TypeError(`'${type.name}.${name}' has no Better Auth type for ${field.type}`);
         }
 
         return [name, { type: kind, required: field.required }] as const;
@@ -198,7 +198,7 @@ function reads(
                 .from(source)
                 .where(filter(source, where));
             if (row === undefined) {
-                throw AccountError.of("COUNT_MISSING", `counting ${model} returned no row`);
+                throw AccountError.of("COUNT_BROKEN", `counting '${model}' returned no row`);
             }
 
             return row.count;
@@ -450,7 +450,10 @@ async function createUser(
 /** Report a taken name as Better Auth reports a taken handle. */
 function handleTaken(error: unknown): never {
     throw CallError.of(error)?.code === "CONFLICT"
-        ? new APIError("CONFLICT", { code: "HANDLE_TAKEN", message: "the handle is already taken" })
+        ? new APIError("CONFLICT", {
+              code: "HANDLE_EXISTS",
+              message: "the handle is already taken",
+          })
         : error;
 }
 
@@ -510,8 +513,8 @@ function table(name: string): Table {
     const match = Object.hasOwn(TABLES, name) ? TABLES[name] : undefined;
     if (match === undefined) {
         throw AccountError.of(
-            "AUTHENTICATION_TABLE_UNKNOWN",
-            `unknown authentication table: ${name}`,
+            "AUTHENTICATION_TABLE_BROKEN",
+            `unknown authentication table: '${name}'`,
         );
     }
 

@@ -150,7 +150,11 @@ test("send a browser to the sign-in view, then to the consent view, and approve 
             isLoginDue: false,
             grant: null,
         },
-        forgery: [403, "ORIGIN_UNTRUSTED", "the decision came from https://elsewhere.test"],
+        forgery: [
+            403,
+            "ORIGIN_DENIED",
+            "decision is forbidden: it came from 'https://elsewhere.test'",
+        ],
         callback: [redirect, "state-1", true],
     });
 });
@@ -197,7 +201,11 @@ test("send a device's person to the verification view, refuse a signed-out read,
         redeemed: [redeemed.status, TokenResponse.parse(await redeemed.json()).token_type],
     }).toEqual({
         verification: `${ORIGIN}/verification`,
-        signedOut: [401, "SIGN_IN_REQUIRED", "the person is not signed in"],
+        signedOut: [
+            401,
+            "SIGN_IN_UNAUTHENTICATED",
+            "authentication required: the person is not signed in",
+        ],
         read: {
             client: { id: deviceClient, name: DEVICE_CLIENT_NAME },
             scopes: [],
@@ -310,9 +318,9 @@ test("refuse reviewing a request without its reference, and deciding one by a ma
     const decided = await browser.fetch(AUTHORIZATION_REQUESTS, { requestUri: "urn:request" });
 
     expect([await refused(authorization), await refused(device), await refused(decided)]).toEqual([
-        [400, "QUERY_PARAMETER_MISSING", "the request has no request_uri"],
-        [400, "QUERY_PARAMETER_MISSING", "the request has no user_code"],
-        [400, "BODY_INVALID", "the request's body does not match"],
+        [400, "QUERY_PARAMETER_REQUIRED", "query parameter 'request_uri' is required"],
+        [400, "QUERY_PARAMETER_REQUIRED", "query parameter 'user_code' is required"],
+        [400, "BODY_INVALID", "request body is invalid: it does not match its schema"],
     ]);
 });
 
@@ -357,9 +365,9 @@ test("locate a signed-in person's Home once its machine reports it serving, star
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "SIGN_IN_REQUIRED",
+                reason: "SIGN_IN_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "the person is not signed in",
+                message: "authentication required: the person is not signed in",
             },
         ],
     });
@@ -423,7 +431,11 @@ test("refuse an installation origin's unsigned request, and grant what its space
         granted: [granted.permissions, granted.sessionId === signedIn.id],
         again: [`${again.origin}${again.pathname}`, decidedAgain.status],
     }).toEqual({
-        unsigned: ["/sign-in", "invalid_request", "an installation's origin signs its requests"],
+        unsigned: [
+            "/sign-in",
+            "invalid_request",
+            "request is invalid: an installation's origin signs its requests",
+        ],
         consent: `${ORIGIN}/consent`,
         read: {
             client: { id: origin, name: "notes" },
@@ -572,7 +584,7 @@ test("refuse a signed grant naming another installation than the origin asking",
     ]).toEqual([
         "/sign-in",
         "invalid_request_object",
-        "the grant names another installation than the origin asking",
+        "request object is invalid: the grant names another installation than the origin asking",
     ]);
 });
 

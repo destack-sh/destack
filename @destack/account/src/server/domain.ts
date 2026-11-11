@@ -48,11 +48,17 @@ async function verify(
 
     // refuse a claim verified before
     if (claimed.verifiedAt !== null) {
-        throw AccountError.of("DOMAIN_VERIFIED", `${claimed.name} is already verified`);
+        throw AccountError.of(
+            "DOMAIN_BLOCKED",
+            `cannot verify domain '${claimed.name}': it is already verified`,
+        );
     }
     // refuse a domain another owner verified
     else if (verified !== undefined) {
-        throw AccountError.of("DOMAIN_TAKEN", `another owner verified ${claimed.name}`);
+        throw AccountError.of(
+            "DOMAIN_EXISTS",
+            `verified domain '${claimed.name}' already exists: another owner verified it`,
+        );
     }
 
     // require the challenge record
@@ -60,8 +66,8 @@ async function verify(
     const records = await options.resolver.txt(challenge.name);
     if (!records.includes(challenge.value)) {
         throw AccountError.of(
-            "CHALLENGE_UNPUBLISHED",
-            `publish a TXT record ${challenge.name} with ${challenge.value} first`,
+            "CHALLENGE_BLOCKED",
+            `cannot verify the domain: publish a TXT record '${challenge.name}' with '${challenge.value}' first`,
         );
     }
 
@@ -88,8 +94,8 @@ async function remove(
         .toSorted();
     if (covered.length > 0) {
         throw AccountError.of(
-            "HOSTNAMES_IN_USE",
-            `hostnames below ${name} are in use: ${covered.join(", ")}`,
+            "HOSTNAMES_BLOCKED",
+            `cannot remove domain '${name}': hostnames below it are in use, '${covered.join(", ")}'`,
         );
     }
 

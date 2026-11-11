@@ -87,7 +87,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         // find the object, then where its space answers
         const named = await this.find(type, address);
         if (named === undefined) {
-            throw AccountError.of("ADDRESS_NOT_FOUND", `nothing responds at ${address}`);
+            throw AccountError.of("ADDRESS_NOT_FOUND", `address '${address}' not found`);
         }
         const located = await this.locate(schema.identifier("space").parse(named.id), now);
 
@@ -99,7 +99,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         // read the placement, then where its machine answers
         const placed = await this.placement(spaceId);
         if (placed === undefined) {
-            throw AccountError.of("SPACE_NOT_PLACED", "nothing responds for this space");
+            throw AccountError.of("PLACEMENT_NOT_FOUND", "placement of this space not found");
         }
         const url = await this.answering(placed.placement.machine, now);
 
@@ -213,8 +213,8 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
                 .read(machine.table)
                 .findFirst({ where: { id: machineId } });
             throw AccountError.of(
-                "MACHINE_NOT_PUBLISHED",
-                `${present(named, `machine ${machineId}`).name} has no published endpoint`,
+                "ENDPOINT_NOT_FOUND",
+                `published endpoint of '${present(named, `machine ${machineId}`).name}' not found`,
             );
         }
 

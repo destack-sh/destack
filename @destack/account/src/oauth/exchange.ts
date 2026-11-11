@@ -116,12 +116,18 @@ export function exchangeGrant(options: ExchangeOptions): GrantType {
         // read the request and the package it asks a token for
         const request = ExchangeRequest.safeParse(body);
         if (!request.success) {
-            throw OAuthError.of("INVALID_REQUEST", "invalid token exchange request");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "token exchange request is invalid: it does not match its schema",
+            );
         }
         const asked = request.data;
         const audience = PackageResource.package(asked.resource);
         if (audience === undefined) {
-            throw OAuthError.of("INVALID_TARGET", `${asked.resource} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${asked.resource}' is invalid: it names no package`,
+            );
         }
 
         // describe the subject token's caller toward the package, refusing an invalid token
@@ -226,8 +232,8 @@ async function describe(
         else if (asked.partition === undefined) {
             if (subject !== undefined) {
                 throw AccountError.of(
-                    "ACTOR_OUTSIDE_SPACE",
-                    "a token acting as another person must act in a partition",
+                    "ACTOR_OUTSIDE_SPACE_INVALID",
+                    "actor is invalid: a token acting as another person must act in a partition",
                 );
             }
             const { scope: _scope, ...credential } = verified.credential;
@@ -312,8 +318,8 @@ async function subjectOf(
     const verified = await verifier.verify(token, now);
     if (principal.machine.is(verified.caller.subject)) {
         throw AccountError.of(
-            "MACHINE_ASSERTION_REQUIRED",
-            "a machine must request its tokens with its assertion",
+            "MACHINE_ASSERTION_DENIED",
+            "token request is forbidden: a machine must request its tokens with its assertion",
         );
     }
 
@@ -435,7 +441,10 @@ class PartitionVerification {
             !principal.user.is(subject) ||
             Subject.same(acting, subject)
         ) {
-            throw AccountError.of("ACTOR_INVALID", "only a user can act as another user");
+            throw AccountError.of(
+                "ACTOR_DENIED",
+                "actor is forbidden: only a user can act as another user",
+            );
         }
 
         // describe the represented user within the space's account
@@ -473,7 +482,10 @@ class PartitionVerification {
                 )
             ).isAllowed;
         if (!isLent && !isAdministered) {
-            throw AccountError.of("IMPERSONATION_REFUSED", "acting as another user is not allowed");
+            throw AccountError.of(
+                "IMPERSONATION_DENIED",
+                "impersonation is forbidden: acting as another user is not allowed",
+            );
         }
 
         return { ...represented, caller: { ...represented.caller, actors: [acting] } };
@@ -520,8 +532,8 @@ class PartitionVerification {
         ]);
         if (placement?.scope !== accountId) {
             throw AccountError.of(
-                "INSTALLATION_FOREIGN",
-                `the ${acting.type} belongs to another account`,
+                "INSTALLATION_DENIED",
+                `${acting.type} is forbidden: it belongs to another account`,
             );
         }
     }
@@ -551,8 +563,8 @@ class PartitionVerification {
             .get();
         if (selected === undefined) {
             throw AccountError.of(
-                "ACTIVE_ACCOUNT_MISSING",
-                `partition ${this.partition} has no active account`,
+                "ACTIVE_ACCOUNT_DENIED",
+                `partition '${this.partition}' is forbidden: it has no active account`,
             );
         }
 
@@ -567,7 +579,10 @@ class PartitionVerification {
         if (space.identifies(partition)) {
             const [placed] = await Placement.find(snapshot, [space.identifier(partition)]);
             if (placed === undefined) {
-                throw AccountError.of("SPACE_NOT_PLACED", `space ${partition} is not placed`);
+                throw AccountError.of(
+                    "PLACEMENT_NOT_FOUND",
+                    `placement of space '${partition}' not found: it is not placed`,
+                );
             }
 
             return placed.scope;
@@ -578,7 +593,7 @@ class PartitionVerification {
                 .read(account.table)
                 .findFirst({ where: { id: account.identifier(partition) } });
             if (row === undefined) {
-                throw AccountError.of("ACCOUNT_NOT_FOUND", `account ${partition} not found`);
+                throw AccountError.of("ACCOUNT_NOT_FOUND", `account '${partition}' not found`);
             }
 
             return row.id;
@@ -589,7 +604,7 @@ class PartitionVerification {
                 .read(machine.table)
                 .findFirst({ where: { id: machine.identifier(partition) } });
             if (row === undefined) {
-                throw AccountError.of("MACHINE_NOT_FOUND", `machine ${partition} not found`);
+                throw AccountError.of("MACHINE_NOT_FOUND", `machine '${partition}' not found`);
             }
 
             return row.scope;
@@ -597,8 +612,8 @@ class PartitionVerification {
         // refuse a partition no account owns, such as a device's
         else {
             throw AccountError.of(
-                "PARTITION_UNOWNED",
-                `partition ${partition} belongs to no account`,
+                "PARTITION_DENIED",
+                `partition '${partition}' is forbidden: it belongs to no account`,
             );
         }
     }
@@ -669,7 +684,10 @@ async function readGrants(
         // refuse a grant asked for another delegate than the caller
         const { requested } = input;
         if (requested !== undefined && !Subject.same(requested.delegate, caller.subject)) {
-            throw OAuthError.of("INVALID_REQUEST", "a delegate asks grants for itself alone");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "request is invalid: a delegate asks grants for itself alone",
+            );
         }
 
         // ask the person's consent for the asked permissions no live grant gives
@@ -684,7 +702,7 @@ async function readGrants(
         if (requested !== undefined && others.length === 0 && first !== undefined) {
             throw OAuthError.of(
                 "CONSENT_REQUIRED",
-                `${parties.delegator.id} has not granted ${caller.subject.id} what the call needs`,
+                `consent is required: '${parties.delegator.id}' has not granted '${caller.subject.id}' what the call needs`,
                 {
                     data: {
                         authorization_details: [
@@ -698,7 +716,7 @@ async function readGrants(
         // refuse none or several
         if (only === undefined || others.length > 0) {
             throw AccountError.of(
-                "LIVE_GRANT_MISSING",
+                "LIVE_GRANT_DENIED",
                 live.length === 0
                     ? `${parties.delegator.id} has no grant to ${caller.subject.id}`
                     : `${parties.delegator.id} has ${live.length} grants to ${caller.subject.id}, name one`,
@@ -711,8 +729,8 @@ async function readGrants(
     else if (input.grants !== undefined) {
         if (Caller.isDelegated(caller)) {
             throw AccountError.of(
-                "DELEGATE_OUTSIDE_GRANTS",
-                "a delegate can only act under its own grants",
+                "DELEGATE_OUTSIDE_GRANTS_DENIED",
+                "delegate is forbidden: a delegate can only act under its own grants",
             );
         }
 
@@ -751,7 +769,7 @@ async function requireClient(transaction: DatabaseConnection, clientId: string):
         .read(client.table)
         .findFirst({ where: { id: client.identifier(clientId) } });
     if (found === undefined) {
-        throw AccountError.of("CREDENTIAL_REVOKED", "client is revoked");
+        throw AccountError.of("CREDENTIAL_BLOCKED", "cannot bind the client: it is revoked");
     }
     Revocation.requireUnrevoked(found, "client");
 
@@ -771,13 +789,16 @@ async function credentialEnd(
     }
     // refuse a client binding a token of anyone but a person
     else if (!principal.user.is(person)) {
-        throw AccountError.of("CLIENT_FOREIGN", "a client binds only a person's token");
+        throw AccountError.of(
+            "CLIENT_DENIED",
+            "client is forbidden: a client binds only a person's token",
+        );
     }
     // end with the person's unrevoked client, refusing another person's
     else {
         const found = await requireClient(transaction, credential);
         if (found.scope !== person.id) {
-            throw AccountError.of("CLIENT_FOREIGN", "the client is another person's");
+            throw AccountError.of("CLIENT_DENIED", "client is forbidden: it is another person's");
         }
 
         return Number.POSITIVE_INFINITY;
@@ -802,7 +823,10 @@ async function sessionEnd(
         found.revokedAt === null &&
         found.expiresAt > now;
     if (!isActive) {
-        throw AccountError.of("SESSION_ENDED", "the person's session ended");
+        throw AccountError.of(
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: the person's session ended",
+        );
     }
 
     return found.expiresAt;

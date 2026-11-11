@@ -14,7 +14,7 @@ export function implementHostname(): typeof hostname {
                 const accountId = schema.identifier("account").parse(call.scope);
                 const row = await call.read(account).findFirst({ where: { id: accountId } });
                 if (row === undefined) {
-                    throw AccountError.of("ACCOUNT_NOT_FOUND", "no such account");
+                    throw AccountError.of("ACCOUNT_NOT_FOUND", "account not found");
                 }
 
                 // require a verified domain of the account or its owner covering the name
@@ -26,8 +26,8 @@ export function implementHostname(): typeof hostname {
                 });
                 if (!domains.some((entry) => Domain.covers(entry.name, call.input.name))) {
                     throw AccountError.of(
-                        "DOMAIN_UNVERIFIED",
-                        `verify a domain of ${call.input.name} first`,
+                        "DOMAIN_BLOCKED",
+                        `cannot serve hostname '${call.input.name}': verify a domain of it first`,
                     );
                 }
 

@@ -28,8 +28,8 @@ async function create(
     const claims = IdentityOperation.read(context.input.operation);
     if (claims.subject !== subject || claims.previous !== null) {
         throw AccountError.of(
-            "IDENTITY_NOT_STARTED",
-            `the operation does not start an identity of ${subject}`,
+            "IDENTITY_INVALID",
+            `operation is invalid: it does not start an identity of '${subject}'`,
         );
     }
 
@@ -48,8 +48,8 @@ async function create(
         sender.id === served.machineId;
     if (!isUniverse && !isServing) {
         throw AccountError.of(
-            "IDENTITY_START_FOREIGN",
-            `only the machine serving ${subject} can start its identity`,
+            "IDENTITY_START_DENIED",
+            `identity of '${subject}' is forbidden: only the machine serving it can start it`,
         );
     }
 

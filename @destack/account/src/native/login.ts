@@ -66,7 +66,10 @@ export class Login {
     ) {
         // require a person still signed in
         if (row.status !== "authenticated") {
-            throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            throw AccountError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the person is not signed in",
+            );
         }
 
         // act as the user through the credential's tokens at the login's issuer

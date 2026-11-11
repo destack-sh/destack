@@ -71,13 +71,16 @@ export function emailGrant(options: EmailOptions): GrantType {
         const { email, code, resource } = asked;
         const audience = PackageResource.package(resource);
         if (audience === undefined) {
-            throw OAuthError.of("INVALID_TARGET", `${resource} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${resource}' is invalid: it names no package`,
+            );
         }
 
         // spend the code, refusing a wrong or expired one
         await options.codes(email, code).catch((error: unknown) => {
             throw isAPIError(error)
-                ? OAuthError.of("INVALID_GRANT", "the code is wrong or expired")
+                ? OAuthError.of("GRANT_INVALID", "code is invalid: it is wrong or expired")
                 : error;
         });
 
@@ -94,8 +97,8 @@ export function emailGrant(options: EmailOptions): GrantType {
             .findFirst({ where: { userId: person.id, status: "verified" } });
         if (verified !== undefined) {
             throw OAuthError.of(
-                "INVALID_GRANT",
-                "a person with a second factor signs in in the browser",
+                "GRANT_INVALID",
+                "grant is invalid: a person with a second factor signs in in the browser",
             );
         }
 
@@ -176,8 +179,8 @@ async function signUp(
     // refuse a new email without a handle
     if (request.handle === undefined) {
         throw OAuthError.of(
-            "INVALID_GRANT",
-            `nobody signed up as ${request.email}: sign up with a handle`,
+            "GRANT_INVALID",
+            `email '${request.email}' is invalid: nobody signed up with it, so sign up with a handle`,
         );
     }
     const values = SignUp.safeParse({
@@ -189,8 +192,8 @@ async function signUp(
     });
     if (!values.success) {
         throw OAuthError.of(
-            "INVALID_REQUEST",
-            "a sign-up needs a name, a handle, a residency, a time zone and a locale",
+            "REQUEST_INVALID",
+            "sign-up is invalid: it needs a name, a handle, a residency, a time zone and a locale",
         );
     }
 

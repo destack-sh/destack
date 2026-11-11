@@ -55,8 +55,8 @@ export class DnsOverHttps implements DnsResolver {
         );
         if (!response.ok) {
             throw AccountError.of(
-                "DNS_RESOLVER_FAILED",
-                `the DNS resolver responded to the lookup of ${name} with HTTP ${response.status}`,
+                "DNS_RESOLVER_UNAVAILABLE",
+                `the DNS resolver is unavailable: it answered the lookup of '${name}' with HTTP ${response.status}`,
             );
         }
 
@@ -74,8 +74,8 @@ export class DnsOverHttps implements DnsResolver {
         // refuse a failed lookup
         else {
             throw AccountError.of(
-                "DNS_LOOKUP_FAILED",
-                `the DNS lookup of ${name} failed with status ${answer.Status}`,
+                "DNS_LOOKUP_UNAVAILABLE",
+                `the DNS lookup of '${name}' is unavailable: it ended with status '${answer.Status}'`,
             );
         }
     }

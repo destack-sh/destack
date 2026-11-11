@@ -148,10 +148,22 @@ test("replicate the chains of a residency's accounts as its home, and refuse ano
         await accounts(america, americaHome),
     ]).toEqual([
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
         [
             ids.other,
             ...PEOPLE.map((person) => Account.personal(person.id)),
@@ -196,9 +208,9 @@ test("claim names of objects in its residency's accounts as a residency home or 
         await reserve(cloud, americanId, "notes"),
     ]).toEqual([
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: claim"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: claim"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -308,7 +320,15 @@ test("relate a cloud machine as a server of its residency when declared or enrol
     }
     expect([serving, replicated, await served()]).toEqual([
         ["eu", "us"],
-        ["done", ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"], "done"],
+        [
+            "done",
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'replicate' is forbidden: the caller lacks it",
+            ],
+            "done",
+        ],
         [undefined, undefined],
     ]);
 });
@@ -427,7 +447,7 @@ test("find the account selling a handle's packages to the buyers of the asking i
         Account.ofHome(america),
         Account.ofHome(europe),
         null,
-        ["NOT_FOUND", "RESIDENCY_NOT_FOUND", `${owner.id} runs in no residency's space`],
+        ["NOT_FOUND", "RESIDENCY_NOT_FOUND", `residency space of '${owner.id}' not found`],
     ]);
 });
 
@@ -528,21 +548,25 @@ test("relate an installation its residency's space declares once its release ask
 
     expect([refused, touched, await related()]).toEqual([
         [
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: install"],
             [
                 "FORBIDDEN",
-                "INSTALLATION_NAME_MISMATCH",
-                `installation ${other} is not billing of this space`,
+                "PERMISSION_DENIED",
+                "permission 'install' is forbidden: the caller lacks it",
             ],
             [
                 "FORBIDDEN",
-                "UNIVERSE_PERMISSIONS_MISMATCH",
-                "@example/greedy@2026.9.0 asks for account.entitle, account.serve, residency.locate, user.suspend in the universe, not what a residency's installation holds",
+                "INSTALLATION_NAME_DENIED",
+                `installation '${other}' is forbidden: it is not 'billing' of this space`,
             ],
             [
                 "FORBIDDEN",
-                "UNIVERSE_PERMISSIONS_MISMATCH",
-                "@example/modest@2026.9.0 asks for account.serve in the universe, not what a residency's installation holds",
+                "UNIVERSE_PERMISSIONS_DENIED",
+                "universe permission is forbidden: '@example/greedy@2026.9.0' asks for 'account.entitle, account.serve, residency.locate, user.suspend' in the universe, beyond what a residency's installation holds",
+            ],
+            [
+                "FORBIDDEN",
+                "UNIVERSE_PERMISSIONS_DENIED",
+                "universe permission is forbidden: '@example/modest@2026.9.0' asks for 'account.serve' in the universe, beyond what a residency's installation holds",
             ],
         ],
         ["done", "done", [installation]],
@@ -632,7 +656,7 @@ test("let an installation its residency's home declares entitle the residency's 
 
     // conceal the account from the installation until it serves the account
     expect([before, after]).toEqual([
-        ["NOT_FOUND", "NOT_FOUND", `account ${accountId} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `account '${accountId}' not found`],
         "done",
     ]);
 });

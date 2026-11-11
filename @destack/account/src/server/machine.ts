@@ -47,8 +47,8 @@ async function enroll(
     // require the machine's proof by the key it registers
     if (context.id === undefined) {
         throw AccountError.of(
-            "PROOF_MISMATCH",
-            "a machine must enroll under the identifier in its proof",
+            "PROOF_INVALID",
+            "proof is invalid: a machine must enroll under the identifier in its proof",
         );
     }
     const proof = Proof.read(input.proof);
@@ -75,8 +75,8 @@ async function declare(
         const allowed = Entitlement.decide(entitled, { tenancy: "dedicated" });
         if (allowed.status !== "true") {
             throw AccountError.of(
-                "DEDICATED_TENANCY_UNENTITLED",
-                `this account has no dedicated tenancy: ${allowed.message}`,
+                "TENANCY_EXHAUSTED",
+                `dedicated tenancy exceeds this account's plan: ${allowed.message}`,
             );
         }
     }
@@ -97,8 +97,8 @@ async function relay(
     Revocation.requireUnrevoked(context.target, "machine");
     if (context.target.kind === "cloud") {
         throw AccountError.of(
-            "MACHINE_CLOUD",
-            `machine ${context.target.id} is a cloud machine: it answers at its URL`,
+            "MACHINE_CLOUD_DENIED",
+            `machine '${context.target.id}' is forbidden: it is a cloud machine, so it answers at its URL`,
         );
     }
 

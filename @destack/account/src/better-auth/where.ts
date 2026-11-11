@@ -34,8 +34,8 @@ function column(source: Table, name: string): Column {
     const match = Object.hasOwn(columns, name) ? columns[name] : undefined;
     if (match === undefined) {
         throw AccountError.of(
-            "AUTHENTICATION_COLUMN_UNKNOWN",
-            `unknown authentication column: ${name}`,
+            "AUTHENTICATION_COLUMN_BROKEN",
+            `unknown authentication column: '${name}'`,
         );
     }
 
@@ -96,8 +96,8 @@ function comparison(source: Table, where: CleanedWhere) {
             // refuse a value other than a list
             if (!Array.isArray(value)) {
                 throw AccountError.of(
-                    "OPERATOR_LIST_REQUIRED",
-                    `authentication operator ${where.operator} takes a list`,
+                    "OPERATOR_LIST_BROKEN",
+                    `authentication operator '${where.operator}' takes a list`,
                 );
             }
 
@@ -125,8 +125,8 @@ function comparison(source: Table, where: CleanedWhere) {
         // refuse unknown operators
         default:
             throw AccountError.of(
-                "AUTHENTICATION_OPERATOR_UNKNOWN",
-                `unknown authentication operator: ${String(where.operator)}`,
+                "AUTHENTICATION_OPERATOR_BROKEN",
+                `unknown authentication operator: '${String(where.operator)}'`,
             );
     }
 }

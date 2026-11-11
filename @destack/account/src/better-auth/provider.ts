@@ -152,13 +152,19 @@ const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
             const now = environment.clock.now();
             if (!GOOGLE_ISSUERS.has(claims.iss)) {
                 throw AccountError.of(
-                    "TOKEN_INVALID",
-                    `google's id token names the issuer ${claims.iss}`,
+                    "TOKEN_UNAUTHENTICATED",
+                    `authentication required: google's id token names the issuer '${claims.iss}'`,
                 );
             } else if (claims.aud !== client.clientId) {
-                throw AccountError.of("TOKEN_INVALID", `google's id token is for ${claims.aud}`);
+                throw AccountError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    `authentication required: google's id token is for '${claims.aud}'`,
+                );
             } else if (claims.exp * SECOND_MILLISECONDS <= now) {
-                throw AccountError.of("TOKEN_INVALID", "google's id token expired");
+                throw AccountError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    "authentication required: google's id token expired",
+                );
             }
 
             return {
@@ -182,13 +188,19 @@ const PROVIDERS: Readonly<Record<ProviderId, Provider>> = {
             const now = environment.clock.now();
             if (claims.iss !== `https://login.microsoftonline.com/${claims.tid}/v2.0`) {
                 throw AccountError.of(
-                    "TOKEN_INVALID",
-                    `microsoft's id token names the issuer ${claims.iss}`,
+                    "TOKEN_UNAUTHENTICATED",
+                    `authentication required: microsoft's id token names the issuer '${claims.iss}'`,
                 );
             } else if (claims.aud !== client.clientId) {
-                throw AccountError.of("TOKEN_INVALID", `microsoft's id token is for ${claims.aud}`);
+                throw AccountError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    `authentication required: microsoft's id token is for '${claims.aud}'`,
+                );
             } else if (claims.exp * SECOND_MILLISECONDS <= now) {
-                throw AccountError.of("TOKEN_INVALID", "microsoft's id token expired");
+                throw AccountError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    "authentication required: microsoft's id token expired",
+                );
             }
 
             // trust the email only where its domain's owner verified it (the xms_edov claim)
@@ -287,8 +299,8 @@ async function exchange(
     const response = await environment.network.fetch(request);
     if (!response.ok) {
         throw AccountError.of(
-            "TOKEN_ENDPOINT_FAILED",
-            `${id} answered the code exchange with ${response.status}`,
+            "TOKEN_ENDPOINT_UNREACHABLE",
+            `could not exchange the code at '${id}': ${response.status}`,
         );
     }
 
@@ -332,8 +344,8 @@ async function github(
     );
     if (!response.ok) {
         throw AccountError.of(
-            "ANSWER_UNREADABLE",
-            `github answered ${path} with ${response.status}`,
+            "ANSWER_UNREACHABLE",
+            `could not read '${path}' from github: ${response.status}`,
         );
     }
 

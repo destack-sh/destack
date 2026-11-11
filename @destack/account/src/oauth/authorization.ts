@@ -10,7 +10,7 @@ import { Failure } from "@destack/error";
 import type { ObjectStore } from "@destack/object/server";
 import { schema } from "@destack/schema";
 import { RequestId, Scope, Subject } from "@destack/sync";
-import { OAuthError, SECOND_MILLISECONDS } from "../authentication/token.ts";
+import { OAUTH_ERROR_CODES, OAuthError, SECOND_MILLISECONDS } from "../authentication/token.ts";
 import {
     AuthorizationRequestDecision,
     AuthorizationRequestOutcome,
@@ -188,7 +188,10 @@ export class AuthorizationEndpoint {
         // refuse a decision without a session that meets the request
         const { request, party, session, isLoginDue } = await this.review(requestUri, headers);
         if (session === undefined || isLoginDue) {
-            throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            throw AccountError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the person is not signed in",
+            );
         }
 
         // refuse approving for this sign-in alone a request with no grant, or one growing a standing grant
@@ -197,7 +200,10 @@ export class AuthorizationEndpoint {
                 ? undefined
                 : await this.#standing(session, request.grant.delegate);
         if (decision === "approve-once" && (request.grant === null || standing !== undefined)) {
-            throw OAuthError.of("INVALID_REQUEST", "only a first grant can last for this sign-in");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "request is invalid: only a first grant can last for this sign-in",
+            );
         }
         // return a denial to the client
         else if (decision === "deny") {
@@ -313,7 +319,7 @@ export class AuthorizationEndpoint {
         // find the enabled client
         const clientId = query.get("client_id");
         if (clientId === null) {
-            throw OAuthError.of("INVALID_REQUEST", "the request names no client");
+            throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no client");
         }
         const party = await OAuthClient.find(clientId, this.#options.database);
         party.requireEnabled();
@@ -323,7 +329,10 @@ export class AuthorizationEndpoint {
         if (requestUri !== null) {
             const stored = await this.#stored(requestUri);
             if (stored.clientId !== clientId) {
-                throw OAuthError.of("INVALID_REQUEST_URI", "the request is another client's");
+                throw OAuthError.of(
+                    "REQUEST_URI_INVALID",
+                    "request_uri is invalid: the request is another client's",
+                );
             }
 
             return { party, stored };
@@ -332,7 +341,10 @@ export class AuthorizationEndpoint {
         // read an installation origin's request from the object its space signs (RFC 9101)
         const signed = query.get("request");
         if (party.registration.kind === "installation" && signed === null) {
-            throw OAuthError.of("INVALID_REQUEST", "an installation's origin signs its requests");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "request is invalid: an installation's origin signs its requests",
+            );
         }
         const { parameters, grant: asked } =
             signed === null
@@ -342,7 +354,7 @@ export class AuthorizationEndpoint {
         // check a new request's redirect, then store the request, returning its refusal to the redirect
         const redirectUri = parameters.get("redirect_uri");
         if (redirectUri === null) {
-            throw OAuthError.of("INVALID_REQUEST", "the request names no redirect_uri");
+            throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no redirect_uri");
         }
         party.requireRedirect(redirectUri);
         const stored = await this.#push(parameters, party, redirectUri, asked).catch(
@@ -367,9 +379,13 @@ export class AuthorizationEndpoint {
         const { authentication, claims } = await requests
             .verify(signed, environment.clock.now())
             .catch((error: unknown) => {
-                throw OAuthError.of("INVALID_REQUEST_OBJECT", "invalid request object", {
-                    cause: error,
-                });
+                throw OAuthError.of(
+                    "REQUEST_OBJECT_INVALID",
+                    "request object is invalid: it does not verify",
+                    {
+                        cause: error,
+                    },
+                );
             });
 
         // require the space of the client's own origin to sign it, for that client
@@ -380,7 +396,10 @@ export class AuthorizationEndpoint {
                 ? await new Directory(Snapshot.live(database)).find(space, registration.space)
                 : undefined;
         if (named?.id !== signerSpace || claims["client_id"] !== party.clientId) {
-            throw OAuthError.of("INVALID_REQUEST_OBJECT", "the request object is another client's");
+            throw OAuthError.of(
+                "REQUEST_OBJECT_INVALID",
+                "request object is invalid: it is another client's",
+            );
         }
 
         // read its parameters, and the one grant it asks for the signing installation
@@ -392,13 +411,16 @@ export class AuthorizationEndpoint {
         const details = claims["authorization_details"];
         const asked = details === undefined ? undefined : AuthorizationDetails.safeParse(details);
         if (asked !== undefined && !asked.success) {
-            throw OAuthError.of("INVALID_REQUEST_OBJECT", "invalid authorization_details");
+            throw OAuthError.of(
+                "REQUEST_OBJECT_INVALID",
+                "request object is invalid: its authorization_details are invalid",
+            );
         }
         const [detail] = asked?.data ?? [];
         if (detail !== undefined && !Subject.same(detail.delegate, signer)) {
             throw OAuthError.of(
-                "INVALID_REQUEST_OBJECT",
-                "a space signs grants for its own installation",
+                "REQUEST_OBJECT_INVALID",
+                "request object is invalid: a space signs grants for its own installation",
             );
         }
         // refuse a grant naming another installation or space than the origin, which the person reads
@@ -410,8 +432,8 @@ export class AuthorizationEndpoint {
                     detail.installation !== registration.installation))
         ) {
             throw OAuthError.of(
-                "INVALID_REQUEST_OBJECT",
-                "the grant names another installation than the origin asking",
+                "REQUEST_OBJECT_INVALID",
+                "request object is invalid: the grant names another installation than the origin asking",
             );
         }
         const { type: _type, ...requested } = detail ?? {};
@@ -454,19 +476,23 @@ export class AuthorizationEndpoint {
             (await session.reachable(this.#options.database)) < stored.assurance;
         if (isUnreachable) {
             throw OAuthError.of(
-                "UNMET_AUTHENTICATION_REQUIREMENTS",
-                "add a second factor or a passkey to sign in this strongly",
+                "AUTHENTICATION_INVALID",
+                "authentication is invalid: add a second factor or a passkey to sign in this strongly",
             );
         }
         // refuse to interact when the client asked for no prompt (OIDC Core 3.1.2.6)
         else if (stored.prompts.includes("none") && isLoginDue) {
-            throw OAuthError.of("LOGIN_REQUIRED", "the person must sign in");
+            throw OAuthError.of("LOGIN_REQUIRED", "login is required: the person must sign in");
         }
         // refuse to ask for consent when the client asked for no prompt
         else if (stored.prompts.includes("none") && isConsentDue) {
-            throw OAuthError.of("CONSENT_REQUIRED", "the person must consent", {
-                data: { authorization_details: [] },
-            });
+            throw OAuthError.of(
+                "CONSENT_REQUIRED",
+                "consent is required: the person must consent",
+                {
+                    data: { authorization_details: [] },
+                },
+            );
         }
         // send the person to sign in, then back to the request
         else if (isLoginDue || session === undefined) {
@@ -513,15 +539,24 @@ export class AuthorizationEndpoint {
         // refuse another flow than the code's with S256 (RFC 7636 4.4.1)
         const parsed = AuthorizationQuery.safeParse(Object.fromEntries(query));
         if (!parsed.success) {
-            throw OAuthError.of("INVALID_REQUEST", "invalid authorization request");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "authorization request is invalid: it does not match its schema",
+            );
         }
         const asked = parsed.data;
         if (asked.response_type !== "code") {
-            throw OAuthError.of("UNSUPPORTED_RESPONSE_TYPE", "the response_type is code alone");
+            throw OAuthError.of(
+                "RESPONSE_TYPE_INVALID",
+                "response_type is invalid: it must be code",
+            );
         }
         // refuse another challenge method than S256
         else if (asked.code_challenge_method !== "S256") {
-            throw OAuthError.of("INVALID_REQUEST", "the code_challenge_method is S256 alone");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "code_challenge_method is invalid: it must be S256",
+            );
         }
 
         // refuse prompts beside none, scopes the client may not ask for, and a resource of no package
@@ -529,20 +564,29 @@ export class AuthorizationEndpoint {
         const scopes = spaceSeparated(asked.scope);
         party.requireScopes(scopes);
         if (!prompts.success || (prompts.data.includes("none") && prompts.data.length > 1)) {
-            throw OAuthError.of("INVALID_REQUEST", "invalid prompt");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "prompt is invalid: it must be known values, with none alone",
+            );
         }
         // refuse a resource of no package
         else if (
             asked.resource !== undefined &&
             PackageResource.package(asked.resource) === undefined
         ) {
-            throw OAuthError.of("INVALID_TARGET", `${asked.resource} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${asked.resource}' is invalid: it names no package`,
+            );
         }
 
         // read the lowest assurance level the acr values accept, refusing an unknown value
         const levels = spaceSeparated(asked.acr_values).map((value) => ACR_LEVELS.get(value));
         if (levels.some((level) => level === undefined)) {
-            throw OAuthError.of("INVALID_REQUEST", "acr_values are aal1, aal2 or aal3");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "acr_values is invalid: it must be aal1, aal2 or aal3",
+            );
         }
         const assurance =
             levels.length === 0 ? null : Math.min(...levels.flatMap((level) => level ?? []));
@@ -582,9 +626,9 @@ export class AuthorizationEndpoint {
         }
 
         // show the refusal on the sign-in page, as Ory Hydra's error URL does
-        const { reason, message } = Failure.of(error);
+        const { message } = Failure.of(error);
         const url = new URL(this.#options.signIn);
-        url.searchParams.set("error", reason.toLowerCase());
+        url.searchParams.set("error", OAUTH_ERROR_CODES[error.reason]);
         url.searchParams.set("error_description", message);
 
         return found(url.href);
@@ -613,7 +657,10 @@ export class AuthorizationEndpoint {
                       .findFirst({ where: { id: id.data } })
                 : undefined;
         if (row === undefined || row.expiresAt <= this.#options.environment.clock.now()) {
-            throw OAuthError.of("INVALID_REQUEST_URI", "the authorization request lapsed");
+            throw OAuthError.of(
+                "REQUEST_URI_INVALID",
+                "request_uri is invalid: the authorization request lapsed",
+            );
         }
 
         return row;
@@ -708,10 +755,13 @@ export class AuthorizationEndpoint {
         if (!OAuthError.is(error)) {
             throw error;
         }
-        const { reason, message } = Failure.of(error);
+        const { message } = Failure.of(error);
 
         return found(
-            this.#location(stored, { error: reason.toLowerCase(), error_description: message }),
+            this.#location(stored, {
+                error: OAUTH_ERROR_CODES[error.reason],
+                error_description: message,
+            }),
         );
     }
 
@@ -810,7 +860,10 @@ export async function requireOrigin(
 ): Promise<void> {
     const origin = request.headers.get("origin");
     if (origin === null || !(await context).isTrustedOrigin(origin)) {
-        throw AccountError.of("ORIGIN_UNTRUSTED", `the decision came from ${origin ?? "nowhere"}`);
+        throw AccountError.of(
+            "ORIGIN_DENIED",
+            `decision is forbidden: it came from '${origin ?? "nowhere"}'`,
+        );
     }
 }
 
@@ -819,7 +872,7 @@ export function requireQuery(request: Request, name: string): string {
     // refuse an absent or empty parameter
     const value = new URL(request.url).searchParams.get(name);
     if (value === null || value === "") {
-        throw AccountError.of("QUERY_PARAMETER_MISSING", `the request has no ${name}`);
+        throw AccountError.of("QUERY_PARAMETER_REQUIRED", `query parameter '${name}' is required`);
     }
 
     return value;
@@ -834,7 +887,10 @@ export async function requireBody<Body>(
     const body: unknown = await request.json().catch(() => undefined);
     const parsed = shape.safeParse(body);
     if (!parsed.success) {
-        throw AccountError.of("BODY_INVALID", "the request's body does not match");
+        throw AccountError.of(
+            "BODY_INVALID",
+            "request body is invalid: it does not match its schema",
+        );
     }
 
     return parsed.data;
@@ -862,22 +918,34 @@ export function codeGrant(
         );
         const challenge = await Pkce.challenge(asked.code_verifier, environment.crypto);
         if (asked.redirect_uri !== row.redirectUri) {
-            throw OAuthError.of("INVALID_GRANT", "redirect_uri does not match the code's");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "redirect_uri is invalid: it does not match the code's",
+            );
         }
         // refuse a verifier its challenge does not commit to (RFC 7636 4.6)
         else if (challenge !== row.codeChallenge) {
-            throw OAuthError.of("INVALID_GRANT", "the code verifier does not match its challenge");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "code verifier is invalid: it does not match its challenge",
+            );
         }
         // refuse another package than the authorized one
         else if (asked.resource !== undefined && asked.resource !== row.resource) {
-            throw OAuthError.of("INVALID_TARGET", `${asked.resource} was not authorized`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${asked.resource}' is invalid: it was not authorized`,
+            );
         }
 
         // describe the person through the session that consented, refusing one that ended
         const resource = row.resource ?? undefined;
         const sessionId = row.sessionId;
         if (sessionId === null) {
-            throw OAuthError.of("INVALID_GRANT", "the session that consented ended");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "grant is invalid: the session that consented ended",
+            );
         }
         const authentication = await AccountAuthentication.person(
             database,

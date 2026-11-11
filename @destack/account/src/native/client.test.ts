@@ -85,7 +85,7 @@ async function native(accounts: TestAccountStore) {
         endpoint: {
             url: "http://local.invalid/",
             fetch: async () => {
-                throw new TypeError("local objects cannot call a server");
+                throw new TypeError("calling a server from local objects is not supported");
             },
         },
         reconnect: () => {
@@ -215,7 +215,11 @@ test("fail a browser sign-in whose redirect names another issuer", async () => {
         rows: await logins.query.login.findMany(),
     }).toEqual({
         page: [400, "Sign-in failed. Start it again from Destack."],
-        failed: ["UNAUTHORIZED", "SIGN_IN_INCOMPLETE", "the sign-in did not complete"],
+        failed: [
+            "UNAUTHORIZED",
+            "SIGN_IN_UNAUTHENTICATED",
+            "authentication required: the sign-in did not complete",
+        ],
         rows: [],
     });
 });
@@ -275,8 +279,8 @@ test("sign a person in with a mailed code as a new client, refusing a wrong code
     }).toEqual({
         wrong: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: the code is wrong or expired",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: code is invalid: it is wrong or expired",
         ],
         rows: [loginRow(signedIn, owner)],
         clients: [...before, { id: signedIn.clientId, isRevoked: false }],
@@ -310,8 +314,8 @@ test("sign a new person up with a mailed code and their handle, refusing a new e
     expect({ refused, personal }).toEqual({
         refused: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            `the token endpoint refused the request: invalid_grant: nobody signed up as ${email}: sign up with a handle`,
+            "GRANT_INVALID",
+            `the token endpoint refused the request: invalid_grant: email '${email}' is invalid: nobody signed up with it, so sign up with a handle`,
         ],
         personal: [{ scope: present(signedIn, "the login").subjectId, kind: "personal" }],
     });

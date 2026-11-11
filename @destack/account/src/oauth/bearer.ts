@@ -76,12 +76,18 @@ export function bearerGrant(options: BearerOptions): GrantType {
         // read the request and the package it asks a token for
         const request = BearerRequest.safeParse(body);
         if (!request.success) {
-            throw OAuthError.of("INVALID_REQUEST", "invalid jwt-bearer request");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "jwt-bearer request is invalid: it does not match its schema",
+            );
         }
         const { assertion, resource, partition } = request.data;
         const audience = PackageResource.package(resource);
         if (audience === undefined) {
-            throw OAuthError.of("INVALID_TARGET", `${resource} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${resource}' is invalid: it names no package`,
+            );
         }
 
         // verify a workflow's federated token or a machine's or space's assertion
@@ -111,7 +117,10 @@ export function bearerGrant(options: BearerOptions): GrantType {
                 : isSpaceActor
                   ? "spaces"
                   : "its space";
-            throw OAuthError.of("INVALID_GRANT", `${subject.id} acts in ${scopes} alone`);
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                `grant is invalid: '${subject.id}' acts in '${scopes}' alone`,
+            );
         }
 
         // issue the token for the partition the call goes to, else the universe, lapsing with the token alone
@@ -173,7 +182,10 @@ async function containment(database: DatabaseConnection, subject: Subject): Prom
                   .read(account.table)
                   .findFirst({ where: { id: account.identifier(row.scope) } });
     if (row === undefined || owner === undefined) {
-        throw OAuthError.of("INVALID_GRANT", `the account of space ${subject.id} is unknown`);
+        throw OAuthError.of(
+            "GRANT_INVALID",
+            `grant is invalid: the account of space '${subject.id}' is unknown`,
+        );
     }
 
     // state the people whose home the space is, as the universe stores them

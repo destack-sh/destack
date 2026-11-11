@@ -154,7 +154,7 @@ export const User = {
     identify(key: string): Identifier<"user"> {
         const subject = Subject.read(key);
         if (!principal.user.is(subject)) {
-            throw AccountError.of("PERSON_REQUIRED", `${key} is not a person`);
+            throw AccountError.of("PERSON_NOT_FOUND", `person '${key}' not found`);
         }
 
         return schema.identifier("user").parse(subject.id);
@@ -184,7 +184,7 @@ export const User = {
             .where(eq(user.table.id, schema.identifier("user").parse(userId)))
             .limit(1);
         if (row === undefined) {
-            throw AccountError.of("USER_NOT_FOUND", `user ${userId} does not exist`);
+            throw AccountError.of("USER_NOT_FOUND", `user '${userId}' not found`);
         }
 
         return row.emailVerified === true && row.email !== null ? [Contact.email(row.email)] : [];

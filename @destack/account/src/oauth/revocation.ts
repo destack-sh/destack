@@ -49,12 +49,15 @@ export class RevocationEndpoint {
         );
         const token = body["token"];
         if (token === undefined) {
-            throw OAuthError.of("INVALID_REQUEST", "the request names no token");
+            throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no token");
         }
 
         // refuse an access token, which lives its short lifetime out
         if (token.split(".").length === JWT_SEGMENTS) {
-            throw OAuthError.of("UNSUPPORTED_TOKEN_TYPE", "access tokens lapse at their expiry");
+            throw OAuthError.of(
+                "TOKEN_TYPE_INVALID",
+                "token type is invalid: access tokens lapse at their expiry",
+            );
         }
 
         // revoke the family of the client's refresh token
@@ -93,14 +96,14 @@ export class IntrospectionEndpoint {
         );
         const token = body["token"];
         if (token === undefined) {
-            throw OAuthError.of("INVALID_REQUEST", "the request names no token");
+            throw OAuthError.of("REQUEST_INVALID", "request is invalid: it names no token");
         }
 
         // describe a live access token by its claims
         if (token.split(".").length === JWT_SEGMENTS) {
             const claims = await this.#tokens.verify(token, undefined).catch((error: unknown) => {
                 // pass on a failure other than an invalid token
-                if (!OAuthError.is(error, "INVALID_TOKEN")) {
+                if (!OAuthError.is(error, "TOKEN_UNAUTHENTICATED")) {
                     throw error;
                 }
 
@@ -145,7 +148,7 @@ export class IntrospectionEndpoint {
             return ActiveSession.read(sid, database, environment.clock.now()).then(
                 () => true,
                 (error: unknown) => {
-                    if (!AccountError.is(error, "SESSION_ENDED")) {
+                    if (!AccountError.is(error, "SESSION_UNAUTHENTICATED")) {
                         throw error;
                     }
 

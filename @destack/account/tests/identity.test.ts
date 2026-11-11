@@ -34,7 +34,10 @@ const ENDPOINT = `${ISSUER}${TOKEN_PATH}`;
 /** The refusal of an assertion without a standing key behind it. */
 const NO_STANDING_KEY = [
     400,
-    { error: "invalid_grant", error_description: "assertion has no standing key" },
+    {
+        error: "invalid_grant",
+        error_description: "authentication required: assertion has no standing key",
+    },
 ];
 
 /** The package receiving the machines' requests. */
@@ -236,7 +239,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         (await read()).name,
     ]).toEqual([
         "done",
-        ["CONFLICT", "DUPLICATE", "another machine has the same scope and name"],
+        ["CONFLICT", "OBJECT_EXISTS", "'machine' with the same 'scope and name' already exists"],
         "done",
         [
             "BAD_REQUEST",
@@ -263,7 +266,7 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
                 proof,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: rotate"]);
+    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission 'rotate' is forbidden: the caller lacks it"]);
 
     // revoke the machine as the owner
     await owner.client(accountPackage).machine.revoke({
@@ -327,7 +330,13 @@ test("spend each of a machine's assertions once, and refuse an assertion for ano
         await ask(accounts, other),
     ]).toEqual([
         "done",
-        [400, { error: "invalid_grant", error_description: "assertion was already used" }],
+        [
+            400,
+            {
+                error: "invalid_grant",
+                error_description: "authentication required: assertion was already used",
+            },
+        ],
         [400, { error: "invalid_grant", error_description: "invalid assertion" }],
     ]);
 });
@@ -351,7 +360,7 @@ test("refuse a machine's assertions by its first key once it rotates, and revoki
             }),
     );
     expect([revoked, await grant(accounts, first), await grant(accounts, identity)]).toEqual([
-        ["CONFLICT", "CREDENTIAL_REVOKED", "key is revoked"],
+        ["PRECONDITION_FAILED", "CREDENTIAL_BLOCKED", "cannot use key: it is revoked"],
         NO_STANDING_KEY,
         "done",
     ]);
@@ -504,7 +513,7 @@ test("grant a machine tokens for its own partition and any space, whose access d
             400,
             {
                 error: "invalid_grant",
-                error_description: `${laptop.machineId} acts in its own partition and in spaces alone`,
+                error_description: `grant is invalid: '${laptop.machineId}' acts in 'its own partition and in spaces' alone`,
             },
         ],
     ]);
@@ -537,8 +546,8 @@ test("grant a space a token in another space stating the people it is home to, a
         [{ ...principal.user.reference(Scope.universe.id, owner.id), relation: "home" }],
         [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            `the token endpoint refused the request: invalid_grant: ${personal.spaceId} acts in spaces alone`,
+            "GRANT_INVALID",
+            `the token endpoint refused the request: invalid_grant: grant is invalid: '${personal.spaceId}' acts in 'spaces' alone`,
         ],
     ]);
 });
@@ -573,8 +582,8 @@ test("disable, drain and enable a machine, refusing its token grants while disab
         requestId: RequestId.create(accounts.environment),
     });
     expect([refused, await change(owner, "enable")]).toEqual([
-        ["NOT_FOUND", "NOT_FOUND", `machine ${identity.machineId} not found`],
-        ["CONFLICT", "CREDENTIAL_REVOKED", "machine is revoked"],
+        ["NOT_FOUND", "NOT_FOUND", `machine '${identity.machineId}' not found`],
+        ["PRECONDITION_FAILED", "CREDENTIAL_BLOCKED", "cannot use machine: it is revoked"],
     ]);
 });
 
@@ -696,6 +705,10 @@ test("authenticate a machine's token in a space it serves while its key stands, 
 
     expect({ standing: standing.caller.subject, revoked: await refusal(authenticate()) }).toEqual({
         standing: principal.machine.reference(Scope.universe.id, identity.machineId),
-        revoked: ["UNAUTHORIZED", "KEY_REVOKED", "the machine token's key is no longer valid"],
+        revoked: [
+            "UNAUTHORIZED",
+            "KEY_UNAUTHENTICATED",
+            "authentication required: the machine token's key is no longer valid",
+        ],
     });
 });

@@ -123,8 +123,8 @@ async function requireProof(
     });
     if (found === undefined) {
         throw AccountError.of(
-            "KEY_PROOF_REFUSED",
-            "key proof does not match an active key of the client",
+            "KEY_PROOF_DENIED",
+            "key proof is forbidden: it does not match an active key of the client",
         );
     }
 
@@ -147,7 +147,10 @@ async function subscribe(
     const { target } = context;
     Revocation.requireUnrevoked(target, "client");
     if (target.kind !== "browser") {
-        throw AccountError.of("PUSH_BROWSER_REQUIRED", "only browsers can subscribe to push");
+        throw AccountError.of(
+            "PUSH_BROWSER_REQUIRED",
+            "browser client is required: only browsers can subscribe to push",
+        );
     }
 
     return context.update({ push: context.input.push });
@@ -187,7 +190,7 @@ function callingSession(context: MethodContext): Session["id"] {
     // read the session credential the call presented
     const { credential } = context.caller;
     if (credential?.kind !== "session") {
-        throw AccountError.of("SESSION_REQUIRED", "the call has no signed-in session");
+        throw AccountError.of("SESSION_DENIED", "call is forbidden: it has no signed-in session");
     }
 
     return session.identifier(credential.id);
@@ -200,7 +203,7 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     if (issued.expiresAt <= context.now || issued.expiresAt > context.now + LIFETIME_MILLISECONDS) {
         throw AccountError.of(
             "TOKEN_EXPIRY_INVALID",
-            "token expiry must be within 366 days from now",
+            "token expiry is invalid: it must be within 366 days from now",
         );
     }
 
@@ -208,8 +211,8 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     for (const permission of issued.permissions) {
         if (permission.scope === undefined) {
             throw AccountError.of(
-                "PERMISSION_SCOPE_MISSING",
-                `token permission ${permission.type}.${permission.name} has no scope`,
+                "PERMISSION_SCOPE_REQUIRED",
+                `scope is required: token permission '${permission.type}.${permission.name}' has none`,
             );
         }
         const served = context.objects.filter(
@@ -231,8 +234,8 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
                 ));
         if (served.length > 0 && !isDeclared) {
             throw AccountError.of(
-                "PERMISSION_UNKNOWN",
-                `unknown permission ${permission.type}.${permission.name}`,
+                "PERMISSION_INVALID",
+                `permission '${permission.type}.${permission.name}' is invalid: it is unknown`,
             );
         }
     }
@@ -242,7 +245,10 @@ async function requireIssuable(context: MethodContextOf<typeof client, "issue">)
     const usable = await userScopes(context, scopes);
     const unusable = scopes.find((scope) => !usable.includes(scope));
     if (unusable !== undefined) {
-        throw AccountError.of("SCOPE_UNUSABLE", `token cannot act in ${unusable}`);
+        throw AccountError.of(
+            "SCOPE_UNUSABLE_INVALID",
+            `token scope '${unusable}' is invalid: the token cannot act in it`,
+        );
     }
 }
 

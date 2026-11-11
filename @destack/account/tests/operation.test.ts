@@ -69,7 +69,7 @@ test("start a space's identity from its machine, chain operations by rotation ke
     expect(await refusal(start("not.an.operation"))).toEqual([
         "BAD_REQUEST",
         "OPERATION_INVALID",
-        "the operation is not an identity operation",
+        "operation is invalid: it is not an identity operation",
     ]);
 
     // start the identity only from the serving machine
@@ -85,8 +85,8 @@ test("start a space's identity from its machine, chain operations by rotation ke
     );
     expect(await refusal(start(first, registry.stranger))).toEqual([
         "FORBIDDEN",
-        "IDENTITY_START_FOREIGN",
-        `only the machine serving ${space} can start its identity`,
+        "IDENTITY_START_DENIED",
+        `identity of '${space}' is forbidden: only the machine serving it can start it`,
     ]);
     await start(first);
     expect(await read()).toEqual({
@@ -111,8 +111,8 @@ test("start a space's identity from its machine, chain operations by rotation ke
         ),
     ).toEqual([
         "UNAUTHORIZED",
-        "OPERATION_UNSIGNED",
-        "the operation is not signed by a rotation key of the identity",
+        "OPERATION_UNAUTHENTICATED",
+        "authentication required: the operation is not signed by a rotation key of the identity",
     ]);
     const second = await IdentityOperation.sign(
         { ...fields, rotationKeys },
@@ -123,9 +123,9 @@ test("start a space's identity from its machine, chain operations by rotation ke
 
     // let the owner's key nullify the machine's stolen signing key, and not the reverse
     const unrecoverable = [
-        "CONFLICT",
-        "OPERATIONS_UNRECOVERABLE",
-        `the operation cannot nullify the later operations of ${space}`,
+        "PRECONDITION_FAILED",
+        "OPERATION_BLOCKED",
+        `cannot apply the operation: it cannot nullify the later operations of '${space}'`,
     ];
     const after = {
         subject: space,
@@ -231,9 +231,9 @@ test("append the first of two operations racing past the same operation, and ref
     const racing = [await sign(previous, left), await sign(previous, right)];
     const outcomes = await Promise.all(racing.map((operation) => refusal(extend(operation))));
     const refused = [
-        "CONFLICT",
-        "OPERATIONS_UNRECOVERABLE",
-        `the operation cannot nullify the later operations of ${space}`,
+        "PRECONDITION_FAILED",
+        "OPERATION_BLOCKED",
+        `cannot apply the operation: it cannot nullify the later operations of '${space}'`,
     ];
     // land one of the racing operations, whichever wins, refusing the other
     const landed = outcomes.filter((outcome) => outcome === "done").length;

@@ -77,9 +77,15 @@ export class Totp {
 
         // refuse a code of no step around now, and a step at or before the last accepted one
         if (matched === undefined) {
-            throw AccountError.of("CODE_INVALID", "the code is wrong or expired");
+            throw AccountError.of(
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the code is wrong or expired",
+            );
         } else if (matched <= lastStep) {
-            throw AccountError.of("CODE_REUSED", "the code was already used");
+            throw AccountError.of(
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the code was already used",
+            );
         }
 
         return matched;

@@ -170,7 +170,7 @@ export const Identity = {
     async keys(reader: Pick<Snapshot, "read">, subject: string, crypto: Crypto): Promise<KeySet> {
         const found = Identity.current(await Identity.log(reader, subject));
         if (found === undefined) {
-            throw AccountError.of("IDENTITY_NOT_FOUND", `${subject} has no identity`);
+            throw AccountError.of("IDENTITY_NOT_FOUND", `identity of '${subject}' not found`);
         }
 
         return PublicKey.keySet(found.signingKeys, crypto);
@@ -214,7 +214,10 @@ export const Identity = {
                     }
                   : undefined;
         if (!issuer.success || signer === undefined) {
-            throw AccountError.of("TOKEN_INVALID", "invalid access token");
+            throw AccountError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the access token is invalid",
+            );
         }
 
         // verify the token by the signer's keys

@@ -138,7 +138,7 @@ test("register clients with proven keys and revoke them with the sessions linked
                 await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment),
             ),
         ),
-    ).toEqual(["CONFLICT", "DUPLICATE", "another key has the same thumbprint"]);
+    ).toEqual(["CONFLICT", "OBJECT_EXISTS", "'key' with the same 'thumbprint' already exists"]);
 
     // refuse a proof for another client
     const other = (await KeyPair.generate(fixture.environment.crypto)).pair;
@@ -168,8 +168,8 @@ test("register clients with proven keys and revoke them with the sessions linked
         ),
     ).toEqual([
         "FORBIDDEN",
-        "KEY_PROOF_REFUSED",
-        "key proof does not match an active key of the client",
+        "KEY_PROOF_DENIED",
+        "key proof is forbidden: it does not match an active key of the client",
     ]);
     const proof = await prove(pair, laptop.id, fixture.store.clock.now(), fixture.environment);
     await link(proof);
@@ -179,7 +179,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     expect(await refusal(link(proof))).toEqual([
         "BAD_REQUEST",
         "PROOF_INVALID",
-        "key proof was already used",
+        "key proof is invalid: it was already used",
     ]);
 
     // prove the key again as the owner, linking no session, and refuse the spent proof
@@ -200,7 +200,7 @@ test("register clients with proven keys and revoke them with the sessions linked
     }).toEqual({
         proven: [laptop.id, fixture.store.clock.now()],
         linked: sortIds([owner.clientId, laptop.id]),
-        spent: ["BAD_REQUEST", "PROOF_INVALID", "key proof was already used"],
+        spent: ["BAD_REQUEST", "PROOF_INVALID", "key proof is invalid: it was already used"],
     });
 
     // prove a request proof for its own request, refusing it for another
@@ -226,7 +226,7 @@ test("register clients with proven keys and revoke them with the sessions linked
         await refusal(
             stranger.client(accountPackage).client.get({ userId: owner.id, id: laptop.id }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `client ${laptop.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `client '${laptop.id}' not found`]);
 
     // store the browser's push subscription
     const push = {
@@ -262,7 +262,11 @@ test("register clients with proven keys and revoke them with the sessions linked
     });
     expect([subscribed, refusedPush, await stored()]).toEqual([
         { ...browser, revision: browser.revision + 1 },
-        ["BAD_REQUEST", "PUSH_BROWSER_REQUIRED", "only browsers can subscribe to push"],
+        [
+            "BAD_REQUEST",
+            "PUSH_BROWSER_REQUIRED",
+            "browser client is required: only browsers can subscribe to push",
+        ],
         [null],
     ]);
 
@@ -298,11 +302,15 @@ test("register clients with proven keys and revoke them with the sessions linked
             revokedAt: now,
         },
         ended: [{ revokedAt: now }],
-        afterRevoke: ["CONFLICT", "CREDENTIAL_REVOKED", "client is revoked"],
+        afterRevoke: [
+            "PRECONDITION_FAILED",
+            "CREDENTIAL_BLOCKED",
+            "cannot use client: it is revoked",
+        ],
         exchanged: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: the person's session ended",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: authentication required: the person's session ended",
         ],
     });
 });

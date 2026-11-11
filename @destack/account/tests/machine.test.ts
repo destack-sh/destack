@@ -170,8 +170,8 @@ test("let a tenant read, drain and enable a machine and read its keys, and refus
         "done",
         "draining",
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: rename"],
-        ["NOT_FOUND", "NOT_FOUND", `machine ${enrolled.machineId} not found`],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'rename' is forbidden: the caller lacks it"],
+        ["NOT_FOUND", "NOT_FOUND", `machine '${enrolled.machineId}' not found`],
     ]);
 });
 
@@ -213,7 +213,7 @@ test("record a machine's contact with what it reports, replacing its host, and r
     expect(hostless).toEqual([
         "BAD_REQUEST",
         "HOST_REQUIRED",
-        "a personal machine reports its host",
+        "host is required: a personal machine reports its host",
     ]);
     expect(seen).toEqual({
         ...before,
@@ -269,8 +269,16 @@ test("refuse a machine sharing, unmasking or relaying its own row, which no role
     );
     const unmasked = await authorizer.check(snapshot, machine.permission("unmask"), target, access);
     expect({ shared, relayed, unmasked }).toEqual({
-        shared: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"],
-        relayed: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
+        shared: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ],
+        relayed: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'relay' is forbidden: the caller lacks it",
+        ],
         unmasked: { isAllowed: false },
     });
 });
@@ -310,11 +318,15 @@ test("refuse a cloud machine reporting a host, and its residency's relay publish
     );
 
     expect([reported, relayed]).toEqual([
-        ["BAD_REQUEST", "CLOUD_HOST_REPORTED", "a cloud machine reports no host"],
+        [
+            "BAD_REQUEST",
+            "HOST_REPORT_INVALID",
+            "host report is invalid: a cloud machine reports no host",
+        ],
         [
             "FORBIDDEN",
-            "MACHINE_CLOUD",
-            `machine ${cloud.machineId} is a cloud machine: it answers at its URL`,
+            "MACHINE_CLOUD_DENIED",
+            `machine '${cloud.machineId}' is forbidden: it is a cloud machine, so it answers at its URL`,
         ],
     ]);
 });

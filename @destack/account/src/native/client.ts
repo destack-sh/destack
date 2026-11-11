@@ -121,7 +121,10 @@ export class NativeClient implements LoginCredential {
         if (code === null || callback.url.searchParams.get("iss") !== issuer.url) {
             callback.answer(400, "Sign-in failed. Start it again from Destack.");
             await opening;
-            throw AccountError.of("SIGN_IN_INCOMPLETE", "the sign-in did not complete");
+            throw AccountError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the sign-in did not complete",
+            );
         }
 
         // redeem the code for the client's tokens and sign the person in
@@ -194,7 +197,10 @@ export class NativeClient implements LoginCredential {
             }
             // fail a refused or expired sign-in
             else {
-                throw AccountError.of("SIGN_IN_INCOMPLETE", "the sign-in did not complete");
+                throw AccountError.of(
+                    "SIGN_IN_UNAUTHENTICATED",
+                    "authentication required: the sign-in did not complete",
+                );
             }
         };
 
@@ -237,7 +243,10 @@ export class NativeClient implements LoginCredential {
         const { sessions } = this.#options;
         const refreshToken = await sessions.load(signedIn.row);
         if (refreshToken === undefined) {
-            throw AccountError.of("SIGNED_OUT", "the person signed out");
+            throw AccountError.of(
+                "SESSION_UNAUTHENTICATED",
+                "authentication required: the person signed out",
+            );
         }
 
         // refresh, storing the rotated refresh token
@@ -374,7 +383,7 @@ export class NativeClient implements LoginCredential {
         const { id } = await mutation.predicted;
         const row = await logins.query.login.findFirst({ where: { id } });
         if (row === undefined) {
-            throw AccountError.of("LOGIN_NOT_WRITTEN", `the sign-in did not write login ${id}`);
+            throw AccountError.of("LOGIN_BROKEN", `the sign-in did not write login '${id}'`);
         }
 
         return row;

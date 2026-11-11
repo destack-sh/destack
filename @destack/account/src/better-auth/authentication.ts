@@ -156,7 +156,10 @@ export const AccountAuthentication = {
             )
             .limit(1);
         if (row === undefined) {
-            throw AccountError.of("PERSONAL_TOKEN_INVALID", "invalid personal access token");
+            throw AccountError.of(
+                "PERSONAL_TOKEN_UNAUTHENTICATED",
+                "authentication required: the personal access token is invalid",
+            );
         }
 
         // read the user's unexpired grant to it
@@ -171,7 +174,10 @@ export const AccountAuthentication = {
                 },
             });
         if (grant === undefined) {
-            throw AccountError.of("PERSONAL_TOKEN_INVALID", "invalid personal access token");
+            throw AccountError.of(
+                "PERSONAL_TOKEN_UNAUTHENTICATED",
+                "authentication required: the personal access token is invalid",
+            );
         }
 
         // act as the user through the token, under the grant until it lapses

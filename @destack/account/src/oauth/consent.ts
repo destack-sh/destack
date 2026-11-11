@@ -70,7 +70,10 @@ export class ConsentEndpoint {
 
         // refuse a request without one
         if (active === undefined) {
-            throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            throw AccountError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the person is not signed in",
+            );
         }
 
         return user.identifier(active.userId);
@@ -141,7 +144,10 @@ export class ConsentEndpoint {
             .read(oauthConsent.table)
             .findFirst({ where: { clientId, scope: userId } });
         if (consent === undefined) {
-            throw AccountError.of("CONSENT_NOT_FOUND", "this account never allowed this app");
+            throw AccountError.of(
+                "CONSENT_NOT_FOUND",
+                "consent of this account for this app not found",
+            );
         }
 
         // find the grant the consent gave its installation

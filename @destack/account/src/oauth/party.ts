@@ -88,7 +88,10 @@ export class OAuthClient {
                 .read(client.table)
                 .findFirst({ where: { id: client.identifier(clientId) } });
             if (row !== undefined && row.revokedAt !== null) {
-                throw OAuthError.of("INVALID_CLIENT", `client ${clientId} was revoked`);
+                throw OAuthError.of(
+                    "CLIENT_UNAUTHENTICATED",
+                    `authentication required: client '${clientId}' was revoked`,
+                );
             }
 
             return new OAuthClient(clientId, row?.name ?? DEVICE_CLIENT_NAME, { kind: "device" });
@@ -114,7 +117,10 @@ export class OAuthClient {
             .where(eq(application.table.clientId, clientId))
             .limit(1);
         if (registration === undefined) {
-            throw OAuthError.of("INVALID_CLIENT", `unknown client ${clientId}`);
+            throw OAuthError.of(
+                "CLIENT_UNAUTHENTICATED",
+                `authentication required: client '${clientId}' is unknown`,
+            );
         }
 
         return new OAuthClient(clientId, registration.name, {
@@ -135,14 +141,17 @@ export class OAuthClient {
                 ? INSTALLATION_SCOPES
                 : (this.application?.scopes ?? OAUTH_SCOPES);
         if (scopes.some((scope) => !allowed.includes(scope))) {
-            throw OAuthError.of("INVALID_SCOPE", "the client may not ask for these scopes");
+            throw OAuthError.of(
+                "SCOPE_INVALID",
+                "scope is invalid: the client may not ask for these scopes",
+            );
         }
     }
 
     /** Refuse new authorizations of a disabled application. */
     requireEnabled(): void {
         if (this.application?.isDisabled === true) {
-            throw OAuthError.of("UNAUTHORIZED_CLIENT", "client is disabled");
+            throw OAuthError.of("CLIENT_INVALID", "client is invalid: it is disabled");
         }
     }
 
@@ -152,15 +161,18 @@ export class OAuthClient {
         const { registration } = this;
         if (registration.kind === "application") {
             if (!registration.application.redirectUris.includes(uri)) {
-                throw OAuthError.of("INVALID_REQUEST", "redirect_uri is not registered");
+                throw OAuthError.of(
+                    "REQUEST_INVALID",
+                    "redirect_uri is invalid: it is not registered",
+                );
             }
         }
         // match an installation origin's open path exactly
         else if (registration.kind === "installation") {
             if (uri !== `${registration.origin}${OPEN_PATH}`) {
                 throw OAuthError.of(
-                    "INVALID_REQUEST",
-                    "redirect_uri is not the origin's open path",
+                    "REQUEST_INVALID",
+                    "redirect_uri is invalid: it is not the origin's open path",
                 );
             }
         }
@@ -175,7 +187,10 @@ export class OAuthClient {
                 url.search === "" &&
                 url.hash === "";
             if (!isLoopback) {
-                throw OAuthError.of("INVALID_REQUEST", "redirect_uri is no loopback redirect");
+                throw OAuthError.of(
+                    "REQUEST_INVALID",
+                    "redirect_uri is invalid: it is no loopback redirect",
+                );
             }
         }
     }
@@ -190,7 +205,10 @@ export class OAuthClient {
                   ? INSTALLATION_GRANTS
                   : DEVICE_GRANTS;
         if (!grants.has(grantType)) {
-            throw OAuthError.of("UNAUTHORIZED_CLIENT", `the client may not use ${grantType}`);
+            throw OAuthError.of(
+                "CLIENT_INVALID",
+                `client is invalid: it may not use '${grantType}'`,
+            );
         }
     }
 
@@ -233,7 +251,10 @@ export const ClientAuthentication = {
         // read the request by its shape
         const parsed = shape.safeParse(body);
         if (!parsed.success) {
-            throw OAuthError.of("INVALID_REQUEST", `invalid ${grantType} request`);
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                `'${grantType}' request is invalid: it does not match its schema`,
+            );
         }
 
         return { party, asked: parsed.data };
@@ -254,7 +275,10 @@ export const ClientAuthentication = {
                 ? ClientAuthentication.basic(basic.slice(BASIC.length))
                 : [body["client_id"], body["client_secret"]];
         if (clientId === undefined) {
-            throw OAuthError.of("INVALID_CLIENT", "the request names no client");
+            throw OAuthError.of(
+                "CLIENT_UNAUTHENTICATED",
+                "authentication required: the request names no client",
+            );
         }
 
         // find the client and how it sent its secret
@@ -265,17 +289,26 @@ export const ClientAuthentication = {
 
         // refuse a secret for a public client
         if (method === "none" && secret !== undefined) {
-            throw OAuthError.of("INVALID_CLIENT", "a public client has no secret");
+            throw OAuthError.of(
+                "CLIENT_UNAUTHENTICATED",
+                "authentication required: a public client has no secret",
+            );
         }
         // refuse a secret sent another way than the client registered
         else if (method !== "none" && secret !== undefined && method !== sent) {
-            throw OAuthError.of("INVALID_CLIENT", `the client authenticates with ${method}`);
+            throw OAuthError.of(
+                "CLIENT_UNAUTHENTICATED",
+                `authentication required: the client authenticates with '${method}'`,
+            );
         }
         // refuse a confidential client's missing or wrong secret
         else if (method !== "none") {
             const digest = secret === undefined ? undefined : await Digest.of(secret, crypto);
             if (digest === undefined || digest !== party.application?.clientSecret) {
-                throw OAuthError.of("INVALID_CLIENT", "invalid client_secret");
+                throw OAuthError.of(
+                    "CLIENT_UNAUTHENTICATED",
+                    "authentication required: the client_secret is invalid",
+                );
             }
         }
 
@@ -292,9 +325,16 @@ export const ClientAuthentication = {
                 return [formDecode(decoded.slice(0, colon)), formDecode(decoded.slice(colon + 1))];
             }
         } catch (error) {
-            throw OAuthError.of("INVALID_CLIENT", "malformed basic credentials", { cause: error });
+            throw OAuthError.of(
+                "CLIENT_UNAUTHENTICATED",
+                "authentication required: the basic credentials are malformed",
+                { cause: error },
+            );
         }
-        throw OAuthError.of("INVALID_CLIENT", "malformed basic credentials");
+        throw OAuthError.of(
+            "CLIENT_UNAUTHENTICATED",
+            "authentication required: the basic credentials are malformed",
+        );
     },
 };
 

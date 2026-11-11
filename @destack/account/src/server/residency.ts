@@ -54,7 +54,10 @@ async function touch(
     const released = `${PackageManifest.package(reader.manifest).name}@${release}`;
     const description = await PackageDescription.of(reader);
     if (description === undefined) {
-        throw AccountError.of("PACKAGE_UNDECLARED", `${released} declares no package`);
+        throw AccountError.of(
+            "PACKAGE_REQUIRED",
+            `package is required: '${released}' declares no package`,
+        );
     }
     const requested = description.permissions.space?.universe ?? [];
     const asked = permissionKeys(requested);
@@ -64,8 +67,8 @@ async function touch(
     if (!isGiven) {
         const named = requested.map(({ type, name }) => `${type}.${name}`).toSorted();
         throw AccountError.of(
-            "UNIVERSE_PERMISSIONS_MISMATCH",
-            `${released} asks for ${named.join(", ") || "nothing"} in the universe, not what a residency's installation holds`,
+            "UNIVERSE_PERMISSIONS_DENIED",
+            `universe permission is forbidden: '${released}' asks for '${named.join(", ") || "nothing"}' in the universe, beyond what a residency's installation holds`,
         );
     }
 
@@ -108,8 +111,8 @@ async function requireInstallation(
     const expected = await InstallationId.of(served, input.name, crypto);
     if (expected !== input.installation) {
         throw AccountError.of(
-            "INSTALLATION_NAME_MISMATCH",
-            `installation ${input.installation} is not ${input.name} of this space`,
+            "INSTALLATION_NAME_DENIED",
+            `installation '${input.installation}' is forbidden: it is not '${input.name}' of this space`,
         );
     }
 }
@@ -191,7 +194,10 @@ async function publisher(
                   .findFirst({ where: { space: space.identifier(subject.scope) } })
             : undefined;
     if (served === undefined) {
-        throw AccountError.of("RESIDENCY_NOT_FOUND", `${subject.id} runs in no residency's space`);
+        throw AccountError.of(
+            "RESIDENCY_NOT_FOUND",
+            `residency space of '${subject.id}' not found`,
+        );
     }
 
     // find the holder of the handle or a lookalike, none for a free handle

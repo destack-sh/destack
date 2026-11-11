@@ -70,7 +70,10 @@ export class FederatedVerifier {
                       .read(trustedPublisher.table)
                       .findFirst({ where: { issuer: iss, subject: sub } });
         if (trusted === undefined) {
-            throw OAuthError.of("INVALID_GRANT", "no account trusts this workflow");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "workflow is invalid: no account trusts this workflow",
+            );
         }
 
         // verify the signature by the issuer's keys, and the token's issuer, subject, audience and times
@@ -89,10 +92,15 @@ export class FederatedVerifier {
             },
             this.#environment.crypto,
         ).catch((error: unknown) => {
-            throw OAuthError.of("INVALID_GRANT", "invalid federated token", { cause: error });
+            throw OAuthError.of("GRANT_INVALID", "federated token is invalid: it does not verify", {
+                cause: error,
+            });
         });
         if (claims.exp === undefined || claims.jti === undefined) {
-            throw OAuthError.of("INVALID_GRANT", "federated token has no expiry or identifier");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "federated token is invalid: it has no expiry or identifier",
+            );
         }
 
         // spend the token once for its trusted publisher, until it expires
@@ -136,11 +144,17 @@ export class FederatedVerifier {
         const response = await network.fetch(new Request(`${issuer}${DISCOVERY_PATH}`));
         if (!response.ok) {
             await response.body?.cancel();
-            throw OAuthError.of("INVALID_GRANT", `${issuer} publishes no discovery document`);
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                `issuer '${issuer}' is invalid: it publishes no discovery document`,
+            );
         }
         const discovery = Discovery.parse(await response.json());
         if (discovery.issuer !== issuer) {
-            throw OAuthError.of("INVALID_GRANT", `${issuer} discovers another issuer`);
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                `issuer '${issuer}' is invalid: it discovers another issuer`,
+            );
         }
 
         // keep the algorithms the verifier supports, and the keys refreshed on the clock

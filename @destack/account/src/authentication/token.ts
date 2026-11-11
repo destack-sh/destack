@@ -25,34 +25,68 @@ export type ConsentRequest = schema.Infer<typeof ConsentRequest>;
 export const OAuthError = defineErrorFamily(
     { name: "oauth" },
     {
-        // the token endpoint's (RFC 6749 5.2, RFC 8707 2, RFC 8628 3.5)
-        INVALID_REQUEST: { code: "BAD_REQUEST" },
-        INVALID_CLIENT: { code: "UNAUTHORIZED" },
-        INVALID_GRANT: { code: "BAD_REQUEST" },
-        UNAUTHORIZED_CLIENT: { code: "BAD_REQUEST" },
-        UNSUPPORTED_GRANT_TYPE: { code: "BAD_REQUEST" },
-        INVALID_SCOPE: { code: "BAD_REQUEST" },
-        INVALID_TARGET: { code: "BAD_REQUEST" },
-        AUTHORIZATION_PENDING: { code: "BAD_REQUEST" },
-        SLOW_DOWN: { code: "BAD_REQUEST" },
-        ACCESS_DENIED: { code: "BAD_REQUEST" },
-        EXPIRED_TOKEN: { code: "BAD_REQUEST" },
+        // invalid
+        AUTHENTICATION_INVALID: {},
+        AUTHORIZATION_INVALID: {},
+        CLIENT_INVALID: {},
+        CONSENT_INVALID: {},
+        GRANT_INVALID: {},
+        GRANT_TYPE_INVALID: {},
+        POLLING_INVALID: {},
+        REQUEST_INVALID: {},
+        REQUEST_OBJECT_INVALID: {},
+        REQUEST_URI_INVALID: {},
+        RESPONSE_TYPE_INVALID: {},
+        SCOPE_INVALID: {},
+        TARGET_INVALID: {},
+        TOKEN_INVALID: {},
+        TOKEN_TYPE_INVALID: {},
 
-        // the authorization endpoint's (RFC 6749 4.1.2.1, OIDC Core 3.1.2.6, RFC 9126 2.2)
-        UNSUPPORTED_RESPONSE_TYPE: { code: "BAD_REQUEST" },
-        LOGIN_REQUIRED: { code: "BAD_REQUEST" },
-        CONSENT_REQUIRED: { code: "BAD_REQUEST", data: ConsentRequest },
-        UNMET_AUTHENTICATION_REQUIREMENTS: { code: "BAD_REQUEST" },
-        INVALID_REQUEST_URI: { code: "BAD_REQUEST" },
-        INVALID_REQUEST_OBJECT: { code: "BAD_REQUEST" },
+        // required
+        CONSENT_REQUIRED: { data: ConsentRequest },
+        LOGIN_REQUIRED: {},
 
-        // the resource endpoints' (RFC 6750 3.1, RFC 7009 2.2.1)
-        INVALID_TOKEN: { code: "UNAUTHORIZED" },
-        UNSUPPORTED_TOKEN_TYPE: { code: "BAD_REQUEST" },
+        // unauthenticated
+        CLIENT_UNAUTHENTICATED: {},
+        TOKEN_UNAUTHENTICATED: {},
     },
 );
 /** An OAuth refusal's reason. */
 export type OAuthReason = ReasonOf<typeof OAuthError>;
+
+/** The wire code of each OAuth refusal, as its RFC or OpenID Connect spells it. */
+export const OAUTH_ERROR_CODES = {
+    AUTHENTICATION_INVALID: "unmet_authentication_requirements",
+    AUTHORIZATION_INVALID: "authorization_pending",
+    CLIENT_INVALID: "unauthorized_client",
+    CLIENT_UNAUTHENTICATED: "invalid_client",
+    CONSENT_INVALID: "access_denied",
+    CONSENT_REQUIRED: "consent_required",
+    GRANT_INVALID: "invalid_grant",
+    GRANT_TYPE_INVALID: "unsupported_grant_type",
+    LOGIN_REQUIRED: "login_required",
+    POLLING_INVALID: "slow_down",
+    REQUEST_INVALID: "invalid_request",
+    REQUEST_OBJECT_INVALID: "invalid_request_object",
+    REQUEST_URI_INVALID: "invalid_request_uri",
+    RESPONSE_TYPE_INVALID: "unsupported_response_type",
+    SCOPE_INVALID: "invalid_scope",
+    TARGET_INVALID: "invalid_target",
+    TOKEN_INVALID: "expired_token",
+    TOKEN_TYPE_INVALID: "unsupported_token_type",
+    TOKEN_UNAUTHENTICATED: "invalid_token",
+} as const satisfies Readonly<Record<OAuthReason, string>>;
+
+/** Read OAuth wire codes. */
+export const OAuthErrorCode = {
+    /** Read the refusal a wire code spells, absent for a code no refusal has. */
+    reason(code: string): OAuthReason | undefined {
+        const found = Object.entries(OAUTH_ERROR_CODES).find(([, wire]) => wire === code);
+        const parsed = OAuthError.reason.safeParse(found?.[0]);
+
+        return parsed.success ? parsed.data : undefined;
+    },
+};
 
 /** A refused OAuth request (RFC 6749 5.2, RFC 8628 3.5). */
 export const ErrorResponse = schema.looseObject({
@@ -97,15 +131,13 @@ export const TokenResponse = Object.assign(
             const isJson = response.headers.get("content-type")?.startsWith(JSON_TYPE) === true;
             const oauth = isJson ? ErrorResponse.safeParse(JSON.parse(text)) : undefined;
             const reason =
-                oauth?.success === true
-                    ? OAuthError.reason.safeParse(oauth.data.error.toUpperCase())
-                    : undefined;
+                oauth?.success === true ? OAuthErrorCode.reason(oauth.data.error) : undefined;
 
             // fail as a bad gateway on an answer without a known OAuth error
-            if (oauth?.success !== true || reason?.success !== true) {
+            if (oauth?.success !== true || reason === undefined) {
                 return AccountError.of(
-                    "TOKEN_ENDPOINT_FAILED",
-                    `the token endpoint responded with ${response.status}: ${text}`,
+                    "TOKEN_ENDPOINT_UNREACHABLE",
+                    `could not call the token endpoint: ${response.status} '${text}'`,
                 );
             }
 
@@ -116,13 +148,13 @@ export const TokenResponse = Object.assign(
                     ? `the token endpoint refused the request: ${error}`
                     : `the token endpoint refused the request: ${error}: ${description}`;
 
-            return reason.data === "CONSENT_REQUIRED"
+            return reason === "CONSENT_REQUIRED"
                 ? OAuthError.of("CONSENT_REQUIRED", message, {
                       data: ConsentRequest.parse({
                           authorization_details: oauth.data["authorization_details"],
                       }),
                   })
-                : OAuthError.of(reason.data, message);
+                : OAuthError.of(reason, message);
         },
     },
 );

@@ -188,6 +188,9 @@ test("entitle an account to an allowance once, leaving it unchanged when entitle
             [first[0]?.id, "boolean", null, null],
             [first[1]?.id, "boolean", null, null],
         ],
-        repeated: ["FEATURE_REPEATED", "the account's allowances repeat a feature"],
+        repeated: [
+            "FEATURE_INVALID",
+            "allowance is invalid: the account's allowances repeat a feature",
+        ],
     });
 });

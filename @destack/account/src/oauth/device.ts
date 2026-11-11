@@ -102,7 +102,10 @@ export class DeviceAuthorizationEndpoint {
         const { scope, resource } = asked;
         party.requireScopes(spaceSeparated(scope));
         if (resource !== undefined && PackageResource.package(resource) === undefined) {
-            throw OAuthError.of("INVALID_TARGET", `${resource} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${resource}' is invalid: it names no package`,
+            );
         }
 
         // draw the codes and store their digests
@@ -149,7 +152,10 @@ export class DeviceAuthorizationEndpoint {
             .where(eq(deviceAuthorization.table.userDigest, digest))
             .limit(1);
         if (row === undefined || row.expiresAt <= environment.clock.now()) {
-            throw AccountError.of("DEVICE_CODE_INVALID", "the code is wrong or expired");
+            throw AccountError.of(
+                "DEVICE_CODE_NOT_FOUND",
+                "device code not found: the code is wrong or expired",
+            );
         }
 
         return {
@@ -166,7 +172,10 @@ export class DeviceAuthorizationEndpoint {
         const now = environment.clock.now();
         const sessionId = await this.#options.session(headers);
         if (sessionId === undefined) {
-            throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+            throw AccountError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: the person is not signed in",
+            );
         }
         const session = await ActiveSession.read(sessionId, database, now);
         await session.requireAuthentication(database, now);
@@ -175,8 +184,8 @@ export class DeviceAuthorizationEndpoint {
         const { row, party, decision: reviewed } = await this.review(userCode);
         if (reviewed.status !== "pending") {
             throw AccountError.of(
-                "DEVICE_AUTHORIZATION_DECIDED",
-                `the device sign-in was ${reviewed.status}`,
+                "DEVICE_AUTHORIZATION_BLOCKED",
+                `cannot review the device sign-in: it was ${reviewed.status}`,
             );
         }
 
@@ -246,7 +255,10 @@ export class DeviceRequestEndpoint {
         // read the sign-in's client, scopes and status, refusing a signed-out person
         if (request.method === "GET") {
             if ((await this.#session(request.headers)) === undefined) {
-                throw AccountError.of("SIGN_IN_REQUIRED", "the person is not signed in");
+                throw AccountError.of(
+                    "SIGN_IN_UNAUTHENTICATED",
+                    "authentication required: the person is not signed in",
+                );
             }
             const userCode = requireQuery(request, "user_code");
             const { party, row, decision } = await this.#device.review(userCode);
@@ -294,11 +306,14 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
             .where(eq(deviceAuthorization.table.deviceDigest, digest))
             .limit(1);
         if (row === undefined || row.clientId !== party.clientId) {
-            throw OAuthError.of("INVALID_GRANT", "invalid device code");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "device code is invalid: it is unknown or belongs to another client",
+            );
         }
         // refuse lapsed codes
         else if (row.expiresAt <= now) {
-            throw OAuthError.of("EXPIRED_TOKEN", "the device code expired");
+            throw OAuthError.of("TOKEN_INVALID", "device code is invalid: it expired");
         }
 
         // record a pending sign-in's poll, slowing a device that polls too soon
@@ -312,8 +327,11 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
                 calls: [deviceAuthorization.call("poll", { ...target, polledAt: now, interval })],
             });
             throw isEarly
-                ? OAuthError.of("SLOW_DOWN", "the device polls too often")
-                : OAuthError.of("AUTHORIZATION_PENDING", "the person has yet to decide");
+                ? OAuthError.of("POLLING_INVALID", "polling is invalid: the device polls too often")
+                : OAuthError.of(
+                      "AUTHORIZATION_INVALID",
+                      "authorization is invalid: the person has yet to decide",
+                  );
         }
         // spend and refuse a denied sign-in
         else if (decision.status === "denied") {
@@ -321,7 +339,10 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
                 id: RequestId.create(environment),
                 calls: [deviceAuthorization.call("delete", target)],
             });
-            throw OAuthError.of("ACCESS_DENIED", "the person denied the device");
+            throw OAuthError.of(
+                "CONSENT_INVALID",
+                "device sign-in is invalid: the person denied it",
+            );
         }
 
         // issue the approving person's tokens under their consent, refusing one revoked since the approval
@@ -329,7 +350,10 @@ export function deviceGrant(options: Omit<DeviceOptions, "verification" | "sessi
             .read(oauthConsent.table)
             .findFirst({ where: { clientId: party.clientId, scope: decision.userId } });
         if (consent === undefined) {
-            throw OAuthError.of("INVALID_GRANT", "the person revoked the device's consent");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "grant is invalid: the person revoked the device's consent",
+            );
         }
         const resource = row.resource ?? undefined;
         const authentication = AccountAuthentication.client(

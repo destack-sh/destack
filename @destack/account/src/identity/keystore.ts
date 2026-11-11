@@ -383,7 +383,7 @@ export class IdentityKeystore {
             signingKeys.find((key) => key.publishedAt + KEY_SET_MILLISECONDS <= now) ??
             signingKeys.at(-1);
         if (active === undefined) {
-            throw AccountError.of("SIGNING_KEY_MISSING", "no signing key is stored");
+            throw AccountError.of("SIGNING_KEY_BROKEN", "no signing key is stored");
         }
 
         return active;
@@ -393,7 +393,10 @@ export class IdentityKeystore {
     async #require(database: DatabaseConnection, subject: string): Promise<IdentityKey> {
         const row = await this.#find(database, subject);
         if (row === undefined) {
-            throw AccountError.of("LOCAL_KEYS_MISSING", `this process has no keys for ${subject}`);
+            throw AccountError.of(
+                "LOCAL_KEYS_NOT_FOUND",
+                `keys for '${subject}' in this process not found`,
+            );
         }
 
         return row;
@@ -462,7 +465,7 @@ export class IdentityKeystore {
     async #identity(subject: string) {
         const identity = await this.registry.find(subject);
         if (identity === undefined) {
-            throw AccountError.of("IDENTITY_NOT_FOUND", `${subject} has no identity`);
+            throw AccountError.of("IDENTITY_NOT_FOUND", `identity of '${subject}' not found`);
         }
 
         return identity;

@@ -40,7 +40,10 @@ async function create(
     const creator = context.caller.subject;
     const isSelf = Subject.same(creator, Caller.principal(context.self));
     if (!isSelf && !principal.user.is(creator)) {
-        throw AccountError.of("USER_REQUIRED", "only a user can create an organization");
+        throw AccountError.of(
+            "USER_DENIED",
+            "organization is forbidden: only a user can create an organization",
+        );
     }
 
     // write it paying with the account created next
@@ -74,8 +77,8 @@ async function update(
         const row = await context.read(account).findFirst({ where: { id: payer } });
         if (row?.scope !== context.target.id) {
             throw AccountError.of(
-                "PAYER_FOREIGN",
-                `account ${payer} is not an account of ${context.target.id}`,
+                "PAYER_INVALID",
+                `payer '${payer}' is invalid: it is not an account of '${context.target.id}'`,
             );
         }
     }

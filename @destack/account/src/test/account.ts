@@ -1346,7 +1346,7 @@ export class TestAccountStore implements AsyncDisposable {
         // refuse a second factor, which keys do not prove
         const { subject, audience, isSteppedUp } = signer;
         if (isSteppedUp) {
-            throw new TypeError(`${subject.id} signs with a key, which proves no second factor`);
+            throw new TypeError(`'${subject.id}' signs with a key, which proves no second factor`);
         }
 
         // sign a machine with its key
@@ -1378,7 +1378,7 @@ export class TestAccountStore implements AsyncDisposable {
             const reader = releases.get(`${packageId}@${version}`);
             if (reader === undefined) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `release ${version} of this package not found`,
+                    message: `release '${version}' of this package not found`,
                 });
             }
 

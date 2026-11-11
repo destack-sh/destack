@@ -45,7 +45,10 @@ export class ClientKey {
         const read = Proof.read(proof);
         const client = schema.identifier("client").safeParse(read.subject);
         if (!client.success || (await this.#keys.load(client.data)) === undefined) {
-            throw AccountError.of("CLIENT_KEY_UNKNOWN", "no client of this computer signed it");
+            throw AccountError.of(
+                "CLIENT_KEY_UNAUTHENTICATED",
+                "authentication required: no client of this computer signed it",
+            );
         }
 
         // verify it with the client's key now
@@ -70,8 +73,8 @@ export class ClientKey {
         const secret = await this.#keys.load(client);
         if (secret === undefined) {
             throw AccountError.of(
-                "CLIENT_KEY_MISSING",
-                `client ${client} has no key on this computer`,
+                "CLIENT_KEY_NOT_FOUND",
+                `key of client '${client}' on this computer not found`,
             );
         }
 

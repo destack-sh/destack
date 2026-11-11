@@ -43,12 +43,18 @@ export class UserInfoEndpoint {
         const token = /^bearer (?<token>\S+)$/iu.exec(request.headers.get("authorization") ?? "")
             ?.groups?.["token"];
         if (token === undefined) {
-            throw OAuthError.of("INVALID_TOKEN", "the request has no bearer token");
+            throw OAuthError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the request has no bearer token",
+            );
         }
         const verified = await this.#tokens.verify(token, `${issuer}${USER_INFO_PATH}`);
         const claims = UserInfoClaims.safeParse(verified);
         if (!claims.success) {
-            throw OAuthError.of("INVALID_TOKEN", "the token has no person");
+            throw OAuthError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the token has no person",
+            );
         }
         const { sub, scope } = claims.data;
         const scopes = spaceSeparated(scope);
@@ -58,7 +64,10 @@ export class UserInfoEndpoint {
             .read(user.table)
             .findFirst({ where: { id: sub } });
         if (person === undefined || !(await User.maySignIn(database, sub))) {
-            throw OAuthError.of("INVALID_TOKEN", "the user may no longer sign in");
+            throw OAuthError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the user may no longer sign in",
+            );
         }
 
         // answer the profile and email the scopes grant (OIDC Core 5.4)

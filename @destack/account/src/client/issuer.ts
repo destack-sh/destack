@@ -99,7 +99,10 @@ export const TokenSet = {
     /** Read the refresh token a device keeps, refusing tokens without one. */
     refreshToken(tokens: TokenSet): string {
         if (tokens.refreshToken === null) {
-            throw AccountError.of("REFRESH_TOKEN_MISSING", "the issuer returned no refresh token");
+            throw AccountError.of(
+                "REFRESH_TOKEN_UNREACHABLE",
+                "could not read a refresh token from the issuer",
+            );
         }
 
         return tokens.refreshToken;
@@ -276,8 +279,8 @@ export class Issuer {
         );
         if (!response.ok) {
             throw AccountError.of(
-                "MAIL_FAILED",
-                `the issuer refused to mail a code with status ${response.status}`,
+                "MAIL_UNREACHABLE",
+                `could not get the issuer to mail a code: status ${response.status}`,
             );
         }
 
@@ -326,8 +329,8 @@ export class Issuer {
         });
         if (!response.ok) {
             throw AccountError.of(
-                "DEVICE_CODE_FAILED",
-                `the issuer refused a device code with status ${response.status}`,
+                "DEVICE_CODE_UNREACHABLE",
+                `could not get a device code from the issuer: status ${response.status}`,
             );
         }
 
@@ -431,8 +434,8 @@ export class Issuer {
         });
         if (!response.ok) {
             throw AccountError.of(
-                "REVOCATION_FAILED",
-                `the issuer refused the revocation with status ${response.status}`,
+                "REVOCATION_UNREACHABLE",
+                `could not revoke the token at the issuer: status ${response.status}`,
             );
         }
 
@@ -491,13 +494,16 @@ export class Issuer {
     static #subject(granted: TokenResponse): Identifier<"user"> {
         // refuse a sign-in without an ID token
         if (granted.id_token === undefined) {
-            throw AccountError.of("ID_TOKEN_MISSING", "the issuer returned no ID token");
+            throw AccountError.of(
+                "ID_TOKEN_UNREACHABLE",
+                "could not read an ID token from the issuer",
+            );
         }
 
         // refuse an ID token without a payload
         const [, payload] = granted.id_token.split(".");
         if (payload === undefined) {
-            throw AccountError.of("ID_TOKEN_MALFORMED", "the issuer returned a malformed ID token");
+            throw AccountError.of("ID_TOKEN_UNREACHABLE", "could not parse the issuer's ID token");
         }
 
         // read the person from its claims, trusted as the token endpoint's answer (OIDC Core 3.1.3.7)
@@ -546,8 +552,8 @@ export class Issuer {
         const parsed = definition.safeParse(value);
         if (!parsed.success) {
             throw AccountError.of(
-                "ANSWER_UNREADABLE",
-                `the issuer responded with ${response.status} and an unreadable body`,
+                "ANSWER_UNREACHABLE",
+                `could not read the issuer's answer: status ${response.status}`,
             );
         }
 

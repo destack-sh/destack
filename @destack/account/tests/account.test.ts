@@ -69,7 +69,11 @@ test("change a user's time zone and locale, and refuse an unknown time zone", as
 
     // store the known one alone
     expect({ unknown, changed }).toEqual({
-        unknown: ["BAD_REQUEST", "TIME_ZONE_UNKNOWN", "unknown time zone Mars/Olympus"],
+        unknown: [
+            "BAD_REQUEST",
+            "TIME_ZONE_INVALID",
+            "time zone 'Mars/Olympus' is invalid: it is unknown",
+        ],
         changed: {
             ...current,
             ...ObjectReference.columns("updatedBy", owner.subject),
@@ -131,7 +135,7 @@ test("create a person's shared account beside their personal one, and refuse a s
             deletedAt: null,
             scope: owner.id,
         },
-        personal: ["CONFLICT", "DUPLICATE", "another account has the same scope"],
+        personal: ["CONFLICT", "OBJECT_EXISTS", "'account' with the same 'scope' already exists"],
         listed: [
             [owner.handle, "personal"],
             ["florian", "shared"],
@@ -212,8 +216,8 @@ test("let another signed-in user find a person's accounts by their profile alone
     expect({ hidden, listed: listed.items }).toEqual({
         hidden: [
             "done",
-            ["NOT_FOUND", "NOT_FOUND", `account ${shared.id} not found`],
-            ["NOT_FOUND", "NOT_FOUND", `account ${shared.id} not found`],
+            ["NOT_FOUND", "NOT_FOUND", `account '${shared.id}' not found`],
+            ["NOT_FOUND", "NOT_FOUND", `account '${shared.id}' not found`],
             ["NOT_FOUND", "NOT_FOUND", "account not found"],
         ],
         listed: [
@@ -239,8 +243,8 @@ test("refuse exchanging a person's token once they revoke the client it was issu
         await refusal(fixture.issuer.exchange(await owner.token(), accountPackage.id, {})),
     ).toEqual([
         "BAD_REQUEST",
-        "INVALID_GRANT",
-        "the token endpoint refused the request: invalid_grant: client is revoked",
+        "GRANT_INVALID",
+        "the token endpoint refused the request: invalid_grant: cannot use client: it is revoked",
     ]);
 });
 
@@ -275,8 +279,8 @@ test("exchange tokens acting as a user through lent authority or account adminis
     // let the administrator act as the member only once elevated
     const refused = [
         "BAD_REQUEST",
-        "INVALID_GRANT",
-        "the token endpoint refused the request: invalid_grant: acting as another user is not allowed",
+        "GRANT_INVALID",
+        "the token endpoint refused the request: invalid_grant: impersonation is forbidden: acting as another user is not allowed",
     ];
     expect(await refusal(exchange(administrator))).toEqual(refused);
     administrator = await fixture.elevate(administrator);
@@ -297,8 +301,8 @@ test("exchange tokens acting as a user through lent authority or account adminis
     };
     expect(await refusal(member.client(accountPackage).user.grant(lending))).toEqual([
         "UNAUTHORIZED",
-        "AUTHENTICATION_INSUFFICIENT",
-        "authentication assurance is too low: authenticate again",
+        "ASSURANCE_UNAUTHENTICATED",
+        "authentication required: authentication assurance is too low",
     ]);
     member = await fixture.elevate(member);
     const lent = await member.client(accountPackage).user.grant(lending);
@@ -452,7 +456,7 @@ test("create accounts in an organization, administered by its owner members", as
     expect(await refusal(rename(partner))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `account ${created.id} not found`,
+        `account '${created.id}' not found`,
     ]);
     founder = await fixture.elevate(founder);
     await founder.client(accountPackage).organization.update({
@@ -543,8 +547,16 @@ test("refuse where a person receives notifications to another person's home and 
         stranger: await refusal(stranger.user.recipient({ id: owner.id })),
         other: await refusal(other.client(accountPackage).user.recipient({ id: owner.id })),
     }).toEqual({
-        stranger: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: recipient"],
-        other: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: recipient"],
+        stranger: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'recipient' is forbidden: the caller lacks it",
+        ],
+        other: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'recipient' is forbidden: the caller lacks it",
+        ],
     });
 });
 

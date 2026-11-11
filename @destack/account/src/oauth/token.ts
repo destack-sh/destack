@@ -103,14 +103,20 @@ export class TokenEndpoint {
         // refuse another body than a posted form
         const isForm = request.headers.get("content-type")?.startsWith(FORM_TYPE) === true;
         if (request.method !== "POST" || !isForm) {
-            throw OAuthError.of("INVALID_REQUEST", "the endpoint takes a posted form");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "request is invalid: the endpoint takes a posted form",
+            );
         }
 
         // refuse a parameter given twice (RFC 6749 3.2)
         const form = new URLSearchParams(await request.text());
         const names = [...form.keys()];
         if (new Set(names).size !== names.length) {
-            throw OAuthError.of("INVALID_REQUEST", "a parameter is given more than once");
+            throw OAuthError.of(
+                "REQUEST_INVALID",
+                "request is invalid: a parameter is given more than once",
+            );
         }
 
         return Object.fromEntries(form);
@@ -122,7 +128,7 @@ export class TokenEndpoint {
         const body = await TokenEndpoint.form(request);
         const grant = this.grants.get(body["grant_type"] ?? "");
         if (grant === undefined) {
-            throw OAuthError.of("UNSUPPORTED_GRANT_TYPE", "unsupported grant_type");
+            throw OAuthError.of("GRANT_TYPE_INVALID", "grant_type is invalid: it is unsupported");
         }
         const decided = await grant({ body, headers: request.headers }).catch((error: unknown) => {
             throw TokenEndpoint.refusal(error);
@@ -154,7 +160,7 @@ export class TokenEndpoint {
         const lasts = audience === undefined ? PERSON_TOKEN_MILLISECONDS : lifetime.of(audience);
         const lapse = issue.authentication.credential.expiresAt;
         if (lapse <= now) {
-            throw OAuthError.of("INVALID_GRANT", "the session or grant lapsed");
+            throw OAuthError.of("GRANT_INVALID", "grant is invalid: the session or grant lapsed");
         }
         const ends = Math.min(now + lasts, lapse);
 
@@ -164,7 +170,10 @@ export class TokenEndpoint {
             consent !== undefined &&
             !(await User.maySignIn(this.#options.database, consent.row.scope))
         ) {
-            throw OAuthError.of("INVALID_GRANT", "the user may no longer sign in");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "grant is invalid: the user may no longer sign in",
+            );
         }
 
         // address the package, and the person's claims with the openid scope
@@ -174,7 +183,7 @@ export class TokenEndpoint {
             ...(isOpenId ? [`${issuer}${USER_INFO_PATH}`] : []),
         ];
         if (audiences.length === 0) {
-            throw OAuthError.of("INVALID_TARGET", "the request names no resource");
+            throw OAuthError.of("TARGET_INVALID", "resource is invalid: the request names none");
         }
 
         // sign the access token, and the person's ID and refresh tokens as the scopes grant
@@ -215,7 +224,7 @@ export class TokenEndpoint {
                 : await RefreshToken.spend(objects, consent.rotating, environment, transaction);
         } catch (error) {
             // mark a token spent before for its family's revocation once the transaction ends
-            if (AccountError.is(error, "TOKEN_REUSED") && consent.rotating !== undefined) {
+            if (AccountError.is(error, "TOKEN_UNAUTHENTICATED") && consent.rotating !== undefined) {
                 throw new ReusedToken(consent.rotating, error);
             }
             throw error;
@@ -232,7 +241,7 @@ export class TokenEndpoint {
         // revoke outside the rolled back transaction, then refuse
         const { objects, database, environment } = this.#options;
         await RefreshToken.revoke(objects, database, error.token, environment);
-        throw OAuthError.of("INVALID_GRANT", "the refresh token was used before");
+        throw OAuthError.of("GRANT_INVALID", "refresh token is invalid: it was used before");
     }
 
     /** Read a grant check's refusal as an invalid grant, passing on other failures. */
@@ -243,7 +252,7 @@ export class TokenEndpoint {
             return error;
         }
 
-        return OAuthError.of("INVALID_GRANT", refused.message, { cause: error });
+        return OAuthError.of("GRANT_INVALID", refused.message, { cause: error });
     }
 
     /** Sign an access token for a caller toward its audiences. */
@@ -337,7 +346,11 @@ export class TokenEndpoint {
             },
             crypto,
         ).catch((error: unknown) => {
-            throw OAuthError.of("INVALID_TOKEN", "invalid access token", { cause: error });
+            throw OAuthError.of(
+                "TOKEN_UNAUTHENTICATED",
+                "authentication required: the access token is invalid",
+                { cause: error },
+            );
         });
 
         return verified.claims;
@@ -349,7 +362,7 @@ export class TokenEndpoint {
         const { caller, credential } = authentication;
         const sender = Caller.sender(caller);
         if (credential.client === undefined && principal.user.is(sender)) {
-            throw OAuthError.of("INVALID_GRANT", "a user's token needs a client");
+            throw OAuthError.of("GRANT_INVALID", "grant is invalid: a user's token needs a client");
         }
 
         return credential.client ?? sender.id;

@@ -46,8 +46,8 @@ export const Home = {
                             const session = await getSessionFromCtx(context);
                             if (session === null) {
                                 throw AccountError.of(
-                                    "SIGN_IN_REQUIRED",
-                                    "the person is not signed in",
+                                    "SIGN_IN_UNAUTHENTICATED",
+                                    "authentication required: the person is not signed in",
                                 );
                             }
                             const located = await Home.locate(

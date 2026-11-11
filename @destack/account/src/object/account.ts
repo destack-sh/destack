@@ -164,7 +164,7 @@ export const Account = {
         // refuse a scope without an account
         const found = await findAccount(reader, scope);
         if (found === undefined) {
-            throw AccountError.of("ACCOUNT_NOT_FOUND", `${scope} has no account`);
+            throw AccountError.of("ACCOUNT_NOT_FOUND", `account of '${scope}' not found`);
         }
 
         return found;
@@ -277,7 +277,7 @@ export const Account = {
         // require a creator of a user's account
         const creator = context.caller.subject;
         if (creator === undefined) {
-            throw AccountError.of("CREATOR_REQUIRED", "account needs a creator");
+            throw AccountError.of("CREATOR_REQUIRED", "creator of the account is required");
         }
 
         return {

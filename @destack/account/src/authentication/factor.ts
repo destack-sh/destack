@@ -106,7 +106,10 @@ export const Factor = {
     /** Refuse a factor locked after too many failures. */
     requireUnlocked(row: Pick<Select<typeof factor.table>, "lockedUntil">, now: number): void {
         if (row.lockedUntil > now) {
-            throw AccountError.of("FACTOR_LOCKED", "too many wrong codes: try again later");
+            throw AccountError.of(
+                "FACTOR_EXHAUSTED",
+                "the wrong code count exceeds its limit: try again later",
+            );
         }
     },
 
@@ -119,7 +122,10 @@ export const Factor = {
         // refuse a code that is no unused recovery code
         const digest = await Digest.of(code, crypto);
         if (!row.recoveryCodes.includes(digest)) {
-            throw AccountError.of("CODE_INVALID", "the recovery code is wrong or used");
+            throw AccountError.of(
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the recovery code is wrong or used",
+            );
         }
 
         return row.recoveryCodes.filter((each) => each !== digest);
@@ -146,7 +152,10 @@ export const Challenge = {
     /** Refuse a challenge that lapsed. */
     require(row: Pick<Select<typeof challenge.table>, "expiresAt">, now: number): void {
         if (row.expiresAt <= now) {
-            throw AccountError.of("CHALLENGE_EXPIRED", "the sign-in's second step expired");
+            throw AccountError.of(
+                "CHALLENGE_UNAUTHENTICATED",
+                "authentication required: the sign-in's second step expired",
+            );
         }
     },
 };

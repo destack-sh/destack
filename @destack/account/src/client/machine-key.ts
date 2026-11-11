@@ -246,7 +246,7 @@ export class MachineKey implements Signer {
         // read the private half from the store
         const stored = await this.#keys.load(this.machineId);
         if (stored === undefined) {
-            throw AccountError.of("MACHINE_KEY_MISSING", "this machine has no key");
+            throw AccountError.of("MACHINE_KEY_NOT_FOUND", "key of this machine not found");
         }
         this.#pair = await KeyPair.read(stored, this.#environment.crypto);
 

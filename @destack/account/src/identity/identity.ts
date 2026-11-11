@@ -192,7 +192,7 @@ export class Identity implements Credential, Signer {
         if (spaceId === undefined) {
             throw AccountError.of(
                 "SPACE_REQUIRED",
-                `${this.subject.id} can only sign calls to spaces, not ${request.url}`,
+                `space is required: '${this.subject.id}' can only sign calls to spaces, not '${request.url}'`,
             );
         }
 
@@ -213,7 +213,7 @@ export class Identity implements Credential, Signer {
         else {
             throw AccountError.of(
                 "SIGNER_REQUIRED",
-                `${subject.type} ${subject.id} is not a universe or space signer`,
+                `signer is required: ${subject.type} '${subject.id}' is not a universe or space signer`,
             );
         }
     }

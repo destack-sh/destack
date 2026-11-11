@@ -295,9 +295,9 @@ test("sign a person up by a mailed code once, its mail linking the sign-up view,
         401,
         {
             code: "UNAUTHORIZED",
-            reason: "SESSION_ENDED",
+            reason: "SESSION_UNAUTHENTICATED",
             domain: "@destack/account",
-            message: "session is no longer authorized",
+            message: "authentication required: the session is no longer authorized",
         },
     ]);
 
@@ -321,9 +321,9 @@ test("sign a person up by a mailed code once, its mail linking the sign-up view,
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "SESSION_ENDED",
+                reason: "SESSION_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "session is no longer authorized",
+                message: "authentication required: the session is no longer authorized",
             },
         ],
         true,
@@ -525,9 +525,9 @@ test("refuse a spent recovery code in a later sign-in", async () => {
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "CODE_INVALID",
+                reason: "CODE_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "the recovery code is wrong or used",
+                message: "authentication required: the recovery code is wrong or used",
             },
         ],
         null,
@@ -566,18 +566,18 @@ test("lock a factor after five wrong codes across sign-ins, and accept its codes
         401,
         {
             code: "UNAUTHORIZED",
-            reason: "CODE_INVALID",
+            reason: "CODE_UNAUTHENTICATED",
             domain: "@destack/account",
-            message: "the code is wrong or expired",
+            message: "authentication required: the code is wrong or expired",
         },
     ];
     const lockedOut = [
         429,
         {
             code: "TOO_MANY_REQUESTS",
-            reason: "FACTOR_LOCKED",
+            reason: "FACTOR_EXHAUSTED",
             domain: "@destack/account",
-            message: "too many wrong codes: try again later",
+            message: "the wrong code count exceeds its limit: try again later",
         },
     ];
     expect({ tried, locked, refused, status }).toEqual({
@@ -624,9 +624,9 @@ test("refuse enrolling an authenticator over a verified one", async () => {
         409,
         {
             code: "CONFLICT",
-            reason: "FACTOR_ENROLLED",
+            reason: "FACTOR_EXISTS",
             domain: "@destack/account",
-            message: "the person has an authenticator: disable it first",
+            message: "the person's authenticator already exists: disable it first",
         },
     ]);
 });
@@ -653,9 +653,9 @@ test("disable an authenticator only with a current code", async () => {
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "CODE_INVALID",
+                reason: "CODE_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "the code is wrong or expired",
+                message: "authentication required: the code is wrong or expired",
             },
         ],
         200,
@@ -699,7 +699,14 @@ test("approve a device's new client in a signed-in session, and redeem its code 
     }).toEqual({
         approved: 200,
         credential: "client",
-        reused: [400, { error: "invalid_grant", error_description: "invalid device code" }],
+        reused: [
+            400,
+            {
+                error: "invalid_grant",
+                error_description:
+                    "device code is invalid: it is unknown or belongs to another client",
+            },
+        ],
     });
 });
 
@@ -745,7 +752,10 @@ test("refuse refreshing a device's tokens once the person revokes its client", a
     );
     expect(await answered(refreshed)).toEqual([
         401,
-        { error: "invalid_client", error_description: `client ${clientId} was revoked` },
+        {
+            error: "invalid_client",
+            error_description: `authentication required: client '${clientId}' was revoked`,
+        },
     ]);
 });
 
@@ -789,9 +799,9 @@ test("list and revoke a session over the account package", async () => {
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "SESSION_ENDED",
+                reason: "SESSION_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "session is no longer authorized",
+                message: "authentication required: the session is no longer authorized",
             },
         ],
     ]);
@@ -813,9 +823,9 @@ test("list and revoke a session over the account package", async () => {
             401,
             {
                 code: "UNAUTHORIZED",
-                reason: "SESSION_ENDED",
+                reason: "SESSION_UNAUTHENTICATED",
                 domain: "@destack/account",
-                message: "session is no longer authorized",
+                message: "authentication required: the session is no longer authorized",
             },
         ],
     ]);

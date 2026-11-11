@@ -289,9 +289,15 @@ export const machine = defineObject(
             const { input } = call;
             const isPersonal = call.target.kind === "personal";
             if (input.host !== null && !isPersonal) {
-                throw AccountError.of("CLOUD_HOST_REPORTED", "a cloud machine reports no host");
+                throw AccountError.of(
+                    "HOST_REPORT_INVALID",
+                    "host report is invalid: a cloud machine reports no host",
+                );
             } else if (input.host === null && isPersonal) {
-                throw AccountError.of("HOST_REQUIRED", "a personal machine reports its host");
+                throw AccountError.of(
+                    "HOST_REQUIRED",
+                    "host is required: a personal machine reports its host",
+                );
             }
 
             return call.update({

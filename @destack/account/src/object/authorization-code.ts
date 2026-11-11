@@ -76,7 +76,10 @@ export const authorizationCode = defineObject(
         redeem: (call) => {
             // refuse a code spent before
             if (call.target.status === "redeemed") {
-                throw AccountError.of("CODE_REUSED", "the authorization code was redeemed before");
+                throw AccountError.of(
+                    "CODE_UNAUTHENTICATED",
+                    "authentication required: the authorization code was redeemed before",
+                );
             }
 
             return call.update({ status: "redeemed" });
@@ -110,7 +113,10 @@ export const AuthorizationCode = {
             .where(eq(authorizationCode.table.digest, digest))
             .limit(1);
         if (row === undefined) {
-            throw OAuthError.of("INVALID_GRANT", "invalid code");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "code is invalid: it is unknown or belongs to another client",
+            );
         }
 
         // refuse another client's code
@@ -121,7 +127,10 @@ export const AuthorizationCode = {
             `the consent of code ${row.id}`,
         );
         if (consent.clientId !== clientId) {
-            throw OAuthError.of("INVALID_GRANT", "invalid code");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "code is invalid: it is unknown or belongs to another client",
+            );
         }
 
         // spend it, revoking the family it started when spent before (RFC 6749 4.1.2)
@@ -134,7 +143,7 @@ export const AuthorizationCode = {
                 () => false,
                 (error: unknown) => {
                     // pass on any other failure
-                    if (!AccountError.is(error, "CODE_REUSED")) {
+                    if (!AccountError.is(error, "CODE_UNAUTHENTICATED")) {
                         throw error;
                     }
 
@@ -148,11 +157,14 @@ export const AuthorizationCode = {
                 { scope: row.scope, family: row.id },
                 environment,
             );
-            throw OAuthError.of("INVALID_GRANT", "invalid code");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "code is invalid: it is unknown or belongs to another client",
+            );
         }
         // refuse a lapsed code
         else if (row.expiresAt <= environment.clock.now()) {
-            throw OAuthError.of("INVALID_GRANT", "the code expired");
+            throw OAuthError.of("GRANT_INVALID", "code is invalid: it expired");
         }
 
         return { row, consent };

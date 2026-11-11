@@ -110,7 +110,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
             status: "starting",
             url,
         },
-        ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at other--${handle}`],
+        ["NOT_FOUND", "ADDRESS_NOT_FOUND", `address 'other--${handle}' not found`],
     ]);
 });
 
@@ -145,7 +145,7 @@ test("list an account's placements to those reading it and to any machine, and t
         [home, placed],
         [],
         [home, placed],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${unknown} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${unknown}' not found`],
     ]);
 });
 
@@ -206,8 +206,8 @@ test("read a space's address in its account for those reading the account, an or
     ]).toEqual([
         `notes--${personal.handle}`,
         "board--initech",
-        ["NOT_FOUND", "NOT_FOUND", `space ${notes.id} not found`],
-        ["NOT_FOUND", "NOT_FOUND", `space ${board.id} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `space '${notes.id}' not found`],
+        ["NOT_FOUND", "NOT_FOUND", `space '${board.id}' not found`],
     ]);
 });
 

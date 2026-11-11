@@ -29,7 +29,7 @@ export const StoreRelationship = {
         if (related === undefined) {
             throw AccessError.of(
                 "RELATIONSHIP_NOT_FOUND",
-                `${subject.type} ${subject.id} has no ${relation} relationship to ${object.type} ${object.id}`,
+                `'${relation}' relationship of ${subject.type} '${subject.id}' to ${object.type} '${object.id}' not found`,
             );
         }
 

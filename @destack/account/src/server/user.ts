@@ -28,8 +28,8 @@ export function implementUser(): typeof user {
                 // refuse an operator suspending themselves, which could leave none to resume them
                 if (Subject.same(call.caller.subject, call.reference())) {
                     throw AccountError.of(
-                        "SELF_SUSPENSION",
-                        "an operator cannot suspend themselves",
+                        "SELF_SUSPENSION_INVALID",
+                        "suspension is invalid: an operator cannot suspend themselves",
                     );
                 }
 
@@ -59,7 +59,10 @@ async function update(
     // refuse an unknown time zone
     const timeZone = context.input.timeZone;
     if (typeof timeZone === "string" && !TimeZone.isKnown(timeZone)) {
-        throw AccountError.of("TIME_ZONE_UNKNOWN", `unknown time zone ${timeZone}`);
+        throw AccountError.of(
+            "TIME_ZONE_INVALID",
+            `time zone '${timeZone}' is invalid: it is unknown`,
+        );
     }
 
     return next();
@@ -72,7 +75,10 @@ async function suggestHandle(
     // make the stem a valid handle
     const { target } = context;
     if (target.email === null) {
-        throw AccountError.of("EMAIL_CONCEALED", `user ${target.id} has its email concealed`);
+        throw AccountError.of(
+            "EMAIL_DENIED",
+            `email of user '${target.id}' is forbidden: the user has it concealed`,
+        );
     }
     const stem = AccountHandle.stem(target.login ?? nth(target.email.split("@"), 0));
 

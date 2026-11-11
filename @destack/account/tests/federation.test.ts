@@ -123,10 +123,10 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
     ]).toEqual([
         [
             "Bearer",
-            refused("assertion was already used"),
-            refused("no account trusts this workflow"),
-            refused("invalid federated token"),
-            refused("invalid federated token"),
+            refused("authentication required: assertion was already used"),
+            refused("workflow is invalid: no account trusts this workflow"),
+            refused("federated token is invalid: it does not verify"),
+            refused("federated token is invalid: it does not verify"),
         ],
         [["trusted-publisher", trusted.id]],
     ]);

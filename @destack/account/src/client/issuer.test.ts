@@ -69,7 +69,7 @@ test("poll a device code into a grant, a wait, a slow down, a refusal, or a loud
         ],
         failed: [
             "UNAUTHORIZED",
-            "INVALID_CLIENT",
+            "CLIENT_UNAUTHENTICATED",
             "the token endpoint refused the request: invalid_client",
         ],
     });

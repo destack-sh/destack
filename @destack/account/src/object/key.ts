@@ -146,7 +146,10 @@ export const Key = {
             where: { AND: [{ thumbprint: credential.id }, Key.authenticates(now)] },
         });
         if (standing.length === 0) {
-            throw AccountError.of("KEY_REVOKED", "the machine token's key is no longer valid");
+            throw AccountError.of(
+                "KEY_UNAUTHENTICATED",
+                "authentication required: the machine token's key is no longer valid",
+            );
         }
     },
 
@@ -167,7 +170,7 @@ export const Key = {
             ])
             .catch((error: unknown) => {
                 throw CallError.of(error)?.code === "CONFLICT"
-                    ? IdentityError.of("PROOF_INVALID", "key proof was already used")
+                    ? IdentityError.of("PROOF_INVALID", "key proof is invalid: it was already used")
                     : error;
             });
     },

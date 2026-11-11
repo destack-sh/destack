@@ -25,33 +25,33 @@ test("refuse a token request with its OAuth error, and an answer without a known
     expect(refusals).toEqual([
         [
             "BAD_REQUEST",
-            "INVALID_GRANT",
+            "GRANT_INVALID",
             "the token endpoint refused the request: invalid_grant: assertion has no standing key",
         ],
         [
             "UNAUTHORIZED",
-            "INVALID_CLIENT",
+            "CLIENT_UNAUTHENTICATED",
             "the token endpoint refused the request: invalid_client",
         ],
         [
             "BAD_REQUEST",
-            "ACCESS_DENIED",
+            "CONSENT_INVALID",
             "the token endpoint refused the request: access_denied: machine is disabled",
         ],
         [
             "BAD_GATEWAY",
-            "TOKEN_ENDPOINT_FAILED",
-            `the token endpoint responded with 400: {"error":"server_busy"}`,
+            "TOKEN_ENDPOINT_UNREACHABLE",
+            `could not call the token endpoint: 400 '{"error":"server_busy"}'`,
         ],
         [
             "BAD_GATEWAY",
-            "TOKEN_ENDPOINT_FAILED",
-            "the token endpoint responded with 404: not found",
+            "TOKEN_ENDPOINT_UNREACHABLE",
+            "could not call the token endpoint: 404 'not found'",
         ],
         [
             "BAD_GATEWAY",
-            "TOKEN_ENDPOINT_FAILED",
-            "the token endpoint responded with 500: upstream failed",
+            "TOKEN_ENDPOINT_UNREACHABLE",
+            "could not call the token endpoint: 500 'upstream failed'",
         ],
     ]);
 });

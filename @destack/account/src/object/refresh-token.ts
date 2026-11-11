@@ -74,7 +74,10 @@ export const refreshToken = defineObject(
         rotate: (call) => {
             // refuse a token spent before
             if (call.target.status === "rotated") {
-                throw AccountError.of("TOKEN_REUSED", "the refresh token was rotated before");
+                throw AccountError.of(
+                    "TOKEN_UNAUTHENTICATED",
+                    "authentication required: the refresh token was rotated before",
+                );
             }
 
             return call.update({ status: "rotated" });

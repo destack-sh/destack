@@ -96,12 +96,12 @@ test("let an installation act for a person under the grant the person created, u
         forgotten: [{ push: null }],
         unlinked: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            `the token endpoint refused the request: invalid_grant: grant ${unknown} is revoked`,
+            "GRANT_INVALID",
+            `the token endpoint refused the request: invalid_grant: authentication required: grant '${unknown}' is revoked`,
         ],
         exchanged: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
+            "GRANT_INVALID",
             `the token endpoint refused the request: invalid_grant: ${owner.id} has no grant to ${inbox.id}`,
         ],
     });
@@ -157,8 +157,8 @@ test("stamp a token acting for a person under their grant with the universe's po
         position: { ...grantedPosition, scope: Scope.universe.id },
         ended: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: the person's session ended",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: authentication required: the person's session ended",
         ],
     });
     expect(sequence).toBeGreaterThanOrEqual(grantedAt);
@@ -237,13 +237,13 @@ test("live an exchanged token within the person's client, refusing a revoked cli
         within: "exchanged",
         elsewhere: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: the client is another person's",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: client is forbidden: it is another person's",
         ],
         revoked: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: client is revoked",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: cannot use client: it is revoked",
         ],
     });
 });

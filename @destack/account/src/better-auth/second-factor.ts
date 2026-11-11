@@ -71,8 +71,8 @@ export function betterAuthSecondFactor(options: SecondFactorOptions): BetterAuth
                         });
                         if (verified !== null) {
                             throw AccountError.of(
-                                "FACTOR_ENROLLED",
-                                "the person has an authenticator: disable it first",
+                                "FACTOR_EXISTS",
+                                "the person's authenticator already exists: disable it first",
                             );
                         }
 
@@ -264,7 +264,7 @@ async function readFactor(
         where: [{ field: "userId", value: userId }],
     });
     if (row === null) {
-        throw AccountError.of("FACTOR_MISSING", "the person has no authenticator");
+        throw AccountError.of("FACTOR_NOT_FOUND", "the person's authenticator not found");
     }
 
     return row;
@@ -303,7 +303,10 @@ async function attempt(
             increment: {},
             set: { failures: 0, lockedUntil: now + LOCKOUT_MILLISECONDS },
         });
-        throw AccountError.of("FACTOR_LOCKED", "too many wrong codes: try again later");
+        throw AccountError.of(
+            "FACTOR_EXHAUSTED",
+            "the wrong code count exceeds its limit: try again later",
+        );
     }
 
     // record the accepted code where no other attempt wrote since the claim, clearing the failures
@@ -318,7 +321,10 @@ async function attempt(
         set: { ...used, failures: 0 },
     });
     if (written === null) {
-        throw AccountError.of("ATTEMPT_CONCURRENT", "another code was checked at the same time");
+        throw AccountError.of(
+            "ATTEMPT_CONFLICT",
+            "cannot check the code: another code was checked at the same time",
+        );
     }
 }
 
@@ -334,7 +340,10 @@ async function answer(
     const cookie = context.context.createAuthCookie(CHALLENGE_COOKIE);
     const token = await context.getSignedCookie(cookie.name, context.context.secret);
     if (token === null || token === false) {
-        throw AccountError.of("CHALLENGE_EXPIRED", "the sign-in has no second step in progress");
+        throw AccountError.of(
+            "CHALLENGE_UNAUTHENTICATED",
+            "authentication required: the sign-in has no second step in progress",
+        );
     }
     const digest = await Challenge.digest(token, environment.crypto);
     const pending = await adapter.findOne<Select<typeof challenge.table>>({
@@ -342,7 +351,10 @@ async function answer(
         where: [{ field: "digest", value: digest }],
     });
     if (pending === null) {
-        throw AccountError.of("CHALLENGE_EXPIRED", "the sign-in has no second step in progress");
+        throw AccountError.of(
+            "CHALLENGE_UNAUTHENTICATED",
+            "authentication required: the sign-in has no second step in progress",
+        );
     }
     Challenge.require(pending, environment.clock.now());
 

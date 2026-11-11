@@ -66,8 +66,8 @@ test("claim and verify a domain once through its TXT record", async () => {
     const challenge = `_destack.${name}`;
     expect(await refusal(verify(claimed.id))).toEqual([
         "PRECONDITION_FAILED",
-        "CHALLENGE_UNPUBLISHED",
-        `publish a TXT record ${challenge} with destack-verify=${accountId} first`,
+        "CHALLENGE_BLOCKED",
+        `cannot verify the domain: publish a TXT record '${challenge}' with 'destack-verify=${accountId}' first`,
     ]);
 
     // verify once the record exists and refuse a second verification
@@ -75,9 +75,9 @@ test("claim and verify a domain once through its TXT record", async () => {
     const verified = { ...record, verifiedAt: fixture.clock.now(), revision: 2 };
     expect(await verify(claimed.id)).toEqual(verified);
     expect(await refusal(verify(claimed.id))).toEqual([
-        "CONFLICT",
-        "DOMAIN_VERIFIED",
-        `${name} is already verified`,
+        "PRECONDITION_FAILED",
+        "DOMAIN_BLOCKED",
+        `cannot verify domain '${name}': it is already verified`,
     ]);
     expect(await owner.domain.get({ scope: accountId, id: claimed.id })).toEqual(verified);
 
@@ -154,7 +154,11 @@ test("let a second account claim a domain and refuse its verification once anoth
                 requestId: RequestId.create(fixture.environment),
             }),
         ),
-    ).toEqual(["CONFLICT", "DOMAIN_TAKEN", `another owner verified ${name}`]);
+    ).toEqual([
+        "CONFLICT",
+        "DOMAIN_EXISTS",
+        `verified domain '${name}' already exists: another owner verified it`,
+    ]);
     expect(await rival.domain.get({ scope: otherId, id: second.id })).toEqual(second);
 });
 
@@ -174,8 +178,8 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     });
     expect(await refusal(serve(owner, accountId, notes, fixture.environment))).toEqual([
         "PRECONDITION_FAILED",
-        "DOMAIN_UNVERIFIED",
-        `verify a domain of ${notes} first`,
+        "DOMAIN_BLOCKED",
+        `cannot serve hostname '${notes}': verify a domain of it first`,
     ]);
     fixture.dns.publish(claimed);
     await owner.domain.verify({
@@ -190,8 +194,8 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     // refuse the rival a hostname below the domain
     expect(await refusal(serve(rival, otherId, `blog.${name}`, fixture.environment))).toEqual([
         "PRECONDITION_FAILED",
-        "DOMAIN_UNVERIFIED",
-        `verify a domain of blog.${name} first`,
+        "DOMAIN_BLOCKED",
+        `cannot serve hostname 'blog.${name}': verify a domain of it first`,
     ]);
     const remove = () =>
         owner.domain.delete({
@@ -202,8 +206,8 @@ test("serve hostnames below a verified domain alone, and refuse to remove the do
     const covered = [name, notes, `*.${name}`].toSorted().join(", ");
     expect(await refusal(remove())).toEqual([
         "PRECONDITION_FAILED",
-        "HOSTNAMES_IN_USE",
-        `hostnames below ${name} are in use: ${covered}`,
+        "HOSTNAMES_BLOCKED",
+        `cannot remove domain '${name}': hostnames below it are in use, '${covered}'`,
     ]);
     expect(
         (await owner.hostname.list({ accountId })).items.map((entry) => entry.name).toSorted(),
@@ -235,10 +239,10 @@ test("hide an account's domains from a stranger to every domain method", async (
         deleted: await refusal(stranger.domain.delete({ scope, id, requestId: requestId() })),
     }).toEqual({
         listed: [],
-        read: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
+        read: ["NOT_FOUND", "NOT_FOUND", `domain '${id}' not found`],
         claimed: ["NOT_FOUND", "NOT_FOUND", "domain not found"],
-        verified: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
-        deleted: ["NOT_FOUND", "NOT_FOUND", `domain ${id} not found`],
+        verified: ["NOT_FOUND", "NOT_FOUND", `domain '${id}' not found`],
+        deleted: ["NOT_FOUND", "NOT_FOUND", `domain '${id}' not found`],
     });
 
     // leave the claim unverified and ask the resolver nothing
@@ -259,9 +263,9 @@ test("refuse a domain claim until the account's plan allows custom domains", asy
 
     // refuse the claim, then accept it on a plan with custom domains
     expect(await refusal(claim())).toEqual([
-        "PAYMENT_REQUIRED",
-        "CUSTOM_DOMAINS_UNENTITLED",
-        `the plan of ${fixture.accountId} does not allow custom domains`,
+        "TOO_MANY_REQUESTS",
+        "CUSTOM_DOMAIN_EXHAUSTED",
+        `a custom domain of '${fixture.accountId}' exceeds its plan: the plan does not allow custom domains`,
     ]);
     await fixture.accounts.entitle(fixture.accountId, "domain", { kind: "boolean" });
     const claimed = await claim();

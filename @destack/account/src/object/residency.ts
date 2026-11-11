@@ -258,7 +258,10 @@ export const Residency = {
         readonly space?: Identifier<"space"> | null;
     }): Identifier<"space"> {
         if (row.space === null || row.space === undefined) {
-            throw AccountError.of("RESIDENCY_SPACE_MISSING", `residency ${row.code} has no space`);
+            throw AccountError.of(
+                "RESIDENCY_SPACE_NOT_FOUND",
+                `space of residency '${row.code}' not found`,
+            );
         }
 
         return row.space;
@@ -271,7 +274,7 @@ export const Residency = {
             .read(residency.table)
             .findFirst({ where: { [residency.identify(value)]: value } });
         if (row === undefined) {
-            throw AccountError.of("RESIDENCY_NOT_FOUND", `residency ${value} not found`);
+            throw AccountError.of("RESIDENCY_NOT_FOUND", `residency '${value}' not found`);
         }
 
         return row;

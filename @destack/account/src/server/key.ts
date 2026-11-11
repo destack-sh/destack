@@ -94,7 +94,10 @@ async function holderOf(context: MethodContext, parent: ObjectReference) {
     }
     // refuse any other parent
     else {
-        throw AccountError.of("KEYS_MISSING", `a ${parent.type} has no keys`);
+        throw AccountError.of(
+            "PARENT_INVALID",
+            `key parent is invalid: a ${parent.type} has no keys`,
+        );
     }
 }
 

@@ -56,9 +56,21 @@ test("accept a code a step either side of now once, refusing an expired code and
     expect([accepted, refused, next]).toEqual([
         [now - 1, now],
         [
-            ["UNAUTHORIZED", "CODE_INVALID", "the code is wrong or expired"],
-            ["UNAUTHORIZED", "CODE_REUSED", "the code was already used"],
-            ["UNAUTHORIZED", "CODE_REUSED", "the code was already used"],
+            [
+                "UNAUTHORIZED",
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the code is wrong or expired",
+            ],
+            [
+                "UNAUTHORIZED",
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the code was already used",
+            ],
+            [
+                "UNAUTHORIZED",
+                "CODE_UNAUTHENTICATED",
+                "authentication required: the code was already used",
+            ],
         ],
         now + 1,
     ]);

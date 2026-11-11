@@ -203,7 +203,10 @@ export const Client = {
         const id = client.identifier(clientId);
         const row = await transaction.view().read(client.table).findFirst({ where: { id } });
         if (row !== undefined && row.scope !== userId) {
-            throw AccountError.of("CLIENT_FOREIGN", `client ${id} belongs to another person`);
+            throw AccountError.of(
+                "CLIENT_DENIED",
+                `client '${id}' is forbidden: it belongs to another person`,
+            );
         } else if (row !== undefined) {
             return;
         }

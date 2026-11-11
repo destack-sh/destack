@@ -45,24 +45,33 @@ export function refreshGrant(options: RefreshOptions): GrantType {
         // find the client's unexpired token
         const found = await RefreshToken.find(asked.refresh_token, database, environment);
         if (found === undefined || found.consent.clientId !== party.clientId) {
-            throw OAuthError.of("INVALID_GRANT", "invalid refresh token");
+            throw OAuthError.of(
+                "GRANT_INVALID",
+                "refresh token is invalid: it is unknown or belongs to another client",
+            );
         }
         const { row, consent } = found;
 
         // refuse scopes beyond the granted ones
         const scopes = asked.scope === undefined ? row.scopes : spaceSeparated(asked.scope);
         if (scopes.some((scope) => !row.scopes.includes(scope))) {
-            throw OAuthError.of("INVALID_SCOPE", "the scopes exceed the granted ones");
+            throw OAuthError.of(
+                "SCOPE_INVALID",
+                "scope is invalid: the scopes exceed the granted ones",
+            );
         }
         // refuse another package than the granted one
         else if (asked.resource !== undefined && asked.resource !== row.resource) {
-            throw OAuthError.of("INVALID_TARGET", `${asked.resource} was not granted`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${asked.resource}' is invalid: it was not granted`,
+            );
         }
 
         // refuse a token spent before, revoking its family
         if (row.status === "rotated") {
             await RefreshToken.revoke(objects, database, row, environment);
-            throw OAuthError.of("INVALID_GRANT", "the refresh token was used before");
+            throw OAuthError.of("GRANT_INVALID", "refresh token is invalid: it was used before");
         }
 
         // describe the person through the client, until the token lapses, as offline access outlives the session

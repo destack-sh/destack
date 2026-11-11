@@ -39,7 +39,10 @@ export const PackageResource = {
         // refuse a resource of no package
         const audience = PackageResource.package(identifier);
         if (audience === undefined) {
-            throw OAuthError.of("INVALID_TARGET", `${identifier} names no package`);
+            throw OAuthError.of(
+                "TARGET_INVALID",
+                `resource '${identifier}' is invalid: it names no package`,
+            );
         }
 
         return audience;

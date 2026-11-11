@@ -24,6 +24,10 @@ test("prove a client to its computer's machine by its stored key, refusing a for
     expect([verified, stale, forgotten]).toEqual([
         client,
         ["BAD_REQUEST", "PROOF_INVALID", "key proof is for another subject or time"],
-        ["UNAUTHORIZED", "CLIENT_KEY_UNKNOWN", "no client of this computer signed it"],
+        [
+            "UNAUTHORIZED",
+            "CLIENT_KEY_UNAUTHENTICATED",
+            "authentication required: no client of this computer signed it",
+        ],
     ]);
 });

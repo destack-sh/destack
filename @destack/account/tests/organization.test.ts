@@ -123,13 +123,21 @@ test("grant an organization's members the access of their relations", async () =
     }
 
     // conceal the account from people outside it and from the one who left, and the organization from the latter
-    const hidden = ["NOT_FOUND", "NOT_FOUND", `account ${accountId} not found`];
+    const hidden = ["NOT_FOUND", "NOT_FOUND", `account '${accountId}' not found`];
     expect(accessed).toEqual([
         ["done", "done", "done"],
-        ["done", "done", ["FORBIDDEN", "PERMISSION_DENIED", `permission denied: update`]],
+        [
+            "done",
+            "done",
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                `permission 'update' is forbidden: the caller lacks it`,
+            ],
+        ],
         ["done", hidden, hidden],
         ["done", hidden, hidden],
-        [["NOT_FOUND", "NOT_FOUND", `organization ${organizationId} not found`], hidden, hidden],
+        [["NOT_FOUND", "NOT_FOUND", `organization '${organizationId}' not found`], hidden, hidden],
     ]);
 });
 
@@ -189,14 +197,26 @@ test("change an organization's owners only as an owner, keeping at least one", a
         await readOrganization(member, organizationId),
     ]).toEqual([
         [
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: administer"],
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: administer"],
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: delete"],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'administer' is forbidden: the caller lacks it",
+            ],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'administer' is forbidden: the caller lacks it",
+            ],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'delete' is forbidden: the caller lacks it",
+            ],
         ],
         [
-            "CONFLICT",
-            "LAST_RELATIONSHIP",
-            `the last owner of organization ${organizationId} cannot be removed`,
+            "PRECONDITION_FAILED",
+            "RELATIONSHIP_BLOCKED",
+            `cannot remove 'owner' of organization '${organizationId}': it is the last one`,
         ],
         "done",
         "done",

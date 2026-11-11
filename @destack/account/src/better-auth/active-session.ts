@@ -84,14 +84,17 @@ export class ActiveSession {
             )
             .limit(1);
         if (active === undefined) {
-            throw AccountError.of("SESSION_ENDED", "session is no longer authorized");
+            throw AccountError.of(
+                "SESSION_UNAUTHENTICATED",
+                "authentication required: the session is no longer authorized",
+            );
         }
 
         // require the user's private fields
         const { email, emailVerified } = active;
         if (email === null || emailVerified === null) {
             throw AccountError.of(
-                "PRIVATE_FIELDS_CONCEALED",
+                "FIELDS_BROKEN",
                 "the active user has its private fields concealed",
             );
         }
@@ -142,15 +145,18 @@ export class ActiveSession {
         const method = this.authenticationMethod;
         const time = this.authenticatedAt;
         if (method === null || time === null || time > now || now - time > SUDO_MILLISECONDS) {
-            throw AccountError.of("REAUTHENTICATION_REQUIRED", "recent authentication is required");
+            throw AccountError.of(
+                "REAUTHENTICATION_DENIED",
+                "this call is forbidden: recent authentication is required",
+            );
         }
 
         // require an enrolled factor
         const isEnrolled = (await this.reachable(database)) >= ASSURANCE_LEVELS.totp;
         if (isEnrolled && !ActiveSession.isEnrolledFactor(method)) {
             throw AccountError.of(
-                "REAUTHENTICATION_REQUIRED",
-                "recent authentication with an enrolled factor is required",
+                "REAUTHENTICATION_DENIED",
+                "this call is forbidden: recent authentication with an enrolled factor is required",
             );
         }
     }

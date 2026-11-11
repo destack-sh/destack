@@ -161,12 +161,16 @@ test("rekey an identity once a move completes, so the keys its source stored nei
         await verified(after),
         await refusal(moved.rotate(source.database, subject)),
     ]).toEqual([
-        ["UNAUTHORIZED", "KEY_NOT_FOUND", "no key of the set signed the token"],
+        [
+            "UNAUTHORIZED",
+            "KEY_UNAUTHENTICATED",
+            "authentication required: no key of the set signed the token",
+        ],
         "user-1",
         [
             "UNAUTHORIZED",
-            "OPERATION_UNSIGNED",
-            "the operation is not signed by a rotation key of the identity",
+            "OPERATION_UNAUTHENTICATED",
+            "authentication required: the operation is not signed by a rotation key of the identity",
         ],
     ]);
 });
@@ -225,7 +229,7 @@ test("sign an installation's request for the space it goes to by its space's key
         [
             "BAD_REQUEST",
             "SPACE_REQUIRED",
-            `${installation.id} can only sign calls to spaces, not https://notes.test/`,
+            `space is required: '${installation.id}' can only sign calls to spaces, not 'https://notes.test/'`,
         ],
     ]);
 });
@@ -333,11 +337,15 @@ test("send a request as the universe bound to the space it goes to, which a veri
         spaceless: await refusal(universeFetch(new Request("https://machine.test/package-x"))),
     }).toEqual({
         verified: [universe.reference(Scope.universe.id, Scope.universe.id), "universe-key", space],
-        elsewhere: ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token claims"],
+        elsewhere: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: access token claims do not verify",
+        ],
         spaceless: [
             "BAD_REQUEST",
             "SPACE_REQUIRED",
-            `${Scope.universe.id} can only sign calls to spaces, not https://machine.test/package-x`,
+            `space is required: '${Scope.universe.id}' can only sign calls to spaces, not 'https://machine.test/package-x'`,
         ],
     });
 });

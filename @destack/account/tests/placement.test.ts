@@ -270,8 +270,8 @@ async function assignments(caller: TestCaller): Promise<unknown[]> {
 function unknownMachine(caller: TestCaller): Refusal {
     return [
         "BAD_REQUEST",
-        "MACHINE_UNKNOWN",
-        `${caller.subject.id} is not a standing machine of the space's account or residency`,
+        "MACHINE_INVALID",
+        `machine '${caller.subject.id}' is invalid: it is not a standing machine of the space's account or residency`,
     ];
 }
 
@@ -301,9 +301,9 @@ test("place a created space again only as the machine serving it, and let the ac
         await locate(peer, accountId, laptop),
     ]).toEqual([
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: place"],
-        ["NOT_FOUND", "NOT_FOUND", `placement ${foreign} not found`],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: place"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
+        ["NOT_FOUND", "NOT_FOUND", `placement '${foreign}' not found`],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
         placedOn,
     ]);
 });
@@ -326,8 +326,8 @@ test("read who pays for a placed space only as the machine serving it", async ()
         await refusal(payer(outsider)),
     ]).toEqual([
         accountId,
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: serve"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: serve"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: the caller lacks it"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'serve' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -348,7 +348,7 @@ test("reserve and confirm a space's names only as the machine serving it", async
         await reserve(local),
         await Claim.lookup(place, claims(outsider), "name", ["notes"], accountId),
     ]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: claim"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'claim' is forbidden: the caller lacks it"],
         "done",
         { scope: accountId, id: laptop },
     ]);
@@ -463,8 +463,8 @@ test("follow a machine's chain as a space of its account, and refuse a space of 
         [Scope.table[TABLE].sqlName],
         [
             "FORBIDDEN",
-            "FOLLOWER_OUTSIDE_TARGET",
-            `only ${identity.machineId} and its contents can follow its replicas`,
+            "FOLLOWER_OUTSIDE_TARGET_DENIED",
+            `replica of '${identity.machineId}' is forbidden: only it and its contents can follow its replicas`,
         ],
     ]);
 });
@@ -521,7 +521,11 @@ test("follow a machine's chain via the universe as a machine of its account, and
             machine.table[TABLE].sqlName,
             Scope.table[TABLE].sqlName,
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
     ]);
 });
 
@@ -545,8 +549,8 @@ test("refuse a machine exchanging a token for itself, which it asks for with its
         ),
     ).toEqual([
         "BAD_REQUEST",
-        "INVALID_GRANT",
-        "the token endpoint refused the request: invalid_grant: a machine must request its tokens with its assertion",
+        "GRANT_INVALID",
+        "the token endpoint refused the request: invalid_grant: token request is forbidden: a machine must request its tokens with its assertion",
     ]);
 });
 
@@ -593,7 +597,7 @@ test("move a space only to a standing machine of its account, which serves it fr
             unknownMachine(revoked),
         ],
         "done",
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: place"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
         { space: laptop, scope: accountId, machine: cloud.subject.id, epoch: 2 },
     ]);
 });
@@ -653,11 +657,19 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
     ]).toEqual([
         [
             "done",
-            ["NOT_FOUND", "NOT_FOUND", `machine ${local.subject.id} not found`],
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: relay"],
+            ["NOT_FOUND", "NOT_FOUND", `machine '${local.subject.id}' not found`],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'relay' is forbidden: the caller lacks it",
+            ],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'relay' is forbidden: the caller lacks it",
+            ],
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: operate"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'operate' is forbidden: the caller lacks it"],
         address,
         address,
         {
@@ -666,7 +678,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
             status: "starting",
             url: address,
         },
-        ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at missing--${handle}`],
+        ["NOT_FOUND", "ADDRESS_NOT_FOUND", `address 'missing--${handle}' not found`],
     ]);
 });
 
@@ -722,14 +734,22 @@ test("move and withdraw a space only as the machine serving it, at the epoch it 
         await refusal(locate(local, accountId, laptop)),
     ]).toEqual([
         [
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: move"],
-            ["CONFLICT", "EPOCH_STALE", "this space is no longer placed at epoch 2"],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'move' is forbidden: the caller lacks it",
+            ],
+            [
+                "CONFLICT",
+                "EPOCH_CONFLICT",
+                "cannot place this space at epoch 2: it is no longer placed at that epoch",
+            ],
             "done",
         ],
         [local.subject.id, peer.subject.id],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: move"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'move' is forbidden: the caller lacks it"],
         "done",
-        ["NOT_FOUND", "NOT_FOUND", `placement ${laptop} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `placement '${laptop}' not found`],
     ]);
 });
 
@@ -961,9 +981,9 @@ test("refuse declaring an account's dedicated cloud machine its plan does not un
     });
 
     expect(await refusal(declared)).toEqual([
-        "PAYMENT_REQUIRED",
-        "DEDICATED_TENANCY_UNENTITLED",
-        "this account has no dedicated tenancy: no plan of the account grants dedicated tenancy",
+        "TOO_MANY_REQUESTS",
+        "TENANCY_EXHAUSTED",
+        "dedicated tenancy exceeds this account's plan: no plan of the account grants dedicated tenancy",
     ]);
 });
 

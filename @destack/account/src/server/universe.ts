@@ -254,8 +254,8 @@ export class Platform {
             const origin = published.find((entry) => entry.parentId === row.id)?.url;
             if (origin !== declared.origin) {
                 throw AccountError.of(
-                    "ORIGIN_MISMATCH",
-                    `cloud machine ${row.id} is published at ${origin ?? "no origin"}, not its declared ${declared.origin}`,
+                    "ORIGIN_BLOCKED",
+                    `cannot publish cloud machine '${row.id}': it is published at '${origin ?? "no origin"}', not its declared '${declared.origin}'`,
                 );
             }
         }
@@ -325,8 +325,8 @@ export class Platform {
         const owner = schema.identifier("organization").safeParse(claimed.scope);
         if (!owner.success) {
             throw AccountError.of(
-                "HANDLE_TAKEN",
-                `handle ${handle} already belongs to ${claimed.scope}`,
+                "HANDLE_EXISTS",
+                `handle '${handle}' already exists: it belongs to '${claimed.scope}'`,
             );
         }
 
@@ -419,7 +419,7 @@ export class Platform {
             if (recipient === undefined) {
                 throw AccountError.of(
                     "ACCOUNT_NOT_FOUND",
-                    `handle ${handle} transfers to an account that does not exist`,
+                    `account not found: handle '${handle}' transfers to an account that does not exist`,
                 );
             }
 
@@ -433,8 +433,8 @@ export class Platform {
             const [conflict] = await Claim.replace(transaction, claimant, environment);
             if (conflict !== undefined) {
                 throw AccountError.of(
-                    "HANDLE_RESERVED",
-                    `reserved handle ${conflict.key} is claimed outside the operating organization`,
+                    "HANDLE_BLOCKED",
+                    `cannot reserve handle '${conflict.key}': it is claimed outside the operating organization`,
                 );
             }
 
@@ -460,8 +460,8 @@ export class Platform {
                 );
                 if (taken !== undefined) {
                     throw AccountError.of(
-                        "HANDLE_RESERVED",
-                        `transferred handle ${handle} is claimed by another object than account ${recipient.id}`,
+                        "HANDLE_BLOCKED",
+                        `cannot transfer handle '${handle}': another object than account '${recipient.id}' claims it`,
                     );
                 }
             }
@@ -512,7 +512,7 @@ export class Platform {
         if (own === undefined) {
             throw AccountError.of(
                 "ACCOUNT_NOT_FOUND",
-                `the organization has no account @${this.definition.handle}`,
+                `account @'${this.definition.handle}' not found: the organization has no such account`,
             );
         }
         if (this.definition.trustedPublishers.length > 0) {

@@ -98,11 +98,11 @@ test("refuse a space under a taken name or on another account's machine, placing
         foreign: await refusal(create(fixture, person, "other", elsewhere.machineId)),
         placements: (await placements(fixture, person)).map((placed) => placed.space),
     }).toEqual({
-        taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
+        taken: ["CONFLICT", "NAME_EXISTS", "'name' already exists"],
         foreign: [
             "BAD_REQUEST",
-            "MACHINE_UNKNOWN",
-            `${elsewhere.machineId} is not a standing machine of the space's account or residency`,
+            "MACHINE_INVALID",
+            `machine '${elsewhere.machineId}' is invalid: it is not a standing machine of the space's account or residency`,
         ],
         placements: [Account.home(person.account), work.id],
     });
@@ -147,7 +147,7 @@ test("rename a space to a free address in its account, releasing the old one, an
     ];
     expect({ moved, taken, away, released, malformed }).toEqual({
         moved: "notes",
-        taken: ["CONFLICT", "NAME_TAKEN", "name is taken"],
+        taken: ["CONFLICT", "NAME_EXISTS", "'name' already exists"],
         away: "personal",
         released: "notes",
         malformed: [refused, refused, refused],

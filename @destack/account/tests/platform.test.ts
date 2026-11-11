@@ -128,8 +128,8 @@ test("answer a person the platform's reserved and taken handles as taken", async
     const owned = await fixture.createAccount(person);
 
     // suggest a free handle, and refuse the reserved and taken handles and their lookalikes
-    const taken = ["CONFLICT", "NAME_TAKEN", "handle is taken"];
-    const lookalike = ["CONFLICT", "NAME_TAKEN", "lookalike is taken"];
+    const taken = ["CONFLICT", "NAME_EXISTS", "'handle' already exists"];
+    const lookalike = ["CONFLICT", "NAME_EXISTS", "'lookalike' already exists"];
     expect([
         await person.client(accountPackage).user.suggestHandle({ id: person.id }),
         await availability(person, "destack"),
@@ -503,5 +503,13 @@ test("enroll a cloud machine serving a residency as an owner of the platform org
         ),
         await refusal(fixture.enroll(accountId, stranger, { residencyId: "eu" })),
         await refusal(fixture.enroll(accountId, stranger)),
-    ]).toEqual(["done", ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: operate"], "done"]);
+    ]).toEqual([
+        "done",
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'operate' is forbidden: the caller lacks it",
+        ],
+        "done",
+    ]);
 });

@@ -32,8 +32,8 @@ async function create(
     const log = await Identity.log(context, subject);
     if (claims.subject !== subject) {
         throw AccountError.of(
-            "SUBJECT_MISMATCH",
-            `the operation changes ${claims.subject}, not ${subject}`,
+            "SUBJECT_INVALID",
+            `operation is invalid: it changes '${claims.subject}', not '${subject}'`,
         );
     }
 
@@ -54,8 +54,8 @@ async function create(
     const [first] = later;
     if (first !== undefined && !isRecoverable(first, priority, context.now)) {
         throw AccountError.of(
-            "OPERATIONS_UNRECOVERABLE",
-            `the operation cannot nullify the later operations of ${subject}`,
+            "OPERATION_BLOCKED",
+            `cannot apply the operation: it cannot nullify the later operations of '${subject}'`,
         );
     }
     await context.mutate(
@@ -84,8 +84,8 @@ async function create(
 function following(previous: Operation | undefined, subject: string) {
     if (previous === undefined) {
         throw AccountError.of(
-            "CURRENT_OPERATION_MISSING",
-            `the operation does not follow a current operation of ${subject}`,
+            "OPERATION_BLOCKED",
+            `cannot apply the operation: it does not follow a current operation of '${subject}'`,
         );
     }
 
@@ -101,8 +101,8 @@ async function signer(
     const priority = await IdentityOperation.verify(signed, rotationKeys, crypto);
     if (priority === undefined) {
         throw AccountError.of(
-            "OPERATION_UNSIGNED",
-            "the operation is not signed by a rotation key of the identity",
+            "OPERATION_UNAUTHENTICATED",
+            "authentication required: the operation is not signed by a rotation key of the identity",
         );
     }
 

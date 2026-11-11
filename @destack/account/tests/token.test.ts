@@ -60,8 +60,8 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     // challenge a single factor
     expect(await refusal(owner.client(accountPackage).client.issue(issuing))).toEqual([
         "UNAUTHORIZED",
-        "AUTHENTICATION_INSUFFICIENT",
-        "authentication assurance is too low: authenticate again",
+        "ASSURANCE_UNAUTHENTICATED",
+        "authentication required: authentication assurance is too low",
     ]);
     owner = await fixture.elevate(owner);
     const issued = await owner.client(accountPackage).client.issue(issuing);
@@ -188,7 +188,7 @@ test("issue a token client with its grant, act through it, and revoke both", asy
     expect(await refusal(bearer.client.list({ userId: owner.id }))).toEqual([
         "NOT_FOUND",
         "SCOPE_NOT_FOUND",
-        `scope ${owner.id} not found`,
+        `scope '${owner.id}' not found`,
     ]);
 
     // refuse unknown account permissions, unknown scopes and unbounded expiries
@@ -214,10 +214,22 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         ),
     );
     expect(refusals).toEqual([
-        ["BAD_REQUEST", "PERMISSION_UNKNOWN", "unknown permission account.fly"],
-        ["BAD_REQUEST", "SCOPE_UNUSABLE", "token cannot act in elsewhere"],
-        ["BAD_REQUEST", "TOKEN_EXPIRY_INVALID", "token expiry must be within 366 days from now"],
-        ["BAD_REQUEST", "TOKEN_EXPIRY_INVALID", "token expiry must be within 366 days from now"],
+        ["BAD_REQUEST", "PERMISSION_INVALID", "permission 'account.fly' is invalid: it is unknown"],
+        [
+            "BAD_REQUEST",
+            "SCOPE_UNUSABLE_INVALID",
+            "token scope 'elsewhere' is invalid: the token cannot act in it",
+        ],
+        [
+            "BAD_REQUEST",
+            "TOKEN_EXPIRY_INVALID",
+            "token expiry is invalid: it must be within 366 days from now",
+        ],
+        [
+            "BAD_REQUEST",
+            "TOKEN_EXPIRY_INVALID",
+            "token expiry is invalid: it must be within 366 days from now",
+        ],
     ]);
 
     // hide the token from another user, who finds the owner's public profile alone
@@ -265,10 +277,14 @@ test("issue a token client with its grant, act through it, and revoke both", asy
         grants: [],
         exchanged: [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: invalid personal access token",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: authentication required: the personal access token is invalid",
         ],
-        again: ["CONFLICT", "CREDENTIAL_REVOKED", "client is revoked"],
+        again: [
+            "PRECONDITION_FAILED",
+            "CREDENTIAL_BLOCKED",
+            "cannot use client: it is revoked",
+        ],
     });
 });
 
@@ -310,8 +326,8 @@ test("end a personal access token's exchanged tokens at its grant's lapse, and r
     await fixture.simulation.jump(clock.now() + 60_001);
     expect(await refusal(exchange())).toEqual([
         "BAD_REQUEST",
-        "INVALID_GRANT",
-        "the token endpoint refused the request: invalid_grant: invalid personal access token",
+        "GRANT_INVALID",
+        "the token endpoint refused the request: invalid_grant: authentication required: the personal access token is invalid",
     ]);
 });
 
@@ -371,13 +387,13 @@ test("exchange an installation's token for tokens of its account's spaces with i
     ]).toEqual([
         [
             "BAD_REQUEST",
-            "INVALID_GRANT",
+            "GRANT_INVALID",
             `the token endpoint refused the request: invalid_grant: ${owner.id} has no grant to ${automation.id}`,
         ],
         [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: the installation belongs to another account",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: installation is forbidden: it belongs to another account",
         ],
     ]);
 });
@@ -441,7 +457,11 @@ test("authenticate a person's universe token in the space it is bound to, refusi
     }).toEqual({
         anonymous: undefined,
         home: person.subject,
-        other: ["UNAUTHORIZED", "TOKEN_INVALID", "invalid access token claims"],
+        other: [
+            "UNAUTHORIZED",
+            "TOKEN_UNAUTHENTICATED",
+            "authentication required: access token claims do not verify",
+        ],
     });
 });
 
@@ -454,8 +474,8 @@ test("refuse a person's refresh once their refresh token expired, as the issuer'
     // refuse refreshing their tokens
     expect(await refusal(person.tokens())).toEqual([
         "BAD_REQUEST",
-        "INVALID_GRANT",
-        "the token endpoint refused the request: invalid_grant: invalid refresh token",
+        "GRANT_INVALID",
+        "the token endpoint refused the request: invalid_grant: refresh token is invalid: it is unknown or belongs to another client",
     ]);
 });
 
@@ -472,8 +492,8 @@ test("sign a person in with a fresh code a month after their first sign-in, refu
         true,
         [
             "BAD_REQUEST",
-            "INVALID_GRANT",
-            "the token endpoint refused the request: invalid_grant: invalid refresh token",
+            "GRANT_INVALID",
+            "the token endpoint refused the request: invalid_grant: refresh token is invalid: it is unknown or belongs to another client",
         ],
     ]);
 });

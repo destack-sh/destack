@@ -86,8 +86,8 @@ async function place(
     // refuse any other epoch or machine
     if (!isRetained && !isAdvanced) {
         throw AccountError.of(
-            "PLACEMENT_MISMATCH",
-            `this space is not placed on or moving to ${caller} at epoch ${epoch}`,
+            "PLACEMENT_CONFLICT",
+            `cannot place this space on '${caller}': it is not placed on or moving to it at epoch ${epoch}`,
         );
     }
 
