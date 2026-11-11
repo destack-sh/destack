@@ -195,6 +195,7 @@ export class PlatformBuild implements AsyncDisposable {
             manifests,
             COMPUTER_RUNTIMES,
             join(directory, DISTRIBUTION_LAYER),
+            "linked",
         );
     }
 
