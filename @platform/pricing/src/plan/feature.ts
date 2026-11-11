@@ -2,51 +2,52 @@ import { Tenancy } from "@destack/account/object";
 import { defineFeature } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
 import { schema } from "@destack/schema";
+import { t } from "@destack/locale";
 
 /** The bytes an account keeps in its databases, capped at the bytes kept now. */
 export const database = defineFeature({
     name: "database",
-    description: "Bytes kept in databases.",
+    description: t`Bytes kept in databases.`,
     kind: "metered",
     resource: "database",
-    meters: [meters.databaseUsage.reference],
+    meters: [meters.databaseUsage],
     reset: "never",
 });
 
 /** The bytes an account keeps in its buckets, capped at the bytes kept now. */
 export const bucket = defineFeature({
     name: "bucket",
-    description: "Bytes kept in buckets.",
+    description: t`Bytes kept in buckets.`,
     kind: "metered",
     resource: "bucket",
-    meters: [meters.bucketUsage.reference],
+    meters: [meters.bucketUsage],
     reset: "never",
 });
 
 /** The GB-seconds an account's installations run per billing period. */
 export const compute = defineFeature({
     name: "compute",
-    description: "GB-seconds run per billing period.",
+    description: t`GB-seconds run per billing period.`,
     kind: "metered",
     resource: "compute",
-    meters: [meters.computeUsage.reference],
+    meters: [meters.computeUsage],
     reset: "period",
 });
 
 /** The bytes an account's spaces move in and out per billing period. */
 export const network = defineFeature({
     name: "network",
-    description: "Bytes moved in and out per billing period.",
+    description: t`Bytes moved in and out per billing period.`,
     kind: "metered",
     resource: "network",
-    meters: [meters.networkTransfer.reference],
+    meters: [meters.networkTransfer],
     reset: "period",
 });
 
 /** Where an account's spaces may run. */
 export const tenancy = defineFeature({
     name: "tenancy",
-    description: "Where the account's spaces may run.",
+    description: t`Where the account's spaces may run.`,
     kind: "static",
     resource: "tenancy",
     value: schema.array(Tenancy),
@@ -55,7 +56,7 @@ export const tenancy = defineFeature({
 /** The help people give an account. */
 export const support = defineFeature({
     name: "support",
-    description: "The help people give the account.",
+    description: t`The help people give the account.`,
     kind: "static",
     value: schema.enum(["email", "priority"]),
 });
@@ -63,7 +64,7 @@ export const support = defineFeature({
 /** Serving an account's spaces under its own domains. */
 export const customDomains = defineFeature({
     name: "customDomains",
-    description: "Serving spaces under the account's own domains.",
+    description: t`Serving spaces under the account's own domains.`,
     kind: "boolean",
     resource: "domain",
 });
@@ -71,7 +72,7 @@ export const customDomains = defineFeature({
 /** Choosing how long an account's spaces keep events, past each setting's default. */
 export const customRetention = defineFeature({
     name: "customRetention",
-    description: "Choosing how long spaces keep events, past each setting's default.",
+    description: t`Choosing how long spaces keep events, past each setting's default.`,
     kind: "boolean",
     resource: "retention",
 });
@@ -79,6 +80,6 @@ export const customRetention = defineFeature({
 /** New apps and features before everyone else. */
 export const earlyAccess = defineFeature({
     name: "earlyAccess",
-    description: "New apps and features before everyone else.",
+    description: t`New apps and features before everyone else.`,
     kind: "boolean",
 });

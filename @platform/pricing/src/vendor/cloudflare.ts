@@ -1,6 +1,7 @@
 import { Sku } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
 import { PricingModel } from "../price/model.ts";
+import { t } from "@destack/locale";
 
 /** The package keeping the vendors' list prices as data. */
 const OWNER = import.meta.destack.package;
@@ -29,7 +30,7 @@ export const DURABLE_OBJECT_GIGABYTES = 0.128;
 /** Durable Objects duration, $12.50 per million GB-seconds. */
 export const durableObjectDuration = new Sku(OWNER, {
     name: "cloudflare.durableObjectDuration",
-    description: "Durable Objects duration, by wall-clock time at the object's billed memory.",
+    description: t`Durable Objects duration, by wall-clock time at the object's billed memory.`,
     provider: "cloudflare",
     service: "Durable Objects",
     category: "Compute",
@@ -46,7 +47,7 @@ export const durableObjectDuration = new Sku(OWNER, {
 /** Durable Objects requests, $0.15 per million. */
 export const durableObjectRequests = new Sku(OWNER, {
     name: "cloudflare.durableObjectRequests",
-    description: "Durable Objects requests, RPC sessions, WebSocket messages and alarms.",
+    description: t`Durable Objects requests, RPC sessions, WebSocket messages and alarms.`,
     provider: "cloudflare",
     service: "Durable Objects",
     category: "Compute",
@@ -63,7 +64,7 @@ export const durableObjectRequests = new Sku(OWNER, {
 /** Durable Objects SQLite rows read, $0.001 per million. */
 export const durableObjectRowsRead = new Sku(OWNER, {
     name: "cloudflare.durableObjectRowsRead",
-    description: "Durable Objects SQLite rows read.",
+    description: t`Durable Objects SQLite rows read.`,
     provider: "cloudflare",
     service: "Durable Objects",
     category: "Databases",
@@ -80,7 +81,7 @@ export const durableObjectRowsRead = new Sku(OWNER, {
 /** Durable Objects SQLite rows written, $1.00 per million. */
 export const durableObjectRowsWritten = new Sku(OWNER, {
     name: "cloudflare.durableObjectRowsWritten",
-    description: "Durable Objects SQLite rows written.",
+    description: t`Durable Objects SQLite rows written.`,
     provider: "cloudflare",
     service: "Durable Objects",
     category: "Databases",
@@ -97,7 +98,7 @@ export const durableObjectRowsWritten = new Sku(OWNER, {
 /** Durable Objects SQLite storage, $0.20 per GB-month. */
 export const durableObjectStorage = new Sku(OWNER, {
     name: "cloudflare.durableObjectStorage",
-    description: "Durable Objects SQLite stored data.",
+    description: t`Durable Objects SQLite stored data.`,
     provider: "cloudflare",
     service: "Durable Objects",
     category: "Databases",
@@ -114,7 +115,7 @@ export const durableObjectStorage = new Sku(OWNER, {
 /** R2 Standard storage, $0.015 per GB-month. */
 export const r2Storage = new Sku(OWNER, {
     name: "cloudflare.r2Storage",
-    description: "R2 Standard storage.",
+    description: t`R2 Standard storage.`,
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
@@ -131,7 +132,7 @@ export const r2Storage = new Sku(OWNER, {
 /** R2 Standard Class A operations, writes and lists, $4.50 per million. */
 export const r2ClassA = new Sku(OWNER, {
     name: "cloudflare.r2ClassA",
-    description: "R2 Standard Class A operations: writes and lists.",
+    description: t`R2 Standard Class A operations: writes and lists.`,
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
@@ -148,7 +149,7 @@ export const r2ClassA = new Sku(OWNER, {
 /** R2 Standard Class B operations, reads, $0.36 per million. */
 export const r2ClassB = new Sku(OWNER, {
     name: "cloudflare.r2ClassB",
-    description: "R2 Standard Class B operations: reads.",
+    description: t`R2 Standard Class B operations: reads.`,
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
@@ -165,7 +166,7 @@ export const r2ClassB = new Sku(OWNER, {
 /** R2 egress to the internet, free. */
 export const r2Egress = new Sku(OWNER, {
     name: "cloudflare.r2Egress",
-    description: "R2 data transfer to the internet.",
+    description: t`R2 data transfer to the internet.`,
     provider: "cloudflare",
     service: "R2",
     category: "Networking",
@@ -182,7 +183,7 @@ export const r2Egress = new Sku(OWNER, {
 /** Workers Standard requests, $0.30 per million. */
 export const workerRequests = new Sku(OWNER, {
     name: "cloudflare.workerRequests",
-    description: "Workers Standard requests.",
+    description: t`Workers Standard requests.`,
     provider: "cloudflare",
     service: "Workers",
     category: "Compute",
@@ -199,7 +200,7 @@ export const workerRequests = new Sku(OWNER, {
 /** Workers Standard CPU time, $0.02 per million CPU milliseconds. */
 export const workerCpu = new Sku(OWNER, {
     name: "cloudflare.workerCpu",
-    description: "Workers Standard CPU time.",
+    description: t`Workers Standard CPU time.`,
     provider: "cloudflare",
     service: "Workers",
     category: "Compute",

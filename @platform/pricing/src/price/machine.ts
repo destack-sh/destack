@@ -4,6 +4,7 @@ import { defineSku } from "@destack/finance/declare";
 import { machineTime } from "@destack/telemetry/meter";
 import { hetzner } from "../vendor/hetzner.ts";
 import type { MachineType, MachineVendor } from "../vendor/vendor.ts";
+import { t } from "@destack/locale";
 
 /** The page publishing Destack's machine prices. */
 const SOURCE = "https://destack.sh/pricing";
@@ -31,13 +32,12 @@ export const MACHINE_HOST: MachineVendor = hetzner;
 /** A small machine's awake seconds, 0.08 credits an hour. */
 export const smallMachineUnit = defineSku({
     name: "destack.machine.small",
-    description:
-        "Seconds a small machine with two vCPUs, 4 GB of memory and 80 GB of local disk stays awake.",
+    description: t`Seconds a small machine with two vCPUs, 4 GB of memory and 80 GB of local disk stays awake.`,
     provider: "destack",
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineTime.reference,
+    meter: machineTime,
     attributes: {},
     pricingUnit: "hour",
     unitSize: SECONDS_PER_HOUR,
@@ -50,13 +50,12 @@ export const smallMachineUnit = defineSku({
 /** A medium machine's awake seconds, 0.16 credits an hour. */
 export const mediumMachineUnit = defineSku({
     name: "destack.machine.medium",
-    description:
-        "Seconds a medium machine with four vCPUs, 8 GB of memory and 160 GB of local disk stays awake.",
+    description: t`Seconds a medium machine with four vCPUs, 8 GB of memory and 160 GB of local disk stays awake.`,
     provider: "destack",
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineTime.reference,
+    meter: machineTime,
     attributes: {},
     pricingUnit: "hour",
     unitSize: SECONDS_PER_HOUR,
@@ -69,13 +68,12 @@ export const mediumMachineUnit = defineSku({
 /** A large machine's awake seconds, 0.32 credits an hour. */
 export const largeMachineUnit = defineSku({
     name: "destack.machine.large",
-    description:
-        "Seconds a large machine with eight vCPUs, 16 GB of memory and 320 GB of local disk stays awake.",
+    description: t`Seconds a large machine with eight vCPUs, 16 GB of memory and 320 GB of local disk stays awake.`,
     provider: "destack",
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineTime.reference,
+    meter: machineTime,
     attributes: {},
     pricingUnit: "hour",
     unitSize: SECONDS_PER_HOUR,
@@ -88,13 +86,12 @@ export const largeMachineUnit = defineSku({
 /** An extra large machine's awake seconds, 0.64 credits an hour. */
 export const xlargeMachineUnit = defineSku({
     name: "destack.machine.xlarge",
-    description:
-        "Seconds an extra large machine with sixteen vCPUs, 32 GB of memory and 640 GB of local disk stays awake.",
+    description: t`Seconds an extra large machine with sixteen vCPUs, 32 GB of memory and 640 GB of local disk stays awake.`,
     provider: "destack",
     service: "Compute",
     category: "Compute",
     tenancy: "dedicated",
-    meter: machineTime.reference,
+    meter: machineTime,
     attributes: {},
     pricingUnit: "hour",
     unitSize: SECONDS_PER_HOUR,

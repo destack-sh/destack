@@ -3,6 +3,7 @@ import { defineSku } from "@destack/finance/declare";
 import * as meters from "@destack/telemetry/meter";
 import type { Meter } from "@destack/telemetry/meter";
 import { PricingModel } from "./model.ts";
+import { t } from "@destack/locale";
 
 /** The page publishing Destack's unit prices with their cost basis. */
 const SOURCE = "https://destack.sh/pricing";
@@ -37,10 +38,10 @@ const UNIT = {
 export const computeTimeUnit = defineSku({
     ...UNIT,
     name: "destack.compute.time",
-    description: "CPU time installations spend.",
+    description: t`CPU time installations spend.`,
     service: "Compute",
     category: "Compute",
-    meter: meters.computeTime.reference,
+    meter: meters.computeTime,
     attributes: {},
     pricingUnit: "million CPU milliseconds",
     unitSize: MILLION,
@@ -51,10 +52,10 @@ export const computeTimeUnit = defineSku({
 export const computeUsageUnit = defineSku({
     ...UNIT,
     name: "destack.compute.usage",
-    description: "Memory held while installations are awake.",
+    description: t`Memory held while installations are awake.`,
     service: "Compute",
     category: "Compute",
-    meter: meters.computeUsage.reference,
+    meter: meters.computeUsage,
     attributes: {},
     pricingUnit: "GB-hour",
     unitSize: GIGABYTE_HOUR_SECONDS,
@@ -65,10 +66,10 @@ export const computeUsageUnit = defineSku({
 export const computeOperationUnit = defineSku({
     ...UNIT,
     name: "destack.compute.operation",
-    description: "Requests served.",
+    description: t`Requests served.`,
     service: "Compute",
     category: "Compute",
-    meter: meters.computeOperation.reference,
+    meter: meters.computeOperation,
     attributes: {},
     pricingUnit: "million requests",
     unitSize: MILLION,
@@ -79,10 +80,10 @@ export const computeOperationUnit = defineSku({
 export const databaseUsageUnit = defineSku({
     ...UNIT,
     name: "destack.database.usage",
-    description: "Database storage, kept on average over the month.",
+    description: t`Database storage, kept on average over the month.`,
     service: "Database",
     category: "Databases",
-    meter: meters.databaseUsage.reference,
+    meter: meters.databaseUsage,
     attributes: {},
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
@@ -93,10 +94,10 @@ export const databaseUsageUnit = defineSku({
 export const databaseReadUnit = defineSku({
     ...UNIT,
     name: "destack.database.read",
-    description: "Database rows read, every row a query scans.",
+    description: t`Database rows read, every row a query scans.`,
     service: "Database",
     category: "Databases",
-    meter: meters.databaseOperation.reference,
+    meter: meters.databaseOperation,
     attributes: { direction: "read" },
     pricingUnit: "million rows",
     unitSize: MILLION,
@@ -107,10 +108,10 @@ export const databaseReadUnit = defineSku({
 export const databaseWriteUnit = defineSku({
     ...UNIT,
     name: "destack.database.write",
-    description: "Database rows written, deletes included.",
+    description: t`Database rows written, deletes included.`,
     service: "Database",
     category: "Databases",
-    meter: meters.databaseOperation.reference,
+    meter: meters.databaseOperation,
     attributes: { direction: "write" },
     pricingUnit: "million rows",
     unitSize: MILLION,
@@ -121,10 +122,10 @@ export const databaseWriteUnit = defineSku({
 export const bucketUsageUnit = defineSku({
     ...UNIT,
     name: "destack.bucket.usage",
-    description: "File storage, kept on average over the month.",
+    description: t`File storage, kept on average over the month.`,
     service: "Files",
     category: "Storage",
-    meter: meters.bucketUsage.reference,
+    meter: meters.bucketUsage,
     attributes: {},
     pricingUnit: "GB-month",
     unitSize: GIGABYTE,
@@ -135,10 +136,10 @@ export const bucketUsageUnit = defineSku({
 export const bucketReadUnit = defineSku({
     ...UNIT,
     name: "destack.bucket.read",
-    description: "File reads.",
+    description: t`File reads.`,
     service: "Files",
     category: "Storage",
-    meter: meters.bucketOperation.reference,
+    meter: meters.bucketOperation,
     attributes: { direction: "read" },
     pricingUnit: "million operations",
     unitSize: MILLION,
@@ -149,10 +150,10 @@ export const bucketReadUnit = defineSku({
 export const bucketWriteUnit = defineSku({
     ...UNIT,
     name: "destack.bucket.write",
-    description: "File writes and lists.",
+    description: t`File writes and lists.`,
     service: "Files",
     category: "Storage",
-    meter: meters.bucketOperation.reference,
+    meter: meters.bucketOperation,
     attributes: { direction: "write" },
     pricingUnit: "million operations",
     unitSize: MILLION,
@@ -163,10 +164,10 @@ export const bucketWriteUnit = defineSku({
 export const networkIngressUnit = defineSku({
     ...UNIT,
     name: "destack.network.ingress",
-    description: "Bytes received into Destack.",
+    description: t`Bytes received into Destack.`,
     service: "Network",
     category: "Networking",
-    meter: meters.networkTransfer.reference,
+    meter: meters.networkTransfer,
     attributes: { direction: "ingress" },
     pricingUnit: "GB",
     unitSize: GIGABYTE,
@@ -177,10 +178,10 @@ export const networkIngressUnit = defineSku({
 export const networkEgressUnit = defineSku({
     ...UNIT,
     name: "destack.network.egress",
-    description: "Bytes sent out of Destack.",
+    description: t`Bytes sent out of Destack.`,
     service: "Network",
     category: "Networking",
-    meter: meters.networkTransfer.reference,
+    meter: meters.networkTransfer,
     attributes: { direction: "egress" },
     pricingUnit: "GB",
     unitSize: GIGABYTE,
@@ -191,10 +192,10 @@ export const networkEgressUnit = defineSku({
 export const inferenceCostUnit = defineSku({
     ...UNIT,
     name: "destack.inference.cost",
-    description: "Model calls through Destack, at their provider's list price.",
+    description: t`Model calls through Destack, at their provider's list price.`,
     service: "Inference",
     category: "AI and Machine Learning",
-    meter: meters.inferenceCost.reference,
+    meter: meters.inferenceCost,
     attributes: {},
     pricingUnit: "US dollar",
     unitSize: 1,
