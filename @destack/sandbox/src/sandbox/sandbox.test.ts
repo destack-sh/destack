@@ -235,7 +235,7 @@ test("stop a running workload and complete graceful shutdown", async () => {
     expect(await refusal(() => sandbox.stop(-1))).toEqual([
         "BAD_REQUEST",
         "GRACE_PERIOD_INVALID",
-        "grace period must be between 0 and 300000 milliseconds",
+        "grace period is invalid: it must be between 0 and 300000 milliseconds",
     ]);
     const stopping = sandbox.stop(1000);
     expect(sandbox.stop(0)).toBe(stopping);
@@ -339,7 +339,7 @@ test("reject completion when temporary storage cleanup fails", async () => {
     try {
         expect(await failed).toEqual([
             "INTERNAL_SERVER_ERROR",
-            "STOP_FAILED",
+            "STOP_BROKEN",
             "cannot remove the sandbox's temporary directory",
         ]);
         await errors;

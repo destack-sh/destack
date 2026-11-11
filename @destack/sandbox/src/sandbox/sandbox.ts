@@ -92,13 +92,13 @@ export class Sandbox implements AsyncDisposable {
         const closed = watched.closed.then(() =>
             files.remove(temporary, { recursive: true }).catch((cause: unknown) => {
                 const message = "cannot remove the sandbox's temporary directory";
-                throw SandboxError.of("STOP_FAILED", message, { cause });
+                throw SandboxError.of("STOP_BROKEN", message, { cause });
             }),
         );
 
         // bound startup and terminate failed launchers before returning the error
         const deadline = new AbortController();
-        const failure = SandboxError.of("START_FAILED", "sandbox startup timed out");
+        const failure = SandboxError.of("START_BROKEN", "sandbox startup timed out");
         void environment.clock.sleep(START_TIMEOUT_MILLISECONDS, deadline.signal).then(
             () => watched.ready.reject(failure),
             () => undefined,
@@ -122,7 +122,7 @@ export class Sandbox implements AsyncDisposable {
             const errors = (await new Response(launcher.stderr).text()).trim();
             throw errors === ""
                 ? error
-                : SandboxError.of("START_FAILED", `sandbox failed to start: ${errors}`, {
+                : SandboxError.of("START_BROKEN", `sandbox did not start: '${errors}'`, {
                       cause: error,
                   });
         } finally {
@@ -140,7 +140,7 @@ export class Sandbox implements AsyncDisposable {
         ) {
             throw SandboxError.of(
                 "GRACE_PERIOD_INVALID",
-                `grace period must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
+                `grace period is invalid: it must be between 0 and ${MAX_STOP_TIMEOUT_MILLISECONDS} milliseconds`,
             );
         }
 
@@ -156,7 +156,7 @@ export class Sandbox implements AsyncDisposable {
             try {
                 this.#launcher.channel.send({ type: "stop", gracePeriod });
             } catch (cause) {
-                throw SandboxError.of("STOP_FAILED", "cannot stop sandbox", { cause });
+                throw SandboxError.of("STOP_BROKEN", "cannot stop sandbox", { cause });
             }
         }
 
@@ -193,7 +193,7 @@ async function requireSupport(
     // refuse an unsupported platform
     const { os } = environment.host;
     if (!SandboxManager.isSupportedPlatform() || !RUNTIME_PATHS[os]) {
-        throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${os}`);
+        throw SandboxError.of("HOST_UNSUPPORTED", `sandboxing on host '${os}' is not supported`);
     }
 
     // require a release's own tools, as the launcher's manager checks bubblewrap
@@ -203,7 +203,7 @@ async function requireSupport(
     if (shipped.length > 0) {
         for (const path of shipped) {
             if (!(await environment.files.exists(path))) {
-                throw SandboxError.of("UNSUPPORTED", `the release lacks its sandbox tool ${path}`);
+                throw SandboxError.of("TOOL_NOT_FOUND", `sandbox tool '${path}' not found`);
             }
         }
     }
@@ -211,7 +211,7 @@ async function requireSupport(
     else {
         const dependencies = SandboxManager.checkDependencies();
         if (dependencies.errors.length > 0) {
-            throw SandboxError.of("UNSUPPORTED", dependencies.errors.join("; "));
+            throw SandboxError.of("HOST_UNSUPPORTED", dependencies.errors.join("; "));
         }
     }
 }
@@ -227,12 +227,12 @@ function requirePaths(options: SandboxOptions): void {
         ...options.sockets,
     ];
     if (!paths.every(isAbsolute)) {
-        throw SandboxError.of("START_FAILED", "sandbox paths must be absolute");
+        throw SandboxError.of("START_BROKEN", "sandbox paths must be absolute");
     }
 
     // prevent literal host paths from becoming upstream glob permissions
     if (paths.some((path) => /[\x00*?[\]{}]/u.test(path))) {
-        throw SandboxError.of("START_FAILED", "sandbox paths cannot contain glob characters");
+        throw SandboxError.of("START_BROKEN", "sandbox paths cannot contain glob characters");
     }
 }
 
@@ -268,7 +268,7 @@ function watchLauncher(launcher: Launcher): WatchedLauncher {
     let isStarted = false;
     let isConnected = true;
     const fail = (message: string) => {
-        failure = SandboxError.of(isStarted ? "STOP_FAILED" : "START_FAILED", message);
+        failure = SandboxError.of(isStarted ? "STOP_BROKEN" : "START_BROKEN", message);
         ready.reject(failure);
     };
 
@@ -298,11 +298,11 @@ function watchLauncher(launcher: Launcher): WatchedLauncher {
         // require the workload result and successful manager cleanup
         if (!failure && (code !== 0 || launcher.signal !== undefined || !result)) {
             failure = SandboxError.of(
-                isStarted ? "STOP_FAILED" : "START_FAILED",
+                isStarted ? "STOP_BROKEN" : "START_BROKEN",
                 "sandbox launcher terminated without successful cleanup",
             );
         }
-        ready.reject(failure ?? SandboxError.of("START_FAILED", "sandbox exited before startup"));
+        ready.reject(failure ?? SandboxError.of("START_BROKEN", "sandbox exited before startup"));
     });
 
     return {
@@ -331,7 +331,7 @@ function configure(
     try {
         launcher.channel.send({ type: "start", options });
     } catch (cause) {
-        ready.reject(SandboxError.of("START_FAILED", "cannot configure sandbox", { cause }));
+        ready.reject(SandboxError.of("START_BROKEN", "cannot configure sandbox", { cause }));
     }
 }
 

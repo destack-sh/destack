@@ -44,7 +44,7 @@ export async function runLauncher(
     const { parent } = process;
     const temporary = process.variables["CLAUDE_CODE_TMPDIR"];
     if (parent === undefined || temporary === undefined) {
-        throw SandboxError.of("START_FAILED", "sandbox launcher requires a parent connection");
+        throw SandboxError.of("START_BROKEN", "sandbox launcher requires a parent connection");
     }
     const request = Promise.withResolvers<SandboxOptions>();
     const stopped = new AbortController();
@@ -56,7 +56,7 @@ export async function runLauncher(
     void parent.disconnected.then(() => {
         isConnected = false;
         stopped.abort();
-        request.reject(SandboxError.of("START_FAILED", "sandbox parent disconnected"));
+        request.reject(SandboxError.of("START_BROKEN", "sandbox parent disconnected"));
     });
     using _terminated = process.on("SIGTERM", () => stopped.abort());
     using _interrupted = process.on("SIGINT", () => stopped.abort());
@@ -64,7 +64,12 @@ export async function runLauncher(
         // stop on a request the launcher protocol has no shape for, reporting it to the parent
         const parsed = LauncherRequest.safeParse(received);
         if (!parsed.success) {
-            request.reject(SandboxError.of("START_FAILED", "invalid launcher request"));
+            request.reject(
+                SandboxError.of(
+                    "START_BROKEN",
+                    "launcher request does not match the launcher protocol",
+                ),
+            );
             stopped.abort();
 
             return;
@@ -83,7 +88,10 @@ export async function runLauncher(
         const runtime = RUNTIME_PATHS[host.os];
         const helper = host.os === "linux" ? getApplySeccompBinaryPath() : undefined;
         if (runtime === undefined || helper === null) {
-            throw SandboxError.of("UNSUPPORTED", `sandboxing is unsupported on ${host.os}`);
+            throw SandboxError.of(
+                "HOST_UNSUPPORTED",
+                `sandboxing on host '${host.os}' is not supported`,
+            );
         }
 
         // find a release's own tools
@@ -260,7 +268,7 @@ function signalProcess(id: number, signal: Signal, process: Process): void {
     } catch (error) {
         // accept gone processes, which macOS reports as not permitted for exited, unreaped ones
         const isGone =
-            ProcessError.is(error, "NOT_FOUND") || ProcessError.is(error, "PERMISSION_DENIED");
+            ProcessError.is(error, "FILE_NOT_FOUND") || ProcessError.is(error, "PERMISSION_DENIED");
         if (!isGone) {
             throw error;
         }

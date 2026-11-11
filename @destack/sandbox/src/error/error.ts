@@ -5,15 +5,18 @@ import type {} from "@destack/package/import-meta";
 export const SandboxError = defineErrorFamily(
     import.meta.destack.package,
     {
-        // bad request
-        GRACE_PERIOD_INVALID: { code: "BAD_REQUEST" },
+        // not found
+        TOOL_NOT_FOUND: {},
 
-        // internal server error
-        START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
-        STOP_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+        // invalid
+        GRACE_PERIOD_INVALID: {},
 
-        // not implemented
-        UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+        // unsupported
+        HOST_UNSUPPORTED: {},
+
+        // broken
+        START_BROKEN: {},
+        STOP_BROKEN: {},
     },
     { audience: "host" },
 );
