@@ -7,6 +7,8 @@ import { EmailContent, EmailDestination } from "../email/message.ts";
 import { PushContent, PushDestination } from "../push/message.ts";
 import { WebhookContent, WebhookDestination } from "../webhook/message.ts";
 import { MessageError, RefusalReason } from "../error/error.ts";
+import { controlled, expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The label the message key pair derives under from an identity's root secret. */
 const MESSAGE_LABEL = { label: "@destack/message/key", context: "" } as const;
@@ -130,7 +132,7 @@ export const message = defineObject(
     {
         name: "message",
         plural: "messages",
-        controlled: true,
+        title: t`${plural(argument("count"), { one: "Message", other: "Messages" })}`,
         fields: {
             /** Where it goes. */
             to: field.json(Destination),
@@ -149,15 +151,6 @@ export const message = defineObject(
             /** When the next attempt is due after a temporary refusal, absent once settled. */
             retryAt: field.time().optional(),
         },
-        permissions: ["read", "send"],
-        // expire a settled message 7 days after it settles
-        expiring: [
-            {
-                after: { days: 7 },
-                from: "settledAt",
-                where: { status: { in: ["sent", "delivered", "failed"] } },
-            },
-        ],
         constraints: {
             source: {
                 kind: "index",
@@ -191,6 +184,20 @@ export const message = defineObject(
                 },
             },
         },
+        access: {
+            permissions: ["read", "send"],
+        },
+        traits: [
+            controlled(),
+            // expire a settled message 7 days after it settles
+            expiring([
+                {
+                    after: { days: 7 },
+                    from: "settledAt",
+                    where: { status: { in: ["sent", "delivered", "failed"] } },
+                },
+            ]),
+        ],
     },
     (method) => ({
         /** Send a message through its channel's provider, or show a desktop one at once. */
@@ -207,6 +214,7 @@ export const message = defineObject(
         }),
         /** Read the VAPID key a scope's pushes are signed with, which browsers subscribe with. */
         serverKey: method.query({
+            title: t`Read server key`,
             permission: "read",
             target: "scope",
             output: schema.object({
@@ -216,6 +224,7 @@ export const message = defineObject(
         }),
         /** Read the public key producers seal a scope's message content to. */
         contentKey: method.query({
+            title: t`Read content key`,
             permission: "read",
             target: "scope",
             output: schema.object({
@@ -224,7 +233,7 @@ export const message = defineObject(
             }),
         }),
         /** Record a desktop client showing a sent message, as its receipt. */
-        receive: method.mutation({ permission: "read" }),
+        receive: method.mutation({ title: t`Receive`, permission: "read" }),
     }),
 ).implement({
     methods: {

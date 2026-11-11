@@ -6,5 +6,5 @@ export const messageTables: readonly Table[] = [
     ...message.tables,
     ...messageAttempt.tables,
     ...endpoint.tables,
-    ...Object.values(task.objects).flatMap((object) => object.tables),
+    ...task.objects.flatMap((object) => object.tables),
 ];

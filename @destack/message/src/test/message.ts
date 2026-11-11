@@ -89,7 +89,7 @@ const MessageWorld = schema.object({
 type MessageWorld = schema.Infer<typeof MessageWorld>;
 
 /** The vault the space's stack declares for the endpoints' secrets. */
-const SECRETS = defineVault({ name: "secrets", spec: {} });
+const SECRETS = defineVault({ name: "secrets" });
 
 /** A request a receiver answered. */
 export interface TestRequest {
@@ -397,7 +397,7 @@ export class TestMessage {
     async secret(value: string): Promise<ObjectReference> {
         // declare the vault through the space's stack
         await this.space.apply(this.served, [vaultPackage], {
-            vaults: { secrets: SECRETS.declare({ retention: "delete" }) },
+            vaults: { secrets: SECRETS.provision({ retention: "delete" }) },
         });
         const client = this.owner.client(vaultPackage);
         const [declared] = await this.served.database

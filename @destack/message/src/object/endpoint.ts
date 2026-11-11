@@ -5,6 +5,8 @@ import { ConditionSet, defineObject, field } from "@destack/object";
 import { Duration, schema } from "@destack/schema";
 import { ObjectReference } from "@destack/sync";
 import { WEBHOOK_FORMATS, WebhookAuthentication } from "../webhook/message.ts";
+import { controlled } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The most event types one endpoint subscribes to, a screen of event names. */
 const MAX_ENDPOINT_EVENTS = 100;
@@ -17,7 +19,7 @@ export const endpoint = defineObject(
     {
         name: "endpoint",
         plural: "endpoints",
-        controlled: true,
+        title: t`${plural(argument("count"), { one: "Endpoint", other: "Endpoints" })}`,
         fields: {
             /** The URL the messages go to. */
             url: field.string(schema.url({ protocol: /^https$/u })),
@@ -37,10 +39,13 @@ export const endpoint = defineObject(
             /** Whether the calls go to the endpoint. */
             status: field.enum(["enabled", "disabled"]).default("enabled"),
         },
-        permissions: ["read", "manage"],
         constraints: {
             scope: { kind: "index", on: ["scope", "status"] },
         },
+        access: {
+            permissions: ["read", "manage"],
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("manage", {
