@@ -74,7 +74,7 @@ test("refuse a change trigger starting with a snapshot of created rows that does
                 input: () => ({ id: "" }),
             }),
     ).toThrow(
-        "trigger removed starts with a snapshot of created rows but does not fire on creations",
+        "trigger 'removed' starts with a snapshot of created rows but does not fire on creations",
     );
 });
 

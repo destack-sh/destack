@@ -97,7 +97,7 @@ test("read a verified Standard Webhooks delivery's event type from its payload",
                 crypto,
             ),
         ),
-    ).toEqual(["BAD_REQUEST", "EVENT_TYPE_MISSING", "standard webhook payload has no type"]);
+    ).toEqual(["BAD_REQUEST", "EVENT_TYPE_REQUIRED", "standard webhook payload type is required"]);
 });
 
 test("describe a declared webhook with its bound secret, and a trigger naming it by reference", () => {
@@ -143,10 +143,10 @@ test("match a path's parameters, refusing paths outside the template", async () 
         matched("/repositories/%E0"),
     ]).toEqual([
         { repository: "acme site" },
-        "webhook path does not match: /repositories",
-        "webhook path does not match: /repositories/acme/site",
-        "webhook path does not match: /projects/acme",
-        "webhook path does not match: /repositories/%E0",
+        "webhook path '/repositories' not found",
+        "webhook path '/repositories/acme/site' not found",
+        "webhook path '/projects/acme' not found",
+        "webhook path '/repositories/%E0' not found",
     ]);
 });
 
@@ -176,6 +176,6 @@ test("refuse malformed path templates and a repeated parameter", () => {
         ["invalid_format"],
         ["invalid_format"],
         ["invalid_format"],
-        "webhook path repeats a parameter: /{repository}/{repository}",
+        "webhook path repeats a parameter: '/{repository}/{repository}'",
     ]);
 });

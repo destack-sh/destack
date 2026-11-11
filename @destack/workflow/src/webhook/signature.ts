@@ -41,7 +41,7 @@ export const WebhookSignature = {
         try {
             return schema.json().parse(JSON.parse(body));
         } catch {
-            throw WorkflowError.of("BODY_INVALID", "webhook body is not JSON");
+            throw WorkflowError.of("BODY_INVALID", "webhook body is invalid: it must be JSON");
         }
     },
 };
@@ -89,7 +89,10 @@ export class StandardSignature implements WebhookSignature {
             .loose()
             .safeParse(payload);
         if (!event.success) {
-            throw WorkflowError.of("EVENT_TYPE_MISSING", "standard webhook payload has no type");
+            throw WorkflowError.of(
+                "EVENT_TYPE_REQUIRED",
+                "standard webhook payload type is required",
+            );
         }
 
         return WebhookDelivery.parse({

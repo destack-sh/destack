@@ -179,9 +179,9 @@ test("fire a declared schedule's occurrences once each, skipping one that overla
         lastSkip: { at: TEST_START + 4 * MINUTE, reason: "overlap" },
         manager: "minutely-triggers/every-minute",
         refused: [
-            "CONFLICT",
-            "MANAGED",
-            `${minutely.trigger.name} is managed by its declaration: detach it before changing it`,
+            "PRECONDITION_FAILED",
+            "DECLARATION_BLOCKED",
+            `cannot change '${minutely.trigger.name}': it is managed by its declaration, so detach it first`,
         ],
     });
 });
@@ -361,10 +361,10 @@ test("stop a change trigger paused past its slot's retention, and start over fro
     expect([stopped?.["state"], stopped?.["failure"], runs.length]).toEqual([
         "stopped",
         {
-            code: "GONE",
-            reason: "CHANGES_COMPACTED",
+            code: "NOT_FOUND",
+            reason: "CHANGES_NOT_FOUND",
             domain: "@destack/workflow",
-            message: "trigger urgent lost changes to compaction",
+            message: "changes of trigger 'urgent' removed by compaction not found",
         },
         1,
     ]);

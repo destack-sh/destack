@@ -291,7 +291,7 @@ export async function openServed<Input, Output>(
         const isFollowed = async () =>
             (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
         if (!(await served.database.log.waitUntil(isFollowed, signal))) {
-            throw new Error(`the space did not follow grant ${created.id}`);
+            throw new Error(`the space did not follow grant '${created.id}'`);
         }
 
         return created.id;
@@ -330,7 +330,7 @@ export async function openServed<Input, Output>(
                 (row) =>
                     `${JSON.stringify(row["state"])}@${JSON.stringify(row["wakeAt"])} ${JSON.stringify(row["failure"])}`,
             );
-            throw new Error(`the runs did not reach the condition: ${states.join(", ")}`, {
+            throw new Error(`the runs did not reach the condition: '${states.join(", ")}'`, {
                 cause: error,
             });
         }

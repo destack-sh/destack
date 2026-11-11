@@ -63,7 +63,7 @@ async function openReview(): Promise<{
         const subject = approver === "alice" ? alice : bob;
         const mine = rows.find((row) => ObjectReference.at("approver", row).id === subject.id);
         if (mine === undefined) {
-            throw new TypeError(`${approver} was not asked`);
+            throw new TypeError(`'${approver}' was not asked`);
         }
         await decideApproval(fixture, subject, mine, decision);
     };
@@ -331,5 +331,5 @@ test("fail a run whose call a role gives on two approvals, which a change asking
     const [run] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "failed");
     expect([
         schema.looseObject({ reason: schema.string() }).parse(run?.["failure"]).reason,
-    ]).toEqual(["APPROVERS_MISSING"]);
+    ]).toEqual(["APPROVERS_REQUIRED"]);
 });

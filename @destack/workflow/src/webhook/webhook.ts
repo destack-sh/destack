@@ -96,7 +96,7 @@ export class WebhookPath {
         const checked = WebhookDescription.shape.template.parse(template);
         const names = segments(checked).filter((segment) => segment.startsWith("{"));
         if (new Set(names).size !== names.length) {
-            throw new TypeError(`webhook path repeats a parameter: ${checked}`);
+            throw new TypeError(`webhook path repeats a parameter: '${checked}'`);
         }
         this.template = checked;
         this.parameters = names;
@@ -108,7 +108,7 @@ export class WebhookPath {
         const expected = segments(this.template);
         const actual = segments(path);
         if (!path.startsWith("/") || actual.length !== expected.length) {
-            throw WorkflowError.of("PATH_MISMATCH", `webhook path does not match: ${path}`);
+            throw WorkflowError.of("PATH_NOT_FOUND", `webhook path '${path}' not found`);
         }
 
         // bind parameters and compare literals
@@ -121,7 +121,7 @@ export class WebhookPath {
                 value === "" ||
                 (!segment.startsWith("{") && segment !== value)
             ) {
-                throw WorkflowError.of("PATH_MISMATCH", `webhook path does not match: ${path}`);
+                throw WorkflowError.of("PATH_NOT_FOUND", `webhook path '${path}' not found`);
             }
             // bind a parameter
             else if (segment.startsWith("{")) {

@@ -47,7 +47,7 @@ test("refuse a timing that ends before it starts", async () => {
     expect(await refusal((async () => new Schedule(backwards))())).toEqual([
         "BAD_REQUEST",
         "TIMING_INVALID",
-        "invalid schedule timing: the schedule ends before its first occurrence",
+        "schedule timing is invalid: the schedule must end after its first occurrence",
     ]);
     expect(new Schedule(MORNING).timing).toBe(MORNING);
 });

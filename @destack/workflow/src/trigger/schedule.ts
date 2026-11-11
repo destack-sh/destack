@@ -1,6 +1,5 @@
 import { Instant, schema, TimeZone } from "@destack/schema";
 import { CronExpressionParser } from "cron-parser";
-import { Failure } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 import { WorkflowError } from "../error/index.ts";
 
@@ -99,7 +98,8 @@ export class Schedule {
             } catch (error) {
                 throw WorkflowError.of(
                     "TIMING_INVALID",
-                    `invalid schedule timing: ${Failure.of(error).message}`,
+                    "schedule timing is invalid: its calendar and time zone must be known",
+                    { cause: error },
                 );
             }
         }
@@ -113,7 +113,7 @@ export class Schedule {
         ) {
             throw WorkflowError.of(
                 "TIMING_INVALID",
-                "invalid schedule timing: the schedule ends before its first occurrence",
+                "schedule timing is invalid: the schedule must end after its first occurrence",
             );
         }
     }

@@ -30,7 +30,7 @@ test("retry a failing advance after its backoff until it succeeds, keeping the l
     const fixture = await openWorkflow(flaky, async (step, input) => {
         calls += 1;
         if (calls < input.succeedAt) {
-            throw new Error(`attempt ${calls} failed`);
+            throw new Error(`could not succeed after ${calls} attempts`);
         }
 
         return step.run("answer", schema.number(), async () => calls);
@@ -42,7 +42,7 @@ test("retry a failing advance after its backoff until it succeeds, keeping the l
     expect([run?.["attempts"], run?.["output"], run?.["failure"]]).toEqual([
         2,
         3,
-        Failure.http("INTERNAL_SERVER_ERROR", "attempt 2 failed"),
+        Failure.http("INTERNAL_SERVER_ERROR", "could not succeed after 2 attempts"),
     ]);
 });
 
@@ -85,10 +85,10 @@ test("time a run out at its deadline while it sleeps past it", async () => {
     expect([run?.["deadline"], run?.["failure"]]).toEqual([
         TEST_START + 60 * MINUTE,
         {
-            code: "TIMEOUT",
-            reason: "RUN_TIMED_OUT",
+            code: "BAD_GATEWAY",
+            reason: "RUN_UNREACHABLE",
             domain: "@destack/workflow",
-            message: `run ${String(run?.["id"])} timed out`,
+            message: `could not finish run '${String(run?.["id"])}' before its deadline`,
         },
     ]);
 });
@@ -195,7 +195,11 @@ test("reset a completed run to a step, running that step and the later ones agai
     const [again] = await fixture.waitUntil((rows) => rows[0]?.["state"] === "completed");
     expect({ reset, missing, counted, output: again?.["output"] }).toEqual({
         reset: { forgotten: 1 },
-        missing: ["NOT_FOUND", "STEP_NOT_FOUND", `run ${String(done?.["id"])} has no step third`],
+        missing: [
+            "NOT_FOUND",
+            "STEP_NOT_FOUND",
+            `step 'third' of run '${String(done?.["id"])}' not found`,
+        ],
         counted: ["first", "second", "second"],
         output: 3,
     });
@@ -281,7 +285,7 @@ test("fail a run acting for a user who granted its installation nothing, as no c
     const { failure } = schema.looseObject({ failure: Failure }).parse(run);
     expect([failure.code, failure.message]).toEqual([
         "FORBIDDEN",
-        `installation ${fixture.served.store.as(write.run).subject.id} has no grant to act for user ${carol.id}`,
+        `user '${carol.id}' is forbidden: installation '${fixture.served.store.as(write.run).subject.id}' has no grant to act for it`,
     ]);
 });
 
@@ -301,7 +305,7 @@ test("refuse a stranger controlling another's run", async () => {
     expect(await refusal(fixture.objects(bob).call(idle.run.name, "pause", target))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `idle-run ${String(started?.["id"])} not found`,
+        `idle-run '${String(started?.["id"])}' not found`,
     ]);
 });
 
@@ -325,10 +329,10 @@ test("fail a run whose function takes other steps on a later advance than it rec
     expect([advances, run?.["failure"]]).toEqual([
         2,
         {
-            code: "UNPROCESSABLE_CONTENT",
-            reason: "RUN_NONDETERMINISTIC",
+            code: "BAD_REQUEST",
+            reason: "RUN_NONDETERMINISTIC_INVALID",
             domain: "@destack/workflow",
-            message: `run ${String(run?.["id"])} takes step second where it recorded first`,
+            message: `step 'second' is invalid: run '${String(run?.["id"])}' recorded 'first' at this point`,
         },
     ]);
 });

@@ -108,7 +108,7 @@ export class ChangeTrigger<Input = unknown> {
         const { object, where, from = "now", operations } = definition.change;
         if (from === "snapshot" && !operations.includes("create")) {
             throw new TypeError(
-                `trigger ${checked} starts with a snapshot of created rows but does not fire on creations`,
+                `trigger '${checked}' starts with a snapshot of created rows but does not fire on creations`,
             );
         }
         this.kind = "change";

@@ -1,4 +1,4 @@
-import { type AccessContext, AccessError, StepUp } from "@destack/access";
+import { type AccessContext, AccessError } from "@destack/access";
 import { and, eq, type Select, TABLE, Transaction } from "@destack/db";
 import { CallSite, MethodContext, type ObjectCall, ObjectType } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
@@ -6,14 +6,11 @@ import {
     type Approval,
     approval,
     ApprovalQuorum,
-    ApprovalRefusal,
     type ApprovalState,
     CallError,
     changeRequest,
-    GrantRefusal,
     ObjectError,
 } from "@destack/object";
-import objectPackage from "@destack/object/package";
 import { RequestId, ObjectReference, ObjectTypeReference, Subject } from "@destack/sync";
 import { Duration, type JsonValue, present, schema } from "@destack/schema";
 import { Failure } from "@destack/error";
@@ -189,13 +186,12 @@ export class Step<Waits extends ObjectType = ObjectType> {
         const person = ObjectReference.columns("as", this.#caller.subject);
 
         // ask the approvers an approval names, refusing a role's count, which names nobody to ask
-        const refused = CallError.of(error);
-        if (refused?.reason === "APPROVAL_REQUIRED" && refused.domain === objectPackage.name) {
-            const { approvals, approvers, permission } = ApprovalRefusal.parse(refused.data);
+        if (ObjectError.is(error, "APPROVAL_DENIED")) {
+            const { approvals, approvers, permission } = error.data;
             if (approvers.length === 0) {
                 throw ObjectError.of(
-                    "APPROVERS_MISSING",
-                    `${permission.name} waits for a role's approvals, which name nobody to ask`,
+                    "APPROVERS_REQUIRED",
+                    `approver for '${permission.name}' is required: it waits for a role's approvals, which name nobody to ask`,
                 );
             }
 
@@ -206,22 +202,16 @@ export class Step<Waits extends ObjectType = ObjectType> {
             });
         }
         // ask the grant's delegator to make the call as themselves, or to allow it from now on
-        else if (
-            refused?.reason === "GRANT_INSUFFICIENT" &&
-            refused.domain === objectPackage.name
-        ) {
-            const { permission, object } = GrantRefusal.parse(refused.data);
+        else if (ObjectError.is(error, "GRANT_DENIED")) {
+            const { permission, object } = error.data;
             const { packageId, type, name } = permission;
             const grant = { packageId, type, name, scope: object.scope };
 
             return changeRequest.call("create", { ...asked, ...person, grant });
         }
         // ask the person a delegate acts for to make the call as themselves, signed in again
-        else if (
-            refused?.reason === "AUTHENTICATION_INSUFFICIENT" &&
-            refused.domain === AccessError.domain
-        ) {
-            const stepUp = StepUp.schema.parse(refused.data);
+        else if (AccessError.is(error, "ASSURANCE_UNAUTHENTICATED")) {
+            const stepUp = error.data;
 
             return changeRequest.call("create", { ...asked, ...person, stepUp });
         } else {
@@ -304,8 +294,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
         else if (request.state === "rejected" || request.state === "withdrawn") {
             const failure = Failure.of(
                 WorkflowError.of(
-                    "CHANGE_REQUEST_CLOSED",
-                    `change request ${changeRequestId} was ${request.state}`,
+                    "CHANGE_REQUEST_DENIED",
+                    `change request '${changeRequestId}' is forbidden: it was '${request.state}'`,
                 ),
             );
             await this.#complete(name, { failure });
@@ -534,7 +524,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             throw Failure.error(failure);
         } else if (run.state === "cancelled") {
             const failure = Failure.of(
-                WorkflowError.of("RUN_CANCELLED", `run ${run.id} was cancelled`),
+                WorkflowError.of("RUN_CANCELLED", `run '${run.id}' was cancelled`),
             );
             await this.#complete(name, { failure });
             throw Failure.error(failure);
@@ -551,7 +541,7 @@ export class Step<Waits extends ObjectType = ObjectType> {
             )
         ) {
             throw new TypeError(
-                `${this.#run.workflow.name} waits for ${waitType}, which it does not declare`,
+                `'${this.#run.workflow.name}' waits for '${waitType}', which it does not declare`,
             );
         }
 
@@ -614,8 +604,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
         // refuse a second step of the same name
         if (this.#taken.includes(name)) {
             throw WorkflowError.of(
-                "STEP_DUPLICATE",
-                `run ${this.#run.row.id} has two steps named ${name}`,
+                "STEP_INVALID",
+                `step '${name}' is invalid: run '${this.#run.row.id}' has two steps with this name`,
             );
         }
         this.#taken.push(name);
@@ -629,8 +619,8 @@ export class Step<Waits extends ObjectType = ObjectType> {
             (recordedAt !== undefined && recordedAt !== name)
         ) {
             throw WorkflowError.of(
-                "RUN_NONDETERMINISTIC",
-                `run ${this.#run.row.id} takes step ${name} where it recorded ${recordedAt ?? "nothing"}`,
+                "RUN_NONDETERMINISTIC_INVALID",
+                `step '${name}' is invalid: run '${this.#run.row.id}' recorded '${recordedAt ?? "nothing"}' at this point`,
             );
         }
 

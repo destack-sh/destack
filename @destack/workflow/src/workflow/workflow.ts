@@ -172,7 +172,7 @@ export function defineWorkflow<
     const name = DeclarationName.parse(definition.name);
     const limits = definition.limits ?? {};
     if (definition.singleton === true && limits.concurrency === undefined) {
-        throw new TypeError(`singleton workflow ${name} declares no concurrency limit`);
+        throw new TypeError(`singleton workflow '${name}' declares no concurrency limit`);
     }
 
     // declare the runs, their steps and the triggers starting them, where the workflow places them

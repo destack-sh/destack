@@ -131,8 +131,8 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         // refuse replacing a live run that has begun
         else if (live !== undefined && creation.mode === "replace") {
             throw WorkflowError.of(
-                "RUN_STARTED",
-                `run ${live.id} of key ${creation.key} has begun`,
+                "RUN_BLOCKED",
+                `cannot replace run '${live.id}' of key '${creation.key}': it has begun`,
             );
         }
         // answer the live run of the key
@@ -158,7 +158,10 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             .read(this.workflow.step)
             .findMany({ where: { parentId: this.row.id, name } });
         if (from === undefined) {
-            throw WorkflowError.of("STEP_NOT_FOUND", `run ${this.row.id} has no step ${name}`);
+            throw WorkflowError.of(
+                "STEP_NOT_FOUND",
+                `step '${name}' of run '${this.row.id}' not found`,
+            );
         }
 
         // forget the step and every later one, and make the run due again from its first attempt
@@ -252,7 +255,10 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
         const { target } = this;
         if (this.row.deadline !== null && this.row.deadline <= now) {
             const failure = Failure.of(
-                WorkflowError.of("RUN_TIMED_OUT", `run ${this.row.id} timed out`),
+                WorkflowError.of(
+                    "RUN_UNREACHABLE",
+                    `could not finish run '${this.row.id}' before its deadline`,
+                ),
             );
             await this.#transition(
                 reconciliation,
@@ -424,7 +430,7 @@ export class Run<Input = unknown, Output = unknown, Waits extends ObjectType = O
             return true;
         } catch (error) {
             // take a refused transition as the run moved on, rethrowing anything else
-            if (ObjectError.is(error, "TRANSITION_INVALID")) {
+            if (ObjectError.is(error, "TRANSITION_BLOCKED")) {
                 return false;
             }
             throw error;

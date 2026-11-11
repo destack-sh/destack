@@ -67,7 +67,7 @@ export class TriggerServer<Input> {
         const declared = new Map<string, Trigger<Input>>();
         for (const trigger of workflow.triggers) {
             if (declared.has(trigger.name)) {
-                throw new TypeError(`${workflow.name} has two triggers named ${trigger.name}`);
+                throw new TypeError(`'${workflow.name}' has two triggers named '${trigger.name}'`);
             }
             declared.set(trigger.name, trigger);
         }
@@ -173,7 +173,7 @@ export class TriggerServer<Input> {
         const [first] = triggers;
         if (first !== undefined && server === undefined) {
             throw new TypeError(
-                `${this.#workflow.name} serves webhook trigger ${first.name} without its installation`,
+                `'${this.#workflow.name}' serves webhook trigger '${first.name}' without its installation`,
             );
         }
 
@@ -383,11 +383,17 @@ export class TriggerServer<Input> {
         const row = await this.row(store.database, this.scope(store), name);
         // refuse a trigger not recorded yet
         if (row === undefined) {
-            throw WorkflowError.of("TRIGGER_UNRECORDED", `trigger ${name} is not recorded yet`);
+            throw WorkflowError.of(
+                "TRIGGER_UNAVAILABLE",
+                `trigger '${name}' is unavailable: it is not recorded yet`,
+            );
         }
         // refuse a paused trigger
         else if (row.state === "paused") {
-            throw WorkflowError.of("TRIGGER_PAUSED", `trigger ${name} is paused`);
+            throw WorkflowError.of(
+                "TRIGGER_UNAVAILABLE",
+                `trigger '${name}' is unavailable: it is paused`,
+            );
         }
     }
 
@@ -406,7 +412,7 @@ export class TriggerServer<Input> {
     #schedule(name: string): ScheduleTrigger<Input> {
         const trigger = this.#declared.get(name);
         if (trigger === undefined || !isSchedule(trigger)) {
-            throw new TypeError(`declared trigger ${name} has no schedule`);
+            throw new TypeError(`declared trigger '${name}' has no schedule`);
         }
 
         return trigger;
@@ -553,7 +559,7 @@ export class TriggerServer<Input> {
             }
         } catch (error) {
             // stop the trigger on changes compacted past its checkpoint until a manager resets it
-            if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+            if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                 throw error;
             }
             await this.#stop(store, trigger, row, error);
@@ -571,9 +577,13 @@ export class TriggerServer<Input> {
         const { name } = trigger;
         const type = this.workflow.trigger;
         const failure = Failure.of(
-            WorkflowError.of("CHANGES_COMPACTED", `trigger ${name} lost changes to compaction`, {
-                cause,
-            }),
+            WorkflowError.of(
+                "CHANGES_NOT_FOUND",
+                `changes of trigger '${name}' removed by compaction not found`,
+                {
+                    cause,
+                },
+            ),
         );
 
         // record the stop, dropping the checkpoints in the same commit
@@ -667,7 +677,7 @@ export class TriggerServer<Input> {
     static #table(trigger: ChangeTrigger): Table {
         const object = trigger.change.object;
         if (!ObjectType.is(object)) {
-            throw new TypeError(`trigger ${trigger.name} does not follow an object type`);
+            throw new TypeError(`trigger '${trigger.name}' does not follow an object type`);
         }
 
         return object.table;
