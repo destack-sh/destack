@@ -84,7 +84,7 @@ export class Stream {
                     this.#controller = controller;
                 },
                 pull: () => this.#deliver(),
-                cancel: () => this.reset(new Error(`stream ${this.id} was cancelled`)),
+                cancel: () => this.reset(new Error(`stream '${this.id}' was cancelled`)),
             },
             new ByteLengthQueuingStrategy({ highWaterMark: 0 }),
         );
@@ -102,7 +102,7 @@ export class Stream {
     receive(frame: Frame): void {
         // abort on the peer's reset, keeping an answer the peer already finished, as RFC 9113 8.1 does
         if (frame.has(FrameFlag.rst)) {
-            const error = new Error(`stream ${this.id} was reset by the peer`);
+            const error = new Error(`stream '${this.id}' was reset by the peer`);
             if (this.#isFinishReceived) {
                 this.#stopSending(error);
             } else {
@@ -116,7 +116,7 @@ export class Stream {
         if (frame.type === FrameType.data && frame.has(FrameFlag.ack)) {
             const head = Head.decodeResponse(frame.payload);
             if (head === undefined) {
-                this.reset(new Error(`stream ${this.id} was answered with no response head`));
+                this.reset(new Error(`stream '${this.id}' was answered with no response head`));
 
                 return;
             }
@@ -126,8 +126,8 @@ export class Stream {
         else if (frame.type === FrameType.data && frame.payload.length > 0) {
             if (frame.payload.length > this.#receiveWindow) {
                 throw TunnelError.of(
-                    "PROTOCOL_VIOLATION",
-                    `stream ${this.id} received data beyond its window`,
+                    "PROTOCOL_VIOLATION_INVALID",
+                    `stream '${this.id}' is invalid: it received data beyond its window`,
                 );
             }
             this.#session.take(frame.payload.length);

@@ -129,7 +129,7 @@ test("abort the machine's request once the relay's caller cancels it while the m
     const reason = await aborted.promise;
     expect([response.status, reason, machine.size]).toEqual([
         200,
-        new Error("stream 2 was reset by the peer"),
+        new Error("stream '2' was reset by the peer"),
         0,
     ]);
 });
@@ -211,8 +211,8 @@ test("reset a stream cancelled early, and fail the peer's side and its answer", 
 
     const failed = await Promise.allSettled([opened.answer, drain(opened.readable)]);
     expect(failed.map((result) => result.status === "rejected" && String(result.reason))).toEqual([
-        "Error: stream 2 was reset by the peer",
-        "Error: stream 2 was reset by the peer",
+        "Error: stream '2' was reset by the peer",
+        "Error: stream '2' was reset by the peer",
     ]);
 });
 
@@ -283,8 +283,12 @@ test("refuse a request on a closed session, and frames shorter than their header
     const typed = await refusal(async () => Frame.decode(unknown));
 
     expect([closed, cut, typed]).toEqual([
-        ["SERVICE_UNAVAILABLE", "SESSION_CLOSED", "session is closed"],
-        ["BAD_REQUEST", "PROTOCOL_VIOLATION", "frame is shorter than its header"],
-        ["BAD_REQUEST", "PROTOCOL_VIOLATION", "frame type 255 is unknown"],
+        ["SERVICE_UNAVAILABLE", "SESSION_UNAVAILABLE", "session is unavailable: it is closed"],
+        [
+            "BAD_REQUEST",
+            "PROTOCOL_VIOLATION_INVALID",
+            "frame is invalid: it is shorter than its header",
+        ],
+        ["BAD_REQUEST", "PROTOCOL_VIOLATION_INVALID", "frame type 255 is invalid: it is unknown"],
     ]);
 });

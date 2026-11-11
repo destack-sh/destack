@@ -77,17 +77,23 @@ export class Frame {
     static decode(message: Uint8Array): Frame {
         // require a whole header and a bounded payload
         if (message.length < HEADER_BYTES) {
-            throw TunnelError.of("PROTOCOL_VIOLATION", "frame is shorter than its header");
+            throw TunnelError.of(
+                "PROTOCOL_VIOLATION_INVALID",
+                "frame is invalid: it is shorter than its header",
+            );
         } else if (message.length > MAX_FRAME_BYTES) {
             throw TunnelError.of(
-                "PROTOCOL_VIOLATION",
-                `frame is longer than ${MAX_FRAME_BYTES} bytes`,
+                "PROTOCOL_VIOLATION_INVALID",
+                `frame is invalid: it is longer than ${MAX_FRAME_BYTES} bytes`,
             );
         }
         const view = new DataView(message.buffer, message.byteOffset, message.byteLength);
         const type = view.getUint8(0);
         if (!isFrameType(type)) {
-            throw TunnelError.of("PROTOCOL_VIOLATION", `frame type ${type} is unknown`);
+            throw TunnelError.of(
+                "PROTOCOL_VIOLATION_INVALID",
+                `frame type ${type} is invalid: it is unknown`,
+            );
         }
 
         return new Frame(

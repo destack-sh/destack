@@ -147,8 +147,8 @@ test("refuse callers waiting for a tunnel once the client closes", async () => {
     // refuse the caller waiting before the close, and one asking after it, never telling it open
     await client.close();
     expect([await waiting, await refusal(client.opened()), statuses]).toEqual([
-        ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
-        ["SERVICE_UNAVAILABLE", "CLIENT_CLOSED", "tunnel client is closed"],
+        ["SERVICE_UNAVAILABLE", "CLIENT_UNAVAILABLE", "tunnel client is unavailable: it is closed"],
+        ["SERVICE_UNAVAILABLE", "CLIENT_UNAVAILABLE", "tunnel client is unavailable: it is closed"],
         [],
     ]);
 });

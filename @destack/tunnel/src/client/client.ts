@@ -115,7 +115,9 @@ export class TunnelClient {
         if (this.#session !== undefined) {
             return Promise.resolve();
         } else if (this.#stopping.signal.aborted) {
-            return Promise.reject(TunnelError.of("CLIENT_CLOSED", "tunnel client is closed"));
+            return Promise.reject(
+                TunnelError.of("CLIENT_UNAVAILABLE", "tunnel client is unavailable: it is closed"),
+            );
         }
 
         // wait for the next open
@@ -128,7 +130,9 @@ export class TunnelClient {
     async close(): Promise<void> {
         // stop dialing, and refuse the callers still waiting
         this.#stopping.abort();
-        this.#waiting?.reject(TunnelError.of("CLIENT_CLOSED", "tunnel client is closed"));
+        this.#waiting?.reject(
+            TunnelError.of("CLIENT_UNAVAILABLE", "tunnel client is unavailable: it is closed"),
+        );
         this.#waiting = undefined;
 
         // wait for the loop to end
@@ -206,7 +210,10 @@ export class TunnelClient {
         const url = new URL(TUNNEL_METADATA_PATH, this.#options.url);
         const response = await this.#options.environment.network.fetch(new Request(url.href));
         if (!response.ok) {
-            throw TunnelError.of("METADATA_INVALID", `${url.href} answered ${response.status}`);
+            throw TunnelError.of(
+                "METADATA_UNREACHABLE",
+                `could not read tunnel metadata from '${url.href}': HTTP ${response.status}`,
+            );
         }
 
         // read the package of its resource
@@ -389,8 +396,8 @@ export class TunnelClient {
         );
         if (!response.ok) {
             throw TunnelError.of(
-                "RENEWAL_REFUSED",
-                `relay refused the renewal: ${response.status} ${await response.text()}`,
+                "RENEWAL_UNREACHABLE",
+                `could not renew the tunnel: HTTP ${response.status} '${await response.text()}'`,
             );
         }
 

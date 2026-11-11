@@ -73,7 +73,7 @@ export class Session {
     open(head: RequestHead): Stream {
         // refuse streams on an ended session
         if (this.#isClosed) {
-            throw TunnelError.of("SESSION_CLOSED", "session is closed");
+            throw TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed");
         }
 
         // announce the stream with the request's head
@@ -112,7 +112,9 @@ export class Session {
     ping(): Promise<void> {
         // refuse pings on an ended session
         if (this.#isClosed) {
-            return Promise.reject(TunnelError.of("SESSION_CLOSED", "session is closed"));
+            return Promise.reject(
+                TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed"),
+            );
         }
 
         // send a value the answer names
@@ -131,7 +133,7 @@ export class Session {
         try {
             accepted = this.#receive(Frame.decode(message));
         } catch (error) {
-            if (!TunnelError.is(error, "PROTOCOL_VIOLATION")) {
+            if (!TunnelError.is(error, "PROTOCOL_VIOLATION_INVALID")) {
                 throw error;
             }
             this.close(GoAwayCode.protocol);
@@ -164,7 +166,7 @@ export class Session {
     async credited(): Promise<void> {
         // fail at once on an ended session
         if (this.#isClosed) {
-            throw TunnelError.of("SESSION_CLOSED", "session is closed");
+            throw TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed");
         }
 
         // wait for the peer's next credit
@@ -181,7 +183,10 @@ export class Session {
     /** Count bytes a stream received against the session's window. */
     take(bytes: number): void {
         if (bytes > this.#receiveWindow) {
-            throw TunnelError.of("PROTOCOL_VIOLATION", "session received data beyond its window");
+            throw TunnelError.of(
+                "PROTOCOL_VIOLATION_INVALID",
+                "session is invalid: it received data beyond its window",
+            );
         }
         this.#receiveWindow -= bytes;
     }
@@ -208,15 +213,21 @@ export class Session {
         // refuse further frames, fail unanswered pings, and end every stream
         this.#isClosed = true;
         for (const answer of this.#pings.values()) {
-            answer.reject(TunnelError.of("SESSION_CLOSED", "session is closed"));
+            answer.reject(
+                TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed"),
+            );
         }
         this.#pings.clear();
         for (const waiting of this.#waiting) {
-            waiting.reject(TunnelError.of("SESSION_CLOSED", "session is closed"));
+            waiting.reject(
+                TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed"),
+            );
         }
         this.#waiting.clear();
         for (const stream of this.#streams.values()) {
-            stream.destroy(TunnelError.of("SESSION_CLOSED", "session is closed"));
+            stream.destroy(
+                TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed"),
+            );
         }
         this.#streams.clear();
     }
@@ -263,8 +274,8 @@ export class Session {
         const isOwn = frame.stream % 2 === this.#next % 2;
         if (frame.stream === 0 || isOwn || this.#streams.has(frame.stream)) {
             throw TunnelError.of(
-                "PROTOCOL_VIOLATION",
-                `peer opened stream ${frame.stream}, which it is not allowed to open`,
+                "PROTOCOL_VIOLATION_INVALID",
+                `peer stream '${frame.stream}' is invalid: the peer may not open it`,
             );
         }
         // reset a stream beyond the open streams a session allows
@@ -278,8 +289,8 @@ export class Session {
         const head = Head.decodeRequest(frame.payload);
         if (head === undefined) {
             throw TunnelError.of(
-                "PROTOCOL_VIOLATION",
-                `peer opened stream ${frame.stream} without a request head`,
+                "PROTOCOL_VIOLATION_INVALID",
+                `peer stream '${frame.stream}' is invalid: it opened without a request head`,
             );
         }
         const stream = new Stream(this, frame.stream, head);
