@@ -138,7 +138,7 @@ export class Authorizer {
     /** The authentication each elevated permission asks for, by permission key. */
     readonly elevated: ReadonlyMap<string, Elevation>;
     /** The keys of permissions that stay available while a scope is suspended. */
-    readonly administration: ReadonlySet<string>;
+    readonly suspended: ReadonlySet<string>;
     /** The keys of permissions that stay available while a scope moves. */
     readonly moving: ReadonlySet<string>;
     /** Field relations that another relation uses as a subject set. */
@@ -238,7 +238,7 @@ export class Authorizer {
         // index the permissions the policies list as reserved, elevated, administrative or moving
         this.reserved = Authorizer.#listedPermissions(types, "reserved");
         this.elevated = Authorizer.#elevatedPermissions(types);
-        this.administration = Authorizer.#listedPermissions(types, "administration");
+        this.suspended = Authorizer.#listedPermissions(types, "suspended");
         this.moving = Authorizer.#listedPermissions(types, "moving");
         this.lag = options.lag ?? LAG_MILLISECONDS;
         this.partition = options.partition;
@@ -315,14 +315,14 @@ export class Authorizer {
             }
         }
 
-        // resolve the type's grant, reserved, elevated, administration and moving permissions
+        // resolve the type's grant, reserved, elevated, suspended and moving permissions
         if (definition.grantedBy !== undefined) {
             this.expression(type.permission(definition.grantedBy));
         }
         for (const name of [
             ...(definition.reserved ?? []),
             ...Object.keys(definition.elevated ?? {}),
-            ...(definition.administration ?? []),
+            ...(definition.suspended ?? []),
             ...(definition.moving ?? []),
         ]) {
             this.expression(type.permission(name));
@@ -2694,7 +2694,7 @@ export class Authorizer {
     /** Collect the keys of the permissions policies list as reserved, administrative or moving. */
     static #listedPermissions(
         types: readonly Policy[],
-        list: "reserved" | "administration" | "moving",
+        list: "reserved" | "suspended" | "moving",
     ): Set<string> {
         return new Set(
             types.flatMap((type) =>

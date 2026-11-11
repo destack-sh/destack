@@ -43,7 +43,7 @@ export class Access {
     readonly scopes: readonly ObjectReference[];
     /** What each role along the scope chain grants, directly or through included roles. */
     readonly grants: ReadonlyMap<string, RoleGrant>;
-    /** Whether the scope or an enclosing one is suspended, withholding all but administration. */
+    /** Whether the scope or an enclosing one is suspended, withholding most permissions. */
     readonly isSuspended: boolean;
     /** Whether the scope's or an enclosing scope's storage is capped, refusing all but deletes. */
     readonly isCapped: boolean;
@@ -69,7 +69,7 @@ export class Access {
     readonly #assumed: number;
     /** The access of each approver of the call's change other than its subject and actors. */
     readonly #approvers: readonly Access[];
-    /** The authorizer whose reserved, elevated and administration permissions apply. */
+    /** The authorizer whose reserved, elevated and suspended permissions apply. */
     readonly #authorizer: Authorizer;
     /** The scope and every scope enclosing it, nearest first. */
     readonly #links: readonly ScopeLink[];
@@ -672,8 +672,8 @@ export class Access {
         if (!this.elevates(permission)) {
             return "elevation";
         }
-        // require an active scope for all but administration
-        else if (this.isSuspended && !this.#authorizer.administration.has(key)) {
+        // require an active scope for all but the permissions kept while suspended
+        else if (this.isSuspended && !this.#authorizer.suspended.has(key)) {
             return "suspended";
         }
 

@@ -1,5 +1,5 @@
 import { JsonValue, schema } from "@destack/schema";
-import { PackageId, type Package } from "@destack/package";
+import { PackageId, type PackageVersion } from "@destack/package";
 import { ObjectReference, AccessName, type ObjectTypeReference, type Subject } from "@destack/sync";
 import { Condition, type Predicate } from "@destack/db";
 import {
@@ -22,7 +22,7 @@ export class Policy<
     Partition extends boolean = boolean,
 > {
     /** The declaring package, supplied by the module transform. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** Whether each of the type's objects is a partition, a brand the type checker alone reads. */
     declare readonly [PARTITION]: Partition;
     /** The package-local object type name. */
@@ -45,7 +45,7 @@ export class Policy<
 
     /** Qualify the declared subject types by package and freeze a copy of the rules. */
     constructor(
-        owner: Package,
+        owner: PackageVersion,
         input: PolicyInput<Name, Kind> & { readonly partition?: Partition },
     ) {
         // qualify the relations and require each to accept a subject type
@@ -171,7 +171,7 @@ export class Policy<
 
     /** Qualify the package's subject types, defaulting relation grants to the policy's. */
     static #qualifyRelations<Name extends string>(
-        owner: Package,
+        owner: PackageVersion,
         input: PolicyInput<Name>,
     ): Record<string, RelationDescription> {
         return Object.fromEntries(
@@ -215,7 +215,7 @@ export class Policy<
 
     /** Describe a declared policy as plain values. */
     static #describe<Name extends string>(
-        owner: Package,
+        owner: PackageVersion,
         input: PolicyInput<Name>,
         relations: Readonly<Record<string, RelationDescription>>,
     ): JsonValue {
@@ -232,9 +232,7 @@ export class Policy<
                 : { relationships: { read: input.relationships.read } }),
             ...(input.reserved === undefined ? {} : { reserved: [...input.reserved] }),
             ...(input.elevated === undefined ? {} : { elevated: { ...input.elevated } }),
-            ...(input.administration === undefined
-                ? {}
-                : { administration: [...input.administration] }),
+            ...(input.suspended === undefined ? {} : { suspended: [...input.suspended] }),
             ...(input.moving === undefined ? {} : { moving: [...input.moving] }),
             ...(input.scope === true ? { scope: true } : {}),
             ...(input.partition === true ? { partition: true } : {}),
@@ -397,7 +395,7 @@ interface PolicyFields<Name extends string, Kind extends string> {
     /** Sensitive permissions that apply only after their required authentication. */
     readonly elevated?: Readonly<Partial<Record<NoInfer<Name>, Elevation>>>;
     /** Permissions available while the scope is suspended, such as reading and resuming it. */
-    readonly administration?: readonly NoInfer<Name>[];
+    readonly suspended?: readonly NoInfer<Name>[];
     /** Permissions available while the scope moves, such as cancelling the move. */
     readonly moving?: readonly NoInfer<Name>[];
     /** Whether the type's objects live in the universe, like users. */

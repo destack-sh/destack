@@ -390,7 +390,7 @@ export class Authorization {
         return row;
     }
 
-    /** Suspend a scope and withhold every permission in it except administration until resumed. */
+    /** Suspend a scope and withhold every permission but its suspended ones until resumed. */
     async suspend(object: ObjectReference): Promise<void> {
         await this.#mark(object, { suspendedAt: this.context().now });
     }

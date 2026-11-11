@@ -109,7 +109,7 @@ export const PolicyDescription = schema.object({
     /** The permissions that apply only after the authentication each requires. */
     elevated: schema.record(AccessName, Elevation.schema).exactOptional(),
     /** Permissions that stay available while the scope is suspended. */
-    administration: schema.array(AccessName).exactOptional(),
+    suspended: schema.array(AccessName).exactOptional(),
     /** Permissions that stay available while the scope moves to another machine. */
     moving: schema.array(AccessName).exactOptional(),
     /** Whether the objects are scopes. */
