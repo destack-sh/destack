@@ -282,7 +282,7 @@ async function definitions(environment: Environment<"files" | "process">): Promi
     let workspaces = await readWorkspaces(root, files);
     while (workspaces === undefined) {
         if (dirname(root) === root) {
-            throw new TypeError(`no workspace above ${start}`);
+            throw new TypeError(`no workspace above '${start}'`);
         }
         root = dirname(root);
         workspaces = await readWorkspaces(root, files);
@@ -382,7 +382,7 @@ async function walk(directory: string, files: FileSystem): Promise<string[]> {
 async function entriesOf(directory: string, files: FileSystem): Promise<DirectoryEntry[]> {
     return await files.readDirectory(directory).catch((error: unknown) => {
         // read a missing directory as empty
-        if (FileSystemError.is(error, "NOT_FOUND")) {
+        if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
             return [];
         }
         throw error;
@@ -404,7 +404,7 @@ async function extensionSources(directory: string, files: FileSystem): Promise<s
     );
     const file = manifest.exports?.[subpath];
     if (typeof file !== "string") {
-        throw new TypeError(`${directory} exports no build module at ${subpath}`);
+        throw new TypeError(`'${directory}' exports no build module at '${subpath}'`);
     }
 
     // list the modules of the export's directory, its tests aside
@@ -420,7 +420,7 @@ async function readWorkspaces(directory: string, files: FileSystem): Promise<str
     const text = await files
         .readTextFile(join(directory, "package.json"))
         .catch((error: unknown) => {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return undefined;
             }
             throw error;

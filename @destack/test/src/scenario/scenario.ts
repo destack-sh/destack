@@ -166,7 +166,7 @@ export const Runner = {
         for (const [index, { step, fingerprint }] of first.steps.entries()) {
             if (second.steps[index]?.fingerprint !== fingerprint) {
                 throw new Error(
-                    `the world diverged between two plays of one seed at step ${index}: ${step}`,
+                    `the world diverged between two plays of one seed at step ${index}: '${step}'`,
                 );
             }
         }
@@ -253,7 +253,9 @@ export const Runner = {
     ): Type {
         const type = types.find((candidate) => candidate.interaction.name === interaction.name);
         if (type === undefined) {
-            throw new TypeError(`no driver plays the ${interaction.name} interaction of ${name}`);
+            throw new TypeError(
+                `no driver plays the '${interaction.name}' interaction of '${name}'`,
+            );
         }
 
         return type;

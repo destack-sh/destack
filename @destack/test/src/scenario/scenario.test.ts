@@ -162,6 +162,6 @@ test("refuse a replay whose second play diverges, naming the first step after wh
 
     // expect the replay to refuse the second step
     await expect(Runner.replay(play)).rejects.toThrow(
-        new Error("the world diverged between two plays of one seed at step 1: mark 1"),
+        new Error("the world diverged between two plays of one seed at step 1: 'mark 1'"),
     );
 });
