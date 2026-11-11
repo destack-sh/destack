@@ -14,7 +14,7 @@ const OBSERVED_AT = "2026-10-20";
 /** The seconds in an hour, the unit machine prices are set per. */
 const SECONDS_PER_HOUR = 3600;
 
-/** A dedicated machine size: its resources, and its credit cents per awake hour. */
+/** A dedicated machine size: its resources, its disk cleared on sleep, and its credit cents an hour. */
 export type Machine = MachineType & { readonly hourly: number };
 
 /** Destack's dedicated machines by size, 500 awake hours costing twice its share on its host. */
@@ -32,7 +32,7 @@ export const MACHINE_HOST: MachineVendor = hetzner;
 export const smallMachineUnit = defineSku({
     name: "destack.machine.small",
     description:
-        "Seconds a small machine with two vCPUs, 4 GB of memory and 80 GB of disk stays awake.",
+        "Seconds a small machine with two vCPUs, 4 GB of memory and 80 GB of local disk stays awake.",
     provider: "destack",
     service: "Compute",
     category: "Compute",
@@ -51,7 +51,7 @@ export const smallMachineUnit = defineSku({
 export const mediumMachineUnit = defineSku({
     name: "destack.machine.medium",
     description:
-        "Seconds a medium machine with four vCPUs, 8 GB of memory and 160 GB of disk stays awake.",
+        "Seconds a medium machine with four vCPUs, 8 GB of memory and 160 GB of local disk stays awake.",
     provider: "destack",
     service: "Compute",
     category: "Compute",
@@ -70,7 +70,7 @@ export const mediumMachineUnit = defineSku({
 export const largeMachineUnit = defineSku({
     name: "destack.machine.large",
     description:
-        "Seconds a large machine with eight vCPUs, 16 GB of memory and 320 GB of disk stays awake.",
+        "Seconds a large machine with eight vCPUs, 16 GB of memory and 320 GB of local disk stays awake.",
     provider: "destack",
     service: "Compute",
     category: "Compute",
@@ -89,7 +89,7 @@ export const largeMachineUnit = defineSku({
 export const xlargeMachineUnit = defineSku({
     name: "destack.machine.xlarge",
     description:
-        "Hours an extra large machine with sixteen vCPUs, 32 GB of memory and 640 GB of disk stays awake.",
+        "Seconds an extra large machine with sixteen vCPUs, 32 GB of memory and 640 GB of local disk stays awake.",
     provider: "destack",
     service: "Compute",
     category: "Compute",
