@@ -46,9 +46,11 @@ ErrorCondition.of("INSTALLATION_NOT_FOUND"); // "NOT_FOUND"
 ```ts
 import { defineErrorFamily } from "@destack/error";
 
-const NoteError = defineErrorFamily(import.meta.destack.package, {
-    NOTE_NOT_FOUND: {},
-    NOTE_BLOCKED: { data: schema.object({ holder: schema.string() }) },
+const NoteError = defineErrorFamily({
+    reasons: {
+        NOTE_NOT_FOUND: {},
+        NOTE_BLOCKED: { data: schema.object({ holder: schema.string() }) },
+    },
 });
 
 throw NoteError.of("NOTE_BLOCKED", "cannot edit note 'Plans': 'Ada' holds it", {
@@ -66,7 +68,10 @@ A message is one English sentence for developers and logs: what, its condition's
 // quote each value someone supplied; leave kinds, counts and our own constants bare, as Kubernetes' `pods "nginx" not found`
 throw StackError.of("INSTALLATION_NOT_FOUND", `installation '${name}' not found`);
 throw ObjectError.of("OBJECT_NOT_FOUND", `${object.name} '${id}' not found`);
-throw BucketError.of("FILE_INVALID", `file '${key}' is invalid: it takes ${size} bytes, over ${MAX_FILE_BYTES}`);
+throw BucketError.of(
+    "FILE_INVALID",
+    `file '${key}' is invalid: it takes ${size} bytes, over ${MAX_FILE_BYTES}`,
+);
 // keep a cause as the cause, not in the text
 throw MailError.of("PROVIDER_UNREACHABLE", `could not send mail to '${address}'`, { cause });
 // a broken invariant as a TypeError, keeping the identifiers a developer looks up
@@ -115,7 +120,11 @@ throw Failure.error(await Failure.read(response)); // a domain error with the fa
 
 ```ts
 Failure.isTransient({ code: "CONFLICT", reason: "REVISION_CONFLICT" }); // true
-Failure.isTransient({ code: "TOO_MANY_REQUESTS", reason: "RATE_EXHAUSTED", data: { retryAfter: 1000 } }); // true
+Failure.isTransient({
+    code: "TOO_MANY_REQUESTS",
+    reason: "RATE_EXHAUSTED",
+    data: { retryAfter: 1000 },
+}); // true
 Failure.isTransient({ code: "TOO_MANY_REQUESTS", reason: "STORAGE_EXHAUSTED" }); // false
 Failure.isTransient({ code: "BAD_GATEWAY", reason: "RESPONSE_UNREACHABLE" }); // false
 ```

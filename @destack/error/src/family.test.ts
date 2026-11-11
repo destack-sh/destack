@@ -5,15 +5,20 @@ import { Failure } from "./failure.ts";
 
 /** A note package's errors, one with typed data. */
 const NoteError = defineErrorFamily(
-    { name: "@destack/note" },
     {
-        NOTE_NOT_FOUND: {},
-        NOTE_BLOCKED: { data: schema.object({ holder: schema.string().min(3) }) },
+        reasons: {
+            NOTE_NOT_FOUND: {},
+            NOTE_BLOCKED: { data: schema.object({ holder: schema.string().min(3) }) },
+        },
     },
+    { package: { name: "@destack/note" } },
 );
 
 /** Another package's errors with a reason of the same name. */
-const PageError = defineErrorFamily({ name: "@destack/page" }, { NOTE_NOT_FOUND: {} });
+const PageError = defineErrorFamily(
+    { reasons: { NOTE_NOT_FOUND: {} } },
+    { package: { name: "@destack/page" } },
+);
 
 test("declare a package's reasons, convert their failures to call errors, tell its failures apart and describe them for the manifest", () => {
     // fail with a reason without data and one with data
@@ -100,9 +105,8 @@ test("refuse data that breaks a reason's schema", () => {
 test("declare a family for callers by default, or for the host alone, carried by each failure", () => {
     // declare one family of each audience and fail with each
     const HostError = defineErrorFamily(
-        { name: "@destack/disk" },
-        { DISK_BROKEN: {} },
-        { audience: "host" },
+        { reasons: { DISK_BROKEN: {} }, audience: "host" },
+        { package: { name: "@destack/disk" } },
     );
     const full = HostError.of("DISK_BROKEN", "the disk at /var/data is full");
     const missing = NoteError.of("NOTE_NOT_FOUND", "note note-1 not found");

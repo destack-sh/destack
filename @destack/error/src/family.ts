@@ -106,34 +106,34 @@ export class FamilyError<
 }
 
 /** A package's errors: one declaration of every reason it fails with, read by its manifest. */
-export class ErrorFamily<Declared extends ReasonDeclarations> {
+export class ErrorFamily<Reasons extends ReasonDeclarations> {
     /** The package whose reasons they are. */
     readonly domain: string;
     /** The declared reasons, by name. */
-    readonly reasons: Declared;
+    readonly reasons: Reasons;
     /** The schema of the family's reason names, such as for a column storing a reason. */
-    readonly reason: schema.Schema<keyof Declared & string, keyof Declared & string>;
+    readonly reason: schema.Schema<keyof Reasons & string, keyof Reasons & string>;
     /** Who the family's failures are for. */
     readonly audience: ErrorAudience;
 
     /** Create a family of a package's declared reasons, for an audience. */
-    constructor(domain: string, reasons: Declared, audience: ErrorAudience) {
+    constructor(domain: string, reasons: Reasons, audience: ErrorAudience) {
         // keep the domain, the reasons, the audience and the schema of the reasons' names
         this.domain = domain;
         this.reasons = reasons;
         this.audience = audience;
         this.reason = schema.enum(
-            Object.keys(reasons).filter((name): name is keyof Declared & string =>
+            Object.keys(reasons).filter((name): name is keyof Reasons & string =>
                 Object.hasOwn(reasons, name),
             ),
         );
     }
 
     /** Create a failure of a reason, with the data its schema checks when it declares one. */
-    of<const Reason extends keyof Declared & string>(
+    of<const Reason extends keyof Reasons & string>(
         reason: Reason,
         message: string,
-        ...[options]: FailureOptions<ReasonData<Declared[Reason]>>
+        ...[options]: FailureOptions<ReasonData<Reasons[Reason]>>
     ): FamilyError<Reason> {
         // check the data against the reason's schema
         const declared = present<ReasonDeclaration>(this.reasons[reason], `the reason ${reason}`);
@@ -153,10 +153,10 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
     }
 
     /** Report whether a thrown value is a failure of this family, raised or decoded. */
-    is<const Reason extends keyof Declared & string = keyof Declared & string>(
+    is<const Reason extends keyof Reasons & string = keyof Reasons & string>(
         value: unknown,
         reason?: Reason,
-    ): value is FamilyFailure<Reason, ReasonDetail<Declared[Reason]>> {
+    ): value is FamilyFailure<Reason, ReasonDetail<Reasons[Reason]>> {
         // read the value as the failure its caller receives
         if (!(value instanceof Error)) {
             return false;
@@ -194,21 +194,30 @@ export class ErrorFamily<Declared extends ReasonDeclarations> {
 
 /** The reasons a family declares. */
 export type ReasonOf<Family> =
-    Family extends ErrorFamily<infer Declared> ? keyof Declared & string : never;
+    Family extends ErrorFamily<infer Reasons> ? keyof Reasons & string : never;
 
 /** Declare a package's error family: its reasons, each `<NOUN>_<CONDITION>`, with their data. */
-export function defineErrorFamily<const Declared extends ReasonDeclarations>(
-    owner: { readonly name: string },
-    reasons: Declared & {
-        readonly [Name in keyof Declared]: Name extends `${string}_${ErrorCondition}`
-            ? ReasonDeclaration
-            : never;
-    },
+export function defineErrorFamily<const Reasons extends ReasonDeclarations>(
     options: {
+        /** The reasons, each `<NOUN>_<CONDITION>`, with the schema of its data. */
+        readonly reasons: Reasons & {
+            readonly [Name in keyof Reasons]: Name extends `${string}_${ErrorCondition}`
+                ? ReasonDeclaration
+                : never;
+        };
         /** Who the failures are for, callers by default. */
         readonly audience?: ErrorAudience;
-    } = {},
-): ErrorFamily<Declared> {
-    // declare the family for callers unless it describes the host
-    return new ErrorFamily<Declared>(owner.name, reasons, options.audience ?? "caller");
+    },
+    module?: { readonly package: { readonly name: string } },
+): ErrorFamily<Reasons> {
+    // require the declaring package the module transform passes
+    if (module === undefined) {
+        throw new TypeError("defineErrorFamily needs the module metadata its transform passes");
+    }
+
+    return new ErrorFamily<Reasons>(
+        module.package.name,
+        options.reasons,
+        options.audience ?? "caller",
+    );
 }
