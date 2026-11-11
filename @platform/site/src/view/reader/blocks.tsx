@@ -24,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { palette } from "../palette.stylex";
 import { media } from "@destack/style/media.stylex";
 import { ImageMetadata, Picture } from "@destack/view/media";
+import { lattice } from "../layout/lattice.stylex";
 import { typeScale, tracking } from "../layout/type.stylex";
 
 /** The components that stand in for the elements of the site's articles. */
@@ -121,7 +122,7 @@ function Figure(properties: ContentElementProperties) {
                     style={
                         width === undefined ? undefined : { "max-width": `min(100%, ${width}px)` }
                     }
-                    {...style.attrs(styles.frame)}
+                    {...style.attrs(lattice.crop, styles.frame)}
                 >
                     {kind === "animation" ? (
                         <AnimationIsland
@@ -276,7 +277,7 @@ function elementAt(node: Element, index: number): Element {
         (candidate): candidate is Element => candidate.type === "element",
     )[index];
     if (child === undefined) {
-        throw new TypeError(`a ${node.tagName} has no element child at ${index}`);
+        throw new TypeError(`a '${node.tagName}' has no element child at '${index}'`);
     }
 
     return child;
@@ -423,8 +424,13 @@ const styles = style.create({
         justifyContent: "space-between",
     },
     label: {
+        color: color.primary,
         flexShrink: 0,
+        fontFamily: font.code,
+        fontSize: typeScale.label,
         fontWeight: weight.semibold,
+        letterSpacing: tracking.label,
+        textTransform: "uppercase",
     },
     player: {
         aspectRatio: "16 / 9",

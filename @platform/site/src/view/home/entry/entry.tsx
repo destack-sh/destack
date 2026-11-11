@@ -167,7 +167,12 @@ export function FigureLabel(properties: {
     return (
         <div ref={label} data-figure-label {...style.attrs(lattice.cell, styles.label)}>
             <span {...style.attrs(styles.caption)}>
-                <span {...style.attrs(styles.figure)}>Fig. {properties.number}</span>
+                {/* number the figure in a balloon, its leader running to the title */}
+                <span {...style.attrs(styles.balloon)}>
+                    <span {...style.attrs(styles.hidden)}>Fig. </span>
+                    {properties.number}
+                </span>
+                <span aria-hidden="true" {...style.attrs(styles.leader)} />
                 <span {...style.attrs(styles.title)}>
                     <Crossfade
                         isOpen={properties.isOpen}
@@ -192,7 +197,7 @@ function Definition(properties: { sense: Sense; isDrawn: boolean }) {
             // find the passage, or refuse a definition that lacks it
             const at = rest.indexOf(passage);
             if (at === -1) {
-                throw new Error(`"${passage}" is not in "${properties.sense.definition}"`);
+                throw new Error(`'${passage}' is not in '${properties.sense.definition}'`);
             }
             result.push({ text: rest.slice(0, at), isHighlighted: false });
             result.push({ text: passage, isHighlighted: true });
@@ -251,7 +256,7 @@ const styles = style.create({
         display: "inline-block",
     },
     caption: {
-        alignItems: "baseline",
+        alignItems: "center",
         display: "flex",
     },
     label: {
@@ -269,15 +274,37 @@ const styles = style.create({
     labelControl: {
         marginLeft: "auto",
     },
-    figure: {
+    balloon: {
+        alignItems: "center",
+        borderColor: color.primary,
+        borderRadius: "50%",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
         color: color.primary,
-        marginRight: "1rem",
-        whiteSpace: "nowrap",
+        display: "inline-flex",
+        flexShrink: 0,
         fontFamily: font.code,
         fontSize: typeScale.label,
         fontWeight: 600,
-        letterSpacing: tracking.label,
-        textTransform: "uppercase",
+        height: "1.5rem",
+        justifyContent: "center",
+        width: "1.5rem",
+    },
+    leader: {
+        backgroundColor: color.primary,
+        flexShrink: 0,
+        height: "1px",
+        marginInlineEnd: "0.75rem",
+        marginInlineStart: "0.375rem",
+        width: "1.25rem",
+    },
+    hidden: {
+        clipPath: "inset(50%)",
+        height: "1px",
+        overflow: "hidden",
+        position: "absolute",
+        whiteSpace: "nowrap",
+        width: "1px",
     },
     rule: {
         backgroundImage: `repeating-linear-gradient(to bottom, ${color.border} 0 4px, transparent 0 8px)`,
