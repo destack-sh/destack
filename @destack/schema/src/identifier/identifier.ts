@@ -36,7 +36,7 @@ export function identifier<const Prefix extends string>(
 
     // refuse a prefix that is not literal and unambiguous before appending the UUID
     if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/u.test(prefix)) {
-        throw new TypeError(`invalid identifier prefix: ${prefix}`);
+        throw new TypeError(`invalid identifier prefix: '${prefix}'`);
     }
 
     // match the prefix followed by a UUIDv7 or UUIDv8, and register the validator
@@ -90,7 +90,7 @@ export const Identifier = {
 
         // write the position over bytes 11 to 13
         if (!Number.isInteger(position) || position < 0 || position >= POSITION_LIMIT) {
-            throw new RangeError(`identifier position ${position} is outside 0 to 2^24`);
+            throw new RangeError(`identifier position '${position}' is outside 0 to 2^24`);
         }
         const width = POSITION_RANGE.end - POSITION_RANGE.start;
         const written = position.toString(16).padStart(width, "0");

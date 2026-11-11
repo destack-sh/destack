@@ -85,7 +85,7 @@ export function canonicalize(value: unknown): string {
     }
     // reject values JSON cannot represent
     else if (typeof value !== "object" || !isPlain(value)) {
-        throw new TypeError(`value is not JSON: ${describe(value)}`);
+        throw new TypeError(`value is not JSON: '${describe(value)}'`);
     }
 
     // write the defined fields sorted by key

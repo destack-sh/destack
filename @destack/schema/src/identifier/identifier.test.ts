@@ -51,7 +51,7 @@ test("filter the identifiers of one prefix from mixed values in their order", ()
 test("refuse prefixes that would make identifiers ambiguous", () => {
     for (const prefix of ["Space", "space-", "1space", "space--key", "space\n"]) {
         expect(() => identifier(prefix)).toThrow(
-            new TypeError(`invalid identifier prefix: ${prefix}`),
+            new TypeError(`invalid identifier prefix: '${prefix}'`),
         );
     }
 });
@@ -97,7 +97,7 @@ test("derive a request's objects in order of their positions, between requests w
     // sort them as they were derived, and refuse a position past 2^24
     expect(derived.toSorted()).toEqual(derived);
     expect(() => Identifier.derive("task", request, 2 ** 24)).toThrow(
-        new RangeError("identifier position 16777216 is outside 0 to 2^24"),
+        new RangeError("identifier position '16777216' is outside 0 to 2^24"),
     );
 });
 

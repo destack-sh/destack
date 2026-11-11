@@ -72,7 +72,7 @@ export const Uuid = {
         // refuse a time outside the 48-bit timestamp
         const now = environment.clock.now();
         if (!Number.isSafeInteger(now) || now < 0 || now >= TIMESTAMP_LIMIT) {
-            throw new RangeError(`uuid time ${now} is outside 0 to 2^48 milliseconds`);
+            throw new RangeError(`uuid time '${now}' is outside 0 to 2^48 milliseconds`);
         }
 
         // count past the last UUIDv7 in its millisecond, moving to the next one once the counter runs out
@@ -108,7 +108,7 @@ export const Uuid = {
     async v8(namespace: Uuid, name: string, crypto: DigestCrypto): Promise<Uuid> {
         // refuse a namespace in another UUID form
         if (!UUID_TEXT.test(namespace)) {
-            throw new RangeError(`uuid namespace ${namespace} is no lowercase hyphenated uuid`);
+            throw new RangeError(`uuid namespace '${namespace}' is no lowercase hyphenated uuid`);
         }
 
         // hash the namespace's 16 bytes, then the name's UTF-8 bytes

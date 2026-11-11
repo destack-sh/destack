@@ -111,7 +111,7 @@ export const LocalReference = {
         }
 
         throw new TypeError(
-            `schema reference ${reference} points outside the document's definitions`,
+            `schema reference '${reference}' points outside the document's definitions`,
         );
     },
 };
@@ -221,7 +221,7 @@ interface FormatBuilder {
 function build(node: JsonSchemaValue, context: ImportContext): z.ZodType<JsonValue> {
     // refuse a boolean schema, which no declarable schema describes
     if (typeof node === "boolean") {
-        throw new TypeError(`json schema ${String(node)} is not declarable`);
+        throw new TypeError(`json schema '${String(node)}' is not declarable`);
     }
 
     // build the node, then annotate it with its title, description and examples
@@ -324,7 +324,7 @@ function typeList(
     // build a union of plain types
     const [first, second, ...rest] = types.map((each) => typed(each, {}, context));
     if (first === undefined || second === undefined) {
-        throw new TypeError(`json schema types ${types.join(", ")} are not declarable`);
+        throw new TypeError(`json schema types '${types.join(", ")}' are not declarable`);
     }
 
     return checked(z.union([first, second, ...rest]), node, ["type"]);
@@ -365,7 +365,7 @@ class LinearPattern extends RegExp {
         try {
             this.#linear = RE2JS.compile(pattern);
         } catch (error) {
-            throw new TypeError(`json schema pattern ${pattern} is not declarable`, {
+            throw new TypeError(`json schema pattern '${pattern}' is not declarable`, {
                 cause: error,
             });
         }
@@ -402,7 +402,7 @@ function formatOf(format: string, patterns: readonly string[]): FormatBuilder {
     }
 
     throw new TypeError(
-        `json schema format ${format} with patterns ${patterns.join(", ")} is not declarable`,
+        `json schema format '${format}' with patterns '${patterns.join(", ")}' is not declarable`,
     );
 }
 
@@ -718,7 +718,7 @@ function targetOf(root: JsonSchema, reference: string): JsonSchemaValue {
     const definition = LocalReference.definition(reference);
     const target = definition === null ? root : root.$defs?.[definition];
     if (target === undefined) {
-        throw new TypeError(`schema reference ${reference} does not resolve`);
+        throw new TypeError(`schema reference '${reference}' does not resolve`);
     }
 
     return target;
@@ -734,7 +734,7 @@ function checked<Built extends z.ZodType<JsonValue>>(
         (key) => !keywords.includes(key) && !DOCUMENT_KEYWORDS.has(key),
     );
     if (unknown.length > 0) {
-        throw new TypeError(`json schema keywords ${unknown.join(", ")} are not declarable`);
+        throw new TypeError(`json schema keywords '${unknown.join(", ")}' are not declarable`);
     }
 
     return built;

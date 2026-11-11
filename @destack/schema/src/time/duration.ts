@@ -53,7 +53,7 @@ export const Duration = {
     require(duration: unknown, name: string): Duration {
         const parsed = Duration.schema.safeParse(duration);
         if (!parsed.success || Object.keys(parsed.data).length === 0) {
-            throw new TypeError(`${name} is not a duration: ${JSON.stringify(duration)}`);
+            throw new TypeError(`'${name}' is not a duration: ${JSON.stringify(duration)}`);
         }
 
         return parsed.data;

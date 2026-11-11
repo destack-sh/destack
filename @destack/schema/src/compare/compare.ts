@@ -361,7 +361,7 @@ function resolve(node: Node, root: JsonSchema): Node {
     const name = match?.[1];
     const found = name === undefined ? root : root.$defs?.[decodePointer(name)];
     if (match === null || found === undefined) {
-        throw new TypeError(`unresolved schema reference: ${reference}`);
+        throw new TypeError(`unresolved schema reference: '${reference}'`);
     }
 
     // join keywords beside the reference as a conjunction

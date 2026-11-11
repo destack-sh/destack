@@ -9,9 +9,9 @@ test("serialize JSON with sorted keys and without undefined fields", () => {
 
 test("refuse values JSON cannot represent", () => {
     // refuse non-finite numbers, class instances and functions
-    expect(() => canonicalize(Number.NaN)).toThrow(new TypeError("value is not JSON: number"));
+    expect(() => canonicalize(Number.NaN)).toThrow(new TypeError("value is not JSON: 'number'"));
     expect(() => canonicalize({ at: new Date(0) })).toThrow(
-        new TypeError("value is not JSON: Date"),
+        new TypeError("value is not JSON: 'Date'"),
     );
-    expect(() => canonicalize([() => 1])).toThrow(new TypeError("value is not JSON: function"));
+    expect(() => canonicalize([() => 1])).toThrow(new TypeError("value is not JSON: 'function'"));
 });

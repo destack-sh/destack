@@ -210,7 +210,7 @@ test("refuse an imported default its own schema refuses", () => {
 
 test("refuse a reference that does not resolve, naming its pointer", () => {
     expect(() => fromJsonSchema({ $ref: "#/$defs/missing" })).toThrow(
-        new TypeError("schema reference #/$defs/missing does not resolve"),
+        new TypeError("schema reference '#/$defs/missing' does not resolve"),
     );
 });
 
@@ -220,7 +220,7 @@ test("refuse keywords and shapes outside the declarable subset, naming them", ()
     );
     expect(() =>
         fromJsonSchema({ type: "array", items: { type: "string" }, uniqueItems: true }),
-    ).toThrow(new TypeError("json schema keywords uniqueItems are not declarable"));
+    ).toThrow(new TypeError("json schema keywords 'uniqueItems' are not declarable"));
     expect(() =>
         fromJsonSchema({ type: "object", properties: { title: { type: "string" } } }),
     ).toThrow(
@@ -229,13 +229,13 @@ test("refuse keywords and shapes outside the declarable subset, naming them", ()
         ),
     );
     expect(() => fromJsonSchema({ type: "string", default: "lunch" })).toThrow(
-        new TypeError("json schema keywords default are not declarable"),
+        new TypeError("json schema keywords 'default' are not declarable"),
     );
     expect(() => fromJsonSchema({ enum: ["low", "high"] })).toThrow(
         new TypeError('json schema {"enum":["low","high"]} has no type'),
     );
     expect(() => fromJsonSchema({ type: "string", format: "uuid", pattern: "^[0-9]+$" })).toThrow(
-        new TypeError("json schema format uuid with patterns ^[0-9]+$ is not declarable"),
+        new TypeError("json schema format 'uuid' with patterns '^[0-9]+$' is not declarable"),
     );
 });
 
@@ -249,7 +249,7 @@ test("match patterns from descriptions in linear time, refusing lookarounds", ()
 
     // refuse a lookaround, which no linear engine matches
     expect(() => fromJsonSchema({ type: "string", pattern: "^(?!xn$)" })).toThrow(
-        new TypeError("json schema pattern ^(?!xn$) is not declarable"),
+        new TypeError("json schema pattern '^(?!xn$)' is not declarable"),
     );
 });
 

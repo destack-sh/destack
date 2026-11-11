@@ -132,7 +132,7 @@ function requireMetadata(schema: z.core.$ZodType): void {
     const metadata = z.globalRegistry.get(schema);
     for (const key of Object.keys(metadata ?? {})) {
         if (!METADATA_KEYS.has(key)) {
-            throw new TypeError(`unsupported schema metadata: ${key}`);
+            throw new TypeError(`unsupported schema metadata: '${key}'`);
         }
     }
 
@@ -283,7 +283,7 @@ function requireCheck(check: z.core.$ZodCheck): void {
 
     // allow the exportable check kinds
     if (!EXPORTABLE_CHECKS.has(rule.check)) {
-        throw new TypeError(`unsupported schema check: ${rule.check}`);
+        throw new TypeError(`unsupported schema check: '${rule.check}'`);
     }
 
     // reject stateful regular expression flags
@@ -299,7 +299,7 @@ function requireCheck(check: z.core.$ZodCheck): void {
     if (check instanceof z.core.$ZodCheckStringFormat) {
         const format = check._zod.def.format;
         if (!STRING_FORMATS.has(format) && !HASH_FORMATS.has(format)) {
-            throw new TypeError(`unsupported string format: ${format}`);
+            throw new TypeError(`unsupported string format: '${format}'`);
         }
     }
 

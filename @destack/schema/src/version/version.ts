@@ -67,10 +67,10 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         for (const key of Object.keys(keyed)) {
             // refuse a key that is not a release or one after the declaring version's release
             if (!Version.safeParse(key).success || Version.isPrerelease(key)) {
-                throw new TypeError(`conversion key of ${name} is not a release: ${key}`);
+                throw new TypeError(`conversion key of '${name}' is not a release: '${key}'`);
             } else if (Version.compare(key, Version.release(version)) > 0) {
                 throw new TypeError(
-                    `conversion of ${name} is keyed by ${key}, after its version ${version}`,
+                    `conversion of '${name}' is keyed by '${key}', after its version '${version}'`,
                 );
             }
         }
@@ -93,7 +93,7 @@ function components(version: string) {
     // read the calendar numbers and the dev build's sequence
     const match = VERSION.exec(version);
     if (match === null) {
-        throw new TypeError(`invalid version: ${version}`);
+        throw new TypeError(`invalid version: '${version}'`);
     }
     const [, year, month, release, sequence] = match;
 

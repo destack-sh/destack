@@ -86,9 +86,9 @@ test("refuse a time outside the 48-bit timestamp, and a draw of the wrong length
     );
 
     expect(refused).toEqual([
-        "uuid time -1 is outside 0 to 2^48 milliseconds",
-        "uuid time 281474976710656 is outside 0 to 2^48 milliseconds",
-        `uuid time ${TEST_START + 0.5} is outside 0 to 2^48 milliseconds`,
+        "uuid time '-1' is outside 0 to 2^48 milliseconds",
+        "uuid time '281474976710656' is outside 0 to 2^48 milliseconds",
+        `uuid time '${TEST_START + 0.5}' is outside 0 to 2^48 milliseconds`,
         "random bytes are 15, not 16",
     ]);
 });
@@ -111,7 +111,7 @@ test("refuse a namespace that is not a lowercase hyphenated UUID", async () => {
 
     await expect(Uuid.v8("6BA7B810-9DAD-11D1-80B4-00C04FD430C8", "x", crypto)).rejects.toThrow(
         new RangeError(
-            "uuid namespace 6BA7B810-9DAD-11D1-80B4-00C04FD430C8 is no lowercase hyphenated uuid",
+            "uuid namespace '6BA7B810-9DAD-11D1-80B4-00C04FD430C8' is no lowercase hyphenated uuid",
         ),
     );
 });

@@ -52,7 +52,7 @@ test("refuse schemas that coerce, run code, allow unknown properties, or miss or
         }),
     ).toEqual([
         "declared schemas cannot coerce values",
-        "unsupported schema check: custom",
+        "unsupported schema check: 'custom'",
         "declared object schemas must reject unknown properties",
         "optional schemas are only supported as object properties",
         "default schemas are only supported as object properties",
@@ -63,6 +63,6 @@ test("refuse schemas that coerce, run code, allow unknown properties, or miss or
         "default schemas are only supported as object properties",
         "unsupported schema type: date",
         "declared regular expressions cannot use global or sticky flags",
-        "unsupported schema metadata: default",
+        "unsupported schema metadata: 'default'",
     ]);
 });

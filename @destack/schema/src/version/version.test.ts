@@ -81,8 +81,8 @@ test("refuse conversion keys that are dev builds or follow the declaring version
         refusal({ "2026.10.0": 1 }, "2026.9.0-dev.4"),
     ]).toEqual([
         "accepted",
-        "TypeError: conversion key of user is not a release: 2026.9.0-dev.1",
-        "TypeError: conversion of user is keyed by 2026.10.0, after its version 2026.9.0-dev.4",
+        "TypeError: conversion key of 'user' is not a release: '2026.9.0-dev.1'",
+        "TypeError: conversion of 'user' is keyed by '2026.10.0', after its version '2026.9.0-dev.4'",
     ]);
 });
 
