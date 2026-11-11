@@ -174,7 +174,7 @@ async function bundleDesktop(
     const tauri = join(CHECKOUT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
     const configuration = await configureApplication(
         CHECKOUT,
-        directory,
+        output,
         stage,
         version,
         environment,
@@ -192,7 +192,6 @@ async function bundleDesktop(
         { CARGO_TARGET_DIR: output, DESTACK_STAGE: stage.name },
     );
     const { files } = environment;
-    await files.remove(join(directory, "icons"), { recursive: true });
 
     // copy the Tauri application bundle
     const compiled = join(output, target, "release");
