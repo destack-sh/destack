@@ -115,10 +115,13 @@ export class SeriesFold<Fields extends EventKeyFields> {
         if (isQuantile && request.measure !== undefined) {
             throw EventError.of(
                 "SERIES_INVALID",
-                `a ${request.fold} series reads distributions and cannot measure a key`,
+                `series '${request.fold}' is invalid: it reads distributions and cannot measure a key`,
             );
         } else if (!isQuantile && request.measure === undefined && request.fold !== "count") {
-            throw EventError.of("SERIES_INVALID", `a ${request.fold} series needs a measured key`);
+            throw EventError.of(
+                "SERIES_INVALID",
+                `series '${request.fold}' is invalid: it needs a measured key`,
+            );
         }
         this.measure = request.measure;
         this.group = request.group ?? [];

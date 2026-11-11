@@ -3,15 +3,15 @@ import type {} from "@destack/package/import-meta";
 
 /** The event package's failures, each reason with the call error code it answers. */
 export const EventError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    CURSOR_INVALID: { code: "BAD_REQUEST" },
-    SERIES_INVALID: { code: "BAD_REQUEST" },
-
     // conflict
-    CONTENTS_DIFFER: { code: "CONFLICT" },
+    UPDATE_CONFLICT: {},
 
-    // service unavailable
-    CONCURRENT_UPDATE: { code: "SERVICE_UNAVAILABLE" },
+    // invalid
+    CURSOR_INVALID: {},
+    SERIES_INVALID: {},
+
+    // blocked
+    CONTENTS_BLOCKED: {},
 });
 
 /** A stable cause of event failures. */

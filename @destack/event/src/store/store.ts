@@ -130,7 +130,7 @@ export class EventStore {
         const keys = kinds.map((kind) => kind.key);
         const repeated = keys.find((key, index) => keys.indexOf(key) !== index);
         if (repeated !== undefined) {
-            throw new TypeError(`event kind ${repeated} is registered twice`);
+            throw new TypeError(`event kind '${repeated}' is registered twice`);
         }
 
         // register each kind by its key, declaring its tables, which the database's migrations create
@@ -207,7 +207,7 @@ export class EventStore {
         this.kind(kind.key);
         if (transaction !== undefined && kind.delivery === "at-most-once") {
             throw new TypeError(
-                `event kind ${kind.key} is stored at most once and cannot join a caller's transaction`,
+                `event kind '${kind.key}' is stored at most once and cannot join a caller's transaction`,
             );
         }
 
@@ -311,7 +311,7 @@ export class EventStore {
         if (isQuantile && kind.distribution === undefined) {
             throw EventError.of(
                 "SERIES_INVALID",
-                `a ${fold} series reads distributions, but ${kind.key} records none`,
+                `series '${fold}' is invalid: it reads distributions and kind '${kind.key}' records none`,
             );
         }
 
@@ -489,8 +489,8 @@ export class EventStore {
                 unflushed.push(event);
             } else if (searchedText(kind, flushed) !== searchedText(kind, event)) {
                 throw EventError.of(
-                    "CONTENTS_DIFFER",
-                    `event ${event.id} of ${kind.key} is already stored with other contents`,
+                    "CONTENTS_BLOCKED",
+                    `cannot store event '${event.id}' of '${kind.key}': it is already stored with other contents`,
                 );
             }
         }
@@ -527,8 +527,8 @@ export class EventStore {
         const changed = repeated.find((event) => kept.get(event.id) !== searchedText(kind, event));
         if (changed !== undefined) {
             throw EventError.of(
-                "CONTENTS_DIFFER",
-                `event ${changed.id} of ${kind.key} is already stored with other contents`,
+                "CONTENTS_BLOCKED",
+                `cannot store event '${changed.id}' of '${kind.key}': it is already stored with other contents`,
             );
         }
     }
@@ -584,8 +584,8 @@ export class EventStore {
         }
 
         throw EventError.of(
-            "CONCURRENT_UPDATE",
-            `the segments of ${kind.key} in ${filter.scopes.join(", ")} kept changing during a read`,
+            "UPDATE_CONFLICT",
+            `cannot read the segments of '${kind.key}' in '${filter.scopes.join(", ")}': they kept changing during a read`,
         );
     }
 
@@ -731,7 +731,7 @@ export class EventStore {
     kind(key: string): EventKind {
         const kind = this.#kinds.get(key);
         if (kind === undefined) {
-            throw new TypeError(`this store has no event kind ${key}`);
+            throw new TypeError(`this store has no event kind '${key}'`);
         }
 
         return kind;

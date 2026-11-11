@@ -159,7 +159,7 @@ test("store a kind registered after opening like one opened with, once the datab
         read: read.events.map((event) => [event.id, event.data.message]),
     }).toEqual({ before: false, after: true, read: [["l", "up"]] });
     expect(() => store.register([line, line])).toThrow(
-        `event kind ${line.key} is registered twice`,
+        `event kind '${line.key}' is registered twice`,
     );
 });
 
@@ -241,14 +241,14 @@ test("store an event once, refusing a changed repeat whether hot or flushed and 
         events: page.events.map((event) => [event.id, event.keys.value]),
     }).toEqual({
         changed: [
-            "CONFLICT",
-            "CONTENTS_DIFFER",
-            `event r4 of ${reading.key} is already stored with other contents`,
+            "PRECONDITION_FAILED",
+            "CONTENTS_BLOCKED",
+            `cannot store event 'r4' of '${reading.key}': it is already stored with other contents`,
         ],
         late: [
-            "CONFLICT",
-            "CONTENTS_DIFFER",
-            `event r1 of ${reading.key} is already stored with other contents`,
+            "PRECONDITION_FAILED",
+            "CONTENTS_BLOCKED",
+            `cannot store event 'r1' of '${reading.key}': it is already stored with other contents`,
         ],
         segments: [3],
         events: [
@@ -649,7 +649,7 @@ test("store an exactly-once event only when its transaction commits, and an at-m
         refused,
     ]).toEqual([
         ["kept"],
-        `event kind ${line.key} is stored at most once and cannot join a caller's transaction`,
+        `event kind '${line.key}' is stored at most once and cannot join a caller's transaction`,
     ]);
 });
 
@@ -779,7 +779,7 @@ test("refuse a condition with a key the kind lacks", async () => {
 
     await expect(
         store.query(reading, { scopes: ["space-1"], where: Filter.parse('owner = "x"') }),
-    ).rejects.toThrow("condition has no field owner");
+    ).rejects.toThrow("condition is invalid: it has no field 'owner'");
 });
 
 test("read a row of a kind's table as its event with the kind's keys, refusing a key outside them", () => {
@@ -815,10 +815,10 @@ test("refuse an event kind whose subject is not a text key or whose distribution
             });
 
     expect(declare({ actor: schema.number() }, { subject: ["actor"] })).toThrow(
-        "event kind reading must have text subject keys",
+        "event kind 'reading' must have text subject keys",
     );
     expect(declare({}, { distribution: "histogram" })).toThrow(
-        "event kind reading has no data entry histogram for its distribution",
+        "event kind 'reading' has no data entry 'histogram' for its distribution",
     );
 });
 
@@ -906,12 +906,12 @@ test("fold the distributions of a kind's events into quantiles per group, hot an
         [
             "BAD_REQUEST",
             "SERIES_INVALID",
-            `a p50 series reads distributions, but ${reading.key} records none`,
+            `series 'p50' is invalid: it reads distributions and kind '${reading.key}' records none`,
         ],
         [
             "BAD_REQUEST",
             "SERIES_INVALID",
-            "a p50 series reads distributions and cannot measure a key",
+            "series 'p50' is invalid: it reads distributions and cannot measure a key",
         ],
     ]);
 });
@@ -1023,6 +1023,6 @@ test("select, group and count the events of a map key's entries newest first, ho
         users: { "/notes": 3, "/tasks": 1 },
         failed: ["c"],
         found: true,
-        twice: `TypeError: event kind ${request.key} is registered twice`,
+        twice: `TypeError: event kind '${request.key}' is registered twice`,
     });
 });

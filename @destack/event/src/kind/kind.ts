@@ -284,7 +284,7 @@ export class EventKind<
             return retention;
         } else if (settings === undefined) {
             throw new TypeError(
-                `event kind ${this.key} reads its retention from a setting, but its store has no settings reader`,
+                `event kind '${this.key}' reads its retention from a setting, but its store has no settings reader`,
             );
         }
 
@@ -316,7 +316,7 @@ export class EventKind<
         // require the columns every event has
         const { scope, id, time, data } = row;
         if (typeof scope !== "string" || typeof id !== "string" || typeof time !== "number") {
-            throw new TypeError(`a ${this.key} row has no scope, identity or time`);
+            throw new TypeError(`a '${this.key}' row has no scope, identity or time`);
         }
 
         // read each query key's column
@@ -344,7 +344,7 @@ export class EventKind<
         const kind = definition.table[TABLE].column(name).definition.kind;
         if (kind !== "text" && kind !== "integer" && kind !== "real" && kind !== "json") {
             throw new TypeError(
-                `event kind ${definition.name} stores key ${name} in a ${kind} column: keys must be text, numbers or maps`,
+                `event kind '${definition.name}' stores key '${name}' in a ${kind} column: keys must be text, numbers or maps`,
             );
         }
 
@@ -371,7 +371,7 @@ export class EventKind<
                 EventKind.#keyType(definition, name) === "text",
         );
         if (definition.subject?.length === 0 || !isText) {
-            throw new TypeError(`event kind ${definition.name} must have text subject keys`);
+            throw new TypeError(`event kind '${definition.name}' must have text subject keys`);
         }
 
         // require the distribution to be an entry of the data
@@ -379,7 +379,7 @@ export class EventKind<
         const entries = toJsonSchema(definition.data).properties ?? {};
         if (distribution !== undefined && !Object.hasOwn(entries, distribution)) {
             throw new TypeError(
-                `event kind ${definition.name} has no data entry ${distribution} for its distribution`,
+                `event kind '${definition.name}' has no data entry '${distribution}' for its distribution`,
             );
         }
     }
@@ -401,6 +401,6 @@ function toKeyValue(type: EventKeyType | undefined, value: unknown): EventKeyVal
     }
     // refuse any other value
     else {
-        throw new TypeError(`an event key must be text, a number or a map, not ${typeof value}`);
+        throw new TypeError(`an event key must be text, a number or a map, not '${typeof value}'`);
     }
 }
