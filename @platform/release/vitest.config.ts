@@ -12,7 +12,7 @@ export default defineConfiguration(
                 deps: {
                     external: [
                         /\/destack-executable-[^/]+\/universe\//u,
-                        /\/target\/test\/releases\/(?:trees|layered)\//u,
+                        /\/target\/releases\/(?:trees|layered)\//u,
                     ],
                 },
             },
