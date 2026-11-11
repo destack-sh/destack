@@ -78,7 +78,7 @@ const read = await Promise.all(
         // find where the SKU's price is published
         const lookup = LOOKUPS[sku.name];
         if (lookup === undefined) {
-            throw new Error(`sku ${sku.name} has no docs lookup`);
+            throw new Error(`sku '${sku.name}' has no docs lookup`);
         }
 
         // read it in dollars and write it in cents
@@ -118,7 +118,7 @@ async function priceOf(name: string, lookup: Lookup, network: Network): Promise<
     );
     const [price] = prices;
     if (price === undefined || prices.size > 1) {
-        throw new Error(`sku ${name} reads ${prices.size} prices on ${lookup.page}`);
+        throw new Error(`sku '${name}' reads ${prices.size} prices on '${lookup.page}'`);
     }
 
     return price;
@@ -127,7 +127,7 @@ async function priceOf(name: string, lookup: Lookup, network: Network): Promise<
 /** Replace a pattern's one match's middle group, refusing a source it misses. */
 function replaced(source: string, pattern: RegExp, value: string, name: string): string {
     if (!pattern.test(source)) {
-        throw new Error(`${name} has no amount to rewrite`);
+        throw new Error(`'${name}' has no amount to rewrite`);
     }
 
     return source.replace(
@@ -148,7 +148,9 @@ function text(url: string, network: Network): Promise<string> {
 async function fetched(url: string, network: Network): Promise<Response> {
     const response = await network.fetch(new Request(url));
     if (!response.ok) {
-        throw new Error(`${new URL(url).host}${new URL(url).pathname} answered ${response.status}`);
+        throw new Error(
+            `'${new URL(url).host}${new URL(url).pathname}' answered ${response.status}`,
+        );
     }
 
     return response;
