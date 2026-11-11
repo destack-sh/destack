@@ -11,8 +11,9 @@ import { install } from "@destack/stack/declare";
 import vaultPackage from "@destack/vault/package";
 
 /** The stack of every account's home: Home, its inbox, connections, comments and observability. */
-export const HOME_STACK = defineStack([vaultPackage], {
-    vaults: { credentials: connectionVault.declare() },
+export const HOME_STACK = defineStack({
+    types: [vaultPackage],
+    vaults: { credentials: connectionVault.provision() },
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         connection: install(

@@ -7,7 +7,8 @@ import vaultPackage from "@destack/vault/package";
 import { defineStack } from "@destack/stack";
 
 /** The stack of every other space: vault and observability, with what observability uses. */
-export const SPACE_STACK = defineStack([], {
+export const SPACE_STACK = defineStack({
+    types: [],
     installations: {
         vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
         social: install(socialPackage, {}, { isolation: "host", name: "social" }),

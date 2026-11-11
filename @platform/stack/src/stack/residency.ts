@@ -23,7 +23,7 @@ import { CREDIT_PRICES, PLANS } from "@platform/pricing";
 import { PLATFORM } from "../platform/platform.ts";
 
 /** The platform account's vault in a residency's home, whose secrets the operator writes once. */
-export const platformVault = defineVault({ name: "platform", spec: {} });
+export const platformVault = defineVault({ name: "platform" });
 
 /** Route a hostname's every path to the relay's names. */
 function relayRoute(hostname: string): NonNullable<StackInput["routes"]>[string] {
@@ -41,71 +41,69 @@ function residencyStack(edge: {
     readonly routes: NonNullable<StackInput["routes"]>;
     readonly installations: NonNullable<StackInput["installations"]>;
 }) {
-    return defineStack(
-        [financePackage, vaultPackage, connectionPackage, forgePackage, gitStorage],
-        {
-            sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
-            ...defineCatalog(PLANS),
-            vaults: {
-                platform: platformVault.declare(),
-                credentials: credentialVault.declare(),
-                connections: connectionVault.declare(),
-            },
-            // the platform's Stripe account, whose key the deploy rotates in
-            connections: {
-                stripe: {
-                    ...stripe.declare(),
-                    protocol: { kind: "key", header: "authorization", scheme: "Bearer" },
-                },
-            },
-            gitStorages: { repositories: repositoryStorage.declare() },
-            issuers: { github: {} },
-            secrets: {
-                "github-webhook": { parent: "platform", name: "github-webhook" },
-                "stripe-webhook": { parent: "platform", name: "stripe-webhook" },
-                "github-private-key": { parent: "platform", name: "github-private-key" },
-            },
-            installations: {
-                vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
-                connection: install(
-                    connectionPackage,
-                    { credentials: "connections" },
-                    { isolation: "host", name: CONNECTION_INSTALLATION },
-                ),
-                forge: install(
-                    forgePackage,
-                    {
-                        repositories: "repositories",
-                        credentials: "credentials",
-                        "github-webhook": "github-webhook",
-                        "github-private-key": "github-private-key",
-                    },
-                    { isolation: "host", name: FORGE_INSTALLATION },
-                ),
-                finance: install(
-                    financePackage,
-                    { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
-                    { isolation: "host", name: FINANCE_INSTALLATION },
-                ),
-                message: install(messagePackage, {}, { isolation: "host", name: "message" }),
-                notification: install(
-                    notificationPackage,
-                    {},
-                    { isolation: "host", name: "notification" },
-                ),
-                relay: install(relayPackage, {}, { name: "relay" }),
-                home: install(homePackage, {}, { name: HOME_APPLICATION }),
-                ...edge.installations,
-                social: install(socialPackage, {}, { isolation: "host", name: "social" }),
-                observability: install(
-                    observabilityPackage,
-                    {},
-                    { isolation: "host", name: "observability" },
-                ),
-            },
-            routes: edge.routes,
+    return defineStack({
+        types: [financePackage, vaultPackage, connectionPackage, forgePackage, gitStorage],
+        sellers: { platform: { provider: "stripe", creditPrices: CREDIT_PRICES } },
+        ...defineCatalog(PLANS),
+        vaults: {
+            platform: platformVault.provision(),
+            credentials: credentialVault.provision(),
+            connections: connectionVault.provision(),
         },
-    );
+        // the platform's Stripe account, whose key the deploy rotates in
+        connections: {
+            stripe: {
+                ...stripe.provision(),
+                protocol: { kind: "key", header: "authorization", scheme: "Bearer" },
+            },
+        },
+        gitStorages: { repositories: repositoryStorage.provision() },
+        issuers: { github: {} },
+        secrets: {
+            "github-webhook": { parent: "platform", name: "github-webhook" },
+            "stripe-webhook": { parent: "platform", name: "stripe-webhook" },
+            "github-private-key": { parent: "platform", name: "github-private-key" },
+        },
+        installations: {
+            vault: install(vaultPackage, {}, { isolation: "host", name: "vault" }),
+            connection: install(
+                connectionPackage,
+                { credentials: "connections" },
+                { isolation: "host", name: CONNECTION_INSTALLATION },
+            ),
+            forge: install(
+                forgePackage,
+                {
+                    repositories: "repositories",
+                    credentials: "credentials",
+                    "github-webhook": "github-webhook",
+                    "github-private-key": "github-private-key",
+                },
+                { isolation: "host", name: FORGE_INSTALLATION },
+            ),
+            finance: install(
+                financePackage,
+                { stripe: "stripe", "stripe-webhook": "stripe-webhook" },
+                { isolation: "host", name: FINANCE_INSTALLATION },
+            ),
+            message: install(messagePackage, {}, { isolation: "host", name: "message" }),
+            notification: install(
+                notificationPackage,
+                {},
+                { isolation: "host", name: "notification" },
+            ),
+            relay: install(relayPackage, {}, { name: "relay" }),
+            home: install(homePackage, {}, { name: HOME_APPLICATION }),
+            ...edge.installations,
+            social: install(socialPackage, {}, { isolation: "host", name: "social" }),
+            observability: install(
+                observabilityPackage,
+                {},
+                { isolation: "host", name: "observability" },
+            ),
+        },
+        routes: edge.routes,
+    });
 }
 
 /** Route one of the universe's pages to Home's view of the same name. */
