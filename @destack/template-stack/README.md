@@ -12,9 +12,10 @@ import { defineStack } from "@destack/stack";
 import vaultPackage from "@destack/vault/package";
 import { credentials, files } from "@destack/template-stack";
 
-export const personal = defineStack([vaultPackage, observabilityPackage], {
-    buckets: { files: files.declare({ retention: { within: { days: 30 } } }) },
-    vaults: { credentials: credentials.declare({ retention: { within: { days: 30 } } }) },
+export const personal = defineStack({
+    types: [vaultPackage, observabilityPackage],
+    buckets: { files: files.provision({ retention: { within: { days: 30 } } }) },
+    vaults: { credentials: credentials.provision({ retention: { within: { days: 30 } } }) },
     alertRules: {
         rollback: {
             title: "Roll back installation on new fatal issues",
