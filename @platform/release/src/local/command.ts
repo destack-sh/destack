@@ -106,7 +106,7 @@ function localOptions(
 
     return {
         directory,
-        releases: resolve(directory, "releases"),
+        releases: resolve(REPOSITORY, "target", "releases"),
         server: SERVER,
         database: `destack_${name}`,
         home:
