@@ -80,7 +80,7 @@ export function GrantPermissions(properties: {
     const scope = (name: string) => {
         const message = SCOPE_DESCRIPTIONS[name];
         if (message === undefined) {
-            throw new TypeError(`the issuer grants no scope ${name}`);
+            throw new TypeError(`the issuer grants no scope '${name}'`);
         }
 
         return locale.render(message);

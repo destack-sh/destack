@@ -178,7 +178,7 @@ export class SpaceCatalog {
         const command = installed?.commands.find((each) => each.name === entry.name);
         if (command === undefined) {
             throw new TypeError(
-                `${entry.installation} in ${this.space.address} declares no ${entry.name}`,
+                `'${entry.installation}' in '${this.space.address}' declares no '${entry.name}'`,
             );
         }
 

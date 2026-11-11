@@ -182,7 +182,7 @@ export class PaletteListing {
     registered(entry: RegisteredEntry): RegisteredCommand {
         const command = this.#registered.get(entry.name);
         if (command === undefined) {
-            throw new TypeError(`the page under the palette registers no ${entry.name}`);
+            throw new TypeError(`the page under the palette registers no '${entry.name}'`);
         }
 
         return command;
@@ -191,7 +191,7 @@ export class PaletteListing {
     /** Find the catalog of the space a command, a view or an object belongs to. */
     catalog(entry: CommandEntry | ViewEntry | ObjectEntry): SpaceCatalog {
         if (this.#home === undefined || this.#home.space.id !== entry.space) {
-            throw new TypeError(`the palette read no space ${entry.space}`);
+            throw new TypeError(`the palette read no space '${entry.space}'`);
         }
 
         return this.#home;
@@ -253,7 +253,7 @@ export class PaletteListing {
         const types = LOCAL_TYPES.map((name) => {
             const type = objects.find((each) => each.name === name);
             if (type === undefined) {
-                throw new TypeError(`the device keeps no ${name} objects`);
+                throw new TypeError(`the device keeps no '${name}' objects`);
             }
 
             return type;
