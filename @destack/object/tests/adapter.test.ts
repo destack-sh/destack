@@ -103,10 +103,10 @@ test("refuse a package's unanswered adapter and an answer of no declared adapter
     const stray = await servePages(world, { feed, atom: feed });
 
     await expect(unanswered()).rejects.toThrow(
-        new TypeError(`package ${pages.name} does not implement adapter feed`),
+        new TypeError(`package '${pages.name}' does not implement adapter 'feed'`),
     );
     await expect(stray()).rejects.toThrow(
-        new TypeError(`package ${pages.name} does not declare adapter atom`),
+        new TypeError(`package '${pages.name}' does not declare adapter 'atom'`),
     );
 });
 

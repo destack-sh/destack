@@ -176,7 +176,7 @@ test("observe a controlled object without advancing its generation, finalize its
     expect(await refusal(moved)).toEqual([
         "MISDIRECTED_REQUEST",
         "SCOPE_MOVED",
-        `${spaceId} moved to ${TARGET}`,
+        `space '${spaceId}' moved to '${TARGET}'`,
     ]);
 
     // observations leave the generation and the first transition time, deletion advances it
@@ -258,7 +258,11 @@ test("answer a repeated system request from the journal, provisioning once, and 
     }).toEqual({
         machines: [first],
         repeated: first,
-        other: ["CONFLICT", "REQUEST_REUSED", "request identifier has already been used"],
+        other: [
+            "PRECONDITION_FAILED",
+            "REQUEST_BLOCKED",
+            "cannot record the request: its identifier has already been used",
+        ],
     });
 });
 
@@ -336,7 +340,7 @@ test("let an object representing a principal control its row, and refuse it anot
 
     expect({ observed: observed?.conditions["Ready"]?.observedGeneration, refused }).toEqual({
         observed: 1,
-        refused: ["NOT_FOUND", "NOT_FOUND", `contact ${first} not found`],
+        refused: ["NOT_FOUND", "NOT_FOUND", `contact '${first}' not found`],
     });
 });
 

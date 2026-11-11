@@ -74,7 +74,10 @@ export const GrantInput = schema.union([
 export function readGrant(input: unknown): schema.Infer<typeof GrantInput> {
     const grant = GrantInput.safeParse(input);
     if (!grant.success) {
-        throw ObjectError.of("CALL_INVALID", "a grant must have exactly one relation or role");
+        throw ObjectError.of(
+            "CALL_INVALID",
+            "grant is invalid: it must have exactly one relation or role",
+        );
     }
 
     return grant.data;
@@ -202,7 +205,7 @@ export const Roles = {
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
             throw new TypeError(
-                `object ${definition.name} shares through roles, so it must declare its permissions as expressions`,
+                `object '${definition.name}' shares through roles, so it must declare its permissions as expressions`,
             );
         }
         const declared = permissions;
@@ -217,7 +220,7 @@ export const Roles = {
         ];
         if (taken.length > 0) {
             throw new TypeError(
-                `object ${definition.name} shares through roles and cannot declare ${taken.join(", ")}`,
+                `object '${definition.name}' shares through roles and cannot declare '${taken.join(", ")}'`,
             );
         }
 

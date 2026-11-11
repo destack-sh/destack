@@ -102,8 +102,8 @@ export const branch = defineObject(
                 const expansion = context.expansion;
                 if (expansion !== undefined && (await opened.count()) !== expansion.length) {
                     throw ObjectError.of(
-                        "UNMERGED_CALLS",
-                        "branch has calls the merge did not run",
+                        "MERGE_BLOCKED",
+                        "cannot merge the branch: it has calls the merge did not run",
                     );
                 }
 

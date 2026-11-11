@@ -134,7 +134,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `page ${week.id} not found`,
+        `page '${week.id}' not found`,
     ]);
     expect(
         await refusal(
@@ -145,7 +145,7 @@ test("share page trees with members and links, and move pages within them", asyn
                 title: "Spam",
             }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `page ${week.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `page '${week.id}' not found`]);
 
     // share the tree's root: editors edit every subpage but may not delete or move them
     await alice.page.grant({
@@ -175,7 +175,11 @@ test("share page trees with members and links, and move pages within them", asyn
                 parentId: null,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'manage' is forbidden: the caller lacks it",
+    ]);
 
     // move a subtree out of the shared tree, and refuse moving a page into its subtree
     await alice.page.move({
@@ -188,7 +192,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(bob.page.get({ spaceId, id: week.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `page ${week.id} not found`,
+        `page '${week.id}' not found`,
     ]);
     expect(
         await refusal(
@@ -200,7 +204,11 @@ test("share page trees with members and links, and move pages within them", asyn
                 parentId: onboarding.id,
             }),
         ),
-    ).toEqual(["CONFLICT", "MOVE_INTO_SUBTREE", "page cannot move into its subtree"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "MOVE_INVALID",
+        "move of page is invalid: it must stay outside its own subtree",
+    ]);
 
     // publish the tree through a link anyone presenting its secret may read, signed in or not
     const link = await LinkSecret.create(world);
@@ -220,7 +228,7 @@ test("share page trees with members and links, and move pages within them", asyn
     expect(await refusal(connect({}).page.get({ spaceId, id: handbook.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `page ${handbook.id} not found`,
+        `page '${handbook.id}' not found`,
     ]);
     expect(
         await refusal(
@@ -232,7 +240,11 @@ test("share page trees with members and links, and move pages within them", asyn
                 title: "Defaced",
             }),
         ),
-    ).toEqual(["UNAUTHORIZED", "CREDENTIAL_MISSING", "missing caller credential"]);
+    ).toEqual([
+        "UNAUTHORIZED",
+        "CREDENTIAL_UNAUTHENTICATED",
+        "authentication required: caller credential is missing",
+    ]);
 
     // explain to the owner why a reader may not write, beside the pages' installations
     const why = await alice.page.explain({
@@ -337,14 +349,14 @@ test("build page trees offline in one mutation, and move and trash pages predict
     await moved.confirmed;
     const cycle = device.client.mutate(page).move({ id: handbook.id, parentId: onboarding.id });
     expect(await refusal(cycle.predicted)).toEqual([
-        "CONFLICT",
-        "MOVE_INTO_SUBTREE",
-        "page cannot move into its subtree",
+        "BAD_REQUEST",
+        "MOVE_INVALID",
+        "move of page is invalid: it must stay outside its own subtree",
     ]);
     expect(await refusal(cycle.confirmed)).toEqual([
-        "CONFLICT",
-        "MOVE_INTO_SUBTREE",
-        "page cannot move into its subtree",
+        "BAD_REQUEST",
+        "MOVE_INVALID",
+        "move of page is invalid: it must stay outside its own subtree",
     ]);
     expect(await device.client.prediction.pending(device.client.database)).toEqual([]);
 

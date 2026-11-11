@@ -82,7 +82,7 @@ test("persist verified caller identities with their delegates and grant, record 
             scope: "universe",
             resources: new ResourceContext(),
             authenticationError: CallError.http("UNAUTHORIZED", {
-                message: "invalid bearer credential",
+                message: "authentication required: bearer credential does not verify",
             }),
         });
         const recorder = AuditRecorder.from(

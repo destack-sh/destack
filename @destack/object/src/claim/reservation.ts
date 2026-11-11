@@ -177,8 +177,8 @@ export const Reservation = {
                 ),
             );
             throw ObjectError.of(
-                "NAME_TAKEN",
-                `${present(name, `the index of claim ${first.index}`)} is taken`,
+                "NAME_EXISTS",
+                `'${present(name, `the index of claim ${first.index}`)}' already exists`,
             );
         }
     },

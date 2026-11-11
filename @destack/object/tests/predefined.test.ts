@@ -82,7 +82,7 @@ test("store a type's predefined rows in its table, and refuse every call writing
 
     // list the free tier, then write it by identifier, by match and by a chosen identifier
     const { items } = await store.query(caller, tier.call("list", { spaceId }));
-    const predefined = `tier ${FREE} is predefined and cannot be written`;
+    const predefined = `cannot write tier '${FREE}': it is predefined`;
     expect({
         listed: items.map((item) => [item.id, item.name]),
         updated: await mutate(tier.call("update", { spaceId, id: FREE, name: "gratis" })),
@@ -93,10 +93,10 @@ test("store a type's predefined rows in its table, and refuse every call writing
         created: await mutate(tier.call("create", { spaceId, id: FREE, name: "free" })),
     }).toEqual({
         listed: [[FREE, "free"]],
-        updated: ["CONFLICT", "PREDEFINED", predefined],
-        matched: ["CONFLICT", "PREDEFINED", predefined],
-        deleted: ["CONFLICT", "PREDEFINED", predefined],
-        created: ["CONFLICT", "PREDEFINED", predefined],
+        updated: ["PRECONDITION_FAILED", "OBJECT_BLOCKED", predefined],
+        matched: ["PRECONDITION_FAILED", "OBJECT_BLOCKED", predefined],
+        deleted: ["PRECONDITION_FAILED", "OBJECT_BLOCKED", predefined],
+        created: ["PRECONDITION_FAILED", "OBJECT_BLOCKED", predefined],
     });
 });
 
@@ -105,6 +105,6 @@ test("store the owner role as the role type's predefined row, refusing other row
     expect(role.predefined.map((row) => row["id"])).toEqual([Role.OWNER]);
     const mapping = ObjectPolicy.readMapping(accessRole);
     expect(() => defineObject({ name: "role", plural: "roles", mapping, predefined: [] })).toThrow(
-        new TypeError("object role over a foreign table cannot have predefined"),
+        new TypeError("object 'role' over a foreign table cannot have 'predefined'"),
     );
 });

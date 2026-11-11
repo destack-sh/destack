@@ -30,7 +30,7 @@ export const InputSchema = {
     union(field: string, variants: readonly InputObject[]): InputSchema {
         const [first, ...others] = variants;
         if (first === undefined) {
-            throw new TypeError(`a union by ${field} has no variant`);
+            throw new TypeError(`a union by '${field}' has no variant`);
         }
 
         return schema.discriminatedUnion(field, [first, ...others]);

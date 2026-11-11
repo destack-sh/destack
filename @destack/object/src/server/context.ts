@@ -124,7 +124,13 @@ export class RequestContext {
     static lapse(credential: Credential, clock: Clock, stopping: AbortSignal): AbortSignal {
         const lapsed = new AbortController();
         clock.sleep(credential.expiresAt - clock.now(), stopping).then(
-            () => lapsed.abort(SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed")),
+            () =>
+                lapsed.abort(
+                    SyncError.of(
+                        "CREDENTIAL_UNAUTHENTICATED",
+                        "authentication required: the caller's credential lapsed",
+                    ),
+                ),
             () => {},
         );
 
@@ -134,7 +140,7 @@ export class RequestContext {
     /** Read the caller's authorization, present for every package declared with access. */
     requireAuthorization(): Authorization {
         if (this.authorization === undefined) {
-            throw new TypeError(`package ${this.audience} has no authorization`);
+            throw new TypeError(`package '${this.audience}' has no authorization`);
         }
 
         return this.authorization;
@@ -157,7 +163,10 @@ export class RequestContext {
         if (this.authenticationError !== undefined) {
             throw this.authenticationError;
         } else if (credential === undefined) {
-            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
+            throw ObjectError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: caller credential is missing",
+            );
         }
 
         return credential;

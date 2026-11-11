@@ -65,5 +65,5 @@ export async function openSpace(
 
 /** Refuse reconnecting a client with an unmoved scope. */
 export function unmoved(holder: string): never {
-    throw new TypeError(`no scope moves in this test, yet one moved to ${holder}`);
+    throw new TypeError(`no scope moves in this test, yet one moved to '${holder}'`);
 }

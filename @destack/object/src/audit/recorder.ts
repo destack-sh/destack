@@ -263,7 +263,7 @@ export class AuditRecorder {
         ) {
             throw ObjectError.of(
                 "CALL_INVALID",
-                "finishing a call requires a running call from this context",
+                "call is invalid: finishing it requires a running call from this context",
             );
         }
 
@@ -285,7 +285,7 @@ export class AuditRecorder {
     async append(call: JournalEntry): Promise<void> {
         // require this recorder's context
         if (canonicalize(call.execution.context) !== canonicalize(this.#context)) {
-            throw ObjectError.of("CALL_INVALID", "call belongs to another context");
+            throw ObjectError.of("CALL_INVALID", "call is invalid: it belongs to another context");
         }
 
         await this.#journal.write([{ entry: call, recording: { isAudited: true } }]);
@@ -513,7 +513,7 @@ export class AuditRecorder {
         if (!JsonValue.isObject(recorded)) {
             throw ObjectError.of(
                 "CALL_INVALID",
-                "result details can only merge into object details",
+                "result details object is invalid: result details can only merge into object details",
             );
         }
 

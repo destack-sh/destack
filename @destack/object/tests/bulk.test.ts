@@ -181,8 +181,16 @@ test("refuse the whole batch for a taken unique name or an invalid item, reporti
     // leave only the first label
     expect([refusals, await read()]).toEqual([
         [
-            ["CONFLICT", "DUPLICATE", "items.1: another label has the same scope and name"],
-            ["CONFLICT", "DUPLICATE", "items.2: another label has the same scope and name"],
+            [
+                "CONFLICT",
+                "OBJECT_EXISTS",
+                "items.1: 'label' with the same 'scope and name' already exists",
+            ],
+            [
+                "CONFLICT",
+                "OBJECT_EXISTS",
+                "items.2: 'label' with the same 'scope and name' already exists",
+            ],
             [
                 "BAD_REQUEST",
                 "INPUT_INVALID",
@@ -431,7 +439,7 @@ test("update listed objects at their revisions in one call, and refuse the whole
     expect({ updated, refusals, labels: await read(), revisions }).toEqual({
         updated: { count: 2 },
         refusals: [
-            ["CONFLICT", "REVISION_STALE", "label revision has changed"],
+            ["CONFLICT", "REVISION_CONFLICT", "cannot update label: its revision changed"],
             ["NOT_FOUND", "NOT_FOUND", "label not found"],
         ],
         labels: ["grace alarm red live", "frank later green live", "frank urgent green live"],

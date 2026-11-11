@@ -58,7 +58,10 @@ export class ViewSubscriber implements Subscriber {
 
     /** Refuse an aggregate, which a call's reads measure nothing for. */
     results(): never {
-        throw ObjectError.of("READ_UNSUPPORTED", "a method's reads measure no aggregates");
+        throw ObjectError.of(
+            "READ_INVALID",
+            "method read is invalid: a method's reads measure no aggregates",
+        );
     }
 
     /** Yield the view's one read, then wait out the follow, which sees no change. */
@@ -74,9 +77,15 @@ export class ViewSubscriber implements Subscriber {
     async #items(query: Query, condition: Condition | undefined): Promise<LevelItem[]> {
         // refuse what recorded reads cannot compute
         if (query.extras !== undefined && Object.keys(query.extras).length > 0) {
-            throw ObjectError.of("READ_UNSUPPORTED", "a method's reads compute no extras");
+            throw ObjectError.of(
+                "READ_INVALID",
+                "method read is invalid: a method's reads compute no extras",
+            );
         } else if (query.aggregate !== undefined) {
-            throw ObjectError.of("READ_UNSUPPORTED", "a method's reads measure no aggregates");
+            throw ObjectError.of(
+                "READ_INVALID",
+                "method read is invalid: a method's reads measure no aggregates",
+            );
         }
 
         // read the level's rows, a first unordered row by one point read where a key names it
@@ -143,8 +152,8 @@ export class ViewSubscriber implements Subscriber {
         // refuse a tree's walk, which recorded reads cannot follow
         else {
             throw ObjectError.of(
-                "READ_UNSUPPORTED",
-                `a method's reads cannot follow tree relation ${name}`,
+                "READ_INVALID",
+                `tree relation '${name}' is invalid: a method's reads cannot follow it`,
             );
         }
     }

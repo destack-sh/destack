@@ -907,8 +907,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     refusePredefined(id: string): void {
         if (Key.isPredefined(this.table, { id })) {
             throw ObjectError.of(
-                "PREDEFINED",
-                `${this.name} ${id} is predefined and cannot be written`,
+                "OBJECT_BLOCKED",
+                `cannot write ${this.name} '${id}': it is predefined`,
             );
         }
     }
@@ -938,7 +938,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         }
 
         // refuse a key of another kind
-        throw new TypeError(`key ${this.keyed} of ${this.name} is neither text nor a reference`);
+        throw new TypeError(
+            `key '${this.keyed}' of '${this.name}' is neither text nor a reference`,
+        );
     }
 
     /** The schema of a value addressing one object: its identifier, or its key. */
@@ -1111,7 +1113,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             ? ObjectType.#methodsOf(this)[name]
             : undefined;
         if (declared === undefined) {
-            throw new TypeError(`object ${this.name} has no method ${name}`);
+            throw new TypeError(`object '${this.name}' has no method '${name}'`);
         }
 
         return declared;
@@ -1120,7 +1122,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Reference one of the object's declared permissions. */
     permission<Self extends ObjectType>(this: Self, name: PermissionOf<Self>): Permission {
         if (!this.permissions.includes(name)) {
-            throw new TypeError(`object ${this.name} has no permission ${name}`);
+            throw new TypeError(`object '${this.name}' has no permission '${name}'`);
         }
 
         return this.policy.permission(name);
@@ -1140,14 +1142,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     readScope(name: string, input: JsonObject): string {
         // refuse a method the type lacks, which a call from elsewhere may ask for
         if (!Object.hasOwn(this.methods, name)) {
-            throw ObjectError.of("METHOD_UNKNOWN", `object ${this.name} has no method ${name}`);
+            throw ObjectError.of(
+                "METHOD_INVALID",
+                `method '${name}' is invalid: object '${this.name}' has no such method`,
+            );
         }
 
         // read the scope field, or the universe
         const field = this.route.field;
         const scope = field === undefined ? Scope.universe.id : input[field];
         if (typeof scope !== "string") {
-            throw ObjectError.of("FIELD_MISSING", `call has no ${field}`);
+            throw ObjectError.of("FIELD_REQUIRED", `call field '${field}' is required`);
         }
 
         return scope;
@@ -1291,8 +1296,8 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const served = this.package.version;
         if (Version.compare(call.release, served) > 0) {
             throw ObjectError.of(
-                "RELEASE_MISMATCH",
-                `${Call.label(call)} targets release ${call.release} of ${this.name}, but ${this.name} is at release ${served}`,
+                "RELEASE_INVALID",
+                `release '${call.release}' is invalid: '${Call.label(call)}' targets it, but '${this.name}' is at release '${served}'`,
             );
         }
 
@@ -1317,11 +1322,15 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const output = schema.standard().parse(this.procedure(name).output);
         const validated = output["~standard"].validate(answer);
         if (validated instanceof Promise) {
-            throw new TypeError(`the output schema of ${label} is asynchronous`);
+            throw new TypeError(`the output schema of '${label}' is asynchronous`);
         } else if (validated.issues !== undefined) {
-            throw ObjectError.of("OUTPUT_INVALID", `invalid output of ${label}`, {
-                data: Issues.of(validated.issues),
-            });
+            throw ObjectError.of(
+                "OUTPUT_BROKEN",
+                `output of '${label}' does not match its schema`,
+                {
+                    data: Issues.of(validated.issues),
+                },
+            );
         }
 
         return validated.value;
@@ -1386,7 +1395,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // require this type's field
         if (this.fields[name]?.aggregate !== aggregate.function) {
             throw new TypeError(
-                `aggregate ${name} of ${measured.name} needs a ${aggregate.function} field on ${this.name}`,
+                `aggregate '${name}' of '${measured.name}' needs a '${aggregate.function}' field on '${this.name}'`,
             );
         }
 
@@ -1406,7 +1415,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (uncovered.length > 0) {
             throw new TypeError(
-                `aggregate ${name} of ${measured.name} counts rows that readers of ${this.name} may not list: list them through ${link} ${uncovered.join(", ")}`,
+                `aggregate '${name}' of '${measured.name}' counts rows that readers of '${this.name}' may not list: list them through ${link} '${uncovered.join(", ")}'`,
             );
         }
     }
@@ -1436,7 +1445,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         readonly by: string;
     }): Attachment<ObjectType & { readonly identity: Configuration["identity"] }> {
         if (this.parent?.object !== "any") {
-            throw new TypeError(`object ${this.name} is not nested in any parent`);
+            throw new TypeError(`object '${this.name}' is not nested in any parent`);
         }
 
         return { object: this, by: options.by };
@@ -1488,7 +1497,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const where = { scope: at, [target.identify(value)]: value };
             const row = await view.read(target.table).findFirst({ where });
             if (row === undefined) {
-                throw ObjectError.of("REFERENCE_MISSING", `no ${target.name} has the key ${value}`);
+                throw ObjectError.of(
+                    "REFERENCE_NOT_FOUND",
+                    `'${target.name}' with key '${value}' not found`,
+                );
             }
             resolved[column] = schema.string().parse(row["id"]);
         }
@@ -1564,7 +1576,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     conflict(error: unknown): unknown {
         // read the violated key of the type's table
         const definition = this.table[TABLE];
-        const key = DatabaseError.is(error, "DUPLICATE") ? error.data : null;
+        const key = DatabaseError.is(error, "ROW_EXISTS") ? error.data : null;
         if (key === null || key.table !== definition.name) {
             return error;
         }
@@ -1574,7 +1586,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             key.columns.length === definition.key.length &&
             key.columns.every((column) => definition.key.includes(column));
         if (isIdentity) {
-            return ObjectError.of("ID_TAKEN", `${this.name} identifier is taken`, { cause: error });
+            return ObjectError.of("ID_EXISTS", `'${this.name}' identifier already exists`, {
+                cause: error,
+            });
         }
 
         // map the columns of each relation and reference to its name
@@ -1609,9 +1623,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const names = key.columns.map((field) => named.get(field) ?? field);
         const listed = new Intl.ListFormat("en").format([...new Set(names)]);
 
-        return ObjectError.of("DUPLICATE", `another ${this.name} has the same ${listed}`, {
-            cause: error,
-        });
+        return ObjectError.of(
+            "OBJECT_EXISTS",
+            `'${this.name}' with the same '${listed}' already exists`,
+            {
+                cause: error,
+            },
+        );
     }
 
     /** The table mapping access reads the objects through, built on its first read. */
@@ -1687,13 +1705,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             (mutates && !method.mutates)
         ) {
             throw ObjectError.of(
-                "METHOD_UNKNOWN",
-                `unknown ${mutates ? "mutating " : ""}method ${Call.label(entry)}`,
+                "METHOD_INVALID",
+                `'${mutates ? "mutating" : "any"}' method '${Call.label(entry)}' is invalid: it is unknown`,
             );
         } else if (!mutates && method.mutates) {
             throw ObjectError.of(
                 "PUSH_REQUIRED",
-                `${Call.label(entry)} changes objects: push it from a client`,
+                `client push of '${Call.label(entry)}' is required: it changes objects`,
             );
         }
 
@@ -1927,7 +1945,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         for (const [name, handler] of Object.entries(implementation.methods ?? {})) {
             const declared = methods[name];
             if (declared === undefined) {
-                throw new TypeError(`object ${this.name} has no method ${name}`);
+                throw new TypeError(`object '${this.name}' has no method '${name}'`);
             } else if (handler !== undefined) {
                 methods[name] = Method.handled(declared, handler);
             }
@@ -1938,7 +1956,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const isReactive = controllers !== undefined || projections !== undefined;
         if (isReactive && this.storage !== "durable") {
             throw new TypeError(
-                `${this.storage} object ${this.name} cannot have controllers or projections`,
+                `${this.storage} object '${this.name}' cannot have controllers or projections`,
             );
         }
 
@@ -2027,7 +2045,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (changing !== undefined) {
             throw new TypeError(
-                `object ${definition.name} updates an immutable field in method ${changing[0]}`,
+                `object '${definition.name}' updates an immutable field in method '${changing[0]}'`,
             );
         }
         const guards = ObjectType.#guards(definition, fields);
@@ -2105,7 +2123,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
     /** Require an object's table to be logged. */
     static #requireLogged(table: Table): void {
         if (table[TABLE].retention === "none") {
-            throw new TypeError(`object table is not logged: ${table[TABLE].name}`);
+            throw new TypeError(`object table is not logged: '${table[TABLE].name}'`);
         }
     }
 
@@ -2161,7 +2179,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const earlier = routes.get(key);
             if (earlier !== undefined) {
                 throw new TypeError(
-                    `object ${this.name} methods ${earlier} and ${name} both handle ${key}`,
+                    `object '${this.name}' methods '${earlier}' and '${name}' both handle '${key}'`,
                 );
             }
             routes.set(key, name);
@@ -2175,7 +2193,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (this.isPartition && isSharing) {
             throw new TypeError(
-                `object ${this.name} must share a partitioned scope through its relationships`,
+                `object '${this.name}' must share a partitioned scope through its relationships`,
             );
         }
     }
@@ -2198,7 +2216,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         for (const [field, previous] of Object.entries(definition.moved?.fields ?? {})) {
             if (previous in (definition.fields ?? {})) {
                 throw new TypeError(
-                    `field ${definition.name}.${field} cannot move from ${previous}: it is a current field`,
+                    `field '${definition.name}.${field}' cannot move from '${previous}': it is a current field`,
                 );
             }
         }
@@ -2215,7 +2233,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         )?.[0];
         if (shadowed !== undefined) {
             throw new TypeError(
-                `object ${this.name} has method ${shadowed}, which is already a function property`,
+                `object '${this.name}' has method '${shadowed}', which is already a function property`,
             );
         }
 
@@ -2224,7 +2242,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         for (const limited of Object.keys(this.limits)) {
             if (!Object.hasOwn(methods, limited)) {
                 throw new TypeError(
-                    `object ${this.name} limits method ${limited}, which it does not have`,
+                    `object '${this.name}' limits method '${limited}', which it does not have`,
                 );
             }
         }
@@ -2232,7 +2250,9 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         // require declared permissions and valid methods
         for (const declared of Object.values(methods)) {
             if (!this.permissions.includes(declared.permission)) {
-                throw new TypeError(`object ${this.name} has no permission ${declared.permission}`);
+                throw new TypeError(
+                    `object '${this.name}' has no permission '${declared.permission}'`,
+                );
             }
             declared.validate?.(this);
         }
@@ -2241,13 +2261,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const described = Object.keys(this.definition.descriptions ?? {});
         const undescribable = described.find((name) => !this.permissions.includes(name));
         if (undescribable !== undefined) {
-            throw new TypeError(`object ${this.name} describes no permission ${undescribable}`);
+            throw new TypeError(`object '${this.name}' describes no permission '${undescribable}'`);
         }
 
         // require the permission of the type's guard
         const guard = this.definition.guard;
         if (guard !== undefined && !this.permissions.includes(guard.read)) {
-            throw new TypeError(`object ${this.name} guard has no permission ${guard.read}`);
+            throw new TypeError(`object '${this.name}' guard has no permission '${guard.read}'`);
         }
 
         // require the permissions guarding fields
@@ -2255,7 +2275,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             for (const permission of [declared.access?.read, declared.access?.write]) {
                 if (permission !== undefined && !this.permissions.includes(permission)) {
                     throw new TypeError(
-                        `object ${this.name} field ${name} has no permission ${permission}`,
+                        `object '${this.name}' field '${name}' has no permission '${permission}'`,
                     );
                 }
             }
@@ -2272,7 +2292,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                     : this.fields[aggregate.via]?.target?.();
             if (holder === undefined) {
                 throw new TypeError(
-                    `aggregate ${name} of ${this.name} needs a ${aggregate.function} field on its holder`,
+                    `aggregate '${name}' of '${this.name}' needs a '${aggregate.function}' field on its holder`,
                 );
             } else if (holder !== "any") {
                 holder.requireAggregate(this, name, aggregate);
@@ -2289,7 +2309,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             const aggregated = written.find((field) => this.fields[field]?.aggregate !== undefined);
             if (aggregated !== undefined) {
                 throw new TypeError(
-                    `method ${name} of ${this.name} cannot write aggregate field ${aggregated}`,
+                    `method '${name}' of '${this.name}' cannot write aggregate field '${aggregated}'`,
                 );
             }
         }
@@ -2303,7 +2323,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (this.isUniverseOnly && contained !== undefined) {
             throw new TypeError(
-                `object ${this.name} is in the universe, which has no principals: contained() in its ${contained[0]} permission allows no one`,
+                `object '${this.name}' is in the universe, which has no principals: contained() in its '${contained[0]}' permission allows no one`,
             );
         }
 
@@ -2312,13 +2332,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             // require a scope type
             if (scope.policy.definition.scope !== true) {
                 throw new TypeError(
-                    `object ${this.name} is in ${scope.name}, which is not a scope`,
+                    `object '${this.name}' is in '${scope.name}', which is not a scope`,
                 );
             }
             // refuse a scope without the read permission
             else if (!scope.permissions.includes(SCOPE_READ)) {
                 throw new TypeError(
-                    `object ${this.name} is in ${scope.name}, which has no ${SCOPE_READ} permission`,
+                    `object '${this.name}' is in '${scope.name}', which has no '${SCOPE_READ}' permission`,
                 );
             }
         }
@@ -2341,12 +2361,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
 
             // refuse each defect
             if (missing !== undefined) {
-                throw new TypeError(`index ${name} of ${this.name} has no field ${missing}`);
+                throw new TypeError(`index '${name}' of '${this.name}' has no field '${missing}'`);
             } else if (unlogged !== undefined) {
-                throw new TypeError(`index ${name} of ${this.name} has unlogged field ${unlogged}`);
+                throw new TypeError(
+                    `index '${name}' of '${this.name}' has unlogged field '${unlogged}'`,
+                );
             } else if (!isEnclosing) {
                 throw new TypeError(
-                    `index ${name} of ${this.name} must be unique within the universe or a scope type enclosing its objects`,
+                    `index '${name}' of '${this.name}' must be unique within the universe or a scope type enclosing its objects`,
                 );
             }
         }
@@ -2360,7 +2382,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         )?.[1];
         if (owner !== undefined && (field?.type !== "reference" || field.target === undefined)) {
             throw new TypeError(
-                `object ${this.name} takes its owner from ${owner}, but no reference relates it`,
+                `object '${this.name}' takes its owner from '${owner}', but no reference relates it`,
             );
         }
     }
@@ -2390,7 +2412,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const columns = definition.table[TABLE].columns;
         const unknown = guard.except.find((name) => !Object.hasOwn(columns, name));
         if (unknown !== undefined) {
-            throw new TypeError(`object ${definition.name} guard shows no column ${unknown}`);
+            throw new TypeError(`object '${definition.name}' guard shows no column '${unknown}'`);
         }
 
         // guard every other column but the identifier and the scope
@@ -2417,7 +2439,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         if (typeof written !== "object") {
             return undefined;
         } else if (!EventTable.is(table)) {
-            throw new TypeError(`events object ${name} is missing the event columns`);
+            throw new TypeError(`events object '${name}' is missing the event columns`);
         }
 
         // read the keys from the key columns' JSON forms
@@ -2477,7 +2499,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             return [property];
         }
 
-        throw new TypeError(`events object ${name} has no person field ${property}`);
+        throw new TypeError(`events object '${name}' has no person field '${property}'`);
     }
 
     /** Refuse durable-only declarations, writes and work on ephemeral, external, local objects. */
@@ -2491,13 +2513,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (this.storage !== "durable" && relating !== undefined) {
             throw new TypeError(
-                `${this.storage} object ${this.name} cannot relate its creation in method ${relating[0]}`,
+                `${this.storage} object '${this.name}' cannot relate its creation in method '${relating[0]}'`,
             );
         }
 
         // refuse the event log without its settings
         if (this.storage === "events" && this.events === undefined) {
-            throw new TypeError(`events object ${this.name} has no storage settings`);
+            throw new TypeError(`events object '${this.name}' has no storage settings`);
         }
 
         // refuse declarations the storage takes none of, and writes but the package's own and an events type's appends
@@ -2512,11 +2534,11 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
             );
             if (refused.length > 0) {
                 throw new TypeError(
-                    `${this.storage} object ${this.name} cannot have ${refused[0]}`,
+                    `${this.storage} object '${this.name}' cannot have '${refused[0]}'`,
                 );
             } else if (writing !== undefined) {
                 throw new TypeError(
-                    `${this.storage} object ${this.name} cannot write in method ${writing[0]}`,
+                    `${this.storage} object '${this.name}' cannot write in method '${writing[0]}'`,
                 );
             }
         }
@@ -2526,10 +2548,10 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 ([, declared]) => declared.prepare !== undefined || Method.settles(declared),
             );
             if (refused.length > 0) {
-                throw new TypeError(`ephemeral object ${this.name} cannot have ${refused[0]}`);
+                throw new TypeError(`ephemeral object '${this.name}' cannot have '${refused[0]}'`);
             } else if (external !== undefined) {
                 throw new TypeError(
-                    `ephemeral object ${this.name} cannot do external work in method ${external[0]}`,
+                    `ephemeral object '${this.name}' cannot do external work in method '${external[0]}'`,
                 );
             }
         }
@@ -2549,13 +2571,13 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 Method.settles(declared),
         );
         if (refused.length > 0) {
-            throw new TypeError(`local object ${this.name} cannot have ${refused[0]}`);
+            throw new TypeError(`local object '${this.name}' cannot have '${refused[0]}'`);
         } else if (remote !== undefined) {
             throw new TypeError(
-                `local object ${this.name} cannot run method ${remote[0]} outside the client`,
+                `local object '${this.name}' cannot run method '${remote[0]}' outside the client`,
             );
         } else if (!(this.scope instanceof ObjectType)) {
-            throw new TypeError(`local object ${this.name} must belong to one scope type`);
+            throw new TypeError(`local object '${this.name}' must belong to one scope type`);
         }
     }
 
@@ -2604,7 +2626,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const refused = FOREIGN_REFUSED.find((key) => written[key] !== undefined);
         if (foreign !== undefined && refused !== undefined) {
             throw new TypeError(
-                `object ${definition.name} over a foreign table cannot have ${refused}`,
+                `object '${definition.name}' over a foreign table cannot have '${refused}'`,
             );
         }
 
@@ -2612,7 +2634,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         const isUnparented = definition.mapping?.relations["parent"]?.column !== "parentId";
         if (foreign !== undefined && written.nested !== undefined && isUnparented) {
             throw new TypeError(
-                `object ${definition.name} over a foreign table has no parent relation to nest through`,
+                `object '${definition.name}' over a foreign table has no parent relation to nest through`,
             );
         }
 
@@ -2643,7 +2665,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
         if (clash !== undefined) {
             throw new TypeError(
-                `object ${definition.name} declares or removes method ${clash}, but a trait derives it`,
+                `object '${definition.name}' declares or removes method '${clash}', but a trait derives it`,
             );
         }
         const methods = { ...declared, ...traitMethods, ...managing };

@@ -28,7 +28,7 @@ test("read through methods that change nothing on the server, and refuse mutatio
     expect(await refusal(refused)).toEqual([
         "BAD_REQUEST",
         "PUSH_REQUIRED",
-        "notebook.create changes objects: push it from a client",
+        "client push of 'notebook.create' is required: it changes objects",
     ]);
     expect([read.name, device.errors]).toEqual(["Travel", []]);
 });

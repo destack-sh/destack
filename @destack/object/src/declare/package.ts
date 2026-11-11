@@ -142,10 +142,13 @@ export const PackageHandle = {
                 if (key !== declaration.name) {
                     throw PackageError.of(
                         "DEFINITION_INVALID",
-                        `declaration ${declaration.name} is listed under another name: ${key}`,
+                        `declaration '${declaration.name}' is invalid: it is listed under another name '${key}'`,
                     );
                 } else if (names.has(key)) {
-                    throw PackageError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
+                    throw PackageError.of(
+                        "DEFINITION_INVALID",
+                        `declaration '${key}' is invalid: it is a duplicate`,
+                    );
                 }
                 names.add(key);
             }
@@ -156,7 +159,7 @@ export const PackageHandle = {
         if (foreign !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `${owner.name} lists object ${foreign.name}, but only ${foreign.package.name} can serve it`,
+                `object '${foreign.name}' is invalid: '${owner.name}' lists it, but only '${foreign.package.name}' can serve it`,
             );
         }
 
@@ -169,12 +172,12 @@ export const PackageHandle = {
         if (stray !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `${owner.name} lists command ${stray.name} on ${stray.object.name}, which it does not serve`,
+                `command '${stray.name}' is invalid: '${owner.name}' lists it on ${stray.object.name}, which it does not serve`,
             );
         } else if (renaming !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `command ${renaming.name} takes the name of a method of ${renaming.object.name}`,
+                `command '${renaming.name}' is invalid: it takes the name of a method of ${renaming.object.name}`,
             );
         }
 
@@ -186,7 +189,10 @@ export const PackageHandle = {
             ),
         );
         if (overlap !== undefined) {
-            throw PackageError.of("DEFINITION_INVALID", `adapter path ${overlap} overlaps another`);
+            throw PackageError.of(
+                "DEFINITION_INVALID",
+                `adapter path '${overlap}' is invalid: it overlaps another`,
+            );
         }
 
         // refuse an adapter answering below an object's routes, which would take its calls
@@ -206,7 +212,7 @@ export const PackageHandle = {
         if (shadowing !== undefined) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `adapter path ${shadowing} overlaps an object's routes`,
+                `adapter path '${shadowing}' is invalid: it overlaps an object's routes`,
             );
         }
 
@@ -267,7 +273,7 @@ export function defineAdapter(
     if (!AdapterPath.safeParse(declaration.path).success) {
         throw PackageError.of(
             "DEFINITION_INVALID",
-            `adapter ${name} has no path below the mount: ${declaration.path}`,
+            `adapter '${name}' path '${declaration.path}' is invalid: it is not below the mount`,
         );
     }
 
@@ -305,7 +311,7 @@ function routeObjects(
     const taken = [...Object.keys(objects), ...Object.keys(shared)];
     const collision = taken.find((key, position) => taken.indexOf(key) !== position);
     if (collision !== undefined) {
-        throw new TypeError(`package ${owner.name} routes two procedures under ${collision}`);
+        throw new TypeError(`package '${owner.name}' routes two procedures under '${collision}'`);
     }
 
     return Object.assign(derived, shared);

@@ -117,7 +117,7 @@ export const text: Trait<TextDefinition> & {
         // derive the text permission from the reading one
         if (permissions.includes(TEXT_READ)) {
             throw new TypeError(
-                `object ${object.name} cannot declare permission ${TEXT_READ}: its text fields derive it`,
+                `object ${object.name} cannot declare permission '${TEXT_READ}': its text fields derive it`,
             );
         }
 
@@ -149,7 +149,7 @@ export const text: Trait<TextDefinition> & {
             const written = declared.fields?.find((field) => options.fields.includes(field));
             if (written !== undefined) {
                 throw new TypeError(
-                    `method ${name} of ${object.name} cannot write text field ${written}: only edit changes it`,
+                    `method '${name}' of ${object.name} cannot write text field ${written}: only edit changes it`,
                 );
             }
         }
@@ -210,8 +210,8 @@ export const text: Trait<TextDefinition> & {
                     );
                     if (!decision.isAllowed) {
                         throw ObjectError.of(
-                            "FIELD_NOT_WRITABLE",
-                            `field ${field} is not writable`,
+                            "FIELD_DENIED",
+                            `field '${field}' is forbidden: it is not writable`,
                         );
                     }
                 }

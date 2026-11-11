@@ -59,7 +59,7 @@ export class Server implements AsyncDisposable {
         // reject missing enforcement
         for (const callback of ["authenticate", "authorizeMachine"] as const) {
             if (typeof options[callback] !== "function") {
-                throw new TypeError(`${callback} must be configured before starting a server`);
+                throw new TypeError(`'${callback}' must be configured before starting a server`);
             }
         }
 
@@ -107,7 +107,9 @@ export class Server implements AsyncDisposable {
             report: (controller, key, error) => {
                 // report the failure with the controller and the failed key
                 options.report?.(
-                    new Error(`${controller.name} failed to reconcile ${key}`, { cause: error }),
+                    new Error(`'${controller.name}' did not reconcile '${key}'`, {
+                        cause: error,
+                    }),
                 );
             },
             ...(options.alarm === undefined ? {} : { alarm: options.alarm }),
@@ -336,7 +338,11 @@ export class Server implements AsyncDisposable {
             authenticationError =
                 error instanceof Error
                     ? error
-                    : ObjectError.of("UNAUTHENTICATED", "authentication failed", { cause: error });
+                    : ObjectError.of(
+                          "CALLER_UNAUTHENTICATED",
+                          "authentication required: authentication failed",
+                          { cause: error },
+                      );
         }
 
         // digest the link secrets and scope the call
@@ -389,9 +395,13 @@ export class Server implements AsyncDisposable {
 
         return Promise.all(presented.map((secret) => LinkSecret.digest(secret, crypto))).catch(
             (error: unknown) => {
-                throw ObjectError.of("LINK_SECRET_INVALID", "invalid link secret", {
-                    cause: error,
-                });
+                throw ObjectError.of(
+                    "LINK_SECRET_UNAUTHENTICATED",
+                    "authentication required: link secret does not match",
+                    {
+                        cause: error,
+                    },
+                );
             },
         );
     }
@@ -423,8 +433,8 @@ export class Server implements AsyncDisposable {
             );
             if (!isDeclared) {
                 throw ObjectError.of(
-                    "CALLER_KIND_REFUSED",
-                    `${sender.type} callers cannot call ${context.path.join(".")}`,
+                    "CALLER_KIND_DENIED",
+                    `'${context.path.join(".")}' is forbidden: ${sender.type} callers cannot call it`,
                 );
             }
             Caller.requireChain(caller);
@@ -435,7 +445,7 @@ export class Server implements AsyncDisposable {
             const authorization = context.request.authorization;
             if (access?.target === undefined || authorization === undefined) {
                 throw new TypeError(
-                    `procedures requiring ${permission.name} need server access with targets`,
+                    `procedures requiring '${permission.name}' need server access with targets`,
                 );
             }
             const target = await access.target(context);
@@ -570,7 +580,7 @@ export class Server implements AsyncDisposable {
             // require a target and a declaring policy
             if (access?.target === undefined) {
                 throw new TypeError(
-                    `procedures requiring ${permission.name} need server access with targets`,
+                    `procedures requiring '${permission.name}' need server access with targets`,
                 );
             }
             if (
@@ -579,7 +589,7 @@ export class Server implements AsyncDisposable {
                     permission.name,
                 )
             ) {
-                throw new TypeError(`no policy declares ${permission.type}.${permission.name}`);
+                throw new TypeError(`no policy declares '${permission.type}.${permission.name}'`);
             }
         }
         // check each nested router

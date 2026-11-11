@@ -100,7 +100,7 @@ export class TestCaller {
         const client: unknown = Reflect.get(this.client(handle), type.name);
         const procedure: unknown = Reflect.get(Object(client), called.method);
         if (typeof procedure !== "function") {
-            throw new TypeError(`${type.name} has no method ${called.method}`);
+            throw new TypeError(`${type.name} has no method '${called.method}'`);
         }
 
         // name a mutation's request, or its writer for an ephemeral type
@@ -125,7 +125,7 @@ export class TestCaller {
             // refuse calls in a scope the store does not serve
             if (scope !== "space") {
                 throw new TypeError(
-                    `the test store serves its space alone, not the example's ${scope}`,
+                    `the test store serves its space alone, not the example's '${scope}'`,
                 );
             }
 

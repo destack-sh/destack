@@ -57,7 +57,11 @@ test("store notes private until shared, move them between notebooks and sync the
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "CALL_INVALID", "a grant must have exactly one relation or role"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "CALL_INVALID",
+        "grant is invalid: it must have exactly one relation or role",
+    ]);
 
     // share the notebook: its notes follow, loose notes stay private
     await alice.notebook.grant({
@@ -87,7 +91,11 @@ test("store notes private until shared, move them between notebooks and sync the
                 revision: 2,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'manage' is forbidden: the caller lacks it",
+    ]);
 
     // move a note only as its manager into an editable notebook
     await alice.note.move({
@@ -108,7 +116,11 @@ test("store notes private until shared, move them between notebooks and sync the
                 parentId: null,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'manage' is forbidden: the caller lacks it",
+    ]);
 
     // leave deleted notes restorable from the trash, and refuse changing them there
     await alice.note.delete({
@@ -130,7 +142,7 @@ test("store notes private until shared, move them between notebooks and sync the
                 text: "Late",
             }),
         ),
-    ).toEqual(["CONFLICT", "OBJECT_TRASHED", "note is in the trash"]);
+    ).toEqual(["PRECONDITION_FAILED", "OBJECT_BLOCKED", "cannot change note: it is in the trash"]);
     expect(
         await refusal(
             alice.note.grant({
@@ -141,7 +153,7 @@ test("store notes private until shared, move them between notebooks and sync the
                 subject: principal.user.reference("universe", users.bob),
             }),
         ),
-    ).toEqual(["CONFLICT", "OBJECT_TRASHED", "note is in the trash"]);
+    ).toEqual(["PRECONDITION_FAILED", "OBJECT_BLOCKED", "cannot change note: it is in the trash"]);
 
     // list the trashed note's relationships
     expect(await alice.note.relationships({ spaceId, id: loose.id })).toEqual({
@@ -279,7 +291,7 @@ test("queue notes offline, write batches atomically, drop rejected predictions a
     expect(await refusal(intrusion.confirmed)).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: write",
+        "permission 'write' is forbidden: the caller lacks it",
     ]);
     expect(await bob.titles()).toEqual(["Luggage"]);
     expect(
@@ -782,7 +794,7 @@ test("show a notebook's relationships to everyone who reads it, and to no one el
     expect(await refusal(dave.notebook.relationships({ spaceId, id: research.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `notebook ${research.id} not found`,
+        `notebook '${research.id}' not found`,
     ]);
 });
 
@@ -935,8 +947,8 @@ test("fail the queries open once the source refuses to follow, and refuse later 
     // watch the notebooks and read them, then read the notes after the refusal, refused each time
     const outside = [
         "NOT_FOUND",
-        "SCOPE_OUTSIDE_REQUEST",
-        "scope space-01996ab0-0000-7000-8000-0000000000ff is outside the request's scope",
+        "SCOPE_OUTSIDE_REQUEST_NOT_FOUND",
+        "scope 'space-01996ab0-0000-7000-8000-0000000000ff' in the request's scope not found",
     ];
     const watched = client.query.notebook.findMany().watch(stopping.signal);
     const failed = await Promise.allSettled([watched.next(), client.query.notebook.findMany()]);

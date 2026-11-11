@@ -372,7 +372,7 @@ export class ObjectTypePool {
             );
             if (ready.length === 0) {
                 throw new TypeError(
-                    `object types ${[...pending.keys()].join(", ")} refer to each other: make one reference lazy`,
+                    `object types '${[...pending.keys()].join(", ")}' refer to each other: make one reference lazy`,
                 );
             }
             for (const [key, each] of ready) {
@@ -461,7 +461,7 @@ export class ObjectTypePool {
             case "$export":
                 return this.exports.resolve(ExportPath.parse(value));
             default:
-                throw new TypeError(`a description has an unknown tag ${tag}`);
+                throw new TypeError(`a description has an unknown tag '${tag}'`);
         }
     }
 
@@ -477,7 +477,7 @@ export class ObjectTypePool {
         for (const each of rest) {
             if (!modifiers.includes(each.builder)) {
                 throw new TypeError(
-                    `a description modifies with ${each.builder}, which is not a modifier`,
+                    `a description modifies with '${each.builder}', which is not a modifier`,
                 );
             }
             built = this.#invoke(built, each);
@@ -493,7 +493,7 @@ export class ObjectTypePool {
                 ? Reflect.get(owner, built.builder)
                 : undefined;
         if (typeof builder !== "function" || built.builder === "constructor") {
-            throw new TypeError(`a description calls ${built.builder}, which is not a builder`);
+            throw new TypeError(`a description calls '${built.builder}', which is not a builder`);
         }
 
         return Reflect.apply(
@@ -537,7 +537,7 @@ export class ObjectTypePool {
         const table = this.tables.get(name);
         if (table === undefined) {
             throw new TypeError(
-                `a description maps table ${name}, but no known type or loaded package maps it`,
+                `a description maps table '${name}', but no known type or loaded package maps it`,
             );
         }
 
@@ -554,7 +554,7 @@ export class ObjectTypePool {
         const key = ObjectTypeReference.key(ObjectTypeReference.parse(value));
         const declaration = declarations.get(key);
         if (declaration === undefined) {
-            throw new TypeError(`a description refers to unknown ${noun} ${key}`);
+            throw new TypeError(`a description refers to unknown ${noun} '${key}'`);
         }
 
         return declaration;
@@ -611,7 +611,7 @@ class Position {
         const entries = Object.entries(value).filter(([, entry]) => entry !== undefined);
         if (entries.some(([key]) => key.startsWith("$"))) {
             throw new TypeError(
-                `${this.path} has a key starting with $, which is reserved for tags`,
+                `'${this.path}' has a key starting with $, which is reserved for tags`,
             );
         }
 
@@ -674,13 +674,13 @@ class Position {
         // tag a plain object's entries, and refuse other code
         if (Method.is(value)) {
             throw new TypeError(
-                `${this.path} has a handler; attach it with .implement({ methods })`,
+                `'${this.path}' has a handler; attach it with .implement({ methods })`,
             );
         } else if (typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype) {
             return this.encodeObject(value);
         } else {
             throw new TypeError(
-                `a description cannot store ${this.path}: no loaded package exports it`,
+                `a description cannot store '${this.path}': no loaded package exports it`,
             );
         }
     }
@@ -718,7 +718,7 @@ class Position {
             returned.length === 0 ||
             !returned.every((each) => each instanceof ObjectType || each instanceof Policy)
         ) {
-            throw new TypeError(`${this.path} returns no object types or policies`);
+            throw new TypeError(`'${this.path}' returns no object types or policies`);
         }
 
         return { $lazy: new Position(this.path, this.keys, false, this.exports).encode(resolved) };

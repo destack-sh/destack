@@ -63,21 +63,21 @@ export const attachments: Trait<readonly Attachment[]> = {
             // refuse a permission the host lacks
             if (!permissions.includes(attachment.by)) {
                 throw new TypeError(
-                    `object ${object.name} attaches ${plural} by permission ${attachment.by}, which it does not declare`,
+                    `object ${object.name} attaches '${plural}' by permission '${attachment.by}', which it does not declare`,
                 );
             }
             // require the host's receive permission to be the attaching one
             else if (permissions.includes(receive)) {
                 if (attachment.by !== receive) {
                     throw new TypeError(
-                        `object ${object.name} declares permission ${receive}, so it must attach ${plural} by ${receive}`,
+                        `object ${object.name} declares permission '${receive}', so it must attach '${plural}' by '${receive}'`,
                     );
                 }
             }
             // refuse a second attachment deriving the same permission
             else if (Object.hasOwn(attaching, receive)) {
                 throw new TypeError(
-                    `object ${object.name} already derives permission ${receive}, which attaching ${plural} also derives`,
+                    `object ${object.name} already derives permission '${receive}', which attaching '${plural}' also derives`,
                 );
             }
             // derive the receive permission: the attaching one, or the attachment package's installations

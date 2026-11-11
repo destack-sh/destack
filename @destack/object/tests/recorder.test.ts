@@ -41,7 +41,10 @@ test("commit and roll back application changes with their recorded calls", async
     let storage = await AuditStorage.open();
     try {
         // roll back application state and recorded calls together
-        const failure = ObjectError.of("CALL_INVALID", "cancel change");
+        const failure = ObjectError.of(
+            "CALL_INVALID",
+            "call is invalid: the change must roll back",
+        );
         await expect(
             storage.database.transaction(async (transaction) => {
                 await transaction.insert(document).values({ name: "rolled back" });
@@ -94,9 +97,9 @@ test("record a running call, then its outcome once, accepting repeats and refusi
                 }),
             ),
         ).toEqual([
-            "CONFLICT",
-            "CALL_CONTENTS_DIFFER",
-            `call ${finished.execution.id} has conflicting contents`,
+            "PRECONDITION_FAILED",
+            "CALL_BLOCKED",
+            `cannot record call '${finished.execution.id}': it has conflicting contents`,
         ]);
     } finally {
         await storage.close();

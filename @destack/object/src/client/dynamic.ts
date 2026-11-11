@@ -91,7 +91,7 @@ export class DynamicObjectClient {
     object(type: string): ObjectType {
         const found = this.options.objects.find((entry) => entry.name === type);
         if (found === undefined) {
-            throw ObjectError.of("TYPE_UNKNOWN", `unknown object type ${type}`);
+            throw ObjectError.of("TYPE_NOT_FOUND", `object type ${type} not found`);
         }
 
         return found;
@@ -104,7 +104,10 @@ export class DynamicObjectClient {
         const declared = object.methods[method];
         const procedure = object.procedures[method]?.["~orpc"];
         if (declared === undefined || !Method.isRouted(declared) || procedure === undefined) {
-            throw ObjectError.of("METHOD_UNKNOWN", `${type} has no method ${method}`);
+            throw ObjectError.of(
+                "METHOD_INVALID",
+                `method '${method}' is invalid: ${type} has no such method`,
+            );
         }
 
         // set the scope and a change's request, and validate the input
@@ -147,8 +150,8 @@ export class DynamicObjectClient {
         const [pushed] = outcomes;
         if (pushed === undefined) {
             throw ObjectError.of(
-                "OUTCOME_MISSING",
-                `the push of ${type}.${method} returned no outcome`,
+                "OUTCOME_BROKEN",
+                `the push of '${type}.${method}' returned no outcome`,
             );
         } else if (!("value" in pushed.outcome)) {
             throw Failure.error(pushed.outcome.error);
@@ -183,7 +186,7 @@ export class DynamicObjectClient {
             ([, declared]) => declared.kind === "list" && Method.isRouted(declared),
         )?.[0];
         if (method === undefined) {
-            throw ObjectError.of("LIST_METHOD_MISSING", `${type} has no list method`);
+            throw ObjectError.of("LIST_METHOD_NOT_FOUND", `list method of ${type} not found`);
         }
 
         // read pages until the last one or the limit, each continuing from the one before

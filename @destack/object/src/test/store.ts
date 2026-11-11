@@ -506,7 +506,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         }
 
         // refuse an identifier of no principal kind
-        throw new TypeError(`${id} names no principal kind: pass its subject`);
+        throw new TypeError(`'${id}' names no principal kind: pass its subject`);
     }
 
     /** The clock the store runs at. */
@@ -519,7 +519,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
         // refuse a package the store serves no server of
         const server = this.#servers.get(handle.id);
         if (server === undefined) {
-            throw new TypeError(`the test store serves no package ${handle.name}`);
+            throw new TypeError(`the test store serves no package '${handle.name}'`);
         }
 
         return server;
@@ -536,7 +536,7 @@ export class TestObjectStore implements TestServed, AsyncDisposable {
     named(name: string): { readonly type: ObjectType; readonly handle: PackageHandle } | undefined {
         const found = [...this.#types.values()].filter((each) => each.type.name === name);
         if (found.length > 1) {
-            throw new TypeError(`two packages the test store serves declare ${name}`);
+            throw new TypeError(`two packages the test store serves declare '${name}'`);
         }
 
         return found[0];

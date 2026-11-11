@@ -71,9 +71,9 @@ function idle(name: string): Uplink {
     return {
         request: async () => {},
         stream: () => {
-            throw new TypeError(`${name} streams no replicas`);
+            throw new TypeError(`'${name}' streams no replicas`);
         },
-        receive: () => Promise.reject(new TypeError(`${name} receives no changes`)),
+        receive: () => Promise.reject(new TypeError(`'${name}' receives no changes`)),
         call: () => Promise.reject(new TypeError("the fixture answers no queries")),
     };
 }
@@ -134,8 +134,8 @@ test("serve a call in the store's partition or in any partition, and point one i
         spaceId,
         [
             "MISDIRECTED_REQUEST",
-            "PARTITION_MISDIRECTED",
-            `${spaceId} is served by partition ${spaceId}`,
+            "PARTITION_MOVED",
+            `scope '${spaceId}' moved to partition '${spaceId}'`,
         ],
     ]);
 });
@@ -325,6 +325,6 @@ test("derive the roles of a shared partition without sharing methods on its row,
             ),
         ),
     ).toThrow(
-        new TypeError("object room must share a partitioned scope through its relationships"),
+        new TypeError("object 'room' must share a partitioned scope through its relationships"),
     );
 });

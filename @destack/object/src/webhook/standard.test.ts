@@ -78,7 +78,7 @@ test("refuse changed bodies, times outside the tolerance or not in seconds, miss
     unknown.set("webhook-signature", "v2,abc");
 
     // refuse each
-    const timestamp = "webhook timestamp is outside the tolerance";
+    const timestamp = "authentication required: webhook timestamp is outside the tolerance";
     expect([
         await refusal(webhook.verify(post(headers, `${body} `), SENT_AT)),
         await refusal(webhook.verify(post(headers, body), SENT_AT + TOLERANCE + 1000)),
@@ -88,13 +88,29 @@ test("refuse changed bodies, times outside the tolerance or not in seconds, miss
         await refusal(webhook.verify(post(unknown, body), SENT_AT)),
         await refusal(webhook.verify(post(forged, body), SENT_AT)),
     ]).toEqual([
-        ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
-        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE", timestamp],
-        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE", timestamp],
-        ["UNAUTHORIZED", "SIGNATURE_MISSING", "missing standard webhook headers"],
-        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE", timestamp],
-        ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
-        ["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"],
+        [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: webhook signature does not match",
+        ],
+        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED", timestamp],
+        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED", timestamp],
+        [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: standard webhook headers are missing",
+        ],
+        ["UNAUTHORIZED", "TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED", timestamp],
+        [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: webhook signature does not match",
+        ],
+        [
+            "UNAUTHORIZED",
+            "SIGNATURE_UNAUTHENTICATED",
+            "authentication required: webhook signature does not match",
+        ],
     ]);
 });
 
@@ -163,7 +179,15 @@ test("refuse a secret without the whsec_ prefix or with malformed base64", async
         await refusal(StandardWebhook.of(["MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"], world.crypto)),
         await refusal(StandardWebhook.of(["whsec_!!"], world.crypto)),
     ]).toEqual([
-        ["PRECONDITION_FAILED", "SECRET_INVALID", "standard webhook secret must start with whsec_"],
-        ["PRECONDITION_FAILED", "SECRET_INVALID", "standard webhook secret must be base64"],
+        [
+            "PRECONDITION_FAILED",
+            "SECRET_BLOCKED",
+            "cannot verify standard webhooks: the secret must start with whsec_",
+        ],
+        [
+            "PRECONDITION_FAILED",
+            "SECRET_BLOCKED",
+            "cannot verify standard webhooks: the secret must be base64",
+        ],
     ]);
 });

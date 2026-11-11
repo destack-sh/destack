@@ -73,7 +73,7 @@ test("refuse adapters at an empty path, and adapters at or below another's path"
     expect(await refusal(() => defineAdapter("root", { path: "/" }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter root has no path below the mount: /",
+        "adapter 'root' path '/' is invalid: it is not below the mount",
     ]);
 
     // refuse an adapter at another's path, and one below it
@@ -83,12 +83,12 @@ test("refuse adapters at an empty path, and adapters at or below another's path"
     expect(await refusal(() => definePackage({ adapters: { npm, twin } }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path /npm overlaps another",
+        "adapter path '/npm' is invalid: it overlaps another",
     ]);
     expect(await refusal(() => definePackage({ adapters: { npm, nested } }))).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path /npm/tarballs overlaps another",
+        "adapter path '/npm/tarballs' is invalid: it overlaps another",
     ]);
 });
 
@@ -104,7 +104,7 @@ test("refuse an adapter at an object's routes, which would take its calls", asyn
     ).toEqual([
         "BAD_REQUEST",
         "DEFINITION_INVALID",
-        "adapter path /notes overlaps an object's routes",
+        "adapter path '/notes' is invalid: it overlaps an object's routes",
     ]);
 });
 
@@ -119,16 +119,20 @@ test("refuse a declaration listed under another name, and a name taken twice in 
         await refusal(() => definePackage({ adapters: { npm }, views: { npm } })),
         await refusal(() => definePackage({ resources: { api }, secrets: { api } })),
     ]).toEqual([
-        ["BAD_REQUEST", "DEFINITION_INVALID", "declaration npm is listed under another name: git"],
+        [
+            "BAD_REQUEST",
+            "DEFINITION_INVALID",
+            "declaration 'npm' is invalid: it is listed under another name 'git'",
+        ],
         "done",
-        ["BAD_REQUEST", "DEFINITION_INVALID", "duplicate declaration: api"],
+        ["BAD_REQUEST", "DEFINITION_INVALID", "declaration 'api' is invalid: it is a duplicate"],
     ]);
 });
 
 test("refuse routing an object type under the name of shared procedures, and route each name once", () => {
     // refuse a type taking the shared name
     expect(() => definePackage({ objects: { replica: note } }).router).toThrow(
-        new TypeError("package @destack/object routes two procedures under replica"),
+        new TypeError("package '@destack/object' routes two procedures under 'replica'"),
     );
 
     // route each type and the shared procedures once

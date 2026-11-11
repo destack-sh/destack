@@ -157,7 +157,7 @@ test("plan a package's API changes between releases, converting narrowed inputs 
                 detail: "remove procedure query.retired: earlier callers stay on their release",
             },
         ],
-        "api/procedure/query.count/input: declare a conversion for 2026.9.0",
+        "cannot reach the desired state: api/procedure/query.count/input: declare a conversion for 2026.9.0",
     ]);
 });
 
@@ -260,7 +260,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
                 },
             },
             errors: defineErrorFamily(MODULE.package, {
-                QUERY_REFUSED: { code: "FORBIDDEN" },
+                QUERY_DENIED: {},
             }),
         },
         MODULE,
@@ -290,7 +290,7 @@ test("describe a package's routes, adapters, views, requested permissions, capab
                 features: [{ packageId: MODULE.package.id, name: "push" }],
             },
         },
-        errors: [{ domain: MODULE.package.name, reason: "QUERY_REFUSED", code: "FORBIDDEN" }],
+        errors: [{ domain: MODULE.package.name, reason: "QUERY_DENIED", code: "FORBIDDEN" }],
     });
 });
 
@@ -303,7 +303,7 @@ test("refuse describing a procedure whose payload JSON Schema cannot describe, a
     });
 
     expect(() => describePackage(definePackage({ objects: { read: refined } }, MODULE))).toThrow(
-        "unsupported schema check: custom",
+        "unsupported schema check: 'custom'",
     );
 });
 
@@ -316,6 +316,6 @@ test("refuse a package listing an object type another package defines, which tha
     };
 
     expect(() => definePackage({ objects: { card: foreign } }, MODULE)).toThrow(
-        `${PACKAGE.name} lists object card, but only @destack/board can serve it`,
+        `object 'card' is invalid: '${PACKAGE.name}' lists it, but only '@destack/board' can serve it`,
     );
 });

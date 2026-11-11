@@ -274,7 +274,9 @@ export const Method = {
     /** Run a method's handler on a call, refusing a custom method no code here handles. */
     handle(method: Method, context: MethodContext, execution: Execution): Promise<unknown> {
         if (method.handler === undefined) {
-            throw new TypeError(`object ${context.object.name} has no handler for ${context.name}`);
+            throw new TypeError(
+                `object ${context.object.name} has no handler for '${context.name}'`,
+            );
         }
 
         return method.handler(context, execution);
@@ -394,7 +396,7 @@ export const Method = {
         // refuse a call missing its target or its signer
         if (!Method.isContext(declared, context)) {
             throw new TypeError(
-                `${context.object.name}.${context.name} got a call without a target or signer`,
+                `'${context.object.name}.${context.name}' got a call without a target or signer`,
             );
         }
 
@@ -409,7 +411,7 @@ export const Method = {
         // refuse a call missing its target, its signer or its prepared work
         if (!Method.isPrepared(declared, context)) {
             throw new TypeError(
-                `${context.object.name}.${context.name} got a call without a target or signer`,
+                `'${context.object.name}.${context.name}' got a call without a target or signer`,
             );
         }
 
@@ -425,7 +427,7 @@ export const Method = {
         // refuse a result off the method's output
         if (!Method.isResult(declared, value)) {
             throw new TypeError(
-                `${context.object.name}.${context.name} returned an unexpected result`,
+                `'${context.object.name}.${context.name}' returned an unexpected result`,
             );
         }
 
@@ -455,7 +457,7 @@ export const Method = {
             typeof handler === "function" ? { handle: handler } : handler;
         const unknown = Object.keys(typed).find((key) => !PHASES.some((phase) => phase === key));
         if (unknown !== undefined) {
-            throw new TypeError(`a method's handler has no phase ${unknown}`);
+            throw new TypeError(`a method's handler has no phase '${unknown}'`);
         }
         if (typed.settle !== undefined && typed.prepare === undefined) {
             throw new TypeError("a method with a settle phase needs a prepare phase");

@@ -166,7 +166,7 @@ export const Presentable = {
         const taken = Object.keys(added).find((name) => Object.hasOwn(declared, name));
         if (taken !== undefined) {
             throw new TypeError(
-                `object ${definition.name} cannot declare field ${taken}: its presentation adds it`,
+                `object '${definition.name}' cannot declare field '${taken}': its presentation adds it`,
             );
         }
 
@@ -189,7 +189,7 @@ export const Presentable = {
         for (const named of [title, options.subtitle]) {
             if (named !== undefined && !Presentable.isText(fields[named])) {
                 throw new TypeError(
-                    `object ${definition.name} presents ${named}, which is not a string field`,
+                    `object '${definition.name}' presents '${named}', which is not a string field`,
                 );
             }
         }

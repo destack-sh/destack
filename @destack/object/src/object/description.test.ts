@@ -69,5 +69,7 @@ test("describe a type's permissions from their verbs and its plural, or as it de
         ],
         id: "permission.card.read",
     });
-    expect(misdescribedNotes).toThrow(new TypeError("object note describes no permission delete"));
+    expect(misdescribedNotes).toThrow(
+        new TypeError("object 'note' describes no permission 'delete'"),
+    );
 });

@@ -196,7 +196,7 @@ export class BrowserTab<
                 worker.terminate();
                 throw ObjectError.of(
                     "DATABASE_UNAVAILABLE",
-                    `this browser cannot open database ${name}: ${answer.message}`,
+                    `database '${name}' is unavailable: this browser cannot open it: ${answer.message}`,
                 );
             }
 

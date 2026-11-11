@@ -50,13 +50,13 @@ export async function testServerContext(
         environment,
         keys: await testKeys(environment),
         fetch: (request) =>
-            Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
+            Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
         url: `https://fixture--${space}.test`,
         publisher: IDLE,
         publisherAt: () => IDLE,
         at: (address) => ({
             url: address,
-            fetch: () => Promise.reject(new Error(`the idle machine cannot call ${address}`)),
+            fetch: () => Promise.reject(new Error(`the idle machine cannot call '${address}'`)),
         }),
     };
 }

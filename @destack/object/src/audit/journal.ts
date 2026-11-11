@@ -130,7 +130,10 @@ export class Journal {
         for (const { entry } of records) {
             const recorded = canonicalize(Journal.recorded(entry));
             if (new TextEncoder().encode(recorded).byteLength > MAX_EXECUTION_BYTES) {
-                throw ObjectError.of("CALL_INVALID", `call exceeds ${MAX_EXECUTION_BYTES} bytes`);
+                throw ObjectError.of(
+                    "CALL_INVALID",
+                    `call is invalid: it must take at most ${MAX_EXECUTION_BYTES} bytes`,
+                );
             }
         }
 
@@ -293,8 +296,8 @@ export class Journal {
             .where(eq(journal.id, entry.execution.id));
         if (existing === undefined || canonicalize(existing.call) !== canonicalize(entry)) {
             throw ObjectError.of(
-                "CALL_CONTENTS_DIFFER",
-                `call ${entry.execution.id} has conflicting contents`,
+                "CALL_BLOCKED",
+                `cannot record call '${entry.execution.id}': it has conflicting contents`,
             );
         }
     }
@@ -381,7 +384,10 @@ export class Journal {
     static #replay(calls: readonly JournalEntry[], fingerprint: string): unknown[] {
         // refuse other input
         if (calls.some((entry) => entry.execution.digest !== fingerprint)) {
-            throw ObjectError.of("REQUEST_REUSED", "request identifier has already been used");
+            throw ObjectError.of(
+                "REQUEST_BLOCKED",
+                "cannot record the request: its identifier has already been used",
+            );
         }
 
         // throw a recorded failure, else return the results
@@ -389,7 +395,7 @@ export class Journal {
         for (const entry of calls) {
             const outcome = entry.execution.outcome;
             if (outcome === undefined) {
-                throw new TypeError(`replayed call ${entry.execution.id} has no outcome`);
+                throw new TypeError(`replayed call '${entry.execution.id}' has no outcome`);
             } else if (outcome.kind !== "success") {
                 throw Failure.error(outcome.error);
             }

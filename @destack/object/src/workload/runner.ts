@@ -263,7 +263,10 @@ export class WorkloadRunner implements AsyncDisposable {
         if (request.headers.get("authorization") !== `Bearer ${this.start.secret}`) {
             return Promise.resolve(
                 refusal(
-                    ObjectError.of("HOST_SECRET_INVALID", "invalid host secret"),
+                    ObjectError.of(
+                        "HOST_SECRET_UNAUTHENTICATED",
+                        "authentication required: host secret does not match",
+                    ),
                     this.#telemetry,
                 ),
             );
@@ -391,7 +394,7 @@ export class WorkloadRunner implements AsyncDisposable {
             ) {
                 throw ObjectError.of(
                     "BINDING_NOT_FOUND",
-                    `no ${binding.kind} ${name} connecting to provider ${binding.provider}`,
+                    `${binding.kind} '${name}' connecting to provider '${binding.provider}' not found`,
                 );
             }
 
@@ -420,8 +423,8 @@ export class WorkloadRunner implements AsyncDisposable {
             }) => {
                 if (access.authentication === "machine") {
                     throw ObjectError.of(
-                        "MACHINE_PROCEDURE_REFUSED",
-                        "a workload cannot serve machine procedures",
+                        "MACHINE_PROCEDURE_DENIED",
+                        "machine procedure is forbidden: a workload cannot serve machine procedures",
                     );
                 }
             },

@@ -115,8 +115,8 @@ export class Hibernation {
         );
         if (!response.ok) {
             throw ObjectError.of(
-                "HOST_REFUSED",
-                `the host cannot list hibernated sockets: ${response.status}`,
+                "HOST_UNREACHABLE",
+                `could not list hibernated sockets on the host: status ${response.status}`,
             );
         }
 
@@ -161,8 +161,8 @@ export class Hibernation {
             await response.arrayBuffer();
             if (!response.ok) {
                 throw ObjectError.of(
-                    "HOST_REFUSED",
-                    `the host rejected a hibernated socket's ${request.method}: ${response.status}`,
+                    "HOST_UNREACHABLE",
+                    `could not '${request.method}' a hibernated socket on the host: status ${response.status}`,
                 );
             }
         });
@@ -233,8 +233,8 @@ export class HibernationHost {
         const instanceId = answer.headers.get(SOCKET_INSTANCE_HEADER);
         if (accepted === null || instanceId === null) {
             throw ObjectError.of(
-                "ACCEPTANCE_MISSING",
-                "the response has no socket acceptance for a named instance",
+                "ACCEPTANCE_UNREACHABLE",
+                "could not read a socket acceptance for a named instance in the response",
             );
         }
         const acceptance = SocketAcceptance.parse(JSON.parse(accepted));
@@ -333,8 +333,8 @@ export class HibernationHost {
         if (!response.ok && request.method === "DELETE") {
             this.#instruments.captureException(
                 ObjectError.of(
-                    "INSTANCE_REFUSED",
-                    `instance ${instance} rejected closing socket ${acceptance.id}: ${response.status}`,
+                    "INSTANCE_UNREACHABLE",
+                    `could not close socket '${acceptance.id}' on instance '${instance}': status ${response.status}`,
                 ),
             );
         }

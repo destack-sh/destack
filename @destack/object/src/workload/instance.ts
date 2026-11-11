@@ -320,7 +320,7 @@ class WorkloadStart {
         const { options, clock, activation } = this.#serving;
         const handle = served.package;
         if (this.#packages.has(handle.id)) {
-            throw new TypeError(`duplicate workload package: ${handle.name}`);
+            throw new TypeError(`duplicate workload package: '${handle.name}'`);
         }
 
         // start the server, reporting its controllers' failures to the host
@@ -415,7 +415,7 @@ class WorkloadStart {
     /** What the start does with its hibernated sockets' events, refusing a start without them. */
     requireSocketHandler(): SocketHandler {
         if (this.#sockets === undefined) {
-            throw ObjectError.of("SOCKET_HANDLER_MISSING", "the workload has no socket handler");
+            throw ObjectError.of("SOCKET_HANDLER_NOT_FOUND", "workload socket handler not found");
         }
 
         return this.#sockets;
@@ -424,7 +424,7 @@ class WorkloadStart {
     /** What the start does with its store's hook requests, refusing a start serving none. */
     requireHookHandler(): HookHandler {
         if (this.#hooks === undefined) {
-            throw ObjectError.of("HOOKS_MISSING", "the workload has no hooks");
+            throw ObjectError.of("HOOKS_NOT_FOUND", "workload hooks not found");
         }
 
         return this.#hooks;
@@ -451,7 +451,10 @@ class WorkloadStart {
         // require the package
         const server = this.#packages.get(handle.id)?.server;
         if (!server) {
-            throw ObjectError.of("PACKAGE_UNKNOWN", `unknown workload package: ${handle.name}`);
+            throw ObjectError.of(
+                "PACKAGE_NOT_FOUND",
+                `workload package '${handle.name}' not found`,
+            );
         }
 
         return server.fetch(request, authentication);

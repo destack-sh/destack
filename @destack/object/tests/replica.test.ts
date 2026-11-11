@@ -141,8 +141,8 @@ test("refuse a follow whose caller's credential lapsed before its first page, fo
     );
     expect(await refusal(pages.next())).toEqual([
         "UNAUTHORIZED",
-        "CREDENTIAL_LAPSED",
-        "the caller's credential lapsed",
+        "CREDENTIAL_UNAUTHENTICATED",
+        "authentication required: the caller's credential lapsed",
     ]);
 });
 
@@ -354,7 +354,10 @@ test("follow a person's mentions on their behalf as the home they relate, and re
     // decide the home's page for alice alone, and refuse a space alice does not relate
     expect(await first(as(home))).toEqual([["insert", alice.id]]);
     await expect(first(as(stranger))).rejects.toThrow(
-        AccessError.of("PERMISSION_DENIED", "permission denied: follow"),
+        AccessError.of(
+            "PERMISSION_DENIED",
+            "permission 'follow' is forbidden: the caller lacks it",
+        ),
     );
 });
 
@@ -454,7 +457,7 @@ test("allow a home's follow on its person's behalf with a token bound to the fol
         await refusal(first(bound([]))),
     ]).toEqual([
         [["insert", alice.id]],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: follow"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'follow' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -507,8 +510,12 @@ test("refuse an anonymous follower of a subject's shape as unauthenticated, and 
 
     // ask the anonymous follower to authenticate, and deny the authenticated stranger
     expect([await refusal(first(anonymous)), await refusal(first(stranger))]).toEqual([
-        ["UNAUTHORIZED", "CREDENTIAL_MISSING", "missing caller credential"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: follow"],
+        [
+            "UNAUTHORIZED",
+            "CREDENTIAL_UNAUTHENTICATED",
+            "authentication required: caller credential is missing",
+        ],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'follow' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -561,7 +568,7 @@ test("refuse a follow with malformed chain parameters as a bad request", async (
     expect(await refusal(pages.next())).toEqual([
         "BAD_REQUEST",
         "PARAMETERS_INVALID",
-        "invalid parameters of publication chain: scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined",
+        "publication 'chain' is invalid: its parameters do not match: 'scopes: invalid input: expected array, received undefined; replicated: invalid input: expected array, received undefined; via: invalid input: expected array, received undefined; between: invalid input: expected array, received undefined'",
     ]);
 });
 
@@ -664,9 +671,9 @@ test("answer a replicated type's query over its replica rows, and refuse its mut
     }).toEqual({
         described: { title: "Atlas" },
         renamed: [
-            "CONFLICT",
-            "REPLICA_WRITE",
-            "realm rows are replicas here: send changes to their home",
+            "PRECONDITION_FAILED",
+            "REPLICA_BLOCKED",
+            "cannot change 'realm' rows: they are replicas here, so send changes to their home",
         ],
     });
 });
@@ -838,7 +845,11 @@ test("list and replicate only the rows a query's permission allows, drop a row o
         { read: [lent.id, read.id].toSorted(), used: [lent.id] },
         [["insert", lent.id]],
         [["delete", lent.id]],
-        ["BAD_REQUEST", "PERMISSION_UNKNOWN", "object loan has no permission lend"],
+        [
+            "BAD_REQUEST",
+            "PERMISSION_INVALID",
+            "permission 'lend' is invalid: object loan has no such permission",
+        ],
     ]);
 });
 

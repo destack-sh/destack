@@ -82,7 +82,9 @@ export class InstallationBinding<
                     // require the credential the host lends the binding
                     const credential = binding.credential;
                     if (credential === undefined) {
-                        throw new TypeError(`installation binding ${this.name} has no credential`);
+                        throw new TypeError(
+                            `installation binding '${this.name}' has no credential`,
+                        );
                     }
 
                     // act for the caller of the served call a call passes as its context

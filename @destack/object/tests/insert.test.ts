@@ -156,6 +156,10 @@ test("insert an object of the calling package's type from another method, as its
     expect({ rows, logged, refused }).toEqual({
         rows: [row],
         logged: [{ operation: "insert", key: { id: cardId }, image: row, changedAt: START }],
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"],
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'write' is forbidden: the caller lacks it",
+        ],
     });
 });

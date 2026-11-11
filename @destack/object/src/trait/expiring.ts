@@ -83,11 +83,11 @@ export const expiring: Trait<readonly ExpiryRule[]> & {
             Duration.require(rule.after, `expiry window of ${object.name}`);
             if (!Object.hasOwn(columns, rule.from)) {
                 throw new TypeError(
-                    `object ${object.name} expires from unknown field ${rule.from}`,
+                    `object ${object.name} expires from unknown field '${rule.from}'`,
                 );
             } else if (rule.where !== undefined && Object.hasOwn(rule.where, rule.from)) {
                 throw new TypeError(
-                    `an expiry rule of ${object.name} compares its time field ${rule.from} in its condition`,
+                    `an expiry rule of ${object.name} compares its time field '${rule.from}' in its condition`,
                 );
             }
         }

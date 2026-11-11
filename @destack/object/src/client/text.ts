@@ -26,7 +26,7 @@ export const LiveText = {
         // follow the field's chunks in position order
         const chunks = client.objects.find((type) => LiveText.isChunkType(type));
         if (chunks === undefined || !object.text.includes(field)) {
-            throw new TypeError(`object ${object.name} has no text field ${field}`);
+            throw new TypeError(`object ${object.name} has no text field '${field}'`);
         }
         const query = client
             .queryType(chunks)

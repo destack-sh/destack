@@ -150,7 +150,7 @@ test("answer a host family's failure as an internal error without its message, c
     const implementation = implement(procedures);
     const router = implementation.router({
         foreign: implementation.foreign.handler(async () => {
-            throw FileSystemError.of("NOT_FOUND", "cannot open /machine/files/secret");
+            throw FileSystemError.of("FILE_NOT_FOUND", "file '/machine/files/secret' not found");
         }),
         own: implementation.own.handler(async () => {
             throw AccessError.of("ROLE_NOT_FOUND", "role not found");
@@ -182,6 +182,6 @@ test("answer a host family's failure as an internal error without its message, c
     }).toEqual({
         foreign: ["INTERNAL_SERVER_ERROR", "INTERNAL_SERVER_ERROR", "internal server error"],
         own: ["NOT_FOUND", "ROLE_NOT_FOUND", "role not found"],
-        captured: ["cannot open /machine/files/secret"],
+        captured: ["file '/machine/files/secret' not found"],
     });
 });

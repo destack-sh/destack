@@ -405,12 +405,12 @@ test("refuse code and unknown declarations at their path", () => {
     );
     expect(() => ObjectDescription.of(coded)).toThrow(
         new TypeError(
-            "a description cannot store coded.methods.rename.mutation[0].inverse: no loaded package exports it",
+            "a description cannot store 'coded.methods.rename.mutation[0].inverse': no loaded package exports it",
         ),
     );
     expect(() => ObjectTypePool.of([space]).declare([ObjectDescription.of(sample)])).toThrow(
         new TypeError(
-            `a description refers to unknown object type ${JSON.stringify([note.package.id, "note"])}`,
+            `a description refers to unknown object type '${JSON.stringify([note.package.id, "note"])}'`,
         ),
     );
 });
@@ -498,7 +498,7 @@ test("refuse a handled method no loaded package exports, and an export path the 
     // refuse describing it, and refuse resolving a path no module exports
     expect(() => ObjectDescription.of(handled)).toThrow(
         new TypeError(
-            "handled.methods.update has a handler; attach it with .implement({ methods })",
+            "'handled.methods.update' has a handler; attach it with .implement({ methods })",
         ),
     );
     expect(() =>

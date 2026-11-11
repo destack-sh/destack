@@ -206,7 +206,7 @@ test("refuse traits on an object type over a foreign table", () => {
             permissions: ["delete"],
             recoverable: { by: "delete", within: { days: 30 } },
         }),
-    ).toThrow(new TypeError("object role over a foreign table cannot have recoverable"));
+    ).toThrow(new TypeError("object 'role' over a foreign table cannot have 'recoverable'"));
 });
 
 test("nest objects over a foreign table only through its mapping's parent relation", () => {
@@ -219,7 +219,7 @@ test("nest objects over a foreign table only through its mapping's parent relati
             nested: { in: "any", receive: "role" },
         }),
     ).toThrow(
-        new TypeError("object role over a foreign table has no parent relation to nest through"),
+        new TypeError("object 'role' over a foreign table has no parent relation to nest through"),
     );
 });
 
@@ -274,10 +274,10 @@ test("refuse a type's guard showing a column the type lacks, or guarded by a per
     // validate, as serving a type does, a guard showing an unknown column, then one reading through an unknown permission
 
     expect(() => validateCard({ read: "read", except: ["subtitle"] })).toThrow(
-        new TypeError("object card guard shows no column subtitle"),
+        new TypeError("object 'card' guard shows no column 'subtitle'"),
     );
     expect(() => validateCard({ read: "inspect", except: ["title"] })).toThrow(
-        new TypeError("object card guard has no permission inspect"),
+        new TypeError("object 'card' guard has no permission 'inspect'"),
     );
 });
 

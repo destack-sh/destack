@@ -96,7 +96,10 @@ export const RecoverableMethod = {
             .handle(async (context) => {
                 // require a purged record
                 if (!RecoverableMethod.isPurged(context.target)) {
-                    throw ObjectError.of("PURGE_REQUIRED", `${context.object.name} is not purged`);
+                    throw ObjectError.of(
+                        "PURGE_BLOCKED",
+                        `cannot discard ${context.object.name}: it is not purged`,
+                    );
                 }
 
                 // delete it at the loaded revision
@@ -123,14 +126,20 @@ export const RecoverableMethod = {
         const target = context.target;
         const requested = target.deletedAt;
         if (requested === null) {
-            throw ObjectError.of("DELETION_REQUIRED", `${object.name} is not deleted`);
+            throw ObjectError.of(
+                "DELETION_BLOCKED",
+                `cannot restore ${object.name}: it is not deleted`,
+            );
         } else if (RecoverableMethod.isPurged(target)) {
-            throw ObjectError.of("PURGED", `${object.name} is purged`);
+            throw ObjectError.of("PURGE_BLOCKED", `cannot restore ${object.name}: it is purged`);
         } else if (
             context.now - requested >=
             Duration.milliseconds(RecoverableMethod.readRecovery(context).within)
         ) {
-            throw ObjectError.of("RECOVERY_EXPIRED", `${object.name} is past its recovery window`);
+            throw ObjectError.of(
+                "RECOVERY_BLOCKED",
+                `cannot restore ${object.name}: it is past its recovery window`,
+            );
         }
 
         // restore it under a live parent, with the children trashed with it
@@ -174,9 +183,15 @@ export const RecoverableMethod = {
         const { object } = context;
         const target = context.target;
         if (target.deletedAt === null) {
-            throw ObjectError.of("DELETION_REQUIRED", `${object.name} is not deleted`);
+            throw ObjectError.of(
+                "DELETION_BLOCKED",
+                `cannot purge ${object.name}: it is not deleted`,
+            );
         } else if (RecoverableMethod.isPurged(target)) {
-            throw ObjectError.of("PURGED", `${object.name} is purged`);
+            throw ObjectError.of(
+                "PURGE_BLOCKED",
+                `cannot purge ${object.name}: it is already purged`,
+            );
         }
     },
 

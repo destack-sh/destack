@@ -58,7 +58,10 @@ export class BranchType {
     /** Require a branch to be open, refusing one merged or discarded for good. */
     requireOpen<Target extends { readonly state: string }>(target: Target): Target {
         if (target.state !== "open") {
-            throw ObjectError.of("BRANCH_NOT_OPEN", `branch is ${target.state}`);
+            throw ObjectError.of(
+                "BRANCH_BLOCKED",
+                `cannot change the branch: it is '${target.state}'`,
+            );
         }
 
         return target;
@@ -79,8 +82,8 @@ export class BranchType {
         const named = field === undefined ? undefined : entry.input[field];
         if (named !== undefined && named !== scope) {
             throw ObjectError.of(
-                "CALL_OUTSIDE_BRANCH",
-                `${sync.Call.label(entry)} is in a different scope from its branch`,
+                "CALL_OUTSIDE_BRANCH_INVALID",
+                `call '${sync.Call.label(entry)}' is invalid: it is in a different scope from its branch`,
             );
         }
         const input = field === undefined ? entry.input : { ...entry.input, [field]: scope };
@@ -89,8 +92,8 @@ export class BranchType {
         // refuse ephemeral objects and branch bookkeeping
         if (resolved.object.storage === "ephemeral" || this.has(resolved.object)) {
             throw ObjectError.of(
-                "CALL_UNBRANCHABLE",
-                `branches cannot store calls of ${resolved.object.name}`,
+                "CALL_UNBRANCHABLE_INVALID",
+                `call of ${resolved.object.name} is invalid: branches cannot store its calls`,
             );
         }
 

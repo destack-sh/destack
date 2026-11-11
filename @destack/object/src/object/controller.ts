@@ -453,7 +453,7 @@ export const ObjectController = {
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume selects it again
             const failure = Failure.of(error);
-            if (failure.reason === "SCOPE_SUSPENDED") {
+            if (failure.reason === "SCOPE_DENIED") {
                 return;
             }
 
@@ -507,7 +507,7 @@ export const ObjectController = {
         } catch (error) {
             // hold a pass a suspension refused midway, until the resume projects it again
             const failure = Failure.of(error);
-            if (failure.reason === "SCOPE_SUSPENDED") {
+            if (failure.reason === "SCOPE_DENIED") {
                 return;
             }
 

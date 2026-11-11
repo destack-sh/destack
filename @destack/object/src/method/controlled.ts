@@ -26,8 +26,8 @@ export const observe = controlledMethod
         const { observedGeneration, conditions, fields } = context.input;
         if (observedGeneration > context.target.generation) {
             throw ObjectError.of(
-                "GENERATION_STALE",
-                `expected ${context.object.name} at generation ${observedGeneration}, got ${context.target.generation}`,
+                "GENERATION_CONFLICT",
+                `cannot reconcile ${context.object.name} at generation '${observedGeneration}': it is at '${context.target.generation}'`,
             );
         }
 
@@ -67,8 +67,8 @@ export const finalize = controlledMethod
         // require a requested deletion
         if (context.target.deletedAt === null) {
             throw ObjectError.of(
-                "DELETION_UNSTARTED",
-                `${context.object.name} is not being deleted`,
+                "DELETION_BLOCKED",
+                `cannot finish deleting ${context.object.name}: it is not being deleted`,
             );
         }
 

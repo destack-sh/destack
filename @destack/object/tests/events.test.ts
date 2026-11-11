@@ -203,7 +203,7 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
         other: [
             "NOT_FOUND",
             "NOT_FOUND",
-            "visit visit-01996ab0-0000-7000-8000-000000000003 not found",
+            "visit 'visit-01996ab0-0000-7000-8000-000000000003' not found",
         ],
         folded: {
             series: [
@@ -217,8 +217,16 @@ test("list, get and fold the events a visitor may read, refusing a fold without 
                 },
             ],
         },
-        unfiltered: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
-        foreign: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        unfiltered: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'read' is forbidden: the caller lacks it",
+        ],
+        foreign: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'read' is forbidden: the caller lacks it",
+        ],
     });
 });
 

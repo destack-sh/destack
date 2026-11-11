@@ -116,7 +116,9 @@ test("refuse relating an ephemeral object's creator, as no relationship outlives
                 (method) => ({ create: method.create("write", { creator: "author" }) }),
             ),
         ),
-    ).toThrow(new TypeError("ephemeral object marker cannot relate its creation in method create"));
+    ).toThrow(
+        new TypeError("ephemeral object 'marker' cannot relate its creation in method 'create'"),
+    );
 });
 
 test("share presence on a board across instances, guarded by access, gone after its writer", async () => {
@@ -171,7 +173,11 @@ test("share presence on a board across instances, guarded by access, gone after 
             ),
         ]).toEqual([
             true,
-            ["CONFLICT", "DUPLICATE", "another presence has the same parent and writerId"],
+            [
+                "CONFLICT",
+                "OBJECT_EXISTS",
+                "'presence' with the same 'parent and writerId' already exists",
+            ],
         ]);
 
         // show the owner's moving cursor to the viewer's client on the other instance
@@ -197,7 +203,7 @@ test("share presence on a board across instances, guarded by access, gone after 
                 carol.client.mutate(presence).create({ parent, activity: "viewing" }).confirmed,
             ),
             await stranger.read(),
-        ]).toEqual([["NOT_FOUND", "NOT_FOUND", `board ${plans.id} not found`], []]);
+        ]).toEqual([["NOT_FOUND", "NOT_FOUND", `board '${plans.id}' not found`], []]);
 
         // remove the owner's presence after its linger, which another caller's stream under her writer never extends
         west.stream(users.bob, alice.client.writerId);
@@ -449,7 +455,7 @@ test("include live presence with durable profiles, and count live viewers per bo
         }
         expect(refused).toMatchObject({
             code: "BAD_REQUEST",
-            message: "object board cannot relate presences: it has another storage",
+            message: "relation 'presences' of object board is invalid: it has another storage",
         });
     })();
 });

@@ -82,7 +82,7 @@ test("refuse a third post of an author within a minute, saying when the next is 
     // expect the third due once the 30 second interval of two posts a minute passed
     expect(third).toEqual([
         "TOO_MANY_REQUESTS",
-        "post.create is limited to 2 calls per 60000 ms",
+        "'post.create' exceeds its limit of 2 calls per 60000 ms",
         { retryAfter: 30_000 },
     ]);
 });

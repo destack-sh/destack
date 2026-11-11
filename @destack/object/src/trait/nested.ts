@@ -214,7 +214,7 @@ export const nested: Trait<NestedDefinition> = {
         // require the receive permission on the parent type
         if (parent !== "any" && !parent.permissions.includes(options.receive)) {
             throw new TypeError(
-                `object ${object.name} has parents without permission ${options.receive}`,
+                `object ${object.name} has parents without permission '${options.receive}'`,
             );
         }
     },

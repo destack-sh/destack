@@ -211,8 +211,8 @@ export const ObjectPolicy = {
                 : await authorizer.check(snapshot, { ...asked, name: gate }, object, asking);
         if (granting?.isAllowed !== true) {
             throw ObjectError.of(
-                "CHECK_REFUSED",
-                `checking another subject's access to ${object.type} needs ${gate ?? "a grant permission"}`,
+                "CHECK_DENIED",
+                `access check of ${object.type} is forbidden: checking another subject's access needs '${gate ?? "a grant permission"}'`,
             );
         }
 
@@ -238,8 +238,8 @@ export const ObjectPolicy = {
                 : await authorizer.check(snapshot, { ...asked, name: visibility }, object, asking);
         if (seeing?.isAllowed !== true) {
             throw ObjectError.of(
-                "LOOKUP_REFUSED",
-                `looking up who has ${permission} on ${object.type} needs ${visibility ?? "a visibility permission"}`,
+                "LOOKUP_DENIED",
+                `lookup of '${permission}' on ${object.type} is forbidden: it needs '${visibility ?? "a visibility permission"}'`,
             );
         }
 
@@ -267,13 +267,13 @@ export const ObjectPolicy = {
         const scope = authorizer.governingScope(object);
         if (scope !== context.scope) {
             throw ObjectError.of(
-                "SCOPE_MISMATCH",
-                `${object.type} ${object.id} is decided in ${scope}, not ${context.scope}`,
+                "SCOPE_INVALID",
+                `${object.type} '${object.id}' is invalid: it is decided in '${scope}', not '${context.scope}'`,
             );
         } else if (!Object.hasOwn(policy.definition.permissions, permission)) {
             throw ObjectError.of(
-                "PERMISSION_UNKNOWN",
-                `${object.type} has no permission ${permission}`,
+                "PERMISSION_INVALID",
+                `permission '${permission}' is invalid: ${object.type} has no such permission`,
             );
         }
 
@@ -292,8 +292,8 @@ export const ObjectPolicy = {
         const scope = await access.Relationship.scope(authorization.snapshot, request);
         if (scope !== context.scope) {
             throw ObjectError.of(
-                "SCOPE_MISMATCH",
-                `the relationship on ${request.object.type} ${request.object.id} is in ${scope}, not ${context.scope}`,
+                "SCOPE_INVALID",
+                `relationship on ${request.object.type} '${request.object.id}' is invalid: it is in '${scope}', not '${context.scope}'`,
             );
         }
     },
@@ -319,9 +319,14 @@ export const ObjectPolicy = {
         // refuse a missing or trashed object
         const deletedAt: unknown = row?.["deletedAt"];
         if (row === undefined) {
-            throw CallError.http("NOT_FOUND", { message: `${object.type} ${object.id} not found` });
+            throw CallError.http("NOT_FOUND", {
+                message: `${object.type} '${object.id}' not found`,
+            });
         } else if (deleted === "exclude" && deletedAt !== undefined && deletedAt !== null) {
-            throw ObjectError.of("OBJECT_TRASHED", `${object.type} is in the trash`);
+            throw ObjectError.of(
+                "OBJECT_BLOCKED",
+                `cannot change ${object.type}: it is in the trash`,
+            );
         }
     },
 
@@ -373,7 +378,7 @@ export const ObjectPolicy = {
                     : undefined;
             if (relation !== undefined && definition.isScope === true) {
                 throw new TypeError(
-                    `scope ${definition.name} reads relation ${name} from a field, so its enclosed objects cannot use it`,
+                    `scope '${definition.name}' reads relation '${name}' from a field, so its enclosed objects cannot use it`,
                 );
             } else if (relation !== undefined) {
                 relations[name] = relation;
@@ -472,7 +477,9 @@ export const ObjectPolicy = {
         // refuse to represent a policy of another name
         const represented = definition.represents;
         if (represented && represented.name !== definition.name) {
-            throw new TypeError(`object ${definition.name} cannot represent ${represented.name}`);
+            throw new TypeError(
+                `object '${definition.name}' cannot represent '${represented.name}'`,
+            );
         }
 
         // combine the represented, declared and trait rules

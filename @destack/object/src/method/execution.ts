@@ -46,7 +46,7 @@ export const Execution = {
     store(execution: Execution, context: Pick<MethodContext, "object" | "name">): StoreExecution {
         if (execution.kind !== "store") {
             throw new TypeError(
-                `${context.object.name}.${context.name} can only execute in its store`,
+                `'${context.object.name}.${context.name}' can only execute in its store`,
             );
         }
 
@@ -100,7 +100,7 @@ export const Execution = {
             } else if (before !== null) {
                 await execution.database.delete(table).where(Key.match(table, before));
             } else {
-                throw new TypeError(`a write to ${table[TABLE].name} has no row before or after`);
+                throw new TypeError(`a write to '${table[TABLE].name}' has no row before or after`);
             }
         }
     },

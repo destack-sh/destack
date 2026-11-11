@@ -121,7 +121,7 @@ export class SettlementContext {
     /** Read the object the call acted on or created, failing for a call without one. */
     requireId(): string {
         if (this.id === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} has no object to settle`);
+            throw new TypeError(`'${this.object.name}.${this.name}' has no object to settle`);
         }
 
         return this.id;

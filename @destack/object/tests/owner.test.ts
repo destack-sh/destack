@@ -160,7 +160,7 @@ test("refuse an owner that no reference relates", () => {
                 fields: { name: field.string() },
             }),
         ),
-    ).toThrow("object orphan takes its owner from holder, but no reference relates it");
+    ).toThrow("object 'orphan' takes its owner from 'holder', but no reference relates it");
 });
 
 test("let the roles of an owner create objects of that owner and run scoped methods for that owner alone", async () => {
@@ -219,7 +219,7 @@ test("let the roles of an owner create objects of that owner and run scoped meth
         "done",
         "done",
         ["NOT_FOUND", "NOT_FOUND", "asset not found"],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: the caller lacks it"],
     ]);
 });
 
@@ -302,7 +302,7 @@ test("allow an owner its objects in a private home it cannot see, and refuse the
         await create(rivalId, sticker, "create", { name: "star" }),
     ]).toEqual([
         "done",
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${homeId} not found`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${homeId} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${homeId}' not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${homeId}' not found`],
     ]);
 });

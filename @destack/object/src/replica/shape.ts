@@ -141,7 +141,7 @@ export class Shape<Parameters extends object = object> {
         );
         if (stray !== undefined) {
             throw new TypeError(
-                `shape ${this.name} queries ${stray.object}, which it does not list`,
+                `shape '${this.name}' queries '${stray.object}', which it does not list`,
             );
         }
 

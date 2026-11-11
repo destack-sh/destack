@@ -92,7 +92,7 @@ export const NestedMethod = {
         const { object } = context;
         const parent = context.parent();
         if (parent === undefined && nesting.optional !== true) {
-            throw ObjectError.of("PARENT_MISSING", `${object.name} needs a parent`);
+            throw ObjectError.of("PARENT_REQUIRED", `parent of ${object.name} is required`);
         }
 
         // require a receiving parent outside the subtree
@@ -118,8 +118,8 @@ export const NestedMethod = {
         for (let node: string | null = parentId; node !== null && !visited.has(node);) {
             if (node === moved) {
                 throw ObjectError.of(
-                    "MOVE_INTO_SUBTREE",
-                    `${context.object.name} cannot move into its subtree`,
+                    "MOVE_INVALID",
+                    `move of ${context.object.name} is invalid: it must stay outside its own subtree`,
                 );
             }
             visited.add(node);

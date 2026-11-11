@@ -108,9 +108,9 @@ function declare(methods: "update" | "delete"): () => unknown {
 test("refuse an update of an immutable field, and the removal of a method another trait derives", () => {
     // both declarations throw
     expect(declare("update")).toThrow(
-        new TypeError("object label updates an immutable field in method update"),
+        new TypeError("object 'label' updates an immutable field in method 'update'"),
     );
     expect(declare("delete")).toThrow(
-        new TypeError("object label declares or removes method delete, but a trait derives it"),
+        new TypeError("object 'label' declares or removes method 'delete', but a trait derives it"),
     );
 });

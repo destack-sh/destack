@@ -136,14 +136,14 @@ export const Settlement = {
         );
         if (object === undefined) {
             throw new TypeError(
-                `settlement ${row.id} has object ${row.object}, which nothing here serves`,
+                `settlement '${row.id}' has object '${row.object}', which nothing here serves`,
             );
         }
         const method = object.method(row.method);
         const declared = method.prepared;
         if (declared === undefined || !Method.settles(method)) {
             throw new TypeError(
-                `settlement ${row.id} has ${row.object}.${row.method}, which has no prepared work to settle`,
+                `settlement '${row.id}' has '${row.object}.${row.method}', which has no prepared work to settle`,
             );
         }
 
@@ -163,7 +163,7 @@ export const Settlement = {
         // settle a committed call's work as committed, and any other's as rolled back
         if (row.committedAt !== null) {
             if (prepared === undefined) {
-                throw new TypeError(`settlement ${row.id} committed without its prepared value`);
+                throw new TypeError(`settlement '${row.id}' committed without its prepared value`);
             }
             await method.settle?.(call, { status: "committed", prepared });
         } else {
@@ -196,8 +196,8 @@ export const Settlement = {
     /** Refuse a call whose settlement a settler claimed after its grace passed. */
     refuseOutlasted(context: MethodContext): never {
         throw ObjectError.of(
-            "SETTLEMENT_EXPIRED",
-            `${context.object.name}.${context.name} exceeded its settlement grace period`,
+            "SETTLEMENT_UNAVAILABLE",
+            `settlement of '${context.object.name}.${context.name}' is unavailable: it exceeded its settlement grace period`,
         );
     },
 };

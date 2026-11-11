@@ -170,7 +170,7 @@ test("route every served object, create once per request identifier and take cho
                 title: "Again",
             }),
         ),
-    ).toEqual(["CONFLICT", "ID_TAKEN", "task identifier is taken"]);
+    ).toEqual(["CONFLICT", "ID_EXISTS", "'task' identifier already exists"]);
     const ahead = Identifier.create(
         "task",
         testSimulation(simulation.clock.now() + 3_600_000).environment("ahead"),
@@ -211,7 +211,7 @@ test("hide an object from strangers, update it at the observed revision, with se
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `task ${created.id} not found`,
+        `task '${created.id}' not found`,
     ]);
     expect(
         await refusal(
@@ -222,7 +222,7 @@ test("hide an object from strangers, update it at the observed revision, with se
                 title: "Taken",
             }),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task '${created.id}' not found`]);
     act(users.frank);
 
     // update at the observed revision and reject a stale one
@@ -244,7 +244,7 @@ test("hide an object from strangers, update it at the observed revision, with se
                 title: "Stale",
             }),
         ),
-    ).toEqual(["CONFLICT", "REVISION_STALE", "task revision has changed"]);
+    ).toEqual(["CONFLICT", "REVISION_CONFLICT", "cannot update task: its revision changed"]);
 
     // store a sensitive field in the database, out of every row a caller reads and its schema
     await database.transaction(
@@ -313,7 +313,11 @@ test("share an object, accept invitations and narrow agents to their grants", as
                 subject: { ...viewer, id: users.ivan },
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
     act(users.frank);
     await execute("revoke", {
         id: created.id,
@@ -324,7 +328,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `task ${created.id} not found`,
+        `task '${created.id}' not found`,
     ]);
     act(users.frank);
 
@@ -339,11 +343,15 @@ test("share an object, accept invitations and narrow agents to their grants", as
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `task ${created.id} not found`,
+        `task '${created.id}' not found`,
     ]);
     expect(
         await refusal(invite("accept", { id: asked.id, requestId: RequestId.create(environment) })),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
     act(users.frank);
     expect(await invite("list", { object })).toEqual({
         items: [
@@ -379,7 +387,7 @@ test("share an object, accept invitations and narrow agents to their grants", as
     await delegate(agent, [{ ...task.permission("write"), scope: spaceId }]);
     await expect(execute("get", { id: created.id })).rejects.toMatchObject({
         code: "FORBIDDEN",
-        message: `grant ${grantId} does not give read on task ${created.id}`,
+        message: `'read' on task '${created.id}' is forbidden: grant '${grantId}' does not give it`,
         data: { grant: grantId, object: task.reference(spaceId, created.id) },
     });
     await delegate(agent, [{ ...task.permission("read"), scope: spaceId }]);
@@ -395,8 +403,8 @@ test("share an object, accept invitations and narrow agents to their grants", as
         ),
     ).toEqual([
         "FORBIDDEN",
-        "GRANT_INSUFFICIENT",
-        `grant ${grantId} does not give write on task ${created.id}`,
+        "GRANT_DENIED",
+        `'write' on task '${created.id}' is forbidden: grant '${grantId}' does not give it`,
     ]);
     await delegate(undefined, []);
 
@@ -464,7 +472,7 @@ test("hide guarded fields from readers without their permission, and run each tr
                 estimate: 8,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "FIELD_NOT_WRITABLE", "field estimate is not writable"]);
+    ).toEqual(["FORBIDDEN", "FIELD_DENIED", "field 'estimate' is forbidden: it is not writable"]);
     act(users.frank);
 
     // complete the task once and refuse a second and a guarded completion
@@ -477,7 +485,11 @@ test("hide guarded fields from readers without their permission, and run each tr
         await refusal(
             execute("complete", { id: created.id, requestId: RequestId.create(environment) }),
         ),
-    ).toEqual(["CONFLICT", "TRANSITION_INVALID", "task cannot complete while status is done"]);
+    ).toEqual([
+        "PRECONDITION_FAILED",
+        "TRANSITION_BLOCKED",
+        "cannot 'complete' task: 'status' is 'done'",
+    ]);
     await execute("reopen", { id: created.id, requestId: RequestId.create(environment) });
 
     // audit each change once
@@ -488,7 +500,7 @@ test("hide guarded fields from readers without their permission, and run each tr
         "task.grant",
         "task.update",
         "task.complete",
-        "task.complete CONFLICT",
+        "task.complete PRECONDITION_FAILED",
         "task.reopen",
     ]);
 });
@@ -536,9 +548,9 @@ test("change a managed task's fields its declaration leaves unset under each fie
         estimate: 8,
         title: "Ship the plan",
         renamed: [
-            "CONFLICT",
-            "MANAGED",
-            "task is managed by its declaration: detach it before changing it",
+            "PRECONDITION_FAILED",
+            "DECLARATION_BLOCKED",
+            "cannot change 'task': it is managed by its declaration, so detach it first",
         ],
     });
 });
@@ -583,9 +595,9 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
             }),
         ),
     ).toEqual([
-        "CONFLICT",
-        "MANAGED",
-        "task is managed by its declaration: detach it before changing it",
+        "PRECONDITION_FAILED",
+        "DECLARATION_BLOCKED",
+        "cannot change 'task': it is managed by its declaration, so detach it first",
     ]);
 
     // delete once detached: hidden from lists, listed in the trash, restorable and purged at last
@@ -618,7 +630,7 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
     expect(await refusal(execute("get", { id: created.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `task ${created.id} not found`,
+        `task '${created.id}' not found`,
     ]);
 
     // purge the trash once the recovery window passes
@@ -652,7 +664,7 @@ test("refuse changing objects a stack manages, then trash, restore and purge the
     expect(await events()).toEqual([
         "task.create",
         "task.archive",
-        "task.delete CONFLICT",
+        "task.delete PRECONDITION_FAILED",
         "task.delete",
         "task.restore",
         "task.delete",
@@ -753,7 +765,11 @@ test("refuse inviting to and accepting an invitation on an object in the trash, 
     );
 
     // refuse a new invitation and the pending one's acceptance, and withdraw the pending one
-    const trashed = ["CONFLICT", "OBJECT_TRASHED", "task is in the trash"];
+    const trashed = [
+        "PRECONDITION_FAILED",
+        "OBJECT_BLOCKED",
+        "cannot change task: it is in the trash",
+    ];
     expect({
         invited: await refusal(
             invite("create", { requestId: RequestId.create(environment), object, relationship }),
@@ -841,7 +857,7 @@ test("prepare external work after the access check, settle it after commit, comp
     context = userContext(users.grace, spaceId, { environment: world });
     expect(
         await refusal(execute("export", { requestId: RequestId.create(world), id: created.id })),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task '${created.id}' not found`]);
     expect(external).toEqual([]);
 
     // release the prepared work and leave the task unchanged when the transaction fails
@@ -922,7 +938,11 @@ test("prepare external work after the access check, settle it after commit, comp
                 ],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "SCOPES_MIXED", "a mutation's calls must act in one scope"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "SCOPES_INVALID",
+        "mutation is invalid: its calls must act in one scope",
+    ]);
     expect(external).toEqual([]);
 });
 
@@ -1068,7 +1088,7 @@ test("authorize a creation before its external work, and settle committed work t
                 })
                 .then(([written]) => written),
         ),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task ${created.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `task '${created.id}' not found`]);
     expect(external).toEqual([]);
 
     // commit and retain the settlement despite a failed confirmation
@@ -1229,8 +1249,8 @@ test("cancel a call that outlasts its settlement grace by its key, and refuse to
         ),
     ).toEqual([
         "SERVICE_UNAVAILABLE",
-        "SETTLEMENT_EXPIRED",
-        "task-copy.create exceeded its settlement grace period",
+        "SETTLEMENT_UNAVAILABLE",
+        "settlement of 'task-copy.create' is unavailable: it exceeded its settlement grace period",
     ]);
 
     // cancel it once by key
@@ -1271,7 +1291,7 @@ test("run a scoped mutation over its scope as a holder of the scope's permission
     );
     const left = await execute("list", { where: { archived: false } });
     expect([refused, archived, left.items]).toEqual([
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: tidy"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'tidy' is forbidden: the caller lacks it"],
         { archived: 1 },
         [],
     ]);
@@ -1639,5 +1659,5 @@ test("refuse a handler with a key that is no phase, such as a misspelled handle"
 
     expect(() => {
         Reflect.apply(task.implement.bind(task), undefined, [{ methods: { archive: phases } }]);
-    }).toThrow(new TypeError("a method's handler has no phase handler"));
+    }).toThrow(new TypeError("a method's handler has no phase 'handler'"));
 });

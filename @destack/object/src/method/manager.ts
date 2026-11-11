@@ -10,7 +10,10 @@ export const detach = managerMethod.mutation({ permission: "manage" }).handle(as
     // refuse a record no declaration manages, and leave a detached one as it is
     const { target } = context;
     if (target.managerInstallationId === null) {
-        throw AccessError.of("UNMANAGED", `${context.object.name} ${target.id} has no declaration`);
+        throw AccessError.of(
+            "DECLARATION_BLOCKED",
+            `cannot detach ${context.object.name} '${target.id}': it has no declaration`,
+        );
     } else if (!Manager.isManaged(target)) {
         return target;
     }
@@ -23,7 +26,10 @@ export const attach = managerMethod.mutation({ permission: "manage" }).handle(as
     // refuse a record no declaration manages, and leave an attached one as it is
     const { target } = context;
     if (target.managerInstallationId === null) {
-        throw AccessError.of("UNMANAGED", `${context.object.name} ${target.id} has no declaration`);
+        throw AccessError.of(
+            "DECLARATION_BLOCKED",
+            `cannot detach ${context.object.name} '${target.id}': it has no declaration`,
+        );
     } else if (Manager.isManaged(target)) {
         return target;
     }

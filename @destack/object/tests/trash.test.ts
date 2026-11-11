@@ -77,7 +77,11 @@ test("trash a folder's pages with it, restore only the ones trashed with it, ref
             ["First", folderDeleted],
             ["Second", secondDeleted],
         ],
-        refused: ["CONFLICT", "OBJECT_TRASHED", `folder ${kept.id} is in the trash`],
+        refused: [
+            "PRECONDITION_FAILED",
+            "OBJECT_BLOCKED",
+            `cannot add to folder '${kept.id}': it is in the trash`,
+        ],
         restored: [
             ["First", "live"],
             ["Second", secondDeleted],

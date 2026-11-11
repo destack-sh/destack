@@ -51,13 +51,16 @@ export class StandardWebhook {
         // require the prefix and decode the key bytes
         if (!secret.startsWith(SECRET_PREFIX)) {
             throw ObjectError.of(
-                "SECRET_INVALID",
-                "standard webhook secret must start with whsec_",
+                "SECRET_BLOCKED",
+                "cannot verify standard webhooks: the secret must start with whsec_",
             );
         }
         const bytes = decode(secret.slice(SECRET_PREFIX.length));
         if (bytes === undefined) {
-            throw ObjectError.of("SECRET_INVALID", "standard webhook secret must be base64");
+            throw ObjectError.of(
+                "SECRET_BLOCKED",
+                "cannot verify standard webhooks: the secret must be base64",
+            );
         }
 
         return HmacKey.of(bytes, crypto);
@@ -85,13 +88,16 @@ export class StandardWebhook {
         const timestamp = request.headers.get("webhook-timestamp");
         const signatures = request.headers.get("webhook-signature");
         if (id === null || timestamp === null || signatures === null) {
-            throw ObjectError.of("SIGNATURE_MISSING", "missing standard webhook headers");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: standard webhook headers are missing",
+            );
         }
         const sentAt = Number(timestamp) * 1000;
         if (!/^\d+$/u.test(timestamp) || Math.abs(now - sentAt) > TOLERANCE_MILLISECONDS) {
             throw ObjectError.of(
-                "TIMESTAMP_OUTSIDE_TOLERANCE",
-                "webhook timestamp is outside the tolerance",
+                "TIMESTAMP_OUTSIDE_TOLERANCE_UNAUTHENTICATED",
+                "authentication required: webhook timestamp is outside the tolerance",
             );
         }
 
@@ -107,7 +113,10 @@ export class StandardWebhook {
             }
         }
         if (!isSigned) {
-            throw ObjectError.of("SIGNATURE_MISMATCH", "webhook signature does not match");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: webhook signature does not match",
+            );
         }
 
         return { id, timestamp: Number(timestamp), body: new TextDecoder().decode(body) };

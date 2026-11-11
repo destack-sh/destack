@@ -53,9 +53,9 @@ test("refuse a second outcome of a call, its call event recording the first", as
             error: Failure.http("INTERNAL_SERVER_ERROR", "failed"),
         });
         expect(await refusal(storage.recorder.append(conflicting))).toEqual([
-            "CONFLICT",
-            "CALL_CONTENTS_DIFFER",
-            `call ${running.execution.id} has conflicting contents`,
+            "PRECONDITION_FAILED",
+            "CALL_BLOCKED",
+            `cannot record call '${running.execution.id}': it has conflicting contents`,
         ]);
         expect(await storage.calls("universe")).toEqual([finished]);
     } finally {

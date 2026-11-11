@@ -73,7 +73,7 @@ export const Limits = {
             const parsed = INPUT_OBJECT.safeParse(value);
             const entry = parsed.success ? parsed.data[segment] : undefined;
             if (entry === undefined) {
-                throw new TypeError(`an input has no ${path} to key its limit by`);
+                throw new TypeError(`an input has no '${path}' to key its limit by`);
             }
             value = entry;
         }

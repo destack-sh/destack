@@ -527,7 +527,7 @@ export class ObjectClient<
             const upstream = upstreams.get(storage);
             if (upstream === undefined) {
                 throw new TypeError(
-                    `no ${storage} replica for table ${ObjectClient.#rootOf(node).table[TABLE].sqlName}`,
+                    `no ${storage} replica for table '${ObjectClient.#rootOf(node).table[TABLE].sqlName}'`,
                 );
             }
 
@@ -644,8 +644,8 @@ export class ObjectClient<
                 return local();
             } else if (homes === undefined) {
                 throw ObjectError.of(
-                    "HOME_UNREACHABLE",
-                    `the client of ${scope} cannot reach the home of ${home}`,
+                    "HOME_INVALID",
+                    `home '${home}' is invalid: the client of '${scope}' cannot reach it`,
                 );
             }
 
@@ -1132,7 +1132,7 @@ export class ObjectClient<
                     return;
                 } else if (stream.aborted || this.#redirect(error, store)) {
                     continue;
-                } else if (!ObjectError.is(error, "SERVER_DRAINING")) {
+                } else if (!ObjectError.is(error, "SERVER_UNAVAILABLE")) {
                     report(error);
                 }
                 isFinal = Replay.failure(error) !== undefined;
@@ -1719,7 +1719,7 @@ export class ObjectClient<
             .limit(1);
         if (oldest === undefined) {
             return sync.SyncError.of(
-                "OVER_CAPACITY",
+                "CAPACITY_EXHAUSTED",
                 `local replica has ${rows} rows, more than ${this.#storage.rows}, for open and forever followed queries`,
             );
         }
@@ -1755,7 +1755,7 @@ export class ObjectClient<
                 return rows;
             } catch (error) {
                 // recount after compaction
-                if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+                if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                     throw error;
                 }
             }
@@ -1828,7 +1828,7 @@ export class ObjectClient<
         // refuse members ordering or limiting themselves, and follow each in the union's order and limit
         for (const [name, member] of Object.entries(members)) {
             if (member.options.orderBy !== undefined || member.options.limit !== undefined) {
-                throw new TypeError(`union member ${name} cannot order or limit itself`);
+                throw new TypeError(`union member '${name}' cannot order or limit itself`);
             }
         }
         const orderBy = OrderBy.schema.parse(options.orderBy);
@@ -2055,8 +2055,8 @@ export class ObjectClient<
         const { object: target, relation: joined } = this.relations.related(object, relation);
         if (joined.on.kind !== "key") {
             throw ObjectError.of(
-                "RELATION_BY_KEY",
-                `object ${object.name} can only relate ${relation} of another storage by key`,
+                "RELATION_BY_KEY_INVALID",
+                `relation '${relation}' of object ${object.name} is invalid: it can only relate another storage by key`,
             );
         }
 
@@ -2077,8 +2077,8 @@ export class ObjectClient<
         for (const { via } of relations) {
             if (this.relations.related(object, via).object.storage !== object.storage) {
                 throw ObjectError.of(
-                    "RELATION_ACROSS_STORAGE",
-                    `object ${object.name} cannot relate ${via}: it has another storage`,
+                    "RELATION_ACROSS_STORAGE_INVALID",
+                    `relation '${via}' of object ${object.name} is invalid: it has another storage`,
                 );
             }
         }
@@ -2342,11 +2342,14 @@ export class ObjectClient<
                 : [];
         if (Method.loads(method) && target === undefined) {
             throw CallError.http("NOT_FOUND", {
-                message: `${object.name} ${requested} not found`,
+                message: `${object.name} '${requested}' not found`,
             });
         }
         if (revision !== undefined && target?.["revision"] !== revision) {
-            throw ObjectError.of("REVISION_STALE", `${object.name} revision has changed`);
+            throw ObjectError.of(
+                "REVISION_CONFLICT",
+                `cannot update ${object.name}: its revision changed`,
+            );
         }
 
         // predict the call on the target's identifier
@@ -2519,16 +2522,16 @@ export class ObjectClient<
         const before = first === undefined ? home : this.#readHome(first);
         if (home !== before) {
             throw ObjectError.of(
-                "HOMES_MIXED",
-                `a mutation must change rows of one home, but its calls change rows of ${before} and ${home}`,
+                "HOMES_INVALID",
+                `mutation is invalid: a mutation must change rows of one home, but its calls change rows of '${before}' and '${home}'`,
             );
         }
 
         // require a home the client can call
         if (home !== this.scope && !this.#hasHomes) {
             throw ObjectError.of(
-                "HOME_UNREACHABLE",
-                `the client of ${this.scope} cannot reach the home of ${home}`,
+                "HOME_INVALID",
+                `home '${home}' is invalid: the client of '${this.scope}' cannot reach it`,
             );
         }
     }
@@ -2674,7 +2677,7 @@ export class ObjectClient<
             return value;
         }
 
-        throw new TypeError(`a lookup key is ${typeof value}, not a scalar`);
+        throw new TypeError(`a lookup key is '${typeof value}', not a scalar`);
     }
 
     /** Narrow a lookup's target query to the given keys. */

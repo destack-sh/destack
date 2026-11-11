@@ -102,14 +102,14 @@ export class HookSandbox {
             // require the hook's open session
             const session = this.#sessions.get(request.mutation);
             if (session === undefined) {
-                throw ObjectError.of("HOOK_SESSION_MISSING", "no hook runs in this session");
+                throw ObjectError.of("HOOK_SESSION_NOT_FOUND", "hook session not found");
             }
 
             // pass a lost race, which the mutation runs again once the hook fails with it
             try {
                 return await this.#answer(session, request.request);
             } catch (error) {
-                if (DatabaseError.is(error, "CONCURRENT_UPDATE")) {
+                if (DatabaseError.is(error, "UPDATE_CONFLICT")) {
                     session.lost = error;
                 }
                 throw error;
@@ -195,7 +195,7 @@ export class HookSandbox {
         // refuse it outside a handle phase
         else {
             throw new TypeError(
-                `${context.object.name}.${context.name} can only wrap a call in a handle phase`,
+                `'${context.object.name}.${context.name}' can only wrap a call in a handle phase`,
             );
         }
     }
@@ -236,8 +236,8 @@ export class HookSandbox {
         const type = this.#types.get(name);
         if (type === undefined) {
             throw ObjectError.of(
-                "TABLE_REFUSED",
-                `hooks cannot read ${name}: they can only read tables of their installation's types`,
+                "TABLE_DENIED",
+                `table '${name}' is forbidden: hooks can only read tables of their installation's types`,
             );
         }
 
@@ -250,7 +250,7 @@ export class HookSandbox {
         const unknown = phases.find((phase) => !SANDBOXED.some((each) => each === phase));
         if (unknown !== undefined) {
             throw new TypeError(
-                `${type.name}.${name} has phase ${unknown}, which a sandbox cannot run`,
+                `'${type.name}.${name}' has phase '${unknown}', which a sandbox cannot run`,
             );
         }
 

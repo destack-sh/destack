@@ -287,12 +287,12 @@ test("refuse a condition on a command without a target, and a key combination ed
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "command new-note has a condition, but note.create acts on its scope",
+            "command 'new-note' is invalid: it has a condition, but 'note.create' acts on its scope",
         ],
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "command open-note has the key combination hyper+o, which editors do not write",
+            "key combination 'hyper+o' of command 'open-note' is invalid: editors do not write it",
         ],
     ]);
 });
@@ -335,12 +335,12 @@ test("list a package's commands on its own objects, refusing one on a type it do
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",
-                `${task.package.name} lists command finish on note, which it does not serve`,
+                `command 'finish' is invalid: '${task.package.name}' lists it on note, which it does not serve`,
             ],
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",
-                "command mark takes the name of a method of task",
+                "command 'mark' is invalid: it takes the name of a method of task",
             ],
         ],
     });

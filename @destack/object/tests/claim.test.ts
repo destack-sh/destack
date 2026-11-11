@@ -93,7 +93,7 @@ test("enforce unique handles across spaces in separate databases", async () => {
                 handle: "ada",
             }),
         ),
-    ).toEqual(["CONFLICT", "NAME_TAKEN", "handle is taken"]);
+    ).toEqual(["CONFLICT", "NAME_EXISTS", "'handle' already exists"]);
 
     // release the handle a profile moves away from, and the handle of a deleted profile
     await east.alice.profile.update({
@@ -408,7 +408,11 @@ test("refuse a name a postgresql write took after a commit's owners read as a lo
     released.resolve();
     await holding;
     expect([await late, await replace("place-2")]).toEqual([
-        ["SERVICE_UNAVAILABLE", "CONCURRENT_UPDATE", "another write claimed a name meanwhile"],
+        [
+            "CONFLICT",
+            "UPDATE_CONFLICT",
+            "cannot claim the name: another write claimed it meanwhile",
+        ],
         [{ index, key: "notes", packageId: "package-1", objectId: "place-2", owner: "account-1" }],
     ]);
 });
@@ -444,7 +448,7 @@ test("build a global index a migration declares from the rows stored before it, 
     }).toEqual({
         ada: present(ada, "east's ada").id,
         grace: present(grace, "east's grace").id,
-        refused: ["FamilyError: handle is taken"],
+        refused: ["FamilyError: 'handle' already exists"],
     });
 });
 

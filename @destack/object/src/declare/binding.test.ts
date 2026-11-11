@@ -101,5 +101,5 @@ test("refuse connecting an installation binding the host lends no credential", a
 
     await expect(
         binding.connectors.http.connect(bound("http://127.0.0.1"), binding, world),
-    ).rejects.toThrow("installation binding notes has no credential");
+    ).rejects.toThrow("installation binding 'notes' has no credential");
 });

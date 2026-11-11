@@ -131,7 +131,7 @@ export async function runWorkload(
     // read the host's start
     const first = await lines.next();
     if (first.done === true) {
-        throw ObjectError.of("START_MISSING", "the host sent no start message");
+        throw ObjectError.of("START_REQUIRED", "host start message is required");
     }
     const start = WorkloadStart.parse(JSON.parse(first.value));
 

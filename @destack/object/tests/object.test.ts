@@ -196,12 +196,12 @@ test("apply declared objects in dependency order, wait, leave released and retir
     // reject collections no object reads and references to undeclared objects
     expect(await refusal(apply({ tags: {} }))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "DECLARATION_UNSUPPORTED",
-        "this server cannot apply tags",
+        "DECLARATION_BROKEN",
+        "this server cannot apply 'tags'",
     ]);
     expect(
         await refusal(apply({ notes: {}, labels: { stray: { note: "missing", text: "stray" } } })),
-    ).toEqual(["BAD_REQUEST", "DECLARATION_INVALID", "unknown note: missing"]);
+    ).toEqual(["BAD_REQUEST", "DECLARATION_INVALID", "note 'missing' is invalid: it is unknown"]);
 
     // defer a waiting declaration, writing the others of its type and retiring nothing
     expect(
@@ -327,7 +327,7 @@ test("leave a collection no served type collects to the installed type of its pl
     const refused = await refusal(apply());
     const planned = await apply(async () => ({ types: [vault], isPending: false }));
     expect([refused, planned]).toEqual([
-        ["INTERNAL_SERVER_ERROR", "DECLARATION_UNSUPPORTED", "this server cannot apply vaults"],
+        ["INTERNAL_SERVER_ERROR", "DECLARATION_BROKEN", "this server cannot apply 'vaults'"],
         {
             steps: [
                 { action: "create", target: "note/draft", risk: "safe", detail: "declare" },
@@ -364,7 +364,7 @@ test("refuse aggregates that measure rows some readers of their holder may not l
     expect(book(union(relation("owner"), through("parent", "read"))).name).toBe("book");
     expect(() => ObjectDescription.of(book(union(relation("owner"))))).toThrow(
         new TypeError(
-            "aggregate bookCount of book counts rows that readers of shelf may not list: list them through parent read",
+            "aggregate 'bookCount' of 'book' counts rows that readers of 'shelf' may not list: list them through parent 'read'",
         ),
     );
 });
@@ -374,7 +374,7 @@ test("refuse a containment grant on a type living in the universe alone, and all
     expect(ledger(true).name).toBe("ledger");
     expect(() => ObjectDescription.of(ledger(false))).toThrow(
         new TypeError(
-            "object ledger is in the universe, which has no principals: contained() in its read permission allows no one",
+            "object 'ledger' is in the universe, which has no principals: contained() in its 'read' permission allows no one",
         ),
     );
 });
@@ -416,7 +416,11 @@ test("refuse declarations that depend on themselves, also next to one depending 
                     store,
                 }),
         ),
-    ).toEqual(["BAD_REQUEST", "DECLARATION_CYCLIC", "declarations of labels depend on themselves"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "DECLARATION_INVALID",
+        "declaration collection 'labels' is invalid: its declarations depend on themselves",
+    ]);
 });
 
 test("adopt a direct record into a declaration once, rewriting it, release it once, and refuse records another declaration manages, undeclared adoptions and declared releases", async () => {
@@ -538,18 +542,26 @@ test("adopt a direct record into a declaration once, rewriting it, release it on
         adopted: ["welcome", null, "Welcome"],
         again: 0,
         refusals: [
-            ["BAD_REQUEST", "DECLARATION_INVALID", "card welcome already declares another record"],
             [
                 "BAD_REQUEST",
                 "DECLARATION_INVALID",
-                `card ${first.id} is managed by another declaration`,
+                "card 'welcome' is invalid: it already declares another record",
             ],
             [
                 "BAD_REQUEST",
                 "DECLARATION_INVALID",
-                `card other adopts ${second.id} but does not declare other`,
+                `card '${first.id}' is invalid: another declaration manages it`,
             ],
-            ["BAD_REQUEST", "DECLARATION_INVALID", "card welcome is both declared and released"],
+            [
+                "BAD_REQUEST",
+                "DECLARATION_INVALID",
+                `card 'other' is invalid: it adopts '${second.id}' but does not declare 'other'`,
+            ],
+            [
+                "BAD_REQUEST",
+                "DECLARATION_INVALID",
+                "card 'welcome' is invalid: it is both declared and released",
+            ],
         ],
         released: [null, true, "Welcome"],
         releasedRevisions: [1, 0],
@@ -817,7 +829,9 @@ test("refuse two methods answering one route, which a router would send to one o
                 }),
             ),
         ),
-    ).toThrow(new TypeError("object memo methods update and retitle both handle PATCH /{id}"));
+    ).toThrow(
+        new TypeError("object 'memo' methods 'update' and 'retitle' both handle 'PATCH /{id}'"),
+    );
 });
 
 test("manage every durable type with a create verb, and no type without one", () => {

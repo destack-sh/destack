@@ -57,7 +57,7 @@ export const tracked: Trait<TrackedDefinition> & {
         // require the activity attachment and a valid session
         if (!object.attachments.some((attachment) => attachment.object === options.activity)) {
             throw new TypeError(
-                `object ${object.name} records history but has no ${options.activity.plural} attachment`,
+                `object ${object.name} records history but has no '${options.activity.plural}' attachment`,
             );
         }
         if (options.session !== undefined) {

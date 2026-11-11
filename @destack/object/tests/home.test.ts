@@ -607,7 +607,11 @@ test("enter a scope after its replica reaches a commit its chain's scope wrote a
 
 /** Describe the refusal of a scope outside the request's scope. */
 function outsideRequest(scope: string): readonly string[] {
-    return ["NOT_FOUND", "SCOPE_OUTSIDE_REQUEST", `scope ${scope} is outside the request's scope`];
+    return [
+        "NOT_FOUND",
+        "SCOPE_OUTSIDE_REQUEST_NOT_FOUND",
+        `scope '${scope}' in the request's scope not found`,
+    ];
 }
 
 test("let a caller bound to a room read its ancestors, refusing a write there and another person's scope", async () => {
@@ -660,8 +664,8 @@ test("refuse a mutation changing rows of two homes", async () => {
 
     expect(await refusal(submitted.predicted)).toEqual([
         "BAD_REQUEST",
-        "HOMES_MIXED",
-        `a mutation must change rows of one home, but its calls change rows of ${personId} and ${roomId}`,
+        "HOMES_INVALID",
+        `mutation is invalid: a mutation must change rows of one home, but its calls change rows of '${personId}' and '${roomId}'`,
     ]);
 });
 

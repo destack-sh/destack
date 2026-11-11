@@ -254,7 +254,11 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
                 edits: [{ insert: "x", run: "alice.99", after: { run: "nobody.1", offset: 0 } }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "ELEMENT_NOT_FOUND", "element nobody.1:0 not found in any chunk"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "ELEMENT_INVALID",
+        "element 'nobody.1' at offset 0 is invalid: no chunk has it",
+    ]);
 
     // refuse a run the text already contains anywhere
     expect(
@@ -267,7 +271,7 @@ test("edit a text through chunk splits, read it assembled, undo exactly and guar
                 edits: [{ insert: "x", run: "alice.1" }],
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "RUN_DUPLICATE", "body already has run alice.1"]);
+    ).toEqual(["BAD_REQUEST", "RUN_INVALID", "run 'alice.1' is invalid: 'body' already has it"]);
 
     // report which elements the text contains, deleted ones included
     const owner = document.reference(spaceId, created.id);

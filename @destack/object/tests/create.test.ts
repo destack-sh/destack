@@ -103,12 +103,12 @@ test("report a create's conflicts only to callers the create permission allows, 
     // tell bob of the taken name and identifier only for a handle he may create
     expect(await refusal(create(users.bob, { holderId: users.bob, name: "notes" }))).toEqual([
         "CONFLICT",
-        "DUPLICATE",
-        "another handle has the same scope and name",
+        "OBJECT_EXISTS",
+        "'handle' with the same 'scope and name' already exists",
     ]);
     expect(
         await refusal(create(users.bob, { holderId: users.bob, name: "tasks", id: taken.id })),
-    ).toEqual(["CONFLICT", "ID_TAKEN", "handle identifier is taken"]);
+    ).toEqual(["CONFLICT", "ID_EXISTS", "'handle' identifier already exists"]);
 
     // find nothing for a handle bob may not create, taken or free
     const refusals: unknown[] = [];
@@ -128,7 +128,7 @@ test("report a create's conflicts only to callers the create permission allows, 
     // challenge bob before a conflict, and find nothing for alice's handle
     level = 1;
     await expect(create(users.bob, { holderId: users.bob, name: "notes" })).rejects.toMatchObject({
-        reason: "AUTHENTICATION_INSUFFICIENT",
+        reason: "ASSURANCE_UNAUTHENTICATED",
         data: RECENT,
     });
     await expect(create(users.bob, { holderId: users.alice, name: "notes" })).rejects.toMatchObject(
@@ -319,8 +319,8 @@ test("run only the one method a one-method grant includes, refusing every other 
         "Core",
         [
             "FORBIDDEN",
-            "GRANT_REFUSES_METHOD",
-            `grant ${claim.id} does not allow team.get in ${spaceId}`,
+            "GRANT_REFUSES_METHOD_DENIED",
+            `'team.get' in '${spaceId}' is forbidden: grant '${claim.id}' does not allow it`,
         ],
     ]);
 });
@@ -616,9 +616,9 @@ test("create an object under a natural key the creator chooses, read it by that 
     ]).toEqual([
         [created.id, "core", "Core"],
         true,
-        ["CONFLICT", "DUPLICATE", "another channel has the same scope and slug"],
+        ["CONFLICT", "OBJECT_EXISTS", "'channel' with the same 'scope and slug' already exists"],
         created.id,
-        ["BAD_REQUEST", "REFERENCE_MISSING", "no channel has the key missing"],
+        ["NOT_FOUND", "REFERENCE_NOT_FOUND", "'channel' with key 'missing' not found"],
     ]);
 });
 

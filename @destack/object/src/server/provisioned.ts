@@ -207,15 +207,15 @@ export class ResourceController {
         const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
             throw ResourceError.of(
-                "PROVIDER_MISSING",
-                `no provider for ${object.name} ${row.name}`,
+                "PROVIDER_BLOCKED",
+                `cannot provision ${object.name} '${row.name}': it has no provider`,
             );
         }
         // refuse a provider provisioning nothing
         else if (provider.provision === undefined) {
             throw ResourceError.of(
                 "PROVISIONING_UNSUPPORTED",
-                `provider ${provider.code} of ${object.name} provisions nothing`,
+                `provisioning by provider '${provider.code}' of ${object.name} is not supported`,
             );
         }
 
@@ -245,8 +245,8 @@ export class ResourceController {
         const provider = ResourceController.select(options.providers, row);
         if (provider === undefined) {
             throw ResourceError.of(
-                "PROVIDER_MISSING",
-                `no provider for ${object.name} ${row.name}`,
+                "PROVIDER_BLOCKED",
+                `cannot provision ${object.name} '${row.name}': it has no provider`,
             );
         }
 
@@ -338,10 +338,10 @@ export class ResourceController {
         } catch (error) {
             // plan without the states only draining consumers need
             const recreated =
-                ResourceError.is(error, "PLAN_UNREACHABLE") && row.drainingStates.length > 0
+                ResourceError.is(error, "PLAN_BLOCKED") && row.drainingStates.length > 0
                     ? await planDigests(row.states).catch((failure: unknown) => {
                           // block when the active consumers conflict by themselves too
-                          if (ResourceError.is(failure, "PLAN_UNREACHABLE")) {
+                          if (ResourceError.is(failure, "PLAN_BLOCKED")) {
                               return undefined;
                           }
                           throw failure;

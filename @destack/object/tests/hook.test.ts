@@ -763,7 +763,7 @@ test("refuse serving the cards of two installations of one package from one stor
 
     expect(serve).toThrow(
         new TypeError(
-            `installation ${first} and installation ${second} both implement card objects of ${card.package.id}`,
+            `installation '${first}' and installation '${second}' both implement card objects of '${card.package.id}'`,
         ),
     );
 });

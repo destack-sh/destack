@@ -38,13 +38,13 @@ test("read a misdirected answer's declared data from a failure and a response, a
     const moved = new CallError("MISDIRECTED_REQUEST", {
         reason: "SCOPE_MOVED",
         domain: import.meta.destack.package.name,
-        message: `space-1 moves to ${MOVED}`,
+        message: `space-1 moves to '${MOVED}'`,
         data: { scope: "space-1", machine: MOVED },
     });
     const partitioned = new CallError("MISDIRECTED_REQUEST", {
-        reason: "PARTITION_MISDIRECTED",
+        reason: "PARTITION_MOVED",
         domain: import.meta.destack.package.name,
-        message: "room-1 is served by partition room-1",
+        message: "scope 'room-1' is unavailable: partition 'room-1' serves it",
         data: { scope: "room-1", partition: "room-1" },
     });
     expect([
@@ -71,7 +71,7 @@ test("follow a misdirected answer once, handing the second attempt where its sco
         const error = new CallError("MISDIRECTED_REQUEST", {
             reason: "SCOPE_MOVED",
             domain: import.meta.destack.package.name,
-            message: `space-1 moves to ${MOVED}`,
+            message: `space-1 moves to '${MOVED}'`,
             data: { scope: "space-1", machine: MOVED },
         });
 
@@ -98,7 +98,10 @@ function read(error: CallError<string, unknown> | undefined) {
 
 test("find the denial a missing scope conceals, through a family failure, and none behind a plain missing one", () => {
     // conceal a refusal behind the scope's absence, and fail with a missing scope alone
-    const denial = ObjectError.of("PERMISSION_DENIED", "permission denied: read");
+    const denial = ObjectError.of(
+        "PERMISSION_DENIED",
+        "permission 'read' is forbidden: the caller lacks it",
+    );
     const concealed = ObjectError.of("SCOPE_NOT_FOUND", "scope space-1 not found", {
         cause: denial,
     });
@@ -109,5 +112,5 @@ test("find the denial a missing scope conceals, through a family failure, and no
     expect([
         found === undefined ? undefined : [found.code, found.message],
         findDenial(missing),
-    ]).toEqual([["FORBIDDEN", "permission denied: read"], undefined]);
+    ]).toEqual([["FORBIDDEN", "permission 'read' is forbidden: the caller lacks it"], undefined]);
 });

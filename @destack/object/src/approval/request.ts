@@ -139,7 +139,7 @@ export const changeRequest = defineObject(
             ) {
                 throw ObjectError.of(
                     "APPROVERS_INVALID",
-                    "a change run as an approver asks exactly that approver",
+                    "approver set is invalid: a change run as an approver asks exactly that approver",
                 );
             }
 
@@ -147,8 +147,8 @@ export const changeRequest = defineObject(
             const acting = actors.at(-1) ?? subject;
             if (approvers.some((each) => Subject.same(each, acting))) {
                 throw ObjectError.of(
-                    "SELF_APPROVAL",
-                    "a requester cannot approve their own change",
+                    "SELF_APPROVAL_INVALID",
+                    "approval is invalid: a requester cannot approve their own change",
                 );
             }
 
@@ -246,7 +246,10 @@ export class ChangeRequest {
         }
         // refuse a direct request naming no approvers, which would approve itself
         else {
-            throw ObjectError.of("APPROVERS_MISSING", "a direct change request names no approvers");
+            throw ObjectError.of(
+                "APPROVERS_REQUIRED",
+                "approver of a direct change request is required",
+            );
         }
     }
 
@@ -265,7 +268,7 @@ export class ChangeRequest {
                 const refusal = CallError.refusal(error);
                 if (refusal === undefined) {
                     throw error;
-                } else if (refusal.reason !== "APPROVALS_CHANGED") {
+                } else if (refusal.reason !== "APPROVALS_CONFLICT") {
                     const failure = Failure.of(error);
                     await reconciliation.mutate([
                         changeRequest.call("fail", { ...target, failure }),
@@ -284,8 +287,8 @@ export class ChangeRequest {
         const approvals = await this.#approvals(ChangeRequest.#reader(context));
         if (this.#decide(approvals) !== "approved") {
             throw ObjectError.of(
-                "APPROVALS_CHANGED",
-                `the approvals of ${this.row.id} changed before it applied`,
+                "APPROVALS_CONFLICT",
+                `cannot apply change request '${this.row.id}': its approvals changed before it applied`,
             );
         }
     }
@@ -314,7 +317,7 @@ export class ChangeRequest {
             ) {
                 throw ObjectError.of(
                     "APPROVERS_INVALID",
-                    "a change run as an approver asks exactly that approver",
+                    "approver set is invalid: a change run as an approver asks exactly that approver",
                 );
             }
             const credential = Credential.approval(

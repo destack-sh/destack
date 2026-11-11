@@ -156,7 +156,11 @@ test("merge a branch whose role lets bob merge once another approves, through a 
     await objects.simulation.idle();
     const [requested] = await objects.database.select().from(changeRequest.table);
     expect([refused, (await read(id)).branch?.state, requested?.state]).toEqual([
-        ["FORBIDDEN", "APPROVAL_REQUIRED", `merge on branch ${id} needs 1 approval`],
+        [
+            "FORBIDDEN",
+            "APPROVAL_DENIED",
+            `'merge' on branch '${id}' is forbidden: it needs '1 approval'`,
+        ],
         "merged",
         "applied",
     ]);

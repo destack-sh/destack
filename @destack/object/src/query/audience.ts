@@ -137,7 +137,7 @@ export class ObjectTypeIndex {
     listed(table: Table): { readonly object: ObjectType; readonly permission: Permission } {
         const object = this.#objects.get(table);
         if (object?.listing === undefined) {
-            throw new TypeError(`no listed object is stored in ${table[TABLE].name}`);
+            throw new TypeError(`no listed object is stored in '${table[TABLE].name}'`);
         }
 
         return { object, permission: object.listing };

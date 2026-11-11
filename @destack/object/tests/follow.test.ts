@@ -343,7 +343,7 @@ test("decide calls over a relayed replica of access as the holder does, through 
     );
 
     // allow the owner through a credential for the empty space and hide the space from the rest
-    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${spaceId} not found`];
+    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${spaceId}' not found`];
     expect(outcomes).toEqual(["Plan", hidden, hidden, hidden, "Budget"]);
     expect(listed.items.map((item) => item.title).toSorted()).toEqual(["Budget", "Plan"]);
 });
@@ -1252,12 +1252,16 @@ test("replicate the chains of an installation's two served spaces in one replica
             [ObjectSink.viaName(followingSpaceId), Scope.universe.id, followingSpaceId],
         ],
         parameters: [[spaceId, otherSpaceId], [accountId]],
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
         scopes: new Set([accountId, spaceId, otherSpaceId]),
         outside: [
             "NOT_FOUND",
-            "SCOPE_NOT_CONTAINED",
-            `${otherAccountId} contains none of the replicated scopes`,
+            "SCOPE_NOT_FOUND",
+            `replicated scopes in '${otherAccountId}' not found`,
         ],
     });
 });
@@ -1370,17 +1374,13 @@ test("refuse a chain follow with no via to a caller without replicate on the sco
                 .map((change) => change.row["scope"]),
         ),
     }).toEqual({
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
-        claimed: [
-            "NOT_FOUND",
-            "SCOPE_NOT_CONTAINED",
-            `${FOREIGN_ACCOUNT} does not contain ${spaceId}`,
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
         ],
-        reached: [
-            "NOT_FOUND",
-            "SCOPE_NOT_CONTAINED",
-            `${FOREIGN_ACCOUNT} does not contain ${spaceId}`,
-        ],
+        claimed: ["NOT_FOUND", "SCOPE_NOT_FOUND", `'${spaceId}' in '${FOREIGN_ACCOUNT}' not found`],
+        reached: ["NOT_FOUND", "SCOPE_NOT_FOUND", `'${spaceId}' in '${FOREIGN_ACCOUNT}' not found`],
         scopes: new Set([accountId]),
     });
 });
@@ -1486,11 +1486,15 @@ test("replicate a partition's chain via its installation's space, whose source h
                 .map((change) => change.row["scope"]),
         ),
     }).toEqual({
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
         claimed: [
             "NOT_FOUND",
-            "SCOPE_NOT_CONTAINED",
-            `${FOREIGN_ACCOUNT} does not contain ${partition}`,
+            "SCOPE_NOT_FOUND",
+            `'${partition}' in '${FOREIGN_ACCOUNT}' not found`,
         ],
         scopes: new Set([accountId, spaceId]),
     });
@@ -1629,7 +1633,9 @@ test("wait before serving for the store's chain replicas, never for its followed
             request: async () => {},
             stream: async function* () {
                 yield* [];
-                throw CallError.http("FORBIDDEN", { message: "permission denied: follow" });
+                throw CallError.http("FORBIDDEN", {
+                    message: "permission 'follow' is forbidden: the caller lacks it",
+                });
             },
         }),
         callKey: testCallKey,
@@ -1872,7 +1878,7 @@ async function localReplicas(database: DatabaseConnection): Promise<string> {
 
 /** Fail a test on a failed reconciliation. */
 function failing(_controller: unknown, key: string, error: unknown): never {
-    throw new Error(`reconciling ${key} failed`, { cause: error });
+    throw new Error(`could not reconcile '${key}'`, { cause: error });
 }
 
 /** Read the scope a replica controller's key follows. */
@@ -2229,6 +2235,10 @@ test("require replicate via a scope for an in-process follower inside the scopes
     }).toEqual({
         local: "done",
         remote: "done",
-        own: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
+        own: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
     });
 });

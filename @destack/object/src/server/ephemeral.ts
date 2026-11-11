@@ -419,7 +419,7 @@ export class EphemeralStorage implements AsyncDisposable {
                     .from(table)
                     .where(Key.match(table, Key.parse(table, key)));
                 if (row === undefined) {
-                    throw new TypeError(`ephemeral row ${key} is missing from its table`);
+                    throw new TypeError(`ephemeral row '${key}' is missing from its table`);
                 }
                 rows.push({
                     table: table[TABLE].sqlName,
@@ -470,13 +470,13 @@ export class EphemeralStorage implements AsyncDisposable {
             if (object.storage !== "ephemeral") {
                 throw new TypeError(`object ${object.name} is durable, not ephemeral`);
             } else if (unlogged !== undefined) {
-                throw new TypeError(`ephemeral object ${object.name} does not log ${unlogged}`);
+                throw new TypeError(`ephemeral object ${object.name} does not log '${unlogged}'`);
             }
             for (const constraint of object.table[TABLE].constraints(database.dialect)) {
                 const [foreign] = constraint.kind === "foreignKey" ? constraint.foreignColumns : [];
                 if (foreign !== undefined && !names.has(foreign.table)) {
                     throw new TypeError(
-                        `ephemeral object ${object.name} references ${foreign.table} in another database`,
+                        `ephemeral object ${object.name} references '${foreign.table}' in another database`,
                     );
                 }
             }

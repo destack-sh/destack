@@ -88,11 +88,15 @@ test("plan a project with its members, assignees, guarded budgets and comments",
                 title: "Rename",
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: plan"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'plan' is forbidden: the caller lacks it",
+    ]);
     expect(await refusal(bob.project.get({ spaceId, id: launch.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `project ${launch.id} not found`,
+        `project '${launch.id}' not found`,
     ]);
 
     // let a user ask to join, and plan once the owner accepts
@@ -137,7 +141,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
                 budget: 900,
             }),
         ),
-    ).toEqual(["FORBIDDEN", "FIELD_NOT_WRITABLE", "field budget is not writable"]);
+    ).toEqual(["FORBIDDEN", "FIELD_DENIED", "field 'budget' is forbidden: it is not writable"]);
 
     // let everyone reading a task comment on it
     await bob.comment.create({
@@ -177,8 +181,8 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     const elsewhere = schema.identifier("space").parse(`space-${Uuid.v7(world)}`);
     expect(await refusal(alice.project.get({ spaceId: elsewhere, id: launch.id }))).toEqual([
         "NOT_FOUND",
-        "SCOPE_OUTSIDE_REQUEST",
-        `scope ${elsewhere} is outside the request's scope`,
+        "SCOPE_OUTSIDE_REQUEST_NOT_FOUND",
+        `scope '${elsewhere}' in the request's scope not found`,
     ]);
 
     // hide the project from users with no relation to it
@@ -186,7 +190,7 @@ test("plan a project with its members, assignees, guarded budgets and comments",
     expect(await refusal(dave.task.get({ spaceId, id: announce.id }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `task ${announce.id} not found`,
+        `task '${announce.id}' not found`,
     ]);
 });
 

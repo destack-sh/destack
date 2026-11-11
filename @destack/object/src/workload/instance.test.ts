@@ -70,7 +70,8 @@ const serverIn = async (world: Environment): Promise<ServerContext> => ({
         derive: () => Promise.reject(new Error("the fixture derives no secret")),
         derivePrivateKey: () => Promise.reject(new Error("the fixture derives no private key")),
     },
-    fetch: (request) => Promise.reject(new Error(`the fixture sends no request to ${request.url}`)),
+    fetch: (request) =>
+        Promise.reject(new Error(`the fixture sends no request to '${request.url}'`)),
     url: "https://notes--home.test",
     publisher,
     publisherAt: () => publisher,
@@ -301,7 +302,7 @@ test("reject a package served twice and release startup resources", async () => 
                 }),
             },
         ),
-    ).rejects.toThrow(`duplicate workload package: ${first.name}`);
+    ).rejects.toThrow(`duplicate workload package: '${first.name}'`);
     expect(events).toEqual(["resources"]);
 }, 1500);
 

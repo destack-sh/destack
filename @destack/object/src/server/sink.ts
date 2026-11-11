@@ -197,7 +197,7 @@ export class ObjectSink {
 
             return changes.length === 0 ? undefined : changes;
         } catch (error) {
-            if (!DatabaseError.is(error, "CHANGES_COMPACTED")) {
+            if (!DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                 throw error;
             }
 
@@ -472,7 +472,7 @@ export class ObjectSink {
         // replicate each scope's access rows and propagated types for the target, in one replica of the nearest
         const [nearest] = replicated;
         if (nearest === undefined) {
-            throw new TypeError(`the chain of ${target} replicates no scope`);
+            throw new TypeError(`the chain of '${target}' replicates no scope`);
         }
 
         return [

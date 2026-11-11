@@ -174,20 +174,22 @@ export const Provisioned = {
 
         // refuse a controller of the definition's own, as the kind's providers reconcile with approvals
         if (definition.controlled !== undefined) {
-            throw new TypeError(`resources ${definition.name} take their kind's controlled trait`);
+            throw new TypeError(
+                `resources '${definition.name}' take their kind's controlled trait`,
+            );
         }
 
         // require the scope types the resources live in
         const scope = definition.scope;
         if (scope === undefined || scope === Scope.universe.id) {
-            throw new TypeError(`resources ${definition.name} must belong to scope types`);
+            throw new TypeError(`resources '${definition.name}' must belong to scope types`);
         }
 
         // require permissions declared as expressions
         const permissions = definition.permissions ?? {};
         if (ObjectPermissions.isList(permissions)) {
             throw new TypeError(
-                `resources ${definition.name} must declare their permissions as expressions`,
+                `resources '${definition.name}' must declare their permissions as expressions`,
             );
         }
 

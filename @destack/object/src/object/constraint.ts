@@ -97,7 +97,7 @@ export const ObjectConstraint = {
         const [first, ...rest] = properties;
         const definition = table[TABLE];
         if (first === undefined) {
-            throw new TypeError(`a constraint on ${definition.name} has no column`);
+            throw new TypeError(`a constraint on '${definition.name}' has no column`);
         }
 
         return [definition.column(first), ...rest.map((property) => definition.column(property))];

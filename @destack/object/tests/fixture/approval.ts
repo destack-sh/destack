@@ -250,7 +250,7 @@ export async function openApprovals(): Promise<TestApproval> {
         const isFollowed = async () =>
             (await Grant.read(Snapshot.live(served.database), created.id)) !== undefined;
         if (!(await served.database.log.waitUntil(isFollowed, signal))) {
-            throw new Error(`the space did not follow grant ${created.id}`);
+            throw new Error(`the space did not follow grant '${created.id}'`);
         }
 
         return { id: created.id, scope: delegator.id, permissions: [...permissions] };

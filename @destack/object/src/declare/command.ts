@@ -115,14 +115,14 @@ export class Command<
         if (this.when !== undefined && this.target === "scope") {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `command ${this.name} has a condition, but ${this.object.name}.${this.method} acts on its scope`,
+                `command '${this.name}' is invalid: it has a condition, but '${this.object.name}.${this.method}' acts on its scope`,
             );
         }
         // refuse a key combination editors do not write
         else if (this.keybinding !== undefined && !Shortcut.safeParse(this.keybinding).success) {
             throw PackageError.of(
                 "DEFINITION_INVALID",
-                `command ${this.name} has the key combination ${this.keybinding}, which editors do not write`,
+                `key combination '${this.keybinding}' of command '${this.name}' is invalid: editors do not write it`,
             );
         }
     }
@@ -144,7 +144,7 @@ export class Command<
         // read the method's input as callers write it
         const described = this.object.describeMethods()[this.method];
         if (described === undefined) {
-            throw new TypeError(`${this.object.name} has no method ${this.method} to call`);
+            throw new TypeError(`${this.object.name} has no method '${this.method}' to call`);
         }
         const input = InputSchema.parse(described.input);
 
@@ -174,7 +174,7 @@ export class Command<
         // require the method's permission on each target
         const { permission } = this.object.method(this.method);
         if (permission === undefined || !this.object.isPermission(permission)) {
-            throw new TypeError(`${this.object.name}.${this.method} declares no permission`);
+            throw new TypeError(`'${this.object.name}.${this.method}' declares no permission`);
         }
 
         return { where, permission };
@@ -205,7 +205,7 @@ export class Command<
     static of(name: string, description: CommandDescription, type: ObjectType): Command {
         // refuse a type other than the one the description calls
         if (type.package.id !== description.packageId || type.name !== description.type) {
-            throw new TypeError(`command ${name} calls ${description.type}, not ${type.name}`);
+            throw new TypeError(`command '${name}' calls ${description.type}, not ${type.name}`);
         }
 
         return new Command(description.package, {

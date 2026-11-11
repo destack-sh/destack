@@ -27,9 +27,9 @@ function request(world: Environment) {
 /** The refusal of a method in the capped space, stating the way out of the cap. */
 function refused(method: string): readonly [string, string, string] {
     return [
-        "PAYMENT_REQUIRED",
-        "STORAGE_CAPPED",
-        `storage of scope ${spaceId} is capped: ${method} is refused until data is deleted or the plan changes`,
+        "TOO_MANY_REQUESTS",
+        "STORAGE_EXHAUSTED",
+        `'${method}' exceeds the storage cap of scope '${spaceId}': delete data or change the plan`,
     ];
 }
 
@@ -58,7 +58,7 @@ async function serveInstalledNotes(world: Environment) {
         ),
         environment: world,
         resources: new ResourceContext(),
-        fetch: (sent) => Promise.reject(new Error(`the notes reach no ${sent.url}`)),
+        fetch: (sent) => Promise.reject(new Error(`the notes reach no '${sent.url}'`)),
         url: "https://notes--home.test",
         publisher: {
             request: async () => {},

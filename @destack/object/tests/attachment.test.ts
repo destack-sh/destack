@@ -252,14 +252,18 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     const missing = `article-01996ab0-0000-7000-8000-00000000a007`;
     expect(
         await refusal(call(remark, "create", { ...host(task, task1.id), text: "Nope" })),
-    ).toEqual(["BAD_REQUEST", "PARENT_TYPE_REFUSED", "task cannot have remarks"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "PARENT_TYPE_INVALID",
+        "parent task is invalid: it cannot have 'remarks'",
+    ]);
     expect(
         await refusal(call(remark, "create", { ...host(article, missing), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${missing} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article '${missing}' not found`]);
     as(users.bob);
     expect(
         await refusal(call(remark, "create", { ...host(article, draft.id), text: "Nope" })),
-    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article ${draft.id} not found`]);
+    ).toEqual(["NOT_FOUND", "NOT_FOUND", `article '${draft.id}' not found`]);
     as(users.alice);
 
     // include each article's remarks, and only those, sharing identifiers with no photo
@@ -294,9 +298,9 @@ test("attach remarks to articles and photos, counting them and deleting them wit
     const marked = await call(marker, "create", host(photo, snapshot.id));
     await call(article, "delete", { id: draft.id });
     expect(await refusal(call(photo, "delete", { id: snapshot.id }))).toEqual([
-        "CONFLICT",
-        "BROKEN_REFERENCE",
-        "the change would leave a reference to a missing record",
+        "PRECONDITION_FAILED",
+        "REFERENCE_BLOCKED",
+        "cannot change the record: the change would leave a reference to a missing record",
     ]);
     const remaining = await storage.database
         .select({ id: remark.table.id })
@@ -355,7 +359,7 @@ test("let the attaching package's installation attach tags to a poster it cannot
     const tagged = await tagging(own);
     expect([tagged.text, await refusal(tagging(other))]).toEqual([
         "Featured",
-        ["NOT_FOUND", "NOT_FOUND", `poster ${drawn.id} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `poster '${drawn.id}' not found`],
     ]);
 });
 
@@ -372,8 +376,8 @@ test("store each reader's favourite of a shared board private and single", async
     const mine = await call(favourite, "create", host(board, plans.id));
     expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
         "CONFLICT",
-        "DUPLICATE",
-        "another favourite has the same parent and reader",
+        "OBJECT_EXISTS",
+        "'favourite' with the same 'parent and reader' already exists",
     ]);
     as(users.bob);
     const theirs = await call(favourite, "create", host(board, plans.id));
@@ -387,7 +391,7 @@ test("store each reader's favourite of a shared board private and single", async
     expect(await refusal(call(favourite, "create", host(board, plans.id)))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `board ${plans.id} not found`,
+        `board '${plans.id}' not found`,
     ]);
 
     // hide a mark from a reader who lost the board, and delete the marks with the board
@@ -420,7 +424,7 @@ test("authorize a scoped method of attachments on the parent its input refers to
     const theirs = await refusal(call(counted, "count", host(article, draft.id)));
     expect([mine, theirs]).toEqual([
         { count: 1 },
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: read"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'read' is forbidden: the caller lacks it"],
     ]);
 });
 

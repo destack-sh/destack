@@ -175,7 +175,7 @@ export class Stack {
 
     /** Plan and apply the stack at a time in one transaction, again while it loses a race. */
     apply(now: number): Promise<Plan> {
-        return Transaction.retry(this.options.database, "CONCURRENT_UPDATE", async () => {
+        return Transaction.retry(this.options.database, "UPDATE_CONFLICT", async () => {
             const planned = await this.plan(now);
             await planned.apply();
 
@@ -230,8 +230,8 @@ export class Stack {
         );
         if (installing.length > 0 && options.installing === undefined) {
             throw ObjectError.of(
-                "DECLARATION_UNSUPPORTED",
-                `this server cannot apply ${nth(installing, 0)}`,
+                "DECLARATION_BROKEN",
+                `this server cannot apply '${nth(installing, 0)}'`,
             );
         }
 
@@ -377,8 +377,8 @@ export class Stack {
             return;
         } else if (visiting.has(declaration)) {
             throw ObjectError.of(
-                "DECLARATION_CYCLIC",
-                `declarations of ${declaration.object.collection} depend on themselves`,
+                "DECLARATION_INVALID",
+                `declaration collection '${declaration.object.collection}' is invalid: its declarations depend on themselves`,
             );
         }
 
@@ -419,9 +419,13 @@ export class StackPlan {
         // refuse a moved scope
         for (const link of await Scope.chain(transaction.view(), stack.scope)) {
             if (link.movedTo !== undefined) {
-                throw ObjectError.of("SCOPE_MOVED", `${link.object.id} moved to ${link.movedTo}`, {
-                    data: { scope: link.object.id, machine: link.movedTo },
-                });
+                throw ObjectError.of(
+                    "SCOPE_MOVED",
+                    `object '${link.object.id}' moved to '${link.movedTo}'`,
+                    {
+                        data: { scope: link.object.id, machine: link.movedTo },
+                    },
+                );
             }
         }
 
@@ -608,7 +612,7 @@ export class StackPlan {
         if (isGlobal && scope !== undefined) {
             throw ObjectError.of(
                 "DECLARATION_INVALID",
-                `${policy.name} ${id} is global and has no scope`,
+                `${policy.name} '${id}' is invalid: it is global and has no scope`,
             );
         }
         // take a global principal in the universe
@@ -646,7 +650,10 @@ export class StackPlan {
         } else if (await this.stack.options.store.isReplica(type, this.transaction.view(), scope)) {
             return this.wait(`${named} ${key} waits for its replica`);
         } else {
-            throw ObjectError.of("DECLARATION_INVALID", `unknown ${named}: ${key}`);
+            throw ObjectError.of(
+                "DECLARATION_INVALID",
+                `${named} '${key}' is invalid: it is unknown`,
+            );
         }
     }
 
@@ -695,7 +702,7 @@ export class StackPlan {
         const { release } = this.stack.options.store;
         if (release === undefined) {
             throw new TypeError(
-                `the stack opens the release of ${packageId}, but its store opens none`,
+                `the stack opens the release of '${packageId}', but its store opens none`,
             );
         }
 
@@ -816,7 +823,7 @@ export class StackPlan {
             if (type === undefined && installed.isPending) {
                 throw new DependencyWait(`${key} wait for an installation's build`);
             } else if (type === undefined) {
-                throw ObjectError.of("DECLARATION_UNSUPPORTED", `this server cannot apply ${key}`);
+                throw ObjectError.of("DECLARATION_BROKEN", `this server cannot apply '${key}'`);
             }
             for (const name of Object.keys(DECLARED.parse(this.stack.document[key]))) {
                 steps.push(StackPlan.#creation(type.name, name));
@@ -853,7 +860,7 @@ export class StackPlan {
             throw new DependencyWait(`${plural} wait for the store to serve the installed types`);
         } else if (!target) {
             const plural = typeof object === "string" ? object : object.collection;
-            throw ObjectError.of("DECLARATION_UNSUPPORTED", `this server cannot apply ${plural}`);
+            throw ObjectError.of("DECLARATION_BROKEN", `this server cannot apply '${plural}'`);
         }
 
         return target;
@@ -880,7 +887,7 @@ export class StackPlan {
             rows.map((row) => {
                 if (row.managerName === null) {
                     throw new TypeError(
-                        `${declaration.object.name} ${row.id} has a manager but no name`,
+                        `${declaration.object.name} '${row.id}' has a manager but no name`,
                     );
                 }
 
@@ -924,22 +931,22 @@ export class StackPlan {
             if (row === undefined) {
                 throw ObjectError.of(
                     "DECLARATION_INVALID",
-                    `${object.name} ${name} adopts unknown ${id}`,
+                    `${object.name} '${name}' is invalid: it adopts unknown '${id}'`,
                 );
             } else if (!declared.has(name)) {
                 throw ObjectError.of(
                     "DECLARATION_INVALID",
-                    `${object.name} ${name} adopts ${id} but does not declare ${name}`,
+                    `${object.name} '${name}' is invalid: it adopts '${id}' but does not declare '${name}'`,
                 );
             } else if (existing.has(name) && existing.get(name)?.id !== id) {
                 throw ObjectError.of(
                     "DECLARATION_INVALID",
-                    `${object.name} ${name} already declares another record`,
+                    `${object.name} '${name}' is invalid: it already declares another record`,
                 );
             } else if (Manager.isManaged(row) && !Manager.manages(row, manager)) {
                 throw ObjectError.of(
                     "DECLARATION_INVALID",
-                    `${object.name} ${id} is managed by another declaration`,
+                    `${object.name} '${id}' is invalid: another declaration manages it`,
                 );
             }
             // adopt it unless already adopted
@@ -958,7 +965,7 @@ export class StackPlan {
             if (declared.has(name)) {
                 throw ObjectError.of(
                     "DECLARATION_INVALID",
-                    `${object.name} ${name} is both declared and released`,
+                    `${object.name} '${name}' is invalid: it is both declared and released`,
                 );
             } else if (row !== undefined) {
                 await this.#writeManager(object, row, { ...Manager.values(null) });
@@ -1070,7 +1077,7 @@ export class StackPlan {
         else if (!this.stack.options.isHome) {
             throw ObjectError.of(
                 "DECLARATION_INVALID",
-                `${declaration.object.name} ${name} is declared in the enclosing scope, which only its home's stack declares into`,
+                `${declaration.object.name} '${name}' is invalid: it is declared in the enclosing scope, which only its home's stack declares into`,
             );
         }
 
@@ -1145,7 +1152,7 @@ export class StackPlan {
         if (fixed !== undefined) {
             throw ObjectError.of(
                 "DECLARATION_INVALID",
-                `${object.name} ${name} cannot change ${fixed}: declared ${canonicalize(fields[fixed]?.after ?? null)}, applied ${canonicalize(fields[fixed]?.before ?? null)}`,
+                `${object.name} '${name}' is invalid: it cannot change '${fixed}' from applied '${canonicalize(fields[fixed]?.before ?? null)}' to declared '${canonicalize(fields[fixed]?.after ?? null)}'`,
             );
         }
 

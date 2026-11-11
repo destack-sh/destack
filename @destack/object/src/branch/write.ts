@@ -123,7 +123,7 @@ export const BranchWrite = {
         // read the object's identifier from its key
         const id = Table.decode(table, entry.key)["id"];
         if (typeof id !== "string") {
-            throw new TypeError(`branch row key of ${entry.table} has no string id`);
+            throw new TypeError(`branch row key of '${entry.table}' has no string id`);
         }
 
         return {

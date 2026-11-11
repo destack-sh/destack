@@ -90,8 +90,8 @@ test("wait for a server to serve, refusing at once with its reason once it fails
         served: undefined,
         refused: [
             "SERVICE_UNAVAILABLE",
-            "SERVER_DOWN",
-            "files is down: the files' database is missing",
+            "SERVER_UNAVAILABLE",
+            "server 'files' is unavailable: it is down: the files' database is missing",
         ],
         probe: [503, "down: the files' database is missing\n"],
     });

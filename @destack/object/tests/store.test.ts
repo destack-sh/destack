@@ -30,7 +30,7 @@ test("serve a package's objects in a new space, make an example's calls as a use
         objects.as(users.alice).given(example);
     expect([await names(users.alice), await names(users.bob)]).toEqual([["Research"], []]);
     await expect(given({ objects: { account: [] } })).rejects.toThrow(
-        new TypeError("the test store serves its space alone, not the example's account"),
+        new TypeError("the test store serves its space alone, not the example's 'account'"),
     );
     await expect(
         given({
@@ -49,6 +49,6 @@ test("refuse a package served twice in one store", async () => {
         scope: space.reference(Scope.universe.id, "space-01996ab0-0000-7000-8000-000000000202"),
     });
     await expect(opening).rejects.toThrow(
-        new TypeError(`package ${notesPackage.name} is served twice`),
+        new TypeError(`package '${notesPackage.name}' is served twice`),
     );
 });

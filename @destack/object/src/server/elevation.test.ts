@@ -139,7 +139,7 @@ test("challenge a hand-written procedure's caller for its elevated permission, t
     await expect(client.rename({ id: "main" })).rejects.toMatchObject({
         code: "UNAUTHORIZED",
         status: 401,
-        message: "authentication assurance is too low: authenticate again",
+        message: "authentication required: authentication assurance is too low",
         data: RECENT,
     });
     level = 2;

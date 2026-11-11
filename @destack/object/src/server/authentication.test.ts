@@ -90,8 +90,8 @@ test.each(["universe", "host-local", "account-personal", "space-personal"])(
         credentialScope = "another-scope";
         expect(await refusal(client.read())).toEqual([
             "UNAUTHORIZED",
-            "AUDIENCE_MISMATCH",
-            "caller authentication has a different audience or scope",
+            "AUDIENCE_UNAUTHENTICATED",
+            "authentication required: caller authentication has a different audience or scope",
         ]);
     },
 );
@@ -148,11 +148,15 @@ test("serve a caller handed over in-process while it is current for this package
         other: await refusal(me(handed("carol", other, later))),
     }).toEqual({
         current: "alice",
-        expired: ["UNAUTHORIZED", "AUTHENTICATION_EXPIRED", "caller authentication is not current"],
+        expired: [
+            "UNAUTHORIZED",
+            "SESSION_UNAUTHENTICATED",
+            "authentication required: caller authentication is not current",
+        ],
         other: [
             "UNAUTHORIZED",
-            "AUDIENCE_MISMATCH",
-            "caller authentication has a different audience or scope",
+            "AUDIENCE_UNAUTHENTICATED",
+            "authentication required: caller authentication has a different audience or scope",
         ],
     });
 });
@@ -451,7 +455,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "two" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: read",
+        "permission 'read' is forbidden: the caller lacks it",
     ]);
 
     // grant a collaborator one object
@@ -459,7 +463,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: read",
+        "permission 'read' is forbidden: the caller lacks it",
     ]);
     const byOwner = <Value>(call: (authorization: Authorization) => Promise<Value>) =>
         Authorization.run(authorizer, database, () => asOwner, world, call);
@@ -477,13 +481,13 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(client.read({ id: "two" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: read",
+        "permission 'read' is forbidden: the caller lacks it",
     ]);
     await byOwner((authorization) => Relationship.revoke(shared.object, shared.id, authorization));
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: read",
+        "permission 'read' is forbidden: the caller lacks it",
     ]);
 
     // allow public notes and reject invalid credentials
@@ -492,13 +496,13 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await client.read({ id: "one" })).toBe("personal note");
     expect(await refusal(client.me())).toEqual([
         "UNAUTHORIZED",
-        "CREDENTIAL_MISSING",
-        "missing caller credential",
+        "CREDENTIAL_UNAUTHENTICATED",
+        "authentication required: caller credential is missing",
     ]);
     bearer = "invalid";
     expect(await refusal(client.read({ id: "one" }))).toEqual([
         "UNAUTHORIZED",
-        "TOKEN_INVALID",
+        "TOKEN_UNAUTHENTICATED",
         "invalid access token",
     ]);
 
@@ -518,7 +522,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     expect(await refusal(stream.next())).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: read",
+        "permission 'read' is forbidden: the caller lacks it",
     ]);
     expect(invocations).toBe(5);
     expect(outcomes).toEqual([

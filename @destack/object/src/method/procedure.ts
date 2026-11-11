@@ -620,7 +620,7 @@ const ObjectProcedure = {
                     const required = field?.initial === undefined ? value : value?.exactOptional();
                     const declared = isRequired ? required : inserted[name];
                     if (declared === undefined) {
-                        throw new TypeError(`${object.name} has no writable column ${name}`);
+                        throw new TypeError(`${object.name} has no writable column '${name}'`);
                     }
 
                     return [name, isPartial ? declared.exactOptional() : declared];

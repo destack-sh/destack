@@ -170,7 +170,7 @@ export class SubscriptionAudience implements Audience {
             const links = chains.get(id) ?? [];
             const scope = links[0]?.object;
             if (scope === undefined) {
-                throw SyncError.of("NOT_FOUND", `unknown scope: ${id}`);
+                throw SyncError.of("SCOPE_NOT_FOUND", `scope '${id}' not found`);
             }
 
             // watch the scope's row where this database maps its type, and the access rows of its chain
@@ -225,7 +225,7 @@ export class SubscriptionAudience implements Audience {
         else if (this.#isElsewhere(listed.object)) {
             throw DatabaseError.of(
                 "QUERY_INVALID",
-                `relations cannot read rows of ${table[TABLE].name}: their scopes decide them apart`,
+                `table '${table[TABLE].name}' is invalid: relations cannot read its rows, as their scopes decide them apart`,
             );
         }
 

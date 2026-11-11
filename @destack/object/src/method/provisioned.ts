@@ -34,8 +34,8 @@ export const specify = Execution.handle(
         const missing = await blobs.missing([...new Set([...states, ...drainingStates])]);
         if (missing.length > 0) {
             throw ObjectError.of(
-                "DESIRED_STATE_MISSING",
-                `${call.scope} has no desired states ${missing.join(", ")}`,
+                "STATE_REQUIRED",
+                `desired state set '${missing.join(", ")}' of '${call.scope}' is required`,
             );
         }
 

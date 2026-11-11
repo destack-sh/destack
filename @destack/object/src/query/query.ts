@@ -82,7 +82,7 @@ export class RelationGraph {
                     (entry) => entry.name === objectName && entry.package.id === packageId,
                 );
                 if (!object) {
-                    throw ObjectError.of("OBJECT_UNKNOWN", `object ${objectName} not found`);
+                    throw ObjectError.of("OBJECT_NOT_FOUND", `object '${objectName}' not found`);
                 }
                 // read every scope's rows, each decided by its access
                 else if (scopes === "every") {
@@ -91,8 +91,8 @@ export class RelationGraph {
                 // refuse a type of another scope level
                 else if ((object.scope === Scope.universe.id) !== isGlobal) {
                     throw ObjectError.of(
-                        "SCOPE_MISMATCH",
-                        `object ${objectName} is not in scope ${scope}`,
+                        "SCOPE_INVALID",
+                        `object '${objectName}' is invalid: it is not in scope '${scope}'`,
                     );
                 }
 
@@ -113,8 +113,8 @@ export class RelationGraph {
         const { permission, ...found } = options;
         if (permission !== undefined && !object.permissions.includes(permission)) {
             throw ObjectError.of(
-                "PERMISSION_UNKNOWN",
-                `object ${object.name} has no permission ${permission}`,
+                "PERMISSION_INVALID",
+                `permission '${permission}' is invalid: object ${object.name} has no such permission`,
             );
         }
 
@@ -139,8 +139,8 @@ export class RelationGraph {
                 : this.objects.find((entry) => entry.table === relation.table);
         if (relation === undefined || target === undefined) {
             throw ObjectError.of(
-                "INCLUDE_UNKNOWN",
-                `object ${object.name} has no include named ${name}`,
+                "INCLUDE_INVALID",
+                `include '${name}' is invalid: object ${object.name} has no such include`,
             );
         }
 
@@ -247,13 +247,16 @@ const QueryDerivation = {
     ): FindOptions {
         // require a listed object type, and trash selection at the root only
         if (object.listing === undefined) {
-            throw ObjectError.of("LISTING_MISSING", `object ${object.name} is not listed`);
+            throw ObjectError.of(
+                "LISTING_REQUIRED",
+                `listing of object ${object.name} is required`,
+            );
         } else if (options.deleted !== undefined && object.lifecycle.recoverable === undefined) {
-            throw ObjectError.of("TRASH_MISSING", `object ${object.name} has no trash`);
+            throw ObjectError.of("TRASH_REQUIRED", `trash of object ${object.name} is required`);
         } else if (options.deleted !== undefined && !isRoot) {
             throw ObjectError.of(
-                "TRASH_INCLUDED",
-                `included ${object.name} objects cannot select their trash`,
+                "TRASH_INVALID",
+                `trash selection is invalid: included ${object.name} objects cannot select their trash`,
             );
         }
 

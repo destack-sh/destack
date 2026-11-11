@@ -107,8 +107,8 @@ test("execute calls made against an earlier release with the fields they renamed
     });
     expect(await refusal(later)).toEqual([
         "BAD_REQUEST",
-        "RELEASE_MISMATCH",
-        `card.update targets release ${next} of card, but card is at release ${objectPackage.version}`,
+        "RELEASE_INVALID",
+        `release '${next}' is invalid: 'card.update' targets it, but 'card' is at release '${objectPackage.version}'`,
     ]);
     const stored = await store.query(
         context.access(),

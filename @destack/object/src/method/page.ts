@@ -30,7 +30,7 @@ export class Page<Position extends schema.Schema> {
         if (!Number.isInteger(this.limit) || this.limit < 1 || this.limit > MAX_PAGE_LIMIT) {
             throw ObjectError.of(
                 "PAGE_LIMIT_INVALID",
-                `page limit must be between 1 and ${MAX_PAGE_LIMIT}`,
+                `page limit is invalid: it must be between 1 and ${MAX_PAGE_LIMIT}`,
             );
         }
 
@@ -43,12 +43,18 @@ export class Page<Position extends schema.Schema> {
                     .parse(JSON.parse(input.cursor));
                 this.after = position.parse(cursor.after);
             } catch {
-                throw ObjectError.of("CURSOR_INVALID", "invalid collection cursor");
+                throw ObjectError.of(
+                    "CURSOR_INVALID",
+                    "collection cursor is invalid: this collection did not issue it",
+                );
             }
 
             // reject a cursor of another scope
             if (JSON.stringify(cursor.scope) !== JSON.stringify(scope)) {
-                throw ObjectError.of("CURSOR_INVALID", "cursor belongs to another collection");
+                throw ObjectError.of(
+                    "CURSOR_INVALID",
+                    "cursor is invalid: it belongs to another collection",
+                );
             }
         }
     }

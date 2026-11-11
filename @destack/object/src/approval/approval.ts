@@ -99,9 +99,11 @@ export const approval = defineObject(
             const asked = Approval.asked(context.input);
             const { authorizer } = context;
             if (!accepts(authorizer.relation(context.object.policy, "approver"), asked)) {
+                const subject =
+                    asked.relation === undefined ? asked.type : `${asked.type}#${asked.relation}`;
                 throw AccessError.of(
-                    "SUBJECT_REFUSED",
-                    `approvals cannot ask ${asked.type}${asked.relation === undefined ? "" : `#${asked.relation}`}`,
+                    "SUBJECT_INVALID",
+                    `approver '${subject}' is invalid: approvals cannot ask this subject`,
                 );
             }
 
@@ -137,8 +139,8 @@ export const Approval = {
     requireDecider(context: Pick<MethodContext, "caller">): void {
         if (Caller.isDelegated(context.caller)) {
             throw ObjectError.of(
-                "DECIDER_REFUSED",
-                "an approval is decided by its approver, acting directly",
+                "DECIDER_DENIED",
+                "approval decision is forbidden: an approval is decided by its approver, acting directly",
             );
         }
     },
@@ -162,8 +164,8 @@ export const Approval = {
             now - assurance.authenticatedAt >= stepUp.maxAge;
         if (assurance === undefined || assurance.level < stepUp.assurance || isStale) {
             throw AccessError.of(
-                "AUTHENTICATION_INSUFFICIENT",
-                "authentication assurance is too low: authenticate again",
+                "ASSURANCE_UNAUTHENTICATED",
+                "authentication required: authentication assurance is too low",
                 { data: stepUp },
             );
         }
@@ -201,8 +203,8 @@ export class ApprovalQuorum {
     static require(count: number, approvers: number): void {
         if (count > approvers) {
             throw ObjectError.of(
-                "QUORUM_UNREACHABLE",
-                `${count} approvals need at least ${count} approvers, not ${approvers}`,
+                "QUORUM_INVALID",
+                `approval quorum is invalid: ${count} approvals need at least ${count} approvers, and it asks ${approvers} approvers`,
             );
         }
     }

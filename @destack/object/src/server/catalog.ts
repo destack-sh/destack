@@ -212,7 +212,7 @@ export class Catalog {
                 } catch (error) {
                     given.report(
                         new Error(
-                            `installation ${sandbox.server.installation} serves nothing: its types refer to ones this start does not serve`,
+                            `installation '${sandbox.server.installation}' serves nothing: its types refer to ones this start does not serve`,
                             { cause: error },
                         ),
                     );
@@ -227,7 +227,7 @@ export class Catalog {
         const servedIds = new Set<string>();
         for (const each of served) {
             if (servedIds.has(each.package.id)) {
-                throw new TypeError(`package ${each.package.name} is served twice`);
+                throw new TypeError(`package '${each.package.name}' is served twice`);
             }
             servedIds.add(each.package.id);
         }
@@ -438,11 +438,11 @@ export class Catalog {
             const key = ObjectTypeReference.key(object.typeReference);
             if (routed.has(key)) {
                 throw new TypeError(
-                    `object ${object.name} of ${object.package.id} is served twice`,
+                    `object ${object.name} of '${object.package.id}' is served twice`,
                 );
             } else if (Object.hasOwn(object.shared, object.key)) {
                 throw new TypeError(
-                    `object ${object.name} has the same name as the shared ${object.key} procedures`,
+                    `object ${object.name} has the same name as the shared '${object.key}' procedures`,
                 );
             }
             routed.add(key);
@@ -464,14 +464,14 @@ export class Catalog {
                 !object.scopes.some((scope) => scope.policy.is(options.principal)),
         );
         if (local !== undefined) {
-            throw new TypeError(`local object ${local.name} only exists in its scope's store`);
+            throw new TypeError(`local object '${local.name}' only exists in its scope's store`);
         }
 
         // require claims for indexed objects
         const indexed = objects.find((object) => Object.keys(object.indexes).length > 0);
         if (indexed !== undefined && options.claims === undefined) {
             throw new TypeError(
-                `object ${indexed.name} declares indexes but has no claim type for their names`,
+                `object '${indexed.name}' declares indexes but has no claim type for their names`,
             );
         }
 
@@ -479,7 +479,7 @@ export class Catalog {
         const ephemeral = objects.filter((object) => object.storage === "ephemeral");
         const [unstored] = ephemeral;
         if (unstored !== undefined && options.ephemeral === undefined) {
-            throw new TypeError(`ephemeral object ${unstored.name} needs a store`);
+            throw new TypeError(`ephemeral object '${unstored.name}' needs a store`);
         }
         options.ephemeral?.serve(ephemeral);
 
@@ -489,7 +489,7 @@ export class Catalog {
         const isLogged =
             options.events !== undefined && options.events.database === options.database;
         if (unlogged !== undefined && !isLogged) {
-            throw new TypeError(`events object ${unlogged.name} needs the store's event log`);
+            throw new TypeError(`events object '${unlogged.name}' needs the store's event log`);
         }
         options.events?.register(events.map((object) => object.eventKind()));
 
@@ -502,7 +502,7 @@ export class Catalog {
                 ),
         );
         if (unfiled !== undefined) {
-            throw new TypeError(`external object ${unfiled.name} needs files`);
+            throw new TypeError(`external object '${unfiled.name}' needs files`);
         }
     }
 
@@ -529,7 +529,7 @@ export class Catalog {
                 !provisioned.some((each) => each.same(type)),
         );
         if (stray !== undefined) {
-            throw new TypeError(`${server.package.name} does not declare object ${stray.name}`);
+            throw new TypeError(`'${server.package.name}' does not declare object '${stray.name}'`);
         }
 
         // serve the declared types, external ones only with their files, provisioned ones only handled or provisioned
@@ -563,8 +563,10 @@ export class Catalog {
                 const key = ObjectTypeReference.key(type.typeReference);
                 const earlier = routes.get(key);
                 if (earlier !== undefined) {
+                    const earlierDescription = Catalog.#servedBy(earlier.entry);
+                    const laterDescription = Catalog.#servedBy(entry);
                     throw new TypeError(
-                        `${Catalog.#servedBy(earlier.entry)} and ${Catalog.#servedBy(entry)} both implement ${type.name} objects of ${type.package.id}`,
+                        `${earlierDescription} and ${laterDescription} both implement ${type.name} objects of '${type.package.id}'`,
                     );
                 }
                 routes.set(key, { type, entry });
@@ -577,8 +579,8 @@ export class Catalog {
     /** Describe who serves a package: its installation, else its scope as its own. */
     static #servedBy(entry: Served): string {
         return entry.server !== undefined
-            ? `installation ${entry.server.installation}`
-            : `the scope's own ${entry.package.name}`;
+            ? `installation '${entry.server.installation}'`
+            : `the scope's own '${entry.package.name}'`;
     }
 
     /** Serve an installation's package, running the code of its types in its sandbox. */
@@ -607,7 +609,7 @@ export class Catalog {
                     const type = byReference.get(ObjectTypeReference.key(routed.type));
                     if (type === undefined) {
                         throw new TypeError(
-                            `installation ${server.installation} routes ${routed.type.type} objects of ${routed.type.packageId}, but nothing here implements or replicates them`,
+                            `installation '${server.installation}' routes ${routed.type.type} objects of '${routed.type.packageId}', but nothing here implements or replicates them`,
                         );
                     }
 
@@ -616,7 +618,7 @@ export class Catalog {
                         return [name, sandbox.implement(type, routed.hooks)];
                     } else if (Object.keys(routed.hooks).length > 0) {
                         throw new TypeError(
-                            `installation ${server.installation} cannot hook ${type.name} of ${type.package.id}: the type's package implements it`,
+                            `installation '${server.installation}' cannot hook ${type.name} of '${type.package.id}': the type's package implements it`,
                         );
                     }
 

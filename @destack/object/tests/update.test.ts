@@ -146,7 +146,7 @@ test("refuse many updates at once of guarded fields", () => {
         ),
     ).toThrow(
         new TypeError(
-            "object secret-chore guards field done, so it cannot apply many updates at once",
+            "object secret-chore guards field 'done', so it cannot apply many updates at once",
         ),
     );
 });

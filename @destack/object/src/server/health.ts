@@ -89,20 +89,13 @@ export class Health {
         return status === "up" ? undefined : this.#refusal(status, reason);
     }
 
-    /** Describe the refusal a status gives, naming the server, the status and its reason. */
-    #refusal(status: Exclude<HealthStatus, "up">, reason: string): Error {
-        const message = `${this.name} is ${status}: ${reason}`;
-        if (status === "starting") {
-            return ObjectError.of("SERVER_STARTING", message, {
-                data: { retryAfter: STARTING_RETRY_MILLISECONDS },
-            });
-        } else if (status === "down") {
-            return ObjectError.of("SERVER_DOWN", message);
-        } else if (status === "draining") {
-            return ObjectError.of("SERVER_DRAINING", message);
-        } else {
-            return ObjectError.of("SERVER_STOPPED", message);
-        }
+    /** Describe the refusal a status gives, with a wait only while the server starts. */
+    #refusal(status: Exclude<HealthStatus, "up">, detail: string): Error {
+        return ObjectError.of(
+            "SERVER_UNAVAILABLE",
+            `server '${this.name}' is unavailable: it is ${status}: ${detail}`,
+            { data: status === "starting" ? { retryAfter: STARTING_RETRY_MILLISECONDS } : {} },
+        );
     }
 
     /** Answer liveness and readiness probes, a refused readiness with its reason. */

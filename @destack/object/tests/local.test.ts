@@ -207,11 +207,11 @@ test("refuse to serve local objects at another principal's store, and refuse loc
             ),
         ),
     ]).toEqual([
-        "local object draft only exists in its scope's store",
-        "local object shared must belong to one scope type",
-        "local object spread must belong to one scope type",
-        "local object sticky cannot have propagated",
-        "local object remote cannot run method create outside the client",
+        "local object 'draft' only exists in its scope's store",
+        "local object 'shared' must belong to one scope type",
+        "local object 'spread' must belong to one scope type",
+        "local object 'sticky' cannot have 'propagated'",
+        "local object 'remote' cannot run method 'create' outside the client",
     ]);
 });
 
@@ -280,7 +280,7 @@ test("serve a device's local objects at its store to the people signed in on it 
         adaWrites: "done",
         bobWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
         adaLists: ["Water the plants"],
-        bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${laptop.id} not found`],
+        bobLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${laptop.id}' not found`],
     });
 });
 
@@ -343,7 +343,7 @@ test("let a device see and use the local objects of its scope as itself, and hid
         laptopWrites: "done",
         deskWrites: ["NOT_FOUND", "NOT_FOUND", "sticky not found"],
         laptopLists: ["Update the drivers"],
-        deskLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${laptop.id} not found`],
+        deskLists: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${laptop.id}' not found`],
     });
 });
 
@@ -410,7 +410,7 @@ test("refuse a tab's readiness with the reason its database worker could not ope
     expect(await refusal(tab.ready)).toEqual([
         "SERVICE_UNAVAILABLE",
         "DATABASE_UNAVAILABLE",
-        "this browser cannot open database notes: InvalidStateError: the handle is held",
+        "database 'notes' is unavailable: this browser cannot open it: InvalidStateError: the handle is held",
     ]);
 });
 

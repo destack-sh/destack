@@ -38,7 +38,7 @@ export const Orderable = {
         const declared = definition.fields ?? {};
         if (Object.hasOwn(declared, "position")) {
             throw new TypeError(
-                `object ${definition.name} cannot declare field position: its ordering adds it`,
+                `object '${definition.name}' cannot declare field position: its ordering adds it`,
             );
         }
 
@@ -59,7 +59,7 @@ export const Orderable = {
         if (orderable !== true) {
             if (!Object.hasOwn(definition.fields ?? {}, orderable.within)) {
                 throw new TypeError(
-                    `object ${definition.name} orders within ${orderable.within}, but does not declare it`,
+                    `object '${definition.name}' orders within '${orderable.within}', but does not declare it`,
                 );
             }
 

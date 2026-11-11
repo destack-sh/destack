@@ -251,8 +251,8 @@ test("answer a query nothing here handles at its rows' home, and send a write th
         asInstallation: { greeting: "hello Ada" },
         refused: [
             "FORBIDDEN",
-            "GRANT_REFUSES_PERMISSION",
-            `grant grant-01996ab0-0000-7000-8000-000000000043 does not give person.write in ${Scope.universe.id}`,
+            "GRANT_REFUSES_PERMISSION_DENIED",
+            `'person.write' in '${Scope.universe.id}' is forbidden: grant 'grant-01996ab0-0000-7000-8000-000000000043' does not give it`,
         ],
         unchanged: "Ada",
         renamed: "Ada L.",

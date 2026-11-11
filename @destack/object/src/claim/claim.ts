@@ -111,11 +111,11 @@ export const Claim = Object.assign(claim, {
         // require the index and a needed scope
         const declared = type.indexes[name];
         if (declared === undefined) {
-            throw new TypeError(`object ${type.name} has no index ${name}`);
+            throw new TypeError(`object ${type.name} has no index '${name}'`);
         }
         const within = declared.across() instanceof ObjectType ? scope : Scope.universe.id;
         if (within === undefined) {
-            throw new TypeError(`index ${name} of ${type.name} needs a scope`);
+            throw new TypeError(`index '${name}' of ${type.name} needs a scope`);
         }
 
         return { index: Claim.index(type, name), key: keyOf(declared, within, values) };
@@ -301,7 +301,10 @@ export const Claim = Object.assign(claim, {
 
         // refuse a name a concurrent write took as a lost race
         if (ClaimKey.missing(fresh, inserted).length > 0) {
-            throw DatabaseError.of("CONCURRENT_UPDATE", "another write claimed a name meanwhile");
+            throw DatabaseError.of(
+                "UPDATE_CONFLICT",
+                "cannot claim the name: another write claimed it meanwhile",
+            );
         }
 
         return [];
@@ -433,8 +436,8 @@ export const Claim = Object.assign(claim, {
         );
         if (enclosing === undefined) {
             throw ObjectError.of(
-                "ENCLOSING_SCOPE_MISSING",
-                `scope ${scope} has no enclosing ${name}`,
+                "ENCLOSING_SCOPE_BLOCKED",
+                `cannot claim in scope '${scope}': it has no enclosing '${name}'`,
             );
         }
 
@@ -518,8 +521,8 @@ export const Claimant = Object.assign(claimant, {
         );
         if (stranger !== undefined) {
             throw ObjectError.of(
-                "CLAIM_FOREIGN",
-                `claim ${stranger.index} is not a name of ${claimed.objectId} in ${claimed.owner}`,
+                "CLAIM_INVALID",
+                `claim ${stranger.index} is invalid: it is not a name of '${claimed.objectId}' in '${claimed.owner}'`,
             );
         }
     },

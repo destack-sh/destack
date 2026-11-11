@@ -145,7 +145,10 @@ export class DurableObjectRunner {
             // serve the workload
             const running = await this.#running;
             if (running === undefined) {
-                throw ObjectError.of("WORKLOAD_MISSING", "no workload runs here");
+                throw ObjectError.of(
+                    "WORKLOAD_UNAVAILABLE",
+                    "workload is unavailable: none runs here",
+                );
             }
 
             return await running.fetch(request);
@@ -176,7 +179,7 @@ export class DurableObjectRunner {
                 if (!response.ok) {
                     throw ObjectError.of(
                         "BUILD_FILE_UNAVAILABLE",
-                        `the hosting object has no build file ${path}: ${response.status}`,
+                        `build file '${path}' is unavailable: the hosting object answered status ${response.status}`,
                     );
                 }
 
@@ -233,8 +236,8 @@ export class DurableObjectRunner {
         await response.arrayBuffer();
         if (!response.ok) {
             throw ObjectError.of(
-                "WAKE_UP_UNSTORED",
-                `the partition did not store the wake-up: ${response.status}`,
+                "WAKE_UP_UNAVAILABLE",
+                `wake-up is unavailable: the partition did not store it, status ${response.status}`,
             );
         }
     }

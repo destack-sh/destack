@@ -21,13 +21,13 @@ test("read a request without a body as no bytes, at once", async () => {
 test("refuse a body whose declared or streamed size passes the limit", async () => {
     const body = "x".repeat(65);
     expect(await refusal(RequestBody.text(post(body), "a journal batch", 64))).toEqual([
-        "PAYLOAD_TOO_LARGE",
-        "BODY_TOO_LARGE",
-        "a journal batch exceeds 64 bytes",
+        "BAD_REQUEST",
+        "BODY_INVALID",
+        "'a journal batch' is invalid: it exceeds 64 bytes",
     ]);
     expect(
         await refusal(
             RequestBody.text(post("{}", { "content-length": "65" }), "a journal batch", 64),
         ),
-    ).toEqual(["PAYLOAD_TOO_LARGE", "BODY_TOO_LARGE", "a journal batch exceeds 64 bytes"]);
+    ).toEqual(["BAD_REQUEST", "BODY_INVALID", "'a journal batch' is invalid: it exceeds 64 bytes"]);
 });

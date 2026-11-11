@@ -96,7 +96,7 @@ test("act with the space's delegation to its installation, refusing without one,
         ),
         environment: world,
         resources: new ResourceContext(),
-        fetch: (sent) => Promise.reject(new Error(`the probes reach no ${sent.url}`)),
+        fetch: (sent) => Promise.reject(new Error(`the probes reach no '${sent.url}'`)),
         url: "https://probes--home.test",
         publisher: {
             request: async () => {},
@@ -145,7 +145,7 @@ test("act with the space's delegation to its installation, refusing without one,
 
     // refuse acting for the space without a grant, then act as the space with the installation acting
     expect([before, await ask()]).toEqual([
-        `GRANT_REQUIRED: installation ${INSTALLATION} has no grant to act for space ${spaceId}`,
+        `GRANT_DENIED: space '${spaceId}' is forbidden: installation '${INSTALLATION}' has no grant to act for it`,
         { subject: spaceId, actors: [INSTALLATION], grant: grant.id, capabilities: [true, false] },
     ]);
 });

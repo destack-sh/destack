@@ -72,8 +72,8 @@ test("check the caller's access under its grant, and another subject's for grant
     // answer the caller's access, limit the token to its grant, and let only grantors ask for others
     const needsShare = [
         "FORBIDDEN",
-        "CHECK_REFUSED",
-        "checking another subject's access to space needs share",
+        "CHECK_DENIED",
+        "access check of space is forbidden: checking another subject's access needs 'share'",
     ];
     expect(checks).toEqual({
         aliceShare: { isAllowed: true },
@@ -85,7 +85,11 @@ test("check the caller's access under its grant, and another subject's for grant
         tokenRead: { isAllowed: true },
         tokenShare: { isAllowed: false },
         tokenAsksBob: needsShare,
-        unknown: ["BAD_REQUEST", "PERMISSION_UNKNOWN", "space has no permission edit"],
+        unknown: [
+            "BAD_REQUEST",
+            "PERMISSION_INVALID",
+            "permission 'edit' is invalid: space has no such permission",
+        ],
     });
 });
 
@@ -114,7 +118,11 @@ test("look up an object's subjects with a permission one page at a time, for who
         carol: await refusal(lookup(carol)),
     }).toEqual({
         pages: [[alice], [bob], null],
-        carol: ["FORBIDDEN", "LOOKUP_REFUSED", "looking up who has read on space needs read"],
+        carol: [
+            "FORBIDDEN",
+            "LOOKUP_DENIED",
+            "lookup of 'read' on space is forbidden: it needs 'read'",
+        ],
     });
 });
 
@@ -170,9 +178,13 @@ test("list an object's relationships to whoever may read them, and revoke one on
         carol: [
             "NOT_FOUND",
             "NOT_FOUND",
-            `relationship ${present(reading, "bob's reading").id} not found`,
+            `relationship '${present(reading, "bob's reading").id}' not found`,
         ],
-        bob: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: share"],
+        bob: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'share' is forbidden: the caller lacks it",
+        ],
         alice: "done",
         after: [["owner", users.alice]],
     });

@@ -87,7 +87,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
                 const declared = object.fields[name];
                 if (declared === undefined || !types.has(declared.type)) {
                     throw new TypeError(
-                        `object ${object.name} declares ${name} ${role}, which is not a ${role} field`,
+                        `object ${object.name} declares ${name} '${role}', which is not a '${role}' field`,
                     );
                 }
             }
@@ -127,7 +127,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (searched === undefined) {
             return [];
         } else if (typeof searched !== "string") {
-            throw ObjectError.of("TEXT_MISSING", "a search needs text");
+            throw ObjectError.of("TEXT_REQUIRED", "search text is required");
         }
 
         return SearchText.query(searched).map((word) => ({
@@ -143,7 +143,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
         if (entry === undefined) {
             return [];
         } else if (!Array.isArray(entry)) {
-            throw ObjectError.of("COMBINATION_EMPTY", "a combination needs conditions");
+            throw ObjectError.of("COMBINATION_REQUIRED", "combination condition is required");
         }
 
         return entry.map((nested: unknown) => ObjectSearch.readCondition(nested));
@@ -152,7 +152,7 @@ export const ObjectSearch = Object.assign(ObjectSearchSchema, {
     /** Read a condition, refusing an entry that is not a condition. */
     readCondition(entry: unknown): OpenCondition {
         if (!ObjectSearch.isCondition(entry)) {
-            throw ObjectError.of("COMBINATION_EMPTY", "a combination needs conditions");
+            throw ObjectError.of("COMBINATION_REQUIRED", "combination condition is required");
         }
 
         return entry;

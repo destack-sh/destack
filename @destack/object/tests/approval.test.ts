@@ -133,7 +133,11 @@ test("ask a note's reviewers as one set, decided by a member and recorded with w
         asked: Approval.asked(present(decided, "the approval")),
         decider: Approval.decider(present(decided, "the approval")),
     }).toEqual({
-        refused: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: decide"],
+        refused: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'decide' is forbidden: the caller lacks it",
+        ],
         settled: ["applied", null],
         title: "Final",
         asked: approvers,
@@ -246,8 +250,8 @@ test("refuse alice's agent a call her grant gives once approved, and make it thr
     expect([refused, await settled(fixture, change), await title(fixture)]).toEqual([
         [
             "FORBIDDEN",
-            "APPROVAL_REQUIRED",
-            `publish on note ${id} needs the approval of the grant's delegator`,
+            "APPROVAL_DENIED",
+            `'publish' on note '${id}' is forbidden: it needs the approval of the grant's delegator`,
         ],
         ["applied", null],
         "Final",
@@ -319,13 +323,13 @@ test("gate alice's agent archiving her note on her step-up, refuse her approval 
     expect([refused, weak, await settled(fixture, change), await title(fixture)]).toEqual([
         [
             "UNAUTHORIZED",
-            "AUTHENTICATION_INSUFFICIENT",
-            "authentication assurance is too low: authenticate again",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
         ],
         [
             "UNAUTHORIZED",
-            "AUTHENTICATION_INSUFFICIENT",
-            "authentication assurance is too low: authenticate again",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
         ],
         ["applied", null],
         "Archived",
@@ -434,8 +438,12 @@ test("count only approvals from others than the requester and its actors toward 
     await fixture.decide(alice, await asked(fixture, second, alice), "approve");
     await fixture.decide(carol, await asked(fixture, second, carol), "approve");
     expect([refused, first, await settled(fixture, second), await title(fixture)]).toEqual([
-        ["FORBIDDEN", "APPROVAL_REQUIRED", `publish on note ${id} needs 2 approvals`],
-        ["failed", "APPROVAL_REQUIRED"],
+        [
+            "FORBIDDEN",
+            "APPROVAL_DENIED",
+            `'publish' on note '${id}' is forbidden: it needs '2 approvals'`,
+        ],
+        ["failed", "APPROVAL_DENIED"],
         ["applied", null],
         "Final",
     ]);
@@ -484,7 +492,7 @@ test("fail an agent's change its delegator alone approves toward the delegator's
 
     // fail the change: bob's own approval does not count toward his role's
     expect([await settled(fixture, change), await title(fixture)]).toEqual([
-        ["failed", "APPROVAL_REQUIRED"],
+        ["failed", "APPROVAL_DENIED"],
         "Plan",
     ]);
 });
@@ -511,15 +519,27 @@ test("refuse a requester asking to approve their own change, asking nobody, aski
             ),
         ]),
     ).toEqual([
-        ["BAD_REQUEST", "SELF_APPROVAL", "a requester cannot approve their own change"],
-        ["BAD_REQUEST", "APPROVERS_MISSING", "a direct change request names no approvers"],
+        [
+            "BAD_REQUEST",
+            "SELF_APPROVAL_INVALID",
+            "approval is invalid: a requester cannot approve their own change",
+        ],
+        ["BAD_REQUEST", "APPROVERS_REQUIRED", "approver of a direct change request is required"],
         // refuse a set no type contributes to approvals
-        ["BAD_REQUEST", "SUBJECT_REFUSED", "approvals cannot ask space#owner"],
-        ["BAD_REQUEST", "QUORUM_UNREACHABLE", "2 approvals need at least 2 approvers, not 1"],
+        [
+            "BAD_REQUEST",
+            "SUBJECT_INVALID",
+            "approver 'space#owner' is invalid: approvals cannot ask this subject",
+        ],
+        [
+            "BAD_REQUEST",
+            "QUORUM_INVALID",
+            "approval quorum is invalid: 2 approvals need at least 2 approvers, and it asks 1 approvers",
+        ],
         [
             "BAD_REQUEST",
             "APPROVERS_INVALID",
-            "a change run as an approver asks exactly that approver",
+            "approver set is invalid: a change run as an approver asks exactly that approver",
         ],
     ]);
 });
@@ -553,7 +573,11 @@ test("refuse an agent deciding its delegator's approval, which the delegator the
     );
     await fixture.decide(bob, asking, "approve");
     expect([refused, await settled(fixture, change), await title(fixture)]).toEqual([
-        ["FORBIDDEN", "DECIDER_REFUSED", "an approval is decided by its approver, acting directly"],
+        [
+            "FORBIDDEN",
+            "DECIDER_DENIED",
+            "approval decision is forbidden: an approval is decided by its approver, acting directly",
+        ],
         ["applied", null],
         "Final",
     ]);

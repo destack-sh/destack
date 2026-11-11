@@ -131,8 +131,8 @@ export class Authorization extends access.Authorization {
         // refuse a read of more related rows than one parameter carries
         if (rows.length > MAX_READABLE_ROWS) {
             throw ObjectError.of(
-                "READABLE_TOO_LARGE",
-                `the caller reads more than ${MAX_READABLE_ROWS} ${object.name} rows through a relation`,
+                "READABLE_INVALID",
+                `relation read of ${object.name} is invalid: it reads more than ${MAX_READABLE_ROWS} rows`,
             );
         }
         const ids = JSON.stringify(rows.map((row) => row["id"]));
@@ -336,7 +336,7 @@ export class Authorization extends access.Authorization {
         // hide a missing row and a row the caller may not read
         if (row === undefined || !isAllowed) {
             throw CallError.http("NOT_FOUND", {
-                message: `${object.name} ${id} not found`,
+                message: `${object.name} '${id}' not found`,
             });
         }
 
@@ -373,9 +373,12 @@ export class Authorization extends access.Authorization {
         const isReadable =
             object.reading !== undefined &&
             (await this.#permits(context, id, object.reading, execution));
-        const denial = ObjectError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
+        const denial = ObjectError.of(
+            "PERMISSION_DENIED",
+            `permission '${permission.name}' is forbidden: the caller lacks it`,
+        );
         if (!isReadable) {
-            throw conceal(denial, `${object.name} ${id} not found`);
+            throw conceal(denial, `${object.name} '${id}' not found`);
         }
 
         // refuse a reader waiting for approvals, else deny it
@@ -420,8 +423,8 @@ export class Authorization extends access.Authorization {
             });
             if (await allows(alone)) {
                 return ObjectError.of(
-                    "APPROVAL_REQUIRED",
-                    `${permission.name} on ${target.type} ${id} needs the approval of the grant's delegator`,
+                    "APPROVAL_DENIED",
+                    `'${permission.name}' on ${target.type} '${id}' is forbidden: it needs the approval of the grant's delegator`,
                     { data: { permission, object: target, approvals: 1, approvers: [subject] } },
                 );
             }
@@ -439,8 +442,8 @@ export class Authorization extends access.Authorization {
         return approvals === undefined
             ? undefined
             : ObjectError.of(
-                  "APPROVAL_REQUIRED",
-                  `${permission.name} on ${target.type} ${id} needs ${counted}`,
+                  "APPROVAL_DENIED",
+                  `'${permission.name}' on ${target.type} '${id}' is forbidden: it needs '${counted}'`,
                   { data: { permission, object: target, approvals, approvers: [] } },
               );
     }
@@ -474,8 +477,8 @@ export class Authorization extends access.Authorization {
         );
         if (isSubjects && !isOnApproval) {
             throw ObjectError.of(
-                "GRANT_INSUFFICIENT",
-                `grant ${grant.id} does not give ${permission.name} on ${object.name} ${id}`,
+                "GRANT_DENIED",
+                `'${permission.name}' on ${object.name} '${id}' is forbidden: grant '${grant.id}' does not give it`,
                 { data: { permission, object: object.reference(scope, id), grant: grant.id } },
             );
         }
@@ -490,7 +493,7 @@ export class Authorization extends access.Authorization {
             return error;
         }
 
-        return ObjectError.of("SCOPE_NOT_FOUND", `scope ${this.access.scope} not found`, {
+        return ObjectError.of("SCOPE_NOT_FOUND", `scope '${this.access.scope}' not found`, {
             cause: error,
         });
     }
@@ -498,7 +501,7 @@ export class Authorization extends access.Authorization {
     /** Refuse a caller listing in a scope it cannot see, as the scope's absence. */
     async requireSeen(objects: readonly ObjectType[]): Promise<void> {
         if (!(await this.sees(objects))) {
-            throw ObjectError.of("SCOPE_NOT_FOUND", `scope ${this.access.scope} not found`);
+            throw ObjectError.of("SCOPE_NOT_FOUND", `scope '${this.access.scope}' not found`);
         }
     }
 
@@ -579,8 +582,8 @@ export class Authorization extends access.Authorization {
     requireScopeOf(object: ObjectType): void {
         if (!this.isScopeOf(object)) {
             throw ObjectError.of(
-                "TYPE_NOT_IN_SCOPE",
-                `no ${object.plural} in scope ${this.access.scope}`,
+                "TYPE_NOT_FOUND",
+                `'${object.plural}' in scope '${this.access.scope}' not found`,
             );
         }
     }
@@ -604,9 +607,13 @@ export class Authorization extends access.Authorization {
                 this.authorizer.moving.has(access.PermissionReference.key(permission)),
             );
         if (moved !== undefined && !isMoving) {
-            throw ObjectError.of("SCOPE_MOVED", `${moved.scope} moved to ${moved.machine}`, {
-                data: moved,
-            });
+            throw ObjectError.of(
+                "SCOPE_MOVED",
+                `space '${moved.scope}' moved to '${moved.machine}'`,
+                {
+                    data: moved,
+                },
+            );
         }
     }
 
@@ -622,8 +629,8 @@ export class Authorization extends access.Authorization {
             served === undefined && nearest !== -1 && accessedAt !== -1 && nearest < accessedAt;
         if (partition !== undefined && (isOther || isInside)) {
             throw ObjectError.of(
-                "PARTITION_MISDIRECTED",
-                `${scope} is served by partition ${partition}`,
+                "PARTITION_MOVED",
+                `scope '${scope}' moved to partition '${partition}'`,
                 { data: { scope, partition } },
             );
         }
@@ -649,8 +656,8 @@ export class Authorization extends access.Authorization {
         });
         if (refused !== undefined) {
             throw ObjectError.of(
-                "GRANT_REFUSES_METHOD",
-                `grant ${grant.id} does not allow ${refused.object.name}.${refused.name} in ${scope}`,
+                "GRANT_REFUSES_METHOD_DENIED",
+                `'${refused.object.name}.${refused.name}' in '${scope}' is forbidden: grant '${grant.id}' does not allow it`,
             );
         }
     }
@@ -680,8 +687,8 @@ export class Authorization extends access.Authorization {
             )
         ) {
             throw ObjectError.of(
-                "GRANT_REFUSES_PERMISSION",
-                `grant ${grant.id} does not give ${call.object.name}.${permission} in ${scope}`,
+                "GRANT_REFUSES_PERMISSION_DENIED",
+                `'${call.object.name}.${permission}' in '${scope}' is forbidden: grant '${grant.id}' does not give it`,
             );
         }
     }
@@ -703,8 +710,8 @@ export class Authorization extends access.Authorization {
         });
         if (writing !== undefined) {
             throw ObjectError.of(
-                "STORAGE_CAPPED",
-                `storage of scope ${this.access.scope} is capped: ${writing.object.name}.${writing.name} is refused until data is deleted or the plan changes`,
+                "STORAGE_EXHAUSTED",
+                `'${writing.object.name}.${writing.name}' exceeds the storage cap of scope '${this.access.scope}': delete data or change the plan`,
             );
         }
     }
@@ -727,7 +734,10 @@ export class Authorization extends access.Authorization {
                     execution,
                 ))
             ) {
-                throw ObjectError.of("FIELD_NOT_WRITABLE", `field ${name} is not writable`);
+                throw ObjectError.of(
+                    "FIELD_DENIED",
+                    `field '${name}' is forbidden: it is not writable`,
+                );
             }
         }
     }

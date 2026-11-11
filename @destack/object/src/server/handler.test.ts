@@ -17,7 +17,9 @@ const authorize: NonNullable<
     HandlerOptions<{ caller: string; request: Request }>["authorize"]
 > = async ({ request: state, access }) => {
     // conceal the denial from carol
-    const denial = CallError.http("FORBIDDEN", { message: "permission denied: read" });
+    const denial = CallError.http("FORBIDDEN", {
+        message: "permission 'read' is forbidden: the caller lacks it",
+    });
     const { permission } = access;
     const isNotesRead =
         typeof permission === "object" &&
@@ -302,7 +304,9 @@ test("withhold streamed values after access revocation", async () => {
         health: new Health("watch"),
         authorize: async () => {
             if (!isAllowed) {
-                throw CallError.http("FORBIDDEN", { message: "permission denied: read" });
+                throw CallError.http("FORBIDDEN", {
+                    message: "permission 'read' is forbidden: the caller lacks it",
+                });
             }
         },
         audit: async ({ outcome }) => {
@@ -405,13 +409,17 @@ test("answer a lower package's failure with the call error it names, and an unkn
     };
     const failures = {
         duplicate: DatabaseError.of(
-            "DUPLICATE",
+            "ROW_EXISTS",
             "a record with the same unique key already exists",
             { data: null },
         ),
-        challenge: AccessError.of("AUTHENTICATION_INSUFFICIENT", "authenticate again", {
-            data: { assurance: 2, maxAge: 300_000 },
-        }),
+        challenge: AccessError.of(
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authenticate again",
+            {
+                data: { assurance: 2, maxAge: 300_000 },
+            },
+        ),
         unknown: new Error("the disk is full"),
     };
     const implementation = implement(procedures);
@@ -454,7 +462,12 @@ test("answer a lower package's failure with the call error it names, and an unkn
     );
     expect(received).toEqual([
         ["CONFLICT", 409, "a record with the same unique key already exists", null],
-        ["UNAUTHORIZED", 401, "authenticate again", { assurance: 2, maxAge: 300_000 }],
+        [
+            "UNAUTHORIZED",
+            401,
+            "authentication required: authenticate again",
+            { assurance: 2, maxAge: 300_000 },
+        ],
         ["INTERNAL_SERVER_ERROR", 500, "internal server error", undefined],
     ]);
 });

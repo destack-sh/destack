@@ -63,8 +63,8 @@ export async function list(call: MethodContext, execution: Execution) {
     await dataflow.load(await View.of(view.database, requested), after);
     if (node.aggregate !== undefined && position !== undefined) {
         throw ObjectError.of(
-            "AGGREGATE_AT_POSITION",
-            "aggregates can only read the latest position, where access is decided",
+            "AGGREGATE_AT_POSITION_INVALID",
+            "aggregate position is invalid: aggregates can only read the latest position, where access is decided",
         );
     } else if (node.aggregate !== undefined) {
         return { items: [], cursor: null, groups: await dataflow.results("list") };

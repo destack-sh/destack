@@ -83,17 +83,25 @@ test("convert inputs of earlier releases, dropping the fields this release no lo
         { query: "notes", limit: 50 },
         { query: "tasks", limit: 5 },
         [
-            "CONFLICT",
-            "VERSION_MISMATCH",
-            `package @destack/fixture serves ${served.version}, but the caller uses 2026.10.0`,
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            `cannot call package '@destack/fixture': it serves '${served.version}', but the caller uses '2026.10.0'`,
         ],
         [
-            "CONFLICT",
-            "VERSION_RETIRED",
-            "package @destack/fixture no longer serves releases before 2026.8.0",
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot call package '@destack/fixture': it no longer serves releases before '2026.8.0'",
         ],
-        ["BAD_REQUEST", "VERSION_MISSING", "package @destack/fixture requires Destack-Version"],
-        ["BAD_REQUEST", "VERSION_INVALID", "invalid Destack-Version: next"],
+        [
+            "BAD_REQUEST",
+            "VERSION_REQUIRED",
+            "'Destack-Version' for package '@destack/fixture' is required",
+        ],
+        [
+            "BAD_REQUEST",
+            "VERSION_INVALID",
+            "Destack-Version 'next' is invalid: it must be a version",
+        ],
     ]);
 });
 
@@ -149,9 +157,9 @@ test("speak the release of the package defining a procedure, which the served pa
         { text: "hi" },
         { text: "hi" },
         [
-            "CONFLICT",
-            "VERSION_MISMATCH",
-            "package @destack/protocol serves 2026.11.0, but the caller uses 2026.12.0",
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot call package '@destack/protocol': it serves '2026.11.0', but the caller uses '2026.12.0'",
         ],
     ]);
 });

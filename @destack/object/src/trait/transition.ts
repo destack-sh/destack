@@ -88,7 +88,7 @@ export const transitions: Trait<StateFields> & {
             for (const [name, transition] of Object.entries(machine.transitions)) {
                 if (Object.hasOwn(methods, name)) {
                     throw new TypeError(
-                        `transition ${name} is declared by more than one state field`,
+                        `transition '${name}' is declared by more than one state field`,
                     );
                 }
                 methods[name] = transitions.method(field, name, transition);
@@ -151,8 +151,8 @@ export const transitions: Trait<StateFields> & {
                 const state = schema.string().parse(context.target[field]);
                 if (!transition.from.includes(state)) {
                     throw ObjectError.of(
-                        "TRANSITION_INVALID",
-                        `${context.object.name} cannot ${name} while ${field} is ${state}`,
+                        "TRANSITION_BLOCKED",
+                        `cannot '${name}' ${context.object.name}: '${field}' is '${state}'`,
                     );
                 }
 

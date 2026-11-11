@@ -52,7 +52,7 @@ test("report a socket close its instance refuses, delivering the close once", as
             {
                 scope: "@destack/object",
                 name: "FamilyError",
-                message: `instance ${INSTANCE} rejected closing socket socket-1: 503`,
+                message: `could not close socket 'socket-1' on instance '${INSTANCE}': status 503`,
             },
         ],
     ]);

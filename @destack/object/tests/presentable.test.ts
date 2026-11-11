@@ -140,8 +140,8 @@ test("refuse a presentation without a title field, a field the presentation adds
             fields: { title: field.string(), color: field.string() },
             presentable: true,
         }),
-    ).toThrow("object card cannot declare field color: its presentation adds it");
+    ).toThrow("object 'card' cannot declare field 'color': its presentation adds it");
     expect(declare({ search: { sortable: ["body"] } })).toThrow(
-        "object card declares body sortable, which is not a sortable field",
+        "object card declares body 'sortable', which is not a 'sortable' field",
     );
 });

@@ -93,7 +93,9 @@ export class HookServer implements HookHandler {
             }
             // refuse a phase the type does not implement
             else {
-                throw new TypeError(`${call.object.name}.${call.name} has no ${hook.phase} hook`);
+                throw new TypeError(
+                    `'${call.object.name}.${call.name}' has no '${hook.phase}' hook`,
+                );
             }
         });
     }
@@ -104,7 +106,7 @@ export class HookServer implements HookHandler {
         const object = ObjectType.find(this.types, record);
         if (object === undefined) {
             throw new TypeError(
-                `this sandbox does not run hooks of ${record.type.packageId}/${record.type.type}`,
+                `this sandbox does not run hooks of '${record.type.packageId}/${record.type.type}'`,
             );
         }
         const method = object.method(record.method);
@@ -259,8 +261,8 @@ export class HookServer implements HookHandler {
         // refuse any other caller
         else {
             throw ObjectError.of(
-                "HOOK_CALLER_REFUSED",
-                "a hook must call as its call's caller or as its installation",
+                "HOOK_CALLER_DENIED",
+                "caller is forbidden: a hook must call as its call's caller or as its installation",
             );
         }
     }

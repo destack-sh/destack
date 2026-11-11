@@ -185,8 +185,8 @@ export const ShareableMethod = {
                     : await authorizer.check(snapshot, object.permission(grant), target, access);
             if (granting?.isAllowed !== true) {
                 throw ObjectError.of(
-                    "EXPLAIN_REFUSED",
-                    `explaining access to ${object.name} needs ${grant}`,
+                    "EXPLAIN_DENIED",
+                    `access explanation of ${object.name} is forbidden: it needs '${grant}'`,
                 );
             }
             const resolved = await authorizer.resolve(
@@ -207,7 +207,7 @@ export const ShareableMethod = {
             );
             if (!reading.isAllowed) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `${object.name} ${target.id} not found`,
+                    message: `${object.name} '${target.id}' not found`,
                 });
             }
 
@@ -218,7 +218,10 @@ export const ShareableMethod = {
     /** Read the permission reading an object of a type needs. */
     requireReading(object: ObjectType) {
         if (object.reading === undefined) {
-            throw ObjectError.of("READING_MISSING", `${object.name} has no objects to read`);
+            throw ObjectError.of(
+                "READING_REQUIRED",
+                `object of ${object.name} to read is required`,
+            );
         }
 
         return object.reading;

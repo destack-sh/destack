@@ -483,7 +483,7 @@ export const RecordMethod = {
         const [sum, ...others] = Object.entries(variants);
         if (sum === undefined || others.length > 0) {
             throw new TypeError(
-                `creation ${name} needs exactly one field to tell its variants apart`,
+                `creation '${name}' needs exactly one field to tell its variants apart`,
             );
         }
 
@@ -533,8 +533,8 @@ export const RecordMethod = {
                 )
             ) {
                 throw ObjectError.of(
-                    "PARENT_TYPE_REFUSED",
-                    `${parent.type} cannot have ${context.object.plural}`,
+                    "PARENT_TYPE_INVALID",
+                    `parent ${parent.type} is invalid: it cannot have '${context.object.plural}'`,
                 );
             }
 
@@ -551,7 +551,7 @@ export const RecordMethod = {
                 });
             if (found === undefined) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `${parent.type} ${parent.id} not found`,
+                    message: `${parent.type} '${parent.id}' not found`,
                 });
             }
         }
@@ -566,7 +566,7 @@ export const RecordMethod = {
             const reading = host?.reading;
             if (reading === undefined || !(await authorization.check(reading, parent)).isAllowed) {
                 throw CallError.http("NOT_FOUND", {
-                    message: `${parent.type} ${parent.id} not found`,
+                    message: `${parent.type} '${parent.id}' not found`,
                 });
             }
             await authorization.require(receive, parent);
@@ -682,7 +682,7 @@ export const RecordMethod = {
             });
         } catch (error) {
             // report the first item duplicating a stored row or an earlier item, as the caller sees it
-            const index = DatabaseError.is(error, "DUPLICATE")
+            const index = DatabaseError.is(error, "ROW_EXISTS")
                 ? await RecordMethod.duplicateIndex(context, execution, created, error)
                 : undefined;
             const failing = index === undefined ? undefined : created[index];
@@ -704,7 +704,7 @@ export const RecordMethod = {
         error: unknown,
     ): Promise<number | undefined> {
         // read each row's value of the duplicate key's columns, by field
-        const violated = DatabaseError.is(error, "DUPLICATE") ? error.data : null;
+        const violated = DatabaseError.is(error, "ROW_EXISTS") ? error.data : null;
         const keyFields = present(violated, "the duplicate's unique key").columns;
         const keys = created.map(({ row }) =>
             Object.fromEntries(keyFields.map((field) => [field, row[field]])),
@@ -836,7 +836,7 @@ export const RecordMethod = {
         const guarded = written.find((name) => object.fields[name]?.access?.write !== undefined);
         if (guarded !== undefined) {
             throw new TypeError(
-                `object ${object.name} guards field ${guarded}, so it cannot apply many updates at once`,
+                `object ${object.name} guards field '${guarded}', so it cannot apply many updates at once`,
             );
         }
     },
@@ -906,8 +906,8 @@ export const RecordMethod = {
             // refuse a stale revision
             else if (RecordedRow.parse(target).revision !== revision) {
                 throw ObjectError.of(
-                    "REVISION_STALE",
-                    `${context.object.name} revision has changed`,
+                    "REVISION_CONFLICT",
+                    `cannot update ${context.object.name}: its revision changed`,
                 );
             }
 
@@ -1076,8 +1076,8 @@ export const RecordMethod = {
             ) {
                 const named = kinds?.map((kind) => kind.name).join(" or ") ?? "principal";
                 throw ObjectError.of(
-                    "CREATOR_KIND_REFUSED",
-                    `only a ${named} can create ${object.name}`,
+                    "CREATOR_KIND_DENIED",
+                    `${object.name} is forbidden: only a '${named}' can create it`,
                 );
             }
             Object.assign(
@@ -1109,7 +1109,7 @@ export const RecordMethod = {
         if (object.storage === "ephemeral" && context.writerId === undefined) {
             throw ObjectError.of(
                 "WRITER_REQUIRED",
-                `only a writer can create ephemeral ${object.name} objects`,
+                `writer is required: only a writer can create ephemeral ${object.name} objects`,
             );
         }
 
@@ -1156,7 +1156,7 @@ export const RecordMethod = {
         const isUnique =
             declared?.kind === "unique" || (declared?.kind === "index" && declared.unique === true);
         if (key !== "id" && (declared === undefined || !isUnique || !("on" in declared))) {
-            throw new TypeError(`${context.object.name} has no unique key ${key}`);
+            throw new TypeError(`${context.object.name} has no unique key '${key}'`);
         }
         const columns = declared !== undefined && "on" in declared ? declared.on : ["id"];
 
@@ -1208,8 +1208,8 @@ export const RecordMethod = {
             // report conflicts only to authorized callers
             const isConflict =
                 CallError.of(error)?.code === "CONFLICT" ||
-                DatabaseError.is(error, "DUPLICATE") ||
-                DatabaseError.is(error, "BROKEN_REFERENCE");
+                DatabaseError.is(error, "ROW_EXISTS") ||
+                DatabaseError.is(error, "REFERENCE_BLOCKED");
             if (isConflict) {
                 await RecordMethod.requireCreatable(context, execution);
             }
@@ -1317,7 +1317,10 @@ export const RecordMethod = {
             refusal === "open" ||
             (reading !== undefined &&
                 (await authorizer.checkRows(snapshot, reading, access, [row])).permitted.has(0));
-        const denial = ObjectError.of("PERMISSION_DENIED", `permission denied: ${permission.name}`);
+        const denial = ObjectError.of(
+            "PERMISSION_DENIED",
+            `permission '${permission.name}' is forbidden: the caller lacks it`,
+        );
         if (!isReadable) {
             throw conceal(denial, `${context.object.name} not found`);
         }
@@ -1335,7 +1338,10 @@ export const RecordMethod = {
         const { object } = context;
         const target: Row = context.target;
         if (target["deletedAt"] !== undefined && target["deletedAt"] !== null) {
-            throw ObjectError.of("ALREADY_DELETED", `${object.name} is already deleted`);
+            throw ObjectError.of(
+                "OBJECT_BLOCKED",
+                `cannot delete ${object.name}: it is already deleted`,
+            );
         }
 
         // request deletion when a trash or controller finishes it, moving the children nested to the trash with it
@@ -1422,12 +1428,12 @@ export const RecordMethod = {
         // refuse a missing parent and one in the trash
         if (parent === undefined) {
             throw CallError.http("NOT_FOUND", {
-                message: `${declared.object.name} ${parentId} not found`,
+                message: `${declared.object.name} '${parentId}' not found`,
             });
         } else if (parent["deletedAt"] !== null) {
             throw ObjectError.of(
-                "OBJECT_TRASHED",
-                `${declared.object.name} ${parentId} is in the trash`,
+                "OBJECT_BLOCKED",
+                `cannot add to ${declared.object.name} '${parentId}': it is in the trash`,
             );
         }
     },

@@ -154,8 +154,8 @@ test("show a private space to readers of one object in it, forbid their writes, 
     const list = (id: string) =>
         refusal(store.query(context.access(), document.call("list", { spaceId: id })));
     expect([await list(spaceId), await list(missing)]).toEqual([
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${spaceId} not found`],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${missing} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${spaceId}' not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${missing}' not found`],
     ]);
 
     // show a delegate granted no reading what alice sees, asking her for the grant it lacks
@@ -225,7 +225,7 @@ test("find nothing when a call asks for a scope its objects do not live in, thou
     const desks = await store.query(context.access(), desk.call("list", { roomId }));
     expect(
         await refusal(store.query(context.access(), document.call("list", { spaceId: roomId }))),
-    ).toEqual(["NOT_FOUND", "TYPE_NOT_IN_SCOPE", `no documents in scope ${roomId}`]);
+    ).toEqual(["NOT_FOUND", "TYPE_NOT_FOUND", `'documents' in scope '${roomId}' not found`]);
     expect(desks.items).toEqual([]);
 });
 

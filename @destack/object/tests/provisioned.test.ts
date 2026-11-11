@@ -243,7 +243,7 @@ async function serve(
             `the ${name} controller`,
         );
         if (!("reconcile" in controller)) {
-            throw new TypeError(`the ${name} controller follows its resources`);
+            throw new TypeError(`controller '${name}' follows its resources`);
         }
         const rows =
             name === "box"
@@ -413,8 +413,8 @@ test("provision a box once its space is unfenced and active, apply its consumers
         stored: { size: 1 },
         unknown: [
             "BAD_REQUEST",
-            "DESIRED_STATE_MISSING",
-            `${spaceId} has no desired states ${await Digest.json({ size: 4 }, world.crypto)}`,
+            "STATE_REQUIRED",
+            `desired state set '${await Digest.json({ size: 4 }, world.crypto)}' of '${spaceId}' is required`,
         ],
     });
 });
@@ -629,10 +629,10 @@ test("refuse provisioning through a provider that provisions nothing, and finish
         [
             "NOT_IMPLEMENTED",
             "PROVISIONING_UNSUPPORTED",
-            "provider memory of link provisions nothing",
+            "provisioning by provider 'memory' of link is not supported",
         ],
         "ReconcileError",
-        "@destack/resource PROVISIONING_UNSUPPORTED: provider memory of link provisions nothing",
+        "@destack/resource PROVISIONING_UNSUPPORTED: provisioning by provider 'memory' of link is not supported",
         undefined,
     ]);
 });
@@ -656,7 +656,7 @@ test("set a resource's name after another kind's resource in its space, refusing
 
     expect({ names: [created?.name, linked?.name], taken }).toEqual({
         names: ["main", "main"],
-        taken: ["CONFLICT", "DUPLICATE", "another box has the same scope and name"],
+        taken: ["CONFLICT", "OBJECT_EXISTS", "'box' with the same 'scope and name' already exists"],
     });
 });
 
@@ -691,5 +691,5 @@ test("refuse a resource type declaring its own controlled trait, which its kind 
             controlled: true,
             fields: {},
         }),
-    ).toThrow(new TypeError("resources socket take their kind's controlled trait"));
+    ).toThrow(new TypeError("resources 'socket' take their kind's controlled trait"));
 });

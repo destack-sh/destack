@@ -273,7 +273,7 @@ export const ObjectTable = {
         // require the record trait first
         const [record, ...others] = applied;
         if (record === undefined) {
-            throw new TypeError(`object ${definition.name} has no record trait`);
+            throw new TypeError(`object '${definition.name}' has no record trait`);
         }
 
         // build the field columns, with text in chunks
@@ -333,11 +333,11 @@ export const ObjectTable = {
         const holder = field?.target?.() ?? (typeof parent === "string" ? undefined : parent);
         if (aggregate.via !== undefined && field?.target === undefined) {
             throw new TypeError(
-                `aggregate of ${definition.name} has no reference ${aggregate.via}`,
+                `aggregate of '${definition.name}' has no reference '${aggregate.via}'`,
             );
         }
         if (aggregate.via === undefined && definition.nested === undefined) {
-            throw new TypeError(`aggregate of ${definition.name} needs a parent or a reference`);
+            throw new TypeError(`aggregate of '${definition.name}' needs a parent or a reference`);
         }
 
         return holder?.table ?? fallback;

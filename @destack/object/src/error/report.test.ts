@@ -8,10 +8,15 @@ import type {} from "@destack/package/import-meta";
 test("set a refusal's Retry-After to its wait in whole seconds, and none for a refusal without one", () => {
     const { telemetry } = testSimulation().environment("test");
     const limited = refusal(
-        ObjectError.of("RATE_LIMITED", "limited", { data: { retryAfter: 1500 } }),
+        ObjectError.of("RATE_EXHAUSTED", "call rate exceeds its limit", {
+            data: { retryAfter: 1500 },
+        }),
         telemetry,
     );
-    const missing = refusal(ObjectError.of("SERVER_DOWN", "down"), telemetry);
+    const missing = refusal(
+        ObjectError.of("DATABASE_UNAVAILABLE", "database is unavailable: it is restarting"),
+        telemetry,
+    );
 
     // round a wait up to the next second, as a sooner retry would be refused again
     expect([

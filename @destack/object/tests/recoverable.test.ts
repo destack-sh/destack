@@ -118,9 +118,9 @@ test("purge a retained record through its handler under its permission or as the
                 .where(eq(credential.table.id, lapsed.id)),
     );
     expect(await refusal(execute(handled, "restore", { id: lapsed.id }))).toEqual([
-        "CONFLICT",
-        "RECOVERY_EXPIRED",
-        "credential is past its recovery window",
+        "PRECONDITION_FAILED",
+        "RECOVERY_BLOCKED",
+        "cannot restore credential: it is past its recovery window",
     ]);
 
     // reserve purging to the custodian, even for the owner deleting and restoring
@@ -128,7 +128,7 @@ test("purge a retained record through its handler under its permission or as the
     expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
         "FORBIDDEN",
         "PERMISSION_DENIED",
-        "permission denied: purge",
+        "permission 'purge' is forbidden: the caller lacks it",
     ]);
 
     // refuse a record-retaining purge without a handler destroying the content
@@ -159,15 +159,15 @@ test("purge a retained record through its handler under its permission or as the
 
     // refuse purging and restoring a purged record
     expect(await refusal(execute(handled, "purge", { id: created.id }))).toEqual([
-        "CONFLICT",
-        "PURGED",
-        "credential is purged",
+        "PRECONDITION_FAILED",
+        "PURGE_BLOCKED",
+        "cannot purge credential: it is already purged",
     ]);
     context = userContext(users.frank, spaceId, { environment: world });
     expect(await refusal(execute(handled, "restore", { id: created.id }))).toEqual([
-        "CONFLICT",
-        "PURGED",
-        "credential is purged",
+        "PRECONDITION_FAILED",
+        "PURGE_BLOCKED",
+        "cannot restore credential: it is purged",
     ]);
 
     // purge the lapsed record as the system, through its handler, once
@@ -302,5 +302,8 @@ test("discard a trashed letter once purged, refusing it before", async () => {
     await request(store, letter, "purge", spaceId, { id: written.id }, context);
     await discard();
     const remaining = await database.select({ id: letter.table.id }).from(letter.table);
-    expect([kept, remaining]).toEqual([["CONFLICT", "PURGE_REQUIRED", "letter is not purged"], []]);
+    expect([kept, remaining]).toEqual([
+        ["PRECONDITION_FAILED", "PURGE_BLOCKED", "cannot discard letter: it is not purged"],
+        [],
+    ]);
 });

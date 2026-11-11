@@ -209,24 +209,30 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
 
         // require a release
         if (header === null) {
-            throw ObjectError.of("VERSION_MISSING", `package ${name} requires ${VERSION_HEADER}`);
+            throw ObjectError.of(
+                "VERSION_REQUIRED",
+                `'${VERSION_HEADER}' for package '${name}' is required`,
+            );
         }
         // refuse a header that is not a release
         else if (caller === undefined) {
-            throw ObjectError.of("VERSION_INVALID", `invalid ${VERSION_HEADER}: ${header}`);
+            throw ObjectError.of(
+                "VERSION_INVALID",
+                `${VERSION_HEADER} '${header}' is invalid: it must be a version`,
+            );
         }
         // refuse a release newer than this one
         else if (Version.compare(caller, version) > 0) {
             throw ObjectError.of(
-                "VERSION_MISMATCH",
-                `package ${name} serves ${version}, but the caller uses ${caller}`,
+                "VERSION_BLOCKED",
+                `cannot call package '${name}': it serves '${version}', but the caller uses '${caller}'`,
             );
         }
         // refuse a retired release
         else if (since !== undefined && Version.compare(caller, since) < 0) {
             throw ObjectError.of(
-                "VERSION_RETIRED",
-                `package ${name} no longer serves releases before ${since}`,
+                "VERSION_BLOCKED",
+                `cannot call package '${name}': it no longer serves releases before '${since}'`,
             );
         }
 
@@ -250,7 +256,10 @@ export class RequestHandler<State extends RequestState> extends OpenAPIHandler<S
         // require a decoded JSON object input and assign each release's fields in order
         const decoded = JsonInput.safeParse(input);
         if (!decoded.success) {
-            throw ObjectError.of("CONVERSION_INVALID", "a converted input must be a JSON object");
+            throw ObjectError.of(
+                "CONVERSION_INVALID",
+                "converted input is invalid: it must be a JSON object",
+            );
         }
         const converted = Expression.upgrade(convert, decoded.data, caller, served);
 

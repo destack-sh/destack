@@ -28,8 +28,8 @@ export const ExternalStorage = {
         const [only, ...others] = found;
         if (only === undefined || others.length > 0) {
             throw ObjectError.of(
-                "EXTERNAL_STORES_SPLIT",
-                `no single store has the external objects ${names.join(", ")}`,
+                "EXTERNAL_STORES_SPLIT_INVALID",
+                `external object set '${names.join(", ")}' is invalid: no single store has these external objects`,
             );
         }
 

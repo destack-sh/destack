@@ -214,7 +214,7 @@ export class Branch {
 
             return read.changes.length > 0;
         } catch (error) {
-            if (DatabaseError.is(error, "CHANGES_COMPACTED")) {
+            if (DatabaseError.is(error, "CHANGES_NOT_FOUND")) {
                 return true;
             }
             throw error;

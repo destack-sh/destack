@@ -80,13 +80,13 @@ test("call and list objects by their descriptions, refusing input their methods'
     ]);
     expect(await refusal(client.call("note", "archive", {}))).toEqual([
         "BAD_REQUEST",
-        "METHOD_UNKNOWN",
-        "note has no method archive",
+        "METHOD_INVALID",
+        "method 'archive' is invalid: note has no such method",
     ]);
     expect(await refusal(client.list("page"))).toEqual([
         "NOT_FOUND",
-        "TYPE_UNKNOWN",
-        "unknown object type page",
+        "TYPE_NOT_FOUND",
+        "object type page not found",
     ]);
 });
 
@@ -206,8 +206,8 @@ test("describe the served types with the types they refer to, declare them from 
     ]);
     expect(await refusal(client.describe([unknown]))).toEqual([
         "NOT_FOUND",
-        "TYPE_UNKNOWN",
-        `unknown object type page of ${note.package.id}`,
+        "TYPE_NOT_FOUND",
+        `object type page of '${note.package.id}' not found`,
     ]);
 });
 

@@ -146,7 +146,7 @@ export class Sequence {
             const at = order.get(`${anchor.element.run}:${anchor.element.offset}`);
             if (at === undefined) {
                 throw new RangeError(
-                    `sequence has no element ${anchor.element.run}:${anchor.element.offset}`,
+                    `sequence has no element '${anchor.element.run}' at offset ${anchor.element.offset}`,
                 );
             }
 
@@ -224,7 +224,9 @@ export class Sequence {
                 before += length;
             }
         }
-        throw new RangeError(`sequence has no element ${element.run}:${element.offset}`);
+        throw new RangeError(
+            `sequence has no element '${element.run}' at offset ${element.offset}`,
+        );
     }
 
     /** Insert a run's characters right after an element, splitting the piece containing it. */
@@ -258,7 +260,7 @@ export class Sequence {
         const last = cut.#find(to);
         if (last < first) {
             throw new RangeError(
-                `sequence range ends before it starts: ${from.run}:${from.offset}`,
+                `sequence range ends before it starts: '${from.run}' at offset ${from.offset}`,
             );
         }
 
@@ -270,7 +272,7 @@ export class Sequence {
         );
         if (restored !== undefined && restored.length !== deleted) {
             throw new RangeError(
-                `sequence cannot restore ${restored.length} characters into ${deleted} deleted characters`,
+                `sequence cannot restore ${restored.length} characters into '${deleted}' deleted characters`,
             );
         }
 
@@ -322,7 +324,9 @@ export class Sequence {
                 element.offset < piece.start + Sequence.length(piece),
         );
         if (index === -1) {
-            throw new RangeError(`sequence has no element ${element.run}:${element.offset}`);
+            throw new RangeError(
+                `sequence has no element '${element.run}' at offset ${element.offset}`,
+            );
         }
 
         return index;

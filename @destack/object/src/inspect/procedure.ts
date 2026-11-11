@@ -21,7 +21,7 @@ function visit(
 ): void {
     // reject a router that contains itself
     if (ancestors.has(router)) {
-        throw new TypeError(`cyclic router: ${name.join(".")}`);
+        throw new TypeError(`cyclic router: '${name.join(".")}'`);
     }
 
     // describe a procedure

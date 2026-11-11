@@ -106,14 +106,14 @@ export function implementPackage<const Handle extends ObjectPackage>(
         }
         // refuse serving a per-installation definition as a scope's own
         else if (context === undefined) {
-            throw new TypeError(`package ${handle.name} can only serve an installation`);
+            throw new TypeError(`package '${handle.name}' can only serve an installation`);
         }
 
         // refuse providers or bindables that differ by installation
         const installed = definition(context);
         if (installed.providers !== undefined || installed.bindables !== undefined) {
             throw new TypeError(
-                `package ${handle.name} must declare its providers and bindables for every installation`,
+                `package '${handle.name}' must declare its providers and bindables for every installation`,
             );
         }
 

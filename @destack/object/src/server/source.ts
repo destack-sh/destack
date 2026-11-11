@@ -194,7 +194,10 @@ export class ObjectSource {
         // refuse a session whose credential lapsed already, for the follower to resume with a fresh one
         const credential = context.authentication?.credential;
         if (credential !== undefined && credential.expiresAt <= this.store.clock.now()) {
-            throw SyncError.of("CREDENTIAL_LAPSED", "the caller's credential lapsed");
+            throw SyncError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: the caller's credential lapsed",
+            );
         }
 
         // record the caller's request for its session, and keep the caller's live link open while it streams
@@ -223,7 +226,7 @@ export class ObjectSource {
             }
         } catch (error) {
             // end a stream its caller's session lapsed after pages, refusing one before any for the follower to resume anew
-            if (!isPaged || !SyncError.is(error, "CREDENTIAL_LAPSED")) {
+            if (!isPaged || !SyncError.is(error, "CREDENTIAL_UNAUTHENTICATED")) {
                 throw error;
             }
         } finally {
@@ -349,8 +352,8 @@ export class ObjectSource {
         // refuse any other outsider
         else if (resident.length === 0) {
             throw ObjectError.of(
-                "FOLLOWER_OUTSIDE_TARGET",
-                `only ${request.target} and its contents can follow its replicas`,
+                "FOLLOWER_OUTSIDE_TARGET_DENIED",
+                `replica of '${request.target}' is forbidden: only it and its contents can follow its replicas`,
             );
         }
 
@@ -368,7 +371,10 @@ export class ObjectSource {
     static #principal(context: RequestContext): Subject {
         const caller = context.caller();
         if (Caller.isAnonymous(caller)) {
-            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
+            throw ObjectError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: caller credential is missing",
+            );
         }
 
         return Caller.principal(caller);
@@ -379,7 +385,10 @@ export class ObjectSource {
         // require a principal type its followers declare
         const policy = this.store.authorizer.policy(subject);
         if (!Object.hasOwn(policy.definition.permissions, FOLLOW)) {
-            throw ObjectError.of("FOLLOWERS_MISSING", `a ${subject.type} has no followers`);
+            throw ObjectError.of(
+                "FOLLOWERS_DENIED",
+                `follower of a ${subject.type} is forbidden: a ${subject.type} has no followers`,
+            );
         }
 
         // decide `follow` on the principal from the caller's identity and stated sets
@@ -449,8 +458,8 @@ export class ObjectSource {
         const [first] = granting;
         if (first === undefined) {
             throw ObjectError.of(
-                "CHAIN_REPLICAS_MISSING",
-                `a ${scope.type} has no replicas of its chain`,
+                "CHAIN_REPLICAS_DENIED",
+                `chain replica of a ${scope.type} is forbidden: a ${scope.type} has no replicas of its chain`,
             );
         }
         await authorization.require(first.permission, first.target);
@@ -518,7 +527,7 @@ export class ObjectSource {
         );
         if (representing.length > 1) {
             throw new TypeError(
-                `types ${representing.map((type) => type.name).join(", ")} all represent ${target}`,
+                `types '${representing.map((type) => type.name).join(", ")}' all represent '${target}'`,
             );
         }
 
@@ -971,8 +980,8 @@ export class ObjectSource {
         const store = this.store.requireEphemeral();
         if (new TextEncoder().encode(JSON.stringify(event)).length > BROADCAST_BYTES) {
             throw ObjectError.of(
-                "BROADCAST_TOO_LARGE",
-                `a broadcast cannot exceed ${BROADCAST_BYTES} bytes`,
+                "BROADCAST_INVALID",
+                `broadcast is invalid: it must take at most ${BROADCAST_BYTES} bytes`,
             );
         }
         await this.store.enter(context, scope, false);
@@ -984,7 +993,7 @@ export class ObjectSource {
         );
         if (!(await this.#lists(authorization, reference))) {
             throw CallError.http("NOT_FOUND", {
-                message: `${target.type} ${target.id} not found`,
+                message: `${target.type} '${target.id}' not found`,
             });
         }
 
@@ -1017,7 +1026,7 @@ export class ObjectSource {
         if (publication === undefined) {
             throw ObjectError.of(
                 "PUBLICATION_NOT_FOUND",
-                `publication ${request.publication} not found`,
+                `publication '${request.publication}' not found`,
             );
         }
 
@@ -1035,7 +1044,10 @@ export class ObjectSource {
         const read = this.publication(subscription).read(subscription);
         const caller = ObjectSource.#caller(context);
         if (caller === undefined) {
-            throw ObjectError.of("CREDENTIAL_MISSING", "missing caller credential");
+            throw ObjectError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: caller credential is missing",
+            );
         }
         await this.request(read, caller);
     }
@@ -1286,8 +1298,8 @@ export class ObjectSource {
         const foreign = claimed.find((scope) => !scopes.has(scope));
         if (foreign !== undefined) {
             throw ObjectError.of(
-                "SCOPE_NOT_CONTAINED",
-                `${foreign} does not contain ${request.target}`,
+                "SCOPE_NOT_FOUND",
+                `'${request.target}' in '${foreign}' not found`,
             );
         }
     }
@@ -1309,8 +1321,8 @@ export class ObjectSource {
         // require the replicated scope to contain the follower's
         if (!scopes.has(request.scope)) {
             throw ObjectError.of(
-                "SCOPE_NOT_CONTAINED",
-                `${request.scope} does not contain ${request.target}`,
+                "SCOPE_NOT_FOUND",
+                `'${request.target}' in '${request.scope}' not found`,
             );
         }
 
@@ -1329,7 +1341,7 @@ export class ObjectSource {
         for (const [relay, links] of chains) {
             const ids = links.map((link) => link.object.id);
             if (!ids.includes(scope)) {
-                throw ObjectError.of("SCOPE_NOT_CONTAINED", `${scope} does not contain ${relay}`);
+                throw ObjectError.of("SCOPE_NOT_FOUND", `'${relay}' in '${scope}' not found`);
             }
             for (const id of ids) {
                 scopes.add(id);
@@ -1339,10 +1351,7 @@ export class ObjectSource {
         // require each scope between to contain a replicated scope
         const outside = between.find((id) => !scopes.has(id));
         if (outside !== undefined) {
-            throw ObjectError.of(
-                "SCOPE_NOT_CONTAINED",
-                `${outside} contains none of the replicated scopes`,
-            );
+            throw ObjectError.of("SCOPE_NOT_FOUND", `replicated scopes in '${outside}' not found`);
         }
 
         return new Set([...scopes, Scope.universe.id]);
@@ -1356,8 +1365,8 @@ export class ObjectSource {
         const policy = this.store.authorizer.policy(scope);
         if (!Object.hasOwn(policy.definition.permissions, REPLICATE)) {
             throw ObjectError.of(
-                "CHAIN_REPLICAS_MISSING",
-                `a ${scope.type} has no replicas of its chain`,
+                "CHAIN_REPLICAS_DENIED",
+                `chain replica of a ${scope.type} is forbidden: a ${scope.type} has no replicas of its chain`,
             );
         }
 

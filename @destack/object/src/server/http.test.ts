@@ -49,7 +49,9 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         authenticate: async (request) => {
             requests++;
             if (requests === 3) {
-                throw CallError.http("UNAUTHORIZED", { message: "invalid bearer credential" });
+                throw CallError.http("UNAUTHORIZED", {
+                    message: "authentication required: bearer credential does not verify",
+                });
             }
 
             return authenticateByName(world.clock)(request);
@@ -85,7 +87,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
         expect(await refusal(stream.next())).toEqual([
             "UNAUTHORIZED",
             "UNAUTHORIZED",
-            "invalid bearer credential",
+            "authentication required: bearer credential does not verify",
         ]);
         expect(requests).toBe(3);
     } finally {
@@ -144,7 +146,9 @@ test.for([
             },
             authorizeMachine: async () => {
                 if (isRevoked) {
-                    throw CallError.http("FORBIDDEN", { message: "permission denied: watch" });
+                    throw CallError.http("FORBIDDEN", {
+                        message: "permission 'watch' is forbidden: the caller lacks it",
+                    });
                 }
             },
             router: implementation.router({
@@ -229,7 +233,7 @@ test("drain complete HTTP response streams before reporting the server stopped",
         };
         Reflect.deleteProperty(missing, callback);
         expect(() => Server.start(missing)).toThrow(
-            `${callback} must be configured before starting a server`,
+            `'${callback}' must be configured before starting a server`,
         );
     }
     const server = Server.start({
@@ -907,8 +911,8 @@ test("refuse waiting for a server stopped while it waits for readiness, ending t
     expect([await ready, server.health.status]).toEqual([
         [
             "SERVICE_UNAVAILABLE",
-            "SERVER_STOPPED",
-            "waiting is stopped: the server drained and stopped",
+            "SERVER_UNAVAILABLE",
+            "server 'waiting' is unavailable: it is stopped: the server drained and stopped",
         ],
         "stopped",
     ]);
@@ -979,7 +983,9 @@ test("refuse a caller authenticated for another package as unauthenticated, audi
         world,
     );
     expect(await outcomeOf(client.get())).toBe(
-        "UNAUTHORIZED: AUDIENCE_MISMATCH: caller authentication has a different audience or scope",
+        "UNAUTHORIZED: AUDIENCE_UNAUTHENTICATED: authentication required: caller authentication has a different audience or scope",
     );
-    expect(audited).toEqual(["caller authentication has a different audience or scope"]);
+    expect(audited).toEqual([
+        "authentication required: caller authentication has a different audience or scope",
+    ]);
 });

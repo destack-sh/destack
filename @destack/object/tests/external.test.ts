@@ -236,6 +236,6 @@ test("refuse client writes on external objects, taking the writes their package'
     // declare an external type with a package write, and one with a client write
     expect(declareMark("package").storage).toBe("external");
     expect(() => ObjectDescription.of(declareMark("client"))).toThrow(
-        new TypeError("external object mark cannot write in method receive"),
+        new TypeError("external object 'mark' cannot write in method 'receive'"),
     );
 });

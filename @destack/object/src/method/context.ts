@@ -146,7 +146,10 @@ export class MethodContext<
     constructor(fields: MethodContextOptions<Configuration, Prepared, Id, Target>) {
         // refuse a mutation by a caller no one tells apart from other callers
         if (fields.method.mutates && !Caller.isIdentified(fields.caller)) {
-            throw ObjectError.of("UNAUTHENTICATED", "a mutation needs an authenticated caller");
+            throw ObjectError.of(
+                "CALLER_UNAUTHENTICATED",
+                "authentication required: a mutation needs an authenticated caller",
+            );
         }
 
         // take the required fields
@@ -233,7 +236,7 @@ export class MethodContext<
     get execution(): StoreExecution {
         const location = this.#location;
         if (location.kind !== "store") {
-            throw new TypeError(`${this.object.name}.${this.name} can only run in its store`);
+            throw new TypeError(`'${this.object.name}.${this.name}' can only run in its store`);
         }
 
         return location;
@@ -250,7 +253,7 @@ export class MethodContext<
         }
 
         throw new TypeError(
-            `${this.object.name}.${this.name} can only derive identifiers in its store`,
+            `'${this.object.name}.${this.name}' can only derive identifiers in its store`,
         );
     }
 
@@ -328,7 +331,7 @@ export class MethodContext<
         site: CallSite,
     ): Promise<unknown> {
         if (this.run === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} cannot run nested calls`);
+            throw new TypeError(`'${this.object.name}.${this.name}' cannot run nested calls`);
         }
 
         return this.run(entry, caller, mutates, site);
@@ -383,7 +386,9 @@ export class MethodContext<
     /** The client replica a prediction reads and writes, refusing a store's or a sandbox's call. */
     get #replica(): DatabaseConnection {
         if (this.#location.kind !== "client") {
-            throw new TypeError(`${this.object.name}.${this.name} must read through context.read`);
+            throw new TypeError(
+                `'${this.object.name}.${this.name}' must read through context.read`,
+            );
         }
 
         return this.#location.database;
@@ -447,8 +452,8 @@ export class MethodContext<
         // refuse another package's type, by the packages declaring them
         if (type.package.id !== this.object.package.id) {
             throw ObjectError.of(
-                "REVEAL_REFUSED",
-                `${this.object.package.name} cannot reveal ${type.name}: only the declaring package can`,
+                "REVEAL_DENIED",
+                `type ${type.name} is forbidden: '${this.object.package.name}' cannot reveal it, as only the declaring package can`,
             );
         }
 
@@ -461,7 +466,7 @@ export class MethodContext<
         }
 
         // refuse a prediction, whose replica has no sensitive column
-        throw new TypeError(`${this.object.name}.${this.name} can only reveal rows in its store`);
+        throw new TypeError(`'${this.object.name}.${this.name}' can only reveal rows in its store`);
     }
 
     /** Read an event kind's events in the call's store, as `read` reads a type's rows. */
@@ -477,7 +482,7 @@ export class MethodContext<
         }
 
         // refuse a prediction, whose replica has no event log
-        throw new TypeError(`${this.object.name}.${this.name} can only read events in its store`);
+        throw new TypeError(`'${this.object.name}.${this.name}' can only read events in its store`);
     }
 
     /** The authorizer of the store serving the call, refusing outside a store. */
@@ -486,7 +491,7 @@ export class MethodContext<
         const location = this.#location;
         if (location.kind !== "store") {
             throw new TypeError(
-                `${this.object.name}.${this.name} can only read the authorizer in its store`,
+                `'${this.object.name}.${this.name}' can only read the authorizer in its store`,
             );
         }
 
@@ -499,7 +504,7 @@ export class MethodContext<
         const location = this.#location;
         if (location.kind !== "store") {
             throw new TypeError(
-                `${this.object.name}.${this.name} can only read its manager in its store`,
+                `'${this.object.name}.${this.name}' can only read its manager in its store`,
             );
         }
 
@@ -554,7 +559,7 @@ export class MethodContext<
             return location.session.rehearse(over, calls);
         } else if (location.kind === "client") {
             throw new TypeError(
-                `${this.object.name}.${this.name} can only rehearse calls in its store`,
+                `'${this.object.name}.${this.name}' can only rehearse calls in its store`,
             );
         }
 
@@ -624,7 +629,7 @@ export class MethodContext<
         const location = this.#location;
         if (location.kind !== "store") {
             throw new TypeError(
-                `${this.object.name}.${this.name} decides for another subject only in its store`,
+                `'${this.object.name}.${this.name}' decides for another subject only in its store`,
             );
         }
         const { authorizer, snapshot } = location.authorization;
@@ -654,8 +659,8 @@ export class MethodContext<
     /** Refuse a decision outside the store, which alone authorizes. */
     #unauthorized(): Error {
         return ObjectError.of(
-            "STORE_ONLY",
-            `${this.object.name} can only be authorized in its store`,
+            "STORE_ONLY_DENIED",
+            `authorization of ${this.object.name} is forbidden: it can only be authorized in its store`,
         );
     }
 
@@ -689,7 +694,7 @@ export class MethodContext<
     requireParent(): ObjectReference {
         const parent = this.parent();
         if (parent === undefined) {
-            throw ObjectError.of("PARENT_MISSING", `${this.object.name} needs a parent`);
+            throw ObjectError.of("PARENT_REQUIRED", `parent of ${this.object.name} is required`);
         }
 
         return parent;
@@ -726,7 +731,7 @@ export class MethodContext<
         const location = this.#location;
         if (location.kind !== "store") {
             throw new TypeError(
-                `${this.object.name}.${this.name} can only acquire replicas in its store`,
+                `'${this.object.name}.${this.name}' can only acquire replicas in its store`,
             );
         }
 
@@ -742,11 +747,11 @@ export class MethodContext<
         const location = this.#location;
         if (type.package.id !== this.object.package.id) {
             throw ObjectError.of(
-                "INSERT_REFUSED",
-                `${this.object.package.name} cannot insert ${type.name}: only the declaring package can`,
+                "INSERT_DENIED",
+                `type ${type.name} is forbidden: '${this.object.package.name}' cannot insert it, as only the declaring package can`,
             );
         } else if (location.kind !== "store") {
-            throw new TypeError(`${this.object.name}.${this.name} can only insert in its store`);
+            throw new TypeError(`'${this.object.name}.${this.name}' can only insert in its store`);
         }
 
         // create as the type's create method, its parent given by the parent columns
@@ -851,7 +856,10 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (deleted.length === 0) {
-            throw ObjectError.of("REVISION_STALE", `${this.object.name} revision has changed`);
+            throw ObjectError.of(
+                "REVISION_CONFLICT",
+                `cannot update ${this.object.name}: its revision changed`,
+            );
         }
     }
 
@@ -865,7 +873,10 @@ export class MethodContext<
         const table: Table = this.object.table;
         const row = await transaction.read(table).findFirst({ where: { id } });
         if (row === undefined) {
-            throw ObjectError.of("REMOVED", `${this.object.name} ${id} is removed`);
+            throw ObjectError.of(
+                "OBJECT_BLOCKED",
+                `cannot change ${this.object.name} '${id}': it is removed`,
+            );
         }
 
         return row;
@@ -903,7 +914,10 @@ export class MethodContext<
             .where(RecordedRow.at(table, target))
             .returning();
         if (!row) {
-            throw ObjectError.of("REVISION_STALE", `${this.object.name} revision has changed`);
+            throw ObjectError.of(
+                "REVISION_CONFLICT",
+                `cannot update ${this.object.name}: its revision changed`,
+            );
         }
 
         return row;
@@ -923,7 +937,7 @@ export class MethodContext<
         // refuse another package's kind, whose owner alone reads its declarations
         if (kind.packageId !== this.object.package.id) {
             throw new TypeError(
-                `${this.object.name} reads ${kind.name} declarations of another package`,
+                `${this.object.name} reads '${kind.name}' declarations of another package`,
             );
         }
         const release = await this.#release(packageId, version);
@@ -943,7 +957,7 @@ export class MethodContext<
         const open = location.kind === "store" ? location.store.release : undefined;
         if (location.kind !== "store" || open === undefined) {
             throw new TypeError(
-                `${this.object.name}.${this.name} can only read releases in a store`,
+                `'${this.object.name}.${this.name}' can only read releases in a store`,
             );
         }
 
@@ -952,7 +966,7 @@ export class MethodContext<
         if (release === undefined) {
             throw ObjectError.of(
                 "INSTALLATION_NOT_FOUND",
-                `this space runs no release of ${packageId}`,
+                `release of '${packageId}' in this space not found`,
             );
         }
 
@@ -974,7 +988,9 @@ export class MethodContext<
             return AccessContext.of(Caller.of(subject), this.now);
         }
 
-        throw new TypeError(`${this.object.name}.${this.name} can only act as itself in its store`);
+        throw new TypeError(
+            `'${this.object.name}.${this.name}' can only act as itself in its store`,
+        );
     }
 
     /** Report whether stacks can declare the call's records, typing its target. */
@@ -998,7 +1014,7 @@ export class MethodContext<
                   ? location.server.capabilities
                   : undefined;
         if (capabilities === undefined) {
-            throw new TypeError(`${this.object.name}.${this.name} runs outside its server`);
+            throw new TypeError(`'${this.object.name}.${this.name}' runs outside its server`);
         }
 
         return capabilities.includes(capability);
@@ -1009,7 +1025,7 @@ export class MethodContext<
         // refuse a scope's own package, which acts as the scope already
         const installation = this.self.subject;
         if (installation.type !== principal.installation.name) {
-            throw new TypeError(`${this.object.name}.${this.name} runs in no installation`);
+            throw new TypeError(`'${this.object.name}.${this.name}' runs in no installation`);
         }
 
         // act as the installation's space with the installation acting for it, within the space's live grant

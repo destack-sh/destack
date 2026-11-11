@@ -17,7 +17,10 @@ export const RequestBody = {
         limit: number = BODY_BYTES,
     ): Promise<Uint8Array<ArrayBuffer>> {
         // refuse a body with a declared length over the limit before reading it
-        const tooLarge = ObjectError.of("BODY_TOO_LARGE", `${name} exceeds ${limit} bytes`);
+        const tooLarge = ObjectError.of(
+            "BODY_INVALID",
+            `'${name}' is invalid: it exceeds ${limit} bytes`,
+        );
         if (Number(request.headers.get("content-length") ?? 0) > limit) {
             throw tooLarge;
         }
@@ -55,7 +58,9 @@ export const RequestBody = {
         try {
             return JSON.parse(text);
         } catch (error) {
-            throw ObjectError.of("BODY_NOT_JSON", `${name} is not JSON`, { cause: error });
+            throw ObjectError.of("BODY_INVALID", `'${name}' is invalid: it is not JSON`, {
+                cause: error,
+            });
         }
     },
 };
