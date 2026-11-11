@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import type { Environment } from "@destack/environment";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { BuildWriter } from "@destack/package/manifest";
 import { afterEach, expect, test, vi } from "@destack/test";
@@ -10,7 +10,7 @@ import { build, createServer, type Plugin, type Rolldown, type ViteDevServer } f
 import { styleExtension } from "./build.ts";
 
 /** The dependency whose build keeps plum's rules. */
-const DEPENDENCY = Package.parse({
+const DEPENDENCY = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d1",
     name: "@destack/style-dependency",
     version: "2026.9.0",
