@@ -32,7 +32,7 @@ function relayRoute(hostname: string): NonNullable<StackInput["routes"]>[string]
         path: "/",
         match: "prefix",
         installation: "relay",
-        rules: [{ entry: { kind: "adapter", adapter: "names" } }],
+        rules: [{ entry: { kind: "mount", mount: "names" } }],
     };
 }
 
