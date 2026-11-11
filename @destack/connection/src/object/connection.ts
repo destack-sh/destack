@@ -331,8 +331,8 @@ export const Connection = {
         const { source } = protocol;
         if (!connection.is(source) || source.scope !== context.scope) {
             throw ConnectionError.of(
-                "EXCHANGE_SOURCE_FOREIGN",
-                `a token exchange's source must be a connection of ${context.scope}`,
+                "EXCHANGE_SOURCE_DENIED",
+                `token exchange source is forbidden: it must be a connection of '${context.scope}'`,
             );
         }
         await context.require(connection.permission("manage"), source);

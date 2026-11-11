@@ -61,7 +61,7 @@ test("lease a connection to an installation's calls only while it is bound to th
     await bind([id]);
     const leased = [await lease(bridge), await lease(other)];
     await bind([]);
-    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.scope.id} not found`];
+    const hidden = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${fixture.scope.id}' not found`];
 
     expect({ before, leased, reclaimed: await lease(bridge) }).toEqual({
         before: hidden,

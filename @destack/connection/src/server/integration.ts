@@ -104,16 +104,16 @@ function requireSecret(context: MethodContextOf<typeof integration, "create", un
     const { issuer, authentication, secret } = context.input;
     if (issuer.kind === "installation" && secret !== undefined) {
         throw ConnectionError.of(
-            "SECRET_UNSUPPORTED",
-            "an installed app's integration takes no client secret",
+            "SECRET_INVALID",
+            "client secret is invalid: an installed app's integration takes none",
         );
     }
     // require a secret exactly when the client authenticates with one
     else if ((authentication === "none") !== (secret === undefined)) {
         const needed = authentication === "none" ? "no secret" : "a secret";
         throw ConnectionError.of(
-            "SECRET_MISMATCH",
-            `an integration authenticating with ${authentication} needs ${needed}`,
+            "SECRET_INVALID",
+            `client secret is invalid: an integration authenticating with '${authentication}' needs '${needed}'`,
         );
     }
 }
@@ -146,7 +146,7 @@ async function register(
     if (endpoints.registration === undefined) {
         throw ConnectionError.of(
             "REGISTRATION_UNSUPPORTED",
-            `${issuer} does not register clients dynamically`,
+            `dynamic client registration at '${issuer}' is not supported`,
         );
     }
 

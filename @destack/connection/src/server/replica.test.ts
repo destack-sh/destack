@@ -212,9 +212,13 @@ test("refuse client credentials through a replicated integration, and token requ
     }).toEqual({
         connection: [
             reference.id,
-            `only the primary of integration ${registered.id} requests a client_credentials grant`,
+            `grant 'client_credentials' is forbidden: only the primary of integration '${registered.id}' requests it`,
         ],
-        asPerson: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: request"],
+        asPerson: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'request' is forbidden: the caller lacks it",
+        ],
         requested: [],
     });
 });
@@ -313,11 +317,11 @@ test("lease a connection its primary stores to a space's bound installation thro
     }).toEqual({
         leased: "Bearer access-1",
         // hide the primary's scope from an installation the connection is not bound to
-        unbound: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${primary.scope.id} not found`],
+        unbound: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${primary.scope.id}' not found`],
         installed: [
             "FORBIDDEN",
-            "PRIMARY_REQUIRED",
-            "installation connections belong to their integration's primary",
+            "PRIMARY_DENIED",
+            "installation connection is forbidden: it belongs to its integration's primary",
         ],
     });
 });

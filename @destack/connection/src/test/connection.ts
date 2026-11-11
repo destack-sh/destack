@@ -805,7 +805,7 @@ export class TestConnection {
 
     /** Refuse calling another space from a primary, which stores its own integrations. */
     static #unreached(address: string): never {
-        throw new TypeError(`a primary calls no other connections, not ${address}`);
+        throw new TypeError(`a primary calls no other connections, not '${address}'`);
     }
 
     /** Read the space serving a scope: an account's primary, or the space itself. */
@@ -888,7 +888,7 @@ export class TestConnection {
                 this.as(signer ?? principal.space.reference(Scope.universe.id, spaceId)),
             at: (called) => {
                 if (called !== address) {
-                    throw new TypeError(`no connections at ${called}, only at ${address}`);
+                    throw new TypeError(`no connections at '${called}', only at '${address}'`);
                 }
 
                 return {
@@ -922,7 +922,7 @@ export class TestConnection {
         // route the package's mount as the gateway does
         const mount = PackageMount.of(request);
         if (mount?.packageId !== packageId) {
-            throw new TypeError(`no connections at ${request.url}`);
+            throw new TypeError(`no connections at '${request.url}'`);
         }
 
         // send the request below the mount with the subject's bearer
@@ -974,7 +974,7 @@ export class TestConnection {
         const [reconciling, due] = [connection.name, `${connection.name}:due`].map((name) => {
             const found = controllers.find((each) => each.name === name);
             if (found === undefined || !("reconcile" in found)) {
-                throw new TypeError(`the connection package reconciles no ${name} controller`);
+                throw new TypeError(`the connection package reconciles no '${name}' controller`);
             }
 
             return found;

@@ -178,8 +178,8 @@ export class AuthorizationServer implements AuthorizationClient {
         );
         if (described.resource !== resource) {
             throw ConnectionError.of(
-                "RESPONSE_INVALID",
-                `expected resource ${resource} from ${metadataUrl.origin}, got ${described.resource}`,
+                "RESPONSE_UNREACHABLE",
+                `could not verify resource '${resource}' from '${metadataUrl.origin}': found '${described.resource}'`,
             );
         }
 
@@ -193,8 +193,8 @@ export class AuthorizationServer implements AuthorizationClient {
         const server = ServerMetadata.parse(await readJson(fetch, new Request(serverUrl.href)));
         if (server.issuer !== issuer) {
             throw ConnectionError.of(
-                "RESPONSE_INVALID",
-                `expected issuer ${issuer} from ${serverUrl.origin}, got ${server.issuer}`,
+                "RESPONSE_UNREACHABLE",
+                `could not verify issuer '${issuer}' from '${serverUrl.origin}': found '${server.issuer}'`,
             );
         }
 
@@ -380,8 +380,8 @@ export class AuthorizationServer implements AuthorizationClient {
         const secret = this.client.secret;
         if (secret === undefined) {
             throw ConnectionError.of(
-                "CLIENT_SECRET_MISSING",
-                `client ${this.client.clientId} has no secret to authenticate with`,
+                "CLIENT_SECRET_REQUIRED",
+                `secret of client '${this.client.clientId}' is required`,
             );
         }
 
@@ -393,8 +393,8 @@ export class AuthorizationServer implements AuthorizationClient {
         const endpoint = this.endpoints[name];
         if (endpoint === undefined) {
             throw ConnectionError.of(
-                "ENDPOINT_MISSING",
-                `authorization server ${this.issuer} has no ${name} endpoint`,
+                "ENDPOINT_UNSUPPORTED",
+                `endpoint '${name}' of authorization server '${this.issuer}' is not supported`,
             );
         }
 
@@ -409,7 +409,7 @@ async function send(fetch: Fetch, request: Request): Promise<Response> {
     } catch (cause) {
         throw ConnectionError.of(
             "SERVER_UNREACHABLE",
-            `${new URL(request.url).origin} did not respond`,
+            `could not reach '${new URL(request.url).origin}'`,
             {
                 cause,
             },
@@ -429,7 +429,7 @@ async function readJson(fetch: Fetch, request: Request): Promise<unknown> {
     const origin = new URL(request.url).origin;
 
     return response.json().catch(() => {
-        throw ConnectionError.of("RESPONSE_INVALID", `${origin} answered with no JSON`);
+        throw ConnectionError.of("RESPONSE_UNREACHABLE", `could not read JSON from '${origin}'`);
     });
 }
 
@@ -442,11 +442,14 @@ async function refusal(request: Request, response: Response): Promise<FamilyErro
 
     return parsed.success
         ? ConnectionError.of(
-              "AUTHORIZATION_REFUSED",
+              "AUTHORIZATION_UNREACHABLE",
               parsed.data.error_description ?? parsed.data.error,
               { data: { error: parsed.data.error } },
           )
-        : ConnectionError.of("SERVER_FAILED", `${origin} responded with ${response.status}`);
+        : ConnectionError.of(
+              "SERVER_UNREACHABLE",
+              `could not call '${origin}': HTTP ${response.status}`,
+          );
 }
 
 /** Write a well-known suffix's path: the given path without a trailing slash, empty at the root. */

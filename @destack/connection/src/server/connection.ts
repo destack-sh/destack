@@ -128,7 +128,7 @@ function requireMaterial(protocol: ConnectionProtocol, material: Material): void
     const isSupplied = SUPPLIED_KINDS.has(protocol.kind) || protocol.kind === "jwt";
     if (!isSupplied || material.kind !== protocol.kind) {
         throw ConnectionError.of(
-            "MATERIAL_MISMATCH",
+            "MATERIAL_INVALID",
             isSupplied
                 ? `a ${protocol.kind} connection sends ${protocol.kind} material, not ${material.kind}`
                 : `a ${protocol.kind} connection is authorized, never supplied material`,
@@ -145,8 +145,8 @@ async function lease(
     // require an authorized connection
     if (row.conditions["Authorized"]?.status !== "true") {
         throw ConnectionError.of(
-            "CONNECTION_NOT_AUTHORIZED",
-            `connection ${row.id} is not authorized`,
+            "CONNECTION_BLOCKED",
+            `cannot use connection '${row.id}': it is not authorized`,
         );
     }
     const credential = await tokens.current(runner, row, runner.now);
@@ -429,8 +429,8 @@ function requireInstallable(
 ): void {
     if (kind === "installation" && !tokens.isPrimary(chain)) {
         throw ConnectionError.of(
-            "PRIMARY_REQUIRED",
-            "installation connections belong to their integration's primary",
+            "PRIMARY_DENIED",
+            "installation connection is forbidden: it belongs to its integration's primary",
         );
     }
 }
@@ -445,7 +445,7 @@ function requireClient(input: MethodContextOf<typeof connection, "create">["inpu
     if (!SUPPLIED_KINDS.has(protocol.kind) && !hasClient) {
         throw ConnectionError.of(
             "INTEGRATION_REQUIRED",
-            `a ${protocol.kind} connection needs its integration`,
+            `integration is required: a ${protocol.kind} connection needs its integration`,
         );
     }
 }
@@ -454,8 +454,8 @@ function requireClient(input: MethodContextOf<typeof connection, "create">["inpu
 function requireOpen(target: Connection): void {
     if (Connection.authorized(target) === "Disconnected") {
         throw ConnectionError.of(
-            "CONNECTION_DISCONNECTED",
-            `connection ${target.id} is disconnected`,
+            "CONNECTION_BLOCKED",
+            `cannot use connection '${target.id}': it is disconnected`,
         );
     }
 }

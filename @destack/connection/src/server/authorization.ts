@@ -49,8 +49,8 @@ export class ConnectionAuthorization {
         const kind = target.protocol.kind;
         if (!PERSON_KINDS.has(kind)) {
             throw ConnectionError.of(
-                "AUTHORIZATION_UNSUPPORTED",
-                `a ${kind} connection authorizes without a person`,
+                "AUTHORIZATION_INVALID",
+                `connection kind ${kind} is invalid: it authorizes without a person`,
             );
         }
 
@@ -97,8 +97,8 @@ export class ConnectionAuthorization {
         const caller = requirePerson(context);
         if (request.userId !== caller.userId || request.session !== caller.session) {
             throw ConnectionError.of(
-                "SESSION_MISMATCH",
-                "only the session that started an authorization can complete it",
+                "SESSION_DENIED",
+                "authorization is forbidden: only the session that started it can complete it",
             );
         }
 
@@ -119,7 +119,7 @@ export class ConnectionAuthorization {
         if (code === undefined) {
             throw ConnectionError.of(
                 "AUTHORIZATION_INVALID",
-                "the authorization response has no code",
+                "authorization response is invalid: it has no code",
             );
         }
 
@@ -191,7 +191,7 @@ export class ConnectionAuthorization {
             Runner.of(reconciliation.store),
             row.integration,
         );
-        let answer: Token | FamilyFailure<"AUTHORIZATION_REFUSED", OAuthRefusal>;
+        let answer: Token | FamilyFailure<"AUTHORIZATION_UNREACHABLE", OAuthRefusal>;
         try {
             answer = await client.server.token({
                 grant_type: DEVICE_CODE,
@@ -199,7 +199,7 @@ export class ConnectionAuthorization {
             });
         } catch (error) {
             // wait while pending or slowed down
-            if (!ConnectionError.is(error, "AUTHORIZATION_REFUSED")) {
+            if (!ConnectionError.is(error, "AUTHORIZATION_UNREACHABLE")) {
                 throw error;
             }
             const refused = OAuthRefusal.code(error);
@@ -231,7 +231,7 @@ export class ConnectionAuthorization {
         if (redirectUri === undefined) {
             throw ConnectionError.of(
                 "REDIRECT_URI_REQUIRED",
-                "authorizing in a browser needs a redirect URI",
+                "redirect URI is required: authorizing in a browser needs one",
             );
         }
 
@@ -334,7 +334,7 @@ export class ConnectionAuthorization {
         reconciliation: ObjectReconciliation<typeof connection>,
         row: Connection,
         request: AuthorizationRequest,
-        answer: Token | FamilyFailure<"AUTHORIZATION_REFUSED", OAuthRefusal>,
+        answer: Token | FamilyFailure<"AUTHORIZATION_UNREACHABLE", OAuthRefusal>,
     ): Promise<void> {
         // use the request up
         const runner = Runner.of(reconciliation.store);
@@ -343,7 +343,7 @@ export class ConnectionAuthorization {
         ]);
 
         // record the refusal (RFC 8628 3.5)
-        if (ConnectionError.is(answer, "AUTHORIZATION_REFUSED")) {
+        if (ConnectionError.is(answer, "AUTHORIZATION_UNREACHABLE")) {
             const reason = ConnectionAuthorization.#refusal(OAuthRefusal.code(answer));
             await this.#tokens.observe(
                 runner,
@@ -417,7 +417,7 @@ function requireIssuer(named: Integration, issuer: string | undefined): void {
     ) {
         throw ConnectionError.of(
             "AUTHORIZATION_INVALID",
-            `expected issuer ${url} in the authorization response, got ${issuer ?? "none"}`,
+            `authorization response is invalid: expected issuer '${url}', got '${issuer ?? "none"}'`,
         );
     }
 }
@@ -426,7 +426,7 @@ function requireIssuer(named: Integration, issuer: string | undefined): void {
 function refuseError(parameters: Readonly<Record<string, string>>): void {
     if (parameters["error"] !== undefined) {
         throw ConnectionError.of(
-            "AUTHORIZATION_REFUSED",
+            "AUTHORIZATION_UNREACHABLE",
             parameters["error_description"] ?? parameters["error"],
             { data: { error: parameters["error"] } },
         );
@@ -437,8 +437,8 @@ function refuseError(parameters: Readonly<Record<string, string>>): void {
 function requireRedirect(registered: Integration, redirectUri: string): void {
     if (!registered.redirectUris.includes(redirectUri)) {
         throw ConnectionError.of(
-            "REDIRECT_URI_UNREGISTERED",
-            `integration ${registered.clientId} has no registered redirect URI ${redirectUri}`,
+            "REDIRECT_URI_INVALID",
+            `redirect URI '${redirectUri}' is invalid: integration '${registered.clientId}' has not registered it`,
         );
     }
 }
@@ -449,8 +449,8 @@ function installationPage(installed: Integration, state: string): URL {
     const page = installed.endpoints.installation;
     if (page === undefined) {
         throw ConnectionError.of(
-            "INSTALLATION_PAGE_MISSING",
-            `integration ${installed.clientId} has no installation page`,
+            "INSTALLATION_PAGE_NOT_FOUND",
+            `installation page of integration '${installed.clientId}' not found`,
         );
     }
     const url = new URL(page);
@@ -470,8 +470,8 @@ function requirePerson(
     const { subject, credential } = context.caller;
     if (!principal.user.is(subject) || credential?.kind !== "session") {
         throw ConnectionError.of(
-            "SESSION_REQUIRED",
-            "a person must authorize a connection in a signed-in session",
+            "SESSION_DENIED",
+            "connection authorization is forbidden: a person must authorize it in a signed-in session",
         );
     }
 
@@ -493,7 +493,7 @@ async function findRequest(
     if (request === undefined) {
         throw ConnectionError.of(
             "AUTHORIZATION_NOT_FOUND",
-            "no pending authorization has this state",
+            "pending authorization for this state not found",
         );
     }
 

@@ -61,8 +61,8 @@ export const ConnectionRequest = {
             const token = credential.token;
             if (token === undefined) {
                 throw ConnectionError.of(
-                    "CREDENTIAL_MISSING",
-                    "the connection has no access token",
+                    "CREDENTIAL_BLOCKED",
+                    "cannot authorize the request: the connection has no access token",
                 );
             }
 
@@ -102,7 +102,10 @@ function material<const Kind extends Material["kind"]>(
 ): Extract<Material, { kind: Kind }> {
     const held = credential.material;
     if (held === undefined || !isKind(held, kind)) {
-        throw ConnectionError.of("CREDENTIAL_MISSING", `the connection has no ${kind} material`);
+        throw ConnectionError.of(
+            "CREDENTIAL_BLOCKED",
+            `cannot authorize the request: the connection has no ${kind} material`,
+        );
     }
 
     return held;

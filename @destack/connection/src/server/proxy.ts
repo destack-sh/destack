@@ -64,8 +64,8 @@ export class AuthorizationProxy implements AuthorizationClient {
         const parsed = AuthorizationGrant.safeParse(grant);
         if (!parsed.success) {
             throw ConnectionError.of(
-                "PRIMARY_REQUIRED",
-                `only the primary of integration ${this.#reference.id} requests a ${grant["grant_type"] ?? "missing"} grant`,
+                "PRIMARY_DENIED",
+                `grant '${grant["grant_type"] ?? "missing"}' is forbidden: only the primary of integration '${this.#reference.id}' requests it`,
             );
         }
 

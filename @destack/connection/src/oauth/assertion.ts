@@ -70,12 +70,15 @@ export const Assertion = {
         if (algorithm === undefined) {
             throw ConnectionError.of(
                 "SIGNING_KEY_INVALID",
-                `a ${jwk.kty} key has no signature algorithm`,
+                `'${jwk.kty}' signing key is invalid: it has no signature algorithm`,
             );
         }
         const key = await Jws.importJwk(jwk, algorithm, crypto);
         if (key.type !== "private") {
-            throw ConnectionError.of("SIGNING_KEY_INVALID", "the signing key is not a private key");
+            throw ConnectionError.of(
+                "SIGNING_KEY_INVALID",
+                "signing key is invalid: it is not a private key",
+            );
         }
 
         return { key, algorithm };
@@ -87,7 +90,7 @@ export const Assertion = {
         if (algorithm === undefined) {
             throw ConnectionError.of(
                 "SIGNING_KEY_INVALID",
-                `the algorithm ${name} is not supported`,
+                `signing algorithm '${name}' is invalid: it is not supported`,
             );
         }
 

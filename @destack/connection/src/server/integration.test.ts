@@ -61,7 +61,7 @@ test("refuse a space outside a private integration's scope its tokens, device au
     ];
 
     // hide the private integration from the outside space, and serve the public one
-    const hidden = ["NOT_FOUND", "NOT_FOUND", `integration ${owned.id} not found`];
+    const hidden = ["NOT_FOUND", "NOT_FOUND", `integration '${owned.id}' not found`];
     expect({
         refused,
         served: await ask(primary, shared, OUTSIDE),
@@ -110,6 +110,6 @@ test("let the installation issuing an integration's tokens read it, and refuse a
         );
     expect({ issuing: (await read(issuing)).id, other: await refusal(read(other)) }).toEqual({
         issuing: id,
-        other: ["NOT_FOUND", "NOT_FOUND", `integration ${id} not found`],
+        other: ["NOT_FOUND", "NOT_FOUND", `integration '${id}' not found`],
     });
 });

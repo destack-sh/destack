@@ -34,7 +34,7 @@ const connectionConnector: Connector<ExternalClient> = {
         // require the instance credential the egress identifies the call by
         const { credential } = binding;
         if (credential === undefined) {
-            throw new TypeError(`connection ${declaration.name} has no instance credential`);
+            throw new TypeError(`connection '${declaration.name}' has no instance credential`);
         }
 
         // call below the bound address through the environment's network

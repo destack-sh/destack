@@ -179,23 +179,31 @@ test("authorize a person's account with a code and PKCE in their session, once, 
         refusals: [
             [
                 "FORBIDDEN",
-                "SESSION_MISMATCH",
-                "only the session that started an authorization can complete it",
+                "SESSION_DENIED",
+                "authorization is forbidden: only the session that started it can complete it",
             ],
             [
                 "BAD_REQUEST",
                 "AUTHORIZATION_INVALID",
-                "expected issuer https://auth.test in the authorization response, got https://evil.test",
+                "authorization response is invalid: expected issuer 'https://auth.test', got 'https://evil.test'",
             ],
-            ["BAD_REQUEST", "AUTHORIZATION_INVALID", "the authorization response has no code"],
-            ["NOT_FOUND", "AUTHORIZATION_NOT_FOUND", "no pending authorization has this state"],
+            [
+                "BAD_REQUEST",
+                "AUTHORIZATION_INVALID",
+                "authorization response is invalid: it has no code",
+            ],
+            [
+                "NOT_FOUND",
+                "AUTHORIZATION_NOT_FOUND",
+                "pending authorization for this state not found",
+            ],
         ],
         pending: ["false", "Pending", false],
         completed: "done",
         replayed: [
             "NOT_FOUND",
             "AUTHORIZATION_NOT_FOUND",
-            "no pending authorization has this state",
+            "pending authorization for this state not found",
         ],
         authorized: ["true", "Authorized", true],
         leased: "Bearer access-1",
@@ -243,8 +251,8 @@ test("acquire a client credentials token in the controller, refresh it before ex
         refreshed: "Bearer access-2",
         lapsed: [
             "SERVICE_UNAVAILABLE",
-            "TOKEN_EXPIRED",
-            `connection ${reference.id} has an expired token, which its controller will refresh`,
+            "TOKEN_UNAVAILABLE",
+            `connection '${reference.id}' token is unavailable: it expired, and its controller will refresh it`,
         ],
         tokenRequests: ["client_credentials", "client_credentials"],
     });
@@ -542,9 +550,9 @@ test("revoke a connection's refresh token at its server and destroy its credenti
         authorized: ["false", "Disconnected", false],
         storedAt: null,
         leased: [
-            "CONFLICT",
-            "CONNECTION_NOT_AUTHORIZED",
-            `connection ${reference.id} is not authorized`,
+            "PRECONDITION_FAILED",
+            "CONNECTION_BLOCKED",
+            `cannot use connection '${reference.id}': it is not authorized`,
         ],
     });
 });
@@ -665,8 +673,8 @@ test("install an app through the installation issuing its tokens, lease an insta
     }).toEqual({
         keyed: [
             "BAD_REQUEST",
-            "SECRET_UNSUPPORTED",
-            "an installed app's integration takes no client secret",
+            "SECRET_INVALID",
+            "client secret is invalid: an installed app's integration takes none",
         ],
         page: "https://github.test/apps/destack-test/installations/new",
         subject: "4242",
@@ -839,7 +847,7 @@ test("refuse a connection lacking the client its kind authorizes through, regist
         [
             "BAD_REQUEST",
             "INTEGRATION_REQUIRED",
-            "a client-credentials connection needs its integration",
+            "integration is required: a client-credentials connection needs its integration",
         ],
         "done",
     ]);
@@ -862,10 +870,10 @@ test("exchange the token of a connection its creator manages, refusing another s
     expect([await exchange(elsewhere), await exchange(unmanaged)]).toEqual([
         [
             "FORBIDDEN",
-            "EXCHANGE_SOURCE_FOREIGN",
-            `a token exchange's source must be a connection of ${fixture.scope.id}`,
+            "EXCHANGE_SOURCE_DENIED",
+            `token exchange source is forbidden: it must be a connection of '${fixture.scope.id}'`,
         ],
-        ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: manage"],
+        ["FORBIDDEN", "PERMISSION_DENIED", "permission 'manage' is forbidden: the caller lacks it"],
     ]);
 
     // exchange the token of a connection the caller manages

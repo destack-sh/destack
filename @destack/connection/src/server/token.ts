@@ -180,8 +180,8 @@ export class ConnectionCredential {
         // refuse a connection whose controller has yet to obtain its first token
         if (row.storedAt === null) {
             throw ConnectionError.of(
-                "TOKEN_PENDING",
-                `connection ${row.id} has no token yet, which its controller will obtain`,
+                "TOKEN_UNAVAILABLE",
+                `connection '${row.id}' token is unavailable: its controller will obtain it`,
             );
         }
 
@@ -190,8 +190,8 @@ export class ConnectionCredential {
         const expiresAt = credential.token?.expiresAt;
         if (expiresAt !== undefined && expiresAt <= now) {
             throw ConnectionError.of(
-                "TOKEN_EXPIRED",
-                `connection ${row.id} has an expired token, which its controller will refresh`,
+                "TOKEN_UNAVAILABLE",
+                `connection '${row.id}' token is unavailable: it expired, and its controller will refresh it`,
             );
         }
 
@@ -236,8 +236,8 @@ export class ConnectionCredential {
         const issued = row.issuer;
         if (issued.kind !== "installation") {
             throw ConnectionError.of(
-                "ISSUER_NOT_INSTALLATION",
-                `integration ${row.clientId} gets its tokens from ${issued.url}, not an installation`,
+                "ISSUER_BLOCKED",
+                `cannot get a token from integration '${row.clientId}': it gets its tokens from '${issued.url}', not an installation`,
             );
         }
 
@@ -284,7 +284,10 @@ export class ConnectionCredential {
     ): Promise<Integration> {
         // require the integration
         if (reference === null) {
-            throw ConnectionError.of("INTEGRATION_REQUIRED", "the connection has no integration");
+            throw ConnectionError.of(
+                "INTEGRATION_REQUIRED",
+                "integration is required: the connection has none",
+            );
         }
         const row = await runner.read(integration.table).findFirst({
             where: {
@@ -294,7 +297,7 @@ export class ConnectionCredential {
         if (row === undefined || row.scope !== reference.scope) {
             throw ConnectionError.of(
                 "INTEGRATION_NOT_FOUND",
-                `integration ${reference.id} not found in ${reference.scope}`,
+                `integration '${reference.id}' of '${reference.scope}' not found`,
             );
         }
 
@@ -355,7 +358,7 @@ export class ConnectionCredential {
         // read the connection at its current revision
         const current = await runner.read(connection.table).findFirst({ where: { id: row.id } });
         if (current === undefined) {
-            throw ConnectionError.of("CONNECTION_NOT_FOUND", `connection ${row.id} is gone`);
+            throw ConnectionError.of("CONNECTION_NOT_FOUND", `connection '${row.id}' not found`);
         }
 
         // observe it at that revision, never over a revocation, which its controller then withdraws
@@ -432,7 +435,7 @@ export class ConnectionCredential {
     static isGrantExpired(error: unknown): boolean {
         return (
             OAuthRefusal.code(error) === "invalid_grant" ||
-            ConnectionError.is(error, "REFRESH_TOKEN_MISSING")
+            ConnectionError.is(error, "REFRESH_TOKEN_BLOCKED")
         );
     }
 
@@ -537,7 +540,10 @@ export class ConnectionCredential {
         // sign an assertion with the connection's key and present it
         const material = credential.material;
         if (material?.kind !== "jwt") {
-            throw ConnectionError.of("CREDENTIAL_MISSING", "the connection has no signing key");
+            throw ConnectionError.of(
+                "CREDENTIAL_BLOCKED",
+                "cannot sign an assertion for the connection: it has no signing key",
+            );
         }
         const assertion = await Assertion.sign(
             {
@@ -568,8 +574,8 @@ export class ConnectionCredential {
         const token = (await this.current(runner, row, now)).token;
         if (token === undefined) {
             throw ConnectionError.of(
-                "CREDENTIAL_MISSING",
-                `connection ${reference.id} has no access token`,
+                "CREDENTIAL_BLOCKED",
+                `cannot use connection '${reference.id}': it has no access token`,
             );
         }
 
@@ -587,8 +593,8 @@ function refreshGrant(
     const refreshToken = credential.token?.refreshToken;
     if (refreshToken === undefined) {
         throw ConnectionError.of(
-            "REFRESH_TOKEN_MISSING",
-            "the connection has no refresh token: authorize again",
+            "REFRESH_TOKEN_BLOCKED",
+            "cannot refresh the connection: it has no refresh token, so authorize again",
         );
     }
 
@@ -608,8 +614,8 @@ function scopeParameter(row: Connection): { readonly scope?: string } {
 function requireSubject(row: Connection): string {
     if (row.subject === null) {
         throw ConnectionError.of(
-            "CONNECTION_NOT_INSTALLED",
-            `connection ${row.id} is not installed yet`,
+            "CONNECTION_BLOCKED",
+            `cannot use connection '${row.id}': it is not installed yet`,
         );
     }
 

@@ -64,8 +64,8 @@ export const IntegrationIssuer = Object.assign(
         url(issuer: IntegrationIssuer): string {
             if (issuer.kind !== "server") {
                 throw ConnectionError.of(
-                    "ISSUER_NOT_SERVER",
-                    `the integration's tokens come from installation ${issuer.name}, not a server`,
+                    "ISSUER_BLOCKED",
+                    `cannot use the integration's server tokens: they come from installation '${issuer.name}'`,
                 );
             }
 
