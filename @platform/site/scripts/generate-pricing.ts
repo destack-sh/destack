@@ -16,7 +16,6 @@ import {
     databaseUsageUnit,
     databaseWriteUnit,
     ENTERPRISE,
-    inferenceCostUnit,
     networkEgressUnit,
     networkIngressUnit,
     MACHINES,
@@ -29,14 +28,14 @@ type Unit = typeof computeUsageUnit;
 /** The CPU milliseconds in a CPU-hour, which CPU time is shown per. */
 const CPU_HOUR_MILLISECONDS = 3_600_000;
 
-/** The minutes in an hour, which machines are also shown per. */
-const MINUTES_PER_HOUR = 60;
-
 /** The GB-seconds in a GB-hour. */
 const SECONDS_PER_HOUR = 3600;
 
 /** The units in a million, the quantity the site prices counted meters per. */
 const MILLION = 1_000_000;
+
+/** The rows in a billion, the quantity the site prices database reads per. */
+const BILLION = 1_000_000_000;
 
 /** The minor units of credits in a credit, and of US dollars in a dollar. */
 const MINOR_UNITS = 100;
@@ -81,13 +80,12 @@ const units = [
     unitOf("Compute", "Requests", "million", computeOperationUnit, MILLION),
     unitOf("Database", "Storage", "GB-month", databaseUsageUnit, GIGABYTE),
     unitOf("Database", "Writes", "million rows", databaseWriteUnit, MILLION),
-    unitOf("Database", "Reads", "million rows", databaseReadUnit, MILLION),
+    unitOf("Database", "Reads", "billion rows", databaseReadUnit, BILLION),
     unitOf("Files", "Storage", "GB-month", bucketUsageUnit, GIGABYTE),
     unitOf("Files", "Writes", "million", bucketWriteUnit, MILLION),
     unitOf("Files", "Reads", "million", bucketReadUnit, MILLION),
     unitOf("Network", "Ingress", "GB", networkIngressUnit, GIGABYTE),
     unitOf("Network", "Egress", "GB", networkEgressUnit, GIGABYTE),
-    unitOf("Inference", "Model calls", "US dollar at list price", inferenceCostUnit, 1),
 ];
 
 // read each plan's name, fee in each currency, support and gates
@@ -160,7 +158,7 @@ if (covered !== allowance.usage) {
     throw new Error(`the free month costs ${covered}, not the plan's ${allowance.usage}`);
 }
 
-// read each machine size's vCPUs, memory, disk, and price per minute and hour in US dollars
+// read each machine size's vCPUs, memory, disk, and price per hour in US dollars
 /** The dedicated machines, smallest first. */
 const machines = Object.entries(MACHINES).map(([size, machine]) => ({
     size,
@@ -168,7 +166,6 @@ const machines = Object.entries(MACHINES).map(([size, machine]) => ({
     memory: machine.memory,
     disk: machine.disk,
     hourly: dollarsOf(machine.hourly),
-    minutely: dollarsOf(machine.hourly / MINUTES_PER_HOUR),
 }));
 
 // render the generated module

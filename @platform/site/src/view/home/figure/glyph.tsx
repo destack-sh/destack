@@ -57,7 +57,9 @@ export type GlyphName =
     | "cloud"
     | "server"
     | "bot"
-    | "plug";
+    | "plug"
+    | "database"
+    | "transfer";
 
 /** The strokes of each glyph, on a 24-unit grid. */
 const glyphs: Record<GlyphName, readonly string[]> = {
@@ -152,6 +154,12 @@ const glyphs: Record<GlyphName, readonly string[]> = {
     bot: ["M12 8V4H8", "M5 8h14v12H5z", "M2 14h3", "M19 14h3", "M9 13v2", "M15 13v2"],
     server: ["M3 3h18v8H3z", "M3 13h18v8H3z", "M7 7h.01", "M7 17h.01"],
     plug: ["M12 22v-5", "M9 8V2", "M15 8V2", "M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8z"],
+    database: [
+        "M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z",
+        "M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6",
+        "M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3",
+    ],
+    transfer: ["M7 20V4", "m3 8 4-4 4 4", "M17 4v16", "m13 16 4 4 4-4"],
     people: [
         "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
         "M3 20a6 6 0 0 1 12 0",

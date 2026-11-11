@@ -18,13 +18,12 @@ export const units = [
     { resource: "Compute", name: "Requests", per: "million", price: 0.9 },
     { resource: "Database", name: "Storage", per: "GB-month", price: 0.4 },
     { resource: "Database", name: "Writes", per: "million rows", price: 2 },
-    { resource: "Database", name: "Reads", per: "million rows", price: 0.002 },
+    { resource: "Database", name: "Reads", per: "billion rows", price: 2 },
     { resource: "Files", name: "Storage", per: "GB-month", price: 0.03 },
     { resource: "Files", name: "Writes", per: "million", price: 9 },
     { resource: "Files", name: "Reads", per: "million", price: 0.72 },
     { resource: "Network", name: "Ingress", per: "GB", price: 0 },
     { resource: "Network", name: "Egress", per: "GB", price: 0 },
-    { resource: "Inference", name: "Model calls", per: "US dollar at list price", price: 1.25 },
 ] as const;
 
 /** The currencies Destack bills in. */
@@ -39,7 +38,7 @@ export const plans = [
         key: "free",
         name: "Free",
         fees: { USD: 0, CAD: 0, EUR: 0, CHF: 0, GBP: 0, AUD: 0 },
-        support: "community",
+        support: "email",
         isUncapped: false,
         isCustomDomains: false,
         isCustomRetention: false,
@@ -51,7 +50,7 @@ export const plans = [
         key: "go",
         name: "Go",
         fees: { USD: 8, CAD: 11, EUR: 8, CHF: 8, GBP: 8, AUD: 13 },
-        support: "community",
+        support: "email",
         isUncapped: false,
         isCustomDomains: false,
         isCustomRetention: true,
@@ -102,8 +101,8 @@ export const allowance = { usage: 2.5, database: 1, files: 10, compute: 10, requ
 
 /** The dedicated machines, smallest first, priced in US dollars. */
 export const machines = [
-    { size: "small", vcpus: 2, memory: 4, disk: 80, hourly: 0.08, minutely: 0.00133 },
-    { size: "medium", vcpus: 4, memory: 8, disk: 160, hourly: 0.16, minutely: 0.00267 },
-    { size: "large", vcpus: 8, memory: 16, disk: 320, hourly: 0.32, minutely: 0.00533 },
-    { size: "xlarge", vcpus: 16, memory: 32, disk: 640, hourly: 0.64, minutely: 0.01067 },
+    { size: "small", vcpus: 2, memory: 4, disk: 80, hourly: 0.08 },
+    { size: "medium", vcpus: 4, memory: 8, disk: 160, hourly: 0.16 },
+    { size: "large", vcpus: 8, memory: 16, disk: 320, hourly: 0.32 },
+    { size: "xlarge", vcpus: 16, memory: 32, disk: 640, hourly: 0.64 },
 ] as const;
