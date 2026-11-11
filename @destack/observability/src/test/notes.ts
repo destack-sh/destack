@@ -9,7 +9,7 @@ import { Digest } from "@destack/schema";
 
 /** The notes application, whose builds the test space installs and whose failures it groups. */
 export const NOTES = Package.parse({
-    id: "package-01996ab0-0000-7000-8000-000000000004",
+    id: "package-01996ab0-0000-7000-8000-0000000000b4",
     name: "@example/notes",
     version: "2026.9.0",
 });
@@ -46,9 +46,10 @@ function encode(value: string): Uint8Array<ArrayBuffer> {
 export const TestNotes = {
     /** Write the notes build: a workload whose source map points into `Note.rename`. */
     async build(): Promise<BuildReader> {
-        // keep the source and the workload's source map, generated 1:0 mapping to note.ts 3:8
+        // keep the source, the workload and its source map, generated 1:0 mapping to note.ts 3:8
         const files = new Map<string, Uint8Array<ArrayBuffer>>([
             [NOTE_MODULE, encode(NOTE_SOURCE)],
+            ["output/bun/workload.js", encode("export {};\n")],
             [
                 "output/bun/workload.js.map",
                 encode(
@@ -67,6 +68,18 @@ export const TestNotes = {
             {
                 role: "app",
                 package: NOTES,
+                outputs: {
+                    bun: {
+                        runtime: "bun",
+                        emit: true,
+                        workloads: {},
+                        views: {},
+                        directory: "output/bun",
+                        exports: {},
+                        dependencies: {},
+                        peers: {},
+                    },
+                },
                 sourceMaps: [
                     { generated: "output/bun/workload.js", map: "output/bun/workload.js.map" },
                 ],

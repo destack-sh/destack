@@ -24,7 +24,7 @@ import {
 } from "../object/index.ts";
 import { visitorSalt } from "../object/index.ts";
 import observabilityPackage from "../package.ts";
-import { TestObservability } from "../test/index.ts";
+import { NOTES, TestObservability } from "../test/index.ts";
 import { EMITTER_ATTRIBUTES } from "@destack/telemetry/otlp";
 
 /** The hexadecimal digits of a visitor's hash. */
@@ -285,9 +285,8 @@ test("group failures logged and annotated on spans into an issue at their declar
         opened: {
             title: "RangeError: title is too long",
             errorType: "RangeError",
-            culprit: "package-01996ab0-0000-7000-8000-000000000004/src/note.ts#Note.rename",
-            declaration:
-                "package-01996ab0-0000-7000-8000-000000000004/src/note.ts#Note:object:note.rename:method",
+            culprit: `${NOTES.id}/src/note.ts#Note.rename`,
+            declaration: `${NOTES.id}/src/note.ts#Note:object:note.rename:method`,
             level: "error",
             count: 4,
             people: 2,
