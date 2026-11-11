@@ -93,7 +93,7 @@ export async function buildExecutable(
     // refuse a target the building runtime cannot run, as the runtime ships as itself
     const { files, process, host } = environment;
     if (options.runtime !== `bun-${host.os}-${host.architecture}`) {
-        throw new Error(`build ${options.target} on a computer of its own architecture`);
+        throw new Error(`build '${options.target}' on a computer of its own architecture`);
     }
 
     // bundle the program beside the launcher, its directory assets below the bundles
@@ -142,7 +142,7 @@ async function compileLauncher(
     });
     const [code, errors] = await Promise.all([child.exited, new Response(child.stderr).text()]);
     if (code !== 0) {
-        throw new Error(`the launcher did not compile: ${errors.trim()}`);
+        throw new Error(`the launcher did not compile: '${errors.trim()}'`);
     }
 }
 
@@ -228,7 +228,9 @@ async function sharedPlugin(
     const lines = entries.map(([specifier, resolved], index) => {
         const [file, ...others] = resolved;
         if (file === undefined || others.length > 0) {
-            throw new Error(`the program bundles ${specifier} from ${[...resolved].join(", ")}`);
+            throw new Error(
+                `the program bundles '${specifier}' from '${[...resolved].join(", ")}'`,
+            );
         }
 
         return {
@@ -264,7 +266,7 @@ async function copyAssets(
         const link = entries.find((entry) => entry.kind === "symlink");
         if (isLink || link !== undefined) {
             const path = link === undefined ? asset : join(asset, link.name);
-            throw new Error(`executable asset is a symbolic link: ${path}`);
+            throw new Error(`executable asset is a symbolic link: '${path}'`);
         }
 
         // copy the asset with everything inside it

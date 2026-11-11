@@ -103,7 +103,7 @@ async function run(
     // refuse a failed tool without its private output
     if (result.code !== 0) {
         throw new Error(
-            `${command} failed while preparing the recovery backup; private output was withheld`,
+            `'${command}' failed while preparing the recovery backup; private output was withheld`,
         );
     }
 

@@ -46,7 +46,7 @@ test("select each tier's root and keep each deployment's remote state key", () =
 test("refuse a scope outside the universe and the residencies", () => {
     const environment = testSimulation().environment("operator");
     expect(() => new Root(["production", "global"], environment)).toThrow(
-        new Error("select access, global, or production followed by universe|eu|us"),
+        new Error("select 'access, global', or production followed by 'universe|eu|us'"),
     );
 });
 

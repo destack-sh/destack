@@ -136,7 +136,7 @@ async function mergeResources(
             } else {
                 const [copied, kept] = [await files.readFile(from), await files.readFile(target)];
                 if (!Buffer.from(copied).equals(Buffer.from(kept))) {
-                    throw new Error(`the slices' resources differ at ${entry.name}`);
+                    throw new Error(`the slices' resources differ at '${entry.name}'`);
                 }
             }
         }

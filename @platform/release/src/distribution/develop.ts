@@ -38,7 +38,7 @@ export async function developDistribution(environment: Environment<HostCapabilit
         });
         const code = await child.exited;
         if (code !== 0) {
-            throw new Error(`desktop exited with status ${code}`);
+            throw new Error(`desktop exited with status '${code}'`);
         }
     } finally {
         await files.remove(directory, { recursive: true, force: true });

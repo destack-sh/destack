@@ -45,7 +45,7 @@ export async function signPlatform(
         }
         const signer = Signer.of(platform, environment);
         if (signer === undefined) {
-            throw new Error(`${release.target} has no platform signer`);
+            throw new Error(`'${release.target}' has no platform signer`);
         }
         await Signer.certify(directory, platform, signer, environment);
 

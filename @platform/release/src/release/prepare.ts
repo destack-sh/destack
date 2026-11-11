@@ -78,7 +78,7 @@ function describeInstallers(): Record<string, string>[] {
         const signers = new Set(platforms.map(({ signer }) => signer));
         const [signer] = signers;
         if (signers.size !== 1 || signer === undefined) {
-            throw new Error(`the ${installer.name} installer requires one signer`);
+            throw new Error(`the '${installer.name}' installer requires one signer`);
         }
 
         return {

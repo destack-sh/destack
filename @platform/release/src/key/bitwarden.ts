@@ -176,7 +176,7 @@ export class Bitwarden {
         const items = await this.#read(["list", "items", "--search", name], BitwardenItems);
         const matches = items.filter((entry) => entry.name === name);
         if (matches.length > 1) {
-            throw new Error(`multiple Bitwarden records are named ${name}`);
+            throw new Error(`multiple Bitwarden records are named '${name}'`);
         }
 
         return matches[0];
@@ -222,7 +222,7 @@ export class Bitwarden {
         if (result.code !== 0) {
             const reason = result.signal ?? `exit ${result.code}`;
             throw new Error(
-                `command ${arguments_[0]} in Bitwarden failed (${reason}); check the CLI session and run bw sync directly for connection diagnostics`,
+                `command '${arguments_[0]}' in Bitwarden failed ('${reason}'); check the CLI session and run bw sync directly for connection diagnostics`,
             );
         }
 

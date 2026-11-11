@@ -147,7 +147,7 @@ test("recover expired freshness through signed metadata without accepting change
         }
         const initial = new RepositoryConfiguration(HOST, { root: expired }).root();
         expect(initial.toJSON()).toEqual(expired.toJSON());
-        expect(() => TrustedRoot.verify(initial)).toThrow("root has expired");
+        expect(() => TrustedRoot.verify(initial)).toThrow("root is invalid: it has expired");
         await expect(RepositoryRenewal.read(server.url, initial, HOST)).rejects.toThrow(
             "release root must be renewed by its offline quorum",
         );

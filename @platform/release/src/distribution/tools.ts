@@ -48,7 +48,7 @@ export async function buildSandboxTools(
     const bytes = new Uint8Array(await response.arrayBuffer());
     const digest = await Digest.of(bytes, environment.crypto);
     if (digest !== SOCAT_SOURCE.digest) {
-        throw new Error(`socat source has digest ${digest}, not ${SOCAT_SOURCE.digest}`);
+        throw new Error(`socat source has digest '${digest}', not '${SOCAT_SOURCE.digest}'`);
     }
 
     // build socat without OpenSSL, readline or libwrap, so it needs the C library alone

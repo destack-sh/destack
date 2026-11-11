@@ -44,6 +44,6 @@ const error = text(sandbox.stderr);
 /** Exit status of the sandbox process. */
 const exit = await sandbox.exited;
 if (exit.code !== 0) {
-    throw new Error(`sandbox failed: ${await error}`);
+    throw new Error(`sandbox failed: '${await error}'`);
 }
 environment.process.stdout.writeSync(await output);

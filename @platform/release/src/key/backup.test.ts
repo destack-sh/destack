@@ -26,7 +26,7 @@ test("encrypt and restore a signing archive without replacing an existing backup
     // preserve the first verified archive when a caller repeats the operation
     expect(await refusal(key.write(archive, output))).toEqual([
         "CONFLICT",
-        "ALREADY_EXISTS",
+        "FILE_EXISTS",
         `cannot open ${output}: EEXIST`,
     ]);
     expect(await files.readFile(output)).toEqual(encrypted);

@@ -12,7 +12,7 @@ export async function buildInstaller(
     const installers = Installer.list().map(({ installer }) => installer);
     const installer = installers.find(({ name }) => name === arguments_[0]);
     if (installer === undefined) {
-        throw new Error(`select an installer: ${installers.map(({ name }) => name).join(", ")}`);
+        throw new Error(`select an installer: '${installers.map(({ name }) => name).join(", ")}'`);
     }
 
     // build the installer with its format's builder

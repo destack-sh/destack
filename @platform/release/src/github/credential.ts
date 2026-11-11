@@ -94,7 +94,7 @@ async function readKeys(
             const name = `DESTACK_${role.toUpperCase()}_KEY`;
             const pem = environment.process.variables[name];
             if (pem === undefined || pem === "") {
-                throw new Error(`missing ${name}`);
+                throw new Error(`missing '${name}'`);
             }
 
             return { role, key: await SigningKey.import(pem, environment.crypto) };

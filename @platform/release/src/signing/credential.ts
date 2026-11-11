@@ -194,7 +194,7 @@ function required(name: string, environment: Environment<"process">): string {
         value === "" ||
         (/[\r\n]/u.test(value) && name !== "APPLE_NOTARY_KEY" && name !== "APPLE_CERTIFICATE")
     ) {
-        throw new Error(`${name} is missing or invalid`);
+        throw new Error(`'${name}' is missing or invalid`);
     }
 
     return value;

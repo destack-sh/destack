@@ -48,7 +48,7 @@ export async function checkExpiry(environment: Environment<HostCapability>): Pro
             print(`${role}: ${document.signed.expires}`, environment);
         }
         if (failures.length) {
-            throw new Error(`release metadata needs renewal: ${failures.join(", ")}`);
+            throw new Error(`release metadata needs renewal: '${failures.join(", ")}'`);
         }
     } finally {
         await files.remove(directory, { recursive: true, force: true });

@@ -87,7 +87,7 @@ async function verifyTarget(
         }),
     );
     if (!response.ok || !response.body) {
-        throw new Error(`cannot verify published target: ${path} (${response.status})`);
+        throw new Error(`cannot verify published target: '${path}' (${response.status})`);
     }
     await target.verify(Readable.from(response.body));
 }

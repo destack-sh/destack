@@ -58,7 +58,7 @@ export async function buildToolchain(
     const missing = [...TOOLCHAIN_PACKAGES].filter((name) => !shipped.has(name));
     if (missing.length > 0) {
         throw new Error(
-            `the toolchain leaves out ${missing.join(", ")}, which builds take from it`,
+            `the toolchain leaves out '${missing.join(", ")}', which builds take from it`,
         );
     }
 
@@ -303,7 +303,7 @@ class NodeModules {
         // refuse a second version where nothing can nest it
         else {
             throw new Error(
-                `the toolchain needs two installations of ${name}: ${resolved} and ${real}`,
+                `the toolchain needs two installations of '${name}': '${resolved}' and '${real}'`,
             );
         }
 
@@ -390,7 +390,7 @@ function replaceModuleUrl(path: string, source: string, url: string): string {
     // find each import.meta.url
     const parsed = parseSync(path, source);
     if (parsed.errors.length > 0) {
-        throw new Error(`invalid toolchain module: ${path}`);
+        throw new Error(`invalid toolchain module: '${path}'`);
     }
     const output = new MagicString(source);
     new Visitor({

@@ -139,7 +139,7 @@ export class Root {
         else {
             const scopes = ["universe", ...RESIDENCIES.map((residency) => residency.code)];
             throw new Error(
-                `select ${STAGELESS_ROOTS.join(", ")}, or production followed by ${scopes.join("|")}`,
+                `select '${STAGELESS_ROOTS.join(", ")}', or production followed by '${scopes.join("|")}'`,
             );
         }
 
@@ -234,9 +234,9 @@ export class Root {
 
         // refuse a run a signal ended or that failed
         if (command.signal !== undefined) {
-            throw new Error(`${tool} terminated by ${command.signal}`);
+            throw new Error(`'${tool}' terminated by '${command.signal}'`);
         } else if (status !== 0) {
-            throw new Error(`${tool} exited with ${status}`);
+            throw new Error(`'${tool}' exited with ${status}`);
         }
     }
 
@@ -244,7 +244,7 @@ export class Root {
     static required(name: string, environment: Environment<"process">): string {
         const value = environment.process.variables[name];
         if (value === undefined || value === "") {
-            throw new Error(`${name} is required`);
+            throw new Error(`'${name}' is required`);
         }
 
         return value;
@@ -378,7 +378,9 @@ export class Root {
 
         // refuse a failed run
         if (ran.code !== 0) {
-            throw new Error(`tofu output of ${this.name} failed: ${decoder.decode(ran.stderr)}`);
+            throw new Error(
+                `tofu output of '${this.name}' failed: '${decoder.decode(ran.stderr)}'`,
+            );
         }
 
         return JSON.parse(decoder.decode(ran.stdout));

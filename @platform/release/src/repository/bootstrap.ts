@@ -27,7 +27,7 @@ export async function writeBootstrap(
         const match = TARGET_PATH.exec(path);
         const target = match?.[1];
         if (!match || target === undefined) {
-            throw new Error(`invalid target path: ${path}`);
+            throw new Error(`invalid target path: '${path}'`);
         }
 
         // leave out a release's manifest, which updaters read and people never download

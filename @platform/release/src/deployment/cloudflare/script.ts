@@ -162,7 +162,7 @@ export class WorkerScript {
     get origin(): string {
         const target = this.target;
         if (target.kind === "tail") {
-            throw new Error(`${this.name} answers at no origin`);
+            throw new Error(`'${this.name}' answers at no origin`);
         }
 
         return target.kind === "universe"
@@ -322,14 +322,14 @@ export class WorkerScript {
         const [chunk, ...others] = output;
         if (chunk?.type !== "chunk" || others.length > 0) {
             throw new Error(
-                `${this.name} bundles into ${output.length} outputs instead of one module`,
+                `'${this.name}' bundles into ${output.length} outputs instead of one module`,
             );
         }
 
         // refuse a bundle still importing a Bun module, which workerd lacks
         const imported = /\bfrom\s*"(bun(?::[a-z]+)?)"/u.exec(chunk.code)?.[1];
         if (imported !== undefined) {
-            throw new Error(`${this.name} imports ${imported}, which workerd lacks`);
+            throw new Error(`'${this.name}' imports '${imported}', which workerd lacks`);
         }
 
         // write the module
@@ -363,7 +363,9 @@ export class WorkerScript {
         );
         if (response.status >= 500 || (isUniverse && !response.ok)) {
             const body = await response.text();
-            throw new Error(`${this.name} answered ${url.href} with ${response.status}: ${body}`);
+            throw new Error(
+                `'${this.name}' answered '${url.href}' with ${response.status}: '${body}'`,
+            );
         }
     }
 

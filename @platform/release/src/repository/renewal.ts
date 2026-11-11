@@ -178,7 +178,7 @@ async function readDocument(url: URL, name: string, environment: Environment): P
     // refuse a document the origin does not have
     const document = await readOptionalDocument(url, name, environment);
     if (document === undefined) {
-        throw new Error(`cannot read release metadata ${name}: 404`);
+        throw new Error(`cannot read release metadata '${name}': 404`);
     }
 
     return document;
@@ -205,7 +205,7 @@ async function readOptionalDocument(
     }
     if (!response.ok || !response.body) {
         await response.body?.cancel();
-        throw new Error(`cannot read release metadata ${name}: ${response.status}`);
+        throw new Error(`cannot read release metadata '${name}': ${response.status}`);
     }
 
     // consume bounded chunks and cancel oversized responses through iterator cleanup
@@ -214,11 +214,11 @@ async function readOptionalDocument(
     for await (const chunk of response.body) {
         const bytes: unknown = chunk;
         if (!(bytes instanceof Uint8Array)) {
-            throw new TypeError(`a chunk of release metadata ${name} is not bytes`);
+            throw new TypeError(`a chunk of release metadata '${name}' is not bytes`);
         }
         size += bytes.length;
         if (size > METADATA_SIZE) {
-            throw new Error(`oversized release metadata: ${name}`);
+            throw new Error(`oversized release metadata: '${name}'`);
         }
         buffers.push(bytes);
     }

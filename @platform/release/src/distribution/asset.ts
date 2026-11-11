@@ -28,7 +28,7 @@ export async function transformAssets(
     }
     const parsed = parseSync(path, source);
     if (parsed.errors.length) {
-        throw new Error(`invalid executable source: ${path}`);
+        throw new Error(`invalid executable source: '${path}'`);
     }
 
     // collect literal directory references before rewriting source positions
@@ -44,10 +44,10 @@ export async function transformAssets(
         const directory = await files.realPath(fileURLToPath(url));
         const local = relative(root, directory);
         if (local === ".." || local.startsWith(`..${sep}`) || isAbsolute(local)) {
-            throw new Error(`executable asset leaves its root: ${directory}`);
+            throw new Error(`executable asset leaves its root: '${directory}'`);
         }
         if ((await files.stat(directory)).kind !== "directory") {
-            throw new Error(`executable asset is not a directory: ${directory}`);
+            throw new Error(`executable asset is not a directory: '${directory}'`);
         }
         assets.add(directory);
         output.overwrite(

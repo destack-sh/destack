@@ -85,7 +85,7 @@ export class R2ReleaseBucket {
         }
         const etag = response.headers.get("etag");
         if (!response.ok || etag === null || etag === "") {
-            throw new Error(`cannot read release object revision: ${path} (${response.status})`);
+            throw new Error(`cannot read release object revision: '${path}' (${response.status})`);
         }
 
         return etag;
@@ -126,7 +126,7 @@ export class R2ReleaseBucket {
         if (response.status === 412 && immutable) {
             const existing = await this.get(path);
             if (!existing.ok || existing.body === null) {
-                throw new Error(`cannot read release object: ${path} (${existing.status})`);
+                throw new Error(`cannot read release object: '${path}' (${existing.status})`);
             }
             await using local = await files.open(file, { read: true });
             const { crypto } = this.environment;
@@ -135,12 +135,12 @@ export class R2ReleaseBucket {
                 crypto.digest("SHA-256", local.readable()),
             ]);
             if (new Uint8Array(previous).toHex() !== new Uint8Array(next).toHex()) {
-                throw new Error(`refusing to overwrite immutable release file: ${path}`);
+                throw new Error(`refusing to overwrite immutable release file: '${path}'`);
             }
         }
         // report object paths without exposing signed URLs
         else if (!response.ok) {
-            throw new Error(`release upload failed: ${path} (${response.status})`);
+            throw new Error(`release upload failed: '${path}' (${response.status})`);
         }
     }
 }

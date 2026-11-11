@@ -24,7 +24,7 @@ export async function run(
     // refuse a failed run
     const code = await child.exited;
     if (code !== 0) {
-        throw new Error(`${command} exited with status ${code}`);
+        throw new Error(`'${command}' exited with status '${code}'`);
     }
 }
 
@@ -47,7 +47,7 @@ export async function read(
 
     // refuse a failed run
     if (code !== 0) {
-        throw new Error(`${command} exited with status ${code}`);
+        throw new Error(`'${command}' exited with status '${code}'`);
     }
 
     return output;

@@ -44,5 +44,5 @@ function valueOf(value: unknown): MetadataValue {
     }
 
     // reject values that JSON cannot hold
-    throw new TypeError(`a metadata document contains an unsupported ${typeof value}`);
+    throw new TypeError(`a metadata document contains an unsupported '${typeof value}'`);
 }

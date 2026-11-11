@@ -34,13 +34,13 @@ export async function checkDistribution(
             environment,
         );
         if (identity.version !== version) {
-            throw new Error(`the CLI reports ${identity.version}, not ${version}`);
+            throw new Error(`the CLI reports '${identity.version}', not '${version}'`);
         }
         await run(executable, state, ["self", "start"], schema.json(), environment);
         isRunning = true;
         const started = await Device.inspect(state, environment);
         if (started.kind !== "running" || started.computer.version !== version) {
-            throw new Error(`the machine does not run ${version}`);
+            throw new Error(`the machine does not run '${version}'`);
         }
 
         // restart the machine, requiring it to keep its host
@@ -114,7 +114,7 @@ async function checkExecutables(
         const link = join(root, "bin", name);
         const linked = await environment.files.readLink(link);
         if (resolve(dirname(link), linked) !== join(helpers, name)) {
-            throw new Error(`${link} links to ${linked}, not the application's ${name}`);
+            throw new Error(`'${link}' links to '${linked}', not the application's '${name}'`);
         }
     }
 
@@ -122,10 +122,10 @@ async function checkExecutables(
     for (const path of paths) {
         const file = await environment.files.lstat(path);
         if (file.kind !== "file" || file.size === 0) {
-            throw new Error(`missing packaged file: ${path}`);
+            throw new Error(`missing packaged file: '${path}'`);
         }
         if ((file.mode & 0o111) === 0) {
-            throw new Error(`packaged command is not executable: ${path}`);
+            throw new Error(`packaged command is not executable: '${path}'`);
         }
     }
 }

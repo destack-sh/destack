@@ -97,7 +97,7 @@ export class MacSigning implements Signer {
             } else if (entry.kind === "file") {
                 await this.signFile(path, runtime);
             } else {
-                throw new Error(`unsupported signing entry: ${path}`);
+                throw new Error(`unsupported signing entry: '${path}'`);
             }
         }
     }
@@ -175,7 +175,7 @@ export class MacSigning implements Signer {
 function required(variables: Readonly<Record<string, string>>, name: string): string {
     const value = variables[name];
     if (value === undefined || value === "") {
-        throw new Error(`${name} is required for release signing`);
+        throw new Error(`'${name}' is required for release signing`);
     }
 
     return value;

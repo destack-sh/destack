@@ -48,7 +48,7 @@ export async function publish(
     const files = await list(directory, environment);
     const unexpected = files.find((path) => !PUBLIC_PATH.test(path));
     if (unexpected !== undefined) {
-        throw new Error(`unexpected file in public release repository: ${unexpected}`);
+        throw new Error(`unexpected file in public release repository: '${unexpected}'`);
     }
     if (!files.includes(TIMESTAMP)) {
         throw new Error("missing signed timestamp");
@@ -119,7 +119,7 @@ async function requirePublishable(
     else {
         const missing = [...referenced].find((path) => !files.includes(path));
         if (missing !== undefined) {
-            throw new Error(`release file is missing: ${missing}`);
+            throw new Error(`release file is missing: '${missing}'`);
         }
     }
 
@@ -229,7 +229,7 @@ async function requireContinuation(
         const path = targetPath(target);
         const existing = published.signed.targets[target.path];
         if (!files.includes(path) && (existing === undefined || !isSameFile(existing, target))) {
-            throw new Error(`release archive is missing: ${path}`);
+            throw new Error(`release archive is missing: '${path}'`);
         }
     }
 }
@@ -241,7 +241,7 @@ function requireSuccessor(
     replacement: TargetFile | undefined,
 ): void {
     if (replacement === undefined) {
-        throw new Error(`refusing to remove a published platform: ${path}`);
+        throw new Error(`refusing to remove a published platform: '${path}'`);
     }
     const oldVersion = TargetCustom.parse(old.custom).version;
     const newVersion = TargetCustom.parse(replacement.custom).version;
@@ -249,10 +249,10 @@ function requireSuccessor(
     // refuse downgrades and different bytes under a published version
     const comparison = Version.compare(newVersion, oldVersion);
     if (comparison < 0) {
-        throw new Error(`refusing to downgrade ${path}`);
+        throw new Error(`refusing to downgrade '${path}'`);
     }
     if (comparison === 0 && !isSameFile(old, replacement)) {
-        throw new Error(`published release is immutable: ${path} ${oldVersion}`);
+        throw new Error(`published release is immutable: ${path} '${oldVersion}'`);
     }
 }
 
@@ -296,7 +296,7 @@ function contentType(path: string): string {
     }
 
     // reject files outside the public release formats
-    throw new Error(`unsupported publication media type: ${path}`);
+    throw new Error(`unsupported publication media type: '${path}'`);
 }
 
 /** List files relative to the public repository directory. */
@@ -307,7 +307,7 @@ async function list(directory: string, environment: Environment<"files">): Promi
         if (entry.kind === "file") {
             files.push(entry.name);
         } else if (entry.kind !== "directory") {
-            throw new Error(`unsupported release file: ${entry.name}`);
+            throw new Error(`unsupported release file: '${entry.name}'`);
         }
     }
 

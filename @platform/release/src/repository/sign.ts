@@ -36,7 +36,7 @@ export async function signUpdate(
 
     // refuse a dev build, which the feed never publishes
     if (Version.isPrerelease(version)) {
-        throw new Error(`the feed publishes no dev build: ${version}`);
+        throw new Error(`the feed publishes no dev build: '${version}'`);
     }
 
     // sign each selected target's release from its signed archive, the archive for install.sh, and its toolchain

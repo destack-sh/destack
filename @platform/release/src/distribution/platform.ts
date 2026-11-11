@@ -102,7 +102,7 @@ export const Platform = {
         // refuse a target without a platform row
         const platform = PLATFORMS.find((candidate) => candidate.target === target);
         if (platform === undefined) {
-            throw new Error(`unsupported distribution target: ${target}`);
+            throw new Error(`unsupported distribution target: '${target}'`);
         }
 
         return platform;

@@ -94,7 +94,7 @@ export class Custody {
         // refuse a stage the operator has not sealed
         if (!(await environment.files.exists(file))) {
             throw new Error(
-                `the custody record ${file} is missing: the operator seals it with custody seal and commits it`,
+                `the custody record '${file}' is missing: the operator seals it with custody seal and commits it`,
             );
         }
 
@@ -159,7 +159,7 @@ export class Custody {
     machine(id: string): MachineKeys {
         const keys = this.record.machines[id];
         if (keys === undefined) {
-            throw new Error(`the custody record keeps no keys of machine ${id}`);
+            throw new Error(`the custody record keeps no keys of machine '${id}'`);
         }
 
         return keys;
@@ -174,14 +174,14 @@ export class Custody {
         // refuse missing keys, which only the operator seals
         if (keys === undefined) {
             throw new Error(
-                `the custody record keeps no keys of ${owner}: the operator seals them`,
+                `the custody record keeps no keys of '${owner}': the operator seals them`,
             );
         }
         // refuse keys under another envelope, as regenerating them would orphan what they sealed
         // TODO #Incomplete: rewrap moved keys through KMS ReEncrypt as an operator verb, as Vault migrates seals
         else if (!isSame(keys.envelope, envelope)) {
             throw new Error(
-                `the keys of ${owner} are sealed under ${JSON.stringify(keys.envelope)}, not ${JSON.stringify(envelope)}: rewrap them, never regenerate`,
+                `the keys of '${owner}' are sealed under ${JSON.stringify(keys.envelope)}, not ${JSON.stringify(envelope)}: rewrap them, never regenerate`,
             );
         }
 

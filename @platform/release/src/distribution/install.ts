@@ -88,7 +88,7 @@ async function verifyInstall(
         await command(executable, ["self", "update", "--stage", "--json"], variables, environment),
     );
     if (!isDeepStrictEqual(selection, { installed: version, staged: null })) {
-        throw new Error(`installed release differs from ${version}`);
+        throw new Error(`installed release differs from '${version}'`);
     }
     print(`verified installation and restart of ${version} from ${configuration.url}`, environment);
 }
@@ -161,7 +161,7 @@ async function command(
     ]);
     if (code !== 0) {
         throw new Error(
-            `installed command ${arguments_.join(" ")} failed (${code}): ${diagnostic}`,
+            `installed command '${arguments_.join(" ")}' failed ('${code}'): '${diagnostic}'`,
         );
     }
 

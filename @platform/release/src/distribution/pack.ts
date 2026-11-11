@@ -37,7 +37,7 @@ export async function packDistribution(
     );
     const code = await child.exited;
     if (code !== 0) {
-        throw new Error(`archive creation failed: ${code}`);
+        throw new Error(`archive creation failed: '${code}'`);
     }
 
     // record the exact bytes published for this target

@@ -45,7 +45,7 @@ export async function invokePiv<Result>(
         const diagnostics = decoder.decode(result.stderr);
         const category = /^PIV operation failed: ([A-Za-z]+)$/mu.exec(diagnostics)?.[1];
         throw new Error(
-            `PIV operation failed${category === undefined ? "" : ` (${category})`}; retain the Bitwarden record and inspect the device before retrying`,
+            `PIV operation failed'${category === undefined ? "" : ` (${category})`}'; retain the Bitwarden record and inspect the device before retrying`,
         );
     }
 

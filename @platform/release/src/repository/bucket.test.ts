@@ -93,7 +93,7 @@ test("publish exact bytes at the bucket's root, and reject stale replacements th
     await bucket.put("targets/artifact", first, "application/octet-stream", true);
     await expect(
         bucket.put("targets/artifact", second, "application/octet-stream", true),
-    ).rejects.toThrow("refusing to overwrite immutable release file: targets/artifact");
+    ).rejects.toThrow("refusing to overwrite immutable release file: 'targets/artifact'");
     expect(await (await bucket.get("targets/artifact")).text()).toBe("first release");
 
     // permit one exact replacement and reject the stale writer's previous revision

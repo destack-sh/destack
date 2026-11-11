@@ -56,7 +56,7 @@ test("seal the keys a stage lacks inside KMS once, read them as each deploy does
     );
     await expect(Custody.read(missing, envelopes(SEAL), environment)).rejects.toThrow(
         new Error(
-            `the custody record ${missing} is missing: the operator seals it with custody seal and commits it`,
+            `the custody record '${missing}' is missing: the operator seals it with custody seal and commits it`,
         ),
     );
     await world.files.remove(directory, { recursive: true });
