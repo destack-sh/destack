@@ -28,13 +28,13 @@ test("relay the access deciding a space's objects to each of its installations a
     // refuse another space's installation and a scope outside the space's chain
     expect(await refusal(snapshot(other, ids.space))).toEqual([
         "FORBIDDEN",
-        "FOLLOWER_OUTSIDE_TARGET",
-        `only ${ids.space} and its contents can follow its replicas`,
+        "FOLLOWER_OUTSIDE_TARGET_DENIED",
+        `replica of '${ids.space}' is forbidden: only it and its contents can follow its replicas`,
     ]);
     expect(await refusal(snapshot(notes, "account-elsewhere"))).toEqual([
         "NOT_FOUND",
-        "SCOPE_NOT_CONTAINED",
-        `account-elsewhere does not contain ${ids.space}`,
+        "SCOPE_NOT_FOUND",
+        `'${ids.space}' in 'account-elsewhere' not found`,
     ]);
 });
 

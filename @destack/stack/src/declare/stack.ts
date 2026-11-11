@@ -80,7 +80,7 @@ export const StackDocument = {
         if (unknown !== undefined) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `the stack declares ${unknown}, which no named type has`,
+                `type '${unknown}' is invalid: no named type has it`,
             );
         }
 

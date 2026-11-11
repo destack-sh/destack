@@ -125,7 +125,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
             [`calls ${packages.object}`],
         ],
         [rebuiltId, rebuild?.finishedAt],
-        ["NOT_FOUND", "NOT_FOUND", `symbol ${at}#notebook not found`],
+        ["NOT_FOUND", "NOT_FOUND", `symbol '${at}#notebook' not found`],
     ]);
 
     // read the service's procedures in the owner's client's live query
@@ -144,7 +144,7 @@ test("serve a build's modules, declarations and code symbols from its index to t
         caller: fixture.owner.subject,
         endpoint,
         reconnect: (holder) => {
-            throw new TypeError(`no build moves, yet one moved to ${holder}`);
+            throw new TypeError(`no build moves, yet one moved to '${holder}'`);
         },
     });
     const stopping = new AbortController();
@@ -191,7 +191,7 @@ test("refuse to open the graph of a build the space does not record", async () =
 
     // refuse the open of an unknown build
     expect(await graphs.open(UNKNOWN_BUILD).catch((error: unknown) => error)).toEqual(
-        new TypeError(`build ${UNKNOWN_BUILD} is missing`),
+        new TypeError(`'build ${UNKNOWN_BUILD}' is missing`),
     );
 });
 

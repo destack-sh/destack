@@ -186,7 +186,7 @@ export class CommitBuild {
                 await reconciliation.mutate([build.call("cancel", build.target(each))]);
             } catch (error) {
                 // leave a build that ended meanwhile
-                if (!StackError.is(error, "BUILD_STATE_CONFLICT")) {
+                if (!StackError.is(error, "BUILD_BLOCKED")) {
                     throw error;
                 }
             }
@@ -211,7 +211,7 @@ export class CommitBuild {
             return Build.of(present(created, "the created build"));
         } catch (error) {
             // adopt the live build of the same checkout, which the creation refuses to repeat
-            if (!StackError.is(error, "BUILD_DUPLICATE") && !DatabaseError.is(error, "DUPLICATE")) {
+            if (!StackError.is(error, "BUILD_EXISTS") && !DatabaseError.is(error, "ROW_EXISTS")) {
                 throw error;
             }
             return present(

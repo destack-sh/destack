@@ -12,8 +12,8 @@ export const hookAdapter: AdapterFetch = async (request, admitted, _context, sto
     const sandbox = store.sandboxes.find((each) => Subject.same(each.subject, caller.subject));
     if (sandbox === undefined) {
         throw StackError.of(
-            "HOOKS_MISSING",
-            "only installations with hooks in this store can open sessions",
+            "HOOKS_DENIED",
+            "session is forbidden: only installations with hooks in this store can open sessions",
         );
     }
 

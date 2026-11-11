@@ -75,7 +75,7 @@ test("install an application into a space as its owner, and refuse a stranger wh
     for (const name of ["tasks", "notes"]) {
         expect(
             await refusal(create(principal.user.reference(Scope.universe.id, "stranger"), name)),
-        ).toEqual(["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.space} not found`]);
+        ).toEqual(["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${ids.space}' not found`]);
     }
 });
 
@@ -254,9 +254,9 @@ test("roll an installation back to the revision applied before, a reused one too
 
     expect({ refused, back, followed: { revisionId, selection }, reused }).toEqual({
         refused: [
-            "CONFLICT",
-            "PREVIOUS_REVISION_MISSING",
-            "installation notes has no revision before its applied one",
+            "NOT_FOUND",
+            "REVISION_NOT_FOUND",
+            "previous revision of installation 'notes' not found",
         ],
         back: { revisionId: second },
         followed: { revisionId: second, selection: { kind: "release", version: "2026.9.1" } },

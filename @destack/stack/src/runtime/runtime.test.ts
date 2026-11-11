@@ -189,8 +189,8 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         },
         [
             "PRECONDITION_FAILED",
-            "FOREIGN_RESOURCE",
-            `resource ${database.id} does not bind a resource of ${notes.name}`,
+            "RESOURCE_BLOCKED",
+            `cannot bind resource '${database.id}': it does not bind a resource of '${notes.name}'`,
         ],
     ]);
 });

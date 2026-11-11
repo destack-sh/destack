@@ -13,8 +13,8 @@ export function implementRoute(isServingHostnames: boolean) {
                 // refuse a route on an account's own hostname no request would reach, then a hostname outside the account
                 if (!isServingHostnames && !PlatformDomain.covers(call.input.hostname)) {
                     throw StackError.of(
-                        "HOSTNAME_NOT_SERVED",
-                        `requests for ${call.input.hostname} do not reach this space's machine`,
+                        "HOSTNAME_BLOCKED",
+                        `cannot route '${call.input.hostname}': its requests do not reach this space's machine`,
                     );
                 }
                 await requireHostname(call, call.input.hostname);
@@ -46,7 +46,10 @@ function requireRules(hasInstallation: boolean, rules: readonly RouteRule[]): vo
         // require exactly one of a redirect and an entry
         const isRedirect = (rule.filters ?? []).some((filter) => filter.kind === "redirect");
         if (isRedirect === (rule.entry !== undefined)) {
-            throw StackError.of("ROUTE_INVALID", "a route's rule either redirects or has an entry");
+            throw StackError.of(
+                "ROUTE_INVALID",
+                "route rule is invalid: it must either redirect or have an entry",
+            );
         }
 
         // require patterns that compile
@@ -57,7 +60,7 @@ function requireRules(hasInstallation: boolean, rules: readonly RouteRule[]): vo
         if (invalid !== undefined) {
             throw StackError.of(
                 "ROUTE_INVALID",
-                `invalid pattern for ${invalid.name}: ${invalid.value}`,
+                `pattern '${invalid.value}' for '${invalid.name}' is invalid: it must be a URL pattern`,
             );
         }
 
@@ -65,7 +68,7 @@ function requireRules(hasInstallation: boolean, rules: readonly RouteRule[]): vo
         if (rule.entry !== undefined && rule.entry.kind !== "url" && !hasInstallation) {
             throw StackError.of(
                 "ROUTE_INVALID",
-                `a route serving an installation's ${rule.entry.kind} needs its installation`,
+                `route is invalid: a route serving an installation's ${rule.entry.kind} needs its installation`,
             );
         }
     }
@@ -76,6 +79,6 @@ async function requireHostname(call: MethodContext, name: string): Promise<void>
     // refuse a hostname the space's account lacks
     const [owned] = await call.read(hostname).findMany({ where: { name } });
     if (owned === undefined) {
-        throw StackError.of("HOSTNAME_NOT_FOUND", `hostname ${name} not found`);
+        throw StackError.of("HOSTNAME_NOT_FOUND", `hostname '${name}' not found`);
     }
 }

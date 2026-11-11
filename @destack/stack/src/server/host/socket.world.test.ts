@@ -67,7 +67,7 @@ test("list a space's live sockets to its members only", async () => {
     expect(await refusal(listed(principal.user.reference(Scope.universe.id, "stranger")))).toEqual([
         "NOT_FOUND",
         "SCOPE_NOT_FOUND",
-        `scope ${ids.space} not found`,
+        `scope '${ids.space}' not found`,
     ]);
 });
 

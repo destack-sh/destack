@@ -337,7 +337,7 @@ async function send(object: DurableObjectStub, operation: GraphOperation): Promi
     );
     if (!response.ok) {
         throw new TypeError(
-            `the index object responded with ${response.status}: ${await response.text()}`,
+            `the index object responded with ${response.status}: '${await response.text()}'`,
         );
     }
 

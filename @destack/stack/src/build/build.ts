@@ -84,7 +84,7 @@ function runnable(compilation: Compilation): Runnable[] {
     if (declared.some((workload) => workload.name === HOOK_WORKLOAD)) {
         throw StackError.of(
             "DEFINITION_INVALID",
-            `workload name ${HOOK_WORKLOAD} is reserved for a package's hook workload`,
+            `workload name '${HOOK_WORKLOAD}' is invalid: it is reserved for a package's hook workload`,
         );
     }
     const workloads = declared.map((workload) => ({
@@ -192,7 +192,10 @@ function describe(
         // refuse a declaration its package declares twice
         const key = `${owner.id}:${declaration.kind}:${declaration.name}`;
         if (seen.has(key)) {
-            throw StackError.of("DEFINITION_INVALID", `duplicate declaration: ${key}`);
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `declaration '${key}' is invalid: it is a duplicate`,
+            );
         }
         seen.add(key);
         selected.push(DeclarationReference.of({ package: owner, name: declaration.name }));

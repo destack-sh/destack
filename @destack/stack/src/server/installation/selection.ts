@@ -21,8 +21,8 @@ export const SelectedRepository = {
         // read the account of the repository
         if (forge === null) {
             throw StackError.of(
-                "REPOSITORIES_MISSING",
-                "this machine does not follow any repositories",
+                "REPOSITORIES_BLOCKED",
+                "cannot select a repository: this machine does not follow any repositories",
             );
         }
         const owner = await forge.owner(selection.repository);
@@ -56,6 +56,9 @@ export const SelectedRepository = {
 
     /** Refuse a repository outside the space's account, whatever other account has it. */
     missing(id: string): Error {
-        return StackError.of("REPOSITORY_NOT_FOUND", `the space's account has no repository ${id}`);
+        return StackError.of(
+            "REPOSITORY_NOT_FOUND",
+            `repository '${id}' of the space's account not found`,
+        );
     },
 };

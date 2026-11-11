@@ -57,13 +57,13 @@ test("call only the hosts an in-process installation's capabilities declare, as 
     ]).toEqual([
         [
             "FORBIDDEN",
-            "NETWORK_UNDECLARED",
-            "installation caller declares no network access to other.example.com:443",
+            "NETWORK_DENIED",
+            "network access to 'other.example.com:443' is forbidden: installation 'caller' declares no access to it",
         ],
         [
             "FORBIDDEN",
-            "NETWORK_UNDECLARED",
-            "installation caller declares no network access to smtp.example.com:25",
+            "NETWORK_DENIED",
+            "network access to 'smtp.example.com:25' is forbidden: installation 'caller' declares no access to it",
         ],
     ]);
 });
@@ -115,18 +115,18 @@ test("call a wildcard's public hosts alone, and follow redirects without credent
         [null],
         [
             "BAD_GATEWAY",
-            "REDIRECT_REFUSED",
-            `https://${DECLARED_HOST}/asset redirected, which the request refuses`,
+            "REDIRECT_UNREACHABLE",
+            `could not fetch 'https://${DECLARED_HOST}/asset': it redirected and the request refuses redirects`,
         ],
         [
             "BAD_GATEWAY",
-            "REDIRECT_REFUSED",
-            `https://${DECLARED_HOST}/post redirected with 307, which would send its body again`,
+            "REDIRECT_UNREACHABLE",
+            `could not follow the 307 redirect of 'https://${DECLARED_HOST}/post': it would send the body again`,
         ],
         [
             "FORBIDDEN",
-            "ADDRESS_PRIVATE",
-            "localhost resolves to localhost, outside the public network",
+            "ADDRESS_PRIVATE_DENIED",
+            "host 'localhost' is forbidden: it resolves to 'localhost', outside the public network",
         ],
     ]);
 });

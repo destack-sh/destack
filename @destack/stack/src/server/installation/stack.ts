@@ -113,7 +113,7 @@ export class StackInstallation {
         if (revision.installationId !== stack.installationId || !revision.definition) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                "the revision is not an evaluated revision of this stack",
+                "revision is invalid: it is not an evaluated revision of this stack",
             );
         }
 
@@ -126,7 +126,7 @@ export class StackInstallation {
                 store,
                 isHome,
             });
-            const outcome = await Transaction.retry(database, "CONCURRENT_UPDATE", async () => {
+            const outcome = await Transaction.retry(database, "UPDATE_CONFLICT", async () => {
                 // plan, and apply the plan unless it waits for an approval
                 const planned = await applying.plan(store.clock.now());
                 const waiting = await Approval.waiting(
@@ -252,7 +252,10 @@ async function appliedDefinition(
         .where(eq(installationRevision.table.id, stack.appliedRevisionId));
     const definition = revision?.definition;
     if (definition === undefined || definition === null) {
-        throw StackError.of("DEFINITION_INVALID", "this stack has no applied evaluated revision");
+        throw StackError.of(
+            "DEFINITION_INVALID",
+            "stack is invalid: it has no applied evaluated revision",
+        );
     }
 
     return definition;

@@ -348,7 +348,7 @@ export const Build = {
         // refuse a row the table's checks refuse
         else {
             throw new TypeError(
-                `build ${row.id} is ${state} with a mismatched manifest or failure`,
+                `build '${row.id}' is '${state}' with a mismatched manifest or failure`,
             );
         }
     },
@@ -369,7 +369,7 @@ export const Build = {
         }
         // refuse an expired build
         else if (narrowed.state === "succeeded") {
-            throw StackError.of("BUILD_EXPIRED", `build ${narrowed.id} expired`);
+            throw StackError.of("BUILD_NOT_FOUND", `build '${narrowed.id}' not found`);
         }
         // refuse a failed build with its failure
         else if (narrowed.state === "failed") {
@@ -377,7 +377,10 @@ export const Build = {
         }
         // refuse a build without a manifest
         else {
-            throw StackError.of("BUILD_NOT_READY", `build ${narrowed.id} is ${narrowed.state}`);
+            throw StackError.of(
+                "BUILD_UNAVAILABLE",
+                `build '${narrowed.id}' is unavailable: it is '${narrowed.state}'`,
+            );
         }
     },
 
@@ -416,7 +419,7 @@ export const Build = {
             .read(build.table)
             .findMany({ where: { scope: spaceId, id: buildId } });
         if (found === undefined) {
-            throw StackError.of("BUILD_NOT_FOUND", `build ${buildId} not found`);
+            throw StackError.of("BUILD_NOT_FOUND", `build '${buildId}' not found`);
         }
 
         return { ...found, manifest: Build.manifest(found) };

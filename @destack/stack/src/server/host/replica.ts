@@ -141,8 +141,8 @@ export class SpaceReplica {
         // refuse a capture that stopped before its end
         if (!isComplete) {
             throw StackError.of(
-                "CAPTURE_STOPPED",
-                "the capture of this space stopped before its end",
+                "CAPTURE_UNAVAILABLE",
+                "space capture is unavailable: it stopped before its end",
             );
         }
 
@@ -150,8 +150,8 @@ export class SpaceReplica {
         const digest = await SpaceReplica.digest(this.database, this.digestTables(), this.scopes);
         if (digest !== fenced.digest) {
             throw StackError.of(
-                "REPLICA_DIFFERS",
-                "this space's replica differs from its fenced source",
+                "REPLICA_BLOCKED",
+                "cannot finish the transfer: this space's replica differs from its fenced source",
             );
         }
     }

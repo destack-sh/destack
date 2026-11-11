@@ -1182,10 +1182,10 @@ export class TestSpace implements AsyncDisposable {
         return {
             ...(await this.host.options()),
             handoff: async (source) => {
-                throw new TypeError(`the fixture knows no handoff of ${source}`);
+                throw new TypeError(`the fixture knows no handoff of '${source}'`);
             },
             publish: async (_store, manifest) => {
-                throw new TypeError(`the fixture publishes no build, such as ${manifest}`);
+                throw new TypeError(`the fixture publishes no build, such as '${manifest}'`);
             },
             buildRunner: this.machine.id,
             main: spaceDatabase,
@@ -1226,7 +1226,7 @@ export class TestSpace implements AsyncDisposable {
         const start = this.#start(
             Promise.resolve(spaceStore.store),
             async (packageId) => {
-                throw new TypeError(`the test's own space store serves no call of ${packageId}`);
+                throw new TypeError(`the test's own space store serves no call of '${packageId}'`);
             },
             [...this.#beside.providers, ...(overrides.providers ?? [])],
         );
@@ -1269,7 +1269,7 @@ export class TestSpace implements AsyncDisposable {
                     declarations,
                     send: async () => {
                         throw new TypeError(
-                            `the test space runs no hook of ${row.installation.name}`,
+                            `the test space runs no hook of '${row.installation.name}'`,
                         );
                     },
                 }),
@@ -1333,7 +1333,7 @@ export class TestSpace implements AsyncDisposable {
         const peer = egressed === undefined ? undefined : Egress.installation(egressed.address);
         if (egressed === undefined || peer === undefined) {
             throw new TypeError(
-                `the test space's egress sends to peer installations alone, not ${request.url}`,
+                `the test space's egress sends to peer installations alone, not '${request.url}'`,
             );
         }
         const below = new URL(egressed.request.url);
@@ -1342,7 +1342,7 @@ export class TestSpace implements AsyncDisposable {
         // require a peer path the caller may call
         if (mount === undefined || !EgressCaller.binds(caller, peer, mount.path)) {
             throw new TypeError(
-                `installation ${caller.installationId} does not bind ${peer.name} of ${peer.spaceId} at ${below.pathname}`,
+                `installation '${caller.installationId}' does not bind '${peer.name}' of '${peer.spaceId}' at '${below.pathname}'`,
             );
         }
         // refuse an exchange for the call's subject, which the test space's egress makes for nobody
@@ -1880,7 +1880,7 @@ export class TestSpace implements AsyncDisposable {
         } else if (progress !== "current") {
             const message = Observation.message(applied);
             throw new Error(
-                `the space's stack at generation ${applied.generation} is ${progress}: ${message}`,
+                `the space's stack at generation '${applied.generation}' is '${progress}': ${message}`,
             );
         }
     }
@@ -1906,7 +1906,7 @@ export class TestSpace implements AsyncDisposable {
         if (!recorded) {
             throw new AggregateError(
                 failures,
-                `the space's controllers failed while its stack is ${progress}: ${message}`,
+                `the space's controllers failed while its stack is '${progress}': ${message}`,
             );
         }
 
@@ -2026,7 +2026,7 @@ export class TestSpace implements AsyncDisposable {
             .where(eq(installation.table.id, id));
         const synced = present(deployed, `the installation ${name}`).conditions[SYNCED];
         if (synced?.status === "false") {
-            throw new Error(`the installation ${name} failed: ${synced.message}`);
+            throw new Error(`the installation '${name}' failed: ${synced.message}`);
         }
 
         return id;
@@ -2169,7 +2169,7 @@ export async function reconcile(
             await projection.project(present(key[field], `the ${field} key`), reconciliation);
         } else {
             throw new TypeError(
-                `the fixture serves no converging controller or projection ${name}`,
+                `the fixture serves no converging controller or projection '${name}'`,
             );
         }
     } finally {

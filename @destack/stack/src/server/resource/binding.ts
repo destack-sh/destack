@@ -104,7 +104,7 @@ export const ObjectBindable = {
                 if (!ObjectBindable.is(bindable)) {
                     throw StackError.of(
                         "BINDABLE_UNSUPPORTED",
-                        `the bindable ${bindable.object.name} declares no connection`,
+                        `bindable ${bindable.object.name} without a connection is not supported`,
                     );
                 }
 
@@ -207,7 +207,7 @@ export class Binder {
             if (target.spaceId === plan.stack.scope || declared.version !== undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `the binding of ${target.name} must select an installation of another space by name, without a version`,
+                    `binding of '${target.name}' is invalid: it must select an installation of another space by name, without a version`,
                 );
             }
 
@@ -231,7 +231,7 @@ export class Binder {
             }
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `${target.type} ${target.id} not found in the destination space`,
+                `${target.type} '${target.id}' is invalid: the destination space has no such object`,
             );
         }
     }
@@ -281,8 +281,8 @@ export class Binder {
         );
         if (unbound !== undefined) {
             throw StackError.of(
-                "RESOURCE_UNBOUND",
-                `${unbound.package.name} needs ${unbound.kind} ${unbound.name}: bind one at install`,
+                "RESOURCE_BLOCKED",
+                `cannot install '${unbound.package.name}': it needs ${unbound.kind} '${unbound.name}', so bind one at install`,
             );
         }
 
@@ -325,7 +325,7 @@ export class Binder {
             if (row === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `binding ${need.name} of ${target.installation.name} targets unknown ${kind.object.name} ${selected.id}`,
+                    `binding '${need.name}' of '${target.installation.name}' is invalid: it targets unknown ${kind.object.name} '${selected.id}'`,
                 );
             }
             const version = kind.version(row, declared.version ?? null);
@@ -334,7 +334,7 @@ export class Binder {
         }
         throw StackError.of(
             "DEFINITION_INVALID",
-            `binding ${need.name} of ${target.installation.name} selects an unresolved target`,
+            `binding '${need.name}' of '${target.installation.name}' is invalid: it selects an unresolved target`,
         );
     }
 
@@ -785,7 +785,7 @@ export class Binder {
         if (kind === undefined) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `${target} is not an identifier of any bindable kind`,
+                `target '${target}' is invalid: it is not an identifier of any bindable kind`,
             );
         }
 

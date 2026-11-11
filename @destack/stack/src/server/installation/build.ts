@@ -413,7 +413,10 @@ export class SpaceBuildStore {
                 row.runnerId === null ||
                 !acting.includes(row.runnerId)
             ) {
-                throw StackError.of("BUILD_NOT_FOUND", `no build ${buildId} runs for the caller`);
+                throw StackError.of(
+                    "BUILD_NOT_FOUND",
+                    `build '${buildId}' running for the caller not found`,
+                );
             }
             requireRunning(row);
 
@@ -422,7 +425,7 @@ export class SpaceBuildStore {
 
             return await this.space.fetch(request, mount, {
                 pull: async () => {
-                    throw StackError.of("BUILD_NOT_FOUND", "a runner pushes builds and pulls none");
+                    throw StackError.of("BUILD_NOT_FOUND", "build for a runner to pull not found");
                 },
                 push: async () => {},
             });
@@ -521,7 +524,10 @@ export class SpaceBuildStore {
         const bytes = PackageManifest.serialize(end.manifest);
         const digest = await Digest.of(bytes, this.space.environment.crypto);
         if (!(await this.space.contains(digest))) {
-            throw StackError.of("BUILD_NOT_STORED", `build ${digest} was not pushed to the space`);
+            throw StackError.of(
+                "BUILD_NOT_FOUND",
+                `build '${digest}' not found: it was not pushed to the space`,
+            );
         }
         await this.space.attach(digest, CodeIndex.file(end.code));
 
@@ -607,15 +613,15 @@ export function implementBuild(options: BuildOptions) {
                         const pulled = await options.builds.cache.store.find(manifest);
                         if (pulled === undefined) {
                             throw StackError.of(
-                                "RELEASE_NOT_PULLED",
-                                `pull release ${manifest} into the build store before creating its build`,
+                                "RELEASE_BLOCKED",
+                                `cannot create a build of release '${manifest}': pull it into the build store first`,
                             );
                         }
                         const built = PackageManifest.package(pulled);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw StackError.of(
-                                "MANIFEST_MISMATCH",
-                                `manifest ${manifest} builds ${built.id} ${built.version}, not ${source.package} ${source.version}`,
+                                "MANIFEST_INVALID",
+                                `manifest '${manifest}' is invalid: it builds ${built.id} '${built.version}', not ${source.package} '${source.version}'`,
                             );
                         }
 
@@ -640,8 +646,8 @@ export function implementBuild(options: BuildOptions) {
                             : undefined;
                     if (existing !== undefined) {
                         throw StackError.of(
-                            "BUILD_DUPLICATE",
-                            `build ${existing.id} already builds the same commit`,
+                            "BUILD_EXISTS",
+                            `build '${existing.id}' of the same commit already exists`,
                         );
                     }
 
@@ -719,7 +725,10 @@ async function start(
     // refuse a build that is not pending
     const { target } = context;
     if (target.state !== "pending") {
-        throw StackError.of("BUILD_STATE_CONFLICT", `build ${target.id} is ${target.state}`);
+        throw StackError.of(
+            "BUILD_BLOCKED",
+            `cannot start build '${target.id}': it is '${target.state}'`,
+        );
     }
 
     // record it running
@@ -736,7 +745,10 @@ async function cancel(
     // refuse a finished build
     const { target } = context;
     if (Build.isFinished(target)) {
-        throw StackError.of("BUILD_STATE_CONFLICT", `build ${target.id} is ${target.state}`);
+        throw StackError.of(
+            "BUILD_BLOCKED",
+            `cannot cancel build '${target.id}': it is '${target.state}'`,
+        );
     }
 
     return next(
@@ -800,14 +812,20 @@ function runnerOf(
     }
     // refuse a commit's build no runner serves
     else {
-        throw StackError.of("BUILD_RUNNER_MISSING", "this space has no build runner");
+        throw StackError.of(
+            "BUILD_RUNNER_BLOCKED",
+            "cannot build the commit: this space has no build runner",
+        );
     }
 }
 
 /** Refuse a build that is not running. */
 function requireRunning(target: Pick<Build, "id" | "state">): void {
     if (target.state !== "running") {
-        throw StackError.of("BUILD_STATE_CONFLICT", `build ${target.id} is ${target.state}`);
+        throw StackError.of(
+            "BUILD_BLOCKED",
+            `cannot update build '${target.id}': it is '${target.state}', not running`,
+        );
     }
 }
 

@@ -86,8 +86,8 @@ export const Binding = Object.assign(
             if (running !== undefined) {
                 const name = await installationName(reader, running);
                 throw StackError.of(
-                    "VERSION_BOUND",
-                    `${target.type} version ${target.version} is bound by ${name}`,
+                    "BINDING_BLOCKED",
+                    `cannot change ${target.type} version '${target.version}': '${name}' binds it`,
                 );
             }
         },
@@ -107,7 +107,10 @@ export const Binding = Object.assign(
             const bound = await liveRevision(reader, parsed.data, target.id, undefined);
             if (bound !== undefined) {
                 const name = await installationName(reader, bound);
-                throw StackError.of("BOUND", `${target.id} is in use: bound by ${name}`);
+                throw StackError.of(
+                    "BINDING_BLOCKED",
+                    `cannot remove '${target.id}': it is in use, bound by '${name}'`,
+                );
             }
         },
     },

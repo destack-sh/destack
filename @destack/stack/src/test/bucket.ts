@@ -149,7 +149,7 @@ export class TestBucket implements AsyncDisposable {
             authenticate: async (request) => {
                 if (request.headers.get("authorization") !== `Bearer ${this.userId}`) {
                     throw CallError.http("UNAUTHORIZED", {
-                        message: "invalid bearer credential",
+                        message: "authentication required: bearer credential does not verify",
                     });
                 }
 
@@ -306,7 +306,7 @@ export class TestBucket implements AsyncDisposable {
     async #open(reference: BucketReference): Promise<LocalBucket> {
         if (reference.scope !== this.spaceId || reference.bucketId !== this.bucketId) {
             throw CallError.http("NOT_FOUND", {
-                message: `bucket ${reference.bucketId} not found`,
+                message: `bucket '${reference.bucketId}' not found`,
             });
         }
 

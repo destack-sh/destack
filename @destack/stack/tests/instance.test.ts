@@ -1012,13 +1012,13 @@ test("deploy nothing of a release built with a newer or an older Destack than th
     }).toEqual({
         later: [
             0,
-            ["PRECONDITION_FAILED", "RELEASE_TOO_OLD", older],
-            `@destack/stack RELEASE_TOO_OLD: ${older}`,
+            ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", older],
+            `@destack/stack RELEASE_UNSUPPORTED: ${older}`,
         ],
         earlier: [
             0,
-            ["PRECONDITION_FAILED", "RELEASE_TOO_NEW", newer],
-            `@destack/stack RELEASE_TOO_NEW: ${newer}`,
+            ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", newer],
+            `@destack/stack RELEASE_UNSUPPORTED: ${newer}`,
         ],
     });
 });
@@ -1047,7 +1047,7 @@ test("deploy nothing of a build whose workloads have no output on a runtime the 
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
-        refused: ["PRECONDITION_FAILED", "RELEASE_UNSUPPORTED", message],
+        refused: ["NOT_IMPLEMENTED", "RELEASE_UNSUPPORTED", message],
         synced: refusedCondition(installed, "RELEASE_UNSUPPORTED", message),
         applied: null,
     });
@@ -1121,8 +1121,8 @@ test("deploy nothing of a build declaring its own database, and report why", asy
         applied: installed.appliedRevisionId,
     }).toEqual({
         deployments: [],
-        refused: ["PRECONDITION_FAILED", "DATABASE_DECLARED", message],
-        synced: refusedCondition(installed, "DATABASE_DECLARED", message),
+        refused: ["PRECONDITION_FAILED", "DATABASE_BLOCKED", message],
+        synced: refusedCondition(installed, "DATABASE_BLOCKED", message),
         applied: null,
     });
 });
@@ -1165,8 +1165,8 @@ test("deploy nothing of a build routing hooks without serving them, and report w
         synced: installed.installation.conditions["Synced"],
     }).toEqual({
         deployments: [],
-        refused: ["PRECONDITION_FAILED", "HOOK_UNSERVED", message],
-        synced: refusedCondition(installed, "HOOK_UNSERVED", message),
+        refused: ["PRECONDITION_FAILED", "HOOK_BLOCKED", message],
+        synced: refusedCondition(installed, "HOOK_BLOCKED", message),
     });
 });
 
@@ -1203,8 +1203,8 @@ test("deploy nothing of a build declaring adapters without a workload answering 
         synced: installed.installation.conditions["Synced"],
     }).toEqual({
         deployments: [],
-        refused: ["PRECONDITION_FAILED", "ADAPTER_UNSERVED", message],
-        synced: refusedCondition(installed, "ADAPTER_UNSERVED", message),
+        refused: ["PRECONDITION_FAILED", "ADAPTER_BLOCKED", message],
+        synced: refusedCondition(installed, "ADAPTER_BLOCKED", message),
     });
 });
 
@@ -1364,19 +1364,19 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
     }).toEqual({
         undeclared: [
             "failed",
-            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 declares no capabilities microphone to allow",
+            "@destack/stack CAPABILITY_BLOCKED: notes 2026.9.0 declares no capabilities microphone to allow",
         ],
         unreadable: [
             "failed",
-            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 enables no fs ability to grant directories /Users/person/Notes",
+            "@destack/stack CAPABILITY_BLOCKED: notes 2026.9.0 enables no fs ability to grant directories /Users/person/Notes",
         ],
         overreaching: [
             "failed",
-            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
+            "@destack/stack CAPABILITY_BLOCKED: notes 2026.9.0 enables fs for reading only, refusing to grant writing /Users/person/Notes",
         ],
         socketed: [
             "failed",
-            "@destack/stack CAPABILITY_UNDECLARED: notes 2026.9.0 may not be granted directories reaching the host's service sockets in /run, /var/run or all of /tmp: /var/run",
+            "@destack/stack CAPABILITY_BLOCKED: notes 2026.9.0 may not be granted directories reaching the host's service sockets in /run, /var/run or all of /tmp: /var/run",
         ],
         refusedDeployments: [],
         started: [[base, []]],
@@ -1417,7 +1417,11 @@ test("fail an instance granted files on a runtime without a filesystem to grant"
         recorded?.status,
         recorded?.conditions["Ready"]?.reason,
         recorded?.conditions["Ready"]?.message,
-    ]).toEqual(["failed", "StartFailed", "the workerd runtime has no filesystem to grant"]);
+    ]).toEqual([
+        "failed",
+        "StartFailed",
+        "filesystem ability is invalid: the 'workerd' runtime has no filesystem to grant",
+    ]);
 });
 
 test("refuse to deploy an installation binding without an address, then run the workload with the address its stack declares", async () => {
@@ -1486,7 +1490,7 @@ test("refuse to deploy an installation binding without an address, then run the 
     }).toEqual({
         refused: [
             "failed",
-            `@destack/stack BINDING_MISSING: bind installations ${ids.package} tasks to their addresses`,
+            `@destack/stack BINDING_BLOCKED: cannot apply installations '${ids.package} tasks': bind them to their addresses first`,
         ],
         declared: ["true", "Applied"],
         dependency: ["tasks", "notes", "http"],
@@ -2093,13 +2097,13 @@ test("fail a held plan once a manager rejects it, keeping the applied revision",
         upgraded: held.appliedRevisionId === held.revisionId,
     }).toEqual({
         refused: [
-            "CONFLICT",
-            "PLAN_REJECTED",
-            `plan ${digest} was rejected: change the installation for another plan`,
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            `cannot approve plan '${digest}': it was rejected, so change the installation for another plan`,
         ],
         progress: [
             "failed",
-            `@destack/stack PLAN_REJECTED: plan ${digest} was rejected: change the installation for another plan`,
+            `@destack/stack PLAN_BLOCKED: cannot approve plan '${digest}': it was rejected, so change the installation for another plan`,
         ],
         upgraded: false,
     });
@@ -2231,7 +2235,7 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
         refused: {
             ready: [
                 "failed",
-                "@destack/stack CAPABILITY_UNENTITLED: capability sync needs sync: no plan of the account grants feature sync",
+                "@destack/stack CAPABILITY_BLOCKED: cannot use capability 'sync': it needs 'sync': no plan of the account grants feature sync",
             ],
             deployed: [],
         },
@@ -2271,10 +2275,7 @@ test("deploy an application depending on a package of the space's own, and refus
     // satisfy the space's own dependency, and refuse the one installed nowhere
     expect({ deployed, refused }).toEqual({
         deployed: ["current", "1 workloads deployed"],
-        refused: [
-            "failed",
-            "@destack/stack DEPENDENCY_UNINSTALLED: notes needs @acme/vault installed",
-        ],
+        refused: ["failed", "@destack/stack DEPENDENCY_BLOCKED: notes needs @acme/vault installed"],
     });
 });
 
@@ -2325,15 +2326,12 @@ test("refuse deploying an application until its space installs its dependency, a
 
     // refuse with the missing package's name, deploy once installed, and leave the vault installed
     expect({ refused, deployed, uninstalled }).toEqual({
-        refused: [
-            "failed",
-            "@destack/stack DEPENDENCY_UNINSTALLED: notes needs @acme/vault installed",
-        ],
+        refused: ["failed", "@destack/stack DEPENDENCY_BLOCKED: notes needs @acme/vault installed"],
         deployed: ["current", "1 workloads deployed"],
         uninstalled: [
             "PRECONDITION_FAILED",
-            "NEEDED_BY_DEPENDENT",
-            "cannot uninstall vault: notes needs it",
+            "DEPENDENT_BLOCKED",
+            "cannot uninstall 'vault': 'notes' needs it",
         ],
     });
 });
@@ -2391,7 +2389,7 @@ test("deploy an application without a package only its optional capability needs
         without: ["current", "1 workloads deployed"],
         allowed: [
             "failed",
-            "@destack/stack DEPENDENCY_UNINSTALLED: capability vault-sync needs @acme/vault installed",
+            "@destack/stack DEPENDENCY_BLOCKED: capability vault-sync needs @acme/vault installed",
         ],
     });
 });

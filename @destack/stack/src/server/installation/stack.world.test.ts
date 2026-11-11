@@ -620,7 +620,7 @@ test("bind a declaration to an installation of another space by name, unpinned, 
         rows: [{ name: "tasks", target: board, targetSpaceId: acme }],
         pinned: [
             "failed",
-            `@destack/stack DEFINITION_INVALID: the binding of ${board} must select an installation of another space by name, without a version`,
+            `@destack/stack DEFINITION_INVALID: binding of '${board}' is invalid: it must select an installation of another space by name, without a version`,
         ],
         database: [["unrecognized_keys", 'Unrecognized key: "spaceId"']],
     });
@@ -686,8 +686,14 @@ test("block a stack relating a role or installation of another space by identifi
         await blocked({ subject: { id: user }, role: { id: foreign } }),
         await blocked({ subject: { id: installationId }, role: "reader" }),
     ]).toEqual([
-        ["failed", `@destack/object DECLARATION_INVALID: unknown role: ${foreign}`],
-        ["failed", `@destack/object DECLARATION_INVALID: unknown installation: ${installationId}`],
+        [
+            "failed",
+            `@destack/object DECLARATION_INVALID: role '${foreign}' is invalid: it is unknown`,
+        ],
+        [
+            "failed",
+            `@destack/object DECLARATION_INVALID: installation '${installationId}' is invalid: it is unknown`,
+        ],
     ]);
 });
 
@@ -838,12 +844,12 @@ test("install the packages a stack declares without its libraries, refuse one le
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "installation notes of space needs @acme/vault: declare an installation of it",
+            "installation 'notes' of 'space' is invalid: it needs '@acme/vault', so declare an installation of it",
         ],
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "stack space declares @acme/vault at another release than @acme/pages depends on",
+            "stack 'space' is invalid: it declares '@acme/vault' at another release than '@acme/pages' depends on",
         ],
     ]);
 });
@@ -993,7 +999,7 @@ test("refuse a declaration in the enclosing account from a space that is not the
     // block the stack at its plan, before writing anything
     expect(submitted).toEqual([
         "failed",
-        "@destack/object DECLARATION_INVALID: role reviewer is declared in the enclosing scope, which only its home's stack declares into",
+        "@destack/object DECLARATION_INVALID: role 'reviewer' is invalid: it is declared in the enclosing scope, which only its home's stack declares into",
     ]);
 });
 

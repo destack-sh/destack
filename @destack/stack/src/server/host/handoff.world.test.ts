@@ -81,12 +81,12 @@ test("serve a moving space's target only the blobs the space's rows reference an
         [
             "NOT_FOUND",
             "BLOB_NOT_FOUND",
-            `no row of ${ids.space} references a blob ${other} stored here`,
+            `blob '${other}' referenced by a row of '${ids.space}' not found`,
         ],
         [
             "NOT_FOUND",
-            "TRANSFER_TO_CALLER_MISSING",
-            "this space is not transferring to a machine the caller acts for",
+            "TRANSFER_TO_CALLER_NOT_FOUND",
+            "transfer of this space to a machine the caller acts for not found",
         ],
     ]);
 });

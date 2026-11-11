@@ -135,7 +135,7 @@ test("apply a submitted stack build and open its installations' views", async ()
                 path: "/",
             }),
         ),
-    ).toEqual(["NOT_FOUND", "VIEW_NOT_FOUND", "notes declares no view settings"]);
+    ).toEqual(["NOT_FOUND", "VIEW_NOT_FOUND", "view 'settings' of 'notes' not found"]);
 });
 
 test("apply an earlier build submitted again after a later one, approving each plan that waits", async () => {
@@ -304,17 +304,17 @@ test("refuse submitting a build that has not succeeded or that the space does no
             })
             .catch((error: unknown) => error);
     expect([await submit(pending), await submit(missing)]).toEqual([
-        new CallError("CONFLICT", {
-            reason: "BUILD_NOT_READY",
+        new CallError("SERVICE_UNAVAILABLE", {
+            reason: "BUILD_UNAVAILABLE",
             domain: "@destack/stack",
             defined: true,
-            message: `build ${pending} is pending`,
+            message: `build '${pending}' is unavailable: it is 'pending'`,
         }),
         new CallError("NOT_FOUND", {
             reason: "BUILD_NOT_FOUND",
             domain: "@destack/stack",
             defined: true,
-            message: `build ${missing} not found`,
+            message: `build '${missing}' not found`,
         }),
     ]);
 });
@@ -402,7 +402,11 @@ test("wait for an approval of an application's upgrade planned from the release 
         applied.appliedRevisionId === applied.revisionId,
         applied.installation.plan,
     ]).toEqual([
-        ["CONFLICT", "PLAN_MISMATCH", `plan ${digest} is waiting for approval, not ${other}`],
+        [
+            "PRECONDITION_FAILED",
+            "PLAN_BLOCKED",
+            `cannot approve plan '${other}': plan '${digest}' is waiting for approval`,
+        ],
         waiting,
         true,
         null,
@@ -467,8 +471,8 @@ test("refuse a build of another package, and deploy a release that is not later 
         "Deployed",
         [
             "BAD_REQUEST",
-            "PACKAGE_MISMATCH",
-            "the submitted build is of @test/package, which notes does not install",
+            "PACKAGE_INVALID",
+            "submitted build is invalid: it is of '@test/package', which 'notes' does not install",
         ],
         ["Deployed", null],
         ["Deployed", null],
@@ -669,13 +673,13 @@ test("serve the installation of a call at its mount by its identifier or its nam
         notes.id,
         [
             "NOT_FOUND",
-            "INSTALLATION_NOT_HERE",
-            "this machine does not serve installation tasks in this space",
+            "INSTALLATION_NOT_FOUND",
+            "installation 'tasks' served by this machine in this space not found",
         ],
         [
             "SERVICE_UNAVAILABLE",
-            "INSTALLATION_NOT_SERVED",
-            "installation notes in this space is not served yet",
+            "INSTALLATION_UNAVAILABLE",
+            "installation 'notes' is unavailable: this space does not serve it yet",
         ],
     ]);
 
@@ -689,8 +693,8 @@ test("serve the installation of a call at its mount by its identifier or its nam
     });
     expect(await served(ids.space, "notes")).toEqual([
         "SERVICE_UNAVAILABLE",
-        "INSTALLATION_NOT_SERVED",
-        "installation notes in this space is not served yet",
+        "INSTALLATION_UNAVAILABLE",
+        "installation 'notes' is unavailable: this space does not serve it yet",
     ]);
 
     // reset the space's stack to before its first pass, and answer a name it may still create to wait until it applies
@@ -708,8 +712,8 @@ test("serve the installation of a call at its mount by its identifier or its nam
     );
     expect(await served(ids.space, "tasks")).toEqual([
         "SERVICE_UNAVAILABLE",
-        "INSTALLATION_NOT_SERVED",
-        "installation tasks in this space is not served yet",
+        "INSTALLATION_UNAVAILABLE",
+        "installation 'tasks' is unavailable: this space does not serve it yet",
     ]);
 });
 
@@ -765,8 +769,8 @@ test("refuse submitting a build whose space settings without a default the space
     expect([submitted, (await readInstalled(fixture.database, notes.id)).revisionId]).toEqual([
         [
             "PRECONDITION_FAILED",
-            "SETTING_UNSET",
-            `setting ${ids.package}/region has no default and is not set`,
+            "SETTING_BLOCKED",
+            `cannot read setting '${ids.package}/region': it has no default and is not set`,
         ],
         null,
     ]);

@@ -491,7 +491,7 @@ export class SpaceHost {
                     const name = row.installation.name ?? row.installationId;
                     start.report(
                         new Error(
-                            `installation ${name} serves nothing: its server failed to load`,
+                            `installation '${name}' serves nothing: its server did not load`,
                             {
                                 cause: error,
                             },
@@ -529,7 +529,7 @@ export class SpaceHost {
                             entry.rollout.installation.name ?? entry.rollout.installationId;
                         start.report(
                             new Error(
-                                `installation ${name} serves nothing: its server failed to start`,
+                                `installation '${name}' serves nothing: its server did not start`,
                                 { cause: error },
                             ),
                         );
@@ -728,7 +728,7 @@ export class SpaceHost {
             // refuse a requirement another package declares
             if (!ResourceDeclaration.is(declaration)) {
                 throw new TypeError(
-                    `installation ${row.installationId} binds ${declaration.name}, which is no declaration of this process's resource kinds`,
+                    `installation '${row.installationId}' binds '${declaration.name}', which is no declaration of this process's resource kinds`,
                 );
             }
             bound.bind(
@@ -798,7 +798,7 @@ export class SpaceHost {
         else {
             throw StackError.of(
                 "RESOURCE_UNSUPPORTED",
-                `this machine cannot open ${declaration.kind} in process`,
+                `in-process ${declaration.kind} on this machine is not supported`,
             );
         }
     }
@@ -897,7 +897,7 @@ export class SpaceHost {
                     if (found.reference === null || found.provider === null) {
                         throw StackError.of(
                             "RESOURCE_NOT_FOUND",
-                            `${entry.name} of ${row.installation.name} binds ${found.id}, which its provider has not placed`,
+                            `resource '${found.id}' that '${entry.name}' of '${row.installation.name}' binds not found`,
                         );
                     }
 
@@ -967,8 +967,8 @@ export class SpaceHost {
         const connector = connectors.find((each) => each.code === code);
         if (connector === undefined) {
             throw StackError.of(
-                "PROVIDER_MISMATCH",
-                `${resource} belongs to provider ${code}, which this machine does not connect to`,
+                "PROVIDER_BLOCKED",
+                `cannot open resource '${resource}': this machine does not connect to its provider '${code}'`,
             );
         }
 
@@ -1088,8 +1088,8 @@ export class SpaceHost {
                 const target =
                     "unix" in address ? address.unix : `${address.hostname}:${address.port}`;
                 throw StackError.of(
-                    "NETWORK_UNDECLARED",
-                    `installation ${name} declares no network access to ${target}`,
+                    "NETWORK_DENIED",
+                    `network access to '${target}' is forbidden: installation '${name}' declares no access to it`,
                 );
             }
 
@@ -1126,8 +1126,8 @@ export class SpaceHost {
                 }
 
                 throw StackError.of(
-                    "REDIRECTS_EXCEEDED",
-                    `${request.url} redirected more than ${MAX_REDIRECTS} times`,
+                    "REDIRECTS_UNREACHABLE",
+                    `could not fetch '${request.url}' within ${MAX_REDIRECTS} redirects`,
                 );
             },
             connect: (address, options) => {
@@ -1140,8 +1140,8 @@ export class SpaceHost {
                 const address = HostAddress.of(new URL(url));
                 if (allow(address)) {
                     throw StackError.of(
-                        "NETWORK_UNDECLARED",
-                        `installation ${name} lists no name ${address.hostname} for a WebSocket`,
+                        "NETWORK_DENIED",
+                        `WebSocket to '${address.hostname}' is forbidden: installation '${name}' lists no such name`,
                     );
                 }
 
@@ -1149,8 +1149,8 @@ export class SpaceHost {
             },
             resolve: async (hostname) => {
                 throw StackError.of(
-                    "NETWORK_UNDECLARED",
-                    `installation ${name} resolves no name such as ${hostname}: its fetches and connections do`,
+                    "NETWORK_DENIED",
+                    `name resolution of '${hostname}' is forbidden: installation '${name}' resolves no names, only its fetches and connections do`,
                 );
             },
         };
@@ -1163,13 +1163,13 @@ export class SpaceHost {
             status === 303 || ((status === 301 || status === 302) && sent.method === "POST");
         if (sent.redirect === "error") {
             throw StackError.of(
-                "REDIRECT_REFUSED",
-                `${sent.url} redirected, which the request refuses`,
+                "REDIRECT_UNREACHABLE",
+                `could not fetch '${sent.url}': it redirected and the request refuses redirects`,
             );
         } else if (!isGet && sent.body !== null) {
             throw StackError.of(
-                "REDIRECT_REFUSED",
-                `${sent.url} redirected with ${status}, which would send its body again`,
+                "REDIRECT_UNREACHABLE",
+                `could not follow the ${status} redirect of '${sent.url}': it would send the body again`,
             );
         }
 
@@ -1209,8 +1209,8 @@ export class SpaceHost {
         const { scope } = verified.credential;
         if (scope !== undefined && !(await this.partitions()).includes(scope)) {
             throw StackError.of(
-                "FOREIGN_PARTITION_TOKEN",
-                "the universe token is bound to another partition",
+                "PARTITION_TOKEN_DENIED",
+                "partition is forbidden: the universe token is bound to another partition",
             );
         }
     }
@@ -1226,7 +1226,7 @@ export class SpaceHost {
             space,
         ]);
         if (placement === undefined) {
-            throw StackError.of("SPACE_NOT_PLACED", `${space} has no placement`);
+            throw StackError.of("PLACEMENT_NOT_FOUND", `placement of '${space}' not found`);
         }
 
         // add the account's chain from this space's records
@@ -1499,7 +1499,7 @@ export class SpaceHost {
         // refuse moving a space to another stack package, which its installation cannot follow
         if (installedPackage !== null && installedPackage !== stack.packageId) {
             throw new TypeError(
-                `the stack of ${spaceId} moved from ${installedPackage} to ${stack.packageId}`,
+                `the stack of '${spaceId}' moved from '${installedPackage}' to '${stack.packageId}'`,
             );
         }
 

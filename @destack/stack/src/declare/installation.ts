@@ -106,7 +106,7 @@ export function install<
             if (typeof selection !== "string") {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `${handle.name} declares ${name} as a resource, so bind it by key only`,
+                    `binding '${name}' of '${handle.name}' is invalid: it is a resource, so bind it by key only`,
                 );
             }
             const packageBindings = (bound[resource.package.id] ??= {});
@@ -128,7 +128,10 @@ export function install<
         }
         // refuse a name the package declares nothing under
         else {
-            throw StackError.of("DEFINITION_INVALID", `${handle.name} declares no ${name} to bind`);
+            throw StackError.of(
+                "DEFINITION_INVALID",
+                `binding '${name}' of '${handle.name}' is invalid: the package declares no such binding`,
+            );
         }
     }
 
@@ -137,7 +140,10 @@ export function install<
         options.selection ??
         (handle.version === undefined ? undefined : { kind: "release", version: handle.version });
     if (selection === undefined) {
-        throw StackError.of("DEFINITION_INVALID", `${handle.name} needs a version or a selection`);
+        throw StackError.of(
+            "DEFINITION_INVALID",
+            `installation '${handle.name}' is invalid: it needs a version or a selection`,
+        );
     }
 
     return InstallationDefinition.parse({

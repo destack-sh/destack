@@ -58,12 +58,12 @@ export class TestRuntime implements Runtime {
 
     /** Refuse requests. */
     async fetch(instanceId: string): Promise<Response> {
-        throw new TypeError(`the test runtime serves no requests of ${instanceId}`);
+        throw new TypeError(`the test runtime serves no requests of '${instanceId}'`);
     }
 
     /** Deliver no requests. */
     async deliver(instanceId: string): Promise<Response> {
-        throw new TypeError(`the test runtime delivers nothing to ${instanceId}`);
+        throw new TypeError(`the test runtime delivers nothing to '${instanceId}'`);
     }
 
     /** Call an export of a build's module in this process, as the workspace installs it. */
@@ -97,7 +97,7 @@ export async function callInProcess(
     const called: unknown =
         typeof module === "object" && module !== null ? Reflect.get(module, name) : undefined;
     if (typeof called !== "function") {
-        throw new TypeError(`${specifier} exports no function ${name}`);
+        throw new TypeError(`'${specifier}' exports no function '${name}'`);
     }
 
     return JsonValue.of(await Reflect.apply(called, undefined, [...input]));

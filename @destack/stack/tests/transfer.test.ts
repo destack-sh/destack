@@ -114,7 +114,7 @@ async function openNotes(
         environment,
     );
     if (!(connection instanceof SqliteDatabase)) {
-        throw new TypeError(`the notes database ${id} is no SQLite database`);
+        throw new TypeError(`the notes database '${id}' is no SQLite database`);
     }
 
     return connection;
@@ -520,18 +520,18 @@ test("refuse a transfer without a recent sign-in, to an unknown machine, or to a
     ]).toEqual([
         [
             "UNAUTHORIZED",
-            "AUTHENTICATION_INSUFFICIENT",
-            "authentication assurance is too low: authenticate again",
+            "ASSURANCE_UNAUTHENTICATED",
+            "authentication required: authentication assurance is too low",
         ],
         [
             "BAD_REQUEST",
-            "MACHINE_UNKNOWN",
-            `${UNKNOWN_MACHINE} is not a standing machine of the space's account or residency`,
+            "MACHINE_INVALID",
+            `machine '${UNKNOWN_MACHINE}' is invalid: it is not a standing machine of the space's account or residency`,
         ],
         [
             "BAD_REQUEST",
-            "MACHINE_UNKNOWN",
-            `${foreign} is not a standing machine of the space's account or residency`,
+            "MACHINE_INVALID",
+            `machine '${foreign}' is invalid: it is not a standing machine of the space's account or residency`,
         ],
     ]);
 });
@@ -727,11 +727,15 @@ test(
             served,
             again: await refusal(cancel(owner)),
         }).toEqual({
-            refused: ["NOT_FOUND", "NOT_FOUND", `transfer ${created.id} not found`],
+            refused: ["NOT_FOUND", "NOT_FOUND", `transfer '${created.id}' not found`],
             placement: { machine: fixture.machine.id, epoch: 2, target: null },
             outcome: [true, "cancelled"],
             served: [{ id: ids.space }],
-            again: ["CONFLICT", "TRANSFER_ENDED", `transfer ${created.id} has ended`],
+            again: [
+                "PRECONDITION_FAILED",
+                "TRANSFER_BLOCKED",
+                `cannot cancel transfer '${created.id}': it has ended`,
+            ],
         });
     },
     SCENARIO_MILLISECONDS,
@@ -870,7 +874,7 @@ test(
             served: served.installationId,
         }).toEqual({
             cancelled: [],
-            abandoned: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${ids.space} not found`],
+            abandoned: ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${ids.space}' not found`],
             moved: [],
             placement: { space: ids.space, scope: ids.account, machine: targetId, epoch: 3 },
             transfers: [

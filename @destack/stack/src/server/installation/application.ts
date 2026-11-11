@@ -695,13 +695,13 @@ export class ApplicationInstallation {
         if (Version.compare(built, newest) > 0) {
             const message = `${name} is built with Destack ${built}, newer than this machine's ${newest}`;
 
-            return StackError.of("RELEASE_TOO_NEW", message);
+            return StackError.of("RELEASE_UNSUPPORTED", message);
         }
         // refuse one built with an older Destack than the machine supports
         else if (Version.compare(Version.release(built), oldest) < 0) {
             const message = `${name} is built with Destack ${built}, older than this machine supports (${oldest})`;
 
-            return StackError.of("RELEASE_TOO_OLD", message);
+            return StackError.of("RELEASE_UNSUPPORTED", message);
         }
         // refuse a host installation of a build the machine neither ships nor links
         else if (
@@ -710,7 +710,7 @@ export class ApplicationInstallation {
         ) {
             const message = `${name} runs on the host, which only releases the machine ships or links may`;
 
-            return StackError.of("PROCESS_ISOLATION_UNTRUSTED", message);
+            return StackError.of("PROCESS_ISOLATION_DENIED", message);
         }
         // refuse a build with an unrunnable workload
         else if (stranded.length > 0) {
@@ -733,7 +733,7 @@ export class ApplicationInstallation {
         if (isHooked && !isServed) {
             const message = `${build.manifest.package.name} routes hooks, but nothing serves them: declare @destack/stack`;
 
-            return StackError.of("HOOK_UNSERVED", message);
+            return StackError.of("HOOK_BLOCKED", message);
         }
 
         // refuse a package declaring adapters that nothing answers: a workload of its build, or the store
@@ -746,7 +746,7 @@ export class ApplicationInstallation {
         if (isAdapted && !isAnswered) {
             const message = `${build.manifest.package.name} declares adapters, but no workload of its build answers them`;
 
-            return StackError.of("ADAPTER_UNSERVED", message);
+            return StackError.of("ADAPTER_BLOCKED", message);
         }
 
         // refuse allowing a capability or granting a directory the build does not declare
@@ -754,7 +754,7 @@ export class ApplicationInstallation {
 
         return undeclared === undefined
             ? undefined
-            : StackError.of("CAPABILITY_UNDECLARED", undeclared);
+            : StackError.of("CAPABILITY_BLOCKED", undeclared);
     }
 
     /** Describe an enabled capability needing a feature the space's account lacks. */
@@ -786,8 +786,8 @@ export class ApplicationInstallation {
             const condition = await Entitlement.check(database, accountId, { feature });
             if (condition.status !== "true") {
                 return StackError.of(
-                    "CAPABILITY_UNENTITLED",
-                    `capability ${name} needs ${feature.name}: ${condition.message}`,
+                    "CAPABILITY_BLOCKED",
+                    `cannot use capability '${name}': it needs '${feature.name}': ${condition.message}`,
                 );
             }
         }
@@ -819,7 +819,7 @@ export class ApplicationInstallation {
         const { name } = missing.package;
 
         return StackError.of(
-            "DEPENDENCY_UNINSTALLED",
+            "DEPENDENCY_BLOCKED",
             missing.capability === undefined
                 ? `${target.installation.name} needs ${name} installed`
                 : `capability ${missing.capability} needs ${name} installed`,
@@ -877,7 +877,7 @@ export class ApplicationInstallation {
         const names = databases.map((declaration) => declaration.name).join(", ");
         const message = `${this.#target.installation.packageId} declares the databases ${names}: the space's main database keeps every installation's tables`;
 
-        return StackError.of("DATABASE_DECLARED", message);
+        return StackError.of("DATABASE_BLOCKED", message);
     }
 
     /** Stop the deploy for an unapproved upgrade or access growth, and report the stop. */
@@ -961,7 +961,10 @@ export class ApplicationInstallation {
         }
         const names = unbound.map((need) => `${need.package.id} ${need.name}`).join(", ");
 
-        return StackError.of("BINDING_MISSING", `bind installations ${names} to their addresses`);
+        return StackError.of(
+            "BINDING_BLOCKED",
+            `cannot apply installations '${names}': bind them to their addresses first`,
+        );
     }
 
     /** Activate a fresh workload's deployment of a revision. */
@@ -1297,7 +1300,7 @@ export class ApplicationInstallation {
         if (missing.length > 0) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `the build of ${build.manifest.package.name} is missing declarations ${missing.join(", ")} that its machine binds`,
+                `build of '${build.manifest.package.name}' is invalid: it is missing declarations '${missing.join(", ")}' that its machine binds`,
             );
         }
 

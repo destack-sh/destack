@@ -295,8 +295,8 @@ export const rollout = defineObject(
             // refuse an installation without one
             if (previous === undefined) {
                 throw StackError.of(
-                    "PREVIOUS_REVISION_MISSING",
-                    `installation ${name} has no revision before its applied one`,
+                    "REVISION_NOT_FOUND",
+                    `previous revision of installation '${name}' not found`,
                 );
             }
 
@@ -307,8 +307,8 @@ export const rollout = defineObject(
             );
             if (built.source.kind !== "release") {
                 throw StackError.of(
-                    "ROLLBACK_TO_BUILD",
-                    `installation ${name} can only roll back to a release, but its previous revision is a build`,
+                    "ROLLBACK_BLOCKED",
+                    `cannot roll back installation '${name}': its previous revision is a build, and it can only roll back to a release`,
                 );
             }
 
@@ -559,8 +559,8 @@ export const Rollout = {
             const free = remaining.filter((row) => !needed.has(row.packageId));
             if (free.length === 0) {
                 throw StackError.of(
-                    "INSTALLATIONS_CYCLIC",
-                    `installations of ${remaining.map((row) => row.packageId).join(", ")} depend on each other`,
+                    "INSTALLATIONS_INVALID",
+                    `installations of '${remaining.map((row) => row.packageId).join(", ")}' are invalid: they depend on each other`,
                 );
             }
             ordered.push(...free);
@@ -606,7 +606,10 @@ export const Rollout = {
             });
             const declaring = described.get(key);
             if (declaring === undefined) {
-                throw StackError.of("DEFINITION_INVALID", `the space serves no type of ${key}`);
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `type '${key}' is invalid: the space serves no such type`,
+                );
             }
 
             return {
@@ -762,9 +765,13 @@ export const Rollout = {
                 : undefined;
         // send a moving space's caller to where it moves
         if (moved !== undefined) {
-            throw StackError.of("SCOPE_MOVED", `${moved.scope} moved to ${moved.machine}`, {
-                data: moved,
-            });
+            throw StackError.of(
+                "SCOPE_MOVED",
+                `space '${moved.scope}' moved to '${moved.machine}'`,
+                {
+                    data: moved,
+                },
+            );
         }
         // let a caller wait for an installation not served yet, such as one still deploying or one the space's stack may still create
         else if (
@@ -772,16 +779,16 @@ export const Rollout = {
             (await isStackPending(database, spaceId))
         ) {
             throw StackError.of(
-                "INSTALLATION_NOT_SERVED",
-                `installation ${installed.installation} in this space is not served yet`,
+                "INSTALLATION_UNAVAILABLE",
+                `installation '${installed.installation}' is unavailable: this space does not serve it yet`,
                 { data: { retryAfter: NOT_SERVED_RETRY_MILLISECONDS } },
             );
         }
         // refuse an installation this machine does not have
         else {
             throw StackError.of(
-                "INSTALLATION_NOT_HERE",
-                `this machine does not serve installation ${installed.installation} in this space`,
+                "INSTALLATION_NOT_FOUND",
+                `installation '${installed.installation}' served by this machine in this space not found`,
             );
         }
     },
@@ -849,7 +856,7 @@ export const InstallationRevision = {
             .read(installationRevision.table)
             .findFirst({ where: { id: revisionId } });
         if (revision === undefined) {
-            throw StackError.of("REVISION_NOT_FOUND", `revision ${revisionId} not found`);
+            throw StackError.of("REVISION_NOT_FOUND", `revision '${revisionId}' not found`);
         }
 
         // read its build from the store

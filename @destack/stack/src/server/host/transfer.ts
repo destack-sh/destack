@@ -173,7 +173,10 @@ export function implementTransfer(options: TransferOptions) {
                     // refuse an ended transfer
                     const record = context.target;
                     if (record.completedAt !== null) {
-                        throw StackError.of("TRANSFER_ENDED", `transfer ${record.id} has ended`);
+                        throw StackError.of(
+                            "TRANSFER_BLOCKED",
+                            `cannot cancel transfer '${record.id}': it has ended`,
+                        );
                     }
 
                     // place the space at the next epoch
@@ -266,7 +269,10 @@ async function mark(
     const { scope, input } = call;
     const [located] = await Placement.find(call, [schema.identifier("space").parse(scope)]);
     if (located === undefined || located.machine !== options.machine) {
-        throw StackError.of("SERVED_ELSEWHERE", `${scope} is served by another machine`);
+        throw StackError.of(
+            "SERVING_BLOCKED",
+            `cannot transfer '${scope}': another machine serves it`,
+        );
     }
 
     // mark the move at the epoch this machine serves the space at
@@ -403,8 +409,8 @@ export class SpaceTransfer {
         const [located] = await Placement.find(Snapshot.live(options.database), [record.scope]);
         if (located === undefined || located.machine !== record.sourceId) {
             throw StackError.of(
-                "PLACEMENT_MOVED",
-                `${record.scope} is no longer placed on ${record.sourceId}`,
+                "PLACEMENT_CONFLICT",
+                `cannot transfer '${record.scope}': it is no longer placed on '${record.sourceId}'`,
             );
         }
 
@@ -437,7 +443,10 @@ export class SpaceTransfer {
             .from(transfer.table)
             .where(and(eq(transfer.table.scope, spaceId), isNull(transfer.table.completedAt)));
         if (record === undefined) {
-            throw StackError.of("ACTIVE_TRANSFER_MISSING", "this space has no active transfer");
+            throw StackError.of(
+                "ACTIVE_TRANSFER_NOT_FOUND",
+                "active transfer of this space not found",
+            );
         }
 
         return record;
@@ -450,7 +459,7 @@ export class SpaceTransfer {
             .from(transfer.table)
             .where(eq(transfer.table.id, id));
         if (record === undefined) {
-            throw StackError.of("TRANSFER_NOT_FOUND", `transfer ${id} not found`);
+            throw StackError.of("TRANSFER_NOT_FOUND", `transfer '${id}' not found`);
         }
 
         return record;
@@ -465,8 +474,8 @@ export class SpaceTransfer {
         // refuse handing a space to its own machine
         if (options.target === options.placement.machine) {
             throw StackError.of(
-                "SERVED_BY_TARGET",
-                `${options.placement.space} is already placed on ${options.target}`,
+                "SERVING_BLOCKED",
+                `cannot transfer '${options.placement.space}': it is already placed on '${options.target}'`,
             );
         }
 
@@ -749,8 +758,8 @@ export class SpaceTransfer {
             // refuse a kind without a provider here
             if (provider === undefined) {
                 throw StackError.of(
-                    "RESOURCE_PROVIDER_MISSING",
-                    `no provider of ${object.name} here can receive resource ${row.id}`,
+                    "RESOURCE_PROVIDER_BLOCKED",
+                    `cannot transfer resource '${row.id}': no provider of ${object.name} here can receive it`,
                 );
             }
             // restore a resource its provider snapshots
@@ -936,8 +945,8 @@ export class SpaceTransfer {
             });
             if (record === undefined) {
                 throw StackError.of(
-                    "ACTIVE_TRANSFER_MISSING",
-                    `the replica of ${this.placement.space} has no active transfer`,
+                    "ACTIVE_TRANSFER_NOT_FOUND",
+                    `active transfer of the replica of '${this.placement.space}' not found`,
                 );
             }
 
@@ -1154,7 +1163,7 @@ export class SpaceTransfer {
                 await away.remove(options, store, store.clock.now());
             } else {
                 throw new TypeError(
-                    `the rows of ${moving.space} here belong to no transfer of this machine`,
+                    `the rows of '${moving.space}' here belong to no transfer of this machine`,
                 );
             }
         }

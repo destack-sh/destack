@@ -397,7 +397,7 @@ async function indexModule(
     const stray = file.edges.find((edge) => !sources.has(edge.from));
     if (stray !== undefined) {
         throw new TypeError(
-            `module ${moniker} has an edge from ${stray.from}, but does not declare it`,
+            `module '${moniker}' has an edge from '${stray.from}', but does not declare it`,
         );
     }
 

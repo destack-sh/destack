@@ -49,7 +49,10 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             (entry) => graph.Moniker.name(entry.symbol) === name,
         );
         if (found === undefined) {
-            throw StackError.of("STACK_NOT_FOUND", `stack package declares no stack ${name}`);
+            throw StackError.of(
+                "STACK_NOT_FOUND",
+                `stack '${name}' in the stack package not found`,
+            );
         }
         const declared = found.description;
 
@@ -61,7 +64,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         if (document.databases[MAIN_DATABASE] !== undefined) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `stack ${name} declares ${MAIN_DATABASE}, but every space already has it`,
+                `stack '${name}' is invalid: it declares '${MAIN_DATABASE}', but every space already has it`,
             );
         }
 
@@ -72,7 +75,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
                 if (manifest === undefined) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation ${key} of ${name} installs a package without a release in the stack's build: add the package to the stack's dependencies`,
+                        `installation '${key}' of '${name}' is invalid: it installs a package without a release in the stack's build, so add the package to the stack's dependencies`,
                     );
                 }
 
@@ -109,12 +112,12 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
                 if (dependency === undefined) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation ${key} of ${name} needs ${release.package.name}: declare an installation of it`,
+                        `installation '${key}' of '${name}' is invalid: it needs '${release.package.name}', so declare an installation of it`,
                     );
                 } else if (dependency.manifest !== release.manifest) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `stack ${name} declares ${release.package.name} at another release than ${PackageManifest.package(build.manifest).name} depends on`,
+                        `stack '${name}' is invalid: it declares '${release.package.name}' at another release than '${PackageManifest.package(build.manifest).name}' depends on`,
                     );
                 } else if (
                     installed.isolation === "host" &&
@@ -122,7 +125,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
                 ) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation ${key} of ${name} runs in the store, so its dependency ${dependency.key} must too: declare it with host isolation`,
+                        `installation '${key}' of '${name}' is invalid: it runs in the store, so its dependency '${dependency.key}' must too and declares host isolation`,
                     );
                 }
             }
@@ -187,7 +190,7 @@ function oneReleaseEach(
         if (known !== undefined && known.manifest !== release.manifest) {
             throw StackError.of(
                 "DEFINITION_INVALID",
-                `stack ${stack} resolves two releases of ${release.package.name}`,
+                `stack '${stack}' is invalid: it resolves two releases of '${release.package.name}'`,
             );
         }
         byPackage.set(release.package.id, release);

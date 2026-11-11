@@ -277,7 +277,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         const url = new URL(request.url);
         const parsed = HandoffPath.parse(url.pathname);
         if (parsed === undefined) {
-            throw StackError.of("HANDOFF_NOT_FOUND", `no handoff at ${url.pathname}`);
+            throw StackError.of("HANDOFF_NOT_FOUND", `handoff at '${url.pathname}' not found`);
         }
         const { spaceId, part, rest } = parsed;
         const record = await SourceHandoff.requireTarget(options.database, spaceId, caller);
@@ -349,7 +349,7 @@ export function handoffAdapter(options: HandoffOptions): AdapterFetch {
         }
         // refuse any other request
         else {
-            throw StackError.of("HANDOFF_NOT_FOUND", `no handoff at ${url.pathname}`);
+            throw StackError.of("HANDOFF_NOT_FOUND", `handoff at '${url.pathname}' not found`);
         }
     };
 }
@@ -374,7 +374,7 @@ class HandoffContent {
         if (!isKnown && !(await this.blobs(record)).has(digest)) {
             throw StackError.of(
                 "BLOB_NOT_FOUND",
-                `no row of ${record.scope} references a blob ${digest} stored here`,
+                `blob '${digest}' referenced by a row of '${record.scope}' not found`,
             );
         }
     }
@@ -414,8 +414,8 @@ export const SourceHandoff = {
         const acting = new Set([caller.subject, ...caller.actors].map((subject) => subject.id));
         if (!acting.has(record.targetId)) {
             throw StackError.of(
-                "TRANSFER_TO_CALLER_MISSING",
-                "this space is not transferring to a machine the caller acts for",
+                "TRANSFER_TO_CALLER_NOT_FOUND",
+                "transfer of this space to a machine the caller acts for not found",
             );
         }
 
@@ -437,7 +437,7 @@ export const SourceHandoff = {
         if (found === undefined) {
             throw StackError.of(
                 "RESOURCE_NOT_FOUND",
-                `this space has no resource ${input.resourceId}`,
+                `resource '${input.resourceId}' of this space not found`,
             );
         }
 
@@ -484,8 +484,8 @@ export const SourceHandoff = {
                 });
             if (row === undefined) {
                 throw StackError.of(
-                    "SNAPSHOT_NOT_REQUESTED",
-                    `this space has no snapshot of ${input.resourceId} requested for the recipient`,
+                    "SNAPSHOT_NOT_FOUND",
+                    `snapshot of '${input.resourceId}' requested for the recipient not found`,
                 );
             }
 
@@ -501,7 +501,7 @@ export const SourceHandoff = {
     async requireFenced(database: DatabaseConnection, spaceId: Identifier<"space">): Promise<void> {
         const chain = await Scope.chain(Snapshot.live(database), spaceId);
         if (Scope.fenced(chain) === undefined) {
-            throw StackError.of("FENCE_REQUIRED", "this space is not fenced yet");
+            throw StackError.of("FENCE_BLOCKED", "cannot transfer the space: it is not fenced yet");
         }
     },
 };

@@ -47,6 +47,6 @@ test("serve a person calling the space with the token their client exchanges for
     const stack = await readStack(fixture.database);
     expect([owned.items.map((item) => item.installationId), refused]).toEqual([
         [stack.installationId],
-        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${fixture.id} not found`],
+        ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${fixture.id}' not found`],
     ]);
 });

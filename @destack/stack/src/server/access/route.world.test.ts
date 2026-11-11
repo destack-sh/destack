@@ -102,25 +102,31 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         refused: {
             installation: [
                 "failed",
-                `@destack/object DECLARATION_INVALID: unknown installation: ${fixture.installations.get(second)}`,
+                `@destack/object DECLARATION_INVALID: installation '${fixture.installations.get(second)}' is invalid: it is unknown`,
             ],
-            path: ["failed", "@destack/object NAME_TAKEN: path is taken"],
+            path: ["failed", "@destack/object NAME_EXISTS: 'path' already exists"],
             both: [
                 "failed",
-                "@destack/stack ROUTE_INVALID: a route's rule either redirects or has an entry",
+                "@destack/stack ROUTE_INVALID: route rule is invalid: it must either redirect or have an entry",
             ],
             uninstalled: [
                 "failed",
-                "@destack/stack ROUTE_INVALID: a route serving an installation's view needs its installation",
+                "@destack/stack ROUTE_INVALID: route is invalid: a route serving an installation's view needs its installation",
             ],
-            pattern: ["failed", "@destack/stack ROUTE_INVALID: invalid pattern for v: ("],
+            pattern: [
+                "failed",
+                "@destack/stack ROUTE_INVALID: pattern '(' for 'v' is invalid: it must be a URL pattern",
+            ],
         },
         foreign: {
             hostname: [
                 "failed",
-                `@destack/stack HOSTNAME_NOT_FOUND: hostname ${hostname.name} not found`,
+                `@destack/stack HOSTNAME_NOT_FOUND: hostname '${hostname.name}' not found`,
             ],
-            unknown: ["failed", `@destack/stack HOSTNAME_NOT_FOUND: hostname ${unknown} not found`],
+            unknown: [
+                "failed",
+                `@destack/stack HOSTNAME_NOT_FOUND: hostname '${unknown}' not found`,
+            ],
         },
         routes: [
             [
@@ -150,7 +156,7 @@ test("refuse a route on a machine the account's hostname requests do not reach",
     // apply a route there, which no request would reach
     expect(await fixture.submit(first, { home })).toEqual([
         "failed",
-        `@destack/stack HOSTNAME_NOT_SERVED: requests for ${hostname.name} do not reach this space's machine`,
+        `@destack/stack HOSTNAME_BLOCKED: cannot route '${hostname.name}': its requests do not reach this space's machine`,
     ]);
 });
 

@@ -230,8 +230,8 @@ export const InstanceSpec = {
         const path = entrypoint === undefined ? undefined : output?.exports[entrypoint]?.path;
         if (output === undefined || path === undefined) {
             throw StackError.of(
-                "OUTPUT_ENTRY_MISSING",
-                `output ${spec.output} has no entry for workload ${spec.workload}`,
+                "OUTPUT_ENTRY_BLOCKED",
+                `cannot start workload '${spec.workload}': output '${spec.output}' has no entry for it`,
             );
         }
 
@@ -367,7 +367,10 @@ export class InstanceRegistry<
     require(instanceId: Identifier<"instance">): Running {
         const running = this.#running.get(instanceId);
         if (running === undefined) {
-            throw StackError.of("INSTANCE_NOT_RUNNING", `instance ${instanceId} is not running`);
+            throw StackError.of(
+                "INSTANCE_UNAVAILABLE",
+                `instance '${instanceId}' is unavailable: it is not running`,
+            );
         }
 
         return running;
@@ -434,8 +437,8 @@ function bindings(spec: InstanceSpec, egress: string, secret: string): WorkloadS
         // refuse a resource of another package
         if (resource.packageId !== running.id) {
             throw StackError.of(
-                "FOREIGN_RESOURCE",
-                `resource ${resource.id} does not bind a resource of ${running.name}`,
+                "RESOURCE_BLOCKED",
+                `cannot bind resource '${resource.id}': it does not bind a resource of '${running.name}'`,
             );
         }
 

@@ -125,7 +125,7 @@ export function implementInstallations(options: InstallationOptions) {
                 if (revision === undefined) {
                     throw StackError.of(
                         "REVISION_NOT_FOUND",
-                        `installation ${call.target.id} has no revision ${revisionId}`,
+                        `revision '${revisionId}' of installation '${call.target.id}' not found`,
                     );
                 }
 
@@ -253,8 +253,8 @@ async function requireUnneeded(
         const needed = Rollout.needed(row.installation, revision, description);
         if (needed.some((entry) => entry.package.id === target.installation.packageId)) {
             throw StackError.of(
-                "NEEDED_BY_DEPENDENT",
-                `cannot uninstall ${target.installation.name}: ${row.installation.name} needs it`,
+                "DEPENDENT_BLOCKED",
+                `cannot uninstall '${target.installation.name}': '${row.installation.name}' needs it`,
             );
         }
     }
@@ -364,7 +364,7 @@ async function submit(
     const isStack = target.installation.export !== null;
     if (isStack !== (stack !== undefined)) {
         throw StackError.of(
-            "SUBMISSION_KIND_MISMATCH",
+            "SUBMISSION_KIND_INVALID",
             isStack
                 ? `${target.installation.name} is a stack, submitted with its export`
                 : `${target.installation.name} is an application, submitted without a stack's export`,
@@ -377,8 +377,8 @@ async function submit(
     const built = PackageManifest.package(reader.manifest);
     if (built.id !== target.installation.packageId) {
         throw StackError.of(
-            "PACKAGE_MISMATCH",
-            `the submitted build is of ${built.name}, which ${target.installation.name} does not install`,
+            "PACKAGE_INVALID",
+            `submitted build is invalid: it is of '${built.name}', which '${target.installation.name}' does not install`,
         );
     }
 
@@ -464,8 +464,8 @@ async function pull(
     const version = reader.manifest.package.version;
     if (reference.kind === "release" && reference.version !== version) {
         throw StackError.of(
-            "VERSION_MISMATCH",
-            `expected ${reader.manifest.package.name} ${reference.version}, got version ${version}`,
+            "VERSION_INVALID",
+            `version '${version}' is invalid: '${reader.manifest.package.name}' must be at '${reference.version}'`,
         );
     }
 
@@ -822,8 +822,8 @@ async function request(
                   .findFirst({ where: { id: target.appliedRevisionId } });
     if (revision === undefined) {
         throw StackError.of(
-            "PERMISSION_UNDECLARED",
-            `${target.installation.name} applies no revision declaring ${key}`,
+            "PERMISSION_DENIED",
+            `permission '${key}' is forbidden: '${target.installation.name}' applies no revision declaring it`,
         );
     }
     const built = await Build.require(context, target.scope, revision.buildId);
@@ -844,8 +844,8 @@ async function request(
     );
     if (Object.keys(asked).length === 0) {
         throw StackError.of(
-            "PERMISSION_UNDECLARED",
-            `${target.installation.name} never asks a person for ${key}`,
+            "PERMISSION_DENIED",
+            `permission '${key}' is forbidden: '${target.installation.name}' never asks a person for it`,
         );
     }
 
@@ -865,7 +865,7 @@ async function describeAsked(
         `the person opening ${target.installation.name}`,
     );
     if (!principal.user.is(opener)) {
-        throw StackError.of("HOME_MISSING", `${Subject.key(opener)} has no home`);
+        throw StackError.of("HOME_REQUIRED", `home of '${Subject.key(opener)}' is required`);
     }
     const { homeId: home } = await options.accounts.user.get({
         id: schema.identifier("user").parse(opener.id),
@@ -899,7 +899,7 @@ async function open(
     if (revision === undefined) {
         throw StackError.of(
             "VIEW_NOT_FOUND",
-            `${target.installation.name} declares no view ${view}`,
+            `view '${view}' of '${target.installation.name}' not found`,
         );
     }
 
@@ -910,7 +910,7 @@ async function open(
     if (mounted === undefined) {
         throw StackError.of(
             "VIEW_NOT_FOUND",
-            `${target.installation.name} declares no view ${view}`,
+            `view '${view}' of '${target.installation.name}' not found`,
         );
     }
 

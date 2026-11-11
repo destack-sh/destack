@@ -153,8 +153,8 @@ export const InstallationAccess = {
         // refuse one following no release, which every installation a residency's home declares follows
         else if (selection.kind !== "release") {
             throw StackError.of(
-                "RELEASE_REQUIRED",
-                `residency home installation ${name} follows no release`,
+                "RELEASE_BLOCKED",
+                `cannot grant residency: home installation '${name}' follows no release`,
             );
         }
         // relate one following a release for what its universe-scoped requests ask

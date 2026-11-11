@@ -81,7 +81,7 @@ export class Approval {
             // refuse a manager cycle, which the managed installations' tree forbids
             if (walked.has(entry.installationId)) {
                 throw new TypeError(
-                    `installation ${entry.installationId} manages itself through a cycle`,
+                    `installation '${entry.installationId}' manages itself through a cycle`,
                 );
             }
             walked.add(entry.installationId);
@@ -181,8 +181,8 @@ export class Approval {
         const rejected = requests.find((row) => row.state === "rejected" && asked(row) === digest);
         if (rejected !== undefined) {
             throw StackError.of(
-                "PLAN_REJECTED",
-                `plan ${digest} was rejected: change the installation for another plan`,
+                "PLAN_BLOCKED",
+                `cannot approve plan '${digest}': it was rejected, so change the installation for another plan`,
             );
         }
     }
@@ -274,15 +274,18 @@ export class Approval {
     ): Promise<string> {
         // refuse approving without a waiting plan
         if (plan === null) {
-            throw StackError.of("PLAN_WAITING_MISSING", "no plan is waiting for approval");
+            throw StackError.of(
+                "PLAN_BLOCKED",
+                "cannot approve the plan: no plan is waiting for approval",
+            );
         }
 
         // refuse a plan other than the reviewed one
         const digest = await Plan.digest(plan, crypto);
         if (digest !== reviewed) {
             throw StackError.of(
-                "PLAN_MISMATCH",
-                `plan ${digest} is waiting for approval, not ${reviewed}`,
+                "PLAN_BLOCKED",
+                `cannot approve plan '${reviewed}': plan '${digest}' is waiting for approval`,
             );
         }
 

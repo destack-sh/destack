@@ -82,7 +82,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
         const store = await this.#builds.store(manifest);
         const { storage } = store.blobs;
         if (!(storage instanceof LocalBlobStorage)) {
-            throw new TypeError(`the store of build ${manifest} keeps no local files`);
+            throw new TypeError(`the store of build '${manifest}' keeps no local files`);
         }
 
         // attach the index once per manifest, which every build of it shares

@@ -252,7 +252,10 @@ function requireWriter(context: BucketContext): void {
     const { subject } = context.caller;
     const isItself = subject !== undefined && Subject.same(subject, Caller.principal(context.self));
     if (BucketSpec.parse(target.spec).write === "package" && !isItself) {
-        throw StackError.of("SPACE_ONLY", `only the space can write ${target.id}`);
+        throw StackError.of(
+            "SPACE_ONLY_DENIED",
+            `bucket '${target.id}' is forbidden: only the space can write it`,
+        );
     }
 }
 
@@ -299,8 +302,8 @@ function httpMetadata(metadata: FileMetadata["httpMetadata"]): BucketFile["httpM
 function requireMetadata(metadata: Readonly<Record<string, string>>): void {
     if (BucketCustomMetadata.bytes(metadata) > MAX_CUSTOM_METADATA_BYTES) {
         throw StackError.of(
-            "METADATA_TOO_LARGE",
-            `custom metadata cannot exceed ${MAX_CUSTOM_METADATA_BYTES} bytes`,
+            "METADATA_INVALID",
+            `custom metadata is invalid: it must take at most ${MAX_CUSTOM_METADATA_BYTES} bytes`,
         );
     }
 }

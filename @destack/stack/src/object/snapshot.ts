@@ -177,7 +177,10 @@ export const Restore = {
     restored(row: Restore): RestoredResource {
         const { digest, provider, reference, location, spec } = row;
         if (digest === null || provider === null || reference === null || spec === null) {
-            throw StackError.of("RESTORE_PENDING", `restore ${row.id} has not finished`);
+            throw StackError.of(
+                "RESTORE_BLOCKED",
+                `cannot restore again: restore '${row.id}' has not finished`,
+            );
         }
 
         return { digest, provider, reference, location, spec };

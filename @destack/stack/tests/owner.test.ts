@@ -31,7 +31,15 @@ test("decide an owner's permissions on a space in its own store through the pred
     }).toEqual({
         person: "done",
         space: "done",
-        reserved: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: replicate"],
-        stranger: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: update"],
+        reserved: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'replicate' is forbidden: the caller lacks it",
+        ],
+        stranger: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'update' is forbidden: the caller lacks it",
+        ],
     });
 });

@@ -170,7 +170,7 @@ test("transfer files through presigned URLs and read their metadata", async () =
         status: 404,
         body: errorDocument(
             "NoSuchKey",
-            "the specified key does not exist",
+            "file key not found",
             "/files/documents/readme.txt",
             missing,
         ),
@@ -223,7 +223,7 @@ test("transfer a file under a customer key", async () => {
             status: 400,
             body: errorDocument(
                 "InvalidRequest",
-                "the file is encrypted with another customer key",
+                "customer key is invalid: the file is encrypted with another customer key",
                 "/files/sealed.txt",
                 bare,
             ),
@@ -239,20 +239,20 @@ test("refuse keys and cursors the bucket refuses, and keys over 1024 UTF-8 bytes
     // refuse a key with a NUL character and a cursor no listing issued
     expect(await refusal(client.file({ ...bucket, key: "a\u0000b" }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_ARGUMENT",
-        "file keys require 1–1024 UTF-8 bytes without NUL",
+        "ARGUMENT_INVALID",
+        "file key is invalid: file keys require 1–1024 UTF-8 bytes without NUL",
     ]);
     expect(await refusal(client.files({ ...bucket, cursor: "unissued", limit: 10 }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_ARGUMENT",
-        "invalid file listing cursor",
+        "ARGUMENT_INVALID",
+        "file listing cursor is invalid: it does not come from this listing",
     ]);
 
     // refuse a lease on a key of 600 characters in 1200 UTF-8 bytes
     expect(await refusal(client.open({ mode: "read", ...bucket, key: "é".repeat(600) }))).toEqual([
         "BAD_REQUEST",
-        "INVALID_ARGUMENT",
-        "file keys require 1–1024 UTF-8 bytes without NUL",
+        "ARGUMENT_INVALID",
+        "file key is invalid: file keys require 1–1024 UTF-8 bytes without NUL",
     ]);
 });
 
@@ -343,7 +343,11 @@ test("refuse uploads, metadata and ranges beyond their bounds", async () => {
                 customMetadata: { note: "x".repeat(2045) },
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "METADATA_TOO_LARGE", "custom metadata cannot exceed 2048 bytes"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "METADATA_INVALID",
+        "custom metadata is invalid: it must take at most 2048 bytes",
+    ]);
     expect(
         await refusal(
             client.open({
@@ -380,7 +384,11 @@ test("refuse callers without the bucket permission", async () => {
                 customMetadata: {},
             }),
         ),
-    ).toEqual(["FORBIDDEN", "PERMISSION_DENIED", "permission denied: write"]);
+    ).toEqual([
+        "FORBIDDEN",
+        "PERMISSION_DENIED",
+        "permission 'write' is forbidden: the caller lacks it",
+    ]);
     expect(await client.files({ ...bucket, limit: 10 })).toEqual({
         files: [],
         delimitedPrefixes: [],
@@ -412,7 +420,7 @@ test("refuse callers without the bucket permission", async () => {
                         code: "FORBIDDEN",
                         reason: "PERMISSION_DENIED",
                         domain: "@destack/access",
-                        message: "permission denied: write",
+                        message: "permission 'write' is forbidden: the caller lacks it",
                     },
                 },
                 target: { type: "procedure", id: "bucket.open" },
@@ -427,7 +435,7 @@ test("refuse callers without the bucket permission", async () => {
     expect(await refusal(client.files({ ...other, limit: 10 }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `bucket ${other.id} not found`,
+        `bucket '${other.id}' not found`,
     ]);
 
     // conceal the space from a caller outside the account
@@ -435,7 +443,7 @@ test("refuse callers without the bucket permission", async () => {
     expect(await refusal(client.file({ ...bucket, key: "file" }))).toEqual([
         "NOT_FOUND",
         "SCOPE_NOT_FOUND",
-        `scope ${fixture.spaceId} not found`,
+        `scope '${fixture.spaceId}' not found`,
     ]);
 });
 
@@ -446,7 +454,7 @@ test("conceal a bucket of another space selected by its identifier", async () =>
     const neighbour = await fixture.neighbour();
 
     // conceal the other space from every method, while the member's own bucket answers
-    const concealed = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope ${neighbour.spaceId} not found`];
+    const concealed = ["NOT_FOUND", "SCOPE_NOT_FOUND", `scope '${neighbour.spaceId}' not found`];
     const refused = [
         await refusal(client.files({ ...neighbour, limit: 10 })),
         await refusal(client.open({ mode: "read", ...neighbour, key: "secret" })),
@@ -516,7 +524,7 @@ test("open a bucket's files as an installation using it, and refuse another", as
     expect(await refusal(client.files({ ...bucket, limit: 10 }))).toEqual([
         "NOT_FOUND",
         "NOT_FOUND",
-        `bucket ${bucket.id} not found`,
+        `bucket '${bucket.id}' not found`,
     ]);
 });
 
@@ -598,7 +606,11 @@ test("refuse editors and consumers writes into a bucket the space alone writes",
         key: "builds/manifest.json",
     });
     const read = await fixture.transfer(download);
-    const refused = ["FORBIDDEN", "SPACE_ONLY", `only the space can write ${fixture.bucketId}`];
+    const refused = [
+        "FORBIDDEN",
+        "SPACE_ONLY_DENIED",
+        `bucket '${fixture.bucketId}' is forbidden: only the space can write it`,
+    ];
     expect({ refusals, leased, read: [read.status, await read.text()] }).toEqual({
         refusals: Array.from({ length: 6 }, () => refused),
         leased: refused,
@@ -635,8 +647,8 @@ test("refuse writes into a fenced bucket until its fence lifts, while reads go o
     // transfer the lease once the fence lifts
     await fixture.files.lift();
     const lifted = await fixture.transfer(lease, "first");
-    const fencedMessage = "bucket is fenced while a transfer copies it";
-    const fenced = ["SERVICE_UNAVAILABLE", "UNAVAILABLE", fencedMessage];
+    const fencedMessage = "bucket is unavailable: it is fenced while a transfer copies it";
+    const fenced = ["SERVICE_UNAVAILABLE", "BUCKET_UNAVAILABLE", fencedMessage];
     expect({
         leased,
         removed,
@@ -714,10 +726,10 @@ test("refuse writes into a space whose bucket exceeds its entitlement, allowing 
         keys: ["a.txt"],
     });
 
-    const message = `space ${fixture.spaceId} exceeds its entitlement: bucket is at its limit of 1000`;
+    const message = `space '${fixture.spaceId}' exceeds its entitlement: bucket is at its limit of 1000`;
     expect({ refused, multipart, listed: listed.files, removed }).toEqual({
-        refused: ["PAYMENT_REQUIRED", "ENTITLEMENT_EXCEEDED", message],
-        multipart: ["PAYMENT_REQUIRED", "ENTITLEMENT_EXCEEDED", message],
+        refused: ["TOO_MANY_REQUESTS", "ENTITLEMENT_EXHAUSTED", message],
+        multipart: ["TOO_MANY_REQUESTS", "ENTITLEMENT_EXHAUSTED", message],
         listed: [],
         removed,
     });

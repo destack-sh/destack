@@ -27,6 +27,10 @@ test("let a space select its own account's repository, and refuse another accoun
         await refusal(SelectedRepository.require(snapshot, ids.space, selection, OTHER)),
     ]).toEqual([
         undefined,
-        ["NOT_FOUND", "REPOSITORY_NOT_FOUND", `the space's account has no repository ${OWN}`],
+        [
+            "NOT_FOUND",
+            "REPOSITORY_NOT_FOUND",
+            `repository '${OWN}' of the space's account not found`,
+        ],
     ]);
 });

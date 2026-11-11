@@ -143,8 +143,16 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         pushed,
         isInRegistry: await fixture.registry.contains(manifest),
     }).toEqual({
-        unfinished: ["CONFLICT", "BUILD_NOT_READY", `build ${created.id} is pending`],
-        asRunner: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: push"],
+        unfinished: [
+            "SERVICE_UNAVAILABLE",
+            "BUILD_UNAVAILABLE",
+            `build '${created.id}' is unavailable: it is 'pending'`,
+        ],
+        asRunner: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'push' is forbidden: the caller lacks it",
+        ],
         pushed: { manifest },
         isInRegistry: true,
     });
@@ -168,8 +176,16 @@ test("refuse advancing a build to anyone but its runner, and a build not running
     );
 
     expect({ asOwner, unstarted }).toEqual({
-        asOwner: ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: run"],
-        unstarted: ["CONFLICT", "BUILD_STATE_CONFLICT", `build ${created.id} is pending`],
+        asOwner: [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'run' is forbidden: the caller lacks it",
+        ],
+        unstarted: [
+            "PRECONDITION_FAILED",
+            "BUILD_BLOCKED",
+            `cannot update build '${created.id}': it is 'pending', not running`,
+        ],
     });
 });
 
@@ -201,7 +217,11 @@ test("fail a running build with the failure its runner reports, and refuse cance
         ),
     ]).toEqual([
         ["failed", failure],
-        ["CONFLICT", "BUILD_STATE_CONFLICT", `build ${created.id} is failed`],
+        [
+            "PRECONDITION_FAILED",
+            "BUILD_BLOCKED",
+            `cannot cancel build '${created.id}': it is 'failed'`,
+        ],
     ]);
 });
 
@@ -231,6 +251,10 @@ test("run a commit's build on the space's build runner, and refuse one on a spac
     const runner = principal.machine.reference(Scope.universe.id, fixture.machine.id);
     expect([ObjectReference.at("runner", created), await refusal(create(null))]).toEqual([
         runner,
-        ["PRECONDITION_FAILED", "BUILD_RUNNER_MISSING", "this space has no build runner"],
+        [
+            "PRECONDITION_FAILED",
+            "BUILD_RUNNER_BLOCKED",
+            "cannot build the commit: this space has no build runner",
+        ],
     ]);
 });

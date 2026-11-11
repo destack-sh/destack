@@ -581,8 +581,8 @@ class Reconcile {
         const granted = RUNTIME_SUPPORT[running.name];
         if (current.description.sandbox.files !== undefined && !granted.hasFilesystem) {
             throw PackageError.of(
-                "ABILITY_UNSUPPORTED",
-                `the ${current.runtime} runtime has no filesystem to grant`,
+                "ABILITY_INVALID",
+                `filesystem ability is invalid: the '${current.runtime}' runtime has no filesystem to grant`,
                 { data: { ability: "files" } },
             );
         }
@@ -608,7 +608,10 @@ class Reconcile {
     #runtime(): Runtime {
         const running = this.#options.runtimes.get(this.#current.runtime);
         if (running === undefined) {
-            throw StackError.of("UNSERVED", `this machine has no ${this.#current.runtime} runtime`);
+            throw StackError.of(
+                "INSTALLATION_BLOCKED",
+                `cannot start the installation: this machine has no '${this.#current.runtime}' runtime`,
+            );
         }
 
         return running;
@@ -743,8 +746,8 @@ class Reconcile {
         const { generation: _generation, conditions: _conditions, ...entry } = bound;
         if (entry.provider === null || entry.reference === null) {
             throw StackError.of(
-                "RESOURCE_UNPROVISIONED",
-                `resource ${entry.id} is not provisioned`,
+                "RESOURCE_UNAVAILABLE",
+                `resource '${entry.id}' is unavailable: it is not provisioned`,
             );
         }
 

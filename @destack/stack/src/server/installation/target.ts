@@ -229,8 +229,8 @@ export const RolloutTarget = {
         const selection = followed?.selection ?? only?.selection;
         if (rows.length > 1) {
             throw StackError.of(
-                "INSTALLATION_AMBIGUOUS",
-                "several installations in this space follow builds of this package: pick one",
+                "TARGET_BLOCKED",
+                "cannot pick an installation: several installations in this space follow builds of this package",
             );
         }
         // answer none for a package the space neither installs nor links
@@ -261,7 +261,7 @@ export const RolloutTarget = {
         // refuse an installation following nothing yet
         throw StackError.of(
             "INSTALLATION_NOT_FOUND",
-            "no installation in this space follows a build of this package",
+            "installation in this space following a build of this package not found",
         );
     },
 
@@ -683,7 +683,7 @@ async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValu
             if (release === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `the reader binds installation ${name} of ${callee} without depending on it`,
+                    `binding of installation '${name}' is invalid: the reader binds it without depending on '${callee}'`,
                 );
             }
             const pinned: InstallationBindingState = { release: Version.parse(release) };

@@ -137,7 +137,7 @@ export class TestRegistry implements Registry, ReleaseRegistry {
                 code: "NOT_FOUND",
                 reason: "RELEASE_NOT_FOUND",
                 domain: "@destack/forge",
-                message: `${packageId} has no release ${release}`,
+                message: `release '${release}' of '${packageId}' not found`,
             });
         }
     }
@@ -290,7 +290,10 @@ export function evaluateStack(
     // require the named export
     const exported = module[name];
     if (exported === undefined) {
-        throw StackError.of("DEFINITION_INVALID", `stack does not export ${name}`);
+        throw StackError.of(
+            "DEFINITION_INVALID",
+            `stack '${name}' is invalid: the stack package does not export it`,
+        );
     }
 
     // call parameterised definitions with the installation's arguments

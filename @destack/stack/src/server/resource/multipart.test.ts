@@ -128,7 +128,7 @@ test("abort a multipart upload", async () => {
     const requestId = late.headers.get("x-amz-request-id");
     expect({ status: late.status, body: await late.text() }).toEqual({
         status: 404,
-        body: `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchUpload</Code><Message>multipart upload does not exist</Message><Resource>/files/draft.bin</Resource><RequestId>${requestId}</RequestId></Error>`,
+        body: `<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchUpload</Code><Message>multipart upload not found</Message><Resource>/files/draft.bin</Resource><RequestId>${requestId}</RequestId></Error>`,
     });
     expect(
         await refusal(
@@ -140,6 +140,6 @@ test("abort a multipart upload", async () => {
                 parts: [{ partNumber: 1, etag }],
             }),
         ),
-    ).toEqual(["NOT_FOUND", "NO_SUCH_UPLOAD", "multipart upload does not exist"]);
+    ).toEqual(["NOT_FOUND", "UPLOAD_NOT_FOUND", "multipart upload not found"]);
     expect(await client.file({ ...bucket, key })).toBeNull();
 });

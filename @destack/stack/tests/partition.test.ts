@@ -33,8 +33,8 @@ test("accept a token bound to an account at the account's home, writing an accou
         title: "Plan",
         refused: [
             "FORBIDDEN",
-            "FOREIGN_PARTITION_TOKEN",
-            "the universe token is bound to another partition",
+            "PARTITION_TOKEN_DENIED",
+            "partition is forbidden: the universe token is bound to another partition",
         ],
     });
 });
@@ -56,9 +56,9 @@ test("write an account's propagated memo at the account's home, and refuse it as
     expect({ created: present(created, "the memo").scope, refused }).toEqual({
         created: ids.account,
         refused: [
-            "CONFLICT",
-            "REPLICA_WRITE",
-            `memo rows of ${ids.account} are replicas here: send changes to their home`,
+            "PRECONDITION_FAILED",
+            "REPLICA_BLOCKED",
+            `cannot change memo rows of '${ids.account}': they are replicas here, so send changes to their home`,
         ],
     });
 });

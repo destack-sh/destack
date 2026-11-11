@@ -530,7 +530,7 @@ function externalObjects(options: SpaceOptions, own: readonly ObjectType[]): rea
     const external = options.external.objects;
     const taken = external.find((type) => own.some((each) => each.key === type.key));
     if (taken !== undefined) {
-        throw new TypeError(`object ${taken.name} is served by the space`);
+        throw new TypeError(`object '${taken.name}' is served by the space`);
     }
 
     return external;
@@ -634,7 +634,7 @@ function homePublisher(
     }
     // refuse a machine without a route to other spaces
     else if (publisherAt === null) {
-        throw new TypeError(`this machine follows nothing from the home of ${scope}`);
+        throw new TypeError(`this machine follows nothing from the home of '${scope}'`);
     }
 
     // follow a space at itself, and another scope in its account's partition at the account's home

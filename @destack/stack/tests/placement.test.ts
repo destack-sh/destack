@@ -112,7 +112,7 @@ test("give birth to placed spaces from their replicated rows with main in their 
             [
                 "BAD_REQUEST",
                 "DEFINITION_INVALID",
-                "stack placed declares main, but every space already has it",
+                "stack 'placed' is invalid: it declares 'main', but every space already has it",
             ],
         ],
     });

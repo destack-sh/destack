@@ -307,8 +307,8 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     // refuse reading the applied states while the plan waits
     expect(await refusal(() => appliedDigests(waiting))).toEqual([
         "PRECONDITION_FAILED",
-        "PLAN_UNAPPLIED",
-        `resource ${named.kept} has not applied its desired states: approve or reject its plan first`,
+        "PLAN_BLOCKED",
+        `cannot transfer resource '${named.kept}': it has not applied its desired states, so approve or reject its plan first`,
     ]);
 
     // apply the approved plan and forget the approval

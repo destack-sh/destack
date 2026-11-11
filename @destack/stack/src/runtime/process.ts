@@ -33,21 +33,24 @@ export class ProcessRuntime implements Runtime {
     /** Refuse forwarding a request, which the machine's store serves without a runtime. */
     async fetch(instanceId: Identifier<"instance">): Promise<Response> {
         throw StackError.of(
-            "SERVED_IN_PROCESS",
-            `instance ${instanceId} serves in the machine's store, which answers its requests`,
+            "PROCESS_UNSUPPORTED",
+            `fetching from instance '${instanceId}' is not supported: it serves in the machine's store, which answers its requests`,
         );
     }
 
     /** Refuse a call, which runs package code in a server runtime the machine sandboxes. */
     async call(): Promise<never> {
-        throw StackError.of("SERVED_IN_PROCESS", "the machine's process runs no package code");
+        throw StackError.of(
+            "PROCESS_UNSUPPORTED",
+            "package code in the machine's process is not supported",
+        );
     }
 
     /** Refuse a delivery, which the machine's store hands its in-process server itself. */
     async deliver(instanceId: Identifier<"instance">): Promise<Response> {
         throw StackError.of(
-            "SERVED_IN_PROCESS",
-            `instance ${instanceId} serves in the machine's store, which takes its deliveries`,
+            "PROCESS_UNSUPPORTED",
+            `delivering to instance '${instanceId}' is not supported: it serves in the machine's store, which takes its deliveries`,
         );
     }
 }

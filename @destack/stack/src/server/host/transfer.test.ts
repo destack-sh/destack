@@ -200,7 +200,11 @@ test("hand a space's database to another machine and send its clients there", as
         },
         clock.now(),
     );
-    const moved = ["MISDIRECTED_REQUEST", "SCOPE_MOVED", `${spaceId} moved to ${ids.machineB}`];
+    const moved = [
+        "MISDIRECTED_REQUEST",
+        "SCOPE_MOVED",
+        `space '${spaceId}' moved to '${ids.machineB}'`,
+    ];
     const late = await refusal(create(source.database, "late"));
 
     // end the reads following the moved space and answer new ones with its new machine too

@@ -72,7 +72,7 @@ export const installationProvider = {
             if (address === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `dependency ${resource.id} has no address: bind it in the stack`,
+                    `dependency '${resource.id}' is invalid: it has no address, so bind it in the stack`,
                 );
             }
 
@@ -155,7 +155,7 @@ export class ProviderIndex {
             const [first] = grouped;
             if (first !== undefined && first.object !== provider.object) {
                 throw new TypeError(
-                    `providers ${first.code} and ${provider.code} serve ${provider.kind.name} resources differently`,
+                    `providers '${first.code}' and '${provider.code}' serve '${provider.kind.name}' resources differently`,
                 );
             }
             byKind.set(provider.kind.name, [...grouped, provider]);
@@ -214,7 +214,7 @@ export class ProviderIndex {
         if (provider?.snapshot === undefined) {
             throw StackError.of(
                 "SNAPSHOT_UNSUPPORTED",
-                `provider ${code} of ${object.name} does not support snapshots`,
+                `snapshot by provider '${code}' of ${object.name} is not supported`,
             );
         }
 
@@ -227,7 +227,7 @@ export class ProviderIndex {
         if (provider?.provision === undefined || provider.snapshot === undefined) {
             throw StackError.of(
                 "RESTORE_UNSUPPORTED",
-                `no provider of ${object.name} here can restore it`,
+                `restore of ${object.name} by a provider here is not supported`,
             );
         }
 
@@ -292,8 +292,8 @@ export function appliedDigests(row: Resource): Digest[] {
     const isApplied = canonicalize(row.appliedStates) === canonicalize(desired);
     if (!isApplied || row.plan !== null) {
         throw StackError.of(
-            "PLAN_UNAPPLIED",
-            `resource ${row.id} has not applied its desired states: approve or reject its plan first`,
+            "PLAN_BLOCKED",
+            `cannot transfer resource '${row.id}': it has not applied its desired states, so approve or reject its plan first`,
         );
     }
 
