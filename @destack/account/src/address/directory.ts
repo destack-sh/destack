@@ -97,13 +97,13 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** Locate a space's placement and the URL its machine answers at now. */
     async locate(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint> {
         // read the placement, then where its machine answers
-        const placed = await this.#placement(spaceId);
+        const placed = await this.placed(spaceId);
         if (placed === undefined) {
             throw AccountError.of("SPACE_NOT_PLACED", "nothing responds for this space");
         }
-        const url = await this.answering(placed.machine, now);
+        const url = await this.answering(placed.placement.machine, now);
 
-        return { placement: placed, url };
+        return { ...placed, url };
     }
 
     /** Locate a package below an installation of a space, at the URL its machine answers at now. */
@@ -137,19 +137,19 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         now: number,
     ): Promise<PlacementEndpoint | undefined> {
         // read the placement, then the endpoint its machine publishes
-        const placed = await this.#placement(spaceId);
+        const placed = await this.placed(spaceId);
         const published =
             placed === undefined
                 ? undefined
                 : await this.snapshot
                       .read(endpoint.table)
-                      .findFirst({ where: { parentId: placed.machine } });
+                      .findFirst({ where: { parentId: placed.placement.machine } });
 
         return placed === undefined ||
             published === undefined ||
             !Endpoint.isAnswering(published, now)
             ? undefined
-            : { placement: placed, url: published.url };
+            : { ...placed, url: published.url };
     }
 
     /** Stream follows of a space's rows from its object package, where its machine answers. */
@@ -221,19 +221,22 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         return published.url;
     }
 
-    /** Read a space's placement, absent for a space placed nowhere. */
-    async #placement(
+    /** Read a space's placement and whether its machine serves it yet, absent while unplaced. */
+    async placed(
         spaceId: Identifier<"space">,
-    ): Promise<PlacementEndpoint["placement"] | undefined> {
+    ): Promise<Omit<PlacementEndpoint, "url"> | undefined> {
         const placed = await this.snapshot.read(placement.table).findFirst({ where: { spaceId } });
 
         return placed === undefined
             ? undefined
             : {
-                  space: placed.spaceId,
-                  scope: placed.scope,
-                  machine: placed.machineId,
-                  epoch: placed.epoch,
+                  placement: {
+                      space: placed.spaceId,
+                      scope: placed.scope,
+                      machine: placed.machineId,
+                      epoch: placed.epoch,
+                  },
+                  status: placed.status,
               };
     }
 }

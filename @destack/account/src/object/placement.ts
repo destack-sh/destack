@@ -27,6 +27,12 @@ export const Schedule = schema.discriminatedUnion("kind", [
 /** Where a space's tenancy places it. */
 export type Schedule = schema.Infer<typeof Schedule>;
 
+/** Whether a placed space's machine serves it yet, as the machine reports. */
+export const PLACEMENT_STATUSES = ["starting", "serving"] as const;
+
+/** Whether a placed space's machine serves it yet. */
+export type PlacementStatus = (typeof PLACEMENT_STATUSES)[number];
+
 /** Where a space runs: the machine serving its databases at an epoch. */
 const PlacementSchema = schema.object({
     /** The placed space. */
@@ -128,6 +134,8 @@ export const PlacementEndpoint = schema.object({
     placement: PlacementSchema,
     /** The URL the placement's machine answers at. */
     url: schema.string(),
+    /** Whether the machine serves the space yet. */
+    status: schema.enum(PLACEMENT_STATUSES),
 });
 /** A space's placement and the URL its machine answers at now. */
 export type PlacementEndpoint = schema.Infer<typeof PlacementEndpoint>;
@@ -166,6 +174,8 @@ export const placement = defineObject(
             transferId: field.string(schema.identifier("transfer")).optional(),
             /** Where the universe places the space for its tenancy. */
             schedule: field.json(Schedule),
+            /** Whether the machine serves the space yet, as the machine reports. */
+            status: field.enum(PLACEMENT_STATUSES).default("starting"),
         },
         relations: {
             // the placed space itself
@@ -236,6 +246,12 @@ export const placement = defineObject(
             permission: "decide",
             visibility: "package",
             input: schema.object({}),
+        }),
+
+        /** Report whether the machine serves the space yet, at its epoch. */
+        report: method.mutation({
+            permission: "serve",
+            input: Serving.extend({ status: schema.enum(PLACEMENT_STATUSES) }),
         }),
 
         /** Read the account paying for the placed space's use, as the machine serving it. */

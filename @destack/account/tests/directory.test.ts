@@ -107,6 +107,7 @@ test("find and resolve a place's address over the directory's rows, to the URL i
         {
             id: spaceId,
             placement: { space: spaceId, scope: accountId, machine: computer.subject.id, epoch: 1 },
+            status: "starting",
             url,
         },
         ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at other--${handle}`],
@@ -276,6 +277,10 @@ test("locate each of many spaces placed on a machine in one statement for its pl
     // read each space's placement, and the machine's endpoint once from the database
     expect({ statements: reader.driver.operations, located }).toEqual({
         statements: STRESS_SPACES + 1,
-        located: placed.map((row) => ({ placement: row, url: "https://machine.test/" })),
+        located: placed.map((row) => ({
+            placement: row,
+            status: "starting",
+            url: "https://machine.test/",
+        })),
     });
 });

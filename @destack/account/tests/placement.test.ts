@@ -663,6 +663,7 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
         {
             id: laptop,
             placement: { space: laptop, scope: accountId, machine: local.subject.id, epoch: 1 },
+            status: "starting",
             url: address,
         },
         ["NOT_FOUND", "ADDRESS_NOT_FOUND", `nothing responds at missing--${handle}`],

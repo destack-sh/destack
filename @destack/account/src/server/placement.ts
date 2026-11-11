@@ -27,6 +27,7 @@ export function implementPlacement(): typeof placement {
             move,
             decide,
             withdraw,
+            report,
             assign,
             unassign,
             payer: (context) => Account.payer(context, context.target.scope),
@@ -103,6 +104,7 @@ async function place(
         targetId: null,
         transferId: null,
         schedule: decided,
+        status: "starting",
     });
 }
 
@@ -328,6 +330,15 @@ async function withdraw(
     await context.remove();
 
     return target;
+}
+
+/** Record whether the machine serves the space yet, as the machine serving it at its epoch. */
+async function report(
+    context: MethodContextOf<typeof placement, "report">,
+): Promise<ResultOf<typeof placement, "report">> {
+    Placement.requireServed(context.target, context.input.epoch);
+
+    return context.update({ status: context.input.status });
 }
 
 /** Give a machine work in a space once, as the machine serving it at its epoch. */
