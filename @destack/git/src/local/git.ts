@@ -65,8 +65,8 @@ export const Git = {
         options.signal?.throwIfAborted();
         if (code !== 0) {
             throw GitError.of(
-                "GIT_FAILED",
-                `git ${command[0]} failed with ${code}: ${decoder.decode(stderr).trim()}`,
+                "COMMAND_BROKEN",
+                `git '${command[0]}' exited with status ${code}: '${decoder.decode(stderr).trim()}'`,
             );
         }
 

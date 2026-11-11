@@ -90,7 +90,7 @@ export class LocalGitStorage implements GitStorage {
         } catch (error) {
             // drop the staging directory, accepting a repository another create finished
             await files.remove(staging, { recursive: true, force: true });
-            if (!FileSystemError.is(error, "ALREADY_EXISTS")) {
+            if (!FileSystemError.is(error, "FILE_EXISTS")) {
                 throw error;
             }
         }
@@ -106,7 +106,7 @@ export class LocalGitStorage implements GitStorage {
         try {
             await files.rename(this.#path(id), trash);
         } catch (error) {
-            if (FileSystemError.is(error, "NOT_FOUND")) {
+            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
                 return;
             }
             throw error;
@@ -189,7 +189,7 @@ export class LocalGitStorage implements GitStorage {
     /** Locate a repository's directory and refuse names outside the storage directory. */
     #path(name: string): string {
         if (!NAME.test(name)) {
-            throw new TypeError(`invalid local repository name: ${name}`);
+            throw new TypeError(`invalid local repository name: '${name}'`);
         }
 
         return join(this.directory, `${name}.git`);

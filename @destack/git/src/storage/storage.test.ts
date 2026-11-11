@@ -53,7 +53,7 @@ test("create a local repository, push a branch and a tag into it, list them and 
 
     // refuse names leaving the directory, and delete the repository twice
     await expect(storage.create("../escape")).rejects.toThrow(
-        "invalid local repository name: ../escape",
+        "invalid local repository name: '../escape'",
     );
     await storage.delete(id);
     await storage.delete(id);
@@ -162,13 +162,13 @@ test("refuse a repository Artifacts created under another name, and a token with
     ]).toEqual([
         [
             "BAD_GATEWAY",
-            "ARTIFACT_NAME_MISMATCH",
-            "expected cloudflare artifacts to create git-site.repository-site, got renamed",
+            "ARTIFACT_NAME_UNREACHABLE",
+            "could not create cloudflare artifact 'git-site.repository-site': got 'renamed'",
         ],
         [
             "BAD_GATEWAY",
-            "TOKEN_EXPIRY_INVALID",
-            "cloudflare artifacts issued a token with an invalid expiry: soon",
+            "TOKEN_EXPIRY_UNREACHABLE",
+            "could not read token expiry 'soon' from cloudflare artifacts",
         ],
     ]);
 });
@@ -237,7 +237,7 @@ test("check one commit of a leased repository out into a new working tree withou
 
 /** Refuse a request, as these tests' storages create, list and delete without reaching Git. */
 async function unreachable(request: Request): Promise<Response> {
-    throw new TypeError(`the test reaches no Git remote, not ${request.url}`);
+    throw new TypeError(`the test reaches no Git remote, not '${request.url}'`);
 }
 
 /** An Artifacts namespace storing repositories in memory as the Workers binding documents them. */
@@ -332,5 +332,5 @@ class TestArtifactsNamespace implements ArtifactsNamespace {
 
 /** Build the error the binding throws, with its code. */
 function artifactsError(code: string, name: string): Error {
-    return Object.assign(new Error(`${code}: ${name}`), { code });
+    return Object.assign(new Error(`'${code}': '${name}'`), { code });
 }

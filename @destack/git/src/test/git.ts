@@ -55,7 +55,7 @@ async function run(
         child.exited,
     ]);
     if (code !== 0) {
-        throw new Error(`git ${arguments_.join(" ")} failed: ${errors}`);
+        throw new Error(`git '${arguments_.join(" ")}' failed: '${errors}'`);
     }
 
     return output.trim();

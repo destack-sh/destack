@@ -103,8 +103,8 @@ export class ArtifactsStorage implements GitStorage {
         // refuse a repository created under another name
         if (created.name !== name) {
             throw GitError.of(
-                "ARTIFACT_NAME_MISMATCH",
-                `expected cloudflare artifacts to create ${name}, got ${created.name}`,
+                "ARTIFACT_NAME_UNREACHABLE",
+                `could not create cloudflare artifact '${name}': got '${created.name}'`,
             );
         }
 
@@ -153,8 +153,8 @@ export class ArtifactsStorage implements GitStorage {
         const expiresAt = Date.parse(issued.expiresAt);
         if (Number.isNaN(expiresAt)) {
             throw GitError.of(
-                "TOKEN_EXPIRY_INVALID",
-                `cloudflare artifacts issued a token with an invalid expiry: ${issued.expiresAt}`,
+                "TOKEN_EXPIRY_UNREACHABLE",
+                `could not read token expiry '${issued.expiresAt}' from cloudflare artifacts`,
             );
         }
 

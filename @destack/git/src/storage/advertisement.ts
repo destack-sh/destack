@@ -28,8 +28,8 @@ export const GitAdvertisement = {
         const type = response.headers.get("content-type");
         if (!response.ok || type !== ADVERTISEMENT_TYPE) {
             throw GitError.of(
-                "REMOTE_FAILED",
-                `git remote responded with ${response.status} ${type ?? "without a content type"}`,
+                "REMOTE_UNREACHABLE",
+                `could not read the git advertisement: remote responded with ${response.status} ${type ?? "without a content type"}`,
             );
         }
 
@@ -41,7 +41,10 @@ export const GitAdvertisement = {
         // read each pkt-line after the service announcement, skipping flush packets
         const lines = GitAdvertisement.packetLines(body);
         if (lines[0] !== "# service=git-upload-pack") {
-            throw GitError.of("UPLOAD_PACK_MISSING", "git remote did not announce upload-pack");
+            throw GitError.of(
+                "UPLOAD_PACK_UNREACHABLE",
+                "could not find upload-pack in the git remote advertisement",
+            );
         }
 
         // read the capabilities on the first reference line, and each reference and its peeled commit
@@ -53,8 +56,8 @@ export const GitAdvertisement = {
             const [object, name] = advertised === undefined ? [] : advertised.split(" ");
             if (object === undefined || name === undefined) {
                 throw GitError.of(
-                    "ADVERTISEMENT_UNEXPECTED",
-                    `unexpected git remote advertisement: ${line}`,
+                    "ADVERTISEMENT_UNREACHABLE",
+                    `could not read git remote advertisement line '${line}'`,
                 );
             }
 
@@ -99,8 +102,8 @@ export const GitAdvertisement = {
             const length = Number.parseInt(prefix, 16);
             if (!/^[0-9a-f]{4}$/u.test(prefix) || (length !== 0 && length < LENGTH_WIDTH)) {
                 throw GitError.of(
-                    "PKT_LINE_UNEXPECTED",
-                    `unexpected pkt-line from git remote: ${prefix}`,
+                    "PKT_LINE_UNREACHABLE",
+                    `could not read git remote pkt-line '${prefix}'`,
                 );
             }
 
