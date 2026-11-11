@@ -34,7 +34,7 @@ import { TestFinance, type FinanceFixtureOptions, ids, type Person } from "../..
 export { ids, type Person, spaces } from "../../src/test/index.ts";
 import type { Feature, FeatureGrant } from "../../src/feature/index.ts";
 import type { Meter } from "@destack/telemetry/meter";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import {
     archived,
     calls,
@@ -274,7 +274,7 @@ export class Finance {
 
     /** Publish a package's next release declaring some features and meters. */
     publish(
-        owner: Package,
+        owner: PackageVersion,
         version: string,
         declared: readonly (Feature | Meter)[],
     ): Promise<void> {

@@ -1,5 +1,5 @@
 import { t } from "@destack/locale";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, onTestFinished, test } from "@destack/test";
 import { defineCatalog, defineFeature } from "../src/declare/index.ts";
@@ -9,7 +9,7 @@ import type { StackDocument } from "@destack/stack/declare";
 import financePackage from "../src/package.ts";
 
 /** The platform's package declaring the plans' features, which the platform's seller publishes. */
-const tiers = Package.parse({
+const tiers = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000501",
     name: "@platform/tiers",
     version: "2026.10.0",
@@ -19,7 +19,7 @@ const tiers = Package.parse({
 const seats = defineFeature(
     {
         name: "seats",
-        description: "The seats an account may fill.",
+        description: t`The seats an account may fill.`,
         kind: "static",
         value: schema.number().int().min(1),
     },

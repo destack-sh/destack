@@ -1,11 +1,12 @@
 import { CREDITS } from "../../src/rate/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { defineMeter } from "@destack/telemetry/declare";
 import { defineFeature, defineSku } from "../../src/declare/index.ts";
+import { t } from "@destack/locale";
 
 /** The release of Carol's shop package declaring the fixture's features and meters. */
-export const storage = Package.parse({
+export const storage = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000101",
     name: "@shop/storage",
     version: "2026.9.0",
@@ -15,7 +16,7 @@ export const storage = Package.parse({
 export const requests = defineMeter(
     {
         name: "api.requests",
-        description: "Requests to the storage API.",
+        description: t`Requests to the storage API.`,
         aggregation: "sum",
         unit: "request",
         attributes: {},
@@ -27,7 +28,7 @@ export const requests = defineMeter(
 export const stored = defineMeter(
     {
         name: "storage.bytes",
-        description: "Bytes stored.",
+        description: t`Bytes stored.`,
         aggregation: "last",
         unit: "byte",
         attributes: {},
@@ -39,7 +40,7 @@ export const stored = defineMeter(
 export const archived = defineMeter(
     {
         name: "archive.bytes",
-        description: "Bytes archived.",
+        description: t`Bytes archived.`,
         aggregation: "last",
         unit: "byte",
         attributes: {},
@@ -51,7 +52,7 @@ export const archived = defineMeter(
 export const disk = defineMeter(
     {
         name: "disk.bytes",
-        description: "Bytes on disk, averaged over the month.",
+        description: t`Bytes on disk, averaged over the month.`,
         aggregation: "average",
         unit: "byte",
         attributes: {},
@@ -63,7 +64,7 @@ export const disk = defineMeter(
 export const uptime = defineMeter(
     {
         name: "machine.hours",
-        description: "Hours a machine stays awake.",
+        description: t`Hours a machine stays awake.`,
         aggregation: "sum",
         unit: "hour",
         attributes: {},
@@ -73,7 +74,7 @@ export const uptime = defineMeter(
 
 /** Syncing across devices. */
 export const sync = defineFeature(
-    { name: "sync", description: "Sync files across devices.", kind: "boolean" },
+    { name: "sync", description: t`Sync files across devices.`, kind: "boolean" },
     { package: storage },
 );
 
@@ -81,7 +82,7 @@ export const sync = defineFeature(
 export const support = defineFeature(
     {
         name: "support",
-        description: "The support tier.",
+        description: t`The support tier.`,
         kind: "static",
         value: schema.enum(["community", "priority"]),
     },
@@ -92,7 +93,7 @@ export const support = defineFeature(
 export const seats = defineFeature(
     {
         name: "seats",
-        description: "The seats an account may fill.",
+        description: t`The seats an account may fill.`,
         kind: "static",
         value: schema.number().int().min(1),
     },
@@ -103,9 +104,9 @@ export const seats = defineFeature(
 export const calls = defineFeature(
     {
         name: "api.calls",
-        description: "API requests per billing period.",
+        description: t`API requests per billing period.`,
         kind: "metered",
-        meters: [requests.reference],
+        meters: [requests],
         reset: "period",
     },
     { package: storage },
@@ -115,9 +116,9 @@ export const calls = defineFeature(
 export const storageLimit = defineFeature(
     {
         name: "storage.limit",
-        description: "Bytes stored.",
+        description: t`Bytes stored.`,
         kind: "metered",
-        meters: [stored.reference],
+        meters: [stored],
         reset: "never",
     },
     { package: storage },
@@ -127,10 +128,10 @@ export const storageLimit = defineFeature(
 export const capacity = defineFeature(
     {
         name: "capacity",
-        description: "Bytes stored and archived together.",
+        description: t`Bytes stored and archived together.`,
         kind: "metered",
         resource: "bucket",
-        meters: [stored.reference, archived.reference],
+        meters: [stored, archived],
         reset: "never",
     },
     { package: storage },
@@ -140,9 +141,9 @@ export const capacity = defineFeature(
 export const diskLimit = defineFeature(
     {
         name: "disk.limit",
-        description: "Bytes on disk.",
+        description: t`Bytes on disk.`,
         kind: "metered",
-        meters: [disk.reference],
+        meters: [disk],
         reset: "never",
     },
     { package: storage },
@@ -152,11 +153,11 @@ export const diskLimit = defineFeature(
 export const diskSku = defineSku(
     {
         name: "cloudflare.r2.storage",
-        description: "Disk storage, averaged over the month.",
+        description: t`Disk storage, averaged over the month.`,
         provider: "cloudflare",
         service: "R2",
         category: "Storage",
-        meter: disk.reference,
+        meter: disk,
         attributes: {},
         pricingUnit: "GB-month",
         unitSize: 1_000_000_000,
@@ -172,12 +173,12 @@ export const diskSku = defineSku(
 export const machineSku = defineSku(
     {
         name: "destack.machine",
-        description: "Hours a machine stays awake.",
+        description: t`Hours a machine stays awake.`,
         provider: "destack",
         service: "Compute",
         category: "Compute",
         tenancy: "dedicated",
-        meter: uptime.reference,
+        meter: uptime,
         attributes: {},
         pricingUnit: "hour",
         unitSize: 1,
@@ -191,7 +192,7 @@ export const machineSku = defineSku(
 );
 
 /** The release of a platform package, published by the destack account. */
-export const hosting = Package.parse({
+export const hosting = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000102",
     name: "@destack/hosting",
     version: "2026.9.0",
@@ -199,6 +200,6 @@ export const hosting = Package.parse({
 
 /** Custom domains on hosted apps. */
 export const domains = defineFeature(
-    { name: "domains", description: "Serve apps on custom domains.", kind: "boolean" },
+    { name: "domains", description: t`Serve apps on custom domains.`, kind: "boolean" },
     { package: hosting },
 );

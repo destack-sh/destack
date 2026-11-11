@@ -11,6 +11,8 @@ import { Price, price, PRICE_TERMS, PriceMirror } from "./price.ts";
 import { FeatureGrant } from "../feature/grant.ts";
 import { seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A transition of a subscription's state. */
 type Transition = "trial" | "activate" | "fail" | "lapse" | "pause" | "expire" | "cancel";
@@ -163,6 +165,7 @@ export const subscription = defineObject(
     {
         name: "subscription",
         plural: "subscriptions",
+        title: t`${plural(argument("count"), { one: "Subscription", other: "Subscriptions" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -210,8 +213,6 @@ export const subscription = defineObject(
             /** The provider's identifier of the subscription. */
             providerId: field.string(),
         },
-        permissions: BILLING_PERMISSIONS,
-        reserved: ["provide"],
         constraints: {
             status: { kind: "index", on: ["accountId", "status"] },
             provider: { kind: "index", on: ["providerId"], unique: true },
@@ -232,19 +233,30 @@ export const subscription = defineObject(
                 },
             },
         },
+        access: {
+            permissions: BILLING_PERMISSIONS,
+            reserved: ["provide"],
+        },
     },
     (method) => ({
         create: method.create("provide", { visibility: "package" }),
         /** Follow the subscription as the provider bills it: its period, state and items. */
         sync: method.mutation({
+            title: t`Sync`,
             permission: "provide",
             visibility: "package",
             input: ProviderSubscription,
         }),
         /** Move the subscription to another product, or cancel it for the default product. */
-        change: method.mutation({ permission: "bill", input: Purchasable, prepared: PlanChange }),
+        change: method.mutation({
+            title: t`Change`,
+            permission: "bill",
+            input: Purchasable,
+            prepared: PlanChange,
+        }),
         /** Close an ended period onto the provider's draft invoice. */
         closePeriod: method.mutation({
+            title: t`Close period`,
             permission: "provide",
             visibility: "package",
             input: schema.object({
@@ -273,8 +285,8 @@ export const subscriptionItem = defineObject(
     {
         name: "subscription-item",
         plural: "subscriptionItems",
+        title: t`${plural(argument("count"), { one: "Subscription item", other: "Subscription items" })}`,
         scope: space,
-        nested: { in: subscription, delete: "cascade", receive: "provide" },
         fields: {
             /** The seller's price. */
             price: field.object(price),
@@ -287,13 +299,16 @@ export const subscriptionItem = defineObject(
             /** The provider's item identifier, absent where no provider bills. */
             providerId: field.string().optional(),
         },
-        permissions: {
-            read: through("parent", "read"),
-            provide: through("parent", "provide"),
-        },
         constraints: {
             quantity: { kind: "check", condition: { quantity: { gte: 0 } } },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                provide: through("parent", "provide"),
+            },
+        },
+        traits: [nested({ in: subscription, delete: "cascade", add: "provide" })],
     },
     (method) => ({
         create: method.create("provide", { visibility: "package" }),

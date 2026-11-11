@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { ModuleMetadata, Package } from "@destack/package";
+import { ModuleMetadata, PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import {
     RESOURCE_KINDS,
@@ -7,15 +7,20 @@ import {
     FeatureMetadata,
     FeatureReset,
     type FeatureDefinition,
+    type FeatureOptions,
 } from "../feature/feature.ts";
 
 /** Declare a typed feature that products grant. */
 export function defineFeature<Value extends schema.Schema>(
-    definition: FeatureDefinition<Value>,
+    options: FeatureOptions<Value>,
     module?: ModuleMetadata,
 ): Feature<Value> {
-    // stamp the declaring package
-    const owner = Package.parse(ModuleMetadata.require(module, "defineFeature").package);
+    // stamp the declaring package, and refer to a metered feature's meters
+    const owner = PackageVersion.parse(ModuleMetadata.require(module, "defineFeature").package);
+    const definition: FeatureDefinition<Value> =
+        options.kind === "metered"
+            ? { ...options, meters: options.meters.map((meter) => meter.reference) }
+            : options;
 
     // validate the name, the description and the resource, each allowed by its kind of feature
     FeatureMetadata.parse({

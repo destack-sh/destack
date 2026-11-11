@@ -1,4 +1,5 @@
-import { defineDeclarationKind } from "@destack/package";
+import type { Meter } from "@destack/telemetry/meter";
+import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { FinanceError } from "../error/error.ts";
 import {
@@ -6,10 +7,11 @@ import {
     type EntitlementResource,
     FEATURE_KINDS,
 } from "@destack/account/object";
-import { Package, PackageId, DeclarationName } from "@destack/package";
+import { PackageVersion, PackageId, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, schema, type JsonValue } from "@destack/schema";
+import { Message } from "@destack/locale";
 
 /** What a feature grants. */
 export const FeatureKind = schema.enum(FEATURE_KINDS);
@@ -40,7 +42,7 @@ export const FeatureMetadata = schema.object({
     /** The package-local name. */
     name: DeclarationName,
     /** What the feature grants. */
-    description: schema.string().min(1),
+    description: Message,
     /** The platform resource the feature's grant allows, absent for a package's own feature. */
     resource: schema.enum(ENTITLEMENT_RESOURCES).exactOptional(),
 });
@@ -70,10 +72,18 @@ export type FeatureDefinition<Value extends schema.Schema = schema.Schema> = sch
           }
     );
 
+/** A feature as declared: a metered feature's meters as declarations. */
+export type FeatureOptions<Value extends schema.Schema = schema.Schema> =
+    | Exclude<FeatureDefinition<Value>, { readonly kind: "metered" }>
+    | (Omit<Extract<FeatureDefinition<Value>, { readonly kind: "metered" }>, "meters"> & {
+          /** The meters of one unit whose events count together as usage. */
+          readonly meters: readonly Meter[];
+      });
+
 /** The fields of every feature description beside its kind. */
 const description = FeatureMetadata.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
 });
 
 /** A feature declaration as manifests describe it. */
@@ -101,17 +111,17 @@ export const FeatureDescription = schema.discriminatedUnion("kind", [
 export type FeatureDescription = schema.Infer<typeof FeatureDescription>;
 
 /** The feature declaration kind, which finance defines. */
-export const FEATURE_KIND = defineDeclarationKind("feature", FeatureDescription);
+export const FEATURE_KIND = defineKind({ name: "feature", description: FeatureDescription });
 
 /** A feature declaration: what a product grants to the accounts buying it. */
 export class Feature<Value extends schema.Schema = schema.Schema> {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name, description and kind. */
     readonly definition: FeatureDefinition<Value>;
 
     /** Create a feature from a checked declaration. */
-    constructor(owner: Package, definition: FeatureDefinition<Value>) {
+    constructor(owner: PackageVersion, definition: FeatureDefinition<Value>) {
         this.package = owner;
         this.definition = definition;
     }

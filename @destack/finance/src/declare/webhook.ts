@@ -7,7 +7,8 @@ import { StripeSignature } from "../provider/stripe/signature.ts";
 export const stripeWebhookSecret = defineSecret({ name: "stripe-webhook" });
 
 /** Stripe's deliveries of the events finance follows, verified with the endpoint's secret. */
-export const stripeWebhook = defineWebhook("stripe", {
+export const stripeWebhook = defineWebhook({
+    name: "stripe",
     signature: new StripeSignature(),
     secret: stripeWebhookSecret,
 });

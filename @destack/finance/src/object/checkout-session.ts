@@ -8,12 +8,14 @@ import { PriceMirror } from "./price.ts";
 import { product } from "./product.ts";
 import { seller } from "./seller.ts";
 import { ProviderSubscription, subscription } from "./subscription.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** An account's purchase in progress of a product's recurring prices. */
 export const checkoutSession = defineObject(
     {
         name: "checkout-session",
         plural: "checkoutSessions",
+        title: t`${plural(argument("count"), { one: "Checkout session", other: "Checkout sessions" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -45,8 +47,6 @@ export const checkoutSession = defineObject(
             /** The provider's identifier of the session. */
             providerId: field.string(),
         },
-        permissions: BILLING_PERMISSIONS,
-        reserved: ["provide"],
         constraints: {
             provider: { kind: "index", on: ["providerId"], unique: true },
             open: {
@@ -55,6 +55,10 @@ export const checkoutSession = defineObject(
                 unique: true,
                 where: { status: "open" },
             },
+        },
+        access: {
+            permissions: BILLING_PERMISSIONS,
+            reserved: ["provide"],
         },
     },
     (method) => ({
@@ -86,6 +90,7 @@ export const checkoutSession = defineObject(
         }),
         /** Complete the session with its subscription. */
         settle: method.mutation({
+            title: t`Settle`,
             permission: "provide",
             visibility: "package",
             input: schema.object({

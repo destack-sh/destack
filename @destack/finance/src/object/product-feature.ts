@@ -10,14 +10,16 @@ import type { ReleaseReader } from "../release/reader.ts";
 import { product } from "./product.ts";
 import { type Publisher, Seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A feature a product grants its buyers, with the value or limit of the grant. */
 export const productFeature = defineObject(
     {
         name: "product-feature",
         plural: "productFeatures",
+        title: t`${plural(argument("count"), { one: "Product feature", other: "Product features" })}`,
         scope: space,
-        nested: { in: product, delete: "cascade", receive: "sell" },
         fields: {
             /** The package declaring the feature. */
             packageId: field.string(PackageId),
@@ -26,13 +28,16 @@ export const productFeature = defineObject(
             /** A static feature's value or a metered one's limit, unlimited without one. */
             value: field.json(schema.json()).optional(),
         },
-        permissions: {
-            read: through("parent", "read"),
-            sell: through("parent", "sell"),
-        },
         constraints: {
             unique: { kind: "index", on: ["parentId", "packageId", "feature"], unique: true },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                sell: through("parent", "sell"),
+            },
+        },
+        traits: [nested({ in: product, delete: "cascade", add: "sell" })],
     },
     (method) => ({
         create: method.create("sell", { fields: ["packageId", "feature", "value"] }),

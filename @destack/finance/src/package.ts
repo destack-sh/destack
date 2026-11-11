@@ -21,7 +21,7 @@ export const FINANCE_INSTALLATION = "finance";
 
 /** The handle stacks install finance by, and clients call its products and prices by. */
 export default definePackage({
-    objects: {
+    objects: [
         customer,
         seller,
         product,
@@ -32,27 +32,28 @@ export default definePackage({
         checkoutSession,
         charge,
         invoice,
-    },
-    adapters: { stripe: stripeWebhook },
-    resources: { stripe },
-    secrets: { "stripe-webhook": stripeWebhookSecret },
+    ],
+    mounts: [stripeWebhook],
+    resources: [stripe, stripeWebhookSecret],
     errors: FinanceError,
     // mirror the provider's billing in its home, write entitlements and serve its residency's accounts
-    permissions: {
-        space: {
-            space: [
-                customer.permission("provide"),
-                seller.permission("provide"),
-                subscription.permission("provide"),
-                checkoutSession.permission("provide"),
-                invoice.permission("provide"),
-                charge.permission("provide"),
-            ],
-            universe: [
-                account.permission("entitle"),
-                account.permission("serve"),
-                residency.permission("locate"),
-            ],
+    access: {
+        permissions: {
+            space: {
+                space: [
+                    customer.permission("provide"),
+                    seller.permission("provide"),
+                    subscription.permission("provide"),
+                    checkoutSession.permission("provide"),
+                    invoice.permission("provide"),
+                    charge.permission("provide"),
+                ],
+                universe: [
+                    account.permission("entitle"),
+                    account.permission("serve"),
+                    residency.permission("locate"),
+                ],
+            },
         },
     },
 });

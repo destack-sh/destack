@@ -22,7 +22,7 @@ import type { ServerContext } from "@destack/object/workload";
 import { serversOf, type TestObjectStore } from "@destack/object/test";
 import { describeMeter } from "@destack/telemetry/inspect";
 import { Meter, METER_KIND } from "@destack/telemetry/meter";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
@@ -35,8 +35,6 @@ import connectionPackage, { CONNECTION_INSTALLATION } from "@destack/connection/
 import { connectionVault } from "@destack/connection/stack";
 import { CONNECTION } from "@destack/connection/test";
 import { stripe } from "../declare/connection.ts";
-import { RESOURCE_KIND } from "@destack/resource";
-import { describeResource } from "@destack/resource/inspect";
 import { TestVault, VAULT } from "@destack/vault/test";
 import { RequestId, Scope, Subject } from "@destack/sync";
 import { TestTelemetry } from "@destack/telemetry/test";
@@ -134,9 +132,10 @@ const FINANCE: TestPackage = {
             },
             ...TestVault.declarations([], Object.values(financePackage.secrets)),
             {
-                ...RESOURCE_KIND.identity,
+                ...stripe.kind.identity,
+                provisioned: true,
                 name: stripe.name,
-                description: { ...describeResource(stripe), ...stripe.state() },
+                description: { ...stripe.describe(), ...stripe.state() },
             },
         ],
         testHost().crypto,
@@ -159,10 +158,10 @@ const HOME_TYPES = [vaultPackage, connectionPackage, financePackage] as const;
 
 /** The home's stack: finance bound to the platform's Stripe connection and webhook secret. */
 const RESIDENCY_STACK = {
-    vaults: { connections: connectionVault.declare() },
+    vaults: { connections: connectionVault.provision() },
     connections: {
         stripe: {
-            ...stripe.declare(),
+            ...stripe.provision(),
             protocol: { kind: "key", header: "authorization", scheme: "Bearer" } as const,
         },
     },
@@ -247,7 +246,7 @@ export class TestFinance {
 
     /** Serve a copy of the template's home with package releases, billing through a provider. */
     static async open(
-        releases: readonly (readonly [Package, readonly (Feature | Meter | Sku)[]])[],
+        releases: readonly (readonly [PackageVersion, readonly (Feature | Meter | Sku)[]])[],
         options: FinanceFixtureOptions = {},
     ): Promise<TestFinance> {
         // build each release, which the metering reads by its manifest's digest
@@ -580,7 +579,10 @@ export class TestFinance {
     }
 
     /** Publish a package release declaring features, meters and SKUs, which becomes its latest. */
-    async publish(owner: Package, declared: readonly (Feature | Meter | Sku)[]): Promise<void> {
+    async publish(
+        owner: PackageVersion,
+        declared: readonly (Feature | Meter | Sku)[],
+    ): Promise<void> {
         const build = await TestFinance.release(owner, declared, this.environment.crypto);
         await publishBuild(this.database, this.home, this.platform, build, this.environment);
         this.#published.set(await Digest.json(build.manifest, this.environment.crypto), build);
@@ -588,7 +590,7 @@ export class TestFinance {
 
     /** Build a package release declaring some features, meters and SKUs, as its build does. */
     static async release(
-        owner: Package,
+        owner: PackageVersion,
         declared: readonly (Feature | Meter | Sku)[],
         crypto: Crypto,
     ): Promise<BuildReader> {

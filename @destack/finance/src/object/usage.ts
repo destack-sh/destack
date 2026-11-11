@@ -36,8 +36,8 @@ export type Usage = EventOf<typeof usage>;
 /** An account's usage of a feature nears or meets its limit or its subscription's budget. */
 export const usageLimit = defineNotification({
     name: "usageLimit",
-    title: "Usage limits",
-    description: "Your account's usage nears or meets its plan's limit or spending limit.",
+    title: t`Usage limits`,
+    description: t`Your account's usage nears or meets its plan's limit or spending limit.`,
     payload: Table.selectSchema(entitlement.table)
         .pick({ feature: true, state: true, limit: true })
         .extend({

@@ -4,6 +4,7 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { BILLING_PERMISSIONS } from "./billing.ts";
 import { Currency } from "../rate/amount.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The fields the provider writes on an invoice. */
 const INVOICE_FIELDS = [
@@ -27,6 +28,7 @@ export const invoice = defineObject(
     {
         name: "invoice",
         plural: "invoices",
+        title: t`${plural(argument("count"), { one: "Invoice", other: "Invoices" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -59,10 +61,12 @@ export const invoice = defineObject(
             /** The provider's identifier of the invoice. */
             providerId: field.string(),
         },
-        permissions: BILLING_PERMISSIONS,
-        reserved: ["provide"],
         constraints: {
             provider: { kind: "index", on: ["providerId"], unique: true },
+        },
+        access: {
+            permissions: BILLING_PERMISSIONS,
+            reserved: ["provide"],
         },
     },
     (method) => ({

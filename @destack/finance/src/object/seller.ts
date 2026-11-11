@@ -3,10 +3,10 @@ import { FinanceError } from "../error/error.ts";
 import { account, space } from "@destack/account/object";
 import { type Select, type Snapshot } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { type Package, PackageName } from "@destack/package";
+import { type PackageVersion, PackageName } from "@destack/package";
 import { Identifier, present, schema } from "@destack/schema";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
-import { Country } from "@destack/locale";
+import { argument, Country, plural, t } from "@destack/locale";
 import type {} from "@destack/package/import-meta";
 
 /** An account as a merchant. */
@@ -14,6 +14,7 @@ export const seller = defineObject(
     {
         name: "seller",
         plural: "sellers",
+        title: t`${plural(argument("count"), { one: "Seller", other: "Sellers" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -48,12 +49,6 @@ export const seller = defineObject(
             /** The price of a credit in each currency the seller bills. */
             creditPrices: field.json(schema.record(Currency, DecimalAmount)).default({}),
         },
-        permissions: {
-            read: through("account", "read"),
-            sell: through("account", "manage"),
-            provide: through("account", "serve"),
-        },
-        reserved: ["provide"],
         constraints: {
             account: { kind: "index", on: ["accountId"], unique: true },
             provider: {
@@ -72,6 +67,14 @@ export const seller = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                read: through("account", "read"),
+                sell: through("account", "manage"),
+                provide: through("account", "serve"),
+            },
+            reserved: ["provide"],
+        },
     },
     (method) => ({
         create: method.create("sell", {
@@ -79,6 +82,7 @@ export const seller = defineObject(
         }),
         /** Open the provider's onboarding page for the seller's connected account. */
         onboard: method.mutation({
+            title: t`Onboard`,
             permission: "sell",
             input: schema.object({
                 /** The country the connected account does business from. */
@@ -120,7 +124,7 @@ export type Publisher = (handle: string) => Promise<Identifier<"account"> | null
 export const Seller = {
     /** Read the seller of a package here: the platform's for its handles, else the holder's. */
     async publisher(
-        owner: Package,
+        owner: PackageVersion,
         publisher: Publisher,
         reader: Pick<Snapshot, "read">,
     ): Promise<Seller> {
@@ -146,7 +150,7 @@ export const Seller = {
     /** Require a seller's account to publish a package, by its scope or as the platform. */
     async requirePublisher(
         accountId: Identifier<"account">,
-        owner: Package,
+        owner: PackageVersion,
         publisher: Publisher,
         reader: Pick<Snapshot, "read">,
     ): Promise<void> {

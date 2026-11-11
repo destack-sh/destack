@@ -1,12 +1,13 @@
-import { defineDeclarationKind } from "@destack/package";
+import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { ProviderCode, Tenancy } from "@destack/account/object";
-import { Package, DeclarationName } from "@destack/package";
+import { PackageVersion, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { schema } from "@destack/schema";
 import { Meter, MeterAttributes } from "@destack/telemetry/meter";
 import { Currency, DecimalAmount } from "../rate/amount.ts";
+import { Message } from "@destack/locale";
 
 /** The FOCUS ServiceCategories of the services SKUs price. */
 export const SERVICE_CATEGORIES = [
@@ -27,7 +28,7 @@ export const SkuMetadata = schema.object({
     /** The package-local name. */
     name: DeclarationName,
     /** What the SKU prices. */
-    description: schema.string().min(1),
+    description: Message,
     /** The provider selling it. */
     provider: ProviderCode,
     /** The provider's region the price applies in, absent for a price every region shares. */
@@ -63,23 +64,23 @@ export type SkuDefinition = schema.Infer<typeof SkuMetadata>;
 /** A SKU declaration as manifests describe it. */
 export const SkuDescription = SkuMetadata.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
 });
 /** A SKU declaration as manifests describe it. */
 export type SkuDescription = schema.Infer<typeof SkuDescription>;
 
 /** The SKU declaration kind, which finance defines. */
-export const SKU_KIND = defineDeclarationKind("sku", SkuDescription);
+export const SKU_KIND = defineKind({ name: "sku", description: SkuDescription });
 
 /** A SKU: a provider's list price per pricing unit of a service in a region, as in FOCUS. */
 export class Sku {
     /** The declaring package, whose publishing account resells the SKU. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The provider, service, meter, unit and prices. */
     readonly definition: SkuDefinition;
 
     /** Create a SKU from a checked declaration. */
-    constructor(owner: Package, definition: SkuDefinition) {
+    constructor(owner: PackageVersion, definition: SkuDefinition) {
         this.package = owner;
         this.definition = definition;
     }

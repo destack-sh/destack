@@ -5,4 +5,4 @@ import type {} from "@destack/package/import-meta";
 export const STRIPE_API = "https://api.stripe.com";
 
 /** The connection finance calls Stripe through, whose key the egress applies. */
-export const stripe = defineConnection("stripe", { resource: STRIPE_API });
+export const stripe = defineConnection({ name: "stripe", spec: { resource: STRIPE_API } });

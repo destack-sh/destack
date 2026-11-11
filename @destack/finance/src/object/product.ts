@@ -1,7 +1,7 @@
 import { resource, through, union } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { type Select } from "@destack/db";
-import { Localization, SOURCE_LOCALE } from "@destack/locale";
+import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
 
 /** The source language, in which providers without translations show products. */
@@ -12,6 +12,7 @@ export const product = defineObject(
     {
         name: "product",
         plural: "products",
+        title: t`${plural(argument("count"), { one: "Product", other: "Products" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -32,15 +33,17 @@ export const product = defineObject(
             /** The payment provider's identifier of the product, mirrored at its first sale. */
             providerId: field.string().optional(),
         },
-        attributes: { active: "boolean" },
-        permissions: {
-            read: union(through("account", "read"), resource({ active: true })),
-            sell: through("account", "manage"),
-            provide: through("account", "serve"),
-        },
         constraints: {
             default: { kind: "index", on: ["accountId"], unique: true, where: { isDefault: true } },
             includedUsage: { kind: "check", condition: { includedUsage: { gte: 0 } } },
+        },
+        access: {
+            attributes: { active: "boolean" },
+            permissions: {
+                read: union(through("account", "read"), resource({ active: true })),
+                sell: through("account", "manage"),
+                provide: through("account", "serve"),
+            },
         },
     },
     (method) => ({

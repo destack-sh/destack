@@ -10,6 +10,7 @@ import { price } from "./price.ts";
 import { seller } from "./seller.ts";
 import { Subscription, SubscriptionItem } from "./subscription.ts";
 import type {} from "@destack/package/import-meta";
+import { argument, plural, t } from "@destack/locale";
 
 /** What a charge is for, as FOCUS ChargeCategory has it: usage, or prepaid usage as credit. */
 export const CHARGE_CATEGORIES = ["Usage", "Credit"] as const;
@@ -19,6 +20,7 @@ export const charge = defineObject(
     {
         name: "charge",
         plural: "charges",
+        title: t`${plural(argument("count"), { one: "Charge", other: "Charges" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -75,8 +77,6 @@ export const charge = defineObject(
             /** The payment provider's identifier of the invoice item, once invoiced. */
             providerId: field.string().optional(),
         },
-        permissions: BILLING_PERMISSIONS,
-        reserved: ["provide"],
         constraints: {
             usage: {
                 kind: "index",
@@ -117,10 +117,15 @@ export const charge = defineObject(
                 },
             },
         },
+        access: {
+            permissions: BILLING_PERMISSIONS,
+            reserved: ["provide"],
+        },
     },
     (method) => ({
         create: method.create("provide", { visibility: "package" }),
         rate: method.mutation({
+            title: t`Rate`,
             permission: "provide",
             target: "scope",
             visibility: "package",

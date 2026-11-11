@@ -1,7 +1,7 @@
 import { FinanceError } from "../error/error.ts";
 import { through, union } from "@destack/access";
 import { BILLING_PERMISSIONS } from "./billing.ts";
-import { Country } from "@destack/locale";
+import { argument, Country, plural, t } from "@destack/locale";
 import {
     account,
     entitlement,
@@ -92,6 +92,7 @@ export const customer = defineObject(
     {
         name: "customer",
         plural: "customers",
+        title: t`${plural(argument("count"), { one: "Customer", other: "Customers" })}`,
         scope: space,
         owner: "account",
         fields: {
@@ -108,12 +109,6 @@ export const customer = defineObject(
             /** The provider's identifier of the customer. */
             providerId: field.string().optional(),
         },
-        permissions: {
-            ...BILLING_PERMISSIONS,
-            // let its residency's servers read too, announcing the account's usage limits on it
-            read: union(through("account", "read"), through("account", "serve")),
-        },
-        reserved: ["provide"],
         attachments: [announcement.attach({ by: "read" })],
         constraints: {
             account: { kind: "index", on: ["accountId"], unique: true },
@@ -124,6 +119,14 @@ export const customer = defineObject(
                 where: { providerId: { isNotNull: true } },
             },
         },
+        access: {
+            permissions: {
+                ...BILLING_PERMISSIONS,
+                // let its residency's servers read too, announcing the account's usage limits on it
+                read: union(through("account", "read"), through("account", "serve")),
+            },
+            reserved: ["provide"],
+        },
     },
     (method) => ({
         create: method.create("bill", {
@@ -131,6 +134,7 @@ export const customer = defineObject(
         }),
         /** Announce an account's usage alerts to its readers of billing, each once per period. */
         announce: method.mutation({
+            title: t`Announce`,
             permission: "provide",
             target: "scope",
             visibility: "package",

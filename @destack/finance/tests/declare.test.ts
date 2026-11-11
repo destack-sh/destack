@@ -4,7 +4,7 @@ import { compareFeature, describeFeature, featureSymbols } from "../src/inspect/
 import { schema } from "@destack/schema";
 import { testSimulation } from "@destack/object/test";
 import { ReleaseReader } from "../src/release/reader.ts";
-import { type Feature, type FeatureDefinition } from "../src/feature/index.ts";
+import { type Feature, type FeatureOptions } from "../src/feature/index.ts";
 import { TestFinance } from "../src/test/index.ts";
 import {
     calls,
@@ -16,6 +16,7 @@ import {
     support,
     sync,
 } from "./fixture/storage.ts";
+import { t } from "@destack/locale";
 
 test("read described features and meters back from a build, and relate metered features to their meters", async () => {
     // read the storage package's declarations back from its build
@@ -70,8 +71,8 @@ function entry(feature: Feature, version: string) {
 }
 
 /** Declare a feature of the storage package. */
-function declare(definition: FeatureDefinition): Feature {
-    return defineFeature(definition, { package: storage });
+function declare(options: FeatureOptions): Feature {
+    return defineFeature(options, { package: storage });
 }
 
 test("plan a feature's change between releases: hold its kind, and accept the values earlier grants set", () => {
@@ -94,7 +95,7 @@ test("plan a feature's change between releases: hold its kind, and accept the va
         outcome(seats),
         outcome(values(schema.number().int().min(0))),
         outcome(values(schema.number().int().min(2))),
-        outcome(declare({ name: seats.name, description: "Seats.", kind: "boolean" })),
+        outcome(declare({ name: seats.name, description: t`Seats.`, kind: "boolean" })),
     ]).toEqual([
         [],
         [{ action: "update", target: "feature/seats", risk: "safe", detail: "wider values" }],

@@ -2,6 +2,7 @@ import { expect, test } from "@destack/test";
 import { defineSku } from "../src/declare/index.ts";
 import { CREDITS, Rate } from "../src/rate/index.ts";
 import { disk, storage } from "./fixture/storage.ts";
+import { t } from "@destack/locale";
 
 /** A gigabyte, as storage prices count it. */
 const GB = 1_000_000_000;
@@ -10,11 +11,11 @@ const GB = 1_000_000_000;
 const listed = defineSku(
     {
         name: "cloudflare.r2.listed",
-        description: "Disk storage at one list price.",
+        description: t`Disk storage at one list price.`,
         provider: "cloudflare",
         service: "R2",
         category: "Storage",
-        meter: disk.reference,
+        meter: disk,
         attributes: {},
         pricingUnit: "GB-month",
         unitSize: GB,
@@ -30,11 +31,11 @@ const listed = defineSku(
 const credited = defineSku(
     {
         name: "destack.credited",
-        description: "Disk storage priced in credits.",
+        description: t`Disk storage priced in credits.`,
         provider: "cloudflare",
         service: "R2",
         category: "Storage",
-        meter: disk.reference,
+        meter: disk,
         attributes: {},
         pricingUnit: "GB-month",
         unitSize: GB,

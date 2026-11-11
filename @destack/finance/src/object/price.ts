@@ -13,6 +13,8 @@ import { type FeatureGrant } from "../feature/grant.ts";
 import { productFeature } from "./product-feature.ts";
 import { seller } from "./seller.ts";
 import type {} from "@destack/package/import-meta";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The fields of every recurring price beside its usage. */
 const Recurrence = schema.object({
@@ -62,8 +64,8 @@ export const price = defineObject(
     {
         name: "price",
         plural: "prices",
+        title: t`${plural(argument("count"), { one: "Price", other: "Prices" })}`,
         scope: space,
-        nested: { in: product, delete: "cascade", receive: "sell" },
         fields: {
             /** The currency of the amounts. */
             currency: field.string(Currency),
@@ -83,11 +85,6 @@ export const price = defineObject(
             active: field.boolean().default(true),
             /** The payment provider's identifier of the price, mirrored at its first sale. */
             providerId: field.string().optional(),
-        },
-        permissions: {
-            read: through("parent", "read"),
-            sell: through("parent", "sell"),
-            provide: through("parent", "provide"),
         },
         constraints: {
             billingScheme: {
@@ -123,6 +120,14 @@ export const price = defineObject(
             },
             includedUsage: { kind: "check", condition: { includedUsage: { gte: 0 } } },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                sell: through("parent", "sell"),
+                provide: through("parent", "provide"),
+            },
+        },
+        traits: [nested({ in: product, delete: "cascade", add: "sell" })],
     },
     (method) => ({
         create: method.create("sell", {
