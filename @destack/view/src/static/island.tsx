@@ -55,7 +55,7 @@ export function island<Properties extends IslandProperties<Properties>>(
         if (!isJson(data)) {
             throw ViewError.of(
                 "ISLAND_PROPERTIES_INVALID",
-                `the island ${module} takes JSON properties and children only`,
+                `island '${module}' is invalid: it takes JSON properties and children only`,
             );
         }
         const id = page.next(module);

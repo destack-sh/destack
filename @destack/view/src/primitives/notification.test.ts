@@ -90,8 +90,8 @@ test("refuse to show a notification without permission", async () => {
 
     expect(await refusal(() => show())).toEqual([
         "FORBIDDEN",
-        "NOTIFICATION_NOT_PERMITTED",
-        "notifications are not yet permitted",
+        "NOTIFICATION_DENIED",
+        "notification is forbidden: permission is 'not yet permitted'",
     ]);
 });
 

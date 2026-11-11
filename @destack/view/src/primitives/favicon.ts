@@ -515,8 +515,8 @@ async function drawBase(
                 () =>
                     reject(
                         ViewError.of(
-                            "FAVICON_LOAD_FAILED",
-                            `favicon image failed to load: ${href}`,
+                            "FAVICON_LOAD_UNREACHABLE",
+                            `could not load favicon image '${href}'`,
                         ),
                     ),
                 { once: true },

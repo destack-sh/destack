@@ -140,8 +140,8 @@ export class StaticPage {
         // link the stylesheets and load the entry at the end of the head, refusing a document without one
         if (!html.includes("</head>")) {
             throw ViewError.of(
-                "PAGE_HEAD_MISSING",
-                `the document of view ${this.view.name} renders no head`,
+                "PAGE_HEAD_REQUIRED",
+                `head of view '${this.view.name}' is required: its document renders none`,
             );
         }
         const links = [
@@ -157,7 +157,10 @@ export class StaticPage {
 function loadPages(view: View): Promise<StaticPages> {
     const { render } = view;
     if (render.mode !== "static") {
-        throw ViewError.of("VIEW_NOT_STATIC", `view ${view.name} prerenders no pages`);
+        throw ViewError.of(
+            "VIEW_INVALID",
+            `view '${view.name}' is invalid: it prerenders no pages`,
+        );
     }
 
     return render.pages();

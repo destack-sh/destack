@@ -37,8 +37,8 @@ export function useSetting<Value extends schema.Schema>(
     // refuse a setting of another scope than the person's
     if (declared.definition.scope !== "user") {
         throw ViewError.of(
-            "SETTING_SCOPE_UNSUPPORTED",
-            `useSetting only reads the person's settings, not ${declared.definition.scope} settings: ${declared.definition.name}`,
+            "SETTING_SCOPE_INVALID",
+            `setting '${declared.definition.name}' is invalid: useSetting only reads the person's settings, not '${declared.definition.scope}' settings`,
         );
     }
 

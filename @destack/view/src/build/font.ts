@@ -62,7 +62,7 @@ export async function readFont(bytes: Uint8Array): Promise<Omit<FontFile, "url">
         }).fontFaces;
         if (face === undefined) {
             throw new TypeError(
-                `no fallback face adjusts ${local.familyName} to ${metrics.familyName}`,
+                `no fallback face adjusts '${local.familyName}' to '${metrics.familyName}'`,
             );
         }
         const rule = face["@font-face"];

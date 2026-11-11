@@ -25,8 +25,8 @@ test("request the permission a grant lacks or a fresh sign-in from a page's pers
         name: "write",
     };
     const asks = [
-        refused("GRANT_INSUFFICIENT", { permission, object: {}, grant: "grant-1" }),
-        refused("AUTHENTICATION_INSUFFICIENT", { assurance: 2, maxAge: 900_000 }),
+        refused("GRANT_DENIED", { permission, object: {}, grant: "grant-1" }),
+        refused("ASSURANCE_UNAUTHENTICATED", { assurance: 2, maxAge: 900_000 }),
         refused("PERMISSION_DENIED"),
     ].map((refusal) => PageAuthorization.url(refusal, ROOT, "/editor?note=1"));
 

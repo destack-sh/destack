@@ -193,7 +193,10 @@ export const parseAsInteger: ParserBuilder<number> = createParser({
     parse: (text) => (/^-?\d+$/u.test(text) ? Number(text) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw ViewError.of("QUERY_VALUE_INVALID", `${value} is not a whole number`);
+            throw ViewError.of(
+                "QUERY_VALUE_INVALID",
+                `query value '${value}' is invalid: it must be a whole number`,
+            );
         }
 
         return String(value);
@@ -215,7 +218,10 @@ export const parseAsHex: ParserBuilder<number> = createParser({
     parse: (text) => (/^[0-9a-f]+$/iu.test(text) ? Number.parseInt(text, 16) : null),
     serialize: (value) => {
         if (!Number.isInteger(value)) {
-            throw ViewError.of("QUERY_VALUE_INVALID", `${value} is not a whole number`);
+            throw ViewError.of(
+                "QUERY_VALUE_INVALID",
+                `query value '${value}' is invalid: it must be a whole number`,
+            );
         }
         const hex = value.toString(16);
 
@@ -424,7 +430,7 @@ function usePageAddress(): PageAddress {
         const event = getRequestEvent();
         if (router === undefined && event === undefined) {
             throw ViewError.of(
-                "PAGE_ADDRESS_UNKNOWN",
+                "PAGE_ADDRESS_BROKEN",
                 "URL state renders on the server only under a router or a request",
             );
         }
@@ -436,7 +442,7 @@ function usePageAddress(): PageAddress {
         return {
             url: () => url,
             write: () => {
-                throw ViewError.of("PAGE_ADDRESS_UNKNOWN", "URL state writes in the browser only");
+                throw ViewError.of("PAGE_ADDRESS_BROKEN", "URL state writes in the browser only");
             },
         };
     }
@@ -557,7 +563,7 @@ function writeUpdates<Built extends Parsers>(
         Object.entries(updates).flatMap(([key, value]) => {
             const parser = parsers[key];
             if (parser === undefined) {
-                throw new TypeError(`no parser for query value ${key}`);
+                throw new TypeError(`no parser for query value '${key}'`);
             }
 
             return [[urlKey(key, options), parser.write(value, options)]];

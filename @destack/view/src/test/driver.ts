@@ -172,7 +172,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         const [element, ...others] = this.locateAll(locator);
         if (element === undefined || others.length > 0) {
             throw new TypeError(
-                `${JSON.stringify(locator)} matches ${others.length + (element === undefined ? 0 : 1)} elements`,
+                `${JSON.stringify(locator)} matches '${others.length + (element === undefined ? 0 : 1)}' elements`,
             );
         }
 
@@ -219,7 +219,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
         const examples = [...this.#examples];
         const found = name === undefined ? examples[0] : examples.find(([key]) => key === name);
         if (found === undefined || (name === undefined && examples.length !== 1)) {
-            throw new TypeError(`no single example ${name ?? ""} to set properties of`);
+            throw new TypeError(`no single example '${name ?? ""}' to set properties of`);
         }
 
         // refuse properties the example does not declare
@@ -228,7 +228,7 @@ export class ViewDriver implements Driver<typeof viewInteraction> {
             (key) => !rendered.declared.includes(key),
         );
         if (undeclared.length > 0) {
-            throw new TypeError(`example ${example} does not declare ${undeclared.join(", ")}`);
+            throw new TypeError(`example '${example}' does not declare '${undeclared.join(", ")}'`);
         }
         rendered.set(properties);
     }
@@ -274,13 +274,13 @@ function press(shortcut: string): void {
     // read the modifiers before the key
     const [key, ...held] = shortcut.split("+").toReversed();
     if (key === undefined || key === "") {
-        throw new TypeError(`no key in ${shortcut}`);
+        throw new TypeError(`no key in '${shortcut}'`);
     }
     const flags: Record<string, boolean> = {};
     for (const modifier of held) {
         const flag = MODIFIERS.get(modifier);
         if (flag === undefined) {
-            throw new TypeError(`unknown modifier ${modifier} in ${shortcut}`);
+            throw new TypeError(`unknown modifier '${modifier}' in '${shortcut}'`);
         }
         flags[flag] = true;
     }

@@ -40,13 +40,19 @@ export function wrapIsland(
     // find the default export
     const parsed = parseSync(path, code);
     if (parsed.errors.length) {
-        throw ViewError.of("SOURCE_INVALID", `invalid island source: ${path}`);
+        throw ViewError.of(
+            "SOURCE_INVALID",
+            `island source '${path}' is invalid: it does not parse`,
+        );
     }
     const exported = parsed.program.body.find(
         (statement) => statement.type === "ExportDefaultDeclaration",
     );
     if (exported === undefined) {
-        throw ViewError.of("ISLAND_INVALID", `the island ${module} exports no default component`);
+        throw ViewError.of(
+            "ISLAND_INVALID",
+            `island '${module}' is invalid: it exports no default component`,
+        );
     }
 
     // keep a named declaration as it is, else bind the exported expression as the component

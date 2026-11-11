@@ -32,14 +32,14 @@ export class PageAuthorization {
         const query = new URLSearchParams({ return: back });
         const grant = GrantRefusal.safeParse(refusal.data);
         const stepUp = StepUp.schema.safeParse(refusal.data);
-        if (refusal.reason === "GRANT_INSUFFICIENT" && grant.success) {
+        if (refusal.reason === "GRANT_DENIED" && grant.success) {
             const { packageId, type, name } = grant.data.permission;
             query.set("package", packageId);
             query.set("type", type);
             query.set("name", name);
         }
         // request a fresh sign-in at an assurance, within an age
-        else if (refusal.reason === "AUTHENTICATION_INSUFFICIENT" && stepUp.success) {
+        else if (refusal.reason === "ASSURANCE_UNAUTHENTICATED" && stepUp.success) {
             query.set("assurance", String(stepUp.data.assurance));
             if (stepUp.data.maxAge !== undefined) {
                 query.set("max-age", String(stepUp.data.maxAge));

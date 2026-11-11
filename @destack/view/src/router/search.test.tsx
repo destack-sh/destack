@@ -86,7 +86,7 @@ test("write links to values, leaving defaults out and keeping the base's other v
     expect(await refusal(() => serialize({ page: 1.5 }))).toEqual([
         "BAD_REQUEST",
         "QUERY_VALUE_INVALID",
-        "1.5 is not a whole number",
+        "query value '1.5' is invalid: it must be a whole number",
     ]);
 });
 

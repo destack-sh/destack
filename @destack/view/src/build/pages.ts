@@ -31,7 +31,7 @@ export function removePages(
     // parse the module
     const parsed = parseSync(path, code);
     if (parsed.errors.length) {
-        throw ViewError.of("SOURCE_INVALID", `invalid view source: ${path}`);
+        throw ViewError.of("SOURCE_INVALID", `view source '${path}' is invalid: it does not parse`);
     }
 
     // find the server properties of each static view the module declares

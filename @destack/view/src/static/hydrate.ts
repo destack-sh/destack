@@ -77,8 +77,8 @@ async function loadIsland(
     const load = module === undefined ? undefined : islands[module];
     if (module === undefined || load === undefined) {
         throw ViewError.of(
-            "ISLAND_UNKNOWN",
-            `the page loads no island ${module ?? "without a module"}`,
+            "ISLAND_INVALID",
+            `island '${module ?? "without a module"}' is invalid: the page loads no such island`,
         );
     }
     const Island = await load();
@@ -89,7 +89,7 @@ async function loadIsland(
     if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
         throw ViewError.of(
             "ISLAND_PROPERTIES_INVALID",
-            `the island ${module} has invalid properties`,
+            `island '${module}' is invalid: its properties must match its schema`,
         );
     }
     const properties =
@@ -124,7 +124,7 @@ export function hydrateIsland<Properties extends IslandProperties<Properties>>(
 function islandId(root: HTMLElement): string {
     const { islandId: id } = root.dataset;
     if (id === undefined) {
-        throw ViewError.of("ISLAND_UNKNOWN", "an island root has no hydration id");
+        throw ViewError.of("ISLAND_INVALID", "island root is invalid: it has no hydration id");
     }
 
     return id;

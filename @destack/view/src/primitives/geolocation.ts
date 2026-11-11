@@ -35,7 +35,10 @@ export function makeGeolocation(
         return [
             async () =>
                 Promise.reject(
-                    ViewError.of("GEOLOCATION_UNSUPPORTED", "geolocation only runs in a browser"),
+                    ViewError.of(
+                        "GEOLOCATION_UNSUPPORTED",
+                        "geolocation outside a browser is not supported",
+                    ),
                 ),
             () => {},
         ];
@@ -239,7 +242,10 @@ export function createWithinRadius(
 async function currentPosition(options?: PositionOptions): Promise<GeolocationCoordinates> {
     // refuse where the device cannot locate
     if (!("geolocation" in navigator)) {
-        throw ViewError.of("GEOLOCATION_UNSUPPORTED", "this browser does not support geolocation");
+        throw ViewError.of(
+            "GEOLOCATION_UNSUPPORTED",
+            "geolocation is not supported: the browser lacks it",
+        );
     }
 
     return new Promise((resolve, reject) => {
@@ -247,9 +253,13 @@ async function currentPosition(options?: PositionOptions): Promise<GeolocationCo
             (position) => resolve(position.coords),
             (error) =>
                 reject(
-                    ViewError.of("GEOLOCATION_FAILED", `geolocation failed: ${error.message}`, {
-                        cause: error,
-                    }),
+                    ViewError.of(
+                        "GEOLOCATION_UNAVAILABLE",
+                        `geolocation is unavailable: ${error.message}`,
+                        {
+                            cause: error,
+                        },
+                    ),
                 ),
             { ...DEFAULT_OPTIONS, ...options },
         );

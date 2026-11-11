@@ -8,7 +8,7 @@ export function writeFeed(origin: string, options: FeedOptions): string {
     const updates = options.entries.map((entry) => instant(entry.updated ?? entry.published));
     const newest = updates.toSorted().at(-1);
     if (newest === undefined) {
-        throw ViewError.of("FEED_EMPTY", `the feed ${options.path} has no articles`);
+        throw ViewError.of("FEED_REQUIRED", `article of feed '${options.path}' is required`);
     }
 
     // describe the feed, then each article
@@ -58,7 +58,7 @@ export function writeFeed(origin: string, options: FeedOptions): string {
 function instant(date: string): string {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) {
-        throw ViewError.of("FEED_DATE_INVALID", `invalid feed date: ${date}`);
+        throw ViewError.of("DATE_INVALID", `feed date '${date}' is invalid: it must be a date`);
     }
 
     return parsed.toISOString();

@@ -48,10 +48,10 @@ test("register a view's commands by name, refuse a name taken, run one with its 
     }).toEqual({
         listed: ["copy-link", "go-to-line"],
         ran: ["copy", "line 12"],
-        taken: "TypeError: the view already registers a command copy-link",
+        taken: "TypeError: the view already registers a command 'copy-link'",
         invalid: "ZodError",
         after: ["go-to-line"],
-        missing: "TypeError: the view registers no command copy-link",
+        missing: "TypeError: the view registers no command 'copy-link'",
     });
 });
 

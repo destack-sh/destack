@@ -36,12 +36,12 @@ test("refuse a lifetime of nothing or a year", async () => {
         [
             "BAD_REQUEST",
             "SECURITY_LIFETIME_INVALID",
-            'security.txt must stay valid for less than a year: {"days":0}',
+            `security.txt lifetime {"days":0} is invalid: it must be less than a year`,
         ],
         [
             "BAD_REQUEST",
             "SECURITY_LIFETIME_INVALID",
-            'security.txt must stay valid for less than a year: {"days":365}',
+            `security.txt lifetime {"days":365} is invalid: it must be less than a year`,
         ],
     ]);
 });

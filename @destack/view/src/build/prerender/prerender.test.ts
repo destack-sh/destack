@@ -30,7 +30,15 @@ test("refuse an uncanonical route and two routes writing one file", async () => 
     );
 
     expect(refusals).toEqual([
-        ["BAD_REQUEST", "ROUTE_NOT_CANONICAL", "expected a canonical URL path: /notes/../about"],
-        ["BAD_REQUEST", "PAGE_DUPLICATE", "prerender routes produce duplicate files"],
+        [
+            "BAD_REQUEST",
+            "ROUTE_INVALID",
+            "path '/notes/../about' is invalid: it must be a canonical URL path",
+        ],
+        [
+            "BAD_REQUEST",
+            "PAGE_INVALID",
+            "prerender route set is invalid: the routes produce duplicate files",
+        ],
     ]);
 });

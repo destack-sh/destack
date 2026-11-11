@@ -96,7 +96,7 @@ export const viewExtension: BuildExtension = {
             const entrypoint = `./view/${view.name}`;
             const emitted = compiled.exports[entrypoint];
             if (emitted === undefined) {
-                throw new TypeError(`missing view entrypoint: ${view.name}`);
+                throw new TypeError(`missing view entrypoint: '${view.name}'`);
             }
             views[view.name] = {
                 entrypoint: emitted,
@@ -143,7 +143,7 @@ async function prerenderViews(
         );
         const module = server?.exports[`./view/${name}`]?.path;
         if (module === undefined) {
-            throw new TypeError(`the build compiled no Bun output rendering view ${name}`);
+            throw new TypeError(`the build compiled no Bun output rendering view '${name}'`);
         }
 
         // render its routes with the view's entry and stylesheets
@@ -189,7 +189,7 @@ function publish(
     bytes: Uint8Array<ArrayBuffer>,
 ): void {
     if (files.has(path)) {
-        throw ViewError.of("PAGE_DUPLICATE", `two files publish at ${path}`);
+        throw ViewError.of("PAGE_INVALID", `path '${path}' is invalid: two files publish at it`);
     }
     files.set(path, bytes);
 }
@@ -245,8 +245,8 @@ function requireOneTheme(compilation: Compilation, views: number): void {
     );
     if (views > 0 && themes.length > 1) {
         throw ViewError.of(
-            "MULTIPLE_THEMES",
-            `a package with views declares at most one theme: ${themes.map((theme) => theme.name).join(", ")}`,
+            "MULTIPLE_THEMES_INVALID",
+            `package theme set '${themes.map((theme) => theme.name).join(", ")}' is invalid: a package with views declares at most one theme`,
         );
     }
 }
@@ -278,7 +278,10 @@ export function locate(compilation: ViewPackage): LocatedView[] {
 
         // refuse a name taken twice
         if (views.some((view) => view.name === declaration.name)) {
-            throw ViewError.of("VIEW_DUPLICATE", `duplicate view: ${declaration.name}`);
+            throw ViewError.of(
+                "VIEW_INVALID",
+                `view '${declaration.name}' is invalid: it is declared twice`,
+            );
         }
 
         // refuse a server view
@@ -287,8 +290,8 @@ export function locate(compilation: ViewPackage): LocatedView[] {
         const render = ViewRender.declaration.parse(description["render"]);
         if (render.mode === "server") {
             throw ViewError.of(
-                "RENDER_UNSUPPORTED",
-                `view ${declaration.name} renders on the server, which builds do not compile yet`,
+                "RENDER_INVALID",
+                `view '${declaration.name}' is invalid: it renders on the server, which builds do not compile yet`,
             );
         }
 
@@ -339,7 +342,7 @@ function describedView(
 
     throw ViewError.of(
         "RUNTIME_REQUIRED",
-        `static view ${name} hydrates in the browser: add browser to the package's runtimes`,
+        `browser runtime is required: static view '${name}' hydrates in the browser, so add browser to the package's runtimes`,
     );
 }
 

@@ -32,8 +32,12 @@ test("refuse to share without a share sheet, and files the browser cannot share"
     const files = await refusal(share({ files: [new File(["x"], "x.txt")] }));
 
     expect([without, files]).toEqual([
-        ["PRECONDITION_FAILED", "SHARE_UNSUPPORTED", "this browser does not support sharing"],
-        ["PRECONDITION_FAILED", "SHARE_UNSUPPORTED", "this browser cannot share these files"],
+        ["NOT_IMPLEMENTED", "SHARE_UNSUPPORTED", "sharing is not supported: the browser lacks it"],
+        [
+            "NOT_IMPLEMENTED",
+            "SHARE_UNSUPPORTED",
+            "sharing these files is not supported: the browser cannot share them",
+        ],
     ]);
 });
 

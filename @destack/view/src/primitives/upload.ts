@@ -449,8 +449,8 @@ export function fileSender(url: string, options: FileSenderOptions = {}): SendFu
                 if (request.status < 200 || request.status >= 300) {
                     reject(
                         ViewError.of(
-                            "UPLOAD_FAILED",
-                            `upload failed with HTTP ${request.status} ${request.statusText}`,
+                            "UPLOAD_UNREACHABLE",
+                            `could not upload: HTTP ${request.status} '${request.statusText}'`,
                         ),
                     );
 
@@ -460,7 +460,7 @@ export function fileSender(url: string, options: FileSenderOptions = {}): SendFu
                 resolve(isJson ? JSON.parse(request.responseText) : request.responseText);
             });
             request.addEventListener("error", () =>
-                reject(ViewError.of("UPLOAD_UNREACHABLE", "upload failed on the network")),
+                reject(ViewError.of("UPLOAD_UNREACHABLE", "could not upload over the network")),
             );
             request.addEventListener("abort", () =>
                 reject(new DOMException("upload aborted", "AbortError")),

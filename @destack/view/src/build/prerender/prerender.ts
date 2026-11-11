@@ -103,7 +103,10 @@ export function planRequests(origin: string, routes: StaticRoutes): RenderReques
     const requests = planned.map(({ path, kind }) => {
         const url = new URL(path, site);
         if (url.origin !== site.origin || url.pathname !== path || url.search || url.hash) {
-            throw ViewError.of("ROUTE_NOT_CANONICAL", `expected a canonical URL path: ${path}`);
+            throw ViewError.of(
+                "ROUTE_INVALID",
+                `path '${path}' is invalid: it must be a canonical URL path`,
+            );
         }
 
         return { url: url.href, path: fileOf(path, kind), kind };
@@ -111,7 +114,10 @@ export function planRequests(origin: string, routes: StaticRoutes): RenderReques
 
     // refuse two routes writing one file
     if (new Set(requests.map((request) => request.path)).size !== requests.length) {
-        throw ViewError.of("PAGE_DUPLICATE", "prerender routes produce duplicate files");
+        throw ViewError.of(
+            "PAGE_INVALID",
+            "prerender route set is invalid: the routes produce duplicate files",
+        );
     }
 
     return requests;
@@ -151,8 +157,8 @@ async function readAnswer(
     const isHtml = contentType?.startsWith("text/html") === true;
     if (response.status !== status || (request.kind !== "endpoint" && !isHtml)) {
         throw ViewError.of(
-            "RESPONSE_UNEXPECTED",
-            `expected ${request.kind === "endpoint" ? "a file" : "an HTML page"}: ${request.url} (${response.status})`,
+            "RESPONSE_INVALID",
+            `response for '${request.url}' is invalid: it must be '${request.kind === "endpoint" ? "a file" : "an HTML page"}', got status ${response.status}`,
         );
     }
 
@@ -164,8 +170,8 @@ async function readAnswer(
         response.headers["vary"] !== undefined
     ) {
         throw ViewError.of(
-            "PERSONALIZED_RESPONSE",
-            `cannot prerender a personalized response: ${request.url}`,
+            "RESPONSE_INVALID",
+            `response for '${request.url}' is invalid: a personalized response cannot prerender`,
         );
     }
 
@@ -188,9 +194,13 @@ async function readRendered(
 
         return { response, body };
     } catch (cause) {
-        throw ViewError.of("PRERENDER_UNREADABLE", `the prerendered ${request.url} is unreadable`, {
-            cause,
-        });
+        throw ViewError.of(
+            "PRERENDER_INVALID",
+            `prerendered '${request.url}' is invalid: it is unreadable`,
+            {
+                cause,
+            },
+        );
     }
 }
 
@@ -241,8 +251,8 @@ async function supervise(
             () =>
                 stop(
                     ViewError.of(
-                        "PRERENDER_TIMEOUT",
-                        `prerender response ${completed} exceeded ${timeout} ms`,
+                        "PRERENDER_UNREACHABLE",
+                        `could not prerender the next response within ${timeout} ms after ${completed} items`,
                     ),
                 ),
             (error: unknown) => {
@@ -270,7 +280,12 @@ async function supervise(
         }
     });
     const diagnostics = readDiagnostics(child.stderr, () =>
-        stop(ViewError.of("DIAGNOSTICS_TOO_LONG", "prerender diagnostics exceeded 1 MiB")),
+        stop(
+            ViewError.of(
+                "DIAGNOSTICS_INVALID",
+                "prerender diagnostic output is invalid: it exceeded 1 MiB",
+            ),
+        ),
     );
 
     // wait for the renderer to end, stopping the deadline however the wait ends
@@ -337,8 +352,8 @@ function exitFailure(
 ): Error | undefined {
     return code !== 0 || completed !== count
         ? ViewError.of(
-              "PRERENDER_EXITED",
-              `prerender failed (${completed}/${count ?? "?"}): ${diagnostics.trim()}`,
+              "PRERENDER_INVALID",
+              `prerender is invalid: it finished ${completed}/${count ?? "?"} with diagnostics:\n${diagnostics.trim()}`,
           )
         : undefined;
 }

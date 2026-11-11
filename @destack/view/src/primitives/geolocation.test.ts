@@ -114,7 +114,11 @@ test("query the position once, refusing after cleanup and rejecting with the pla
 
     expect([located.latitude, failed, stopped]).toEqual([
         48.8566,
-        ["SERVICE_UNAVAILABLE", "GEOLOCATION_FAILED", "geolocation failed: permission denied"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "GEOLOCATION_UNAVAILABLE",
+            "geolocation is unavailable: permission denied",
+        ],
         new DOMException("geolocation query stopped", "AbortError"),
     ]);
 });

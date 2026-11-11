@@ -200,7 +200,7 @@ export class PaletteOverlay {
         }
         // refuse a message only the page sends
         else {
-            throw new TypeError(`the palette's frame sent ${message.action}`);
+            throw new TypeError(`the palette's frame sent '${message.action}'`);
         }
     }
 

@@ -474,6 +474,6 @@ test("post files as a form with headers and progress, parsing JSON responses", a
         progress: [{ loaded: 256, total: 1024, percentage: 25 }],
         json: { ok: true },
         text: '{"ok":true}',
-        failed: ["BAD_GATEWAY", "UPLOAD_FAILED", "upload failed with HTTP 413 OK"],
+        failed: ["BAD_GATEWAY", "UPLOAD_UNREACHABLE", "could not upload: HTTP 413 'OK'"],
     });
 });

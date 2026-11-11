@@ -49,7 +49,7 @@ export async function mount(
     // read the view's context from the page, and the release its package's build serves
     const element = document.getElementById(CONTEXT_ELEMENT);
     if (element === null) {
-        throw ViewError.of("PAGE_CONTEXT_MISSING", `the page has no ${CONTEXT_ELEMENT} context`);
+        throw ViewError.of("PAGE_CONTEXT_BROKEN", `the page has no '${CONTEXT_ELEMENT}' context`);
     }
     const context = ViewContext.parse(JSON.parse(element.textContent));
     const release = view.package.version;
@@ -402,8 +402,8 @@ async function fetchCatalogs(
             const response = await options.environment.network.fetch(request);
             if (!response.ok) {
                 throw ViewError.of(
-                    "CATALOG_UNAVAILABLE",
-                    `the catalog at ${path} responded with ${response.status}`,
+                    "CATALOG_UNREACHABLE",
+                    `could not read the catalog at '${path}': status ${response.status}`,
                 );
             }
 
@@ -411,8 +411,8 @@ async function fetchCatalogs(
             const catalog = Catalog.parse(await response.json());
             if (catalog.package !== packageId || catalog.locale !== tag) {
                 throw ViewError.of(
-                    "CATALOG_MISMATCH",
-                    `the catalog at ${path} is for another package or language`,
+                    "CATALOG_UNREACHABLE",
+                    `could not use the catalog at '${path}': it is for another package or language`,
                 );
             }
 

@@ -10,10 +10,10 @@ export function untouched(): object {
         {},
         {
             get: (_target, key) => {
-                throw new TypeError(`the server read ${String(key)} of a DOM node`);
+                throw new TypeError(`the server read '${String(key)}' of a DOM node`);
             },
             set: (_target, key) => {
-                throw new TypeError(`the server wrote ${String(key)} of a DOM node`);
+                throw new TypeError(`the server wrote '${String(key)}' of a DOM node`);
             },
         },
     );

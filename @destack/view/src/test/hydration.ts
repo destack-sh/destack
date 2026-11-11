@@ -50,7 +50,7 @@ export async function renderOnServer(module: string): Promise<Record<string, str
                 continue;
             }
             if (!isFunction(component)) {
-                throw new TypeError(`${module} exports ${name}, which is not a component`);
+                throw new TypeError(`'${module}' exports '${name}', which is not a component`);
             }
             rendered[name] = await render(() =>
                 create(context, {

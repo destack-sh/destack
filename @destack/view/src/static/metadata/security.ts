@@ -12,7 +12,7 @@ export function writeSecurity(origin: string, options: SecurityOptions, now: Dat
     if (lifetime <= 0 || lifetime >= MAX_LIFETIME) {
         throw ViewError.of(
             "SECURITY_LIFETIME_INVALID",
-            `security.txt must stay valid for less than a year: ${JSON.stringify(options.lifetime)}`,
+            `security.txt lifetime ${JSON.stringify(options.lifetime)} is invalid: it must be less than a year`,
         );
     }
     const expires = new Date(now.getTime() + lifetime);

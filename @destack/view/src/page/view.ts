@@ -20,7 +20,10 @@ export function useOrigin(): (path: string) => ClientOptions {
 export function useClient(scope: string): ObjectClient {
     const client = useContext(ViewMountContext).clients.get(scope);
     if (client === undefined) {
-        throw ViewError.of("SCOPE_NOT_OPENED", `the view does not open objects in ${scope}`);
+        throw ViewError.of(
+            "SCOPE_BLOCKED",
+            `cannot open objects in '${scope}': the view does not open that scope`,
+        );
     }
 
     return client;
@@ -36,8 +39,8 @@ export function usePackage<Definition extends ProcedureRouter>(
     const options = packages.get(handle.id);
     if (options === undefined) {
         throw ViewError.of(
-            "PACKAGE_NOT_DECLARED",
-            `the view does not declare package ${handle.name}`,
+            "PACKAGE_BLOCKED",
+            `cannot use package '${handle.name}': the view does not declare it`,
         );
     }
 

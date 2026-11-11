@@ -141,8 +141,8 @@ async function serve(
     const view = views.located.find((each) => each.name === options.view);
     if (view?.render.mode !== "static") {
         throw ViewError.of(
-            "VIEW_NOT_STATIC",
-            `the package declares no static view ${options.view}`,
+            "VIEW_INVALID",
+            `static view '${options.view}' is invalid: the package declares no such static view`,
         );
     }
     const { render } = view;
@@ -251,7 +251,7 @@ async function respond(
     const entry = `${PREFIX}${view.name}`;
     const module: unknown = await vite.ssrLoadModule(entry);
     if (!isServerModule(module)) {
-        throw new TypeError(`the server entry exports no routes and respond functions: ${entry}`);
+        throw new TypeError(`the server entry exports no routes and respond functions: '${entry}'`);
     }
 
     // leave a file path no endpoint answers to Vite
@@ -279,7 +279,7 @@ async function renderedStylesheets(vite: ViteDevServer, entry: string): Promise<
     const graph = vite.environments.ssr.moduleGraph;
     const root = await graph.getModuleByUrl(entry);
     if (root === undefined) {
-        throw new TypeError(`the server loaded no module for its entry: ${entry}`);
+        throw new TypeError(`the server loaded no module for its entry: '${entry}'`);
     }
 
     // collect each reached stylesheet file, following imports, served as a stylesheet instead of a module

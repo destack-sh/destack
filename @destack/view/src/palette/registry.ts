@@ -80,10 +80,10 @@ export class CommandRegistry {
         DeclarationName.parse(command.name);
         if (command.keybinding !== undefined && !Shortcut.safeParse(command.keybinding).success) {
             throw new TypeError(
-                `command ${command.name} has keys editors do not write: ${command.keybinding}`,
+                `command '${command.name}' has keys editors do not write: '${command.keybinding}'`,
             );
         } else if (this.#commands.has(command.name)) {
-            throw new TypeError(`the view already registers a command ${command.name}`);
+            throw new TypeError(`the view already registers a command '${command.name}'`);
         }
 
         // store the command with a run parsing its input by its schema, or taking none
@@ -145,7 +145,7 @@ export class CommandRegistry {
     async run(name: string, input: JsonObject): Promise<void> {
         const command = this.#commands.get(name);
         if (command === undefined) {
-            throw new TypeError(`the view registers no command ${name}`);
+            throw new TypeError(`the view registers no command '${name}'`);
         }
 
         await command.run(input);

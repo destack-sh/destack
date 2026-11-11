@@ -222,8 +222,8 @@ test("refuse Solid server functions before their bodies can enter a browser outp
             ]),
         ),
     ).toEqual([
-        "UNPROCESSABLE_CONTENT",
-        "SERVER_FUNCTION_UNSUPPORTED",
-        "solid server functions are unsupported: /package/src/note.ts:0",
+        "BAD_REQUEST",
+        "SERVER_FUNCTION_INVALID",
+        "source '/package/src/note.ts' at offset 0 is invalid: solid server functions are unsupported",
     ]);
 });

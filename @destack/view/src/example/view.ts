@@ -97,8 +97,8 @@ async function openSample(
                 const object = opened.find((type) => type.name === call.object.name);
                 if (object === undefined) {
                     throw ViewError.of(
-                        "OBJECT_NOT_OPENED",
-                        `view ${view.name} does not open ${call.object.name} in its ${name}`,
+                        "OBJECT_INVALID",
+                        `view '${view.name}' is invalid: it does not open ${call.object.name} in its '${name}'`,
                     );
                 }
                 await client.call(object, call.method, call.input).predicted;

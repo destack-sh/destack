@@ -111,8 +111,8 @@ function renderFrame<Properties extends object>(frame: ExampleFrame<Properties>)
         return createComponent(ViewExample, { view: example.of, objects: example.objects });
     } else if (example.render === undefined) {
         throw ViewError.of(
-            "EXAMPLE_EMPTY",
-            `example ${example.name} has neither a render function nor a view`,
+            "EXAMPLE_REQUIRED",
+            `render function or view of example '${example.name}' is required`,
         );
     }
 

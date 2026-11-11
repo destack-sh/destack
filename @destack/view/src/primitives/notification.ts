@@ -167,8 +167,8 @@ export function createNotificationPermission(): {
 function requirePermission(): void {
     if (Notification.permission !== "granted") {
         throw ViewError.of(
-            "NOTIFICATION_NOT_PERMITTED",
-            `notifications are ${Notification.permission === "denied" ? "denied" : "not yet permitted"}`,
+            "NOTIFICATION_DENIED",
+            `notification is forbidden: permission is '${Notification.permission === "denied" ? "denied" : "not yet permitted"}'`,
         );
     }
 }

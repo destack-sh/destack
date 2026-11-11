@@ -37,9 +37,9 @@ test("stay pending on the server unless seeded, and measure from the seed", asyn
         ],
     }).toEqual({
         refused: [
-            "PRECONDITION_FAILED",
+            "NOT_IMPLEMENTED",
             "GEOLOCATION_UNSUPPORTED",
-            "geolocation only runs in a browser",
+            "geolocation outside a browser is not supported",
         ],
         unseeded: ["pending", "pending"],
         seeded: [48.8566, 48.8566],

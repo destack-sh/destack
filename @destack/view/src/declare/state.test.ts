@@ -36,8 +36,8 @@ test("answer a refused page load with its state's page, a starting app reloading
     const starting = await ViewState.document(
         refused(
             503,
-            "INSTALLATION_NOT_SERVED",
-            "installation home in this space is not served yet",
+            "INSTALLATION_UNAVAILABLE",
+            "installation 'home' is unavailable: this space does not serve it yet",
             {
                 "retry-after": "1",
             },
@@ -99,7 +99,7 @@ test("answer a refused page load with its state's page, a starting app reloading
       <body>
       <main data-state="starting">
       <h1>Starting…</h1>
-      <p>installation home in this space is not served yet</p>
+      <p>installation 'home' is unavailable: this space does not serve it yet</p>
       </main>
       </body>
       </html>

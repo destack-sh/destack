@@ -19,10 +19,16 @@ export function makeWebShare(): (data: ShareData) => Promise<void> {
     return async (data) => {
         // refuse where the browser has no share sheet, or cannot share these files
         if (!("share" in navigator)) {
-            throw ViewError.of("SHARE_UNSUPPORTED", "this browser does not support sharing");
+            throw ViewError.of(
+                "SHARE_UNSUPPORTED",
+                "sharing is not supported: the browser lacks it",
+            );
         }
         if (data.files !== undefined && !navigator.canShare(data)) {
-            throw ViewError.of("SHARE_UNSUPPORTED", "this browser cannot share these files");
+            throw ViewError.of(
+                "SHARE_UNSUPPORTED",
+                "sharing these files is not supported: the browser cannot share them",
+            );
         }
 
         await navigator.share(data);

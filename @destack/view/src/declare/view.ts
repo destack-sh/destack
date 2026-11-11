@@ -150,8 +150,8 @@ export function defineView(definition: ViewDefinition, module?: ModuleMetadata):
     );
     if (unpresentable !== undefined) {
         throw ViewError.of(
-            "PRESENTED_TYPE_NOT_OPENED",
-            `view ${definition.name} presents ${unpresentable.object.name} but does not open ${unpresentable.object.name} objects`,
+            "TYPE_INVALID",
+            `view '${definition.name}' is invalid: it presents ${unpresentable.object.name} but does not open ${unpresentable.object.name} objects`,
         );
     }
 

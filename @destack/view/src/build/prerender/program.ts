@@ -28,7 +28,7 @@ async function renderPlan(environment: Environment<"files" | "process">): Promis
     const server: unknown = await import(plan.module);
     if (!isServerModule(server)) {
         throw new TypeError(
-            `the server module exports no routes and respond functions: ${plan.module}`,
+            `the server module exports no routes and respond functions: '${plan.module}'`,
         );
     }
     const requests = planRequests(plan.origin, await server.routes());

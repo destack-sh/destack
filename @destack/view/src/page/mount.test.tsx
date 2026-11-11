@@ -24,7 +24,7 @@ import { CommandRegistry } from "../palette/registry.ts";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
-    throw new TypeError(`a test page reaches no ${path}`);
+    throw new TypeError(`a test page reaches no '${path}'`);
 }
 
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
@@ -199,7 +199,7 @@ test("call a package the view declares where the host mounts it, and refuse it t
         },
     );
     expect(refused.textContent).toBe(
-        "FamilyError: the view does not declare package @example/counter",
+        "FamilyError: cannot use package '@example/counter': the view does not declare it",
     );
     disposeRefused();
 });

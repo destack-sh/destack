@@ -82,7 +82,10 @@ export const ViewContext = Object.assign(viewContext, {
         // require a scope the host opens
         const found = context[name];
         if (found === undefined) {
-            throw ViewError.of("SCOPE_NOT_OPENED", `the host does not open ${name} for this view`);
+            throw ViewError.of(
+                "SCOPE_BLOCKED",
+                `cannot open '${name}': the host does not open it for this view`,
+            );
         }
 
         return found;

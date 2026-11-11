@@ -19,7 +19,7 @@ import { CommandRegistry } from "../palette/registry.ts";
 
 /** A page origin that calls nothing, as a test page has none. */
 function noOrigin(path: string): never {
-    throw new TypeError(`a test page reaches no ${path}`);
+    throw new TypeError(`a test page reaches no '${path}'`);
 }
 
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
@@ -318,6 +318,6 @@ test("refuse following a space's setting as the page's person into the error bou
         ),
     );
     expect(element.textContent).toBe(
-        "useSetting only reads the person's settings, not space settings: space.language",
+        "setting 'space.language' is invalid: useSetting only reads the person's settings, not 'space' settings",
     );
 });

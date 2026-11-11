@@ -79,7 +79,7 @@ export function defineFont(definition: FontDefinition): Font {
     const first = sources[0]?.path;
     const family = definition.family ?? first?.family;
     if (family === undefined || first === undefined) {
-        throw ViewError.of("FONT_FILE_MISSING", "the font has no file");
+        throw ViewError.of("FONT_FILE_REQUIRED", "font file is required");
     }
 
     // adjust the chosen local font to the first file's metrics
@@ -190,8 +190,8 @@ function requireFormat(url: string): { readonly format: string; readonly type: s
     const format = FORMATS[extension];
     if (format === undefined) {
         throw ViewError.of(
-            "FONT_FORMAT_UNSUPPORTED",
-            `font file type ${extension} is not woff2, woff, ttf or otf`,
+            "FONT_FORMAT_INVALID",
+            `font file type '${extension}' is invalid: it must be woff2, woff, ttf or otf`,
         );
     }
 

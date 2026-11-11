@@ -295,7 +295,13 @@ test("keep the plain favicon, reporting why, when its image fails to load", asyn
     const failures = await Promise.all(reported.map((error) => refusal(Promise.reject(error))));
     expect([shown, failures]).toEqual([
         "error:missing.png",
-        [["BAD_GATEWAY", "FAVICON_LOAD_FAILED", "favicon image failed to load: error:missing.png"]],
+        [
+            [
+                "BAD_GATEWAY",
+                "FAVICON_LOAD_UNREACHABLE",
+                "could not load favicon image 'error:missing.png'",
+            ],
+        ],
     ]);
 });
 

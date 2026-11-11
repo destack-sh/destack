@@ -78,8 +78,8 @@ export async function transformImage(
     const format = ImageFormat.safeParse(metadata.format);
     if (metadata.width === undefined || metadata.height === undefined || !format.success) {
         throw ViewError.of(
-            "IMAGE_NOT_RASTER",
-            `image of format ${metadata.format} has no raster size`,
+            "IMAGE_INVALID",
+            `image of format '${metadata.format}' is invalid: it has no raster size`,
         );
     }
 

@@ -38,7 +38,7 @@ function stubPermissions(statuses: Record<string, StubStatus>): void {
             query: async ({ name }: PermissionDescriptor) => {
                 const status = statuses[name];
                 if (status === undefined) {
-                    throw new TypeError(`${name} is not a permission name`);
+                    throw new TypeError(`'${name}' is not a permission name`);
                 }
 
                 return status;

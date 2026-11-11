@@ -52,14 +52,17 @@ function frameworkPlugin(): Plugin {
                 const [path = id] = id.split("?");
                 const parsed = parseSync(path, code);
                 if (parsed.errors.length) {
-                    throw ViewError.of("SOURCE_INVALID", `invalid framework source: ${id}`);
+                    throw ViewError.of(
+                        "SOURCE_INVALID",
+                        `framework source '${id}' is invalid: it does not parse`,
+                    );
                 }
                 new Visitor({
                     ExpressionStatement(node) {
                         if (node.directive === "use server") {
                             throw ViewError.of(
-                                "SERVER_FUNCTION_UNSUPPORTED",
-                                `solid server functions are unsupported: ${id}:${node.start}`,
+                                "SERVER_FUNCTION_INVALID",
+                                `source '${id}' at offset ${node.start} is invalid: solid server functions are unsupported`,
                             );
                         }
                     },
