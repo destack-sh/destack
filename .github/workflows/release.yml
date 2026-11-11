@@ -96,16 +96,20 @@ jobs:
             - name: Restore the release store
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: target/releases
-                  key: releases-${{ needs.prepare.outputs.commit }}
-                  restore-keys: releases-
+                  path: |
+                      target/releases/store.db*
+                      target/releases/files
+                  key: release-store-${{ needs.prepare.outputs.commit }}
+                  restore-keys: release-store-
             - name: Build first-party releases
               run: bun run src/main.ts platform build
             - name: Save the release store
               uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: target/releases
-                  key: releases-${{ needs.prepare.outputs.commit }}
+                  path: |
+                      target/releases/store.db*
+                      target/releases/files
+                  key: release-store-${{ needs.prepare.outputs.commit }}
 
     build:
         name: Build distribution (${{ matrix.target }})
@@ -144,8 +148,10 @@ jobs:
             - name: Restore the release store
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: target/releases
-                  key: releases-${{ needs.prepare.outputs.commit }}
+                  path: |
+                      target/releases/store.db*
+                      target/releases/files
+                  key: release-store-${{ needs.prepare.outputs.commit }}
                   fail-on-cache-miss: true
             - name: Cache the native desktop build
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -428,8 +434,10 @@ jobs:
             - name: Restore the release store
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: target/releases
-                  key: releases-${{ needs.prepare.outputs.commit }}
+                  path: |
+                      target/releases/store.db*
+                      target/releases/files
+                  key: release-store-${{ needs.prepare.outputs.commit }}
                   fail-on-cache-miss: true
             - name: Assume deploy role
               uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
