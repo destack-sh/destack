@@ -96,3 +96,23 @@ test("wait for a server to serve, refusing at once with its reason once it fails
         probe: [503, "down: the files' database is missing\n"],
     });
 });
+
+test("answer a starting server's readiness probe with when to ask again", () => {
+    // probe a server still starting, and one that is down
+    const starting = new Health("notes");
+    const down = new Health("files");
+    starting.set("starting", "the notes open");
+    down.set("down", "the files' database is missing");
+    // ask the starting one to retry after a second, and the down one never
+    expect([answer(starting), answer(down)]).toEqual([
+        [503, "1"],
+        [503, null],
+    ]);
+});
+
+/** Probe a server's readiness, as its status and its Retry-After. */
+function answer(readiness: Health) {
+    const answered = readiness.probe(new Request("https://test.local/readyz"));
+
+    return [answered?.status, answered?.headers.get("retry-after")];
+}

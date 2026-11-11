@@ -122,9 +122,18 @@ export class Health {
         const ready = path === "/livez" ? this.status !== "stopped" : this.status === "up";
         const body = ready ? "ok\n" : `${this.status}: ${this.reason}\n`;
 
+        // answer a server still starting with when to ask again, as its refusals do
+        const headers = new Headers({
+            "content-type": "text/plain; charset=utf-8",
+            "cache-control": "no-store",
+        });
+        if (!ready && this.status === "starting") {
+            headers.set("retry-after", String(Math.ceil(STARTING_RETRY_MILLISECONDS / 1000)));
+        }
+
         return new Response(request.method === "HEAD" ? null : body, {
             status: ready ? 200 : 503,
-            headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" },
+            headers,
         });
     }
 }
