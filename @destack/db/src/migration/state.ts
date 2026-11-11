@@ -1,7 +1,7 @@
 import { sql } from "../sql/index.ts";
 import { canonicalize, present, schema, Version } from "@destack/schema";
 import { Expression } from "../expression/expression.ts";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { TABLE, type Table } from "../table/table.ts";
 import type { Dialect } from "../dialect/dialect.ts";
 import type { DatabaseConnection } from "../database/connection.ts";
@@ -27,7 +27,7 @@ export const STAMP = "__destack_stamp";
 /** A managed table as declared or applied. */
 export const TableState = schema.object({
     /** The package release declaring the table. */
-    package: Package,
+    package: PackageVersion,
     /** The table's columns, keys, indexes and checks. */
     table: TableDescription,
     /** The columns the change triggers record, absent for unlogged tables. */

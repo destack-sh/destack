@@ -1,4 +1,4 @@
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 
 /** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
 const MAX_IDENTIFIER_LENGTH = 63;
@@ -16,7 +16,7 @@ const FNV_PRIME = 0x01_00_01_93;
 const UTF8 = new TextEncoder();
 
 /** Derive a package's SQL namespace. */
-export function namespaceOf(owner: Package): string {
+export function namespaceOf(owner: PackageVersion): string {
     const [account, name] = owner.name.slice(1).split("/");
     if (account === undefined || name === undefined) {
         throw new TypeError(`package name is not scoped: '${owner.name}'`);
@@ -26,7 +26,7 @@ export function namespaceOf(owner: Package): string {
 }
 
 /** Qualify a SQL identifier with its package namespace. */
-export function qualify(owner: Package, name: string): string {
+export function qualify(owner: PackageVersion, name: string): string {
     // reject identifiers PostgreSQL would truncate
     const qualified = `${namespaceOf(owner)}__${name}`;
     if (qualified.length > MAX_IDENTIFIER_LENGTH) {

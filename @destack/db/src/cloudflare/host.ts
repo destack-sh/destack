@@ -1,6 +1,6 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
 import { Digest, schema } from "@destack/schema";
-import { type KindState, Plan, ResourceId, ResourceRecord } from "@destack/resource";
+import { Plan, ResourceId, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import { type DatabaseKind, DatabaseSpec } from "../declare/database.ts";
 import { DatabaseError } from "../error/error.ts";
@@ -257,7 +257,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** Diff the applied state against the desired states. */
     plan(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<Plan> {
         const namespace = DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record));
         const connect = (tables: readonly Table[]) => this.connect(tables, { namespace });
@@ -271,7 +271,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** Apply the reviewed plan, refusing one that changed since review. */
     apply(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
         digest: Digest,
     ): Promise<void> {
         // apply the plan in the database's namespace
@@ -285,7 +285,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle> {
         const namespace = DurableObjectDatabaseHost.namespace(ResourceRecord.reference(record));
         const connect = (tables: readonly Table[]) => this.connect(tables, { namespace });
@@ -410,7 +410,7 @@ export class DurableObjectDatabaseHost implements DatabaseHost {
     /** Open a database for one copy, closing it when disposed. */
     async #opened(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle & AsyncDisposable> {
         const handle = await this.open(record, desired);
 

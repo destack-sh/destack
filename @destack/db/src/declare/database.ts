@@ -1,7 +1,7 @@
 import type { Environment } from "@destack/environment";
 import { schema } from "@destack/schema";
-import { ModuleMetadata, type Package } from "@destack/package";
-import { defineResourceKind, ResourceDeclaration, type ResourceBinding } from "@destack/resource";
+import { defineKind, ModuleMetadata, type PackageVersion } from "@destack/package";
+import { ResourceDeclaration, type ResourceBinding } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import type { DatabaseConnection } from "../database/connection.ts";
 import { TABLE, type Table } from "../table/table.ts";
@@ -19,9 +19,9 @@ export const DatabaseSpec = schema.object({
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
 /** The database resource kind: tables planned toward the union of their declared states. */
-export const DatabaseKind = defineResourceKind("database", {
-    spec: DatabaseSpec,
-    state: DatabaseState,
+export const DatabaseKind = defineKind({
+    name: "database",
+    provisioned: { spec: DatabaseSpec, state: DatabaseState },
 });
 
 /** A declared database and its required tables, as the manifest records it. */
@@ -44,10 +44,7 @@ export interface DatabaseConnector {
 /** A database declaration. */
 export class Database<
     Models extends Readonly<Record<string, Model>> = Readonly<Record<string, Model>>,
-> extends ResourceDeclaration<
-    DatabaseConnection<Models>,
-    schema.Infer<typeof DatabaseKind.description>
-> {
+> extends ResourceDeclaration<DatabaseConnection<Models>, typeof DatabaseSpec> {
     /** The database's declared and replicated tables, without foreign keys to others. */
     readonly tables: readonly Table[];
     /** The relations of the tables, which relational reads follow. */
@@ -59,16 +56,16 @@ export class Database<
 
     /** Create the declaration. */
     constructor(
-        owner: Package,
-        description: schema.Infer<typeof DatabaseKind.description>,
+        owner: PackageVersion,
+        declaration: { readonly name: string; readonly spec: DatabaseSpec },
         tables: readonly Table[],
         relations: Relations<Models>,
     ) {
         // store the tables, their relations and the replicated tables' names
-        super(owner, description);
+        super(owner, DatabaseKind, declaration);
         this.tables = tables;
         this.relations = relations;
-        this.replicated = new Set(description.spec.replicated);
+        this.replicated = new Set(declaration.spec.replicated);
     }
 
     /** Decide whether the database stores a table's rows as a replica. */
@@ -135,12 +132,8 @@ export function defineDatabase<
         }
     }
 
-    // validate the resource description
-    const description = DatabaseKind.description.parse({
-        name: definition.name,
-        kind: "database",
-        spec: { replicated: replicated.map((table) => table[TABLE].sqlName) },
-    });
+    // declare the database with the replicated tables' names as its spec
+    const spec = { replicated: replicated.map((table) => table[TABLE].sqlName) };
 
-    return new Database(owner, description, [...names.values()], relations);
+    return new Database(owner, { name: definition.name, spec }, [...names.values()], relations);
 }

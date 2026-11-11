@@ -12,7 +12,6 @@ type TableState = DatabaseDescription["tables"][keyof DatabaseDescription["table
 export function describeDatabase(database: Database): DatabaseDescription {
     return DatabaseDescription.parse({
         name: database.name,
-        kind: database.kind,
         spec: database.spec,
         ...database.state(),
     });

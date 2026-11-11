@@ -42,8 +42,7 @@
         "defineDatabase": {
             "describes": [
                 {
-                    "kind": "resource",
-                    "package": "@destack/resource",
+                    "kind": "database",
                     "function": "./inspect#describeDatabase",
                     "compare": "./inspect#compareDatabase",
                     "symbols": "./inspect#databaseSymbols"

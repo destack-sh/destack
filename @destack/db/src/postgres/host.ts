@@ -1,7 +1,7 @@
 import type { DatabaseEnvironment } from "../database/connection.ts";
 import type { Digest } from "@destack/schema";
 import { schema } from "@destack/schema";
-import { type KindState, Plan, ResourceRecord } from "@destack/resource";
+import { Plan, ResourceRecord } from "@destack/resource";
 import { DatabaseHandle } from "../database/handle.ts";
 import type { DatabaseKind } from "../declare/database.ts";
 import { quote } from "../dialect/quote.ts";
@@ -11,6 +11,7 @@ import { Table } from "../table/table.ts";
 import { connectPostgres } from "./connection.ts";
 import { PostgresPool } from "./pool.ts";
 import { PostgresConnector } from "./connector.ts";
+import type { DatabaseState } from "../migration/state.ts";
 
 /** Store databases in one PostgreSQL cluster database, one schema per database, over one pool. */
 export class PostgresDatabaseHost implements DatabaseHost {
@@ -84,7 +85,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
     /** Diff the applied state against the desired states. */
     plan(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<Plan> {
         const connect = (tables: readonly Table[]) =>
             this.#connect(ResourceRecord.reference(record), tables);
@@ -98,7 +99,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
     /** Apply the reviewed plan, refusing one that changed since review. */
     apply(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
         digest: Digest,
     ): Promise<void> {
         const connect = (tables: readonly Table[]) =>
@@ -111,7 +112,7 @@ export class PostgresDatabaseHost implements DatabaseHost {
     /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle> {
         const connect = (tables: readonly Table[]) =>
             this.#connect(ResourceRecord.reference(record), tables);

@@ -17,7 +17,7 @@ import {
 } from "./column.ts";
 import { check, ForeignKey, Index, Unique, type TableConstraint } from "./constraint.ts";
 import type { Dialect } from "../dialect/dialect.ts";
-import { ModuleMetadata, PACKAGE, type Package } from "@destack/package";
+import { ModuleMetadata, PACKAGE, type PackageVersion } from "@destack/package";
 import {
     mapValues,
     present,
@@ -70,7 +70,11 @@ export class Table<
 
     /** Create the table. */
     constructor(
-        identity: { readonly package: Package; readonly name: Name; readonly sqlName: string },
+        identity: {
+            readonly package: PackageVersion;
+            readonly name: Name;
+            readonly sqlName: string;
+        },
         columns: Columns,
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table } = {},
@@ -253,7 +257,7 @@ export class Table<
     }
 
     /** The declaring package, under the key every declaration kind shares. */
-    get [PACKAGE](): Package {
+    get [PACKAGE](): PackageVersion {
         return this[TABLE].package;
     }
 
@@ -266,7 +270,7 @@ export class Table<
 /** A table's identity, columns and declaration, with what derives from them. */
 export class TableDefinition<Name extends string = string, Columns extends ColumnMap = ColumnMap> {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The table name within its package. */
     readonly name: Name;
     /** The SQL identifier. */
@@ -323,7 +327,11 @@ export class TableDefinition<Name extends string = string, Columns extends Colum
     /** Define a table. */
     constructor(
         table: Table,
-        identity: { readonly package: Package; readonly name: Name; readonly sqlName: string },
+        identity: {
+            readonly package: PackageVersion;
+            readonly name: Name;
+            readonly sqlName: string;
+        },
         columns: Columns,
         declaration: TableDeclaration,
         options: { readonly tree?: TreeColumns; readonly source?: Table },

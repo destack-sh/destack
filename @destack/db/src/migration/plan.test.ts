@@ -1,6 +1,6 @@
 import { expect, onTestFinished, refusal, test } from "@destack/test";
 import { Change, defineTable, index, integer, json, sql, text, uniqueIndex } from "../index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { TABLE, type Table } from "../table/table.ts";
 import { qualify } from "../table/namespace.ts";
@@ -35,7 +35,7 @@ const document = defineTable("document", {
 
 /** Another package's release, declaring its documents' attachments. */
 const ATTACHMENT_RELEASE = {
-    package: Package.parse({
+    package: PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000f1",
         name: "@acme/attachment",
         version: "2026.10.0",

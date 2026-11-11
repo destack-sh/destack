@@ -1,13 +1,14 @@
 import { type Environment, FileSystemError } from "@destack/environment";
 import { fileURLToPath } from "node:url";
 import type { Digest } from "@destack/schema";
-import { type KindState, Plan, ResourceRecord } from "@destack/resource";
+import { Plan, ResourceRecord } from "@destack/resource";
 import { connectBunSqlite } from "./connection.ts";
 import { openBunSqlite } from "./sqlite.ts";
 import type { DatabaseKind } from "../declare/database.ts";
 import type { DatabaseHost } from "../provider/provider.ts";
 import { DatabaseHandle } from "../database/handle.ts";
 import { Table } from "../table/table.ts";
+import type { DatabaseState } from "../migration/state.ts";
 
 /** Store databases as SQLite files below a directory, one folder per space. */
 export class BunSqliteDatabaseHost implements DatabaseHost {
@@ -79,7 +80,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     /** Diff the applied state against the desired states. */
     plan(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<Plan> {
         const connect = (tables: readonly Table[]) => this.#open(record, tables);
 
@@ -92,7 +93,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     /** Apply the reviewed plan, refusing one that changed since review. */
     apply(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
         digest: Digest,
     ): Promise<void> {
         const connect = (tables: readonly Table[]) => this.#open(record, tables);
@@ -104,7 +105,7 @@ export class BunSqliteDatabaseHost implements DatabaseHost {
     /** Open the tables of the desired states, and a replica's local tables once migrated. */
     open(
         record: ResourceRecord<typeof DatabaseKind>,
-        desired: readonly KindState<typeof DatabaseKind>[],
+        desired: readonly DatabaseState[],
     ): Promise<DatabaseHandle> {
         const connect = (tables: readonly Table[]) => this.#open(record, tables);
 

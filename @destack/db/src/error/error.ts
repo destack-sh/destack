@@ -23,40 +23,42 @@ export type DeclaredNames = ReadonlyMap<
 >;
 
 /** The database package's failures, each reason with the call error code it answers. */
-export const DatabaseError = defineErrorFamily(import.meta.destack.package, {
-    // not found
-    CHANGES_NOT_FOUND: {},
+export const DatabaseError = defineErrorFamily({
+    reasons: {
+        // not found
+        CHANGES_NOT_FOUND: {},
 
-    // exists
-    ROW_EXISTS: { data: ViolatedKey.nullable() },
+        // exists
+        ROW_EXISTS: { data: ViolatedKey.nullable() },
 
-    // conflict
-    EPOCH_CONFLICT: {},
-    TRANSACTION_CONFLICT: {},
-    UPDATE_CONFLICT: {},
+        // conflict
+        EPOCH_CONFLICT: {},
+        TRANSACTION_CONFLICT: {},
+        UPDATE_CONFLICT: {},
 
-    // invalid
-    QUERY_INVALID: {},
-    RECORD_INVALID: {},
+        // invalid
+        QUERY_INVALID: {},
+        RECORD_INVALID: {},
 
-    // blocked
-    MIGRATION_BLOCKED: {},
-    REFERENCE_BLOCKED: {},
+        // blocked
+        MIGRATION_BLOCKED: {},
+        REFERENCE_BLOCKED: {},
 
-    // unavailable
-    CONNECTION_UNAVAILABLE: {},
-    CONTENT_UNAVAILABLE: {},
-    OWNER_UNAVAILABLE: {},
+        // unavailable
+        CONNECTION_UNAVAILABLE: {},
+        CONTENT_UNAVAILABLE: {},
+        OWNER_UNAVAILABLE: {},
 
-    // broken
-    CHANNEL_BROKEN: {},
-    CONTROLLER_BROKEN: {},
-    FOLLOW_BROKEN: {},
-    MIGRATION_BROKEN: {},
-    PLAN_BROKEN: {},
-    QUERY_BROKEN: {},
-    TRANSACTION_BROKEN: {},
-    TREE_BROKEN: {},
+        // broken
+        CHANNEL_BROKEN: {},
+        CONTROLLER_BROKEN: {},
+        FOLLOW_BROKEN: {},
+        MIGRATION_BROKEN: {},
+        PLAN_BROKEN: {},
+        QUERY_BROKEN: {},
+        TRANSACTION_BROKEN: {},
+        TREE_BROKEN: {},
+    },
 });
 
 /** A stable cause of database failures. */

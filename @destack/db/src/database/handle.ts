@@ -1,12 +1,5 @@
 import { canonicalize, Digest, type JsonObject, schema } from "@destack/schema";
-import type {
-    KindState,
-    Opener,
-    ResourceKind,
-    ResourceRecord,
-    Snapshotter,
-    ContentStore,
-} from "@destack/resource";
+import type { Opener, ResourceRecord, Snapshotter, ContentStore } from "@destack/resource";
 import type { DatabaseConnection } from "./connection.ts";
 import { Plan } from "@destack/resource";
 import { DatabaseError } from "../error/error.ts";
@@ -16,6 +9,7 @@ import { Order } from "../query/order.ts";
 import type { Row } from "../table/row.ts";
 import { TABLE, Table } from "../table/table.ts";
 import { BLOB_TABLES } from "../blob/store.ts";
+import type { Kind, Provisioning } from "@destack/package";
 
 /** The rows one read of a snapshot takes: 1000 rows of about 500 B make a read near 500 kB. */
 const SNAPSHOT_READ_ROWS = 1000;
@@ -193,9 +187,9 @@ export const DatabaseHandle = {
     },
 
     /** Snapshot and restore an opener's databases, each opened for the copy and closed after. */
-    snapshotter<Kind extends ResourceKind>(
-        opener: Opener<Kind, DatabaseHandle>,
-    ): Snapshotter<Kind> {
+    snapshotter<Provisioned extends Kind<schema.Schema, Provisioning>>(
+        opener: Opener<Provisioned, DatabaseHandle>,
+    ): Snapshotter<Provisioned> {
         return {
             snapshot: async (record, desired, store) => {
                 await using opened = await openFor(opener, record, desired);
@@ -211,10 +205,10 @@ export const DatabaseHandle = {
 };
 
 /** Open a database for one copy, closing it when disposed. */
-async function openFor<Kind extends ResourceKind>(
-    opener: Opener<Kind, DatabaseHandle>,
-    record: ResourceRecord<Kind>,
-    desired: readonly KindState<Kind>[],
+async function openFor<Provisioned extends Kind<schema.Schema, Provisioning>>(
+    opener: Opener<Provisioned, DatabaseHandle>,
+    record: ResourceRecord<Provisioned>,
+    desired: readonly schema.Output<Provisioned["provisioned"]["state"]>[],
 ): Promise<{ readonly handle: DatabaseHandle } & AsyncDisposable> {
     const handle = await opener.open(record, desired);
 
