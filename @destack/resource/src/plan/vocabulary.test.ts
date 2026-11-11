@@ -62,7 +62,7 @@ test("advance a vocabulary through removal and restoration, refusing a redefined
             "object/note/relation/editor": WRITER,
         }),
     ).toEqual(
-        "object/note/relation/editor: removed in 2026.9.0 with another definition; choose a new name",
+        "cannot reach the desired state: object/note/relation/editor: removed in 2026.9.0 with another definition; choose a new name",
     );
 
     // restore editor under its last definition

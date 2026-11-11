@@ -24,27 +24,28 @@ export type UnreachablePlan = schema.Infer<typeof UnreachablePlan>;
 export const ResourceError = defineErrorFamily(
     import.meta.destack.package,
     {
-        // bad request
-        BAD_DIGEST: { code: "BAD_REQUEST" },
-        TEXT_REQUIRED: { code: "BAD_REQUEST" },
-
         // not found
-        BLOB_NOT_FOUND: { code: "NOT_FOUND" },
+        BLOB_NOT_FOUND: {},
 
-        // conflict
-        PLAN_UNREACHABLE: { code: "CONFLICT", data: UnreachablePlan },
+        // invalid
+        DIGEST_INVALID: {},
 
-        // precondition failed
-        PROVIDER_MISSING: { code: "PRECONDITION_FAILED" },
+        // required
+        TEXT_REQUIRED: {},
 
-        // not implemented
-        PROVISIONING_UNSUPPORTED: { code: "NOT_IMPLEMENTED" },
+        // blocked
+        PLAN_BLOCKED: { data: UnreachablePlan },
+        PROVIDER_BLOCKED: {},
 
-        // internal server error
-        ALREADY_BOUND: { code: "INTERNAL_SERVER_ERROR" },
-        BINDING_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-        CREDENTIAL_MISSING: { code: "INTERNAL_SERVER_ERROR" },
-        RESOURCE_UNPROVISIONED: { code: "INTERNAL_SERVER_ERROR" },
+        // unsupported
+        PROVISIONING_UNSUPPORTED: {},
+
+        // unavailable
+        RESOURCE_UNAVAILABLE: {},
+
+        // broken
+        BINDING_BROKEN: {},
+        CREDENTIAL_BROKEN: {},
     },
     { audience: "host" },
 );
@@ -53,8 +54,10 @@ export const ResourceError = defineErrorFamily(
 export type ResourceReason = ReasonOf<typeof ResourceError>;
 
 /** Refuse a desired state no plan reaches until its declarations change, listing every problem. */
-export function unreachablePlan(problems: readonly PlanProblem[]): FamilyError<"PLAN_UNREACHABLE"> {
-    const message = problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; ");
+export function unreachablePlan(problems: readonly PlanProblem[]): FamilyError<"PLAN_BLOCKED"> {
+    const detail = problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; ");
 
-    return ResourceError.of("PLAN_UNREACHABLE", message, { data: { problems: [...problems] } });
+    return ResourceError.of("PLAN_BLOCKED", `cannot reach the desired state: ${detail}`, {
+        data: { problems: [...problems] },
+    });
 }

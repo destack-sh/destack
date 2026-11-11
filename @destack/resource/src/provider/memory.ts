@@ -47,7 +47,7 @@ export class MemoryBlobStorage implements BlobStorage {
     async *slice(pack: string, offset: number, length: number): AsyncIterable<Uint8Array> {
         const bytes = this.#packs.get(pack);
         if (bytes === undefined) {
-            throw ResourceError.of("BLOB_NOT_FOUND", `pack ${pack} not found`);
+            throw ResourceError.of("BLOB_NOT_FOUND", `pack '${pack}' not found`);
         }
         yield bytes.subarray(offset, offset + length);
     }
@@ -87,7 +87,7 @@ export class MemoryContentStore implements ContentStore {
     async *read(digest: Digest): AsyncIterable<Uint8Array> {
         const blob = this.#blobs.get(digest);
         if (blob === undefined) {
-            throw ResourceError.of("BLOB_NOT_FOUND", `blob ${digest} not found`);
+            throw ResourceError.of("BLOB_NOT_FOUND", `blob '${digest}' not found`);
         }
         yield blob;
     }
@@ -97,7 +97,7 @@ export class MemoryContentStore implements ContentStore {
         for (const digest of digests) {
             const blob = this.#blobs.get(digest);
             if (blob === undefined) {
-                throw ResourceError.of("BLOB_NOT_FOUND", `blob ${digest} not found`);
+                throw ResourceError.of("BLOB_NOT_FOUND", `blob '${digest}' not found`);
             }
             yield { digest, size: blob.byteLength, body: this.read(digest) };
         }
@@ -109,7 +109,10 @@ export class MemoryContentStore implements ContentStore {
         const bytes = joined(await Array.fromAsync(body));
         const digest = await Digest.of(bytes, this.#crypto);
         if (expected !== undefined && digest !== expected) {
-            throw ResourceError.of("BAD_DIGEST", `expected blob ${expected}, got ${digest}`);
+            throw ResourceError.of(
+                "DIGEST_INVALID",
+                `blob '${digest}' is invalid: its digest must be '${expected}'`,
+            );
         }
         this.#blobs.set(digest, bytes);
 

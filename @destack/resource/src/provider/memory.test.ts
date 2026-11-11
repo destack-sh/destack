@@ -58,11 +58,11 @@ test("store blobs in packs, read each by its placement, key a lone blob by its d
         isPacked: true,
         alone: [true, "alone"],
         packs: [placed.pack],
-        deleted: ["NOT_FOUND", "BLOB_NOT_FOUND", `pack ${pack} not found`],
+        deleted: ["NOT_FOUND", "BLOB_NOT_FOUND", `pack '${pack}' not found`],
         mismatch: [
             "BAD_REQUEST",
-            "BAD_DIGEST",
-            `expected blob ${other.digest}, got ${(await entry("first")).digest}`,
+            "DIGEST_INVALID",
+            `blob '${(await entry("first")).digest}' is invalid: its digest must be '${other.digest}'`,
         ],
     });
 });

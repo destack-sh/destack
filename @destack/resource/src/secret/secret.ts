@@ -36,7 +36,7 @@ export const SecretReading = Object.assign(secretReading, {
         if (reading.value.encoding !== "text") {
             throw ResourceError.of(
                 "TEXT_REQUIRED",
-                `the secret is ${reading.value.encoding}, not text`,
+                `text secret is required: the secret is '${reading.value.encoding}'`,
             );
         }
 

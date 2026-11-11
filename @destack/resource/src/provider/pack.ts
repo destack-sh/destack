@@ -28,13 +28,16 @@ export const BlobPack = {
     verify(body: Pick<BlobBody, "digest" | "size">, digest: Digest, size: number): void {
         // refuse another digest
         if (body.digest !== undefined && digest !== body.digest) {
-            throw ResourceError.of("BAD_DIGEST", `expected blob ${body.digest}, got ${digest}`);
+            throw ResourceError.of(
+                "DIGEST_INVALID",
+                `blob '${digest}' is invalid: its digest must be '${body.digest}'`,
+            );
         }
         // refuse another size
         else if (body.size !== undefined && size !== body.size) {
             throw ResourceError.of(
-                "BAD_DIGEST",
-                `expected blob ${digest} of ${body.size} bytes, got ${size} bytes`,
+                "DIGEST_INVALID",
+                `blob '${digest}' is invalid: it has ${size} bytes and must have ${body.size} bytes`,
             );
         }
     },

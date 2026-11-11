@@ -45,7 +45,7 @@ test("plan schema changes by the readers each must serve", () => {
     ]).toEqual([
         [],
         [{ action: "update", risk: "safe", target: "value", detail: "wider values" }],
-        "value: declare a conversion for 2026.10.0",
+        "cannot reach the desired state: value: declare a conversion for 2026.10.0",
         [
             {
                 action: "convert",

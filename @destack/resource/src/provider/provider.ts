@@ -23,7 +23,10 @@ export const ResourceRecord = {
     /** Read a provisioned resource's reference, refusing an unprovisioned one. */
     reference(record: Pick<ResourceRecord, "reference">): string {
         if (record.reference === null) {
-            throw ResourceError.of("RESOURCE_UNPROVISIONED", "resource is not provisioned");
+            throw ResourceError.of(
+                "RESOURCE_UNAVAILABLE",
+                "resource is unavailable: it is not provisioned",
+            );
         }
 
         return record.reference;
@@ -55,8 +58,8 @@ export const ResourceBinding = Object.assign(resourceBinding, {
         const { credential, scope } = binding;
         if (credential === undefined || scope === undefined) {
             throw ResourceError.of(
-                "CREDENTIAL_MISSING",
-                `binding ${binding.resource} lends no credential and scope`,
+                "CREDENTIAL_BROKEN",
+                `binding '${binding.resource}' lends no credential and scope`,
             );
         }
 

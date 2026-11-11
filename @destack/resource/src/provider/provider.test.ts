@@ -7,6 +7,10 @@ test("read a provisioned resource's reference, refusing an unprovisioned one", a
         await refusal(() => ResourceRecord.reference({ reference: null })),
     ]).toEqual([
         "bucket-1",
-        ["INTERNAL_SERVER_ERROR", "RESOURCE_UNPROVISIONED", "resource is not provisioned"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "RESOURCE_UNAVAILABLE",
+            "resource is unavailable: it is not provisioned",
+        ],
     ]);
 });

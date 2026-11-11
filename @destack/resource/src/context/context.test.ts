@@ -29,12 +29,12 @@ test("bind one client per declaration and refuse missing or repeated bindings", 
     // refuse an unbound declaration and a second binding
     expect(await refusal(() => tasks.get(context))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "BINDING_MISSING",
-        "resource is not bound: tasks",
+        "BINDING_BROKEN",
+        "resource is not bound: 'tasks'",
     ]);
     expect(await refusal(() => context.bind(notes, "other client"))).toEqual([
         "INTERNAL_SERVER_ERROR",
-        "ALREADY_BOUND",
-        "resource already bound: notes",
+        "BINDING_BROKEN",
+        "resource already bound: 'notes'",
     ]);
 });
