@@ -119,8 +119,12 @@ test("pull the Bun outputs of a release's runtime closure, locating each build o
     };
     await using space = await TestBuildStore.create(environment);
     await using pulled = await TestBuildStore.create(environment);
-    const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"], new Map()));
-    await builds.pull(recording, APPLICATION.id, applicationManifest);
+    const builds = new SpaceBuildStore(
+        space,
+        new BuildCache(pulled, ["bun"], new Map()),
+        recording,
+    );
+    await builds.pull(APPLICATION.id, applicationManifest);
 
     // locate each build once, storing only the Bun outputs of the release and the builds its closure reaches
     const store = builds.cache.store;
@@ -215,12 +219,10 @@ test("pull a space's own build whose dependencies share a build, reading each bu
     // pull the application, counting the space's reads of each build
     await using pulled = await TestBuildStore.create(environment);
     const reads = vi.spyOn(space, "contents");
-    const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"], new Map()));
-    await builds.pull(
-        { locate: () => Promise.reject(new Error("no build is published")) },
-        APPLICATION.id,
-        applicationManifest,
-    );
+    const builds = new SpaceBuildStore(space, new BuildCache(pulled, ["bun"], new Map()), {
+        locate: () => Promise.reject(new Error("no build is published")),
+    });
+    await builds.pull(APPLICATION.id, applicationManifest);
 
     // read the application, each library and the shared unit once
     const counted = new Map<string, number>();
@@ -273,13 +275,13 @@ test("load a builtin's linked build whatever build a release recorded, pulling n
         ["bun"],
         new Map([[BUILTIN.id, { package: BUILTIN, manifest: linked }]]),
     );
-    const builds = new SpaceBuildStore(space, cache);
-    await builds.pull(recording, APPLICATION.id, applicationManifest);
+    const builds = new SpaceBuildStore(space, cache, recording);
+    await builds.pull(APPLICATION.id, applicationManifest);
     const compiled = await BuildStore.digest(
         (await MemoryBuild.of({ ...BUILTIN, version: "2026.10.0" }, [], crypto)).manifest,
         crypto,
     );
-    const read = await builds.read(recording, BUILTIN.id, compiled);
+    const read = await builds.read(BUILTIN.id, compiled);
 
     // locate the application alone, and read the linked build
     expect({

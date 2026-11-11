@@ -96,8 +96,6 @@ export class BuildCache {
     readonly runtimes: readonly Runtime[];
     /** The builtins the machine links, by package, whose builds it loads in place of any other. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
-    /** The published builds opened in place, by manifest, each opened once. */
-    readonly #opened = new Map<Digest, Promise<BuildReader>>();
     /** The published builds pulled with their runtime closures, by manifest, each pulled once. */
     readonly #pulled = new Map<Digest, Promise<BuildReader>>();
 
@@ -131,33 +129,6 @@ export class BuildCache {
     /** Resolve a release to the build the machine loads: a builtin's linked build, else its own. */
     resolve(packageId: PackageId, manifest: Digest): Digest {
         return this.linked.get(packageId)?.manifest ?? manifest;
-    }
-
-    /** Read a build in place, the cached one else the published one, without copying its files. */
-    async read(
-        registry: Pick<Registry, "locate">,
-        packageId: PackageId,
-        manifest: Digest,
-    ): Promise<BuildReader> {
-        // take the cached build, else the published one opened once where the registry locates it
-        manifest = this.resolve(packageId, manifest);
-        if (await this.store.contains(manifest)) {
-            return await this.store.contents(manifest);
-        }
-        let opened = this.#opened.get(manifest);
-        if (opened === undefined) {
-            opened = registry
-                .locate(packageId, manifest)
-                .then(({ location, fetch }) =>
-                    BuildReader.open(location, fetch, this.store.environment.crypto),
-                );
-            this.#opened.set(manifest, opened);
-
-            // forget a failed open, so a later read tries again
-            opened.catch(() => this.#opened.delete(manifest));
-        }
-
-        return await opened;
     }
 
     /** Report whether the cache has each emitted output of a build the machine runs or serves. */
@@ -217,22 +188,21 @@ export class BuildCache {
             return found;
         };
         const read: ManifestRead = async (digest, at) => {
-            // read a stored build's manifest, else open the located build
+            // read a stored build's manifest, else pull its manifest and lists once
             const stored = await this.store.find(digest);
             if (stored !== undefined) {
                 return stored;
             }
             const { location, fetch } = await locate(digest, at);
+            await this.store.pull(location, fetch);
 
-            return (await BuildReader.open(location, fetch, this.store.environment.crypto))
-                .manifest;
+            return await this.store.find(digest);
         };
 
-        // pull the release's lists, then the outputs the machine runs and serves, unless the cache has them
+        // pull the release's manifest and lists, then the outputs the machine runs and serves, unless the cache has them
         if (!(await this.serves(manifest))) {
-            const { location, fetch } = await locate(manifest, packageId);
-            await this.store.pullLists(location, fetch);
             const declared = present(await read(manifest, packageId), `the build ${manifest}`);
+            const { location, fetch } = await locate(manifest, packageId);
             for (const [name] of this.served(declared)) {
                 await this.store.pull(location, fetch, name);
             }
@@ -335,15 +305,18 @@ export class SpaceBuildStore {
     readonly space: BuildStore;
     /** The machine's cache of what it runs. */
     readonly cache: BuildCache;
+    /** The registry the space's published builds come from, whole or a file at a time. */
+    readonly registry: Pick<Registry, "locate">;
     /** The closure of each build mapped so far, by build, runtime and base path. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The builds opened so far, by manifest, each opened once as a build never changes. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
-    /** Store a space's builds in its blobs, read through to the machine's cache. */
-    constructor(space: BuildStore, cache: BuildCache) {
+    /** Store a space's builds in its blobs, reading through to the machine's cache and registry. */
+    constructor(space: BuildStore, cache: BuildCache, registry: Pick<Registry, "locate">) {
         this.space = space;
         this.cache = cache;
+        this.registry = registry;
     }
 
     /** Report whether the space stores a build, or the machine has what it runs of it. */
@@ -351,18 +324,49 @@ export class SpaceBuildStore {
         return (await this.space.contains(manifest)) || (await this.cache.serves(manifest));
     }
 
-    /** Open a build the space stores, else the machine's copy of it. */
+    /** Open a build the space stores, else the machine's copy, a missing file from the registry. */
     async contents(manifest: Digest): Promise<BuildReader> {
         // open each build once, forgetting a failed open
         const known = this.#opened.get(manifest);
         if (known !== undefined) {
             return known;
         }
-        const opening = this.store(manifest).then((store) => store.contents(manifest));
+        const opening = this.#open(manifest);
         this.#opened.set(manifest, opening);
         opening.catch(() => this.#opened.delete(manifest));
 
         return opening;
+    }
+
+    /** Open a build, fetching a file its store lacks once from its registry into the cache. */
+    async #open(manifest: Digest): Promise<BuildReader> {
+        // open the build where it is stored, an npm unit there alone
+        const store = await this.store(manifest);
+        const reader = await store.contents(manifest);
+        const owner = reader.manifest.package;
+        if (!("id" in owner)) {
+            return reader;
+        }
+
+        // read each file from the store, else once from the build's registry
+        const { crypto } = this.cache.store.environment;
+        const stream: BuildReader["stream"] = async (path, signal) => {
+            // read a file the store holds
+            const file = await reader.file(path);
+            if (await store.has(file.digest)) {
+                return await reader.stream(path, signal);
+            }
+
+            // fetch a file it lacks from the build's registry, then keep it in the cache
+            const { location, fetch } = await this.registry.locate(owner.id, manifest);
+            const remote = await BuildReader.open(location, fetch, crypto, signal);
+            const bytes = await remote.load(path, signal);
+            await this.cache.store.receive([{ digest: file.digest, bytes }]);
+
+            return new Blob([bytes]).stream();
+        };
+
+        return new BuildReader(reader.manifest, stream, crypto);
     }
 
     /** Read a build's manifest from the space, else from the machine. */
@@ -442,31 +446,29 @@ export class SpaceBuildStore {
     }
 
     /** Read a build in place to inspect it: the space's own, else the cached or published one. */
-    async read(
-        registry: Pick<Registry, "locate">,
-        packageId: PackageId,
-        manifest: Digest,
-    ): Promise<BuildReader> {
+    async read(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
         // read the space's own build, else one the machine caches or the registry publishes
         if (await this.space.contains(manifest)) {
             return await this.space.contents(manifest);
         }
 
-        return await this.cache.read(registry, packageId, manifest);
+        // pull a published build's manifest and lists once
+        const resolved = this.cache.resolve(packageId, manifest);
+        if ((await this.cache.store.find(resolved)) === undefined) {
+            const { location, fetch } = await this.registry.locate(packageId, resolved);
+            await this.cache.store.pull(location, fetch);
+        }
+
+        return await this.contents(resolved);
     }
 
     /** Bring a build into the machine's cache to run it: the space's own, else a published one. */
-    pull(
-        registry: Pick<Registry, "locate">,
-        packageId: PackageId,
-        manifest: Digest,
-    ): Promise<BuildReader> {
-        return this.#pull(registry, packageId, manifest, new Map());
+    pull(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
+        return this.#pull(packageId, manifest, new Map());
     }
 
     /** Bring a build into the cache after the builds it pins, visiting each build once per pull. */
     #pull(
-        registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: Digest,
         visited: Map<Digest, Promise<BuildReader>>,
@@ -476,7 +478,7 @@ export class SpaceBuildStore {
         if (known !== undefined) {
             return known;
         }
-        const visiting = this.#visit(registry, packageId, manifest, visited);
+        const visiting = this.#visit(packageId, manifest, visited);
         visited.set(manifest, visiting);
 
         return visiting;
@@ -484,14 +486,13 @@ export class SpaceBuildStore {
 
     /** Pull a published build with its closure, or the space's own after the builds it pins. */
     async #visit(
-        registry: Pick<Registry, "locate">,
         packageId: PackageId,
         manifest: Digest,
         visited: Map<Digest, Promise<BuildReader>>,
     ): Promise<BuildReader> {
         // pull a published build with its runtime closure
         if (!(await this.space.contains(manifest))) {
-            return await this.cache.pull(registry, packageId, manifest);
+            return await this.cache.pull(this.registry, packageId, manifest);
         }
 
         // bring the builds the space's own build pins first, its npm units under its package, then adopt it
@@ -502,7 +503,7 @@ export class SpaceBuildStore {
             );
             for (const dependency of pinned) {
                 const owner = dependency.kind === "destack" ? dependency.package.id : packageId;
-                await this.#pull(registry, PackageId.parse(owner), dependency.manifest, visited);
+                await this.#pull(PackageId.parse(owner), dependency.manifest, visited);
             }
         }
 

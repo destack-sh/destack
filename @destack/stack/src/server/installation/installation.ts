@@ -458,7 +458,7 @@ async function pull(
             ? await registry.find(target.installation.packageId, reference.tag)
             : (reference.manifest ??
               (await registry.find(target.installation.packageId, reference.version)));
-    const reader = await builds.pull(registry, target.installation.packageId, manifest);
+    const reader = await builds.pull(target.installation.packageId, manifest);
 
     // refuse a manifest of another version
     const version = reader.manifest.package.version;

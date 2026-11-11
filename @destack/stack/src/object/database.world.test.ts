@@ -85,7 +85,7 @@ test("serve an installation once its targets are bound and the space's main data
     );
     const builds = await fixture.builds();
     const open = async (packageId: PackageId, manifest: Digest) =>
-        manifest === release.manifest ? notes : builds.pull(fixture.registry, packageId, manifest);
+        manifest === release.manifest ? notes : builds.pull(packageId, manifest);
     const served = async (
         opening: (packageId: PackageId, manifest: Digest) => Promise<BuildReader> = open,
     ) =>

@@ -342,11 +342,11 @@ export class SpaceStore {
         }
         // pull a named version
         else if (version !== undefined) {
-            return builds.pull(registry, packageId, await registry.find(packageId, version));
+            return builds.pull(packageId, await registry.find(packageId, version));
         }
         // pull the distribution's release of a package the space does not install
         else if (distributed !== undefined) {
-            return builds.pull(registry, packageId, distributed.manifest);
+            return builds.pull(packageId, distributed.manifest);
         }
         // run nothing of a package outside the distribution
         else {
