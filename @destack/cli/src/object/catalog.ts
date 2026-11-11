@@ -10,7 +10,7 @@ import {
     type PackageImplementationDescription,
     type MethodKind,
     ObjectType,
-    type PackageHandle,
+    type Package,
     Casing,
 } from "@destack/object";
 import {
@@ -33,7 +33,7 @@ import { CliError } from "../error/index.ts";
 const QUALIFIER = ":";
 
 /** The platform packages built into Destack, whose types the command line knows. */
-const BUILT_IN_PACKAGES: readonly PackageHandle[] = [
+const BUILT_IN_PACKAGES: readonly Package[] = [
     machinePackage,
     updatePackage,
     accountPackage,

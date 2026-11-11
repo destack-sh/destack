@@ -6,6 +6,7 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 
 import { Noun, Catalog } from "./catalog.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The package declaring every type of the tests. */
 const PACKAGE_ID = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000c1");
@@ -15,11 +16,14 @@ function declared(name: string, identity = name) {
     return defineObject({
         name,
         plural: `${name}s`,
+        title: t`${plural(argument("count"), { one: "Record", other: "Records" })}`,
         identity,
         scope: space,
         fields: {},
-        permissions: { read: relation("owner") },
-        relations: { owner: { subjects: [principal.user] } },
+        access: {
+            permissions: { read: relation("owner") },
+            relations: { owner: { subjects: [principal.user] } },
+        },
     });
 }
 

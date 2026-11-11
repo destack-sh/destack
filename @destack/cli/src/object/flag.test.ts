@@ -6,12 +6,14 @@ import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 
 import { FlagSet } from "./flag.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A task with a person assigned, a due time, a priority and a state. */
 const task = defineObject(
     {
         name: "task",
         plural: "tasks",
+        title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
         scope: space,
         fields: {
             title: field.string(schema.string().min(1)),
@@ -23,7 +25,9 @@ const task = defineObject(
                 transitions: { complete: { from: ["open"], to: "done", permission: "edit" } },
             }),
         },
-        permissions: { read: union(relation("assignee")), edit: relation("assignee") },
+        access: {
+            permissions: { read: union(relation("assignee")), edit: relation("assignee") },
+        },
     },
     (method) => ({
         create: method.create("edit"),

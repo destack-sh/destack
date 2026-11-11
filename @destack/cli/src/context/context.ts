@@ -3,7 +3,7 @@ import { currentSpace, type Login, NATIVE_SETTINGS } from "@destack/account/nati
 import type { Environment } from "@destack/environment";
 import { dirname, relative } from "node:path";
 import { DESKTOP_SETTINGS } from "@destack/desktop/setting";
-import { type ObjectType, type PackageHandle } from "@destack/object";
+import { type ObjectType, type Package } from "@destack/object";
 import { type ObjectClient, createClient } from "@destack/object/client";
 import { Setting } from "@destack/setting";
 import type { PlacementEndpoint } from "@destack/account/object";
@@ -193,7 +193,7 @@ export class Context {
     }
 
     /** Open a client of a package of the machine serving a space, as the person. */
-    async package<Handle extends PackageHandle>(handle: Handle, location: PlacementEndpoint) {
+    async package<Handle extends Package>(handle: Handle, location: PlacementEndpoint) {
         // send as the person, asking them at the terminal for a consent a call needs
         const client = await this.native();
         const session = await this.launcher();

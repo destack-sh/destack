@@ -8,6 +8,7 @@
     "dependencies": {
         "@destack/access": "workspace:*",
         "@destack/account": "workspace:*",
+        "@destack/locale": "workspace:*",
         "@destack/object": "workspace:*",
         "@destack/schema": "workspace:*"
     }

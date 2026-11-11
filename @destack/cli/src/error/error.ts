@@ -2,64 +2,66 @@ import { defineErrorFamily, type ReasonOf } from "@destack/error";
 import type {} from "@destack/package/import-meta";
 
 /** The cli package's failures, each reason with the call error code it answers. */
-export const CliError = defineErrorFamily(import.meta.destack.package, {
-    // not found
+export const CliError = defineErrorFamily({
+    reasons: {
+        // not found
 
-    INSTALLATION_NOT_FOUND: {},
+        INSTALLATION_NOT_FOUND: {},
 
-    METHOD_NOT_FOUND: {},
+        METHOD_NOT_FOUND: {},
 
-    NOUN_NOT_FOUND: {},
+        NOUN_NOT_FOUND: {},
 
-    SETTING_NOT_FOUND: {},
+        SETTING_NOT_FOUND: {},
 
-    // exists
+        // exists
 
-    INSTALLATION_NAME_EXISTS: {},
+        INSTALLATION_NAME_EXISTS: {},
 
-    // invalid
+        // invalid
 
-    METHOD_INVALID: {},
+        METHOD_INVALID: {},
 
-    RESOURCE_LIMIT_INVALID: {},
+        RESOURCE_LIMIT_INVALID: {},
 
-    SETTING_INVALID: {},
+        SETTING_INVALID: {},
 
-    USAGE_INVALID: {},
+        USAGE_INVALID: {},
 
-    // required
+        // required
 
-    SPACE_REQUIRED: {},
+        SPACE_REQUIRED: {},
 
-    // unauthenticated
+        // unauthenticated
 
-    SIGN_IN_UNAUTHENTICATED: {},
+        SIGN_IN_UNAUTHENTICATED: {},
 
-    // blocked
+        // blocked
 
-    APPROVAL_BLOCKED: {},
+        APPROVAL_BLOCKED: {},
 
-    COMMAND_BLOCKED: {},
+        COMMAND_BLOCKED: {},
 
-    DISTRIBUTION_BLOCKED: {},
+        DISTRIBUTION_BLOCKED: {},
 
-    INSTALLATION_BLOCKED: {},
+        INSTALLATION_BLOCKED: {},
 
-    PLAN_BLOCKED: {},
+        PLAN_BLOCKED: {},
 
-    // unavailable
+        // unavailable
 
-    FOLLOW_UNAVAILABLE: {},
+        FOLLOW_UNAVAILABLE: {},
 
-    // unreachable
+        // unreachable
 
-    RESTART_UNREACHABLE: {},
+        RESTART_UNREACHABLE: {},
 
-    // broken
+        // broken
 
-    MACHINE_START_BROKEN: {},
+        MACHINE_START_BROKEN: {},
 
-    SETTING_BROKEN: {},
+        SETTING_BROKEN: {},
+    },
 });
 
 /** A stable cause of cli failures. */
