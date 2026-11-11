@@ -25,7 +25,7 @@ import { type Keyring } from "@destack/identity";
 import { call, type CallKey, type Fetch, PackageMount, tablesOf } from "@destack/object";
 import { Health, Server } from "@destack/object/server";
 import objectServer, { implementPackage, ObjectStore } from "@destack/object/server";
-import { Package, type PackageId, PackageRelease } from "@destack/package";
+import { PackageVersion, type PackageId, PackageRelease } from "@destack/package";
 import { type Policy } from "@destack/access";
 import { ResourceContext } from "@destack/resource/context";
 import { Digest, schema } from "@destack/schema";
@@ -162,21 +162,23 @@ export class Control implements AsyncDisposable {
         const releases = options.releases({ directory, connect });
 
         // apply the residencies, then each step of the platform's definition, once per run
-        const applied = apply.implement(async (step) => {
-            const steps = [
-                {
-                    name: "residencies",
-                    apply: () => Residency.apply(store, definition.residencies),
-                },
-                ...platform.steps(),
-            ];
-            for (const each of steps) {
-                await step.run(each.name, schema.null(), async () => {
-                    await each.apply(clock.now());
+        const applied = apply.implement({
+            run: async (step) => {
+                const steps = [
+                    {
+                        name: "residencies",
+                        apply: () => Residency.apply(store, definition.residencies),
+                    },
+                    ...platform.steps(),
+                ];
+                for (const each of steps) {
+                    await step.run(each.name, schema.null(), async () => {
+                        await each.apply(clock.now());
 
-                    return null;
-                });
-            }
+                        return null;
+                    });
+                }
+            },
         });
 
         // serve the object, account, setting and control packages over one store, acting as the universe
@@ -214,7 +216,7 @@ export class Control implements AsyncDisposable {
             environment: options.environment,
             callKey,
             events,
-            origin: { package: Package.of(accountPackage) },
+            origin: { package: PackageVersion.of(accountPackage) },
             // follow the residencies' homes where their machines answer
             publisher: (scope) =>
                 directory.publisher(scope, connect(objectPackage.id), options.environment),

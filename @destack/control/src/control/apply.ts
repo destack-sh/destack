@@ -1,5 +1,6 @@
 import { Digest, schema } from "@destack/schema";
 import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
+import { t } from "@destack/locale";
 
 /** The input of a run applying the universe's declaration: the declaration's digest. */
 export const ApplyInput = schema.object({
@@ -10,6 +11,7 @@ export const ApplyInput = schema.object({
 /** Apply the universe's declared state step by step: residencies, machines and the platform. */
 export const apply = defineWorkflow({
     name: "apply",
+    title: t`Apply`,
     scope: "universe",
     input: ApplyInput,
     output: NO_OUTPUT,

@@ -11,18 +11,12 @@ import accountPackage from "@destack/account/package";
 import { TestDatabase } from "@destack/db/test";
 import type { Clock, Environment } from "@destack/environment";
 import { LocalKeyring, MemoryKeychain } from "@destack/identity";
-import {
-    type Fetch,
-    type ObjectType,
-    PackageHandle,
-    PackageMount,
-    tablesOf,
-} from "@destack/object";
+import { type Fetch, Package, PackageMount, tablesOf } from "@destack/object";
 import { createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import { implementPackage, ObjectStore } from "@destack/object/server";
 import { TestObjectStore } from "@destack/object/test";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { Identifier, schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
 import controlPackage from "../package.ts";
@@ -156,8 +150,7 @@ export class TestMachine implements AsyncDisposable {
 
         // follow the directory, the identities and the machine's assignments as the machine, into the given database or a new one
         const follows = TestMachine.#follows(id);
-        const objects: Readonly<Record<string, ObjectType>> = {};
-        const handle = PackageHandle.of(Package.of(controlPackage), { objects });
+        const handle = Package.of(PackageVersion.of(controlPackage), { objects: [] });
         const storage =
             options.storage ??
             (await TestDatabase.create(TestMachine.database, {
@@ -179,7 +172,7 @@ export class TestMachine implements AsyncDisposable {
             }),
             database: storage.database,
             environment,
-            origin: { package: Package.of(controlPackage), machineId: id },
+            origin: { package: PackageVersion.of(controlPackage), machineId: id },
             machine: id,
         });
 
