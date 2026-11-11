@@ -157,6 +157,9 @@ export interface StackReleases {
 /** The residency a test universe declares, whose home a residency fixture hosts. */
 const RESIDENCY: ResidencyCode = "eu";
 
+/** The directory below a template's files keeping the registry's builds, beside each space's. */
+const REGISTRY_DIRECTORY = "registry";
+
 /** The options a template's world leaves unset: those making another space or universe. */
 const WORLD_OPTIONS = [
     "world",
@@ -566,7 +569,10 @@ export class TestSpace implements AsyncDisposable {
         // open the universe, the owner and the machine over the template's databases, closed once written
         await using lifetime = new AsyncDisposableStack();
         const defer: Defer = (cleanup) => lifetime.defer(cleanup);
-        const shared = await TestSpace.#universe(options, defer, simulation, databases.universe);
+        const shared = await TestSpace.#universe(options, defer, simulation, {
+            storage: databases.universe,
+            files: directory,
+        });
         const { universe } = shared;
         const owner = await universe.signIn(OWNER_EMAIL);
         const machine = await universe.machine(undefined, { storage: databases.machine });
@@ -757,15 +763,19 @@ export class TestSpace implements AsyncDisposable {
         const { simulation, databases, value } = copied;
         const defer = TestSpace.#afterTest();
 
-        // restore the universe and its machine from the world's keys on a running clock, closed in turn once the test ends
+        // copy the machine's files and the registry's builds the write kept
         const environment = simulation.environment(UNIVERSE_NODE);
+        const directory = await environment.files.makeTemporaryDirectory("destack-stack-files-");
+        await environment.files.copy(value.files, directory);
+        defer(() => environment.files.remove(directory, { recursive: true }));
+
+        // restore the universe and its machine from the world's keys on a running clock, closed in turn once the test ends
         const closing = new AsyncDisposableStack();
         const world = await TestSpace.#universe(
             options,
             (cleanup) => closing.defer(cleanup),
             simulation,
-            databases.universe,
-            value.universe,
+            { storage: databases.universe, world: value.universe, files: directory },
         );
         const { universe } = world;
         const machine = await universe.machine(undefined, {
@@ -778,10 +788,7 @@ export class TestSpace implements AsyncDisposable {
             await databases.universe.close();
         });
 
-        // copy the machine's files, and host each space over its own
-        const directory = await environment.files.makeTemporaryDirectory("destack-stack-files-");
-        await environment.files.copy(value.files, directory);
-        defer(() => environment.files.remove(directory, { recursive: true }));
+        // host each space over its own files
         const spaces = new Map<Identifier<"space">, TestSpace>();
         for (const restored of value.spaces) {
             const files = await TestSpace.#openFiles(
@@ -810,11 +817,9 @@ export class TestSpace implements AsyncDisposable {
         restored: SpaceWorld<null>["spaces"][number],
         options: TestSpaceOptions,
     ): Promise<void> {
-        // publish the releases the write published again, from the machine's builds of them
+        // record the releases the write published again, from the registry's builds it kept
         for (const manifest of restored.releases) {
-            if (!(await this.registry.contains(manifest))) {
-                await this.registry.push(this.#builds, manifest);
-            }
+            await this.registry.push(this.#builds, manifest);
         }
 
         // store the stack the write applied, and ship the releases it installed of the servers given
@@ -966,8 +971,14 @@ export class TestSpace implements AsyncDisposable {
         options: TestSpaceOptions,
         defer: Defer,
         simulation: Simulation,
-        storage?: TestDatabase,
-        world?: ControlWorld,
+        stored: {
+            /** The database the universe stores in, a fresh one by default. */
+            readonly storage?: TestDatabase;
+            /** The universe's world a template wrote, none by default. */
+            readonly world?: ControlWorld;
+            /** The files directory keeping the registry's builds, a temporary store by default. */
+            readonly files?: string;
+        } = {},
     ): Promise<TestSpaceWorld> {
         // join the given world
         if (options.world !== undefined) {
@@ -975,9 +986,13 @@ export class TestSpace implements AsyncDisposable {
         }
 
         // open the universe opening releases from the world's registry
+        const { storage, world, files } = stored;
         const environment = simulation.environment(UNIVERSE_NODE);
         const { source } = await TestSpace.releases(environment.crypto);
-        const packages = await TestBuildStore.create(environment);
+        const packages =
+            files === undefined
+                ? await TestBuildStore.create(environment)
+                : await TestBuildStore.open(join(files, REGISTRY_DIRECTORY), environment);
         defer(() => packages[Symbol.asyncDispose]());
         const registry = new TestRegistry(packages, ids.package);
         const universe = await TestControl.open({
@@ -1036,6 +1051,7 @@ export class TestSpace implements AsyncDisposable {
         const builds = new SpaceBuildStore(
             new BuildStore({ blobs, environment: machine.environment }),
             new BuildCache(files.builds, ["bun", "browser"], new Map()),
+            registry,
         );
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);
@@ -1270,7 +1286,7 @@ export class TestSpace implements AsyncDisposable {
     /** Read the installed set main applied, each installation at its revision. */
     #installed(): ReturnType<typeof Database.installed> {
         return Database.installed(Snapshot.live(this.database), this.id, (packageId, manifest) =>
-            this.#builds.pull(this.registry, packageId, manifest),
+            this.#builds.pull(packageId, manifest),
         );
     }
 
@@ -1548,7 +1564,7 @@ export class TestSpace implements AsyncDisposable {
     ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
         // replicate the registry's release into the build store, and record it as the space's build
         const manifest = await this.registry.find(packageId, version);
-        const reader = await (await this.builds()).pull(this.registry, packageId, manifest);
+        const reader = await (await this.builds()).pull(packageId, manifest);
         const release = { package: packageId, version, manifest };
 
         return insertRelease(

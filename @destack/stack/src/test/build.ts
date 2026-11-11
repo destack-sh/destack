@@ -165,9 +165,12 @@ export class TestRegistry implements Registry, ReleaseRegistry {
 
     /** Receive a stored build with its npm units, as its forge does. */
     async push(store: Pick<BuildStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
-        // copy each npm unit, then the build, unless the registry has it
-        const build = await store.contents(manifest);
-        if (!(await this.#store.contains(manifest))) {
+        // read the build the registry has, else copy each npm unit, then the build
+        const isStored = await this.#store.contains(manifest);
+        const build = isStored
+            ? await this.#store.contents(manifest)
+            : await store.contents(manifest);
+        if (!isStored) {
             const packageId = PackageManifest.package(build.manifest).id;
             for (const unit of await store.units(manifest, packageId)) {
                 await this.#store.put(await store.contents(unit));
