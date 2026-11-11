@@ -204,7 +204,7 @@ export class TestControl implements AsyncDisposable {
         { readonly type: ObjectType; readonly handle: (typeof UNIVERSE_PACKAGES)[number] }
     >;
 
-    /** Keep a started universe and its adapters. */
+    /** Keep a started universe and its stand-ins. */
     private constructor(
         control: Control,
         storage: TestDatabase,
@@ -215,7 +215,7 @@ export class TestControl implements AsyncDisposable {
         world: Pick<ControlWorld, "keyring" | "people" | "authenticators">,
         simulation: Simulation,
     ) {
-        // keep the control and the adapters standing in for mail, storage and time
+        // keep the control and the stand-ins for mail, storage and time
         this.control = control;
         this.storage = storage;
         this.mail = mail;

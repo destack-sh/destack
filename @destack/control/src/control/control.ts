@@ -335,9 +335,9 @@ export class Control implements AsyncDisposable {
         return control;
     }
 
-    /** Serve a request at the universe's origin: the issuer, else a package's mount. */
+    /** Serve a request at the universe's origin: the issuer, else a package's path. */
     fetch(request: Request): Promise<Response> {
-        // serve the issuer through the account package's oauth adapter
+        // serve the issuer through the account package's oauth mount
         if (UniverseOrigin.path(new URL(request.url).pathname) === "issuer") {
             return this.issuer.fetch(request);
         }

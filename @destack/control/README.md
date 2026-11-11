@@ -18,7 +18,7 @@ await using control = await Control.start({
     policies, // the policies of packages it decides access for beside its own
     lifetimes, // the access token lifetimes longer than a minute, by audience
 });
-await control.fetch(request); // a package below its mount, such as the account's oauth adapter
+await control.fetch(request); // a package below its path, such as the account's oauth mount
 ```
 
 ## Testing
