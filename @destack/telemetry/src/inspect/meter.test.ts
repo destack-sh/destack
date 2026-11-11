@@ -1,11 +1,12 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { defineMeter } from "../declare/meter.ts";
 import { compareMeter, describeMeter } from "./meter.ts";
+import { t } from "@destack/locale";
 
 /** A package declaring a requests meter. */
-const storage = Package.parse({
+const storage = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d1",
     name: "@example/storage",
     version: "2026.9.0",
@@ -15,7 +16,7 @@ const storage = Package.parse({
 const requests = defineMeter(
     {
         name: "api.requests",
-        description: "API requests.",
+        description: t`API requests.`,
         aggregation: "sum",
         unit: "request",
         attributes: {},

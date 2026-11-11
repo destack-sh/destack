@@ -1,5 +1,6 @@
 import { defineMeter } from "../declare/meter.ts";
 import type { Meter } from "./meter.ts";
+import { t } from "@destack/locale";
 
 /** The directions of an operation on stored data. */
 const ACCESS = ["read", "write"];
@@ -10,7 +11,7 @@ const FLOW = ["ingress", "egress"];
 /** The CPU time a space's installations spend, in milliseconds. */
 export const computeTime = defineMeter({
     name: "compute.time",
-    description: "CPU time spent, in milliseconds.",
+    description: t`CPU time spent, in milliseconds.`,
     aggregation: "sum",
     unit: "CPU millisecond",
     attributes: {},
@@ -19,7 +20,7 @@ export const computeTime = defineMeter({
 /** The memory a space's installations hold while awake, in GB-seconds. */
 export const computeUsage = defineMeter({
     name: "compute.usage",
-    description: "Memory held while installations are awake, in GB-seconds.",
+    description: t`Memory held while installations are awake, in GB-seconds.`,
     aggregation: "sum",
     unit: "GB-second",
     attributes: {},
@@ -28,7 +29,7 @@ export const computeUsage = defineMeter({
 /** The requests a space's installations serve. */
 export const computeOperation = defineMeter({
     name: "compute.operation",
-    description: "Requests served.",
+    description: t`Requests served.`,
     aggregation: "sum",
     unit: "request",
     attributes: {},
@@ -37,7 +38,7 @@ export const computeOperation = defineMeter({
 /** The bytes a space keeps in its databases, averaged over the month. */
 export const databaseUsage = defineMeter({
     name: "database.usage",
-    description: "Bytes kept in databases, averaged over the month.",
+    description: t`Bytes kept in databases, averaged over the month.`,
     aggregation: "average",
     unit: "byte",
     attributes: {},
@@ -46,7 +47,7 @@ export const databaseUsage = defineMeter({
 /** The database rows a space's installations read and write. */
 export const databaseOperation = defineMeter({
     name: "database.operation",
-    description: "Database rows read and written, deletes counting as writes.",
+    description: t`Database rows read and written, deletes counting as writes.`,
     aggregation: "sum",
     unit: "row",
     attributes: { direction: ACCESS },
@@ -55,7 +56,7 @@ export const databaseOperation = defineMeter({
 /** The bytes a space keeps in its buckets, telemetry segments included, averaged over the month. */
 export const bucketUsage = defineMeter({
     name: "bucket.usage",
-    description: "Bytes kept in buckets, averaged over the month.",
+    description: t`Bytes kept in buckets, averaged over the month.`,
     aggregation: "average",
     unit: "byte",
     attributes: {},
@@ -64,7 +65,7 @@ export const bucketUsage = defineMeter({
 /** The reads, writes and lists of a space's buckets, lists counting as writes. */
 export const bucketOperation = defineMeter({
     name: "bucket.operation",
-    description: "Bucket reads and writes, lists counting as writes.",
+    description: t`Bucket reads and writes, lists counting as writes.`,
     aggregation: "sum",
     unit: "operation",
     attributes: { direction: ACCESS },
@@ -73,7 +74,7 @@ export const bucketOperation = defineMeter({
 /** The bytes a space's installations receive and send across their machine's network. */
 export const networkTransfer = defineMeter({
     name: "network.transfer",
-    description: "Bytes received into and sent out of the machine's network.",
+    description: t`Bytes received into and sent out of the machine's network.`,
     aggregation: "sum",
     unit: "byte",
     attributes: { direction: FLOW },
@@ -82,7 +83,7 @@ export const networkTransfer = defineMeter({
 /** The seconds a dedicated machine stays awake, billed per machine at its size's price. */
 export const machineTime = defineMeter({
     name: "machine.time",
-    description: "Seconds a dedicated machine stays awake.",
+    description: t`Seconds a dedicated machine stays awake.`,
     aggregation: "sum",
     unit: "second",
     attributes: {},
@@ -91,7 +92,7 @@ export const machineTime = defineMeter({
 /** The list cost of the models a space's installations call through Destack, in US dollars. */
 export const inferenceCost = defineMeter({
     name: "inference.cost",
-    description: "Model calls at their provider's list price, in US dollars.",
+    description: t`Model calls at their provider's list price, in US dollars.`,
     aggregation: "sum",
     unit: "US dollar",
     attributes: {},

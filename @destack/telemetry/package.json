@@ -37,7 +37,8 @@
         "@opentelemetry/context-async-hooks": "3.0.0",
         "@opentelemetry/core": "3.0.0",
         "@opentelemetry/otlp-transformer": "0.300.0",
-        "@destack/error": "workspace:*"
+        "@destack/error": "workspace:*",
+        "@destack/locale": "workspace:*"
     },
     "devDependencies": {
         "@destack/test": "workspace:*",

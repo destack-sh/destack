@@ -1,9 +1,10 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { expect, test } from "@destack/test";
 import { defineMeter } from "../declare/meter.ts";
+import { t } from "@destack/locale";
 
 /** A package declaring a meter with a direction. */
-const storage = Package.parse({
+const storage = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
     name: "@example/storage",
     version: "2026.9.0",
@@ -13,7 +14,7 @@ const storage = Package.parse({
 const operation = defineMeter(
     {
         name: "storage.operation",
-        description: "Reads and writes.",
+        description: t`Reads and writes.`,
         aggregation: "sum",
         unit: "operation",
         attributes: { direction: ["read", "write"] },

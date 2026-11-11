@@ -1,8 +1,9 @@
 import { DeclarationReference } from "@destack/package/declare";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
-import { DeclarationName, defineDeclarationKind, Package } from "@destack/package";
+import { DeclarationName, defineKind, PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
+import { Message } from "@destack/locale";
 
 /** How a meter folds a period's events into one usage. */
 export const MeterAggregation = schema.enum(["sum", "count", "max", "last", "average"]);
@@ -24,7 +25,7 @@ export const MeterMetadata = schema.object({
     /** The package-local name. */
     name: DeclarationName,
     /** What the meter counts. */
-    description: schema.string().min(1),
+    description: Message,
     /** How the meter folds a period's events. */
     aggregation: MeterAggregation,
     /** The unit of an event's value, such as request or byte. */
@@ -38,23 +39,23 @@ export type MeterDefinition = schema.Infer<typeof MeterMetadata>;
 /** A meter declaration as manifests describe it. */
 export const MeterDescription = MeterMetadata.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
 });
 /** A meter declaration as manifests describe it. */
 export type MeterDescription = schema.Infer<typeof MeterDescription>;
 
 /** The meter declaration kind, which telemetry defines. */
-export const METER_KIND = defineDeclarationKind("meter", MeterDescription);
+export const METER_KIND = defineKind({ name: "meter", description: MeterDescription });
 
 /** A meter declaration: what its events count and how a period's events fold into usage. */
 export class Meter {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name, description, aggregation and unit. */
     readonly definition: MeterDefinition;
 
     /** Take a checked declaration. */
-    constructor(owner: Package, definition: MeterDefinition) {
+    constructor(owner: PackageVersion, definition: MeterDefinition) {
         this.package = owner;
         this.definition = definition;
     }

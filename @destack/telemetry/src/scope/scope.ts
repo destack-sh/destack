@@ -12,7 +12,7 @@ import {
     type Tracer,
 } from "@opentelemetry/api";
 import type { Environment } from "@destack/environment";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { DomainError } from "@destack/error";
 import {
     ACTION_EVENT,
@@ -69,7 +69,7 @@ export interface TelemetryScope {
 /** Telemetry scopes. */
 export const TelemetryScope = {
     /** Attribute instrumentation to a package on an environment's telemetry. */
-    of(source: Package, telemetry: Environment["telemetry"]): TelemetryScope {
+    of(source: PackageVersion, telemetry: Environment["telemetry"]): TelemetryScope {
         return instrument(
             telemetry.tracers.getTracer(source.name, source.version),
             telemetry.meters.getMeter(source.name, source.version),
