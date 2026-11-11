@@ -6,7 +6,7 @@ import { render, stubPopovers, wait } from "@destack/view/test";
 function find(container: Element, selector: string): HTMLElement {
     const element = container.querySelector<HTMLElement>(selector);
     if (element === null) {
-        throw new TypeError(`no element matches ${selector}`);
+        throw new TypeError(`no element matches '${selector}'`);
     }
 
     return element;

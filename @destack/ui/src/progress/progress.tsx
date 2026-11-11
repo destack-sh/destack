@@ -161,7 +161,7 @@ export function ProgressIndicator(properties: ProgressIndicatorProperties): JSX.
 /** Read a progress bar's maximum, 100 when it sets none, refusing a maximum of zero or less. */
 function maximumOf(max: number | undefined): number {
     if (max !== undefined && max <= 0) {
-        throw new RangeError(`a progress bar's maximum must be positive, not ${String(max)}`);
+        throw new RangeError(`a progress bar's maximum must be positive, not '${String(max)}'`);
     }
 
     return max ?? MAXIMUM;

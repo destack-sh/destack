@@ -31,7 +31,7 @@ export const Day = {
     parse(text: string): PlainDate {
         const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(text);
         if (match === null) {
-            throw new RangeError(`not a date: ${text}`);
+            throw new RangeError(`not a date: '${text}'`);
         }
 
         return Day.of(Number(match[1]), Number(match[2]), Number(match[3]));

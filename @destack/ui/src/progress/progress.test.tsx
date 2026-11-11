@@ -29,6 +29,6 @@ test("refuse a progress bar whose maximum is not positive", () => {
     ));
 
     expect(container.textContent).toBe(
-        "RangeError: a progress bar's maximum must be positive, not 0",
+        "RangeError: a progress bar's maximum must be positive, not '0'",
     );
 });

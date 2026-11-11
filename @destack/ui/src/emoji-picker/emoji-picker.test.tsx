@@ -17,7 +17,7 @@ async function shown(container: HTMLElement, selector: string): Promise<HTMLElem
         flush();
         const found = container.querySelector<HTMLElement>(selector);
         if (found === null) {
-            throw new TypeError(`nothing shows ${selector}`);
+            throw new TypeError(`nothing shows '${selector}'`);
         }
 
         return found;

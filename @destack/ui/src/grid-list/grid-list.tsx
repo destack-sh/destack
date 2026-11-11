@@ -487,7 +487,7 @@ function renderCell<Item>(
     const control = properties.control;
     const item = control.collection.item(key);
     if (item === undefined) {
-        throw new TypeError(`a grid list has no item ${key}`);
+        throw new TypeError(`a grid list has no item '${key}'`);
     }
     const label = properties.label(item);
     const attributes = {

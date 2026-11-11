@@ -453,14 +453,14 @@ test("refuse a reference that resolves nowhere, and a schema that requires a val
         required: ["first"],
     };
     expect(() => schemaFields({ properties: { owner: { $ref: "#/$defs/person" } } })).toThrow(
-        new TypeError("schema reference #/$defs/person does not resolve"),
+        new TypeError("schema reference '#/$defs/person' does not resolve"),
     );
     expect(() => schemaFields({ properties: { owner: { $ref: "other.json#/person" } } })).toThrow(
         new TypeError(
-            "schema reference other.json#/person points outside the document's definitions",
+            "schema reference 'other.json#/person' points outside the document's definitions",
         ),
     );
     expect(() => schemaFields(loop)[0]?.start).toThrow(
-        new TypeError("schema #/$defs/link requires a value of itself"),
+        new TypeError("schema '#/$defs/link' requires a value of itself"),
     );
 });

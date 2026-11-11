@@ -241,7 +241,7 @@ class SchemaScope {
         if (reference === undefined) {
             return read();
         } else if (this.#starting.has(reference)) {
-            throw new TypeError(`schema ${reference} requires a value of itself`);
+            throw new TypeError(`schema '${reference}' requires a value of itself`);
         }
 
         // mark the reference while its start is read
@@ -374,7 +374,7 @@ class SchemaScope {
         const target =
             definition === null ? this.root : objectOf(objectOf(this.root["$defs"])?.[definition]);
         if (target === undefined) {
-            throw new TypeError(`schema reference ${pointer} does not resolve`);
+            throw new TypeError(`schema reference '${pointer}' does not resolve`);
         }
 
         return target;

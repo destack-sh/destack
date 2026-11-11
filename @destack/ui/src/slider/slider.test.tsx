@@ -98,5 +98,5 @@ test("refuse a thumb the slider's values have none for", () => {
         </Errored>
     ));
 
-    expect(container.textContent).toBe("RangeError: a slider has no value for thumb 1");
+    expect(container.textContent).toBe("RangeError: a slider has no value for thumb '1'");
 });

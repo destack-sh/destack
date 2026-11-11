@@ -263,7 +263,7 @@ function layOut<Item>(
             // refuse a key another item has
             const name = key(item);
             if (places.has(name)) {
-                throw new TypeError(`two items of a collection have the key ${name}`);
+                throw new TypeError(`two items of a collection have the key '${name}'`);
             }
 
             // place the item after every earlier one

@@ -501,7 +501,7 @@ function useEmojiPicker(): EmojiPickerControl {
 function skinToneOf(value: string): SkinTone {
     const tone = SKIN_TONES.find((entry) => entry === value);
     if (tone === undefined) {
-        throw new TypeError(`no skin tone ${value}`);
+        throw new TypeError(`no skin tone '${value}'`);
     }
 
     return tone;
@@ -544,7 +544,7 @@ async function loadEmoji(tag: LocaleTag): Promise<readonly PickableEmoji[]> {
     const chosen = Locale.negotiate([tag], available) ?? "en";
     const load = EMOJI_LOCALES[chosen];
     if (load === undefined) {
-        throw new TypeError(`no emoji data in ${chosen}`);
+        throw new TypeError(`no emoji data in '${chosen}'`);
     }
     const all = (await load()).default;
 

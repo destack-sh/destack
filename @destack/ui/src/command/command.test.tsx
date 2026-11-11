@@ -19,7 +19,7 @@ function find<Target extends HTMLElement>(
 ): Target {
     const element = container.querySelector(selector);
     if (!(element instanceof type)) {
-        throw new TypeError(`no ${type.name} matches ${selector}`);
+        throw new TypeError(`no ${type.name} matches '${selector}'`);
     }
 
     return element;

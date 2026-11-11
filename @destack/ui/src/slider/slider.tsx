@@ -179,7 +179,7 @@ class SliderControl {
     valueAt(index: number): number {
         const value = this.values()[index];
         if (value === undefined) {
-            throw new RangeError(`a slider has no value for thumb ${String(index)}`);
+            throw new RangeError(`a slider has no value for thumb '${String(index)}'`);
         }
 
         return value;

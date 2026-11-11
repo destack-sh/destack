@@ -348,7 +348,7 @@ function extentOf(point: DrawerSnapPoint, viewport: number): number {
     const pixels = typeof point === "string" ? PIXELS.exec(point)?.[1] : undefined;
     if (pixels === undefined) {
         throw new TypeError(
-            `a drawer snap point is a fraction from 0 to 1 or a pixel length: ${String(point)}`,
+            `a drawer snap point is a fraction from 0 to 1 or a pixel length: '${String(point)}'`,
         );
     }
 

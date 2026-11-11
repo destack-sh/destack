@@ -311,7 +311,7 @@ async function loadIcons(): Promise<readonly IconData[]> {
     const listed = new Set<string>(CATEGORIES.map((category) => category.key));
     const unlisted = ICONS.find((icon) => !listed.has(icon.categories[0] ?? ""));
     if (unlisted !== undefined) {
-        throw new TypeError(`icon ${unlisted.name} is in no listed category`);
+        throw new TypeError(`icon '${unlisted.name}' is in no listed category`);
     }
 
     return ICONS;

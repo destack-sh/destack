@@ -107,7 +107,7 @@ class TimeFormat implements DateSegmentFormat {
         const time = value === 0 ? MORNING : SAMPLE_TIME;
         const period = this.#format.formatToParts(time).find((part) => part.type === "dayPeriod");
         if (period === undefined) {
-            throw new TypeError(`the clock of ${this.#locale.tag} writes no day period`);
+            throw new TypeError(`the clock of '${this.#locale.tag}' writes no day period`);
         }
 
         return period.value;
