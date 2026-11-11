@@ -20,7 +20,7 @@ const JSON_TYPE = "application/json";
 /** The event name of a log record that records an exception. */
 const EXCEPTION = "exception";
 
-/** The OTLP/HTTP signals by their paths below the adapter's. */
+/** The OTLP/HTTP signals by their paths below the mount's. */
 const SIGNALS: ReadonlyMap<string, OtlpSignal> = new Map([
     ["/traces", "traces"],
     ["/logs", "logs"],

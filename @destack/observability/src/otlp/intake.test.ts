@@ -39,7 +39,7 @@ const BROWSER = {
     [EMITTER_ATTRIBUTES.userAgent]: "Mozilla/5.0 (Macintosh)",
 };
 
-test("append an export through the otlp adapter as the machine forwarding it, and conceal the append from a member not serving the space", async () => {
+test("append an export through the otlp mount as the machine forwarding it, and conceal the append from a member not serving the space", async () => {
     await using fixture = await TestObservability.open();
     const now = fixture.clock.now();
 

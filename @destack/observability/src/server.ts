@@ -427,7 +427,7 @@ export default implementPackage(observabilityPackage, {
         ),
     ],
     // take OTLP exports, grouping a space's exceptions into its issues
-    adapters: {
+    mounts: {
         otlp: (request, _caller, context, store) => new OtlpIntake(store).fetch(request, context),
     },
 });

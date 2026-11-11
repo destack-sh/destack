@@ -21,7 +21,7 @@ await events.series(session.eventKind(), { scopes }, { fold: "count", group: ["b
 
 ## OTLP
 
-The `otlp` adapter takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, appending an `exception` event for each failure a log record or span carries.
+The `otlp` mount takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, appending an `exception` event for each failure a log record or span carries.
 
 ```ts
 import { OtlpExport, OtlpIntake } from "@destack/observability";
@@ -74,7 +74,7 @@ await client.silence.create({
 
 ## Server
 
-The package's server, its default export of `./server`, serves issues, alert rules, alerts, the responses to fired alerts and the `otlp` adapter.
+The package's server, its default export of `./server`, serves issues, alert rules, alerts, the responses to fired alerts and the `otlp` mount.
 
 ```ts
 import observabilityServer from "@destack/observability/server";

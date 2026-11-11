@@ -291,9 +291,9 @@ export class TestObservability implements AsyncDisposable {
         await this.apply([], TestObservability.#observer(this.#member.id, permissions));
     }
 
-    /** Post an OTLP/JSON export to observability's adapter, as the machine by default. */
+    /** Post an OTLP/JSON export to observability's mount, as the machine by default. */
     async post(signal: OtlpSignal, exported: unknown, caller = this.machine): Promise<number> {
-        // send the export to the adapter as the caller
+        // send the export to the mount as the caller
         const response = await caller.endpoint(observabilityPackage).fetch(
             new Request(`${OTLP_ORIGIN}/v1/${signal}`, {
                 method: "POST",
@@ -302,7 +302,7 @@ export class TestObservability implements AsyncDisposable {
             }),
         );
 
-        // throw the adapter's refusal as the call error its body describes, else read its export response
+        // throw the mount's refusal as the call error its body describes, else read its export response
         const answered: unknown = await response.json();
         if (!response.ok) {
             throw present(CallError.fromJson(answered), `the refusal of an OTLP ${signal} export`);
