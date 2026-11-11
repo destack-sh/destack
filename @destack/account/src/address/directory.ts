@@ -97,7 +97,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     /** Locate a space's placement and the URL its machine answers at now. */
     async locate(spaceId: Identifier<"space">, now: number): Promise<PlacementEndpoint> {
         // read the placement, then where its machine answers
-        const placed = await this.placed(spaceId);
+        const placed = await this.placement(spaceId);
         if (placed === undefined) {
             throw AccountError.of("SPACE_NOT_PLACED", "nothing responds for this space");
         }
@@ -137,7 +137,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
         now: number,
     ): Promise<PlacementEndpoint | undefined> {
         // read the placement, then the endpoint its machine publishes
-        const placed = await this.placed(spaceId);
+        const placed = await this.placement(spaceId);
         const published =
             placed === undefined
                 ? undefined
@@ -222,7 +222,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     }
 
     /** Read a space's placement and whether its machine serves it yet, absent while unplaced. */
-    async placed(
+    async placement(
         spaceId: Identifier<"space">,
     ): Promise<Omit<PlacementEndpoint, "url"> | undefined> {
         const placed = await this.snapshot.read(placement.table).findFirst({ where: { spaceId } });
