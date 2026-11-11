@@ -716,7 +716,7 @@ export class TestAccountStore implements AsyncDisposable {
         const keyring = await LocalKeyring.rotate(this.#keychain, "account", this.environment);
         const authenticator = await this.#authenticate(keyring);
 
-        // send each request with its path below the issuer's, as the oauth adapter mounts it
+        // send each request with its path below the issuer's, as the oauth mount serves it
         const prefix = new URL(ISSUER).pathname;
 
         return (request) => {

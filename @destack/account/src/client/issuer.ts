@@ -138,7 +138,7 @@ export interface TokenBinding {
 
 /** The issuer a native device signs people in with, by redirect or device code. */
 export class Issuer {
-    /** The issuer's URL, the account package's oauth adapter. */
+    /** The issuer's URL, the account package's oauth mount. */
     readonly url: string;
     /** The fetch calling the issuer. */
     readonly #fetch: Fetch;

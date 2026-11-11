@@ -31,7 +31,7 @@ export interface AccountOptions {
     readonly resolver: DnsResolver;
     /** The stacks spaces are born with. */
     readonly stacks: PlatformDefinition["stacks"];
-    /** The universe's sign-in, which answers the oauth adapter once the store exists. */
+    /** The universe's sign-in, which answers the oauth mount once the store exists. */
     readonly signIn: Promise<BetterAuthAuthenticator>;
     /** The registry of the releases the residencies' homes install. */
     readonly releases: ReleaseRegistry;
@@ -45,7 +45,7 @@ export interface ReleaseRegistry {
     readonly distribution: readonly PackageRelease[];
 }
 
-/** Serve the account package in the universe's store, its oauth adapter answering sign-in. */
+/** Serve the account package in the universe's store, its oauth mount answering sign-in. */
 export function accountServer(options: AccountOptions): PackageImplementation {
     return implementPackage(accountPackage, {
         objects: [
@@ -71,7 +71,7 @@ export function accountServer(options: AccountOptions): PackageImplementation {
         ],
         // remove lapsed authentication challenges, which Better Auth leaves to us
         controllers: [(store) => Verification.controller(store.database)],
-        adapters: { oauth: async (request) => (await options.signIn).handler(request) },
+        mounts: { oauth: async (request) => (await options.signIn).handler(request) },
         responseHeaders: { "Cache-Control": "no-store" },
     });
 }

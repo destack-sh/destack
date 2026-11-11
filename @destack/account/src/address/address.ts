@@ -83,7 +83,7 @@ export const OPEN_PATH = "/.destack/open";
 /** The installation origin's path requesting its person's permission or a fresh sign-in. */
 export const REQUEST_PATH = "/.destack/request";
 
-/** The path of the universe's issuer below its origin, the account's oauth adapter. */
+/** The path of the universe's issuer below its origin, the account's oauth mount. */
 export const OAUTH_PATH = "/oauth";
 
 /** The paths of the universe's pages people sign in, consent and approve devices on. */
@@ -116,7 +116,7 @@ export const UniverseOrigin = {
 
     /** Read what a path addresses below the universe's origin: its issuer or a package. */
     path(pathname: string): "issuer" | "package" | undefined {
-        // read the issuer's path, else a package's mount
+        // read the issuer's path, else a package's path
         if (pathname === OAUTH_PATH || pathname.startsWith(`${OAUTH_PATH}/`)) {
             return "issuer";
         } else if (PackageMount.parse(pathname) !== undefined) {

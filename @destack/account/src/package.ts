@@ -38,7 +38,7 @@ import { rateLimit, verification } from "./authentication/table.ts";
 import { identityKey } from "./identity/key.ts";
 import { OAUTH_PATH } from "./address/address.ts";
 
-/** The account package: its objects, authentication records, OAuth adapter and errors. */
+/** The account package: its objects, authentication records, OAuth mount and errors. */
 export default definePackage({
     objects: [
         user,
