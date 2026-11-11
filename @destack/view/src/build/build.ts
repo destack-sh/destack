@@ -9,7 +9,12 @@ import type {
     PrerenderContext,
 } from "@destack/package/build";
 import { BROWSER_SANDBOX, type DeclarationDescription, Sandbox } from "@destack/package";
-import { type OutputContent, ViewDescription, ViewRender } from "@destack/package/manifest";
+import {
+    type OutputContent,
+    VIEW_ASSET_PATH,
+    ViewDescription,
+    ViewRender,
+} from "@destack/package/manifest";
 import { COMMAND_KIND, CommandDescription } from "@destack/object";
 import { present } from "@destack/schema";
 import { THEME_KIND } from "@destack/theme/declare";
@@ -24,9 +29,6 @@ import { VIEW_KIND } from "../declare/view.ts";
 
 /** The prefix of the generated modules rendering each view. */
 export const PREFIX = "virtual:@destack/view/view/";
-
-/** The path below a static view's pages its server-rendered assets publish at. */
-const ASSET_PATH = ".destack/asset/";
 
 /** The directory of the assets an output emits, as the build names them. */
 const ASSET_DIRECTORY = "asset/";
@@ -159,7 +161,7 @@ async function prerenderViews(
             publish(files, `${directory}/${path}`, bytes);
         }
 
-        // publish the assets its pages load, and the package's public files, beside its pages
+        // add the assets its pages load to the browser output's assets, then publish the public files
         const { files: system } = context.environment;
         const assets = join(
             context.build,
@@ -167,7 +169,7 @@ async function prerenderViews(
             ASSET_DIRECTORY,
         );
         for (const [path, bytes] of await filesBelow(assets, system)) {
-            publish(files, `${directory}/${ASSET_PATH}${path}`, bytes);
+            files.set(`${ViewDescription.assets(output)}/${path}`, bytes);
         }
         for (const [path, bytes] of await filesBelow(
             join(context.directory, PUBLIC_DIRECTORY),
@@ -198,7 +200,7 @@ function assetPlugin(): Plugin {
         name: `${VIEW_PACKAGE}/asset`,
         resolveFileUrl: ({ fileName }) =>
             fileName.startsWith(ASSET_DIRECTORY)
-                ? JSON.stringify(`/${ASSET_PATH}${fileName.slice(ASSET_DIRECTORY.length)}`)
+                ? JSON.stringify(`${VIEW_ASSET_PATH}${fileName.slice(ASSET_DIRECTORY.length)}`)
                 : null,
     };
 }
