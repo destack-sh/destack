@@ -33,7 +33,7 @@ export const PLANS = {
             compute: compute.grant(null),
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
-            support: support.grant("community"),
+            support: support.grant("email"),
         },
     },
     // go: its fee in usage, then capped, with custom retention and early access
@@ -48,15 +48,15 @@ export const PLANS = {
             compute: compute.grant(null),
             network: network.grant(null),
             tenancy: tenancy.grant(["shared", "local"]),
-            support: support.grant("community"),
+            support: support.grant("email"),
             "custom-retention": customRetention.grant(null),
             "early-access": earlyAccess.grant(null),
         },
     },
-    // plus: more usage in its fee, then pay as you go, with custom domains and email support
+    // plus: more usage in its fee, then pay as you go, with custom domains
     plus: {
         name: t`Plus`,
-        description: t`For your daily work, with custom domains and email support.`,
+        description: t`For your daily work, with pay as you go and custom domains.`,
         prices: Fee.prices({ USD: 2000, CAD: 2800, EUR: 2000, CHF: 2000, GBP: 2000, AUD: 3200 }),
         productFeatures: {
             database: database.grant(null),

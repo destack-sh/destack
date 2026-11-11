@@ -14,9 +14,9 @@ export const platform = defineStack({
     products: PLANS, // { free: { name: t`Free`, … }, go, plus, pro }
 });
 
-// free: every account's default, 2.50 credits of usage per member a month, community support
+// free: every account's default, 2.50 credits of usage per member a month, email support
 // go:   8 USD, EUR, CHF or GBP, 11 CAD, 13 AUD per member a month, capped: custom retention, early access
-// plus: 20, 28 or 32 per member a month, then pay as you go: custom domains, email support
+// plus: 20, 28 or 32 per member a month, then pay as you go: custom domains
 // pro:  50, 70 or 80 per member a month: dedicated machines, priority support
 ```
 

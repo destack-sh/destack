@@ -57,7 +57,7 @@ export const support = defineFeature({
     name: "support",
     description: "The help people give the account.",
     kind: "static",
-    value: schema.enum(["community", "email", "priority"]),
+    value: schema.enum(["email", "priority"]),
 });
 
 /** Serving an account's spaces under its own domains. */
