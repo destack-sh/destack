@@ -110,7 +110,10 @@ export function implementRepository(options: RepositoryOptions): typeof reposito
                     // require the revision a moved origin was prepared at
                     const move = context.prepared;
                     if (move !== null && context.target.revision !== move.revision) {
-                        throw ForgeError.of("REVISION_STALE", "repository revision has changed");
+                        throw ForgeError.of(
+                            "REVISION_CONFLICT",
+                            "cannot update the repository: its revision changed",
+                        );
                     }
 
                     // change the repository, and its origin when it moves
@@ -229,7 +232,7 @@ class RepositoryHosting {
         const isCredential = origin.hosting === "git" && origin.authentication === "credential";
         if (isCredential !== (credential !== undefined)) {
             throw ForgeError.of(
-                "CREDENTIAL_MISMATCH",
+                "CREDENTIAL_BLOCKED",
                 isCredential
                     ? "a git remote authenticating by credential needs its credential"
                     : "only a git remote authenticating by credential takes a credential",
@@ -300,8 +303,8 @@ class RepositoryHosting {
         // move GitHub and Git repositories only, between GitHub and Git origins
         if (target.hosting !== "github" && target.hosting !== "git") {
             throw ForgeError.of(
-                "IMMOVABLE_REPOSITORY",
-                `${target.hosting} repositories cannot move`,
+                "REPOSITORY_INVALID",
+                `repository is invalid: '${target.hosting}' repositories cannot move`,
             );
         }
         const merged = Object.fromEntries(
@@ -313,8 +316,8 @@ class RepositoryHosting {
         const moved = RepositoryOrigin.read(merged);
         if (moved.hosting !== "github" && moved.hosting !== "git") {
             throw ForgeError.of(
-                "IMMOVABLE_REPOSITORY",
-                `${target.hosting} repositories cannot move to ${moved.hosting} origins`,
+                "REPOSITORY_INVALID",
+                `repository origin is invalid: '${target.hosting}' repositories cannot move to '${moved.hosting}' origins`,
             );
         }
 
@@ -353,13 +356,16 @@ class RepositoryHosting {
         // leave machine repositories to their machine
         else if (target.hosting === "machine") {
             throw ForgeError.of(
-                "MACHINE_REPOSITORY",
-                "machine repositories are refreshed and opened through their machine",
+                "MACHINE_REPOSITORY_INVALID",
+                "repository is invalid: machine repositories are refreshed and opened through their machine",
             );
         }
         // refuse pushing to an anonymous remote, for which the platform has no credential
         else if (target.authentication === "anonymous" && mode === "write") {
-            throw ForgeError.of("ANONYMOUS_PUSH", "anonymous remotes do not take push credentials");
+            throw ForgeError.of(
+                "PUSH_INVALID",
+                "push is invalid: anonymous remotes do not take push credentials",
+            );
         }
         // pull an anonymous remote unchanged
         else if (target.authentication === "anonymous") {
@@ -393,8 +399,8 @@ class RepositoryHosting {
     requireGitHub(): GitHubHosting {
         if (this.github === undefined) {
             throw ForgeError.of(
-                "GITHUB_APP_MISSING",
-                "this universe has no github app for github repositories",
+                "GITHUB_APP_BLOCKED",
+                "cannot open github repositories: this universe has no github app",
             );
         }
 
@@ -412,8 +418,8 @@ class RepositoryHosting {
         const { value } = SecretReading.parse(await runner.query(runner.self, read));
         if (value.encoding !== "text") {
             throw ForgeError.of(
-                "SECRET_TEXT_MISSING",
-                `the secret of repository ${target.id} has no text value`,
+                "SECRET_TEXT_BLOCKED",
+                `cannot read the secret of repository '${target.id}': it has no text value`,
             );
         }
         const credential = value.value;
@@ -422,8 +428,8 @@ class RepositoryHosting {
         const separator = credential.indexOf(":");
         if (separator < 1) {
             throw ForgeError.of(
-                "CREDENTIAL_INVALID",
-                `the secret of repository ${target.id} is not a user:password credential`,
+                "CREDENTIAL_BLOCKED",
+                `cannot read the secret of repository '${target.id}': it is not a user:password credential`,
             );
         }
 
@@ -435,8 +441,8 @@ class RepositoryHosting {
         // refuse repositories of another storage
         if (columns.provider !== this.#storage.provider) {
             throw ForgeError.of(
-                "FOREIGN_STORAGE",
-                `repository is stored by ${columns.provider}, but this forge uses ${this.#storage.provider}`,
+                "STORAGE_INVALID",
+                `repository storage '${columns.provider}' is invalid: this forge uses '${this.#storage.provider}'`,
             );
         }
         // refuse a platform repository without its storage identifier

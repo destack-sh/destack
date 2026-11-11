@@ -52,7 +52,10 @@ export class GitHubSignature implements WebhookSignature {
         // require the signature
         const signature = request.headers.get("x-hub-signature-256");
         if (signature === null) {
-            throw ObjectError.of("SIGNATURE_MISSING", "missing github webhook signature");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: github webhook signature is missing",
+            );
         }
 
         // match it over the body's exact bytes, by any secret
@@ -68,13 +71,16 @@ export class GitHubSignature implements WebhookSignature {
             isSigned ||= digest !== undefined && (await key.verify(digest, body));
         }
         if (digest === undefined || !isSigned) {
-            throw ObjectError.of("SIGNATURE_MISMATCH", "webhook signature does not match");
+            throw ObjectError.of(
+                "SIGNATURE_UNAUTHENTICATED",
+                "authentication required: webhook signature does not match",
+            );
         }
 
         // require the event type
         const event = request.headers.get("x-github-event");
         if (event === null) {
-            throw ForgeError.of("EVENT_TYPE_MISSING", "github webhook has no event type");
+            throw ForgeError.of("EVENT_TYPE_REQUIRED", "github webhook event type is required");
         }
 
         // know a GitHub delivery by its signed body

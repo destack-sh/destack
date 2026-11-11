@@ -202,8 +202,8 @@ export class Forge {
                     webhook ??
                     (async () => {
                         throw ForgeError.of(
-                            "GITHUB_WEBHOOK_MISSING",
-                            "the forge has no GitHub App",
+                            "GITHUB_WEBHOOK_NOT_FOUND",
+                            "forge GitHub App not found",
                         );
                     }),
             },
@@ -279,8 +279,8 @@ export class Forge {
         // refuse another organization's or a person's package
         if (holder?.owner !== platform) {
             throw ForgeError.of(
-                "BUILTIN_FOREIGN",
-                `${name} is a builtin, which only the platform's organization publishes`,
+                "BUILTIN_DENIED",
+                `builtin '${name}' is forbidden: only the platform's organization publishes builtins`,
             );
         }
     }
@@ -359,11 +359,17 @@ export class Forge {
     ): Promise<void> {
         // require an identified caller uploading below a package
         if (Caller.isAnonymous(context.access())) {
-            throw ForgeError.of("CREDENTIAL_MISSING", "missing caller credential");
+            throw ForgeError.of(
+                "CREDENTIAL_UNAUTHENTICATED",
+                "authentication required: caller credential is missing",
+            );
         }
         const packageId = PackageId.safeParse(scope);
         if (!packageId.success) {
-            throw ForgeError.of("UPLOAD_OUTSIDE_PACKAGE", "uploads must target a package");
+            throw ForgeError.of(
+                "UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND",
+                "upload target package not found",
+            );
         }
 
         // stage an enrolled machine's upload, else require publish on the package
@@ -453,14 +459,17 @@ export class Forge {
         const value = await RequestBody.json(request.clone(), "the pushed manifest");
         const parsed = PackageManifest.safeParse(value);
         if (!parsed.success) {
-            throw ForgeError.of("MANIFEST_INVALID", "the pushed manifest is invalid");
+            throw ForgeError.of(
+                "MANIFEST_INVALID",
+                "pushed manifest is invalid: it must parse as a package manifest",
+            );
         }
         // refuse a Destack manifest of another package, passing an npm unit's for the release that lists it
         const pushed = parsed.data.package;
         if ("id" in pushed && pushed.id !== packageId) {
             throw ForgeError.of(
-                "FOREIGN_MANIFEST",
-                `the pushed manifest belongs to ${pushed.name}, not this package`,
+                "MANIFEST_INVALID",
+                `pushed manifest is invalid: it belongs to '${pushed.name}', not this package`,
             );
         }
     }

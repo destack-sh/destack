@@ -65,7 +65,7 @@ async function claimRepository(
         ),
     );
     if (refused.length > 0) {
-        throw new TypeError(`another object claims repository ${id}`);
+        throw new TypeError(`another object claims repository '${id}'`);
     }
 
     return id;
@@ -256,7 +256,7 @@ function missing(repositoryId: string): [string, string, string] {
     return [
         "NOT_FOUND",
         "REPOSITORY_NOT_FOUND",
-        `the space's account has no repository ${repositoryId}`,
+        `repository '${repositoryId}' of the space's account not found`,
     ];
 }
 

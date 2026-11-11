@@ -58,7 +58,7 @@ export class GitHubHosting {
         // require a GitHub origin with the replica of its connection
         const { connectionId, remote } = target;
         if (target.hosting !== "github" || connectionId === null || remote === null) {
-            throw new TypeError(`repository ${target.id} has no github origin`);
+            throw new TypeError(`repository '${target.id}' has no github origin`);
         }
         const installation = await this.#requireInstallation(
             runner,
@@ -85,13 +85,13 @@ export class GitHubHosting {
         // refuse an incomplete origin
         const { connectionId, providerRepositoryId, remote } = target;
         if (connectionId === null || remote === null) {
-            throw new TypeError(`github repository ${target.id} has an incomplete origin`);
+            throw new TypeError(`github repository '${target.id}' has an incomplete origin`);
         }
         // refuse a repository its controller has not identified yet
         else if (providerRepositoryId === null) {
             throw ForgeError.of(
-                "GITHUB_IDENTIFIER_MISSING",
-                `github repository ${target.id} has no github identifier yet`,
+                "GITHUB_IDENTIFIER_BLOCKED",
+                `cannot open github repository '${target.id}': it has no github identifier yet`,
             );
         }
 
@@ -139,8 +139,8 @@ export class GitHubHosting {
         const installation = await this.installation(runner, accountId, connectionId);
         if (installation === undefined) {
             throw ForgeError.of(
-                "CONNECTION_REPLICA_MISSING",
-                `the forge has no replica of connection ${connectionId}`,
+                "CONNECTION_REPLICA_BLOCKED",
+                `cannot reach connection '${connectionId}': the forge has no replica of it`,
             );
         }
 

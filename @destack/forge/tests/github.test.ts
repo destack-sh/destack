@@ -144,7 +144,7 @@ test("identify a repository and issue installation tokens limited to it and to t
     expect(await refusal(() => GitHubApp.fullName("https://gitlab.com/acme/site.git"))).toEqual([
         "BAD_REQUEST",
         "GITHUB_REPOSITORY_REQUIRED",
-        "not a github.com repository: https://gitlab.com/acme/site.git",
+        "github.com repository is required: remote 'https://gitlab.com/acme/site.git' is not one",
     ]);
 });
 
@@ -171,7 +171,7 @@ test("read an installation from GitHub's setup redirect, refuse a redirect witho
     expect(await refusal(() => app.installation({ setup_action: "install" }))).toEqual([
         "BAD_REQUEST",
         "AUTHORIZATION_INVALID",
-        "the installation redirect has no installation",
+        "installation redirect is invalid: it has no installation",
     ]);
 });
 
@@ -381,9 +381,9 @@ test("connect a GitHub repository, refresh it, and refresh it again as the syste
             {
                 code: "UNAUTHORIZED",
                 status: 401,
-                message: "webhook signature does not match",
+                message: "authentication required: webhook signature does not match",
                 defined: true,
-                reason: "SIGNATURE_MISMATCH",
+                reason: "SIGNATURE_UNAUTHENTICATED",
                 domain: "@destack/object",
             },
         ],

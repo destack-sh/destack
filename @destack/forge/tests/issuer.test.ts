@@ -116,25 +116,25 @@ test("issue a GitHub installation's tokens to the resident account's installatio
         issued: "ghs_4242",
         sibling: [
             "FORBIDDEN",
-            "INSTALLATION_NOT_CLAIMED",
-            `the calling installation has not claimed GitHub installation ${INSTALLATION}`,
+            "INSTALLATION_DENIED",
+            `GitHub installation '${INSTALLATION}' is forbidden: the calling installation has not claimed it`,
         ],
         outsider: [
             "FORBIDDEN",
-            "INSTALLATION_NOT_CLAIMED",
-            `the calling installation has not claimed GitHub installation ${INSTALLATION}`,
+            "INSTALLATION_DENIED",
+            `GitHub installation '${INSTALLATION}' is forbidden: the calling installation has not claimed it`,
         ],
         unclaimed: [
             "FORBIDDEN",
-            "INSTALLATION_NOT_CLAIMED",
-            `the calling installation has not claimed GitHub installation ${OTHER_INSTALLATION}`,
+            "INSTALLATION_DENIED",
+            `GitHub installation '${OTHER_INSTALLATION}' is forbidden: the calling installation has not claimed it`,
         ],
         reclaimed: [
             "CONFLICT",
-            "INSTALLATION_CLAIMED",
-            `GitHub installation ${INSTALLATION} is claimed by another installation`,
+            "INSTALLATION_EXISTS",
+            `GitHub installation '${INSTALLATION}' already exists: another issuer claimed it`,
         ],
-        foreign: ["NOT_FOUND", "NOT_FOUND", `issuer ${id} not found`],
+        foreign: ["NOT_FOUND", "NOT_FOUND", `issuer '${id}' not found`],
         claims: [{ installation: INSTALLATION, accountId: first.accountId }],
     });
 });

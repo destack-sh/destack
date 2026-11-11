@@ -94,7 +94,7 @@ export class FixtureSource {
     /** Build a working tree without a commit: the last version, or a prerelease of the next. */
     async uncommitted(prerelease?: Version): Promise<BuildReader> {
         if (this.#compiled === undefined) {
-            throw new TypeError(`fixture ${this.name} has not been built`);
+            throw new TypeError(`fixture '${this.name}' has not been built`);
         }
 
         // build the last version again
@@ -143,7 +143,7 @@ async function resolveReleases(
     for (const name of Object.keys(declared)) {
         const release = releases.find((each) => each.manifest.package.name === name);
         if (release === undefined) {
-            throw new TypeError(`fixture has no release of ${name}`);
+            throw new TypeError(`fixture has no release of '${name}'`);
         }
         const bytes = PackageManifest.serialize(release.manifest);
         resolved[name] = {

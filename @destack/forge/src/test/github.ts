@@ -260,7 +260,7 @@ function presentedSecret(authorization: string | null): string | undefined {
     // read the bearer token, or the password of a basic credential
     const [scheme, presented] = authorization.split(" ");
     if (presented === undefined) {
-        throw new TypeError(`authorization ${scheme} presents no credential`);
+        throw new TypeError(`authorization '${scheme}' presents no credential`);
     }
     const password =
         scheme === "Basic" ? new TextDecoder().decode(Uint8Array.fromBase64(presented)) : undefined;
@@ -313,7 +313,7 @@ export async function verifyToken(
         new TextEncoder().encode(`${header}.${claims}`),
     );
     if (!isValid) {
-        throw new Error(`invalid ${alg} signature`);
+        throw new Error(`invalid '${alg}' signature`);
     }
 
     return { alg, claims: Claims.parse(decode(claims)) };

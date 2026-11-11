@@ -107,8 +107,8 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
                 defined: true,
                 code: "NOT_FOUND",
                 status: 404,
-                message: "uploads must target a package",
-                reason: "UPLOAD_OUTSIDE_PACKAGE",
+                message: "upload target package not found",
+                reason: "UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND",
                 domain: "@destack/forge",
             },
         ],
@@ -194,8 +194,8 @@ test("authorize a manifest push from the forge's replica of the account, followi
     const uploads = `${forgePackage.adapters.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
     expect(refused).toEqual([
         "BAD_GATEWAY",
-        "PROBE_FAILED",
-        `cannot probe ${uploads}/missing: HTTP 404`,
+        "PROBE_UNREACHABLE",
+        `could not probe '${uploads}/missing': HTTP 404`,
     ]);
     expect({
         accepted: await push(),

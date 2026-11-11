@@ -55,7 +55,7 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
     ]).toEqual([
         ["2026.9.0", COMMIT, answer.manifest],
         next.id,
-        ["CONFLICT", "VERSION_PUBLISHED", "package version was already published"],
+        ["CONFLICT", "VERSION_EXISTS", "package version already exists"],
         [
             ["latest", "2026.9.0"],
             ["next", "2026.9.1"],
@@ -81,15 +81,19 @@ test("publish pushed builds as releases, replaying retried requests, refusing ve
         await attempt({ manifest: greeting }),
         await attempt({}, forge.stranger()),
     ]).toEqual([
-        ["BAD_REQUEST", "TAG_INVALID", "invalid distribution tag: x"],
-        ["NOT_FOUND", "BUILD_NOT_PUSHED", `build ${missing} was not pushed to the forge`],
         [
-            "CONFLICT",
-            "UNCOMMITTED_CHANGES",
-            `build ${dirty} compiled a working tree with uncommitted changes`,
+            "BAD_REQUEST",
+            "TAG_INVALID",
+            "distribution tag 'x' is invalid: it must not be a version range",
         ],
-        ["CONFLICT", "FOREIGN_BUILD", "the build belongs to another package"],
-        ["NOT_FOUND", "NOT_FOUND", `package ${created.parentId} not found`],
+        ["NOT_FOUND", "BUILD_NOT_FOUND", `build '${missing}' not found`],
+        [
+            "BAD_REQUEST",
+            "BUILD_INVALID",
+            `build '${dirty}' is invalid: it compiled a working tree with uncommitted changes`,
+        ],
+        ["BAD_REQUEST", "BUILD_INVALID", "build is invalid: it belongs to another package"],
+        ["NOT_FOUND", "NOT_FOUND", `package '${created.parentId}' not found`],
     ]);
 
     // publish a dev prerelease of uncommitted changes, which records no commit
@@ -123,7 +127,7 @@ test("resolve a published release by version and by the tag pointing at it, and 
         answer.manifest,
         answer.manifest,
         await answer.reader.distributed(),
-        ["NOT_FOUND", "RELEASE_NOT_FOUND", `${packageId} has no release next`],
+        ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${packageId}' not found`],
     ]);
 });
 
@@ -155,7 +159,11 @@ test("release a stored build under a tag once, point another tag at the release,
         [
             "released",
             "pointed",
-            ["CONFLICT", "RELEASE_CONFLICT", `${name}@2026.9.1 is published from another build`],
+            [
+                "CONFLICT",
+                "RELEASE_EXISTS",
+                `release '${name}@2026.9.1' already exists: another build published it`,
+            ],
         ],
         manifest,
         manifest,
@@ -200,8 +208,8 @@ test("refuse releasing a build that pins an unreleased build of a package the fo
     // refuse greeting's release while answer's build is unpublished
     expect(await refusal(forge.publish(greeting))).toEqual([
         "PRECONDITION_FAILED",
-        "DEPENDENCY_UNPUBLISHED",
-        "@example/answer@2026.9.0 is not published",
+        "DEPENDENCY_BLOCKED",
+        "cannot release with dependency '@example/answer@2026.9.0': it is not published",
     ]);
 });
 
@@ -229,9 +237,9 @@ test("publish releases in version order", async () => {
     // refuse the earlier version, and fix no terms the release does not declare
     expect([earlier, published.vocabulary]).toEqual([
         [
-            "CONFLICT",
-            "VERSION_ORDER",
-            "publish releases in version order: 2026.9.0 precedes 2026.9.1",
+            "PRECONDITION_FAILED",
+            "VERSION_BLOCKED",
+            "cannot publish release '2026.9.0': it precedes '2026.9.1', and releases publish in version order",
         ],
         {},
     ]);
@@ -312,8 +320,12 @@ test("administer releases and distribution tags of a published package as its ac
         tag.id,
         2,
         "CONFLICT",
-        ["NOT_FOUND", "UNPUBLISHED_TARGET", "distribution tag target is not published"],
-        ["BAD_REQUEST", "TAG_INVALID", "invalid distribution tag: v2"],
+        ["NOT_FOUND", "TARGET_NOT_FOUND", "distribution tag target not found"],
+        [
+            "BAD_REQUEST",
+            "TAG_INVALID",
+            "distribution tag 'v2' is invalid: it must not be a version range",
+        ],
         [
             ["latest", "2026.9.0", 1],
             ["next", "2026.9.0", 2],
@@ -355,7 +367,7 @@ test("refuse a package name its account took before", async () => {
             visibility: "public",
         }),
     );
-    expect(taken).toEqual(["CONFLICT", "NAME_TAKEN", "name is taken"]);
+    expect(taken).toEqual(["CONFLICT", "NAME_EXISTS", "'name' already exists"]);
 });
 
 test("resolve a package by its global name and its release by version or tag, hiding private packages from strangers", async () => {
@@ -388,7 +400,7 @@ test("resolve a package by its global name and its release by version or tag, hi
         [answer.packageId, "answer"],
         "2026.9.0",
         answer.manifest,
-        ["NOT_FOUND", "RELEASE_NOT_FOUND", `${answer.packageId} has no release next`],
+        ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
         ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
         "greeting",
         ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
@@ -459,7 +471,7 @@ test("deprecate releases, and yank them from new installs while exact pins still
         true,
         true,
         ["greeting latest 2026.9.0"],
-        ["NOT_FOUND", "RELEASE_NOT_FOUND", `${answer.packageId} has no release latest`],
+        ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'latest' of '${answer.packageId}' not found`],
     ]);
 
     // restore the first version, its tags left where they moved, and refuse taking a yanked version again
@@ -479,7 +491,7 @@ test("deprecate releases, and yank them from new installs while exact pins still
         false,
         "2026.9.0",
         ["greeting latest 2026.9.0"],
-        ["CONFLICT", "VERSION_PUBLISHED", "package version was already published"],
+        ["CONFLICT", "VERSION_EXISTS", "package version already exists"],
     ]);
 });
 
@@ -627,8 +639,8 @@ test("publish a builtin under the platform's organization, which owns the forge'
         platform: "done",
         tenant: [
             "FORBIDDEN",
-            "BUILTIN_FOREIGN",
-            "@tenant-1/kernel is a builtin, which only the platform's organization publishes",
+            "BUILTIN_DENIED",
+            "builtin '@tenant-1/kernel' is forbidden: only the platform's organization publishes builtins",
         ],
     });
 });

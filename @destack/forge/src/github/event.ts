@@ -39,8 +39,8 @@ export const GitHubEvent = {
         // refuse unsubscribed events
         else {
             throw ForgeError.of(
-                "UNSUBSCRIBED_EVENT",
-                `unsubscribed github event: ${delivery.event}`,
+                "EVENT_INVALID",
+                `github event '${delivery.event}' is invalid: it must be a subscribed event`,
             );
         }
     },

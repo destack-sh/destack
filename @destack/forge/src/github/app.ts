@@ -74,7 +74,7 @@ export class GitHubApp {
         if (url.host !== GITHUB_HOST || match === null) {
             throw ForgeError.of(
                 "GITHUB_REPOSITORY_REQUIRED",
-                `not a github.com repository: ${remote}`,
+                `github.com repository is required: remote '${remote}' is not one`,
             );
         }
 

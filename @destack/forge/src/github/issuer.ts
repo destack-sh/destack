@@ -43,7 +43,7 @@ export class GitHubIssuer {
         if (installation === undefined || !/^\d+$/u.test(installation)) {
             throw ConnectionError.of(
                 "AUTHORIZATION_INVALID",
-                "the installation redirect has no installation",
+                "installation redirect is invalid: it has no installation",
             );
         }
 
@@ -123,8 +123,8 @@ export class GitHubIssuer {
         // refuse an error answer
         if (!response.ok) {
             throw ConnectionError.of(
-                "SERVER_FAILED",
-                `GitHub responded with ${response.status} to ${method} ${path}`,
+                "SERVER_UNREACHABLE",
+                `could not call GitHub ${method} '${path}': status ${response.status}`,
             );
         }
 

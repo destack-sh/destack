@@ -201,7 +201,11 @@ test("create, rename and refresh a platform repository as its account's owner, a
                 remote: "https://example.test/web.git",
             }),
         ),
-    ).toEqual(["BAD_REQUEST", "IMMOVABLE_REPOSITORY", "platform repositories cannot move"]);
+    ).toEqual([
+        "BAD_REQUEST",
+        "REPOSITORY_INVALID",
+        "repository is invalid: 'platform' repositories cannot move",
+    ]);
 
     // record a moved branch and a deleted tag on the next refresh and leave unchanged rows
     history.commit("main", "README.md", "# Web\n");
@@ -379,7 +383,7 @@ test("let a space inside the account read its private packages, and no other acc
     };
     expect([await read(inside), await refusal(read(outside))]).toEqual([
         "notes",
-        ["NOT_FOUND", "NOT_FOUND", `package ${id} not found`],
+        ["NOT_FOUND", "NOT_FOUND", `package '${id}' not found`],
     ]);
 });
 
@@ -462,7 +466,7 @@ test("delete and restore a repository through the trash, and purge its storage a
                 requestId: RequestId.create(forge.environment),
             }),
         ),
-    ]).toEqual(["CONFLICT", "CONFLICT"]);
+    ]).toEqual(["PRECONDITION_FAILED", "PRECONDITION_FAILED"]);
 
     // restore the platform repository unchanged
     await owner.repository.restore({
@@ -542,7 +546,11 @@ test("issue checkout access to pull and push, requiring the push permission and 
         ),
     ]).toEqual([
         { url: "https://git.example.test/mirror.git", mode: "read", headers: {} },
-        ["BAD_REQUEST", "ANONYMOUS_PUSH", "anonymous remotes do not take push credentials"],
+        [
+            "BAD_REQUEST",
+            "PUSH_INVALID",
+            "push is invalid: anonymous remotes do not take push credentials",
+        ],
     ]);
 
     // leave a machine repository's references and checkouts to its machine
@@ -558,13 +566,13 @@ test("issue checkout access to pull and push, requiring the push permission and 
     ]).toEqual([
         [
             "BAD_REQUEST",
-            "MACHINE_REPOSITORY",
-            "machine repositories are refreshed and opened through their machine",
+            "MACHINE_REPOSITORY_INVALID",
+            "repository is invalid: machine repositories are refreshed and opened through their machine",
         ],
         [
             "BAD_REQUEST",
-            "MACHINE_REPOSITORY",
-            "machine repositories are refreshed and opened through their machine",
+            "MACHINE_REPOSITORY_INVALID",
+            "repository is invalid: machine repositories are refreshed and opened through their machine",
         ],
     ]);
 });
@@ -825,19 +833,23 @@ test("store a Git remote's credential in the forge's vault, lease it to pushers 
         leased: [
             { url: remote, mode: "read", headers: { authorization: basic("token-1") } },
             { url: remote, mode: "write", headers: { authorization: basic("token-1") } },
-            ["FORBIDDEN", "PERMISSION_DENIED", "permission denied: push"],
+            [
+                "FORBIDDEN",
+                "PERMISSION_DENIED",
+                "permission 'push' is forbidden: the caller lacks it",
+            ],
         ],
         rotated: { url: remote, mode: "read", headers: { authorization: basic("token-2") } },
         live: [],
         refused: [
             [
-                "BAD_REQUEST",
-                "CREDENTIAL_MISMATCH",
+                "PRECONDITION_FAILED",
+                "CREDENTIAL_BLOCKED",
                 "a git remote authenticating by credential needs its credential",
             ],
             [
-                "BAD_REQUEST",
-                "CREDENTIAL_MISMATCH",
+                "PRECONDITION_FAILED",
+                "CREDENTIAL_BLOCKED",
                 "only a git remote authenticating by credential takes a credential",
             ],
         ],

@@ -81,5 +81,9 @@ test("verify a GitHub delivery and refuse a signature made with another secret",
         await refusal(
             signature.verify(post(forged, body), [GITHUB_EXAMPLE.secret], {}, NOW, crypto),
         ),
-    ).toEqual(["UNAUTHORIZED", "SIGNATURE_MISMATCH", "webhook signature does not match"]);
+    ).toEqual([
+        "UNAUTHORIZED",
+        "SIGNATURE_UNAUTHENTICATED",
+        "authentication required: webhook signature does not match",
+    ]);
 });

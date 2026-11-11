@@ -3,53 +3,54 @@ import type {} from "@destack/package/import-meta";
 
 /** The forge package's failures, each reason with the call error code it answers. */
 export const ForgeError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    ANONYMOUS_PUSH: { code: "BAD_REQUEST" },
-    CREDENTIAL_MISMATCH: { code: "BAD_REQUEST" },
-    FOREIGN_MANIFEST: { code: "BAD_REQUEST" },
-    IMMOVABLE_REPOSITORY: { code: "BAD_REQUEST" },
-    MANIFEST_INVALID: { code: "BAD_REQUEST" },
-    MACHINE_REPOSITORY: { code: "BAD_REQUEST" },
-    EVENT_TYPE_MISSING: { code: "BAD_REQUEST" },
-    GITHUB_REPOSITORY_REQUIRED: { code: "BAD_REQUEST" },
-    UNSUBSCRIBED_EVENT: { code: "BAD_REQUEST" },
-
-    // unauthorized
-    CREDENTIAL_MISSING: { code: "UNAUTHORIZED" },
-
-    // forbidden
-    BUILTIN_FOREIGN: { code: "FORBIDDEN" },
-    INSTALLATION_NOT_CLAIMED: { code: "FORBIDDEN" },
-
     // not found
-    BUILD_NOT_FOUND: { code: "NOT_FOUND" },
-    BUILD_NOT_PUSHED: { code: "NOT_FOUND" },
-    DEPENDENCY_UNPUBLISHED: { code: "PRECONDITION_FAILED" },
-    GITHUB_WEBHOOK_MISSING: { code: "NOT_FOUND" },
-    PACKAGE_NOT_FOUND: { code: "NOT_FOUND" },
-    RELEASE_NOT_FOUND: { code: "NOT_FOUND" },
-    UNPUBLISHED_TARGET: { code: "NOT_FOUND" },
-    UPLOAD_OUTSIDE_PACKAGE: { code: "NOT_FOUND" },
+    BUILD_NOT_FOUND: {},
+    GITHUB_WEBHOOK_NOT_FOUND: {},
+    PACKAGE_NOT_FOUND: {},
+    RELEASE_NOT_FOUND: {},
+    TARGET_NOT_FOUND: {},
+    UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND: {},
+
+    // exists
+    INSTALLATION_EXISTS: {},
+    NPM_NAME_EXISTS: {},
+    VERSION_EXISTS: {},
 
     // conflict
-    INSTALLATION_CLAIMED: { code: "CONFLICT" },
-    FOREIGN_BUILD: { code: "CONFLICT" },
-    NPM_NAME_TAKEN: { code: "CONFLICT" },
-    REVISION_STALE: { code: "CONFLICT" },
-    UNCOMMITTED_CHANGES: { code: "CONFLICT" },
-    VERSION_ORDER: { code: "CONFLICT" },
-    VERSION_PUBLISHED: { code: "CONFLICT" },
+    BUILD_CONFLICT: {},
+    REVISION_CONFLICT: {},
 
-    // precondition failed
-    CREDENTIAL_INVALID: { code: "PRECONDITION_FAILED" },
-    GITHUB_IDENTIFIER_MISSING: { code: "PRECONDITION_FAILED" },
-    SECRET_TEXT_MISSING: { code: "PRECONDITION_FAILED" },
-    CONNECTION_REPLICA_MISSING: { code: "PRECONDITION_FAILED" },
-    GITHUB_APP_MISSING: { code: "PRECONDITION_FAILED" },
+    // invalid
+    BUILD_INVALID: {},
+    EVENT_INVALID: {},
+    MACHINE_REPOSITORY_INVALID: {},
+    MANIFEST_INVALID: {},
+    PUSH_INVALID: {},
+    REPOSITORY_INVALID: {},
+    STORAGE_INVALID: {},
 
-    // service unavailable
-    FOREIGN_STORAGE: { code: "SERVICE_UNAVAILABLE" },
-    STORAGE_UNAVAILABLE: { code: "SERVICE_UNAVAILABLE" },
+    // required
+    EVENT_TYPE_REQUIRED: {},
+    GITHUB_REPOSITORY_REQUIRED: {},
+
+    // unauthenticated
+    CREDENTIAL_UNAUTHENTICATED: {},
+
+    // denied
+    BUILTIN_DENIED: {},
+    INSTALLATION_DENIED: {},
+
+    // blocked
+    CONNECTION_REPLICA_BLOCKED: {},
+    CREDENTIAL_BLOCKED: {},
+    DEPENDENCY_BLOCKED: {},
+    GITHUB_APP_BLOCKED: {},
+    GITHUB_IDENTIFIER_BLOCKED: {},
+    SECRET_TEXT_BLOCKED: {},
+    VERSION_BLOCKED: {},
+
+    // unavailable
+    STORAGE_UNAVAILABLE: {},
 });
 
 /** A stable cause of forge failures. */

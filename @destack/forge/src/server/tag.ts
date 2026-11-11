@@ -51,7 +51,7 @@ const TagMethod = {
             .read(release)
             .findMany({ where: { parentId: packageId, version, yankedAt: { isNull: true } } });
         if (found === undefined) {
-            throw ForgeError.of("UNPUBLISHED_TARGET", "distribution tag target is not published");
+            throw ForgeError.of("TARGET_NOT_FOUND", "distribution tag target not found");
         }
     },
 };

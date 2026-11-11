@@ -40,24 +40,21 @@ export const ReleaseMethod = {
 
         // require a pushed build, of a commit unless it is a prerelease
         if (!(await store.contains(manifest))) {
-            throw ForgeError.of(
-                "BUILD_NOT_PUSHED",
-                `build ${manifest} was not pushed to the forge`,
-            );
+            throw ForgeError.of("BUILD_NOT_FOUND", `build '${manifest}' not found`);
         }
         const contents = await store.contents(manifest);
         const { commit, package: built } = contents.manifest;
         if (commit === undefined && !Version.isPrerelease(built.version)) {
             throw ForgeError.of(
-                "UNCOMMITTED_CHANGES",
-                `build ${manifest} compiled a working tree with uncommitted changes`,
+                "BUILD_INVALID",
+                `build '${manifest}' is invalid: it compiled a working tree with uncommitted changes`,
             );
         }
 
         // require the build to be the package's, under the package's global name
         const { id, name, version } = PackageManifest.package(contents.manifest);
         if (id !== parentId) {
-            throw ForgeError.of("FOREIGN_BUILD", "the build belongs to another package");
+            throw ForgeError.of("BUILD_INVALID", "build is invalid: it belongs to another package");
         }
         const named = await Forge.package(
             name,
@@ -65,7 +62,7 @@ export const ReleaseMethod = {
             schema.identifier("space").parse(context.scope),
         );
         if (named.id !== parentId) {
-            throw ForgeError.of("NPM_NAME_TAKEN", "the npm name belongs to another package");
+            throw ForgeError.of("NPM_NAME_EXISTS", "npm name already exists");
         }
 
         // refuse a builtin outside the platform's organization
@@ -153,8 +150,8 @@ export const ReleaseMethod = {
             // refuse a hosted package's unreleased build, leaving packages other forges host
             if (hosted !== undefined && released === undefined) {
                 throw ForgeError.of(
-                    "DEPENDENCY_UNPUBLISHED",
-                    `${dependency.package.name}@${dependency.package.version} is not published`,
+                    "DEPENDENCY_BLOCKED",
+                    `cannot release with dependency '${dependency.package.name}@${dependency.package.version}': it is not published`,
                 );
             }
         }
@@ -176,7 +173,10 @@ export const ReleaseMethod = {
             .read(release)
             .findMany({ where: { parentId, version, yankedAt: { isNull: true } } });
         if (published === undefined) {
-            throw ForgeError.of("RELEASE_NOT_FOUND", `${parentId} has no release ${named}`);
+            throw ForgeError.of(
+                "RELEASE_NOT_FOUND",
+                `release '${named}' of '${parentId}' not found`,
+            );
         }
 
         return published;
@@ -243,7 +243,7 @@ export const ReleaseMethod = {
             limit: 1,
         });
         if (taken !== undefined) {
-            throw ForgeError.of("VERSION_PUBLISHED", "package version was already published");
+            throw ForgeError.of("VERSION_EXISTS", "package version already exists");
         }
 
         // require releases in version order, the newest release being the highest version, ties in creation order
@@ -255,8 +255,8 @@ export const ReleaseMethod = {
         const latest = newest?.version;
         if (latest !== undefined && Version.compare(packed.version, latest) < 0) {
             throw ForgeError.of(
-                "VERSION_ORDER",
-                `publish releases in version order: ${packed.version} precedes ${latest}`,
+                "VERSION_BLOCKED",
+                `cannot publish release '${packed.version}': it precedes '${latest}', and releases publish in version order`,
             );
         }
     },
@@ -270,7 +270,7 @@ export const ReleaseMethod = {
         const parentId = context.input.parentId;
         const owner = await context.read(packageObject).findFirst({ where: { id: parentId } });
         if (owner === undefined) {
-            throw new TypeError(`release package is missing: ${parentId}`);
+            throw new TypeError(`release package is missing: '${parentId}'`);
         }
 
         // plan the declarations, refusing a plan that breaks the terms

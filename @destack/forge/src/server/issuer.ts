@@ -71,8 +71,8 @@ export function implementIssuer(app: GitHubApp | undefined): typeof issuer {
                 const claimed = await claimOf(context, installation);
                 if (claimed !== undefined && claimed.claimer !== claimer.id) {
                     throw ForgeError.of(
-                        "INSTALLATION_CLAIMED",
-                        `GitHub installation ${installation} is claimed by another installation`,
+                        "INSTALLATION_EXISTS",
+                        `GitHub installation '${installation}' already exists: another issuer claimed it`,
                     );
                 }
 
@@ -101,7 +101,10 @@ export function implementIssuer(app: GitHubApp | undefined): typeof issuer {
 /** Require the GitHub App the forge's setting selects. */
 function requireApp(app: GitHubApp | undefined): GitHubApp {
     if (app === undefined) {
-        throw ForgeError.of("GITHUB_APP_MISSING", "the forge runs no GitHub App");
+        throw ForgeError.of(
+            "GITHUB_APP_BLOCKED",
+            "cannot issue GitHub tokens: the forge runs no GitHub App",
+        );
     }
 
     return app;
@@ -114,8 +117,8 @@ function requireInstallation(
     const { subject } = context.caller;
     if (subject === undefined || !principal.installation.is(subject)) {
         throw ForgeError.of(
-            "INSTALLATION_NOT_CLAIMED",
-            "only a connection installation calls the GitHub App's issuer",
+            "INSTALLATION_DENIED",
+            "GitHub App issuer is forbidden: only a connection installation can call it",
         );
     }
 
@@ -140,8 +143,8 @@ async function requireClaimed(
     const claimed = await claimOf(context, installation);
     if (claimed?.claimer !== requireInstallation(context).id) {
         throw ForgeError.of(
-            "INSTALLATION_NOT_CLAIMED",
-            `the calling installation has not claimed GitHub installation ${installation}`,
+            "INSTALLATION_DENIED",
+            `GitHub installation '${installation}' is forbidden: the calling installation has not claimed it`,
         );
     }
 }
