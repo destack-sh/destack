@@ -53,7 +53,7 @@ if (isCheck) {
 /** Require one generated file to match its expected contents. */
 async function requireGeneratedFile(file: string, source: string) {
     if (!(await files.exists(file))) {
-        throw new Error(`missing generated release file: ${file}`);
+        throw new Error(`generated release file '${file}' not found`);
     }
 
     const current = await files.readTextFile(file);

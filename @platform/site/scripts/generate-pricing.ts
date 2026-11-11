@@ -94,7 +94,7 @@ const catalogPlans = Object.entries(PLANS).map(([key, plan]) => {
     // require the list of places each plan may run in
     const tenancies = plan.productFeatures.tenancy.value;
     if (!Array.isArray(tenancies)) {
-        throw new TypeError(`plan ${key} grants no tenancy list`);
+        throw new TypeError(`plan '${key}' grants no tenancy list`);
     }
 
     return {
@@ -155,7 +155,7 @@ const covered = roundOf(
         FREE_MONTH.requests * rates.requests,
 );
 if (covered !== allowance.usage) {
-    throw new Error(`the free month costs ${covered}, not the plan's ${allowance.usage}`);
+    throw new Error(`the free month costs '${covered}', not the plan's '${allowance.usage}'`);
 }
 
 // read each machine size's vCPUs, memory, disk, and price per hour in US dollars
