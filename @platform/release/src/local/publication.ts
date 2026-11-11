@@ -3,30 +3,19 @@ import { join } from "node:path";
 import { type FileSystem, FileSystemError } from "@destack/environment";
 import { BuildStore } from "@destack/build/store";
 import { Registry } from "@destack/registry/client";
-import { FORGE_INSTALLATION } from "@destack/forge/package";
-import registryPackage from "@destack/registry/package";
-import type { Machine } from "@destack/machine";
-import type { Operator } from "./operator.ts";
 import { PackageName } from "@destack/package";
 import { Digest, type Identifier, present, schema, Version } from "@destack/schema";
-import { InstallationMount, PackageMount } from "@destack/object";
 import type { LocalBuild, PlatformBuild } from "../deployment/index.ts";
 
-/** The file in a state directory recording its published local releases. */
+/** The file in a state directory recording the local versions of its builds. */
 const FILE = "publication.json";
 
 /** A local version: its release and its `N` in `-dev.N`. */
 const LOCAL_VERSION = /^(.+)-dev\.(\d+)$/u;
 
-/** How long a started machine's directory replica may take to sync: a minute. */
-export const DIRECTORY_SYNC_MILLISECONDS = 60_000;
-
-/** How long a fresh residency home may take to serve its forge from cached builds, in ms. */
-export const HOME_SERVE_MILLISECONDS = 30_000;
-
-/** The local releases a local universe published, as its state directory records them. */
-const Published = schema.object({
-    /** The last release each package published, by package name. */
+/** The local version a local universe gave each package's last build. */
+const Assigned = schema.object({
+    /** The last local version of each package, by package name. */
     packages: schema.record(
         schema.string(),
         schema.object({
@@ -34,13 +23,13 @@ const Published = schema.object({
             release: schema.string().min(1),
             /** Its last local version's `N` in `-dev.N`. */
             sequence: schema.int().positive(),
-            /** The manifest it published at that version. */
+            /** The manifest built at that version. */
             manifest: Digest,
         }),
     ),
 });
-/** The local releases a local universe published. */
-type Published = schema.Infer<typeof Published>;
+/** The local version a local universe gave each package's last build. */
+type Assigned = schema.Infer<typeof Assigned>;
 
 /** A forge a publication releases into: its account and the registry calling it. */
 export interface ReleaseForge {
@@ -53,36 +42,36 @@ export interface ReleaseForge {
 /** Open the forge of a handle's account, as a machine publishing in its residency's home. */
 export type ForgeOpen = (handle: string) => Promise<ReleaseForge>;
 
-/** The local releases a local universe's state directory published into its forges. */
+/** The local versions a state directory gave its builds, and their release into its forges. */
 export class Publication {
     /** The state directory. */
     readonly #directory: string;
-    /** The releases published so far. */
-    readonly #published: Published;
+    /** The local version of each package's last build. */
+    readonly #assigned: Assigned;
     /** The files the record lives in. */
     readonly #files: FileSystem;
 
-    /** Keep a state directory's published releases. */
-    private constructor(directory: string, published: Published, files: FileSystem) {
+    /** Keep a state directory's local versions. */
+    private constructor(directory: string, assigned: Assigned, files: FileSystem) {
         this.#directory = directory;
-        this.#published = published;
+        this.#assigned = assigned;
         this.#files = files;
     }
 
-    /** Read the local releases a state directory published, none in a new one. */
+    /** Read the local versions a state directory gave its builds, none in a new one. */
     static async read(directory: string, files: FileSystem): Promise<Publication> {
         // read the record, absent before the first publication
         const text = await files
             .readTextFile(join(directory, FILE))
             .catch((error: unknown) => FileSystemError.absent(error));
-        const published = text === undefined ? { packages: {} } : Published.parse(JSON.parse(text));
+        const assigned = text === undefined ? { packages: {} } : Assigned.parse(JSON.parse(text));
 
-        return new Publication(directory, published, files);
+        return new Publication(directory, assigned, files);
     }
 
     /** Plan a local build: each package at its last local version, moving on where it changed. */
     get build(): LocalBuild {
-        const recorded = this.#published.packages;
+        const recorded = this.#assigned.packages;
 
         return {
             versions: (packages) =>
@@ -95,7 +84,7 @@ export class Publication {
                     }),
                 ),
             settle: (built, versions) => {
-                // move on each package whose build differs from the manifest published at its version
+                // move on each package whose build differs from the manifest recorded at its version
                 const next = { ...versions };
                 let isSettled = true;
                 for (const [name, manifest] of built) {
@@ -116,25 +105,20 @@ export class Publication {
         };
     }
 
-    /** Publish a local build's releases under a tag into the forges, and record them. */
-    async publish(
-        build: PlatformBuild,
-        tag: string,
-        open: ForgeOpen,
-        print: (line: string) => void,
-    ): Promise<Publication> {
-        // release each build, recording the local version it landed at, so a run failing midway goes on from it
-        const packages = { ...this.#published.packages };
-        await Publication.release(build, tag, open, async (reader, digest) => {
-            // print the release and record its local version
+    /** Record each built release's local version and manifest. */
+    async assign(build: PlatformBuild): Promise<void> {
+        // record each release's version and manifest
+        const packages = { ...this.#assigned.packages };
+        for (const reader of build.readers) {
             const { name, version } = PackageManifest.package(reader.manifest);
-            print(`${name}@${version}`);
             const [, release = version, sequence = "1"] = LOCAL_VERSION.exec(version) ?? [];
-            packages[name] = { release, sequence: Number(sequence), manifest: digest };
-            await this.#record({ packages });
-        });
-
-        return new Publication(this.#directory, { packages }, this.#files);
+            const manifest = await BuildStore.digest(
+                reader.manifest,
+                build.store.environment.crypto,
+            );
+            packages[name] = { release, sequence: Number(sequence), manifest };
+        }
+        await this.#record({ packages });
     }
 
     /** Release a build's releases under a tag into their accounts' forges, each the forge lacks. */
@@ -144,78 +128,37 @@ export class Publication {
         open: ForgeOpen,
         released: (reader: BuildReader, digest: Digest) => Promise<void>,
     ): Promise<void> {
-        const forges = new Map<string, Promise<ReleaseForge>>();
+        // order the builds once, each after the builds it pins, as a workspace publish does
+        const { crypto } = build.store.environment;
         const readers = new Map<Digest, BuildReader>();
         for (const reader of build.readers) {
-            // open the forge of the release's account once per handle
-            const { name } = PackageManifest.package(reader.manifest);
-            const digest = await BuildStore.digest(reader.manifest, build.store.environment.crypto);
-            readers.set(digest, reader);
-            const { handle } = PackageName.split(name);
+            readers.set(await BuildStore.digest(reader.manifest, crypto), reader);
+        }
+        const ordered = await BuildStore.ordered(build.store, [...readers.keys()]);
+
+        // release each build once into the forge of its account, opened once per handle
+        const forges = new Map<string, Promise<ReleaseForge>>();
+        for (const digest of ordered) {
+            const reader = present(
+                readers.get(digest),
+                `build ${digest} is a dependency outside the platform build`,
+            );
+            const { handle } = PackageName.split(PackageManifest.package(reader.manifest).name);
             const opened = forges.get(handle) ?? open(handle);
             forges.set(handle, opened);
             const { accountId, registry } = await opened;
-
-            // publish the build and the account's builds it pins, recording each version a forge lacked
-            for (const release of await registry.publish(build.store, digest, accountId, tag)) {
-                await released(
-                    present(readers.get(release.manifest), `the build ${release.manifest}`),
-                    release.manifest,
-                );
+            if ((await registry.release(build.store, digest, accountId, tag)) === "released") {
+                await released(reader, digest);
             }
         }
     }
 
-    /** Open the forges a machine reaches, as a machine in each residency home it publishes in. */
-    static forges(machine: Machine, operator: Operator, print: (line: string) => void): ForgeOpen {
-        return async (handle) => {
-            // resolve the handle in the machine's synced replica of the directory, and its home at the universe
-            await machine.synced(machine.environment.clock.timeout(DIRECTORY_SYNC_MILLISECONDS));
-            const { directory, environment } = machine;
-            const accountId = present(await directory.account(handle), `@${handle}`);
-            const located = await (
-                await machine.accounts()
-            ).residency.locate({
-                account: accountId,
-            });
-            const home = schema.identifier("space").parse(located);
-
-            // wait until the home serves its forge, printing the home's steps and refusing at the bound with the one it waits for
-            const space = await machine.space(home);
-            const waiting = new AbortController();
-            const printing = (async () => {
-                for await (const { status, reason } of space.health.watch(waiting.signal)) {
-                    print(`${space.health.name} ${status}: ${reason}`);
-                }
-            })();
-            try {
-                await space.waitServed(
-                    FORGE_INSTALLATION,
-                    environment.clock.timeout(HOME_SERVE_MILLISECONDS),
-                );
-            } finally {
-                waiting.abort();
-                await printing;
-            }
-
-            // call the forge below its installation in the home, as the operator bound to the home
-            const fetch = operator.fetch(registryPackage.id, { partition: home });
-            const where = await directory.locate(home, environment.clock.now());
-            const origin = InstallationMount.url(where.url, home, FORGE_INSTALLATION);
-            const url = `${origin}${PackageMount.path(registryPackage.id)}`;
-
-            return {
-                accountId,
-                registry: new Registry(async () => ({ url, space: home, fetch }), environment),
-            };
-        };
-    }
-
-    /** Write the published releases into the state directory. */
-    async #record(published: Published): Promise<void> {
+    /** Write the local versions into the state directory. */
+    async #record(assigned: Assigned): Promise<void> {
+        await this.#files.mkdir(this.#directory, { recursive: true });
         await this.#files.writeTextFile(
             join(this.#directory, FILE),
-            `${JSON.stringify(published, null, 4)}\n`,
+            `${JSON.stringify(assigned, null, 4)}\n`,
         );
     }
 }

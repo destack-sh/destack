@@ -50,7 +50,6 @@ import {
 import { S3Server } from "@destack/bucket/s3";
 import { LocalBucket } from "@destack/bucket/bun";
 import { LocalProcess } from "../local/process.ts";
-import { DIRECTORY_SYNC_MILLISECONDS, HOME_SERVE_MILLISECONDS } from "../local/publication.ts";
 import { type LocalBuild, PlatformBuild } from "./build.ts";
 import { GITHUB_APP, PLATFORM, type PlatformResidency, RESIDENCIES } from "@platform/stack";
 import { Custody, type CustodyEnvelopes } from "./custody.ts";
@@ -59,6 +58,12 @@ import { PackageManifest } from "@destack/package/manifest";
 import { SERVER_BUNDLE_MODULE } from "@destack/machine/cloudflare";
 import { InstallationMount, PackageMount } from "@destack/object";
 import type { Environment, HostCapability } from "@destack/environment";
+
+/** How long a started machine's directory replica may take to sync: a minute. */
+const DIRECTORY_SYNC_MILLISECONDS = 60_000;
+
+/** How long a deployed residency home may take to serve: seconds from cached builds. */
+const HOME_SERVE_MILLISECONDS = 30_000;
 
 /** The identifier an end-to-end run binds where a deployment's state has a real one. */
 const PLACEHOLDER_IDENTIFIER = "0".repeat(32);
@@ -456,7 +461,7 @@ export class Deployment {
         await Publication.release(
             build,
             this.stage.tag,
-            this.#forges(custody, build, operator),
+            this.forges(custody, build, operator),
             async () => {},
         );
         print("e2e", `the releases are published under ${this.stage.tag}`);
@@ -535,7 +540,7 @@ export class Deployment {
     }
 
     /** Open the residency homes' forges, located as their machines, called as the operator. */
-    #forges(custody: Custody, build: PlatformBuild, operator: Operator): ForgeOpen {
+    forges(custody: Custody, build: PlatformBuild, operator: Operator): ForgeOpen {
         return async (handle) => {
             // find the handle's account and its residency's home at the universe, as a machine signed in
             const { environment } = this;

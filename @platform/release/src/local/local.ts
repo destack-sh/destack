@@ -1,3 +1,4 @@
+import { PackageManifest } from "@destack/package/manifest";
 import { FORGE_INSTALLATION } from "@destack/forge/package";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -136,7 +137,8 @@ export class LocalUniverse implements AsyncDisposable {
             ),
         );
 
-        // report the build
+        // record the build's local versions, then report the build
+        await publication.assign(build);
         options.print("build", `built ${build.readers.length} releases`);
 
         // start the universe as its declaration declares it over the fixed local keys, printing its mail
@@ -235,19 +237,18 @@ export class LocalUniverse implements AsyncDisposable {
         }
 
         // sign the operator in, then publish the releases into the forge as the platform's owner
-        const platform = clouds.get(PLATFORM.residencyId);
-        if (platform === undefined) {
-            throw new Error(`no cloud machine serves residency ${PLATFORM.residencyId}`);
-        }
         const send = (request: Request) => options.environment.network.fetch(request);
         const issuer = new Issuer(local.issuer, send, options.environment, new Bookmark());
         const operator = await Operator.signIn(issuer, mail, options.environment);
         const print = (line: string) => options.print("publish", line);
-        await publication.publish(
+        await Publication.release(
             build,
             STAGE.tag,
-            Publication.forges(platform.machine, operator, print),
-            print,
+            local.forges(custody, build, operator),
+            async (reader) => {
+                const { name, version } = PackageManifest.package(reader.manifest);
+                print(`${name}@${version}`);
+            },
         );
 
         return new LocalUniverse(endpoints, local, options, stack.move());
