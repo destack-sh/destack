@@ -43,7 +43,7 @@ import {
     type SpaceMachine,
     type SpaceRole,
 } from "@destack/stack/server";
-import { REQUEST_LIFETIME_MILLISECONDS, Scope, type Subject } from "@destack/sync";
+import { REQUEST_LIFETIME_MILLISECONDS, RequestId, Scope, type Subject } from "@destack/sync";
 import type { OtlpSignal } from "@destack/telemetry/otlp";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { Gateway } from "../gateway/index.ts";
@@ -320,7 +320,7 @@ export class Space {
         // fail the store and gateway waits of a start that fails, which its calls await
         const serving = this.#serving;
         try {
-            const { servers, sandboxes, revisions } = await this.host.servers(
+            const { servers, sandboxes } = await this.host.servers(
                 installed,
                 start,
                 context.signal,
@@ -361,10 +361,6 @@ export class Space {
             );
             this.#store = served;
 
-            // record what this start serves before handing out its store, replacing an earlier start's claims
-            if (role === "primary") {
-                await Rollout.serve(served.store, this.id, revisions);
-            }
             this.#serving.store.resolve(served.store);
 
             // route the installations' calls through the space's gateway
@@ -411,9 +407,32 @@ export class Space {
             await serving.apply(installed);
         }
 
-        // report whether every installation serves its revision
+        // report whether every installation serves its revision, and tell the universe a primary serves the space
         const [status, reason] = await this.#readiness(serving.role);
         this.health.set(status, reason);
+        if (serving.role === "primary") {
+            await this.#reportServing();
+        }
+    }
+
+    /** Report to the universe that this machine serves the space, unless its placement says so. */
+    async #reportServing(): Promise<void> {
+        // read the placement, reporting at its current epoch
+        const { placement, status } = present(
+            await this.machine.directory.placement(this.id),
+            `the placement of ${this.id}`,
+        );
+        if (status === "serving") {
+            return;
+        }
+
+        await this.host.accounts().placement.report({
+            accountId: placement.scope,
+            id: this.id,
+            requestId: RequestId.create(this.machine.environment),
+            epoch: placement.epoch,
+            status: "serving",
+        });
     }
 
     /** Read whether the space serves each installation at its revision, else the lagging one. */
