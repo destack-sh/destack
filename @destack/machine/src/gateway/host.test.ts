@@ -5,7 +5,13 @@ import { StaticHost } from "./host.ts";
 
 /** Read a site without files from its configuration's texts. */
 function parse(redirects: string | undefined, headers: string | undefined) {
-    return StaticHost.parse({ directory: "site", files: new Map(), redirects, headers });
+    return StaticHost.parse({
+        pages: "site",
+        assets: "asset",
+        files: new Map(),
+        redirects,
+        headers,
+    });
 }
 
 /** Describe a file of a site's build at a path. */
@@ -16,7 +22,8 @@ function file(path: string): PackageFile {
 test("redirect exact, placeholder and splat paths, merging the headers of every matching rule", () => {
     // read the configuration as Cloudflare's files have it, comments and default status included
     const host = StaticHost.parse({
-        directory: "site",
+        pages: "site",
+        assets: "asset",
         files: new Map(),
         redirects:
             "# installers\n/install https://download.example/install 302\n/old/* /new/:splat 301\n/about /team#people\n/blog/:year/:slug /posts/:year-:slug 308\n",
@@ -81,9 +88,13 @@ test("resolve a site's paths as Cloudflare's auto-trailing-slash, hiding its hos
         "_headers",
         "404.html",
     ];
-    const files = new Map(paths.map((path) => [`site/${path}`, file(`site/${path}`)]));
+    const files = new Map([
+        ...paths.map((path) => [`site/${path}`, file(`site/${path}`)] as const),
+        ["asset/logo-1a2b.png", file("asset/logo-1a2b.png")] as const,
+    ]);
     const site = StaticHost.parse({
-        directory: "site",
+        pages: "site",
+        assets: "asset",
         files,
         redirects: undefined,
         headers: undefined,
@@ -105,6 +116,7 @@ test("resolve a site's paths as Cloudflare's auto-trailing-slash, hiding its hos
         directorySlash: answer("/docs/"),
         directoryIndex: answer("/docs/index.html"),
         asset: answer("/app.js"),
+        viewAsset: answer("/.destack/asset/logo-1a2b.png"),
         redirects: answer("/_redirects"),
         headers: answer("/_headers"),
         missing: answer("/nowhere"),
@@ -118,6 +130,7 @@ test("resolve a site's paths as Cloudflare's auto-trailing-slash, hiding its hos
         directorySlash: ["file", "site/docs/index.html"],
         directoryIndex: ["redirect", "/docs/"],
         asset: ["file", "site/app.js"],
+        viewAsset: ["file", "asset/logo-1a2b.png"],
         redirects: undefined,
         headers: undefined,
         missing: undefined,

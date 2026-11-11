@@ -1,4 +1,4 @@
-import { type PackageManifest, ViewDescription } from "@destack/package/manifest";
+import { type PackageManifest, VIEW_ASSET_PATH, ViewDescription } from "@destack/package/manifest";
 import type { PackageFile } from "@destack/package/file";
 import { MachineError } from "../error/index.ts";
 
@@ -104,7 +104,9 @@ export type SiteAnswer =
 /** A build's static site as Cloudflare's hosts it: its pages, redirects and headers. */
 export class StaticHost {
     /** The directory of the site's pages in the build. */
-    readonly directory: string;
+    readonly pages: string;
+    /** The directory of its pages' assets in the browser output. */
+    readonly assets: string;
     /** The build's public files, by path. */
     readonly files: ReadonlyMap<string, PackageFile>;
     /** The redirects, the first matching one applying. */
@@ -113,9 +115,10 @@ export class StaticHost {
     readonly headers: readonly HeadersRule[];
 
     /** Create a site of its pages, redirects and headers. */
-    constructor(fields: Pick<StaticHost, "directory" | "files" | "redirects" | "headers">) {
-        // set the pages and the configuration
-        this.directory = fields.directory;
+    constructor(fields: Pick<StaticHost, "pages" | "assets" | "files" | "redirects" | "headers">) {
+        // set the pages, their assets and the configuration
+        this.pages = fields.pages;
+        this.assets = fields.assets;
         this.files = fields.files;
         this.redirects = fields.redirects;
         this.headers = fields.headers;
@@ -132,41 +135,45 @@ export class StaticHost {
         const sites = Object.values(manifest.outputs).flatMap((output) =>
             Object.entries(output.views)
                 .filter(([, description]) => description.render.mode === "static")
-                .map(([name]) => ({ name, directory: ViewDescription.pages(output, name) })),
+                .map(([name]) => ({
+                    name,
+                    pages: ViewDescription.pages(output, name),
+                    assets: ViewDescription.assets(output),
+                })),
         );
 
         // take the route's view, else the build's one, refusing two
         if (view === undefined && sites.length > 1) {
             throw MachineError.of("SITE_AMBIGUOUS", "a build serves at most one static view");
         }
-        const directory =
-            view === undefined
-                ? sites[0]?.directory
-                : sites.find((site) => site.name === view)?.directory;
-        if (directory === undefined) {
+        const site = view === undefined ? sites[0] : sites.find((each) => each.name === view);
+        if (site === undefined) {
             return undefined;
         }
+        const { pages, assets } = site;
 
         // read each host configuration file the pages directory has
         const read = async (name: string) => {
-            const file = files.get(`${directory}/${name}`);
+            const file = files.get(`${pages}/${name}`);
 
             return file === undefined ? undefined : new TextDecoder().decode(await load(file));
         };
         const [redirects, headers] = await Promise.all([read(REDIRECTS_FILE), read(HEADERS_FILE)]);
 
-        return StaticHost.parse({ directory, files, redirects, headers });
+        return StaticHost.parse({ pages, assets, files, redirects, headers });
     }
 
     /** Read a site from its files and its configuration's texts, refusing an invalid line. */
     static parse(fields: {
-        readonly directory: string;
+        readonly pages: string;
+        readonly assets: string;
         readonly files: ReadonlyMap<string, PackageFile>;
         readonly redirects: string | undefined;
         readonly headers: string | undefined;
     }): StaticHost {
         return new StaticHost({
-            directory: fields.directory,
+            pages: fields.pages,
+            assets: fields.assets,
             files: fields.files,
             redirects:
                 fields.redirects === undefined ? [] : StaticHost.#redirects(fields.redirects),
@@ -176,7 +183,7 @@ export class StaticHost {
 
     /** The site's not-found page, absent without one. */
     get missing(): PackageFile | undefined {
-        return this.files.get(`${this.directory}/${NOT_FOUND_FILE}`);
+        return this.files.get(`${this.pages}/${NOT_FOUND_FILE}`);
     }
 
     /** Find where a path redirects to and with which status, none when no rule matches. */
@@ -214,24 +221,36 @@ export class StaticHost {
         return collected;
     }
 
+    /** Read the file a path answers: a view asset or a page. */
+    #file(path: string): PackageFile | undefined {
+        // leave out the host configuration's files
+        if (path === `/${REDIRECTS_FILE}` || path === `/${HEADERS_FILE}`) {
+            return undefined;
+        }
+        // answer a view asset from the browser output's asset directory
+        else if (path.startsWith(VIEW_ASSET_PATH)) {
+            return this.files.get(`${this.assets}/${path.slice(VIEW_ASSET_PATH.length)}`);
+        }
+        // answer a page from the pages directory
+        else {
+            return this.files.get(`${this.pages}${path}`);
+        }
+    }
+
     /** Resolve a path as Cloudflare's auto-trailing-slash: a file, or where it moved. */
     resolve(pathname: string): SiteAnswer | undefined {
-        // send a page's file to its canonical path, never serving the host configuration's files
-        const at = (path: string) =>
-            path === `/${REDIRECTS_FILE}` || path === `/${HEADERS_FILE}`
-                ? undefined
-                : this.files.get(`${this.directory}${path}`);
-        if (pathname.endsWith("/index.html") && at(pathname) !== undefined) {
+        // send a page's file to its canonical path
+        if (pathname.endsWith("/index.html") && this.#file(pathname) !== undefined) {
             return { kind: "redirect", path: pathname.slice(0, -"index.html".length) };
-        } else if (pathname.endsWith(".html") && at(pathname) !== undefined) {
+        } else if (pathname.endsWith(".html") && this.#file(pathname) !== undefined) {
             return { kind: "redirect", path: pathname.slice(0, -".html".length) };
         }
 
         // serve a directory's index, else send a page's directory path to its name
         const trimmed = pathname.replace(/\/$/u, "");
-        const index = at(`${trimmed}/index.html`);
+        const index = this.#file(`${trimmed}/index.html`);
         if (pathname.endsWith("/")) {
-            const named = trimmed === "" ? undefined : at(`${trimmed}.html`);
+            const named = trimmed === "" ? undefined : this.#file(`${trimmed}.html`);
             if (index !== undefined) {
                 return { kind: "file", file: index };
             } else if (named !== undefined) {
@@ -242,7 +261,7 @@ export class StaticHost {
         }
 
         // serve an asset or a page by its name, else send a directory's name to its path
-        const asset = at(pathname) ?? at(`${pathname}.html`);
+        const asset = this.#file(pathname) ?? this.#file(`${pathname}.html`);
         if (asset !== undefined) {
             return { kind: "file", file: asset };
         } else if (index !== undefined) {
