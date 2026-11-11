@@ -214,7 +214,10 @@ async function follow(
     }
 
     // refuse a build followed no longer
-    throw CliError.of("FOLLOW_STOPPED", `stopped following build ${id} before it finished`);
+    throw CliError.of(
+        "FOLLOW_UNAVAILABLE",
+        `build '${id}' is unavailable: following stopped before it finished`,
+    );
 }
 
 /** Render a build's progress, or how it finished. */

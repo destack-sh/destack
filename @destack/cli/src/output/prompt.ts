@@ -28,7 +28,7 @@ export class Prompt implements AsyncDisposable {
         if (next.done === true) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `standard input ended before the answer to: ${question}`,
+                `standard input is invalid: it ended before the answer to '${question}'`,
             );
         }
 

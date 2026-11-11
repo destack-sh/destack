@@ -107,7 +107,7 @@ export class CommandFailure {
         }
         // exit as a command needing a sign-in, refused locally or by a service
         else if (
-            CliError.is(this.cause, "SIGN_IN_REQUIRED") ||
+            CliError.is(this.cause, "SIGN_IN_UNAUTHENTICATED") ||
             CallError.of(this.cause)?.code === "UNAUTHORIZED"
         ) {
             return SIGN_IN_STATUS;

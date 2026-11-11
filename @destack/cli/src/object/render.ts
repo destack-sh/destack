@@ -24,7 +24,10 @@ export const Render = {
             const named = fields.split(",").filter((field) => field !== "");
             const unknown = named.find((field) => !Object.hasOwn(type.table[TABLE].columns, field));
             if (unknown !== undefined) {
-                throw CliError.of("USAGE_INVALID", `${type.plural} have no field ${unknown}`);
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    `field '${unknown}' is invalid: '${type.plural}' have no such field`,
+                );
             }
 
             return named;

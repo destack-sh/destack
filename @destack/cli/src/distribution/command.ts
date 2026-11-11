@@ -109,7 +109,7 @@ export function completionCommand(context: Context): Verb {
             if (found === undefined) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `no completion for ${shell}: use bash, zsh or fish`,
+                    `shell '${shell}' is invalid: it has no completion, so use bash, zsh or fish`,
                 );
             }
 

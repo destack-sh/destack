@@ -105,7 +105,10 @@ export class Context {
         // require a person signed in on this computer
         const signedIn = await this.login();
         if (signedIn === undefined) {
-            throw CliError.of("SIGN_IN_REQUIRED", "sign in with destack login");
+            throw CliError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: sign in with destack login",
+            );
         }
 
         return signedIn.id;
@@ -141,7 +144,7 @@ export class Context {
         if (space === undefined) {
             throw CliError.of(
                 "SPACE_REQUIRED",
-                "set the space with --space <space>, or switch to one with destack switch <space>",
+                "space is required: set it with --space <space>, or switch to one with destack switch <space>",
             );
         }
 
@@ -278,14 +281,17 @@ export class Context {
 
         // refuse a name nothing declares
         if (latest === undefined) {
-            throw CliError.of("SETTING_NOT_DECLARED", `setting ${name} is not declared here`);
+            throw CliError.of(
+                "SETTING_NOT_FOUND",
+                `setting '${name}' not found: it is not declared here`,
+            );
         }
         // refuse a name several packages declare
         else if (packages.length > 1) {
             const qualified = packages.map((entry) => `${entry}/${latest.name}`);
             throw CliError.of(
-                "SETTING_AMBIGUOUS",
-                `${name} is ambiguous: use one of ${qualified.join(", ")}`,
+                "SETTING_INVALID",
+                `setting '${name}' is invalid: it is ambiguous, so use one of '${qualified.join(", ")}'`,
             );
         }
 

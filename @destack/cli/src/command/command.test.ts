@@ -29,7 +29,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
             arguments: ["whoami", "--version"],
             code: 2,
             output: [],
-            error: ["destack: use --version without a command"],
+            error: ["destack: usage is invalid: use --version without a command"],
         },
         {
             arguments: ["self", "update", "--check", "--stage", "--json"],
@@ -39,7 +39,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                 JSON.stringify({
                     error: {
                         code: "BAD_REQUEST",
-                        message: "destack self update does not support --check",
+                        message: "command 'destack self update' is invalid: it does not support '--check'",
                     },
                 }),
             ],
@@ -52,7 +52,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
                 JSON.stringify({
                     error: {
                         code: "BAD_REQUEST",
-                        message: "destack apply does not support --archive",
+                        message: "command 'destack apply' is invalid: it does not support '--archive'",
                     },
                 }),
             ],
@@ -61,13 +61,15 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
             arguments: ["switch"],
             code: 2,
             output: [],
-            error: ["destack: usage: destack switch <space>"],
+            error: ["destack: usage is invalid: use 'destack switch <space>'"],
         },
         {
             arguments: ["completion", "powershell"],
             code: 2,
             output: [],
-            error: ["destack: no completion for powershell: use bash, zsh or fish"],
+            error: [
+                "destack: shell 'powershell' is invalid: it has no completion, so use bash, zsh or fish",
+            ],
         },
         {
             arguments: ["self", "--help", "--json"],
@@ -75,7 +77,10 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
             output: [],
             error: [
                 JSON.stringify({
-                    error: { code: "BAD_REQUEST", message: "help does not support --json" },
+                    error: {
+                        code: "BAD_REQUEST",
+                        message: "command 'destack self' is invalid: its help does not support '--json'",
+                    },
                 }),
             ],
         },
@@ -83,7 +88,7 @@ test("dispatch fixed verbs, and refuse unknown options, missing arguments and he
             arguments: ["open"],
             code: 2,
             output: [],
-            error: ["destack: usage: destack open <link|id>"],
+            error: ["destack: usage is invalid: use 'destack open <link|id>'"],
         },
     ];
 
@@ -159,8 +164,13 @@ test("exit an interrupted command as an interrupted program, printing nothing", 
     const terminal = new Terminal(running, "UTC");
     const codes = [
         await new CommandFailure(new Interrupted()).report(false, terminal),
-        await new CommandFailure(CliError.of("USAGE_INVALID", "no")).report(false, terminal),
+        await new CommandFailure(
+            CliError.of("USAGE_INVALID", "answer is invalid: it must be yes"),
+        ).report(false, terminal),
     ];
     const written = running.stderr.chunks.map((chunk) => new TextDecoder().decode(chunk));
-    expect({ codes, written }).toEqual({ codes: [130, 2], written: ["destack: no\n"] });
+    expect({ codes, written }).toEqual({
+        codes: [130, 2],
+        written: ["destack: answer is invalid: it must be yes\n"],
+    });
 });

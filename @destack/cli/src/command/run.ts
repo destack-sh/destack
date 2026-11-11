@@ -63,7 +63,7 @@ export class CommandLine {
                 space = words[index + 1];
                 index++;
                 if (space === undefined) {
-                    throw CliError.of("USAGE_INVALID", "--space takes a value");
+                    throw CliError.of("USAGE_INVALID", "--space is invalid: it takes a value");
                 }
             }
             // read the space as an attached value
@@ -172,7 +172,10 @@ export class CommandLine {
             // print the version
             else if (line.isVersion) {
                 if (line.words.length > 0) {
-                    throw CliError.of("USAGE_INVALID", "use --version without a command");
+                    throw CliError.of(
+                        "USAGE_INVALID",
+                        "usage is invalid: use --version without a command",
+                    );
                 }
                 const version = import.meta.destack.package.version;
                 await terminal.print(line.isJson ? JSON.stringify({ version }) : version);

@@ -93,7 +93,7 @@ export class TerminalFixture {
         // read the owner's login as the command lines read it
         const row = await native.logins.query.login.findFirst({ where: { id: login } });
         if (row === undefined) {
-            throw new TypeError(`the home's device has no login ${login}`);
+            throw new TypeError(`the home's device has no login '${login}'`);
         }
 
         return new TerminalFixture(home, native, row, variables);
@@ -259,7 +259,7 @@ export class TerminalFixture {
         const running = TerminalFixture.process({}, node.scheduler, input);
         const code = await CommandLine.run(
             words,
-            () => Promise.reject(new TypeError(`${words.join(" ")} opened the device`)),
+            () => Promise.reject(new TypeError(`'${words.join(" ")}' opened the device`)),
             { ...node, process: running },
         );
 

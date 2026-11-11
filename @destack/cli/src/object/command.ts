@@ -261,8 +261,8 @@ function declaredCommand(
                 });
                 if (applies === undefined) {
                     throw CliError.of(
-                        "COMMAND_UNAVAILABLE",
-                        `${command.name} does not apply to ${noun.name} ${id}`,
+                        "COMMAND_BLOCKED",
+                        `cannot run '${command.name}' on ${noun.name} '${id}': it does not apply`,
                     );
                 }
             }
@@ -292,7 +292,7 @@ async function identifyFlags(context: Context, flags: FlagSet, options: Options)
         if (noun === undefined) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `nothing lists ${identity}s here: give the identifier of ${value}`,
+                `'${value}' is invalid: nothing lists '${identity}'s here, so give its identifier`,
             );
         }
 

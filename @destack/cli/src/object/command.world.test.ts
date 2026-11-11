@@ -152,8 +152,14 @@ test("offer every object type an installation lists as a noun, and refuse a word
         await refused(["card", "card-01996ab0-0000-7000-8000-0000000000d1"]),
         await refused(["archive:cards", "--json"]),
     ]).toEqual([
-        [2, "destack: cards is ambiguous: use one of archive:cards, work:cards"],
-        [2, "destack: card is ambiguous: use one of archive:card, work:card"],
+        [
+            2,
+            "destack: noun 'cards' is invalid: it is ambiguous, so use one of 'archive:cards, work:cards'",
+        ],
+        [
+            2,
+            "destack: noun 'card' is invalid: it is ambiguous, so use one of 'archive:card, work:card'",
+        ],
         [0, ""],
     ]);
 });
@@ -170,10 +176,10 @@ test("refuse a list's limit outside the positive whole numbers, and an order sta
         await refused(["cards", "--limit", "0"]),
         await refused(["cards", "--sort", "-title"]),
     ]).toEqual([
-        [2, "destack: --limit takes a positive whole number"],
+        [2, "destack: --'limit' is invalid: it takes a positive whole number"],
         [
             2,
-            "destack: --sort takes a value: write --sort=<value> when the value starts with a dash",
+            "destack: option '--sort' is invalid: it takes a value, so write '--sort'=<value> when the value starts with a dash",
         ],
     ]);
 });
@@ -197,7 +203,7 @@ test("report a refused call with its service code, exiting with 1", async () => 
     ).toEqual({
         code: 1,
         output: "",
-        error: failure("CONFLICT", "card revision has changed"),
+        error: failure("CONFLICT", "cannot update card: its revision changed"),
     });
 });
 
@@ -338,7 +344,10 @@ test("run a declared command on an object as one of its verbs, setting its input
         again: {
             code: 1,
             output: "",
-            error: failure("PRECONDITION_FAILED", `retitle-ideas does not apply to card ${id}`),
+            error: failure(
+                "PRECONDITION_FAILED",
+                `cannot run 'retitle-ideas' on card '${id}': it does not apply`,
+            ),
         },
     });
 });

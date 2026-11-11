@@ -99,11 +99,14 @@ export async function* followInstallation(
         const resources = [...databases, ...buckets, ...vaults];
         if (resources.length > STATUS_RESOURCES) {
             throw CliError.of(
-                "RESOURCE_LIMIT_EXCEEDED",
-                `installation ${id} has more than ${STATUS_RESOURCES} resources`,
+                "RESOURCE_LIMIT_INVALID",
+                `installation '${id}' is invalid: it has more than ${STATUS_RESOURCES} resources`,
             );
         } else if (installed === undefined || rolled === undefined) {
-            throw CliError.of("INSTALLATION_MISSING", `${space} has no installation ${id}`);
+            throw CliError.of(
+                "INSTALLATION_NOT_FOUND",
+                `installation '${id}' of '${space}' not found`,
+            );
         }
 
         // read the plan, its digest and the approval it asks while the installation awaits approval
@@ -144,7 +147,10 @@ export async function driveInstallation(
         }
         // refuse a failure
         else if (progress === "failed") {
-            throw CliError.of("INSTALLATION_FAILED", `${name} failed: ${status.message}`);
+            throw CliError.of(
+                "INSTALLATION_BLOCKED",
+                `cannot follow '${name}': it failed with ${status.message}`,
+            );
         }
         // approve a waiting plan once, when approving or once the person types yes on a terminal
         else if (waiting !== undefined && waiting.digest !== approved) {
@@ -155,8 +161,8 @@ export async function driveInstallation(
                     (await context.terminal.prompt.confirm("Approve this plan?")));
             if (!isApproved) {
                 throw CliError.of(
-                    "APPROVAL_REQUIRED",
-                    `${name} waits on plan ${waiting.digest}: approve it with --yes, or run ${InstallationStatus.approval(status.installation, waiting.digest)}`,
+                    "APPROVAL_BLOCKED",
+                    `cannot install '${name}': it waits on plan '${waiting.digest}', so approve it with --yes or run '${InstallationStatus.approval(status.installation, waiting.digest)}'`,
                 );
             }
             const { environment } = await context.native();
@@ -171,7 +177,10 @@ export async function driveInstallation(
     }
 
     // stop following once interrupted
-    throw CliError.of("FOLLOW_STOPPED", `stopped following ${id} before it was current`);
+    throw CliError.of(
+        "FOLLOW_UNAVAILABLE",
+        `'${id}' is unavailable: following stopped before it was current`,
+    );
 }
 
 /** A plan an installation waits on, with its digest and the approval its change request asks. */

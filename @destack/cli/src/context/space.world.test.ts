@@ -72,13 +72,13 @@ test("switch to a space as this computer's space setting, which --space override
                 code: 1,
                 output: "",
                 error: JSON.stringify({
-                    error: { code: "NOT_FOUND", message: `nothing responds at ${missing}` },
+                    error: { code: "NOT_FOUND", message: `address '${missing}' not found` },
                 }),
             },
-            { code: 1, output: "", error: "destack: no space of yours is called notes" },
+            { code: 1, output: "", error: "destack: space 'notes' of yours not found" },
             { code: 0, output: whoami(terminal, deskAddress), error: "" },
             { code: 0, output: whoami(terminal, homeAddress), error: "" },
-            { code: 2, output: "", error: "destack: --space takes a value" },
+            { code: 2, output: "", error: "destack: --space is invalid: it takes a value" },
         ],
         setting: desk,
     });
@@ -98,7 +98,7 @@ test("refuse a command line acting as nobody signed in, telling the person to si
         whoami: {
             code: 4,
             output: "",
-            error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "sign in with destack login" } })}\n`,
+            error: `${JSON.stringify({ error: { code: "UNAUTHORIZED", message: "authentication required: sign in with destack login" } })}\n`,
         },
         spaces: {
             code: 2,
@@ -125,7 +125,7 @@ test("act in the space DESTACK_SPACE gives when the command line gives no --spac
         {
             code: 1,
             output: "",
-            error: `${JSON.stringify({ error: { code: "NOT_FOUND", message: `nothing responds at ${missing}` } })}\n`,
+            error: `${JSON.stringify({ error: { code: "NOT_FOUND", message: `address '${missing}' not found` } })}\n`,
         },
     ]);
 });

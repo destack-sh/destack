@@ -75,7 +75,7 @@ export class SignInPrompt {
         if (!offered.some((residency) => residency.code === residencyId)) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `unknown residency ${residencyId}: choose one of ${listed}`,
+                `residency '${residencyId}' is invalid: choose one of '${listed}'`,
             );
         }
 
@@ -84,7 +84,7 @@ export class SignInPrompt {
         if (!DisplayName.safeParse(name).success) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `a name has 1 to ${NAME_LENGTH} characters, not ${name.length}`,
+                `name is invalid: it has ${name.length} characters, not 1 to ${NAME_LENGTH}`,
             );
         }
 

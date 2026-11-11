@@ -41,6 +41,6 @@ test("cancel input a question still waits on once disposed, ending the question"
     expect(await asking).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "standard input ended before the answer to: Code",
+        "standard input is invalid: it ended before the answer to 'Code'",
     ]);
 });

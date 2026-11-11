@@ -65,7 +65,10 @@ class SettingScope {
         const named = OptionValue.string(options["scope"], "scope");
         const name = SCOPES.find((candidate) => candidate === named);
         if (name === undefined) {
-            throw CliError.of("USAGE_INVALID", `set the scope with --scope ${SCOPES.join(", ")}`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--scope is invalid: set it to one of '${SCOPES.join(", ")}'`,
+            );
         }
 
         return new SettingScope(name);
@@ -75,7 +78,10 @@ class SettingScope {
     async noun(context: Context): Promise<Noun> {
         // refuse the device, whose values are its local objects
         if (this.name === "device") {
-            throw CliError.of("USAGE_INVALID", "device settings are this computer's local objects");
+            throw CliError.of(
+                "USAGE_INVALID",
+                "scope 'device' is invalid: device settings are this computer's local objects",
+            );
         }
 
         // take the settings of the space's store for a space, else the universe's
@@ -86,7 +92,7 @@ class SettingScope {
         if (found === undefined) {
             throw CliError.of(
                 "SPACE_REQUIRED",
-                `${this.name} has no settings here: pick a space with --space`,
+                `space is required: '${this.name}' has no settings here, so pick a space with --space`,
             );
         }
 
@@ -146,7 +152,7 @@ export function settingsCommand(context: Context): Verb {
             if (scope.name === "device" && given.length > 0) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `device settings do not accept --${given.join(", --")}`,
+                    `device setting option is invalid: device settings do not accept --'${given.join(", --")}'`,
                 );
             }
             // print the device's values
@@ -362,7 +368,10 @@ function parse(declared: Setting, text: string): JsonValue {
         (candidate) => declared.definition.schema.safeParse(candidate).success,
     );
     if (accepted === undefined) {
-        throw CliError.of("USAGE_INVALID", `${declared.name} does not accept ${text}`);
+        throw CliError.of(
+            "USAGE_INVALID",
+            `value '${text}' is invalid: '${declared.name}' does not accept it`,
+        );
     }
 
     return accepted;
@@ -425,7 +434,10 @@ class StoreSettingValues implements SettingValues {
         // refuse two values of one setting
         const [only, other] = rows;
         if (other !== undefined) {
-            throw CliError.of("SETTING_AMBIGUOUS", `${declared.name} has two values at one scope`);
+            throw CliError.of(
+                "SETTING_BROKEN",
+                `setting '${declared.name}' has two values at one scope`,
+            );
         }
 
         return only === undefined ? undefined : Row.parse(only);
@@ -480,7 +492,10 @@ class DeviceSettingValues implements SettingValues {
     async set(declared: Setting, value: JsonValue, current: Row | undefined): Promise<void> {
         // require a setting the device stores
         if (!declared.isDeviceStored()) {
-            throw CliError.of("USAGE_INVALID", `${declared.name} does not accept a device value`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `'${declared.name}' is invalid: it does not accept a device value`,
+            );
         }
 
         // write against the release declaring the setting

@@ -144,7 +144,10 @@ export class Flag {
         if (text.startsWith("@")) {
             const named = filter.values?.[text.slice(1)];
             if (named === undefined) {
-                throw CliError.of("USAGE_INVALID", `--${this.name} has no value ${text}`);
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    `--'${this.name}' value '${text}' is invalid: it is unknown`,
+                );
             }
             value = named;
         }
@@ -162,7 +165,7 @@ export class Flag {
             if (this.values !== undefined && !this.values.includes(text)) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `--${this.name} takes one of ${this.values.join(", ")}`,
+                    `--'${this.name}' is invalid: it takes one of '${this.values.join(", ")}'`,
                 );
             }
             value = text;
@@ -212,14 +215,14 @@ export class FlagSet {
         if (input === undefined) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `${Casing.kebab(type.plural)} have no method ${method}`,
+                `method '${method}' is invalid: '${Casing.kebab(type.plural)}' have no such method`,
             );
         }
         const properties = FlagSet.#properties([input]);
         if (properties === undefined) {
             throw CliError.of(
-                "METHOD_MISSING",
-                `${Casing.kebab(type.plural)}.${method} takes no object input`,
+                "METHOD_NOT_FOUND",
+                `object input of '${Casing.kebab(type.plural)}.${method}' not found`,
             );
         }
 
@@ -242,7 +245,10 @@ export class FlagSet {
                 ? undefined
                 : FlagSet.#properties(rows.filter((row) => row !== undefined));
         if (properties === undefined) {
-            throw CliError.of("METHOD_MISSING", `${plural} have no list answering object rows`);
+            throw CliError.of(
+                "METHOD_NOT_FOUND",
+                `list of '${plural}' answering object rows not found`,
+            );
         }
 
         return new FlagSet(type, FlagSet.#collect(type, properties, [], [], false));
@@ -375,7 +381,7 @@ export class FlagSet {
             if (Number.isNaN(instant)) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `${path.join(".")} takes a date, such as 2026-10-09 or @friday`,
+                    `'${path.join(".")}' is invalid: it takes a date, such as 2026-10-09 or @friday`,
                 );
             }
 
@@ -541,7 +547,10 @@ export class FlagSet {
         }
         // refuse a field --input gives as anything but the object the flag sets a field of
         else if (given !== undefined && !schema.jsonObject().safeParse(given).success) {
-            throw CliError.of("USAGE_INVALID", `--input field ${head} is not an object`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--input field '${head}' is invalid: it is not an object`,
+            );
         }
         // set a field of the object at the head, starting one where none is given
         else {

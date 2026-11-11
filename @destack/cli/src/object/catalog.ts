@@ -128,9 +128,12 @@ export class Noun {
         const methods = Object.entries(this.type.describeMethods());
         const [found, other] = methods.filter(([, method]) => method.kind === kind);
         if (found === undefined) {
-            throw CliError.of("METHOD_MISSING", `${this.plural} have no ${kind} method`);
+            throw CliError.of("METHOD_NOT_FOUND", `${kind} method of '${this.plural}' not found`);
         } else if (other !== undefined) {
-            throw CliError.of("METHOD_AMBIGUOUS", `${this.plural} have several ${kind} methods`);
+            throw CliError.of(
+                "METHOD_INVALID",
+                `${kind} method of '${this.plural}' is invalid: several match`,
+            );
         }
 
         return found[0];
@@ -142,7 +145,10 @@ export class Noun {
         if (this.type.identifies(key)) {
             return key;
         } else if (this.type.keyed === undefined) {
-            throw CliError.of("USAGE_INVALID", `${this.plural} have no key: give the identifier`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `'${this.plural}' is invalid: they have no key, so give the identifier`,
+            );
         }
 
         // get the object by its key, which its get method resolves
@@ -369,7 +375,7 @@ export class Catalog {
         // find the noun by the identifier's prefix
         const noun = this.owner(id);
         if (noun === undefined) {
-            throw CliError.of("NOUN_NOT_FOUND", `nothing lists objects like ${id}`);
+            throw CliError.of("NOUN_NOT_FOUND", `noun listing objects like '${id}' not found`);
         }
 
         // read the object's scope through its type's get method
@@ -400,7 +406,7 @@ export class Catalog {
                 .toSorted();
             throw CliError.of(
                 "USAGE_INVALID",
-                `${word} is ambiguous: use one of ${qualified.join(", ")}`,
+                `noun '${word}' is invalid: it is ambiguous, so use one of '${qualified.join(", ")}'`,
             );
         }
 
@@ -442,7 +448,7 @@ export class Catalog {
             const words = matching.map((noun) => noun.qualify(noun.plural));
             throw CliError.of(
                 "USAGE_INVALID",
-                `several nouns list ${identity}s: ${words.join(", ")}`,
+                `'${identity}' is invalid: several nouns list it as '${words.join(", ")}'`,
             );
         }
 

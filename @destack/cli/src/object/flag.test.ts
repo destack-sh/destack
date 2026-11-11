@@ -96,7 +96,7 @@ test("build a method's input from flags over a JSON input, refusing values outsi
     expect(await refusal(() => flags.input({ priority: "urgent" }, {}, filter))).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "--priority takes one of low, normal, high",
+        "--'priority' is invalid: it takes one of 'low, normal, high'",
     ]);
 });
 

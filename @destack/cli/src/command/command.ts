@@ -241,11 +241,17 @@ export class CommandTree {
         // refuse help as JSON
         const isShown = isHelp || verb === undefined;
         if (isShown && json) {
-            throw CliError.of("USAGE_INVALID", "help does not support --json");
+            throw CliError.of(
+                "USAGE_INVALID",
+                `command '${path.join(" ")}' is invalid: its help does not support '--json'`,
+            );
         }
         // refuse a group's unknown subcommand
         else if (isShown && "commands" in command && rest.some((word) => !word.startsWith("-"))) {
-            throw CliError.of("USAGE_INVALID", `unknown command ${[...path, rest[0]].join(" ")}`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `command '${[...path, rest[0]].join(" ")}' is invalid: it is unknown`,
+            );
         }
         // show help without running anything
         else if (isHelp || verb === undefined) {
@@ -253,7 +259,10 @@ export class CommandTree {
         }
         // refuse JSON from a verb that prints none
         else if (json && !verb.json) {
-            throw CliError.of("USAGE_INVALID", `${path.join(" ")} does not support --json`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `command '${path.join(" ")}' is invalid: it does not support '--json'`,
+            );
         }
         // run the verb with its arguments and options
         else {
@@ -286,7 +295,10 @@ export class CommandTree {
             });
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            throw CliError.of("USAGE_INVALID", `${path.join(" ")}: ${message}`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `command '${path.join(" ")}' is invalid: ${message}`,
+            );
         }
 
         // read each positional argument, refusing extra and missing ones
@@ -294,7 +306,7 @@ export class CommandTree {
         if (parsed.positionals.length > declared.length) {
             throw CliError.of(
                 "USAGE_INVALID",
-                `usage: ${path.join(" ")}${CommandTree.usage(command)}`,
+                `usage is invalid: use '${path.join(" ") + CommandTree.usage(command)}'`,
             );
         }
         const values: Record<string, string | undefined> = {};
@@ -303,7 +315,7 @@ export class CommandTree {
             if (value === undefined) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `usage: ${path.join(" ")}${CommandTree.usage(command)}`,
+                    `usage is invalid: use '${path.join(" ") + CommandTree.usage(command)}'`,
                 );
             }
             values[argument.name] = value;
@@ -331,7 +343,7 @@ export class CommandTree {
             if (name === undefined || !Object.hasOwn(declared, name)) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `${path.join(" ")} does not support ${word.split("=")[0]}`,
+                    `command '${path.join(" ")}' is invalid: it does not support '${word.split("=")[0]}'`,
                 );
             }
             // refuse a string option whose next word starts with a dash, standard input aside
@@ -343,7 +355,7 @@ export class CommandTree {
             ) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `${word} takes a value: write ${word}=<value> when the value starts with a dash`,
+                    `option '${word}' is invalid: it takes a value, so write '${word}'=<value> when the value starts with a dash`,
                 );
             }
         }
@@ -368,8 +380,8 @@ export class CommandTree {
             } catch (error) {
                 // list the named ones alone while the machine is stopped, nobody signed in or no space set
                 const isOffline =
-                    MachineError.is(error, "MACHINE_STOPPED") ||
-                    CliError.is(error, "SIGN_IN_REQUIRED") ||
+                    MachineError.is(error, "MACHINE_UNAVAILABLE") ||
+                    CliError.is(error, "SIGN_IN_UNAUTHENTICATED") ||
                     CliError.is(error, "SPACE_REQUIRED");
                 if (!isOffline) {
                     throw error;
@@ -454,8 +466,11 @@ export const OptionValue = {
         else if (given.startsWith(FILE_PREFIX)) {
             const file = given.slice(FILE_PREFIX.length);
             text = await environment.files.readTextFile(file).catch((error: unknown) => {
-                if (FileSystemError.is(error, "NOT_FOUND")) {
-                    throw CliError.of("USAGE_INVALID", `--${option} file ${file} does not exist`);
+                if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+                    throw CliError.of(
+                        "USAGE_INVALID",
+                        `--'${option}' file '${file}' is invalid: it does not exist`,
+                    );
                 }
                 throw error;
             });
@@ -467,11 +482,17 @@ export const OptionValue = {
             parsed = JSON.parse(text);
         } catch (error) {
             const reason = error instanceof Error ? error.message : String(error);
-            throw CliError.of("USAGE_INVALID", `--${option} must be a JSON object: ${reason}`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--'${option}' is invalid: it must be a JSON object ('${reason}')`,
+            );
         }
         const fields = schema.jsonObject().safeParse(parsed);
         if (!fields.success) {
-            throw CliError.of("USAGE_INVALID", `--${option} must be a JSON object`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--'${option}' is invalid: it must be a JSON object`,
+            );
         }
 
         return fields.data;
@@ -486,7 +507,10 @@ export const OptionValue = {
         }
         const count = Number(text);
         if (!Number.isSafeInteger(count) || count < 1) {
-            throw CliError.of("USAGE_INVALID", `--${option} takes a positive whole number`);
+            throw CliError.of(
+                "USAGE_INVALID",
+                `--'${option}' is invalid: it takes a positive whole number`,
+            );
         }
 
         return count;
@@ -495,7 +519,7 @@ export const OptionValue = {
     /** Read a string option, absent when not given, refusing a flag without its value. */
     string(value: string | boolean | undefined, option: string): string | undefined {
         if (typeof value === "boolean") {
-            throw CliError.of("USAGE_INVALID", `--${option} takes a value`);
+            throw CliError.of("USAGE_INVALID", `--'${option}' is invalid: it takes a value`);
         }
 
         return value;

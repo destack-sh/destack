@@ -35,7 +35,7 @@ export function openCommand(context: Context): Verb {
             if (address === undefined) {
                 throw CliError.of(
                     "USAGE_INVALID",
-                    `${target} is not a view or object link under ${links.scheme}://`,
+                    `'${target}' is invalid: it is not a view or object link under '${links.scheme}'://`,
                 );
             }
 

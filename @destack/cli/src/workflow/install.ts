@@ -73,7 +73,7 @@ export function readSpecifier(specifier: string): {
     if (!PackageName.safeParse(name).success) {
         throw CliError.of(
             "USAGE_INVALID",
-            `${specifier} is not a package: use @scope/name[@version]`,
+            `package '${specifier}' is invalid: use @scope/name[@version]`,
         );
     }
 
@@ -109,8 +109,8 @@ async function upsert(
     // refuse a name another package's installation has
     else if (installed.packageId !== packageId) {
         throw CliError.of(
-            "INSTALLATION_NAME_TAKEN",
-            `${name} installs another package: choose another name with --name`,
+            "INSTALLATION_NAME_EXISTS",
+            `installation '${name}' already exists: it installs another package, so choose another name with --name`,
         );
     }
     // change what it follows

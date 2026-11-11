@@ -104,12 +104,12 @@ test("find nouns by their words, qualifying the words several installations serv
     expect(await refusal(() => catalog.find("task"))).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "task is ambiguous: use one of home:task, work:task",
+        "noun 'task' is invalid: it is ambiguous, so use one of 'home:task, work:task'",
     ]);
     expect(await refusal(() => catalog.find("machines"))).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "machines is ambiguous: use one of account:machines, notes:machines",
+        "noun 'machines' is invalid: it is ambiguous, so use one of 'account:machines, notes:machines'",
     ]);
 });
 
@@ -148,6 +148,6 @@ test("find the noun of an identity, taking the type of its prefix over types bor
     expect(await refusal(() => catalog.identity("task"))).toEqual([
         "BAD_REQUEST",
         "USAGE_INVALID",
-        "several nouns list tasks: work:tasks, home:tasks",
+        "'task' is invalid: several nouns list it as 'work:tasks, home:tasks'",
     ]);
 });

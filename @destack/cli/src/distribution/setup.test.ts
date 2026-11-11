@@ -202,7 +202,7 @@ test("start the device again in the previous release when activation fails, and 
 
 test("stay stopped when the activation leaves the files disagreeing with their record", async () => {
     const device = new RunningSetup("2026.9.1", "2026.9.1");
-    const failure = UpdateError.of("ACTIVATION_FAILED", "the release record is torn");
+    const failure = UpdateError.of("ACTIVATION_BROKEN", "the release record is torn");
 
     // fail the activation midway
     await expect(device.restart(updater(device, failure), STAGED, undefined)).rejects.toBe(failure);
@@ -215,7 +215,7 @@ test("refuse a restarted machine running another release than the activated one"
     // restart into a machine still reporting the previous release
     expect(await refusal(device.restart(updater(device, undefined), STAGED, undefined))).toEqual([
         "PRECONDITION_FAILED",
-        "INSTALLATION_MISMATCH",
-        "restarted machine does not match the installed release",
+        "INSTALLATION_BLOCKED",
+        "cannot update Destack: the restarted machine does not match the installed release",
     ]);
 });

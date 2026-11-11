@@ -106,7 +106,10 @@ function decideCommand(decision: "approve" | "reject", context: Context): Verb {
             // decide the reviewed plan's digest
             const plan = OptionValue.string(options["plan"], "plan");
             if (plan === undefined) {
-                throw CliError.of("USAGE_INVALID", "give the reviewed plan's digest with --plan");
+                throw CliError.of(
+                    "USAGE_INVALID",
+                    "usage is invalid: give the reviewed plan's digest with --plan",
+                );
             }
             const space = await context.requireSpace();
             const objects = await context.package(objectPackage, await context.locate());
@@ -119,8 +122,8 @@ function decideCommand(decision: "approve" | "reject", context: Context): Verb {
             const waiting = await stack.rollout.plan({ spaceId: space, id });
             if (waiting.digest !== plan || waiting.approval === null) {
                 throw CliError.of(
-                    "PLAN_NOT_WAITING",
-                    `${name} waits on no change request for plan ${plan}`,
+                    "PLAN_BLOCKED",
+                    `cannot apply plan '${plan}': '${name}' waits on no change request for it`,
                 );
             }
             await objects.approval[decision]({
@@ -146,7 +149,10 @@ async function submitStack(
     const { environment } = await context.native();
     const exported = OptionValue.string(values["export"], "export");
     if (exported === undefined) {
-        throw CliError.of("USAGE_INVALID", "select the exported definition with --export");
+        throw CliError.of(
+            "USAGE_INVALID",
+            "usage is invalid: select the exported definition with --export",
+        );
     }
     const parameters = await OptionValue.json(
         values["parameters"],

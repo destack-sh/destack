@@ -93,7 +93,7 @@ test("refuse a sign-in the universe refused, with its reason", async () => {
         output: "",
         error: [
             `Sent a code to ${OWNER_EMAIL}.`,
-            "destack: the token endpoint refused the request: invalid_grant: the code is wrong or expired",
+            "destack: the token endpoint refused the request: invalid_grant: code is invalid: it is wrong or expired",
             "",
         ].join("\n"),
     });

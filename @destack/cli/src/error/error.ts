@@ -3,43 +3,63 @@ import type {} from "@destack/package/import-meta";
 
 /** The cli package's failures, each reason with the call error code it answers. */
 export const CliError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    USAGE_INVALID: { code: "BAD_REQUEST" },
-    SPACE_REQUIRED: { code: "BAD_REQUEST" },
-    RESOURCE_LIMIT_EXCEEDED: { code: "BAD_REQUEST" },
-
-    // unauthorized
-    SIGN_IN_REQUIRED: { code: "UNAUTHORIZED" },
-
-    // forbidden
-
     // not found
-    NOUN_NOT_FOUND: { code: "NOT_FOUND" },
-    METHOD_MISSING: { code: "NOT_FOUND" },
-    INSTALLATION_MISSING: { code: "NOT_FOUND" },
-    SETTING_NOT_DECLARED: { code: "NOT_FOUND" },
 
-    // conflict
-    INSTALLATION_FAILED: { code: "CONFLICT" },
-    INSTALLATION_NAME_TAKEN: { code: "CONFLICT" },
-    PLAN_NOT_WAITING: { code: "CONFLICT" },
-    METHOD_AMBIGUOUS: { code: "CONFLICT" },
+    INSTALLATION_NOT_FOUND: {},
 
-    // precondition failed
-    APPROVAL_REQUIRED: { code: "PRECONDITION_FAILED" },
-    SETTING_AMBIGUOUS: { code: "PRECONDITION_FAILED" },
-    INSTALLATION_MISMATCH: { code: "PRECONDITION_FAILED" },
-    INSTALLED_DISTRIBUTION_MISSING: { code: "PRECONDITION_FAILED" },
-    COMMAND_UNAVAILABLE: { code: "PRECONDITION_FAILED" },
+    METHOD_NOT_FOUND: {},
 
-    // internal server error
-    MACHINE_START_FAILED: { code: "INTERNAL_SERVER_ERROR" },
+    NOUN_NOT_FOUND: {},
 
-    // service unavailable
-    FOLLOW_STOPPED: { code: "SERVICE_UNAVAILABLE" },
+    SETTING_NOT_FOUND: {},
 
-    // gateway timeout
-    RESTART_TIMED_OUT: { code: "GATEWAY_TIMEOUT" },
+    // exists
+
+    INSTALLATION_NAME_EXISTS: {},
+
+    // invalid
+
+    METHOD_INVALID: {},
+
+    RESOURCE_LIMIT_INVALID: {},
+
+    SETTING_INVALID: {},
+
+    USAGE_INVALID: {},
+
+    // required
+
+    SPACE_REQUIRED: {},
+
+    // unauthenticated
+
+    SIGN_IN_UNAUTHENTICATED: {},
+
+    // blocked
+
+    APPROVAL_BLOCKED: {},
+
+    COMMAND_BLOCKED: {},
+
+    DISTRIBUTION_BLOCKED: {},
+
+    INSTALLATION_BLOCKED: {},
+
+    PLAN_BLOCKED: {},
+
+    // unavailable
+
+    FOLLOW_UNAVAILABLE: {},
+
+    // unreachable
+
+    RESTART_UNREACHABLE: {},
+
+    // broken
+
+    MACHINE_START_BROKEN: {},
+
+    SETTING_BROKEN: {},
 });
 
 /** A stable cause of cli failures. */

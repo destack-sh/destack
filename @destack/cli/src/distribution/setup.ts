@@ -80,8 +80,8 @@ export class Setup {
         // require the compiled executable, and the desktop's libraries on Linux
         if (!environment.process.runtime.isStandalone) {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "install using the compiled Destack executable",
+                "INSTALLATION_BLOCKED",
+                "cannot install Destack: install using the compiled Destack executable",
             );
         }
         const { os } = environment.host;
@@ -107,7 +107,10 @@ export class Setup {
         }
         // refuse Windows without its native package
         else if (os === "win32") {
-            throw CliError.of("INSTALLATION_MISMATCH", "install Destack using Setup.exe");
+            throw CliError.of(
+                "INSTALLATION_BLOCKED",
+                "cannot install Destack: install it using Setup.exe",
+            );
         }
         // register the Mac application, under the installation lock
         else if (application !== undefined) {
@@ -158,13 +161,13 @@ export class Setup {
         const [row, other] = (await client.distribution.list({ deviceId })).items;
         if (row === undefined) {
             throw CliError.of(
-                "INSTALLED_DISTRIBUTION_MISSING",
-                "this computer has no installed distribution",
+                "DISTRIBUTION_BLOCKED",
+                "cannot find the Destack distribution: no installed Destack distribution was found",
             );
         } else if (other !== undefined) {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "this computer records several distributions: reinstall Destack",
+                "INSTALLATION_BLOCKED",
+                "cannot use the Destack distribution: this computer records several, so reinstall Destack",
             );
         }
 
@@ -198,7 +201,7 @@ export class Setup {
         await using updater = await distribution.open();
         const staged = await updater.staged();
         if (staged === undefined) {
-            throw UpdateError.of("RELEASE_NOT_FOUND", "no staged Destack release is available");
+            throw UpdateError.of("RELEASE_NOT_FOUND", "staged Destack release not found");
         }
 
         // restart into it, and register the Mac application at its location
@@ -233,7 +236,7 @@ export class Setup {
         try {
             installed = await updater.activate(staged);
         } catch (error) {
-            if (UpdateError.is(error, "ACTIVATION_FAILED")) {
+            if (UpdateError.is(error, "ACTIVATION_BROKEN")) {
                 throw error;
             }
             failure = { error };
@@ -273,15 +276,15 @@ export class Setup {
         const { isNative } = options;
         if (!this.environment.process.runtime.isStandalone) {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "uninstall using the installed Destack executable",
+                "INSTALLATION_BLOCKED",
+                "cannot uninstall Destack: uninstall using the installed Destack executable",
             );
         }
         const { os } = this.environment.host;
         if (os === "win32" && !isNative) {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "uninstall Destack through Windows installed applications",
+                "INSTALLATION_BLOCKED",
+                "cannot uninstall Destack: uninstall it through Windows installed applications",
             );
         }
 
@@ -292,8 +295,8 @@ export class Setup {
         const registration = await distribution.record();
         if (!isNative && registration?.method === "nsis") {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "uninstall Destack through the operating system's installed applications",
+                "INSTALLATION_BLOCKED",
+                "cannot uninstall Destack: uninstall it through the operating system's installed applications",
             );
         }
 
@@ -316,8 +319,8 @@ export class Setup {
                 : undefined;
         if (installed === undefined && application === undefined && !isNative) {
             throw CliError.of(
-                "INSTALLED_DISTRIBUTION_MISSING",
-                "no installed Destack distribution was found",
+                "DISTRIBUTION_BLOCKED",
+                "cannot find the Destack distribution: no installed Destack distribution was found",
             );
         }
         if (application !== undefined) {
@@ -362,8 +365,8 @@ export class Setup {
             ]);
             if (code !== 0) {
                 throw CliError.of(
-                    "MACHINE_START_FAILED",
-                    `machine startup failed: ${error.trim()}`,
+                    "MACHINE_START_BROKEN",
+                    `machine startup failed: '${error.trim()}'`,
                 );
             }
         } else {
@@ -404,8 +407,8 @@ export class Setup {
             registration.method !== "archive"
         ) {
             throw CliError.of(
-                "INSTALLATION_MISMATCH",
-                "uninstall the native package before installing an archive",
+                "INSTALLATION_BLOCKED",
+                "cannot install an archive: uninstall the native package first",
             );
         }
 
@@ -413,8 +416,8 @@ export class Setup {
         const available = await updater.check();
         if (available === undefined) {
             throw UpdateError.of(
-                "ALREADY_INSTALLED",
-                "the latest Destack release is installed already",
+                "RELEASE_EXISTS",
+                "an installation of the latest Destack release already exists",
             );
         }
         const download = await available.download(source === undefined ? {} : { source });
@@ -482,8 +485,8 @@ export class Setup {
             const version = await this.version();
             if (selected && version !== selected.release.version) {
                 throw CliError.of(
-                    "INSTALLATION_MISMATCH",
-                    "restarted machine does not match the installed release",
+                    "INSTALLATION_BLOCKED",
+                    "cannot update Destack: the restarted machine does not match the installed release",
                 );
             }
         }
@@ -504,8 +507,8 @@ export class Setup {
 
         // refuse a machine that did not come back in time
         throw CliError.of(
-            "RESTART_TIMED_OUT",
-            `the machine did not restart into ${version}; read ${this.home.directory}/machine.log`,
+            "RESTART_UNREACHABLE",
+            `could not restart the machine into '${version}': see '${this.home.directory}'/machine.log`,
         );
     }
 

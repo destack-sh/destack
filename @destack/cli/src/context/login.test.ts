@@ -55,8 +55,8 @@ test("read a new person's sign-up from their handle, asking the residency and na
     expect({ signIn, signUp, refused, unnamed, asked }).toEqual({
         signIn: undefined,
         signUp: { name: "Bea", handle: "bea", residencyId: "eu", timeZone, locale },
-        refused: "unknown residency mars: choose one of eu (Europe)",
-        unnamed: "a name has 1 to 200 characters, not 0",
+        refused: "residency 'mars' is invalid: choose one of 'eu (Europe)'",
+        unnamed: "name is invalid: it has 0 characters, not 1 to 200",
         asked: ["Residency: eu (Europe)", "Name", "Name"],
     });
 });
