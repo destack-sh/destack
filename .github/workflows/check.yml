@@ -89,7 +89,9 @@ jobs:
             - name: Set up the sandbox
               uses: ./.github/actions/setup-sandbox
             - name: Install the gates' other system tools
-              run: sudo apt-get install --yes zsh age
+              uses: ./.github/actions/setup-apt
+              with:
+                  packages: zsh age
             - name: Run the gates
               env:
                   PACKAGE: ${{ matrix.package }}

@@ -1,0 +1,50 @@
+name: Set up apt packages
+description: Install Ubuntu packages from cached archives, reading the mirrors only when the cache misses.
+inputs:
+    packages:
+        required: true
+        description: The packages to install, separated by spaces.
+
+runs:
+    using: composite
+    steps:
+        - name: Key the archives by runner image and packages
+          id: key
+          shell: bash
+          env:
+              PACKAGES: ${{ inputs.packages }}
+          run: echo "key=apt-${ImageOS}-${ImageVersion}-${RUNNER_ARCH}-${PACKAGES// /-}" >> "$GITHUB_OUTPUT"
+        - name: Restore package archives
+          id: cache
+          uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+              path: ~/.cache/apt-archives
+              key: ${{ steps.key.outputs.key }}
+        - name: Download package archives
+          if: steps.cache.outputs.cache-hit != 'true'
+          shell: bash
+          env:
+              PACKAGES: ${{ inputs.packages }}
+          run: |
+              # download the packages and every dependency the image lacks, without installing them
+              mkdir -p ~/.cache/apt-archives/partial
+              sudo apt-get update
+              # shellcheck disable=SC2086
+              sudo apt-get install --yes --download-only -o Dir::Cache::archives="$HOME/.cache/apt-archives" $PACKAGES
+              sudo chown -R "$USER" ~/.cache/apt-archives
+              rm -rf ~/.cache/apt-archives/partial ~/.cache/apt-archives/lock
+        - name: Save package archives
+          if: steps.cache.outputs.cache-hit != 'true'
+          uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+              path: ~/.cache/apt-archives
+              key: ${{ steps.key.outputs.key }}
+        - name: Install packages
+          shell: bash
+          run: |
+              # install from the archives alone, with nothing to install when the image already has them
+              shopt -s nullglob
+              archives=(~/.cache/apt-archives/*.deb)
+              if [ ${#archives[@]} -gt 0 ]; then
+                  sudo dpkg --install "${archives[@]}"
+              fi

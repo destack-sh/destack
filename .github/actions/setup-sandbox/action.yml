@@ -5,9 +5,10 @@ runs:
     using: composite
     steps:
         - name: Install bubblewrap, socat and ripgrep
+          uses: ./.github/actions/setup-apt
+          with:
+              packages: bubblewrap socat ripgrep
+        - name: Allow unprivileged user namespaces
           shell: bash
           # bubblewrap needs unprivileged user namespaces, which Ubuntu 24.04 restricts through AppArmor
-          run: |
-              sudo apt-get update
-              sudo apt-get install --yes bubblewrap socat ripgrep
-              sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
+          run: sudo sysctl --write kernel.apparmor_restrict_unprivileged_userns=0
