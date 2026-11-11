@@ -29,8 +29,8 @@ test("locate the desktop application beside its executable on each operating sys
         bin: "/opt/destack/Destack",
         outside: [
             "PRECONDITION_FAILED",
-            "APPLICATION_UNAVAILABLE",
-            "the desktop needs this command inside the Destack application",
+            "APPLICATION_BLOCKED",
+            "cannot run the desktop: this command must run inside the Destack application",
         ],
         releases: ["/releases/1.2.0/Destack.app", "/releases/1.2.0/Destack"],
     });

@@ -18,7 +18,11 @@ test("hold a home's lock while one desktop runs, refusing a second desktop until
     // expect the lock held and the second refused, then free
     expect({ whileRunning, refused, afterQuit: await second.isHeld() }).toEqual({
         whileRunning: true,
-        refused: ["CONFLICT", "DESKTOP_RUNNING", "another Destack desktop runs for this user"],
+        refused: [
+            "PRECONDITION_FAILED",
+            "DESKTOP_BLOCKED",
+            "cannot start the desktop: another Destack desktop runs for this user",
+        ],
         afterQuit: false,
     });
 });

@@ -245,7 +245,7 @@ export class Person {
     async answer(event: PersonEvent): Promise<void> {
         // refuse a shortcut nothing registered
         if (event.action === "shortcut.pressed" && event.id !== this.shortcut.id) {
-            throw DesktopError.of("SHORTCUT_NOT_FOUND", `no shortcut ${event.id} is registered`);
+            throw DesktopError.of("SHORTCUT_NOT_FOUND", `shortcut '${event.id}' not found`);
         }
         // float the palette on its shortcut
         else if (event.action === "shortcut.pressed") {

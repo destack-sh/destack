@@ -10,7 +10,7 @@ const links = new Link("destack");
 function parse(href: string): Address {
     const address = links.parse(href);
     if (address === undefined) {
-        throw new TypeError(`link addresses nothing: ${href}`);
+        throw new TypeError(`link addresses nothing: '${href}'`);
     }
 
     return address;

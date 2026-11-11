@@ -171,7 +171,7 @@ export class Menu {
 
         // refuse an item no section shows, then run it
         if (entry === undefined || entry.kind === "label") {
-            throw DesktopError.of("MENU_ITEM_NOT_FOUND", `no menu item ${id} runs`);
+            throw DesktopError.of("MENU_ITEM_NOT_FOUND", `menu item '${id}' not found`);
         }
         await entry.run();
     }

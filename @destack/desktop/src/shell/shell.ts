@@ -45,7 +45,7 @@ export class Shell {
         if (last !== "") {
             throw DesktopError.of(
                 "EVENT_INVALID",
-                `the shell closed its pipe within a line: ${last}`,
+                `shell event '${last}' is invalid: the shell closed its pipe within a line`,
             );
         }
     }
@@ -54,7 +54,10 @@ export class Shell {
     static #event(line: string): Event {
         const parsed = Event.safeParse(Shell.#json(line));
         if (!parsed.success) {
-            throw DesktopError.of("EVENT_INVALID", `the shell sent no event: ${line}`);
+            throw DesktopError.of(
+                "EVENT_INVALID",
+                `shell line '${line}' is invalid: it must be an event`,
+            );
         }
 
         return parsed.data;
@@ -65,9 +68,13 @@ export class Shell {
         try {
             return JSON.parse(line);
         } catch (error) {
-            throw DesktopError.of("EVENT_INVALID", `the shell sent no JSON: ${line}`, {
-                cause: error,
-            });
+            throw DesktopError.of(
+                "EVENT_INVALID",
+                `shell line '${line}' is invalid: it must be JSON`,
+                {
+                    cause: error,
+                },
+            );
         }
     }
 }

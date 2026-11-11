@@ -51,8 +51,8 @@ export class Application {
             const application = Distribution.bundle(executable);
             if (application === undefined) {
                 throw DesktopError.of(
-                    "APPLICATION_UNAVAILABLE",
-                    "the desktop needs this command inside the Destack application",
+                    "APPLICATION_BLOCKED",
+                    "cannot run the desktop: this command must run inside the Destack application",
                 );
             }
 
@@ -94,8 +94,8 @@ export class Application {
             const code = await child.exited;
             if (code !== 0) {
                 throw DesktopError.of(
-                    "APPLICATION_LAUNCH_FAILED",
-                    `the desktop did not launch: ${code}`,
+                    "APPLICATION_LAUNCH_BROKEN",
+                    `the desktop did not launch: '${code}'`,
                 );
             }
         }

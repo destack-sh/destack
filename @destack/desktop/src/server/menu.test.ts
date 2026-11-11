@@ -95,7 +95,7 @@ test("offer a command only on targets meeting its condition, and run it on the o
             },
         ],
         focuses: 1,
-        missing: ["NOT_FOUND", "MENU_ITEM_NOT_FOUND", "no menu item settings.close runs"],
+        missing: ["NOT_FOUND", "MENU_ITEM_NOT_FOUND", "menu item 'settings.close' not found"],
     });
 });
 
@@ -119,7 +119,7 @@ test("run a chosen item by its identity after its section renders again, refusin
     const missing = await refusal(() => menu.choose("update.check"));
     await menu.choose("update.restart");
     expect({ missing, ran }).toEqual({
-        missing: ["NOT_FOUND", "MENU_ITEM_NOT_FOUND", "no menu item update.check runs"],
+        missing: ["NOT_FOUND", "MENU_ITEM_NOT_FOUND", "menu item 'update.check' not found"],
         ran: ["restart"],
     });
 });

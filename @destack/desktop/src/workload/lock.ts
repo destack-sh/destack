@@ -26,7 +26,10 @@ export class DesktopLock {
         // refuse the lock another desktop has
         const lock = await this.#environment.files.tryLock(this.path, "exclusive");
         if (lock === undefined) {
-            throw DesktopError.of("DESKTOP_RUNNING", "another Destack desktop runs for this user");
+            throw DesktopError.of(
+                "DESKTOP_BLOCKED",
+                "cannot start the desktop: another Destack desktop runs for this user",
+            );
         }
 
         return lock;

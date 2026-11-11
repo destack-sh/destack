@@ -48,12 +48,16 @@ test("refuse a line that is no JSON, a line that is no event, and a pipe closed 
         await refusal(read(['{"action":"window.flown"}\n'])),
         await refusal(read(['{"action":"window.closed"'])),
     ]).toEqual([
-        ["BAD_REQUEST", "EVENT_INVALID", "the shell sent no JSON: not json"],
-        ["BAD_REQUEST", "EVENT_INVALID", 'the shell sent no event: {"action":"window.flown"}'],
+        ["BAD_REQUEST", "EVENT_INVALID", "shell line 'not json' is invalid: it must be JSON"],
         [
             "BAD_REQUEST",
             "EVENT_INVALID",
-            'the shell closed its pipe within a line: {"action":"window.closed"',
+            `shell line '{"action":"window.flown"}' is invalid: it must be an event`,
+        ],
+        [
+            "BAD_REQUEST",
+            "EVENT_INVALID",
+            `shell event '{"action":"window.closed"' is invalid: the shell closed its pipe within a line`,
         ],
     ]);
 });

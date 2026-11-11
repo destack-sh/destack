@@ -487,7 +487,7 @@ export class Desktop implements AsyncDisposable {
             where: { id: schema.identifier("distribution").parse(id) },
         });
         if (checked === undefined) {
-            throw DesktopError.of("DISTRIBUTION_NOT_FOUND", `the distribution ${id} is gone`);
+            throw DesktopError.of("DISTRIBUTION_NOT_FOUND", `distribution '${id}' not found`);
         } else if (checked.staged === null) {
             await this.notify(
                 "current",
@@ -567,7 +567,10 @@ export class Desktop implements AsyncDisposable {
     /** Read the person signed in, refusing while nobody is. */
     #requirePerson(): Person {
         if (this.#person === undefined) {
-            throw DesktopError.of("SIGN_IN_REQUIRED", "nobody is signed in on this desktop");
+            throw DesktopError.of(
+                "SIGN_IN_UNAUTHENTICATED",
+                "authentication required: nobody is signed in on this desktop",
+            );
         }
 
         return this.#person;
