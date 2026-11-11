@@ -1,10 +1,10 @@
 import { createSignal, NoHydration } from "solid-js";
 import type { JSX } from "@solidjs/web";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { island, IslandContext, IslandPage } from "./island.tsx";
 
 /** The package rendering the page. */
-const PAGE_PACKAGE = Package.parse({
+const PAGE_PACKAGE = PackageVersion.parse({
     id: "package-019f7480-0000-7000-8000-0000000000c1",
     name: "@example/islands",
     version: "2026.9.0",

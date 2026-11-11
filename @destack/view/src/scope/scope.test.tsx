@@ -1,5 +1,5 @@
 import { testWorld } from "../test/browser.ts";
-import { Localization, SOURCE_LOCALE } from "@destack/locale";
+import { argument, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { none, principal, relation } from "@destack/access";
 import { TestDatabase } from "@destack/db/test";
 import { defineObject, field } from "@destack/object";
@@ -29,10 +29,13 @@ const RENDER_MILLISECONDS = 2000;
 const board = defineObject({
     name: "board",
     plural: "boards",
+    title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
     scope: Scope.universe.id,
-    isScope: true,
     fields: {},
-    permissions: { read: none() },
+    container: "scope",
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** A card on a board. */
@@ -40,9 +43,12 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: board,
         fields: { owner: field.reference(principal.user).caller(), title: field.string() },
-        permissions: { read: relation("owner"), edit: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), edit: relation("owner") },
+        },
     },
     (method) => ({
         list: method.list("read"),
@@ -202,13 +208,12 @@ test("fail access to an object type the view's space does not hold into the erro
 /** An editor mode the person sets, which a device may override. */
 const editor = defineSetting({
     name: "editor.mode",
-    title: "Editor mode",
-    description: "Keyboard behavior in the editor.",
+    title: t`Editor mode`,
+    description: t`Keyboard behavior in the editor.`,
     schema: schema.enum(["standard", "vim"]),
     default: "standard",
     scope: "user",
     overrides: ["device"],
-    apply: "immediate",
 });
 
 /** The device the settings page runs on. */
@@ -277,13 +282,11 @@ test("show a setting's value for the page's person, and the device's value once 
 /** A space's language, which the space's members share rather than set for themselves. */
 const language = defineSetting({
     name: "space.language",
-    title: "Language",
-    description: "The space's language.",
+    title: t`Language`,
+    description: t`The space's language.`,
     schema: schema.string(),
     default: "en",
     scope: "space",
-    overrides: [],
-    apply: "immediate",
 });
 
 test("refuse following a space's setting as the page's person into the error boundary", async () => {

@@ -1,11 +1,6 @@
 import { useContext } from "solid-js";
 import type { ObjectClient } from "@destack/object/client";
-import {
-    type Client,
-    type PackageHandle,
-    type ProcedureRouter,
-    PackageMount,
-} from "@destack/object";
+import { type Client, type Package, type ProcedureRouter, PackageMount } from "@destack/object";
 import { type ClientOptions, createClient } from "@destack/object/client";
 import { PLATFORM_PATH } from "../declare/context.ts";
 import { ViewError } from "../error/error.ts";
@@ -31,7 +26,7 @@ export function useClient(scope: string): ObjectClient {
 
 /** Connect to a package the mounted view declares, refusing any other. */
 export function usePackage<Definition extends ProcedureRouter>(
-    handle: PackageHandle & { readonly router: Definition },
+    handle: Package & { readonly router: Definition },
 ): Client<Definition> {
     // connect where the host mounted the declared package
     const { packages } = useContext(ViewMountContext);
@@ -49,7 +44,7 @@ export function usePackage<Definition extends ProcedureRouter>(
 
 /** Mount the packages a view declares below the platform path of its origin. */
 export function mountPackages(
-    handles: readonly PackageHandle[],
+    handles: readonly Package[],
     origin: (path: string) => ClientOptions,
 ): ReadonlyMap<string, ClientOptions> {
     return new Map(

@@ -12,6 +12,7 @@ import {
     Seed,
     TextSize,
 } from "@destack/theme";
+import { t } from "@destack/locale";
 
 /** Where a display preference lives, applied at once. */
 const PREFERENCE = {
@@ -23,8 +24,8 @@ const PREFERENCE = {
 /** The appearance a person selects. */
 export const appearance = defineSetting({
     name: "appearance",
-    title: "Appearance",
-    description: "Use the system appearance or select a light or dark interface.",
+    title: t`Appearance`,
+    description: t`Use the system appearance or select a light or dark interface.`,
     schema: Appearance,
     default: "system",
     ...PREFERENCE,
@@ -33,8 +34,8 @@ export const appearance = defineSetting({
 /** The text size a person reads at. */
 export const textSize = defineSetting({
     name: "textSize",
-    title: "Text size",
-    description: "Read text smaller or larger.",
+    title: t`Text size`,
+    description: t`Read text smaller or larger.`,
     schema: TextSize,
     default: DEFAULT_DISPLAY.textSize,
     ...PREFERENCE,
@@ -43,9 +44,8 @@ export const textSize = defineSetting({
 /** How tightly a person packs controls and content. */
 export const density = defineSetting({
     name: "density",
-    title: "Density",
-    description:
-        "Pack controls and content compactly or spaciously, or keep each app's own density.",
+    title: t`Density`,
+    description: t`Pack controls and content compactly or spaciously, or keep each app's own density.`,
     schema: Density.nullable(),
     default: DEFAULT_DISPLAY.density,
     ...PREFERENCE,
@@ -54,8 +54,8 @@ export const density = defineSetting({
 /** The contrast a person reads at. */
 export const contrast = defineSetting({
     name: "contrast",
-    title: "Contrast",
-    description: "Follow the device's contrast or set how far text, lines and graphics stand out.",
+    title: t`Contrast`,
+    description: t`Follow the device's contrast or set how far text, lines and graphics stand out.`,
     schema: Contrast,
     default: DEFAULT_DISPLAY.contrast,
     ...PREFERENCE,
@@ -64,8 +64,8 @@ export const contrast = defineSetting({
 /** The motion a person sees. */
 export const motion = defineSetting({
     name: "motion",
-    title: "Motion",
-    description: "Use the system motion preference, or show or remove transitions.",
+    title: t`Motion`,
+    description: t`Use the system motion preference, or show or remove transitions.`,
     schema: Motion,
     default: DEFAULT_DISPLAY.motion,
     ...PREFERENCE,
@@ -74,8 +74,8 @@ export const motion = defineSetting({
 /** The accent a person selects over every app's own. */
 export const accent = defineSetting({
     name: "accent",
-    title: "Accent color",
-    description: "Use each app's own accent, or one accent color in every app.",
+    title: t`Accent color`,
+    description: t`Use each app's own accent, or one accent color in every app.`,
     schema: Seed.nullable(),
     default: DEFAULT_DISPLAY.accent,
     ...PREFERENCE,

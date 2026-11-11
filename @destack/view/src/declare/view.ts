@@ -1,9 +1,4 @@
-import {
-    DeclarationName,
-    defineDeclarationKind,
-    ModuleMetadata,
-    type Package,
-} from "@destack/package";
+import { DeclarationName, defineKind, ModuleMetadata, type PackageVersion } from "@destack/package";
 import {
     type ViewAudience,
     type ViewCategory,
@@ -11,13 +6,14 @@ import {
     type ViewPresentationPriority,
 } from "@destack/package/manifest";
 import type { ObjectType } from "@destack/object";
-import type { PackageHandle } from "@destack/object";
+import type { Package } from "@destack/object";
 import type { Component } from "solid-js";
 import type { Environment } from "@destack/environment";
 import { ViewError } from "../error/error.ts";
+import type { Message } from "@destack/locale";
 
 /** The view declaration kind, described as builds index a view's declaration. */
-export const VIEW_KIND = defineDeclarationKind("view", ViewDescription.declaration);
+export const VIEW_KIND = defineKind({ name: "view", description: ViewDescription.declaration });
 
 /** How a view renders: in the browser, prerendered at build, or per request on the server. */
 export type ViewRender =
@@ -69,6 +65,8 @@ export interface EndpointContext {
 export interface ViewDefinition {
     /** The name, unique among the package's views. */
     readonly name: string;
+    /** The view's name as people read it, such as in a window's title or a launcher. */
+    readonly title: Message;
     /** The object types the view reads and changes, wherever its context opens them. */
     readonly objects?: readonly ObjectType[];
     /** The object types the view presents, and how strongly. */
@@ -78,7 +76,7 @@ export interface ViewDefinition {
     /** Who the view serves: a signed-in person by default, or anyone. */
     readonly audience?: ViewAudience;
     /** The packages the view calls as its user, such as observability. */
-    readonly packages?: readonly PackageHandle[];
+    readonly packages?: readonly Package[];
     /** Load the module whose default export is the root component. */
     readonly component: () => Promise<{ readonly default: Component }>;
     /** How the view renders, in the browser when absent. */
@@ -96,7 +94,7 @@ export interface Presentation {
 /** A view a package declares, acting under its user's grant to the package's installation. */
 export class View {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name. */
     readonly name: string;
     /** The object types the view reads and changes, wherever its context opens them. */
@@ -108,14 +106,14 @@ export class View {
     /** Who the view serves. */
     readonly audience: ViewAudience;
     /** The packages the view calls as its user. */
-    readonly packages: readonly PackageHandle[];
+    readonly packages: readonly Package[];
     /** Load the module whose default export is the root component. */
     readonly component: ViewDefinition["component"];
     /** How the view renders. */
     readonly render: ViewRender;
 
     /** Create a view from its package and definition. */
-    constructor(owner: Package, definition: ViewDefinition) {
+    constructor(owner: PackageVersion, definition: ViewDefinition) {
         // copy the package and the definition
         this.package = owner;
         this.name = definition.name;

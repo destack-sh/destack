@@ -6,6 +6,7 @@
         ".": "./src/view.ts"
     },
     "dependencies": {
+        "@destack/locale": "workspace:*",
         "@destack/view": "workspace:*"
     }
 }

@@ -1,5 +1,5 @@
 import type { BrowserEnvironment } from "@destack/environment/browser";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { TelemetryScope } from "@destack/telemetry";
 import { type Component, createComponent } from "solid-js";
 import { type JSX, render } from "@solidjs/web";
@@ -15,7 +15,7 @@ import {
 /** What a view's components render under, mounted in a page or prerendered as a static page. */
 export interface ViewRootProperties {
     /** The package rendering, whose telemetry the components record through. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The environment the components run in. */
     readonly environment: BrowserEnvironment;
     /** The person's localization. */

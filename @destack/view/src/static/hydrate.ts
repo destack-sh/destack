@@ -8,7 +8,7 @@ import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
 import type { ThemeDescription } from "@destack/theme";
 import { type Component, createComponent } from "solid-js";
 import { hydrate } from "@solidjs/web";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import type { View } from "../declare/view.ts";
 import { recordVisits } from "../browser/visit.ts";
 import { ViewError } from "../error/error.ts";
@@ -39,7 +39,7 @@ export async function hydrateStatic(
 
 /** Hydrate each island of a static view's page from its module, leaving the rest as HTML. */
 export async function hydrateIslands(
-    view: { readonly name: string; readonly package: Package },
+    view: { readonly name: string; readonly package: PackageVersion },
     islands: IslandModules,
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<void> {
@@ -132,7 +132,7 @@ function islandId(root: HTMLElement): string {
 
 /** Start a page's telemetry, exporting it and uncaught failures to the origin serving it. */
 function startPageTelemetry(
-    view: { readonly package: Package },
+    view: { readonly package: PackageVersion },
     environment: Environment<"workers" | BrowserCapability>,
 ): Promise<PageTelemetry> {
     const exporter = OtlpExporter.http(
@@ -149,7 +149,7 @@ function startPageTelemetry(
 
 /** Record a page's visits, and release its renderings and telemetry once it goes. */
 function followPage(
-    view: { readonly name: string; readonly package: Package },
+    view: { readonly name: string; readonly package: PackageVersion },
     telemetry: PageTelemetry,
     environment: Environment<"workers" | BrowserCapability>,
     disposals: readonly (() => void)[],

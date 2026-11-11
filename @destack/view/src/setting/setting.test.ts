@@ -2,6 +2,7 @@ import { describeSetting } from "@destack/setting/inspect";
 import { expect, test } from "@destack/test";
 import { PRESET_NAMES } from "@destack/theme";
 import { accent, appearance, contrast, density, motion, textSize } from "./index.ts";
+import { t } from "@destack/locale";
 
 /** The fields every display preference shares. */
 const preference = {
@@ -32,8 +33,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "appearance",
-        title: "Appearance",
-        description: "Use the system appearance or select a light or dark interface.",
+        title: t`Appearance`,
+        description: t`Use the system appearance or select a light or dark interface.`,
         schema: enumeration(["system", "light", "dark"]),
         default: "system",
         ...preference,
@@ -41,8 +42,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "textSize",
-        title: "Text size",
-        description: "Read text smaller or larger.",
+        title: t`Text size`,
+        description: t`Read text smaller or larger.`,
         schema: enumeration([
             "xSmall",
             "small",
@@ -58,9 +59,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "density",
-        title: "Density",
-        description:
-            "Pack controls and content compactly or spaciously, or keep each app's own density.",
+        title: t`Density`,
+        description: t`Pack controls and content compactly or spaciously, or keep each app's own density.`,
         schema: nullable(["compact", "regular", "spacious"]),
         default: null,
         ...preference,
@@ -68,9 +68,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "contrast",
-        title: "Contrast",
-        description:
-            "Follow the device's contrast or set how far text, lines and graphics stand out.",
+        title: t`Contrast`,
+        description: t`Follow the device's contrast or set how far text, lines and graphics stand out.`,
         schema: {
             $schema: "https://json-schema.org/draft/2020-12/schema",
             anyOf: [
@@ -84,8 +83,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "motion",
-        title: "Motion",
-        description: "Use the system motion preference, or show or remove transitions.",
+        title: t`Motion`,
+        description: t`Use the system motion preference, or show or remove transitions.`,
         schema: enumeration(["system", "full", "reduced"]),
         default: "system",
         ...preference,
@@ -93,8 +92,8 @@ const DESCRIPTIONS = [
     {
         owner: "@destack/view",
         name: "accent",
-        title: "Accent color",
-        description: "Use each app's own accent, or one accent color in every app.",
+        title: t`Accent color`,
+        description: t`Use each app's own accent, or one accent color in every app.`,
         schema: {
             $schema: "https://json-schema.org/draft/2020-12/schema",
             anyOf: [

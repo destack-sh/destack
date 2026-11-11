@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { TestDatabase } from "@destack/db/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { type JsonValue, schema } from "@destack/schema";
 import { type Setting } from "@destack/setting";
 import { deviceSetting, setting } from "@destack/setting/object";
@@ -17,7 +17,7 @@ import { Presentation, type Page } from "./presentation.ts";
 const PERSON = schema.identifier("user").parse("user-01996ab0-0000-7000-8000-0000000000e2");
 
 /** The notes package whose view the page shows. */
-const notes = Package.parse({
+const notes = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
     name: "@example/notes",
     version: "2026.9.0",

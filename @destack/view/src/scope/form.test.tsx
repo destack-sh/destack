@@ -8,6 +8,7 @@ import { expect, test } from "@destack/test";
 import { flush } from "../solid/reactive.ts";
 import { render, wait } from "../test/index.ts";
 import { type Form, type FormMode, useForm, useSchemaForm } from "./form.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The world the form tests run in. */
 const world = testSimulation().environment("tab");
@@ -23,9 +24,12 @@ const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: Scope.universe.id,
         fields: { title: field.string(schema.string().min(1).max(20)) },
-        permissions: { write: none() },
+        access: {
+            permissions: { write: none() },
+        },
     },
     (method) => ({ update: method.update("write") }),
 );

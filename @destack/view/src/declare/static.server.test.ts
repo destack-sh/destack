@@ -1,10 +1,11 @@
 import { expect, test } from "@destack/test";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { describeView } from "../inspect/index.ts";
 import { defineView } from "./view.ts";
+import { t } from "@destack/locale";
 
 /** The declaring package. */
-const site = Package.parse({
+const site = PackageVersion.parse({
     id: PackageId.parse("package-019f7480-0000-7000-8000-000000000002"),
     name: "@example/site",
     version: "2026.9.0",
@@ -15,6 +16,7 @@ test("describe a static view by its origin and hydration, never loading its comp
     const view = defineView(
         {
             name: "site",
+            title: t`Site`,
             component: () => Promise.reject(new Error("loaded")),
             render: {
                 mode: "static",

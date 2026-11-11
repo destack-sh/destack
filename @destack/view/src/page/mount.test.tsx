@@ -1,7 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
 import type { BrowserEnvironment } from "@destack/environment/browser";
-import { type LocaleTag, Localization, SOURCE_LOCALE, t } from "@destack/locale";
+import { argument, type LocaleTag, Localization, plural, SOURCE_LOCALE, t } from "@destack/locale";
 import { principal } from "@destack/access";
 import { Scope } from "@destack/sync";
 import { expect, test } from "@destack/test";
@@ -12,7 +12,7 @@ import { mountPackages, usePackage } from "./view.ts";
 import { definePackage } from "@destack/object";
 import { defineObject, method } from "@destack/object";
 import { none } from "@destack/access";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { createSignal } from "solid-js";
 import { Errored } from "../solid/flow.ts";
@@ -95,7 +95,7 @@ test("render a view under its localization, translated by its package's catalog 
 });
 
 /** The package answering how many notes a person keeps, which declares the tallies. */
-const COUNTER = Package.parse({
+const COUNTER = PackageVersion.parse({
     id: "package-019f7480-0000-7000-8000-000000000002",
     name: "@example/counter",
     version: "2026.9.0",
@@ -106,12 +106,16 @@ const tally = defineObject(
     {
         name: "tally",
         plural: "tallies",
+        title: t`${plural(argument("count"), { one: "Tally", other: "Tallies" })}`,
         scope: Scope.universe.id,
         fields: {},
-        permissions: { read: none() },
+        access: {
+            permissions: { read: none() },
+        },
     },
     () => ({
         count: method.query({
+            title: t`Count`,
             permission: "read",
             target: "scope",
             output: schema.object({ notes: schema.number() }),
@@ -121,7 +125,7 @@ const tally = defineObject(
 );
 
 /** A package answering how many notes a person keeps. */
-const counter = definePackage({ objects: { tally } }, { package: COUNTER });
+const counter = definePackage({ objects: [tally] }, { package: COUNTER });
 
 /** Show the note count the counter package answers. */
 function Count() {

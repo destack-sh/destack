@@ -6,13 +6,13 @@ import { installHydration, wait } from "../test/dom.ts";
 import { hydrateIsland } from "./hydrate.ts";
 import { present } from "@destack/schema";
 import { renderOnServer } from "../test/hydration.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { Counter, Disclosure } from "./island.fixture.tsx";
 import { createComponent } from "solid-js";
 import { IslandSlot } from "./island.tsx";
 
 /** The package the island records its telemetry for. */
-const PAGE_PACKAGE = Package.parse({
+const PAGE_PACKAGE = PackageVersion.parse({
     id: "package-019f7480-0000-7000-8000-0000000000c1",
     name: "@example/islands",
     version: "2026.9.0",

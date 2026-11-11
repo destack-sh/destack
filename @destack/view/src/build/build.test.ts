@@ -5,7 +5,7 @@ import { Workspace, CompilerPool } from "@destack/build";
 import { testStore, testSimulation } from "@destack/build/test";
 import { COMMAND_KIND } from "@destack/object";
 import { VIEW_KIND } from "../declare/view.ts";
-import { Package, type DeclarationDescription } from "@destack/package";
+import { PackageVersion, type DeclarationDescription } from "@destack/package";
 import type { Compilation, Plugin, PluginOption } from "@destack/package/build";
 import { destackTheme } from "@destack/theme/declare";
 import { viewExtension } from "./build.ts";
@@ -86,17 +86,17 @@ test(
 
 test("generate the module mounting a view with its package's theme and commands, and describe it with its package's browser capabilities", () => {
     // compile a browser output of a package declaring one view, a theme and two commands, using the network and the camera
-    const owner = Package.parse({
+    const owner = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-00000000000c",
         name: "@example/app",
         version: "2026.9.0",
     });
-    const kind = Package.parse({
+    const kind = PackageVersion.parse({
         id: VIEW_KIND.packageId,
         name: "@destack/view",
         version: "2026.9.0",
     });
-    const objects = Package.parse({
+    const objects = PackageVersion.parse({
         id: COMMAND_KIND.packageId,
         name: "@destack/object",
         version: "2026.9.0",
@@ -117,7 +117,7 @@ test("generate the module mounting a view with its package's theme and commands,
     };
     const declared = (
         declaration: "theme" | "command",
-        declaring: Package,
+        declaring: PackageVersion,
         name: string,
         description: DeclarationDescription["description"],
     ): DeclarationDescription => ({
@@ -128,7 +128,7 @@ test("generate the module mounting a view with its package's theme and commands,
         symbol: { package: declaring, symbol: { module: "src/view.ts", name } },
         description,
     });
-    const command = (name: string, declaring: Package, keybinding?: string) => ({
+    const command = (name: string, declaring: PackageVersion, keybinding?: string) => ({
         name,
         package: declaring,
         title: { package: declaring.id, id: name, source: name, values: {} },

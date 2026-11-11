@@ -9,6 +9,7 @@ import { useQuery, useSpace } from "../scope/index.ts";
 import { For } from "../solid/flow.ts";
 import { renderExample } from "./frame.ts";
 import { changed } from "../test/dom.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest a test waits for a render, far above the few microtasks a local resource takes. */
 const RENDER_MILLISECONDS = 2000;
@@ -18,11 +19,14 @@ const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         fields: {
             owner: field.reference(principal.user).caller(),
             title: field.string(schema.string().min(1)),
         },
-        permissions: { read: relation("owner"), edit: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), edit: relation("owner") },
+        },
     },
     (method) => ({
         list: method.list("read"),
@@ -44,6 +48,7 @@ function Cards() {
 /** The cards of a space. */
 const cards = defineView({
     name: "cards",
+    title: t`Cards`,
     objects: [card],
     component: async () => ({ default: Cards }),
 });

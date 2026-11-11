@@ -1,7 +1,7 @@
 import type { JsonValue } from "@destack/schema";
 import { type Component, createContext, Hydration, NoHydration, useContext } from "solid-js";
 import { isServer, type JSX } from "@solidjs/web";
-import type { Package } from "@destack/package";
+import type { PackageVersion } from "@destack/package";
 import { ViewError } from "../error/error.ts";
 import { useLocale } from "../page/locale.ts";
 import { ViewRoot } from "../page/mount.ts";
@@ -10,12 +10,12 @@ import { useEnvironment } from "../page/context.ts";
 /** A page whose islands alone hydrate: its package and the ids it gave its islands so far. */
 export class IslandPage {
     /** The package rendering the page, whose telemetry its islands record through. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The islands rendered so far. */
     #count = 0;
 
     /** Create a page of a package's islands. */
-    constructor(owner: Package) {
+    constructor(owner: PackageVersion) {
         this.package = owner;
     }
 

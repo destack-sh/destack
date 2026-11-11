@@ -1,14 +1,15 @@
 import { expect, test } from "@destack/test";
 import { none } from "@destack/access";
 import { defineObject } from "@destack/object";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { account, space } from "@destack/account/object";
 import { describeView } from "../inspect/index.ts";
-import { PackageHandle } from "@destack/object";
+import { Package } from "@destack/object";
 import { defineView } from "./view.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The declaring package. */
-const notes = Package.parse({
+const notes = PackageVersion.parse({
     id: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
     name: "@example/notes",
     version: "2026.9.0",
@@ -18,26 +19,33 @@ const notes = Package.parse({
 const note = defineObject({
     name: "note",
     plural: "notes",
+    title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
     scope: space,
     fields: {},
-    permissions: { read: none() },
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 /** The budgets of an account a view opens. */
 const budget = defineObject({
     name: "budget",
     plural: "budgets",
+    title: t`${plural(argument("count"), { one: "Budget", other: "Budgets" })}`,
     scope: account,
     fields: {},
-    permissions: { read: none() },
+    access: {
+        permissions: { read: none() },
+    },
 });
 
 test("describe a declared view by its name, presented types, categories, packages and render mode without loading its component", () => {
     // declare a view of notes calling a package, whose component never loads
-    const counter = PackageHandle.of(notes, {});
+    const counter = Package.of(notes, {});
     const view = defineView(
         {
             name: "notes",
+            title: t`Notes`,
             objects: [note],
             presents: [{ object: note, priority: "default" }],
             categories: ["home"],
@@ -68,6 +76,7 @@ test("open each object type in the scopes it lives in: space types in the space 
     const view = defineView(
         {
             name: "inbox",
+            title: t`Inbox`,
             objects: [note, budget],
             component: () => Promise.reject(new Error("loaded")),
         },
