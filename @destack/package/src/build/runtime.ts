@@ -2,6 +2,7 @@ import { isBuiltin } from "node:module";
 import type { CSSOptions } from "vite";
 import { nth } from "@destack/schema";
 import type { Runtime } from "../runtime/index.ts";
+import { DependencyName } from "../definition/package.ts";
 
 /** Lightning CSS's `light-dark()` flag, `Features.LightDark` in its `node/flags.js`. */
 export const LIGHT_DARK_FEATURE = 1_048_576;
@@ -112,6 +113,23 @@ export function runtimeConditions(
     }
 }
 
+/** The npm packages the machine's toolchain supplies to its builds, which no package bundles. */
+export const TOOLCHAIN_PACKAGES: ReadonlySet<string> = new Set([
+    // the compilers and the bundler
+    "typescript",
+    "rolldown",
+    "vite",
+    "lightningcss",
+    "@solidjs/vite-plugin",
+    "@solidjs/compiler",
+    // the image renderer
+    "sharp",
+    // the linter and the formatter
+    "oxlint",
+    "oxfmt",
+    "oxlint-tsgolint",
+]);
+
 /** Identify modules a host supplies rather than a package: built-ins and Bun's own. */
 export function isHostModule(specifier: string): boolean {
     return isBuiltin(specifier) || specifier === "bun" || specifier.startsWith("bun:");
@@ -121,7 +139,7 @@ export function isHostModule(specifier: string): boolean {
 export function isRuntimeModule(specifier: string, runtime: Runtime): boolean {
     return (
         specifier.startsWith(DESTACK_MODULE_SCHEME) ||
-        (runtime === "bun" && isHostModule(specifier)) ||
+        (runtime === "bun" && (isHostModule(specifier) || isToolchainModule(specifier))) ||
         (runtime === "workerd" &&
             isBuiltin(specifier) &&
             WORKERD_NODE_MODULES.has(nth(specifier.replace(/^node:/u, "").split("/"), 0)))
@@ -168,3 +186,8 @@ export const TYPESCRIPT_OPTIONS = {
     skipLibCheck: true,
     ...TYPE_CHECKS,
 } as const;
+
+/** Identify a module of a package the machine's toolchain supplies. */
+function isToolchainModule(specifier: string): boolean {
+    return TOOLCHAIN_PACKAGES.has(DependencyName.of(specifier));
+}

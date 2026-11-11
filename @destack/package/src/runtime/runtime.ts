@@ -22,9 +22,6 @@ export const HOST_RUNTIME = "bun" satisfies Runtime;
 /** The runtimes loading only the modules a deployment lists, which no computed import extends. */
 export const LISTED_MODULE_RUNTIMES: ReadonlySet<Runtime> = new Set(["workerd"]);
 
-/** The runtimes loading native addons: Bun, as workerd runs no native code. */
-export const NATIVE_ADDON_RUNTIMES: ReadonlySet<Runtime> = new Set(["bun"]);
-
 /** The scheme of the modules workerd supplies itself, such as `cloudflare:sockets`. */
 export const WORKERD_SCHEME = /^cloudflare:/u;
 
