@@ -83,8 +83,8 @@ async function serveRoot(
         const [, machineId, verb] = new URL(request.url).pathname.split("/");
         if (verb !== "standing") {
             throw RelayError.of(
-                "TUNNEL_CALL_UNKNOWN",
-                `the relay's root answers no call ${verb ?? ""}`,
+                "TUNNEL_CALL_NOT_FOUND",
+                `relay root call '${verb ?? ""}' not found`,
             );
         }
 
@@ -229,7 +229,7 @@ async function openReplica(
 
 /** Refuse a routed name at a machine's tunnel, as the root alone routes names. */
 function refuseNames(): Promise<Response> {
-    throw RelayError.of("TUNNEL_CALL_UNKNOWN", "a machine's tunnel routes no names");
+    throw RelayError.of("TUNNEL_CALL_NOT_FOUND", "name route at a machine's tunnel not found");
 }
 
 /** Answer one call of the root to a machine's tunnel. */
@@ -237,19 +237,24 @@ async function tunnelCall(request: Request, running: Tunnel): Promise<Response> 
     // require the root to address the partition's own machine
     const [, addressed, verb] = new URL(request.url).pathname.split("/");
     if (addressed !== running.machineId) {
-        throw new TypeError(`tunnel of ${running.machineId} got a call for ${addressed ?? "none"}`);
+        throw new TypeError(
+            `tunnel of '${running.machineId}' got a call for '${addressed ?? "none"}'`,
+        );
     }
 
     // accept a machine's WebSocket after its handshake for the same machine
     if (verb === "open") {
         const header = request.headers.get(HANDSHAKE_HEADER);
         if (header === null) {
-            throw RelayError.of("HANDSHAKE_MISSING", "the tunnel's opening has no handshake");
+            throw RelayError.of(
+                "HANDSHAKE_REQUIRED",
+                "handshake is required: the tunnel's opening has none",
+            );
         }
         const handshake = Handshake.parse(JSON.parse(header));
         if (handshake.machineId !== running.machineId) {
             throw new TypeError(
-                `tunnel of ${running.machineId} got the handshake of ${handshake.machineId}`,
+                `tunnel of '${running.machineId}' got the handshake of '${handshake.machineId}'`,
             );
         }
 
@@ -277,7 +282,7 @@ async function tunnelCall(request: Request, running: Tunnel): Promise<Response> 
     }
     // refuse any other call
     else {
-        throw RelayError.of("TUNNEL_CALL_UNKNOWN", `unknown tunnel call ${verb ?? ""}`);
+        throw RelayError.of("TUNNEL_CALL_NOT_FOUND", `tunnel call '${verb ?? ""}' not found`);
     }
 }
 
@@ -285,7 +290,10 @@ async function tunnelCall(request: Request, running: Tunnel): Promise<Response> 
 function restore(request: Request): Request {
     const restored = ClientHead.restore(request);
     if (restored === undefined) {
-        throw RelayError.of("CLIENT_HEAD_MISSING", "the handed request has no client head");
+        throw RelayError.of(
+            "CLIENT_HEAD_REQUIRED",
+            "client head is required: the handed request has none",
+        );
     }
 
     return restored;

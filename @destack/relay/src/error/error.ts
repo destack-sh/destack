@@ -3,40 +3,36 @@ import type {} from "@destack/package/import-meta";
 
 /** The relay package's failures, each reason with the call error code it answers. */
 export const RelayError = defineErrorFamily(import.meta.destack.package, {
-    // bad request
-    CLIENT_HEAD_MISSING: { code: "BAD_REQUEST" },
-    FORWARDED_HOST_MISSING: { code: "BAD_REQUEST" },
-    HANDSHAKE_MISSING: { code: "BAD_REQUEST" },
-
-    // unauthorized
-    SUBPROTOCOL_INVALID: { code: "UNAUTHORIZED" },
-    MACHINE_REVOKED: { code: "UNAUTHORIZED" },
-    MACHINE_UNKEYED: { code: "UNAUTHORIZED" },
-    MACHINE_UNKNOWN: { code: "UNAUTHORIZED" },
-
-    // forbidden
-    RESIDENCY_FOREIGN: { code: "FORBIDDEN" },
-    TUNNEL_FOREIGN: { code: "FORBIDDEN" },
-    MACHINE_REQUIRED: { code: "FORBIDDEN" },
-
     // not found
-    NAME_UNRESOLVED: { code: "NOT_FOUND" },
-    RENEWAL_ONLY: { code: "NOT_FOUND" },
-    TUNNEL_CALL_UNKNOWN: { code: "NOT_FOUND" },
+    NAME_NOT_FOUND: {},
+    RENEWAL_ONLY_NOT_FOUND: {},
+    TUNNEL_CALL_NOT_FOUND: {},
 
-    // misdirected request
-    RELAY_OTHER: { code: "MISDIRECTED_REQUEST" },
+    // required
+    CLIENT_HEAD_REQUIRED: {},
+    HANDSHAKE_REQUIRED: {},
+    HOST_REQUIRED: {},
 
-    // bad gateway
-    ENDPOINT_UNREACHABLE: { code: "BAD_GATEWAY" },
-    RENEWAL_REFUSED: { code: "BAD_GATEWAY" },
+    // unauthenticated
+    MACHINE_UNAUTHENTICATED: {},
+    SUBPROTOCOL_UNAUTHENTICATED: {},
 
-    // service unavailable
-    MACHINE_DISCONNECTED: { code: "SERVICE_UNAVAILABLE" },
-    STREAMS_EXHAUSTED: { code: "SERVICE_UNAVAILABLE" },
+    // denied
+    MACHINE_DENIED: {},
+    RESIDENCY_DENIED: {},
+    TUNNEL_DENIED: {},
 
-    // gateway timeout
-    HEAD_TIMEOUT: { code: "GATEWAY_TIMEOUT" },
+    // moved
+    TUNNEL_MOVED: {},
+
+    // unavailable
+    MACHINE_UNAVAILABLE: {},
+    STREAMS_UNAVAILABLE: {},
+
+    // unreachable
+    ENDPOINT_UNREACHABLE: {},
+    HEAD_UNREACHABLE: {},
+    RENEWAL_UNREACHABLE: {},
 });
 
 /** A stable cause of relay failures. */

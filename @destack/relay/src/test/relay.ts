@@ -180,7 +180,7 @@ export class TestRelay implements AsyncDisposable {
         const sockets = new HibernationHost(async (instanceId, path, request) => {
             // deliver the event to the instance below the socket's path, with its secret
             if (!partitions.has(instanceId)) {
-                throw new TypeError(`the test relay started no instance ${instanceId}`);
+                throw new TypeError(`the test relay started no instance '${instanceId}'`);
             }
             const { runner, secret } = await start(partitions.get(instanceId));
             const headers = new Headers(request.headers);

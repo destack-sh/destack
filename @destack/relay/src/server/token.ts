@@ -49,7 +49,10 @@ export class TunnelToken {
         const { caller, credential } = await this.#verifier.verify(token, now);
         const { subject } = caller;
         if (!principal.machine.is(subject)) {
-            throw RelayError.of("MACHINE_REQUIRED", "only machines can open tunnels");
+            throw RelayError.of(
+                "MACHINE_DENIED",
+                "tunnel is forbidden: only machines can open tunnels",
+            );
         }
 
         return {

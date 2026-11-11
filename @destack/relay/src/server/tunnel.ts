@@ -33,9 +33,9 @@ const PARTITION_PREFIX = "tunnel-";
 
 /** The errors the relay answers for each reason a machine no longer stands. */
 export const STANDING_ERRORS = {
-    "machine-revoked": ["MACHINE_REVOKED", "is revoked"],
-    "key-revoked": ["MACHINE_UNKEYED", "has no key"],
-    "machine-unknown": ["MACHINE_UNKNOWN", "is not in the directory"],
+    "machine-revoked": ["MACHINE_UNAUTHENTICATED", "is revoked"],
+    "key-revoked": ["MACHINE_UNAUTHENTICATED", "has no key"],
+    "machine-unknown": ["MACHINE_UNAUTHENTICATED", "is not in the directory"],
 } as const;
 
 /** The answers that end a socket's standing: unauthorized and forbidden (RFC 9110 15.5). */
@@ -229,11 +229,14 @@ export class Tunnel implements SocketHandler {
         await this.sweep();
         const newest = this.#sockets.at(-1);
         if (newest === undefined) {
-            throw RelayError.of("MACHINE_DISCONNECTED", "the machine is disconnected");
+            throw RelayError.of(
+                "MACHINE_UNAVAILABLE",
+                "the machine is unavailable: it is disconnected",
+            );
         } else if (newest.session.size >= MAX_STREAMS) {
             throw RelayError.of(
-                "STREAMS_EXHAUSTED",
-                `the machine already has ${MAX_STREAMS} open requests`,
+                "STREAMS_UNAVAILABLE",
+                `the machine is unavailable: it already has ${MAX_STREAMS} open requests`,
             );
         }
 
@@ -254,8 +257,8 @@ export class Tunnel implements SocketHandler {
         const response = await this.fetch(new Request(this.#options.url, { method: "PUT" }));
         if (!response.ok) {
             throw RelayError.of(
-                "RENEWAL_REFUSED",
-                `the machine refused to renew: ${response.status}`,
+                "RENEWAL_UNREACHABLE",
+                `could not renew the tunnel: HTTP ${response.status}`,
             );
         }
     }
@@ -411,8 +414,8 @@ export class Tunnel implements SocketHandler {
         } catch (error) {
             if (expiring.signal.aborted) {
                 throw RelayError.of(
-                    "HEAD_TIMEOUT",
-                    `the machine sent no response head within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
+                    "HEAD_UNREACHABLE",
+                    `could not read a response head from the machine within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
                 );
             }
             throw error;
@@ -429,7 +432,10 @@ export class Tunnel implements SocketHandler {
         if (!isRenewal) {
             await stream.respond(
                 refusal(
-                    RelayError.of("RENEWAL_ONLY", "machines can only renew their own tunnel"),
+                    RelayError.of(
+                        "RENEWAL_ONLY_NOT_FOUND",
+                        "machine stream call not found: machines can only renew their own tunnel",
+                    ),
                     this.#options.environment.telemetry,
                 ),
             );
@@ -499,7 +505,10 @@ export class Tunnel implements SocketHandler {
             this.#options.environment.clock.now(),
         );
         if (verified.machineId !== this.machineId) {
-            throw RelayError.of("TUNNEL_FOREIGN", "machines can only renew their own tunnels");
+            throw RelayError.of(
+                "TUNNEL_DENIED",
+                "tunnel is forbidden: machines can only renew their own tunnels",
+            );
         }
 
         return verified;

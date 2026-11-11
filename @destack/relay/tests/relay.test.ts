@@ -12,15 +12,15 @@ import { TestTunnelMachine } from "../src/test/index.ts";
 
 /** Describe the refusal of a name that resolves to nothing. */
 function unresolved(name: string) {
-    return ["NOT_FOUND", "NAME_UNRESOLVED", `${name} does not resolve`];
+    return ["NOT_FOUND", "NAME_NOT_FOUND", `name '${name}' not found`];
 }
 
 /** Describe the refusal of a machine no tunnel or endpoint reaches, by its address. */
 async function disconnected(computer: TestTunnelMachine) {
     return [
         "SERVICE_UNAVAILABLE",
-        "MACHINE_DISCONNECTED",
-        `${await computer.address()} is disconnected`,
+        "MACHINE_UNAVAILABLE",
+        `'${await computer.address()}' is unavailable: it is disconnected`,
     ];
 }
 
@@ -84,7 +84,7 @@ test("end a forwarded request at its machine once the relay stops while the mach
     await relay[Symbol.asyncDispose]();
     expect([response.status, await aborted.promise]).toEqual([
         200,
-        TunnelError.of("SESSION_CLOSED", "session is closed"),
+        TunnelError.of("SESSION_UNAVAILABLE", "session is unavailable: it is closed"),
     ]);
 });
 
@@ -160,7 +160,7 @@ test("refuse names that lead nowhere, and a named machine that has no tunnel and
     const answers = await Promise.all(names.map((name) => computer.request(relay, name, "/")));
     expect([...answers, await computer.request(relay, computer.notes, "/")]).toEqual([
         ...names.map(unresolved),
-        ["BAD_GATEWAY", "ENDPOINT_UNREACHABLE", "https://computer.test/ does not answer"],
+        ["BAD_GATEWAY", "ENDPOINT_UNREACHABLE", "could not reach 'https://computer.test/'"],
     ]);
 });
 
@@ -180,8 +180,16 @@ test("refuse a forwarded request without its host, and one for a name another re
             headers: { forwarded: `host="${site}";proto=http` },
         }),
     ]).toEqual([
-        ["BAD_REQUEST", "FORWARDED_HOST_MISSING", "the forwarded request has no host or protocol"],
-        ["MISDIRECTED_REQUEST", "RELAY_OTHER", `${site} is tunnelled through another relay`],
+        [
+            "BAD_REQUEST",
+            "HOST_REQUIRED",
+            "a forwarded host and protocol is required: the forwarded request has no host or protocol",
+        ],
+        [
+            "MISDIRECTED_REQUEST",
+            "TUNNEL_MOVED",
+            `tunnel of '${site}' moved to another relay`,
+        ],
     ]);
 });
 
@@ -199,10 +207,18 @@ test("refuse the installation's own calls to a tunnel without a handshake or a c
         await refused(await relay.itself(`/${machine}/bogus`, post, partition)),
         await refused(await relay.itself(`/${machine}/bogus`, post)),
     ]).toEqual([
-        ["BAD_REQUEST", "HANDSHAKE_MISSING", "the tunnel's opening has no handshake"],
-        ["BAD_REQUEST", "CLIENT_HEAD_MISSING", "the handed request has no client head"],
-        ["NOT_FOUND", "TUNNEL_CALL_UNKNOWN", "unknown tunnel call bogus"],
-        ["NOT_FOUND", "TUNNEL_CALL_UNKNOWN", "the relay's root answers no call bogus"],
+        [
+            "BAD_REQUEST",
+            "HANDSHAKE_REQUIRED",
+            "handshake is required: the tunnel's opening has none",
+        ],
+        [
+            "BAD_REQUEST",
+            "CLIENT_HEAD_REQUIRED",
+            "client head is required: the handed request has none",
+        ],
+        ["NOT_FOUND", "TUNNEL_CALL_NOT_FOUND", "tunnel call 'bogus' not found"],
+        ["NOT_FOUND", "TUNNEL_CALL_NOT_FOUND", "relay root call 'bogus' not found"],
     ]);
 });
 
@@ -249,9 +265,9 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     });
 
     expect([await shake(person.accessToken), keyless, await shake(machine)]).toEqual([
-        ["FORBIDDEN", "MACHINE_REQUIRED", "only machines can open tunnels"],
-        ["UNAUTHORIZED", "MACHINE_UNKEYED", `machine ${computer.machine.id} has no key`],
-        ["UNAUTHORIZED", "MACHINE_REVOKED", `machine ${computer.machine.id} is revoked`],
+        ["FORBIDDEN", "MACHINE_DENIED", "tunnel is forbidden: only machines can open tunnels"],
+        ["UNAUTHORIZED", "MACHINE_UNAUTHENTICATED", `machine ${computer.machine.id} has no key`],
+        ["UNAUTHORIZED", "MACHINE_UNAUTHENTICATED", `machine ${computer.machine.id} is revoked`],
     ]);
 });
 
@@ -294,8 +310,8 @@ test("refuse a machine's handshake at a relay of another residency than its acco
 
     expect(await refusal(handshakes.handshake(offer))).toEqual([
         "FORBIDDEN",
-        "RESIDENCY_FOREIGN",
-        `${await computer.address()} tunnels through the relay of its account's residency`,
+        "RESIDENCY_DENIED",
+        `'${await computer.address()}' is forbidden: it tunnels through the relay of its account's residency`,
     ]);
 });
 
@@ -594,7 +610,11 @@ test("end a machine's tunnel once its last key is revoked, emitting why", async 
         computer.tunnels(),
     ]).toEqual([
         "hello GET /",
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [event(computer, "tunnel.open"), event(computer, "tunnel.close", "key-revoked")],
     ]);
 });

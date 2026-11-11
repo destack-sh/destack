@@ -163,7 +163,10 @@ export class Relay {
         // require a machine's token
         const token = TunnelProtocol.token(request.headers.get("sec-websocket-protocol"));
         if (token === undefined) {
-            throw RelayError.of("SUBPROTOCOL_INVALID", "invalid bearer subprotocol");
+            throw RelayError.of(
+                "SUBPROTOCOL_UNAUTHENTICATED",
+                "authentication required: the bearer subprotocol has no token",
+            );
         }
         const { machineId, lapsesAt, kid } = await this.#tokens.verify(token, this.#clock.now());
 
@@ -180,8 +183,8 @@ export class Relay {
             .findFirst({ where: { id: standing.account } });
         if (resident === undefined) {
             throw RelayError.of(
-                "RESIDENCY_FOREIGN",
-                `${standing.name} tunnels through the relay of its account's residency`,
+                "RESIDENCY_DENIED",
+                `'${standing.name}' is forbidden: it tunnels through the relay of its account's residency`,
             );
         }
 
@@ -378,8 +381,8 @@ export class Relay {
         const { for: client, host, proto } = Forwarded.first(request);
         if (host === undefined || proto === undefined) {
             throw RelayError.of(
-                "FORWARDED_HOST_MISSING",
-                "the forwarded request has no host or protocol",
+                "HOST_REQUIRED",
+                "a forwarded host and protocol is required: the forwarded request has no host or protocol",
             );
         }
 
@@ -398,7 +401,7 @@ export class Relay {
 
         // refuse a forwarded request for a machine tunnelled elsewhere, which its relay resolves again
         if (isForwarded && destination.kind !== "tunnel") {
-            throw RelayError.of("RELAY_OTHER", `${name} is tunnelled through another relay`);
+            throw RelayError.of("TUNNEL_MOVED", `tunnel of '${name}' moved to another relay`);
         }
 
         return this.#send(destination, request);
@@ -434,7 +437,7 @@ export class Relay {
         try {
             return await this.#fetch(forwarded);
         } catch (error) {
-            throw RelayError.of("ENDPOINT_UNREACHABLE", `${destination.url} does not answer`, {
+            throw RelayError.of("ENDPOINT_UNREACHABLE", `could not reach '${destination.url}'`, {
                 cause: error,
             });
         }
@@ -461,7 +464,7 @@ export class Relay {
         }
         // resolve nothing else
         else {
-            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
+            throw RelayError.of("NAME_NOT_FOUND", `name '${name}' not found`);
         }
     }
 
@@ -470,7 +473,7 @@ export class Relay {
         // find the space through the replicated claims, then its placement
         const named = await this.#directory.find(space, address);
         if (named === undefined) {
-            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
+            throw RelayError.of("NAME_NOT_FOUND", `name '${name}' not found`);
         }
 
         return this.#locatePlacement(name, named.id);
@@ -481,7 +484,7 @@ export class Relay {
         // refuse a space placed nowhere
         const [placed] = await Placement.find(this.#view, [spaceId]);
         if (placed === undefined) {
-            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
+            throw RelayError.of("NAME_NOT_FOUND", `name '${name}' not found`);
         }
 
         return this.#destination(placed.machine);
@@ -502,7 +505,7 @@ export class Relay {
                       },
                   });
         if (named === undefined) {
-            throw RelayError.of("NAME_UNRESOLVED", `${name} does not resolve`);
+            throw RelayError.of("NAME_NOT_FOUND", `name '${name}' not found`);
         }
 
         return this.#destination(named.id);
@@ -516,7 +519,10 @@ export class Relay {
             .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, this.#clock.now())) {
             const named = present(await this.#machine(machineId), `machine ${machineId}`);
-            throw RelayError.of("MACHINE_DISCONNECTED", `${named.name} is disconnected`);
+            throw RelayError.of(
+                "MACHINE_UNAVAILABLE",
+                `'${named.name}' is unavailable: it is disconnected`,
+            );
         }
 
         // route through its tunnel here, else to the relay with its tunnel or its own URL

@@ -232,7 +232,11 @@ test("forward through the newest socket, fall back to the older once the newest 
     expect([both, older, await forward(running, "/c"), telemetry.records()]).toEqual([
         "newer /a",
         "older /b",
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [
             event("tunnel.open"),
             event("tunnel.open"),
@@ -269,7 +273,11 @@ test("run an accepted socket only once its host delivers its first event, and fo
 
     // forward through the connected socket alone, opening it once
     expect([before, after, telemetry.records()]).toEqual([
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         "host /b",
         [event("tunnel.open")],
     ]);
@@ -308,11 +316,29 @@ test("renew a socket's token through a stream the machine opens, answering its n
         published,
     ]).toEqual([
         [200, { name: NAME, lapsesAt: TEST_START + 5000 }],
-        [404, refused("NOT_FOUND", "RENEWAL_ONLY", "machines can only renew their own tunnel")],
-        [403, refused("FORBIDDEN", "TUNNEL_FOREIGN", "machines can only renew their own tunnels")],
+        [
+            404,
+            refused(
+                "NOT_FOUND",
+                "RENEWAL_ONLY_NOT_FOUND",
+                "machine stream call not found: machines can only renew their own tunnel",
+            ),
+        ],
+        [
+            403,
+            refused(
+                "FORBIDDEN",
+                "TUNNEL_DENIED",
+                "tunnel is forbidden: machines can only renew their own tunnels",
+            ),
+        ],
         { machineId, lapsesAt: TEST_START + 5000, kid: KID },
         { machineId, lapsesAt: TEST_START, kid: KID },
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [event("tunnel.open"), event("tunnel.close", "lapsed")],
         // publish the tunnel once it opened and once it renewed, never at a refused renewal
         [
@@ -352,11 +378,14 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
     const lapsed = { machineId, lapsesAt: TEST_START, kid: KID };
     expect([revoked, keyless, unknown, await forward(running, "/a"), telemetry.records()]).toEqual([
         [
-            [401, refused("UNAUTHORIZED", "MACHINE_REVOKED", `machine ${machineId} is revoked`)],
-            lapsed,
-        ],
-        [
-            [401, refused("UNAUTHORIZED", "MACHINE_UNKEYED", `machine ${machineId} has no key`)],
+            [
+                401,
+                refused(
+                    "UNAUTHORIZED",
+                    "MACHINE_UNAUTHENTICATED",
+                    `machine ${machineId} is revoked`,
+                ),
+            ],
             lapsed,
         ],
         [
@@ -364,13 +393,28 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
                 401,
                 refused(
                     "UNAUTHORIZED",
-                    "MACHINE_UNKNOWN",
+                    "MACHINE_UNAUTHENTICATED",
+                    `machine ${machineId} has no key`,
+                ),
+            ],
+            lapsed,
+        ],
+        [
+            [
+                401,
+                refused(
+                    "UNAUTHORIZED",
+                    "MACHINE_UNAUTHENTICATED",
                     `machine ${machineId} is not in the directory`,
                 ),
             ],
             lapsed,
         ],
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [
             event("tunnel.open"),
             event("tunnel.close", "lapsed"),
@@ -390,8 +434,8 @@ test("refuse a rename the machine refuses to renew for", async () => {
     // rename the machine, whose session answers its renewal with a 503
     expect(await refusal(running.rename("renamed--acme.destack.computer"))).toEqual([
         "BAD_GATEWAY",
-        "RENEWAL_REFUSED",
-        "the machine refused to renew: 503",
+        "RENEWAL_UNREACHABLE",
+        "could not renew the tunnel: HTTP 503",
     ]);
 });
 
@@ -422,7 +466,11 @@ test("close a socket that lapsed while the partition slept on the next wake, for
     await simulation.run(TEST_START + 1000);
     const woken = wake();
     expect([await forward(woken, "/a"), telemetry.records()]).toEqual([
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [event("tunnel.open"), event("tunnel.close", "lapsed")],
     ]);
 });
@@ -446,7 +494,11 @@ test("verify woken sockets once their standing reads, again after a failed read,
     // retry the read without poisoning the instance, then close the socket of the revoked key
     expect([failed, await forward(woken, "/b"), telemetry.records()]).toEqual([
         new TypeError("the root is starting"),
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [event("tunnel.open"), event("tunnel.close", "key-revoked")],
     ]);
 });
@@ -461,7 +513,11 @@ test("forward only through woken sockets whose key the universe still lists", as
 
     // refuse the forward, closing the socket of the revoked key first
     expect([await forward(woken, "/a"), telemetry.records()]).toEqual([
-        ["SERVICE_UNAVAILABLE", "MACHINE_DISCONNECTED", "the machine is disconnected"],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            "the machine is unavailable: it is disconnected",
+        ],
         [event("tunnel.open"), event("tunnel.close", "key-revoked")],
     ]);
 });
@@ -473,13 +529,13 @@ test("answer a renewal the root fails to read without lapsing the socket", async
     const opened = await connect("host", TEST_START + 60_000);
     const machine = schema.instanceof(Session).parse(machines.get(opened.id));
     standing.standing = async () => {
-        throw RelayError.of("ENDPOINT_UNREACHABLE", "the root does not answer");
+        throw RelayError.of("ENDPOINT_UNREACHABLE", "could not reach the root");
     };
     const failed = await ask(machine, "/tunnel", `${machineId}.5000`);
 
     // refuse it for the root's reason, the socket keeping its lapse
     expect([failed, attachments.get(opened.id)]).toEqual([
-        [502, refused("BAD_GATEWAY", "ENDPOINT_UNREACHABLE", "the root does not answer")],
+        [502, refused("BAD_GATEWAY", "ENDPOINT_UNREACHABLE", "could not reach the root")],
         { machineId, lapsesAt: TEST_START + 60_000, kid: KID },
     ]);
 });
@@ -496,15 +552,15 @@ test("refuse a request beyond a machine's open requests, and time out the ones t
     await simulation.run(TEST_START + ANSWER_TIMEOUT_MILLISECONDS);
     const timedOut = await Promise.all(open);
     const timeout = [
-        "GATEWAY_TIMEOUT",
-        "HEAD_TIMEOUT",
-        `the machine sent no response head within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
+        "BAD_GATEWAY",
+        "HEAD_UNREACHABLE",
+        `could not read a response head from the machine within ${ANSWER_TIMEOUT_MILLISECONDS} ms`,
     ];
     expect([refusedOne, timedOut]).toEqual([
         [
             "SERVICE_UNAVAILABLE",
-            "STREAMS_EXHAUSTED",
-            `the machine already has ${MAX_STREAMS} open requests`,
+            "STREAMS_UNAVAILABLE",
+            `the machine is unavailable: it already has ${MAX_STREAMS} open requests`,
         ],
         Array.from({ length: MAX_STREAMS }, () => timeout),
     ]);
