@@ -17,6 +17,7 @@ import { AccountHandle } from "../address/handle.ts";
 import { DisplayName } from "./display-name.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The declaration name a residency space's stack installs the residency's relay under. */
 export const RESIDENCY_RELAY = "relay";
@@ -61,6 +62,7 @@ export const residency = defineObject(
     {
         name: "residency",
         plural: "residencies",
+        title: t`${plural(argument("count"), { one: "Residency", other: "Residencies" })}`,
         scope: "universe",
         key: "code",
         fields: {
@@ -75,37 +77,39 @@ export const residency = defineObject(
             /** The space hosting the residency's platform installations. */
             space: field.string(schema.identifier("space")).optional().guard({ read: "locate" }),
         },
-        relations: {
-            // the residency's cloud machines and its space
-            machine: { subjects: [principal.machine], grantedBy: "operate" },
-            space: { subjects: [principal.space], grantedBy: "operate" },
-            // the residency's relay, the installation its space's stack declares, related by the universe
-            relay: { subjects: [principal.installation], grantedBy: "operate" },
-            // the installations its space's stack declares, related at its space's request
-            installation: { subjects: [principal.installation], grantedBy: "operate" },
-            // everyone choosing a residency while signing up
-            public: { subjects: [anyone.all()] },
-            // the contents of the accounts storing their data in it, related as each account is created
-            resident: { subjects: ["account#contained"], grantedBy: "place" },
+        access: {
+            relations: {
+                // the residency's cloud machines and its space
+                machine: { subjects: [principal.machine], grantedBy: "operate" },
+                space: { subjects: [principal.space], grantedBy: "operate" },
+                // the residency's relay, the installation its space's stack declares, related by the universe
+                relay: { subjects: [principal.installation], grantedBy: "operate" },
+                // the installations its space's stack declares, related at its space's request
+                installation: { subjects: [principal.installation], grantedBy: "operate" },
+                // everyone choosing a residency while signing up
+                public: { subjects: [anyone.all()] },
+                // the contents of the accounts storing their data in it, related as each account is created
+                resident: { subjects: ["account#contained"], grantedBy: "place" },
+            },
+            permissions: {
+                read: relation("public"),
+                server: union(relation("machine"), relation("space")),
+                relaying: relation("relay"),
+                // let the installations its space declares serve its accounts
+                installed: relation("installation"),
+                // let its space relate the installations its stack declares
+                install: relation("space"),
+                // let its cloud machines and its space claim names in its accounts
+                claim: union(relation("machine"), relation("space")),
+                // let every signed-in caller read its space and the accounts selling to its buyers, as the universe's signed-in role grants
+                locate: none(),
+                // let the contents of its accounts act as its residents, such as their spaces' installations
+                reside: relation("resident"),
+                operate: none(),
+                place: none(),
+            },
+            reserved: ["server", "relaying", "claim", "installed", "install", "reside", "place"],
         },
-        permissions: {
-            read: relation("public"),
-            server: union(relation("machine"), relation("space")),
-            relaying: relation("relay"),
-            // let the installations its space declares serve its accounts
-            installed: relation("installation"),
-            // let its space relate the installations its stack declares
-            install: relation("space"),
-            // let its cloud machines and its space claim names in its accounts
-            claim: union(relation("machine"), relation("space")),
-            // let every signed-in caller read its space and the accounts selling to its buyers, as the universe's signed-in role grants
-            locate: none(),
-            // let the contents of its accounts act as its residents, such as their spaces' installations
-            reside: relation("resident"),
-            operate: none(),
-            place: none(),
-        },
-        reserved: ["server", "relaying", "claim", "installed", "install", "reside", "place"],
     },
     (method) => ({
         /** Store a residency the universe declares, shown to everyone. */
@@ -122,16 +126,22 @@ export const residency = defineObject(
         }),
 
         /** Relate an installation its space declares, its release asking for what that gives. */
-        touch: method.mutation({ permission: "install", input: ResidencyInstallation }),
+        touch: method.mutation({
+            title: t`Touch`,
+            permission: "install",
+            input: ResidencyInstallation,
+        }),
 
         /** Unrelate an installation its space no longer declares. */
         revoke: method.mutation({
+            title: t`Revoke`,
             permission: "install",
             input: ResidencyInstallation.pick({ installation: true, name: true }),
         }),
 
         /** Locate the space serving the residency an account stores its data in. */
         locate: method.query({
+            title: t`Locate`,
             permission: "locate",
             target: "scope",
             input: schema.object({
@@ -143,6 +153,7 @@ export const residency = defineObject(
 
         /** Read the relay origin of the residency an account stores its data in. */
         relay: method.query({
+            title: t`Relay`,
             permission: "locate",
             target: "scope",
             input: schema.object({
@@ -154,12 +165,14 @@ export const residency = defineObject(
 
         /** List the residency's enabled shared cloud machines and URLs, in identity order. */
         machines: method.query({
+            title: t`List machines`,
             permission: "locate",
             output: schema.array(ServingMachine),
         }),
 
         /** Find the account selling a handle's packages to the buyers of the asker's residency. */
         publisher: method.query({
+            title: t`Read publisher`,
             permission: "locate",
             target: "scope",
             input: schema.object({

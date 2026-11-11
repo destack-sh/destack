@@ -11,6 +11,8 @@ import { type OAuthConsent, oauthConsent } from "./oauth-consent.ts";
 import { RefreshToken } from "./refresh-token.ts";
 import { session } from "./session.ts";
 import { user } from "./user.ts";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The states of an authorization code: issued, then redeemed once. */
 export const AUTHORIZATION_CODE_STATUSES = ["issued", "redeemed"] as const;
@@ -20,8 +22,8 @@ export const authorizationCode = defineObject(
     {
         name: "authorization-code",
         plural: "authorizationCodes",
+        title: t`${plural(argument("count"), { one: "Authorization code", other: "Authorization codes" })}`,
         scope: user,
-        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
         fields: {
             /** The SHA-256 digest of the code. */
             digest: field.string(Digest).sensitive("deterministic"),
@@ -44,11 +46,14 @@ export const authorizationCode = defineObject(
             /** When the code lapses. */
             expiresAt: field.time(),
         },
-        permissions: { issue: none(), redeem: none() },
         constraints: {
             digest: { kind: "unique", on: ["digest"] },
             expiry: { kind: "index", on: ["expiresAt"] },
         },
+        access: {
+            permissions: { issue: none(), redeem: none() },
+        },
+        traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     },
     (method) => ({
         /** Issue a code for a consent. */
@@ -69,7 +74,7 @@ export const authorizationCode = defineObject(
             isPredicted: false,
         }),
         /** Spend a code, refusing one spent before. */
-        redeem: method.mutation({ permission: "redeem", visibility: "package" }),
+        redeem: method.mutation({ title: t`Redeem`, permission: "redeem", visibility: "package" }),
     }),
 ).implement({
     methods: {

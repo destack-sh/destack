@@ -1,6 +1,6 @@
 import { TagMap } from "@destack/resource";
 import { PermissionReference } from "@destack/access/declare";
-import { DeclarationName, ModuleMetadata, type Package } from "@destack/package";
+import { DeclarationName, ModuleMetadata, type PackageVersion } from "@destack/package";
 import { Instant, schema } from "@destack/schema";
 import { PackageError } from "@destack/package/error";
 
@@ -57,7 +57,7 @@ export type AccountDefinition = schema.Infer<typeof AccountDefinition>;
 /** The account records and the package that declares them. */
 export interface AccountDeclaration {
     /** The declaring package, supplied by the module transform. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The declared records. */
     readonly definition: AccountDefinition;
 }

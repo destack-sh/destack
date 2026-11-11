@@ -1,12 +1,14 @@
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { user } from "./user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A way a user signs in: their account at a sign-in provider, or their email and password. */
 export const userLogin = defineObject(
     {
         name: "user-login",
         plural: "userLogins",
+        title: t`${plural(argument("count"), { one: "User login", other: "User logins" })}`,
         scope: user,
         fields: {
             /** The authenticated Destack user. */
@@ -30,10 +32,12 @@ export const userLogin = defineObject(
             /** The password hash credential authentication checks. */
             password: field.string().sensitive().optional(),
         },
-        permissions: ["read", "list"],
         constraints: {
             providerUser: { kind: "unique", on: ["providerId", "providerUserId"] },
             user: { kind: "index", on: ["userId"] },
+        },
+        access: {
+            permissions: ["read", "list"],
         },
     },
     (method) => ({ list: method.list("list") }),

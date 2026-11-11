@@ -23,33 +23,35 @@ export type ConsentRequest = schema.Infer<typeof ConsentRequest>;
 
 /** The OAuth refusals, each reason the wire code its RFC spells, transcribed in upper case. */
 export const OAuthError = defineErrorFamily(
-    { name: "oauth" },
     {
-        // invalid
-        AUTHENTICATION_INVALID: {},
-        AUTHORIZATION_INVALID: {},
-        CLIENT_INVALID: {},
-        CONSENT_INVALID: {},
-        GRANT_INVALID: {},
-        GRANT_TYPE_INVALID: {},
-        POLLING_INVALID: {},
-        REQUEST_INVALID: {},
-        REQUEST_OBJECT_INVALID: {},
-        REQUEST_URI_INVALID: {},
-        RESPONSE_TYPE_INVALID: {},
-        SCOPE_INVALID: {},
-        TARGET_INVALID: {},
-        TOKEN_INVALID: {},
-        TOKEN_TYPE_INVALID: {},
+        reasons: {
+            // invalid
+            AUTHENTICATION_INVALID: {},
+            AUTHORIZATION_INVALID: {},
+            CLIENT_INVALID: {},
+            CONSENT_INVALID: {},
+            GRANT_INVALID: {},
+            GRANT_TYPE_INVALID: {},
+            POLLING_INVALID: {},
+            REQUEST_INVALID: {},
+            REQUEST_OBJECT_INVALID: {},
+            REQUEST_URI_INVALID: {},
+            RESPONSE_TYPE_INVALID: {},
+            SCOPE_INVALID: {},
+            TARGET_INVALID: {},
+            TOKEN_INVALID: {},
+            TOKEN_TYPE_INVALID: {},
 
-        // required
-        CONSENT_REQUIRED: { data: ConsentRequest },
-        LOGIN_REQUIRED: {},
+            // required
+            CONSENT_REQUIRED: { data: ConsentRequest },
+            LOGIN_REQUIRED: {},
 
-        // unauthenticated
-        CLIENT_UNAUTHENTICATED: {},
-        TOKEN_UNAUTHENTICATED: {},
+            // unauthenticated
+            CLIENT_UNAUTHENTICATED: {},
+            TOKEN_UNAUTHENTICATED: {},
+        },
     },
+    { package: { name: "oauth" } },
 );
 /** An OAuth refusal's reason. */
 export type OAuthReason = ReasonOf<typeof OAuthError>;

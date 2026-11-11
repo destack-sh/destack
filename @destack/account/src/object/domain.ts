@@ -4,6 +4,7 @@ import { account } from "./account.ts";
 import { organization } from "./organization.ts";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** The DNS label of the TXT record proving a claim, below the claimed hostname. */
 const CHALLENGE_LABEL = "_destack";
@@ -66,19 +67,13 @@ export const domain = defineObject(
     {
         name: "domain",
         plural: "domains",
+        title: t`${plural(argument("count"), { one: "Domain", other: "Domains" })}`,
         scope: [account, organization],
         fields: {
             /** The canonical lowercase domain, such as acme.com. */
             name: field.string(Hostname),
             /** The time the owner proved its claim through the domain's TXT record. */
             verifiedAt: field.time().optional(),
-        },
-        permissions: {
-            read: MANAGERS,
-            create: MANAGERS,
-            verify: MANAGERS,
-            delete: MANAGERS,
-            declare: none(),
         },
         constraints: {
             scopeName: { kind: "unique", on: ["scope", "name"] },
@@ -90,10 +85,23 @@ export const domain = defineObject(
             },
             nameForm: { kind: "check", condition: { name: { characters: "a-z0-9.*-" } } },
         },
+        access: {
+            permissions: {
+                read: MANAGERS,
+                create: MANAGERS,
+                verify: MANAGERS,
+                delete: MANAGERS,
+                declare: none(),
+            },
+        },
     },
     (method) => ({
         create: method.create("create", { fields: ["name"] }),
-        verify: method.mutation({ permission: "verify", prepared: DomainChallenge }),
+        verify: method.mutation({
+            title: t`Verify`,
+            permission: "verify",
+            prepared: DomainChallenge,
+        }),
         delete: method.delete("delete"),
         declare: method.create("declare", {
             visibility: "package",

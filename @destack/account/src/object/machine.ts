@@ -13,6 +13,7 @@ import { residency } from "./residency.ts";
 import { Platform, PLATFORMS } from "./platform.ts";
 import { AccountError } from "../error/error.ts";
 import type { Tenancy } from "./space.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest machine name, so `<machine>--<handle>` fits one DNS label: see `HANDLE_LENGTH`. */
 const MACHINE_NAME_LENGTH = 37;
@@ -113,8 +114,8 @@ export const machine = defineObject(
     {
         name: "machine",
         plural: "machines",
+        title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
         scope: [account, "universe"],
-        represents: principal.machine,
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The name within the account. */
@@ -158,42 +159,6 @@ export const machine = defineObject(
             /** The time the account withdrew the machine and its keys. */
             revokedAt: field.time().optional(),
         },
-        relations: {
-            tenant: { subjects: [account.members("member")], grantedBy: "share" },
-            self: { subjects: [principal.machine], grantedBy: null },
-        },
-        permissions: {
-            read: union(relation("tenant"), relation("self"), permission("relay")),
-            list: union(permission("read"), through("account", "serve")),
-            verify: union(relation("tenant"), relation("self"), through("account", "serve")),
-            enroll: none(),
-            rotate: relation("self"),
-            rename: relation("self"),
-            operate: union(relation("tenant"), relation("self")),
-            // let the package record a machine's endpoint through its package-only methods, as its declaration and its relay do
-            record: relation("self"),
-            // let the account's residency's relay record the tunnel it accepted
-            relay: through("account", "relaying"),
-
-            // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
-            observe: relation("tenant"),
-            analyze: relation("tenant"),
-            unmask: through("account", "manage"),
-            serve: relation("self"),
-            // let whoever replicates the account replicate its machines' chains, and its machines each other's
-            replicate: union(
-                relation("self"),
-                through("account", "replicate"),
-                through("account", "serve"),
-            ),
-            revoke: relation("self"),
-            update: none(),
-            leave: none(),
-            // let the account's managers share the machine with another account's members as tenants
-            share: through("account", "manage"),
-            declare: none(),
-        },
-        reserved: ["rotate", "serve", "relay", "replicate"],
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
             scopeName: {
@@ -230,6 +195,45 @@ export const machine = defineObject(
                 },
             },
         },
+        access: {
+            represents: principal.machine,
+            relations: {
+                tenant: { subjects: [account.members("member")], grantedBy: "share" },
+                self: { subjects: [principal.machine], grantedBy: null },
+            },
+            permissions: {
+                read: union(relation("tenant"), relation("self"), permission("relay")),
+                list: union(permission("read"), through("account", "serve")),
+                verify: union(relation("tenant"), relation("self"), through("account", "serve")),
+                enroll: none(),
+                rotate: relation("self"),
+                rename: relation("self"),
+                operate: union(relation("tenant"), relation("self")),
+                // let the package record a machine's endpoint through its package-only methods, as its declaration and its relay do
+                record: relation("self"),
+                // let the account's residency's relay record the tunnel it accepted
+                relay: through("account", "relaying"),
+
+                // let the account's members read the machine's telemetry, its managers unmasked, and the machine forward it
+                observe: relation("tenant"),
+                analyze: relation("tenant"),
+                unmask: through("account", "manage"),
+                serve: relation("self"),
+                // let whoever replicates the account replicate its machines' chains, and its machines each other's
+                replicate: union(
+                    relation("self"),
+                    through("account", "replicate"),
+                    through("account", "serve"),
+                ),
+                revoke: relation("self"),
+                update: none(),
+                leave: none(),
+                // let the account's managers share the machine with another account's members as tenants
+                share: through("account", "manage"),
+                declare: none(),
+            },
+            reserved: ["rotate", "serve", "relay", "replicate"],
+        },
     },
     (method) => ({
         list: method.list("list"),
@@ -247,16 +251,17 @@ export const machine = defineObject(
                 origin: schema.url(),
             }),
         }),
-        revoke: method.mutation({ permission: "revoke" }),
+        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
         /** Record the tunnel a relay accepted from a personal machine, at its derived name. */
-        relay: method.mutation({ permission: "relay", input: EndpointRelay }),
-        enable: method.mutation({ permission: "operate" }),
-        drain: method.mutation({ permission: "operate" }),
-        disable: method.mutation({ permission: "operate" }),
+        relay: method.mutation({ title: t`Relay`, permission: "relay", input: EndpointRelay }),
+        enable: method.mutation({ title: t`Enable`, permission: "operate" }),
+        drain: method.mutation({ title: t`Drain`, permission: "operate" }),
+        disable: method.mutation({ title: t`Disable`, permission: "operate" }),
         /** Record the machine leaving its home, as the home sees its last live link close. */
-        leave: method.mutation({ permission: "leave" }),
+        leave: method.mutation({ title: t`Leave`, permission: "leave" }),
         /** Record what the machine runs now, replacing the last report. */
         report: method.mutation({
+            title: t`Report`,
             permission: "rotate",
             input: schema.object({
                 /** The Destack version the machine runs. */
@@ -274,6 +279,7 @@ export const machine = defineObject(
             }),
         }),
         rename: method.mutation({
+            title: t`Rename`,
             permission: "rename",
             input: schema.object({
                 /** The new name. */

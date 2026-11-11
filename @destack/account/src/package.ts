@@ -1,5 +1,5 @@
 import { role, universe } from "@destack/access";
-import { defineAdapter, definePackage, proof } from "@destack/object";
+import { defineMount, definePackage, proof } from "@destack/object";
 import { AccountError } from "./error/error.ts";
 import {
     account,
@@ -40,8 +40,7 @@ import { OAUTH_PATH } from "./address/address.ts";
 
 /** The account package: its objects, authentication records, OAuth adapter and errors. */
 export default definePackage({
-    objects: {
-        // people, their sign-ins and the programs they sign in through
+    objects: [
         user,
         session,
         userLogin,
@@ -52,17 +51,11 @@ export default definePackage({
         key,
         application,
         oauthConsent,
-
-        // the authorization server's requests, codes, refresh tokens and device sign-ins
         authorizationRequest,
         authorizationCode,
         refreshToken,
         deviceAuthorization,
-
-        // organizations
         organization,
-
-        // accounts, their access, domains and machines
         account,
         stage,
         group,
@@ -71,8 +64,6 @@ export default definePackage({
         hostname,
         machine,
         endpoint,
-
-        // the universe's registry: identities, residencies, spaces, placements and names
         identity,
         operation,
         residency,
@@ -81,7 +72,7 @@ export default definePackage({
         assignment,
         claim,
         entitlement,
-    },
+    ],
     tables: [
         // the authentication protocols' records
         verification,
@@ -90,27 +81,29 @@ export default definePackage({
         // the universe's identity keys
         identityKey,
     ],
-    adapters: { oauth: defineAdapter("oauth", { path: OAUTH_PATH }) },
+    mounts: [defineMount({ name: "oauth", path: OAUTH_PATH })],
     errors: AccountError,
     // request what the platform's code does in the universe
-    permissions: {
-        space: {
-            universe: [
-                role.permission("create"),
-                role.permission("update"),
-                role.permission("share"),
-                universe.permission("grant"),
-                proof.permission("spend"),
-                user.permission("suspend"),
-                account.permission("place"),
-                organization.permission("place"),
-                residency.permission("place"),
-                organization.permission("administer"),
-                machine.permission("rotate"),
-                machine.permission("record"),
-                space.permission("upgrade"),
-                space.permission("receive"),
-            ],
+    access: {
+        permissions: {
+            space: {
+                universe: [
+                    role.permission("create"),
+                    role.permission("update"),
+                    role.permission("share"),
+                    universe.permission("grant"),
+                    proof.permission("spend"),
+                    user.permission("suspend"),
+                    account.permission("place"),
+                    organization.permission("place"),
+                    residency.permission("place"),
+                    organization.permission("administer"),
+                    machine.permission("rotate"),
+                    machine.permission("record"),
+                    space.permission("upgrade"),
+                    space.permission("receive"),
+                ],
+            },
         },
     },
 });

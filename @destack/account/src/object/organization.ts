@@ -7,6 +7,8 @@ import { AccountHandle } from "../address/handle.ts";
 import { residency, ResidencyCode } from "./residency.ts";
 import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
+import { recoverable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A membership in an organization: a relation to its users, granted by its managers. */
 const MEMBERSHIP = { subjects: [principal.user], grantedBy: "manage" };
@@ -21,8 +23,8 @@ export const organization = defineObject(
     {
         name: "organization",
         plural: "organizations",
+        title: t`${plural(argument("count"), { one: "Organization", other: "Organizations" })}`,
         scope: "universe",
-        isScope: true,
         fields: {
             /** The display name. */
             name: field.string(DisplayName),
@@ -33,39 +35,42 @@ export const organization = defineObject(
             /** The account the charges of the organization's accounts consolidate to. */
             payer: field.string(schema.identifier("account")).guardWrite("bill"),
         },
-        recoverable: { within: { days: 30 }, by: "delete" },
-        relations: {
-            // add members by relation, at least one owner
-            owner: { ...MEMBERSHIP, grantedBy: "administer", isRequired: true },
-            admin: MEMBERSHIP,
-            billing: MEMBERSHIP,
-            member: MEMBERSHIP,
-            guest: MEMBERSHIP,
-            // relate the servers of each residency of its accounts
-            resident: { subjects: [residency.members("server")], grantedBy: "place" },
+        container: "scope",
+        access: {
+            relations: {
+                // add members by relation, at least one owner
+                owner: { ...MEMBERSHIP, grantedBy: "administer", isRequired: true },
+                admin: MEMBERSHIP,
+                billing: MEMBERSHIP,
+                member: MEMBERSHIP,
+                guest: MEMBERSHIP,
+                // relate the servers of each residency of its accounts
+                resident: { subjects: [residency.members("server")], grantedBy: "place" },
+            },
+            permissions: {
+                read: union(
+                    relation("owner"),
+                    relation("admin"),
+                    relation("billing"),
+                    relation("member"),
+                    relation("guest"),
+                ),
+                view: union(relation("owner"), relation("admin"), relation("member")),
+                manage: union(relation("owner"), relation("admin")),
+                bill: union(relation("owner"), relation("billing")),
+                administer: relation("owner"),
+                list: union(permission("read"), relation("resident")),
+                replicate: relation("resident"),
+                update: permission("manage"),
+                delete: permission("administer"),
+                place: none(),
+                // leave the organization's resources undeclared, as no space is its home
+                provision: none(),
+            },
+            reserved: ["administer", "replicate", "place", "provision"],
+            elevated: { delete: sudo, administer: sudo },
         },
-        permissions: {
-            read: union(
-                relation("owner"),
-                relation("admin"),
-                relation("billing"),
-                relation("member"),
-                relation("guest"),
-            ),
-            view: union(relation("owner"), relation("admin"), relation("member")),
-            manage: union(relation("owner"), relation("admin")),
-            bill: union(relation("owner"), relation("billing")),
-            administer: relation("owner"),
-            list: union(permission("read"), relation("resident")),
-            replicate: relation("resident"),
-            update: permission("manage"),
-            delete: permission("administer"),
-            place: none(),
-            // leave the organization's resources undeclared, as no space is its home
-            provision: none(),
-        },
-        reserved: ["administer", "replicate", "place", "provision"],
-        elevated: { delete: sudo, administer: sudo },
+        traits: [recoverable({ within: { days: 30 }, by: "delete" })],
     },
     (method) => ({
         list: method.list("list"),

@@ -8,7 +8,7 @@ import {
     field,
     ObjectWatch,
 } from "@destack/object";
-import { type Package, PackageId } from "@destack/package";
+import { type PackageVersion, PackageId } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import type { FeatureReference } from "@destack/object";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
@@ -25,12 +25,17 @@ import {
     FEATURE_KINDS,
     USAGE_STATES,
 } from "./allowance.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A retention setting's definition, read for the days it keeps events by default. */
 const RetentionSetting = schema.looseObject({ default: schema.number().int().positive() });
 
 /** Read the days a scope retains a kind's events by its setting, as event stores read them. */
-export type RetentionReader = (setting: object, owner: Package, scope: string) => Promise<number>;
+export type RetentionReader = (
+    setting: object,
+    owner: PackageVersion,
+    scope: string,
+) => Promise<number>;
 
 /** The name of the shape replicating one account's entitlements. */
 const ENTITLEMENT_SHAPE = "entitlement";
@@ -40,6 +45,7 @@ export const entitlement = defineObject(
     {
         name: "entitlement",
         plural: "entitlements",
+        title: t`${plural(argument("count"), { one: "Entitlement", other: "Entitlements" })}`,
         scope: account,
         fields: {
             /** The package declaring the feature. */
@@ -58,12 +64,6 @@ export const entitlement = defineObject(
             state: field.enum(USAGE_STATES).optional(),
             /** The platform resource the feature allows, absent for a package's feature. */
             resource: field.enum(ENTITLEMENT_RESOURCES).optional(),
-        },
-        permissions: {
-            // let the account's readers and its residency's servers read
-            read: union(through("scope", "read"), through("scope", "serve")),
-            // let the account's home set it alone, as account.entitle does
-            provide: none(),
         },
         constraints: {
             feature: { kind: "index", on: ["scope", "packageId", "feature"], unique: true },
@@ -94,8 +94,15 @@ export const entitlement = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                // let the account's readers and its residency's servers read
+                read: union(through("scope", "read"), through("scope", "serve")),
+                // let the account's home set it alone, as account.entitle does
+                provide: none(),
+            },
+        },
     },
-    // let the account's home write them as its entitlements change, through account.entitle
     (method) => ({
         create: method.create("provide", { visibility: "package" }),
         update: method.update("provide", {

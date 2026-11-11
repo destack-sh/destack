@@ -10,11 +10,13 @@ import { AccountError } from "../error/error.ts";
 import { Issuer } from "../client/issuer.ts";
 import { Session } from "../client/session.ts";
 import { UserIdentity } from "../client/user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A person signed in on a computer's native device, the keychain storing their refresh token. */
 export const login = defineObject({
     name: "login",
     plural: "logins",
+    title: t`${plural(argument("count"), { one: "Login", other: "Logins" })}`,
     scope: device,
     storage: "local",
     fields: {
@@ -29,10 +31,12 @@ export const login = defineObject({
         /** Whether the sign-in is valid, or the person must sign in again. */
         status: field.enum(["authenticated", "reauthentication"]),
     },
-    // let the people signed in on the device read and write them
-    permissions: { read: through("device", "use"), write: through("device", "use") },
     constraints: {
         subject: { kind: "unique", on: ["scope", "issuer", "subjectId"] },
+    },
+    access: {
+        // let the people signed in on the device read and write them
+        permissions: { read: through("device", "use"), write: through("device", "use") },
     },
 });
 /** The source of a login's account tokens and client proofs: the keychain, or its machine. */

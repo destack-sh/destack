@@ -10,6 +10,8 @@ import { Key } from "./key.ts";
 import { Digest, schema } from "@destack/schema";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The longest signed operation, in characters: eight public keys with room to spare. */
 const OPERATION_LENGTH = 16_384;
@@ -22,14 +24,17 @@ export const identity = defineObject(
     {
         name: "identity",
         plural: "identities",
+        title: t`${plural(argument("count"), { one: "Identity", other: "Identities" })}`,
         scope: "universe",
         key: "subject",
         fields: {
             /** The space or the universe the identity is of. */
             subject: field.string(schema.string().min(1)).immutable(),
         },
-        // let the universe's roles grant reading and extending identities, signatures deciding each change
-        permissions: { read: none(), list: none(), start: none(), extend: none() },
+        access: {
+            // let the universe's roles grant reading and extending identities, signatures deciding each change
+            permissions: { read: none(), list: none(), start: none(), extend: none() },
+        },
     },
     (method) => ({
         /** Start an identity with its first signed operation. */
@@ -43,7 +48,7 @@ export const identity = defineObject(
         get: method.get("read"),
 
         /** Read the keys that verify what the identity signs, as a JSON Web Key Set. */
-        keys: method.query({ permission: "read", output: KeySet }),
+        keys: method.query({ title: t`List keys`, permission: "read", output: KeySet }),
     }),
 );
 
@@ -53,8 +58,8 @@ export const operation = defineObject(
         name: "operation",
         identity: "identity-operation",
         plural: "operations",
+        title: t`${plural(argument("count"), { one: "Operation", other: "Operations" })}`,
         scope: "universe",
-        nested: { in: identity, delete: "restrict", receive: "extend" },
         fields: {
             /** The position in the identity's log, from zero. */
             sequence: field.integer(),
@@ -69,15 +74,18 @@ export const operation = defineObject(
             /** Whether a higher-priority rotation key nullified it. */
             isNullified: field.boolean().default(false),
         },
-        permissions: {
-            read: through("parent", "read"),
-            list: through("parent", "read"),
-            extend: through("parent", "extend"),
-        },
         constraints: {
             sequence: { kind: "unique", on: ["parentId", "sequence"] },
             digest: { kind: "index", on: ["digest"] },
         },
+        access: {
+            permissions: {
+                read: through("parent", "read"),
+                list: through("parent", "read"),
+                extend: through("parent", "extend"),
+            },
+        },
+        traits: [nested({ in: identity, delete: "restrict", add: "extend" })],
     },
     (method) => ({
         /** Append a signed operation to its identity's log, nullifying later ones it recovers. */

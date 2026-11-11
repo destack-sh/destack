@@ -3,14 +3,16 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { user } from "./user.ts";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A device's sign-in a person approves in a browser by its user code (RFC 8628). */
 export const deviceAuthorization = defineObject(
     {
         name: "device-authorization",
         plural: "deviceAuthorizations",
+        title: t`${plural(argument("count"), { one: "Device authorization", other: "Device authorizations" })}`,
         scope: "universe",
-        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
         fields: {
             /** The SHA-256 digest of the device code the client polls with. */
             deviceDigest: field.string(Digest).sensitive("deterministic"),
@@ -50,7 +52,6 @@ export const deviceAuthorization = defineObject(
             /** When the codes lapse. */
             expiresAt: field.time(),
         },
-        permissions: { issue: none(), poll: none(), decide: none(), redeem: none() },
         constraints: {
             deviceDigest: { kind: "unique", on: ["deviceDigest"] },
             userDigest: { kind: "unique", on: ["userDigest"] },
@@ -65,6 +66,10 @@ export const deviceAuthorization = defineObject(
                 },
             },
         },
+        access: {
+            permissions: { issue: none(), poll: none(), decide: none(), redeem: none() },
+        },
+        traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     },
     (method) => ({
         /** Issue a device's codes. */

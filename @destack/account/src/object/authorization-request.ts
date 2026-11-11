@@ -3,6 +3,8 @@ import { none } from "@destack/access";
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The prompts a client may ask for (OIDC Core 3.1.2.1), one account per browser selecting none. */
 export const Prompt = schema.enum(["none", "login", "consent"]);
@@ -14,8 +16,8 @@ export const authorizationRequest = defineObject(
     {
         name: "authorization-request",
         plural: "authorizationRequests",
+        title: t`${plural(argument("count"), { one: "Authorization request", other: "Authorization requests" })}`,
         scope: "universe",
-        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
         fields: {
             /** The client asking: an application's public client identifier or a device's. */
             clientId: field.string(),
@@ -42,8 +44,11 @@ export const authorizationRequest = defineObject(
             /** When the request lapses. */
             expiresAt: field.time(),
         },
-        permissions: { push: none() },
         constraints: { expiry: { kind: "index", on: ["expiresAt"] } },
+        access: {
+            permissions: { push: none() },
+        },
+        traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     },
     (method) => ({
         /** Store a request for the browser to continue after sign-in or consent. */

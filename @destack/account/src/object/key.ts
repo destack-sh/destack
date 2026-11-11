@@ -12,6 +12,8 @@ import { Revocation } from "../credential/revocation.ts";
 import { CallError } from "@destack/object";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** How long a key authenticates, a year in milliseconds. */
 const LIFETIME_MILLISECONDS = 365 * 24 * 60 * 60 * 1000;
@@ -33,8 +35,8 @@ export const key = defineObject(
     {
         name: "key",
         plural: "keys",
+        title: t`${plural(argument("count"), { one: "Key", other: "Keys" })}`,
         scope: [user, account, "universe"],
-        nested: { in: "any", receive: "rotate" },
         fields: {
             /** The public key. */
             publicKey: field.json(PublicKey),
@@ -49,15 +51,6 @@ export const key = defineObject(
             /** The time the key was suspended because its machine was disabled. */
             suspendedAt: field.time().optional(),
         },
-        permissions: {
-            read: through("parent", "verify"),
-            list: union(permission("read"), through("parent", "list")),
-            rotate: through("parent", "rotate"),
-            revoke: through("parent", "revoke"),
-            enroll: none(),
-            suspend: none(),
-        },
-        reserved: ["rotate"],
         constraints: {
             thumbprint: { kind: "unique", on: ["thumbprint"] },
             expiry: { kind: "check", condition: { expiresAt: { gt: { field: "createdAt" } } } },
@@ -68,6 +61,18 @@ export const key = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                read: through("parent", "verify"),
+                list: union(permission("read"), through("parent", "list")),
+                rotate: through("parent", "rotate"),
+                revoke: through("parent", "revoke"),
+                enroll: none(),
+                suspend: none(),
+            },
+            reserved: ["rotate"],
+        },
+        traits: [nested({ in: "any", add: "rotate" })],
     },
     (method) => ({
         list: method.list("list"),
@@ -77,9 +82,13 @@ export const key = defineObject(
             isPredicted: false,
         }),
         enroll: method.create("enroll", { visibility: "package" }),
-        suspend: method.mutation({ permission: "suspend", visibility: "package" }),
-        resume: method.mutation({ permission: "suspend", visibility: "package" }),
-        revoke: method.mutation({ permission: "revoke" }),
+        suspend: method.mutation({
+            title: t`Suspend`,
+            permission: "suspend",
+            visibility: "package",
+        }),
+        resume: method.mutation({ title: t`Resume`, permission: "suspend", visibility: "package" }),
+        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
     }),
 ).implement({
     methods: {

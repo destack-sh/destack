@@ -9,6 +9,8 @@ import { AccountError } from "../error/error.ts";
 import { Credential } from "../credential/credential.ts";
 import { type OAuthConsent, oauthConsent } from "./oauth-consent.ts";
 import { user } from "./user.ts";
+import { expiring } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** How long a refresh token lives unused: thirty days, after which the person signs in again. */
 const REFRESH_TOKEN_MILLISECONDS = 30 * 24 * 60 * 60_000;
@@ -21,8 +23,8 @@ export const refreshToken = defineObject(
     {
         name: "refresh-token",
         plural: "refreshTokens",
+        title: t`${plural(argument("count"), { one: "Refresh token", other: "Refresh tokens" })}`,
         scope: user,
-        expiring: [{ after: { milliseconds: 0 }, from: "expiresAt" }],
         fields: {
             /** The SHA-256 digest of the token. */
             digest: field.string(Digest).sensitive("deterministic"),
@@ -41,12 +43,15 @@ export const refreshToken = defineObject(
             /** When the token lapses. */
             expiresAt: field.time(),
         },
-        permissions: { issue: none(), rotate: none(), revoke: none() },
         constraints: {
             digest: { kind: "unique", on: ["digest"] },
             family: { kind: "index", on: ["family"] },
             expiry: { kind: "index", on: ["expiresAt"] },
         },
+        access: {
+            permissions: { issue: none(), rotate: none(), revoke: none() },
+        },
+        traits: [expiring([{ after: { milliseconds: 0 }, from: "expiresAt" }])],
     },
     (method) => ({
         /** Issue a token in a family. */
@@ -65,7 +70,7 @@ export const refreshToken = defineObject(
             isPredicted: false,
         }),
         /** Spend a token on its successor, refusing one spent before. */
-        rotate: method.mutation({ permission: "rotate", visibility: "package" }),
+        rotate: method.mutation({ title: t`Rotate`, permission: "rotate", visibility: "package" }),
         /** Remove a token, as its family ends. */
         delete: method.delete("revoke", { visibility: "package" }),
     }),

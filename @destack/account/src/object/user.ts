@@ -9,7 +9,7 @@ import {
     type SQL,
 } from "@destack/db";
 import { defineObject, field } from "@destack/object";
-import { LocaleTag } from "@destack/locale";
+import { argument, LocaleTag, plural, t } from "@destack/locale";
 import { type Identifier, schema, TimeZone } from "@destack/schema";
 import { Subject } from "@destack/sync";
 import { AccountHandle, HandleAvailability } from "../address/handle.ts";
@@ -18,6 +18,7 @@ import { DisplayName } from "./display-name.ts";
 import { Recipient } from "./recipient.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { recoverable, shareable } from "@destack/object";
 
 /** The longest text a handle check accepts, beyond which nothing is a handle. */
 const HANDLE_INPUT_LENGTH = 256;
@@ -27,9 +28,8 @@ export const user = defineObject(
     {
         name: "user",
         plural: "users",
+        title: t`${plural(argument("count"), { one: "User", other: "Users" })}`,
         scope: "universe",
-        isScope: true,
-        represents: principal.user,
         fields: {
             /** The display name. */
             name: field.string(DisplayName),
@@ -51,33 +51,6 @@ export const user = defineObject(
             /** The home space of the person's personal account, acting for them. */
             home: field.reference(principal.space),
         },
-        recoverable: { within: { days: 30 }, by: "delete" },
-        relations: {
-            self: { subjects: [principal.user] },
-            // the person's home space, acting for them in their scope
-            home: { subjects: [principal.space] },
-            delegate: { subjects: [principal.user], grantedBy: "delegate" },
-            public: { subjects: [anyone.all()] },
-        },
-        permissions: {
-            // anyone reads a person's public profile, the person alone their private fields
-            read: union(relation("self"), relation("public")),
-            // the person's private fields
-            self: relation("self"),
-            // the person's home, following replicas on their behalf
-            follow: relation("home"),
-            // the person's home, reading where the person receives notifications
-            recipient: relation("home"),
-            update: relation("self"),
-            delegate: relation("self"),
-            impersonate: relation("delegate"),
-            delete: relation("self"),
-            // the platform's operators alone, never the person
-            suspend: none(),
-        },
-        reserved: ["suspend"],
-        shareable: { by: "delegate" },
-        elevated: { delegate: sudo, impersonate: sudo, delete: sudo, suspend: sudo },
         constraints: {
             email: { kind: "unique", on: ["email"] },
         },
@@ -99,6 +72,39 @@ export const user = defineObject(
                 ),
             },
         },
+        container: "scope",
+        access: {
+            represents: principal.user,
+            relations: {
+                self: { subjects: [principal.user] },
+                // the person's home space, acting for them in their scope
+                home: { subjects: [principal.space] },
+                delegate: { subjects: [principal.user], grantedBy: "delegate" },
+                public: { subjects: [anyone.all()] },
+            },
+            permissions: {
+                // anyone reads a person's public profile, the person alone their private fields
+                read: union(relation("self"), relation("public")),
+                // the person's private fields
+                self: relation("self"),
+                // the person's home, following replicas on their behalf
+                follow: relation("home"),
+                // the person's home, reading where the person receives notifications
+                recipient: relation("home"),
+                update: relation("self"),
+                delegate: relation("self"),
+                impersonate: relation("delegate"),
+                delete: relation("self"),
+                // the platform's operators alone, never the person
+                suspend: none(),
+            },
+            reserved: ["suspend"],
+            elevated: { delegate: sudo, impersonate: sudo, delete: sudo, suspend: sudo },
+        },
+        traits: [
+            recoverable({ within: { days: 30 }, by: "delete" }),
+            shareable({ by: "delegate" }),
+        ],
     },
     (method) => ({
         update: method.update("update", {
@@ -106,14 +112,16 @@ export const user = defineObject(
         }),
 
         /** Refuse the person's sign-ins and tokens until resumed. */
-        suspend: method.mutation({ permission: "suspend", isPredicted: false }),
+        suspend: method.mutation({ title: t`Suspend`, permission: "suspend", isPredicted: false }),
         /** Let a suspended person sign in again. */
-        resume: method.mutation({ permission: "suspend", isPredicted: false }),
+        resume: method.mutation({ title: t`Resume`, permission: "suspend", isPredicted: false }),
         suggestHandle: method.query({
+            title: t`Suggest handle`,
             permission: "read",
             output: schema.object({ handle: AccountHandle }),
         }),
         invited: method.query({
+            title: t`List invitations`,
             permission: "update",
             output: schema.object({
                 /** The pending invitations to the user or the user's verified email. */
@@ -121,8 +129,13 @@ export const user = defineObject(
             }),
         }),
         /** Read where the person receives notifications beyond an inbox, and in which language. */
-        recipient: method.query({ permission: "recipient", output: Recipient }),
+        recipient: method.query({
+            title: t`Read recipient`,
+            permission: "recipient",
+            output: Recipient,
+        }),
         checkHandle: method.query({
+            title: t`Check handle`,
             permission: "read",
             input: schema.object({
                 /** The handle as the user typed it. */

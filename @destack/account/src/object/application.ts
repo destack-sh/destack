@@ -5,6 +5,7 @@ import { Digest, schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The grants a client may use. */
 export const OAUTH_GRANT_TYPES = [
@@ -28,6 +29,7 @@ export const application = defineObject(
     {
         name: "application",
         plural: "applications",
+        title: t`${plural(argument("count"), { one: "Application", other: "Applications" })}`,
         scope: [account, user],
         fields: {
             /** The application's public OAuth client identifier. */
@@ -57,7 +59,6 @@ export const application = defineObject(
             /** Whether new authorizations of the client are disabled. */
             isDisabled: field.boolean().default(false),
         },
-        permissions: ["read", "create", "update", "delete"],
         constraints: {
             clientId: { kind: "unique", on: ["clientId"] },
             scope: { kind: "index", on: ["scope"] },
@@ -73,6 +74,9 @@ export const application = defineObject(
                     ],
                 },
             },
+        },
+        access: {
+            permissions: ["read", "create", "update", "delete"],
         },
     },
     (method) => ({

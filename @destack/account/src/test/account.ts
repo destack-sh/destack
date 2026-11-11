@@ -33,7 +33,7 @@ import {
     TestObjectStore,
     type TestSigner,
 } from "@destack/object/test";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { ENTITLED_PACKAGE } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
 import { Digest, found, Identifier, type JsonValue, present, schema } from "@destack/schema";
@@ -1212,7 +1212,7 @@ export class TestAccountStore implements AsyncDisposable {
             environment,
             callKey: testCallKey,
             events,
-            origin: { package: Package.of(accountPackage) },
+            origin: { package: PackageVersion.of(accountPackage) },
         });
 
         // store the platform before the universe's identity

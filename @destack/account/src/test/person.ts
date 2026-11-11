@@ -4,7 +4,7 @@ import {
     type Client,
     type Fetch,
     PackageMount,
-    type PackageHandle,
+    type Package,
     type ProcedureRouter,
 } from "@destack/object";
 import type { PackageId } from "@destack/package";
@@ -135,14 +135,14 @@ export class TestPerson {
 
     /** Reach a package as the person, through its typed client, bound to a space when given. */
     client<Definition extends ProcedureRouter>(
-        handle: PackageHandle & ClientTarget<Definition>,
+        handle: Package & ClientTarget<Definition>,
         bound: TokenBinding = {},
     ): Client<Definition> {
         return createClient(handle, this.endpoint(handle, bound), this.#signIn.environment);
     }
 
     /** Address a package as the person, with a token for it exchanged again once it expires. */
-    endpoint(handle: PackageHandle, bound: TokenBinding = {}): ClientOptions {
+    endpoint(handle: Package, bound: TokenBinding = {}): ClientOptions {
         return {
             url: PackageMount.url(this.#signIn.origin, handle.id),
             fetch: this.fetch(handle.id, bound),

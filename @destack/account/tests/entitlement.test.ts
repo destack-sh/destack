@@ -7,10 +7,11 @@ import {
     type Allowance,
     type EntitlementUse,
 } from "../src/object/index.ts";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { present, schema } from "@destack/schema";
 import { AccountError } from "../src/error/error.ts";
 import { defineSetting } from "@destack/setting/declare";
+import { t } from "@destack/locale";
 
 /** The package declaring the platform's features. */
 const PRICING = PackageId.parse("package-019f5530-8000-7000-8000-000000000503");
@@ -100,16 +101,14 @@ test("keep a space's chosen retention where a plan grants custom retention, and 
     const { definition } = defineSetting(
         {
             name: "telemetry.retention",
-            title: "Telemetry retention",
-            description: "How many days logs, traces and metrics stay.",
+            title: t`Telemetry retention`,
+            description: t`How many days logs, traces and metrics stay.`,
             schema: schema.number().int().min(1).max(3650),
             default: 30,
             scope: "space",
-            overrides: [],
-            apply: "immediate",
         },
         {
-            package: Package.parse({
+            package: PackageVersion.parse({
                 id: PRICING,
                 name: "@example/telemetry",
                 version: "2026.9.0",

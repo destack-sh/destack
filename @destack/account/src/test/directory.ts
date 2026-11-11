@@ -13,7 +13,7 @@ import { machine } from "../object/machine.ts";
 import { implementPlacement } from "../server/placement.ts";
 import { implementSpace } from "../server/space.ts";
 import { assignment, placement, Placement } from "../object/placement.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { endpoint } from "../object/endpoint.ts";
 import accountPackage from "../package.ts";
 import { STACKS } from "./account.ts";
@@ -40,7 +40,7 @@ export const TestDirectory = {
             claims: { object: claim },
             callKey: testCallKey,
             events: await testEvents(database, environment),
-            origin: { package: Package.of(accountPackage) },
+            origin: { package: PackageVersion.of(accountPackage) },
         });
 
         return { object: claim, home: RemoteStore.served(store, owner) };
@@ -63,7 +63,7 @@ export const TestDirectory = {
             database,
             callKey: testCallKey,
             events: await testEvents(database, environment),
-            origin: { package: Package.of(accountPackage) },
+            origin: { package: PackageVersion.of(accountPackage) },
         });
 
         // bind the universe as its owner, as the platform does, which relates runners to spaces

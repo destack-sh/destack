@@ -35,9 +35,9 @@ import {
 } from "../src/test/index.ts";
 import type { TestCaller } from "@destack/object/test";
 import { claimNames, firstPage, place } from "./fixture.ts";
-import { Claim, Claimant, PACKAGE_KIND, PackageHandle, QUERIES_PUBLICATION } from "@destack/object";
+import { Claim, Claimant, PACKAGE_KIND, Package, QUERIES_PUBLICATION } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 
 /** The installation asking for its residency's sellers, in whichever space it runs. */
@@ -453,17 +453,17 @@ test("find the account selling a handle's packages to the buyers of the asking i
 
 test("relate an installation its residency's space declares once its release asks for exactly what the relation gives, refusing another residency's space, another installation, and a release asking for more or fewer, and unrelate it", async () => {
     // publish one release asking for what a residency's installation holds, and one asking for more
-    const billing = Package.parse({
+    const billing = PackageVersion.parse({
         id: "package-019f5530-8000-7000-8000-0000000000b1",
         name: "@example/billing",
         version: "2026.9.0",
     });
-    const greedy = Package.parse({
+    const greedy = PackageVersion.parse({
         id: "package-019f5530-8000-7000-8000-0000000000b2",
         name: "@example/greedy",
         version: "2026.9.0",
     });
-    const modest = Package.parse({
+    const modest = PackageVersion.parse({
         id: "package-019f5530-8000-7000-8000-0000000000b3",
         name: "@example/modest",
         version: "2026.9.0",
@@ -482,8 +482,8 @@ test("relate an installation its residency's space declares once its release ask
     await using fixture = await TestAccountStore.open({
         openRelease: (packageId) => {
             const owner = present(opened.get(packageId), `the release of ${packageId}`);
-            const handle = PackageHandle.of(owner, {
-                permissions: { space: { universe: asking.get(packageId) ?? [] } },
+            const handle = Package.of(owner, {
+                access: { permissions: { space: { universe: asking.get(packageId) ?? [] } } },
             });
 
             return MemoryBuild.of(
@@ -576,7 +576,7 @@ test("relate an installation its residency's space declares once its release ask
 
 test("let an installation its residency's home declares entitle the residency's accounts once related, and not before", async () => {
     // store an eu account, and derive the installation the eu home declares as billing
-    const billing = Package.parse({
+    const billing = PackageVersion.parse({
         id: "package-019f5530-8000-7000-8000-0000000000b1",
         name: "@example/billing",
         version: "2026.9.0",
@@ -590,14 +590,16 @@ test("let an installation its residency's home declares entitle the residency's 
                         ...PACKAGE_KIND.identity,
                         name: "default",
                         description: describePackage(
-                            PackageHandle.of(billing, {
-                                permissions: {
-                                    space: {
-                                        universe: [
-                                            account.permission("entitle"),
-                                            account.permission("serve"),
-                                            residency.permission("locate"),
-                                        ],
+                            Package.of(billing, {
+                                access: {
+                                    permissions: {
+                                        space: {
+                                            universe: [
+                                                account.permission("entitle"),
+                                                account.permission("serve"),
+                                                residency.permission("locate"),
+                                            ],
+                                        },
                                     },
                                 },
                             }),

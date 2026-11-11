@@ -5,12 +5,14 @@ import type { ObjectStore } from "@destack/object/server";
 import { present, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { user } from "./user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A user's consent to a client's scopes, which every refresh token of the client rests on. */
 export const oauthConsent = defineObject(
     {
         name: "oauth-consent",
         plural: "oauthConsents",
+        title: t`${plural(argument("count"), { one: "OAuth consent", other: "OAuth consents" })}`,
         scope: user,
         fields: {
             /** The authorized client: an application's public client identifier or a device's. */
@@ -22,10 +24,12 @@ export const oauthConsent = defineObject(
             /** The grant the consent gave an installation, as the person read it. */
             grant: field.json(GrantRequest).optional(),
         },
-        permissions: ["read", "revoke", "grant"],
         constraints: {
             clientUser: { kind: "unique", on: ["clientId", "scope"] },
             user: { kind: "index", on: ["scope"] },
+        },
+        access: {
+            permissions: ["read", "revoke", "grant"],
         },
     },
     (method) => ({

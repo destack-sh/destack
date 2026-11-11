@@ -1,12 +1,14 @@
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { user } from "./user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A WebAuthn credential a user registered. */
 export const passkey = defineObject(
     {
         name: "passkey",
         plural: "passkeys",
+        title: t`${plural(argument("count"), { one: "Passkey", other: "Passkeys" })}`,
         scope: user,
         fields: {
             /** The user-selected credential name. */
@@ -28,10 +30,12 @@ export const passkey = defineObject(
             /** The authenticator model identifier. */
             aaguid: field.string().optional(),
         },
-        permissions: ["read", "list"],
         constraints: {
             credential: { kind: "unique", on: ["credentialID"] },
             user: { kind: "index", on: ["userId"] },
+        },
+        access: {
+            permissions: ["read", "list"],
         },
     },
     (method) => ({ list: method.list("list") }),

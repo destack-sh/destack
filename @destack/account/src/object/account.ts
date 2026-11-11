@@ -25,6 +25,8 @@ import { sudo } from "../authentication/sudo.ts";
 import { DisplayName } from "./display-name.ts";
 import { Allowance } from "./allowance.ts";
 import { AccountError } from "../error/error.ts";
+import { recoverable, shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The name of every account's home space. */
 export const HOME_SPACE = "home";
@@ -40,8 +42,8 @@ export const account = defineObject(
     {
         name: "account",
         plural: "accounts",
+        title: t`${plural(argument("count"), { one: "Account", other: "Accounts" })}`,
         scope: [user, organization],
-        isScope: true,
         fields: {
             /** The globally unique handle scoping the account's package names. */
             handle: field.string(AccountHandle),
@@ -52,74 +54,10 @@ export const account = defineObject(
             /** Whether the account is its user's personal account or a shared one. */
             kind: field.enum(["personal", "shared"]).default("shared"),
         },
-        attributes: { kind: "string" },
         indexes: {
             handle: { on: ["handle"], across: () => universe },
             lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" },
         },
-        recoverable: { within: { days: 30 }, by: "delete" },
-        relations: {
-            resident: { subjects: [residency.members("server")], grantedBy: "place" },
-            claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
-            relay: { subjects: [residency.members("relaying")], grantedBy: "place" },
-            installed: { subjects: [residency.members("installed")], grantedBy: "place" },
-            // the account's home space, and the installations living in it
-            home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
-            // the people the account's managers let publish packages under its name, and its trusted publishers
-            publisher: { subjects: [principal.user], grantedBy: "manage", open: true },
-            // anyone, who finds the account's profile without reading it
-            public: { subjects: [anyone.all()] },
-        },
-        permissions: {
-            // inherit from the organization: its members view and its administrators manage
-            member: through("organization", "view"),
-            read: union(
-                through("user", "self"),
-                contained(principal.space, principal.machine),
-                through("organization", "view"),
-            ),
-            comment: through("organization", "manage"),
-            edit: through("organization", "manage"),
-            manage: through("organization", "manage"),
-            bill: union(permission("manage"), through("organization", "bill")),
-            list: union(permission("view"), relation("public")),
-            // let those reading or serving the account see it whole, its replicas among them
-            view: union(permission("read"), permission("serve")),
-            replicate: union(contained(principal.space), relation("resident")),
-            // let the residency's servers and installations, the account's home and its machines serve it
-            serve: union(
-                relation("resident"),
-                relation("home"),
-                contained(principal.machine),
-                relation("installed"),
-            ),
-            // let the residency's installations set the account's entitlements
-            entitle: relation("installed"),
-            // let the residency's machines and home claim names in the account
-            claim: relation("claimant"),
-            // let the residency's relay publish the tunnels of the account's machines
-            relaying: relation("relay"),
-            // let the person or the organization's managers found accounts in their scope
-            create: union(through("user", "self"), through("organization", "manage")),
-            update: permission("manage"),
-            delete: permission("manage"),
-            // let the account's managers and its publishers publish packages under the account's name
-            publish: union(permission("manage"), relation("publisher")),
-            administer: permission("manage"),
-            impersonate: permission("manage"),
-            verify: permission("manage"),
-            place: none(),
-            // let the account's home declare and provision the account's own resources
-            provision: relation("home"),
-        },
-        // show those who find the account without reading it its profile, residency, revision and trash state
-        guard: {
-            read: "view",
-            except: ["handle", "name", "kind", "residencyId", "revision", "deletedAt"],
-        },
-        shareable: {},
-        reserved: ["administer", "replicate", "serve", "entitle", "claim", "place", "provision"],
-        elevated: { delete: sudo, administer: sudo, impersonate: sudo },
         constraints: {
             handle: { kind: "index", on: ["handle"] },
             scope: { kind: "index", on: ["scope"] },
@@ -130,6 +68,80 @@ export const account = defineObject(
             },
             handleForm: { kind: "check", condition: { handle: Label.condition(HANDLE_LENGTH) } },
         },
+        container: "scope",
+        access: {
+            attributes: { kind: "string" },
+            relations: {
+                resident: { subjects: [residency.members("server")], grantedBy: "place" },
+                claimant: { subjects: [residency.members("claim")], grantedBy: "place" },
+                relay: { subjects: [residency.members("relaying")], grantedBy: "place" },
+                installed: { subjects: [residency.members("installed")], grantedBy: "place" },
+                // the account's home space, and the installations living in it
+                home: { subjects: [principal.space, principal.space.members(CONTAINED)] },
+                // the people the account's managers let publish packages under its name, and its trusted publishers
+                publisher: { subjects: [principal.user], grantedBy: "manage", open: true },
+                // anyone, who finds the account's profile without reading it
+                public: { subjects: [anyone.all()] },
+            },
+            permissions: {
+                // inherit from the organization: its members view and its administrators manage
+                member: through("organization", "view"),
+                read: union(
+                    through("user", "self"),
+                    contained(principal.space, principal.machine),
+                    through("organization", "view"),
+                ),
+                comment: through("organization", "manage"),
+                edit: through("organization", "manage"),
+                manage: through("organization", "manage"),
+                bill: union(permission("manage"), through("organization", "bill")),
+                list: union(permission("view"), relation("public")),
+                // let those reading or serving the account see it whole, its replicas among them
+                view: union(permission("read"), permission("serve")),
+                replicate: union(contained(principal.space), relation("resident")),
+                // let the residency's servers and installations, the account's home and its machines serve it
+                serve: union(
+                    relation("resident"),
+                    relation("home"),
+                    contained(principal.machine),
+                    relation("installed"),
+                ),
+                // let the residency's installations set the account's entitlements
+                entitle: relation("installed"),
+                // let the residency's machines and home claim names in the account
+                claim: relation("claimant"),
+                // let the residency's relay publish the tunnels of the account's machines
+                relaying: relation("relay"),
+                // let the person or the organization's managers found accounts in their scope
+                create: union(through("user", "self"), through("organization", "manage")),
+                update: permission("manage"),
+                delete: permission("manage"),
+                // let the account's managers and its publishers publish packages under the account's name
+                publish: union(permission("manage"), relation("publisher")),
+                administer: permission("manage"),
+                impersonate: permission("manage"),
+                verify: permission("manage"),
+                place: none(),
+                // let the account's home declare and provision the account's own resources
+                provision: relation("home"),
+            },
+            // show those who find the account without reading it its profile, residency, revision and trash state
+            guard: {
+                read: "view",
+                except: ["handle", "name", "kind", "residencyId", "revision", "deletedAt"],
+            },
+            reserved: [
+                "administer",
+                "replicate",
+                "serve",
+                "entitle",
+                "claim",
+                "place",
+                "provision",
+            ],
+            elevated: { delete: sudo, administer: sudo, impersonate: sudo },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "delete" }), shareable({})],
     },
     (method) => ({
         list: method.list("list"),
@@ -145,6 +157,7 @@ export const account = defineObject(
 
         /** Set the account's entitlements to its allowances, one per feature, at its home. */
         entitle: method.mutation({
+            title: t`Entitle`,
             permission: "entitle",
             visibility: "installation",
             input: schema.object({

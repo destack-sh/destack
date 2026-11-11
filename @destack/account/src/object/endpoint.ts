@@ -4,29 +4,34 @@ import { defineObject, field, type MethodContext } from "@destack/object";
 import { type Identifier, schema } from "@destack/schema";
 import { account } from "./account.ts";
 import { EndpointRelay, machine } from "./machine.ts";
+import { nested } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** Where a machine answers: its URL and the relay serving its tunnel. */
 export const endpoint = defineObject(
     {
         name: "endpoint",
         plural: "endpoints",
+        title: t`${plural(argument("count"), { one: "Endpoint", other: "Endpoints" })}`,
         scope: [account, "universe"],
-        nested: { in: machine, delete: "cascade", receive: "record" },
         fields: {
             /** The URL the machine's packages answer at. */
             url: field.string(schema.url()),
             /** The relay serving its tunnel, null for a machine answering at its URL directly. */
             relay: field.json(EndpointRelay).optional(),
         },
-        // let the universe's signed-in role grant reading endpoints, and the machine's declaration and relay record them
-        permissions: {
-            read: none(),
-            list: none(),
-            record: through("parent", "record"),
-            withdraw: through("parent", "revoke"),
-        },
-        reserved: ["record"],
         constraints: { machine: { kind: "unique", on: ["parentId"] } },
+        access: {
+            // let the universe's signed-in role grant reading endpoints, and the machine's declaration and relay record them
+            permissions: {
+                read: none(),
+                list: none(),
+                record: through("parent", "record"),
+                withdraw: through("parent", "revoke"),
+            },
+            reserved: ["record"],
+        },
+        traits: [nested({ in: machine, delete: "cascade", add: "record" })],
     },
     (method) => ({
         /** Record a machine's first endpoint, as its declaration or its relay does. */

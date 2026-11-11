@@ -5,7 +5,7 @@ import { nth, present, schema, type Identifier } from "@destack/schema";
 import {
     type Fetch,
     InstallationMount,
-    type PackageHandle,
+    type Package,
     PackageMount,
     SpaceMount,
 } from "@destack/object";
@@ -119,7 +119,7 @@ export class Directory<View extends Pick<Snapshot, "read"> = Snapshot> {
     }
 
     /** Call a package below an installation of a space, locating its machine on each call. */
-    client<Handle extends PackageHandle>(
+    client<Handle extends Package>(
         handle: Handle,
         spaceId: Identifier<"space">,
         installation: string,

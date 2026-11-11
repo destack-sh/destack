@@ -1,5 +1,5 @@
 import type { Environment } from "@destack/environment";
-import { CallError, type Fetch, PackageMount, type PackageHandle } from "@destack/object";
+import { CallError, type Fetch, PackageMount, type Package } from "@destack/object";
 import { type Bookmark, type ClientOptions, createClient } from "@destack/object/client";
 import objectPackage from "@destack/object/package";
 import type { PackageId } from "@destack/package";
@@ -55,11 +55,7 @@ export class Session<Principal extends Credential = Credential> {
     }
 
     /** Connect to a package mounted below an endpoint, bound as asked. */
-    client<Handle extends PackageHandle>(
-        handle: Handle,
-        endpoint: string,
-        binding: TokenBinding = {},
-    ) {
+    client<Handle extends Package>(handle: Handle, endpoint: string, binding: TokenBinding = {}) {
         return createClient<Handle["router"]>(
             handle,
             {

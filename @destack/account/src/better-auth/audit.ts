@@ -20,7 +20,7 @@ import { queueAfterTransactionHook } from "@better-auth/core/context";
 import { principal, ANONYMOUS } from "@destack/access";
 import type { Fetch } from "@destack/object";
 import { sessionCreate } from "../object/session.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import accountPackage from "../package.ts";
 import { METADATA_PATHS } from "../authentication/path.ts";
 
@@ -77,7 +77,7 @@ export class BetterAuthAudit {
     /** Report protocol diagnostics with fixed messages and standard severity. */
     log(level: keyof typeof SEVERITIES): void {
         const { telemetry } = this.journal.environment;
-        TelemetryScope.of(Package.of(accountPackage), telemetry).logger.emit({
+        TelemetryScope.of(PackageVersion.of(accountPackage), telemetry).logger.emit({
             severityNumber: SEVERITIES[level],
             severityText: level.toUpperCase(),
             body: "authentication protocol diagnostic",
@@ -108,7 +108,7 @@ export class BetterAuthAudit {
                             const recorder = new AuditRecorder(
                                 {
                                     caller: BetterAuthAudit.caller(current),
-                                    package: Package.of(accountPackage),
+                                    package: PackageVersion.of(accountPackage),
                                     scope: userId,
                                     sessionId,
                                 },
@@ -161,7 +161,7 @@ export class BetterAuthAudit {
         // propagate trace context without credentials, the request's span active while it runs
         const { telemetry } = this.journal.environment;
         const parent = extractContext(request.headers, telemetry);
-        const { tracer } = TelemetryScope.of(Package.of(accountPackage), telemetry);
+        const { tracer } = TelemetryScope.of(PackageVersion.of(accountPackage), telemetry);
         const span = tracer.startSpan(
             `authentication ${route}`,
             {
@@ -196,7 +196,7 @@ export class BetterAuthAudit {
         const recorder = new AuditRecorder(
             {
                 caller,
-                package: Package.of(accountPackage),
+                package: PackageVersion.of(accountPackage),
                 scope: principal.user.is(caller.subject) ? caller.subject.id : Scope.universe.id,
                 ...(isSpanContextValid(traced) ? { traceId: traced.traceId } : {}),
             },

@@ -8,6 +8,7 @@ import { machine } from "./machine.ts";
 import { space } from "./space.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Where the universe places a space for its tenancy: stay on its machine or move. */
 export const Schedule = schema.discriminatedUnion("kind", [
@@ -157,6 +158,7 @@ export const placement = defineObject(
     {
         name: "placement",
         plural: "placements",
+        title: t`${plural(argument("count"), { one: "Placement", other: "Placements" })}`,
         scope: account,
         key: "spaceId",
         fields: {
@@ -177,28 +179,6 @@ export const placement = defineObject(
             /** Whether the machine serves the space yet, as the machine reports. */
             status: field.enum(PLACEMENT_STATUSES).default("starting"),
         },
-        relations: {
-            // the placed space itself
-            space: { subjects: [principal.space], grantedBy: null },
-        },
-        permissions: {
-            read: union(
-                relation("space"),
-                relation("machine"),
-                relation("target"),
-                through("account", "read"),
-                through("account", "serve"),
-                contained(principal.installation),
-            ),
-            create: none(),
-            place: union(relation("machine"), relation("target")),
-            move: relation("machine"),
-            // the universe decides where the tenancy places the space
-            decide: none(),
-            // the machine serving the space alone, which owners' roles leave out
-            serve: relation("machine"),
-        },
-        reserved: ["serve"],
         constraints: {
             // place each space once, whichever account it belongs to
             space: { kind: "unique", on: ["spaceId"] },
@@ -220,6 +200,30 @@ export const placement = defineObject(
             },
             targeted: { kind: "index", on: ["targetId"] },
         },
+        access: {
+            relations: {
+                // the placed space itself
+                space: { subjects: [principal.space], grantedBy: null },
+            },
+            permissions: {
+                read: union(
+                    relation("space"),
+                    relation("machine"),
+                    relation("target"),
+                    through("account", "read"),
+                    through("account", "serve"),
+                    contained(principal.installation),
+                ),
+                create: none(),
+                place: union(relation("machine"), relation("target")),
+                move: relation("machine"),
+                // the universe decides where the tenancy places the space
+                decide: none(),
+                // the machine serving the space alone, which owners' roles leave out
+                serve: relation("machine"),
+            },
+            reserved: ["serve"],
+        },
     },
     (method) => ({
         create: method.create("create", {
@@ -228,10 +232,11 @@ export const placement = defineObject(
         }),
 
         /** Serve a space at an epoch. */
-        place: method.mutation({ permission: "place", input: Serving }),
+        place: method.mutation({ title: t`Place`, permission: "place", input: Serving }),
 
         /** Mark a space as moving to a target machine, as the machine serving it at its epoch. */
         move: method.mutation({
+            title: t`Move`,
             permission: "move",
             input: Serving.extend({
                 /** The machine the space moves to. */
@@ -243,6 +248,7 @@ export const placement = defineObject(
 
         /** Decide again where the universe places the space for its tenancy, as the store. */
         decide: method.mutation({
+            title: t`Decide`,
             permission: "decide",
             visibility: "package",
             input: schema.object({}),
@@ -250,21 +256,26 @@ export const placement = defineObject(
 
         /** Report whether the machine serves the space yet, at its epoch. */
         report: method.mutation({
+            title: t`Report`,
             permission: "serve",
             input: Serving.extend({ status: schema.enum(PLACEMENT_STATUSES) }),
         }),
 
         /** Read the account paying for the placed space's use, as the machine serving it. */
-        payer: method.query({ permission: "serve", output: schema.identifier("account") }),
+        payer: method.query({
+            title: t`Read payer`,
+            permission: "serve",
+            output: schema.identifier("account"),
+        }),
 
         /** End a space's placement, as the machine serving it at its epoch. */
-        withdraw: method.mutation({ permission: "move", input: Serving }),
+        withdraw: method.mutation({ title: t`Withdraw`, permission: "move", input: Serving }),
 
         /** Give a machine work in the space, as the machine serving it at its epoch. */
-        assign: method.mutation({ permission: "move", input: Worker }),
+        assign: method.mutation({ title: t`Assign`, permission: "move", input: Worker }),
 
         /** Withdraw a machine's work in the space, as the machine serving it at its epoch. */
-        unassign: method.mutation({ permission: "move", input: Worker }),
+        unassign: method.mutation({ title: t`Unassign`, permission: "move", input: Worker }),
     }),
 );
 
@@ -273,6 +284,7 @@ export const assignment = defineObject(
     {
         name: "assignment",
         plural: "assignments",
+        title: t`${plural(argument("count"), { one: "Assignment", other: "Assignments" })}`,
         scope: "universe",
         fields: {
             /** The placement of the space with the work, whose removal ends the work. */
@@ -280,14 +292,16 @@ export const assignment = defineObject(
             /** The machine the work is for. */
             machine: field.reference(principal.machine),
         },
-        // let the machine with the work and the machine serving the space read it
-        permissions: {
-            read: union(relation("machine"), through("placement", "move")),
-            give: none(),
-        },
         constraints: {
             work: { kind: "unique", on: ["placementId", "machineId"] },
             machine: { kind: "index", on: ["machineId"] },
+        },
+        access: {
+            // let the machine with the work and the machine serving the space read it
+            permissions: {
+                read: union(relation("machine"), through("placement", "move")),
+                give: none(),
+            },
         },
     },
     (method) => ({

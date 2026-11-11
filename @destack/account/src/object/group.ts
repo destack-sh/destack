@@ -5,46 +5,53 @@ import { account } from "./account.ts";
 import { organization } from "./organization.ts";
 import { user } from "./user.ts";
 import { DisplayName } from "./display-name.ts";
+import { nested, shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A set of principals roles bind to at once, nested in a parent group of the same scope. */
 export const group = defineObject(
     {
         name: "group",
         plural: "groups",
+        title: t`${plural(argument("count"), { one: "Group", other: "Groups" })}`,
         scope: [account, organization],
-        nested: {
-            in: "self",
-            optional: true,
-            delete: "restrict",
-            receive: "update",
-            move: "update",
-        },
-        represents: principal.group,
         fields: { name: field.string(DisplayName) },
-        // let a change ask a group's members as one set, as GitHub asks a team
-        contributes: [{ object: () => approval, relation: "approver", members: "member" }],
-        relations: {
-            member: {
-                subjects: [
-                    user,
-                    principal.installation,
-                    principal.group.members("member"),
-                    account.members("member"),
-                ],
-            },
-        },
-        permissions: {
-            create: through("organization", "manage"),
-            read: through("organization", "read"),
-            update: through("organization", "manage"),
-            delete: through("organization", "manage"),
-            share: through("organization", "manage"),
-        },
-        shareable: { by: "share" },
         constraints: {
             scopeName: { kind: "unique", on: ["scope", "name"] },
             scopeId: { kind: "unique", on: ["scope", "id"] },
         },
+        access: {
+            represents: principal.group,
+            // let a change ask a group's members as one set, as GitHub asks a team
+            contributes: [{ object: () => approval, relation: "approver", members: "member" }],
+            relations: {
+                member: {
+                    subjects: [
+                        user,
+                        principal.installation,
+                        principal.group.members("member"),
+                        account.members("member"),
+                    ],
+                },
+            },
+            permissions: {
+                create: through("organization", "manage"),
+                read: through("organization", "read"),
+                update: through("organization", "manage"),
+                delete: through("organization", "manage"),
+                share: through("organization", "manage"),
+            },
+        },
+        traits: [
+            nested({
+                in: "self",
+                optional: true,
+                delete: "restrict",
+                add: "update",
+                move: "update",
+            }),
+            shareable({ by: "share" }),
+        ],
     },
     (method) => ({
         create: method.create("create", { fields: ["name"] }),

@@ -9,6 +9,7 @@ import { account } from "../src/object/account.ts";
 import { claim } from "../src/object/claim.ts";
 import type { TestCaller } from "@destack/object/test";
 import accountPackage from "../src/package.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Any string, for a value the issuer draws at random, such as a token's identifier. */
 export const ANY_STRING: unknown = expect.any(String);
@@ -37,11 +38,14 @@ export const place = defineObject({
     name: "place",
     identity: "space",
     plural: "places",
+    title: t`${plural(argument("count"), { one: "Place", other: "Places" })}`,
     scope: account,
-    isScope: true,
     fields: { name: field.string() },
     indexes: { name: { on: ["name"], across: () => account } },
-    permissions: ["read"],
+    container: "scope",
+    access: {
+        permissions: ["read"],
+    },
 });
 
 /** Read the first page a followed replica streams, refusing a stream that ends before it. */

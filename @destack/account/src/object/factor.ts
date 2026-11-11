@@ -2,6 +2,7 @@ import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { user } from "./user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Whether a factor's enrollment is confirmed by a first code. */
 export const FACTOR_STATUSES = ["pending", "verified"] as const;
@@ -10,6 +11,7 @@ export const FACTOR_STATUSES = ["pending", "verified"] as const;
 export const factor = defineObject({
     name: "factor",
     plural: "factors",
+    title: t`${plural(argument("count"), { one: "Factor", other: "Factors" })}`,
     scope: user,
     fields: {
         /** The user the factor belongs to. */
@@ -27,9 +29,11 @@ export const factor = defineObject({
         /** Whether a first code confirmed the enrollment. */
         status: field.enum(FACTOR_STATUSES),
     },
-    permissions: ["read"],
     constraints: {
         user: { kind: "unique", on: ["userId"] },
+    },
+    access: {
+        permissions: ["read"],
     },
 });
 /** A persisted authenticator enrollment. */

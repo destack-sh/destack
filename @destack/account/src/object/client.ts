@@ -14,6 +14,8 @@ import { sudo } from "../authentication/sudo.ts";
 import { PushSubscription } from "./recipient.ts";
 import type {} from "@destack/package/import-meta";
 import { AccountError } from "../error/error.ts";
+import { propagated } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The name a device's client starts with, which its program renames once it signs in. */
 export const DEVICE_CLIENT_NAME = "Destack app";
@@ -44,10 +46,8 @@ export const client = defineObject(
     {
         name: "client",
         plural: "clients",
+        title: t`${plural(argument("count"), { one: "Client", other: "Clients" })}`,
         scope: user,
-        represents: principal.client,
-        // replicate a user's clients into the scopes inside the user's scope
-        propagated: {},
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The person's name for the client. */
@@ -75,21 +75,6 @@ export const client = defineObject(
             /** The time the person withdrew the client. */
             revokedAt: field.time().optional(),
         },
-        permissions: {
-            // the person's clients, through roles on their scope
-            read: none(),
-            list: none(),
-            create: none(),
-            issue: none(),
-            update: none(),
-            verify: none(),
-            rotate: none(),
-            // the person's home too, dropping a browser its push service forgot (RFC 8030 410 Gone)
-            unsubscribe: through("scope", "recipient"),
-            revoke: none(),
-            report: none(),
-        },
-        elevated: { issue: sudo },
         constraints: {
             scope: { kind: "index", on: ["scope"] },
             digest: { kind: "unique", on: ["digest"] },
@@ -107,6 +92,28 @@ export const client = defineObject(
                 condition: { OR: [{ push: { isNull: true } }, { kind: "browser" }] },
             },
         },
+        access: {
+            represents: principal.client,
+            permissions: {
+                // the person's clients, through roles on their scope
+                read: none(),
+                list: none(),
+                create: none(),
+                issue: none(),
+                update: none(),
+                verify: none(),
+                rotate: none(),
+                // the person's home too, dropping a browser its push service forgot (RFC 8030 410 Gone)
+                unsubscribe: through("scope", "recipient"),
+                revoke: none(),
+                report: none(),
+            },
+            elevated: { issue: sudo },
+        },
+        traits: [
+            // replicate a user's clients into the scopes inside the user's scope
+            propagated({}),
+        ],
     },
     (method) => ({
         list: method.list("list"),
@@ -139,6 +146,7 @@ export const client = defineObject(
         }),
         /** Prove the caller holds one of the client's keys, recording its proven contact. */
         prove: method.mutation({
+            title: t`Prove`,
             permission: "verify",
             input: schema.object({
                 /** The proof of one of the client's keys. */
@@ -149,20 +157,22 @@ export const client = defineObject(
         }),
         /** Link the calling session to a client by a proof of one of its keys. */
         link: method.mutation({
+            title: t`Link`,
             permission: "update",
             input: schema.object({ proof: CompactProof }),
         }),
         /** Store a browser client's Web Push subscription. */
         subscribe: method.mutation({
+            title: t`Subscribe`,
             permission: "update",
             input: schema.object({ push: PushSubscription }),
         }),
         /** Forget a client's Web Push subscription, as its push service no longer knows it. */
-        unsubscribe: method.mutation({ permission: "unsubscribe" }),
+        unsubscribe: method.mutation({ title: t`Unsubscribe`, permission: "unsubscribe" }),
         /** Withdraw a client with its keys and sessions. */
-        revoke: method.mutation({ permission: "revoke" }),
+        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
         /** Record the client's proven contact now. */
-        report: method.mutation({ permission: "report", visibility: "package" }),
+        report: method.mutation({ title: t`Report`, permission: "report", visibility: "package" }),
     }),
 ).implement({
     methods: {

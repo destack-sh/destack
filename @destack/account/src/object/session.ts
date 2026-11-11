@@ -7,6 +7,7 @@ import type { ObjectStore } from "@destack/object/server";
 import { Revocation } from "../credential/revocation.ts";
 import { client } from "./client.ts";
 import { user } from "./user.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The verified methods of an authentication ceremony. */
 export const AUTHENTICATION_METHODS = [
@@ -22,6 +23,7 @@ export const session = defineObject(
     {
         name: "session",
         plural: "sessions",
+        title: t`${plural(argument("count"), { one: "Session", other: "Sessions" })}`,
         scope: user,
         fields: {
             /** The authenticated user. */
@@ -47,7 +49,6 @@ export const session = defineObject(
             /** The time access was revoked. */
             revokedAt: field.time().optional(),
         },
-        permissions: ["read", "revoke", "link"],
         constraints: {
             token: { kind: "unique", on: ["token"] },
             user: { kind: "index", on: ["userId"] },
@@ -67,10 +68,13 @@ export const session = defineObject(
                 },
             },
         },
+        access: {
+            permissions: ["read", "revoke", "link"],
+        },
     },
     (method) => ({
-        revoke: method.mutation({ permission: "revoke" }),
-        revokeOthers: method.mutation({ permission: "revoke" }),
+        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
+        revokeOthers: method.mutation({ title: t`Revoke others`, permission: "revoke" }),
         link: method.update("link", { visibility: "package", fields: ["clientId"] }),
     }),
 ).implement({

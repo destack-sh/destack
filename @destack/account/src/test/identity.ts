@@ -4,7 +4,7 @@ import { MemoryBlobStorage } from "@destack/resource";
 import { TestAccess } from "@destack/access/test";
 import { ObjectStore } from "@destack/object/server";
 import { testEvents, serversOf } from "@destack/object/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { Identifier } from "@destack/schema";
 import { testCallKey } from "@destack/object/test";
 import { Scope } from "@destack/sync";
@@ -61,7 +61,7 @@ export const TestIdentityRegistry = {
             database,
             callKey: testCallKey,
             events: await testEvents(database, environment),
-            origin: { package: Package.of(accountPackage) },
+            origin: { package: PackageVersion.of(accountPackage) },
         });
 
         return {

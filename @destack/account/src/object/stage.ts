@@ -1,18 +1,19 @@
 import { type Select } from "@destack/db";
 import { defineObject, field } from "@destack/object";
 import { account } from "./account.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A deployment stage an account's spaces share, such as dev, declared by its stack. */
 export const stage = defineObject(
     {
         name: "stage",
         plural: "stages",
+        title: t`${plural(argument("count"), { one: "Stage", other: "Stages" })}`,
         scope: account,
         fields: {
             /** The account-local stage name. */
             name: field.string(),
         },
-        permissions: ["read", "write"],
         constraints: {
             account: {
                 kind: "foreignKey",
@@ -34,6 +35,9 @@ export const stage = defineObject(
                     },
                 },
             },
+        },
+        access: {
+            permissions: ["read", "write"],
         },
     },
     (method) => ({
