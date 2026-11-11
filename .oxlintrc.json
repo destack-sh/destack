@@ -158,6 +158,10 @@
             "rules": { "destack/no-overload-cast": "off" }
         },
         {
+            "files": ["@destack/package/src/definition/kind.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
+        },
+        {
             "files": ["@destack/resource/src/context/context.ts"],
             "rules": { "destack/no-overload-cast": "off" }
         },
@@ -179,6 +183,10 @@
                 "typescript/consistent-type-assertions": "off",
                 "typescript/no-unsafe-type-assertion": "off"
             }
+        },
+        {
+            "files": ["@destack/setting/src/declare/setting.ts"],
+            "rules": { "destack/no-overload-cast": "off" }
         },
         {
             "files": ["@destack/sync/src/scope/reference.ts"],
