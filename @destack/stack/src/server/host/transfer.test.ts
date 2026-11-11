@@ -28,6 +28,8 @@ import { canonicalize, Identifier, present, schema } from "@destack/schema";
 import { subjectContext, testCallKey } from "@destack/object/test";
 import { RequestId, Scope, Replica, replicaTables } from "@destack/sync";
 import { ProviderIndex, SpaceReplica, SpaceTransfer } from "../index.ts";
+import { shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The identifiers the scenarios place, assign and publish. */
 const ids = {
@@ -40,12 +42,15 @@ const ids = {
 const space = defineObject({
     name: "space",
     plural: "spaces",
+    title: t`${plural(argument("count"), { one: "Space", other: "Spaces" })}`,
     scope: "universe",
-    isScope: true,
     fields: {},
-    relations: { reader: { subjects: [anyone.all()] } },
-    permissions: { read: relation("reader"), share: none() },
-    shareable: { by: "share" },
+    container: "scope",
+    access: {
+        relations: { reader: { subjects: [anyone.all()] } },
+        permissions: { read: relation("reader"), share: none() },
+    },
+    traits: [shareable({ by: "share" })],
 });
 
 /** The account the moved space belongs to in the directory. */
@@ -61,12 +66,15 @@ const key = defineObject(
     {
         name: "key",
         plural: "keys",
+        title: t`${plural(argument("count"), { one: "Key", other: "Keys" })}`,
         scope: space,
         fields: {
             owner: field.reference(principal.user).caller(),
             name: field.string(),
         },
-        permissions: { read: relation("owner"), write: relation("owner") },
+        access: {
+            permissions: { read: relation("owner"), write: relation("owner") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["name"] }),

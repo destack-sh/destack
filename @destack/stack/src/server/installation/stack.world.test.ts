@@ -6,7 +6,7 @@ import { STACKS } from "@destack/account/test";
 import { space } from "@destack/account/object";
 import { type SpaceOptions, SpaceStore } from "../index.ts";
 import { pathToFileURL } from "node:url";
-import { PACKAGE_KIND, PackageHandle, SERVER_EXPORT } from "@destack/object";
+import { PACKAGE_KIND, Package, SERVER_EXPORT } from "@destack/object";
 import { expect, refusal, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { and, databaseProvider, defineDatabase, eq, isNotNull, Snapshot } from "@destack/db";
@@ -23,7 +23,7 @@ import {
 } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { describeObject, describePackage } from "@destack/object/inspect";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineBucket } from "@destack/bucket";
 import { defineStack } from "../../declare/index.ts";
@@ -59,9 +59,10 @@ const archiveDatabase = defineDatabase({ name: "archive", tables: [] });
 const filesBucket = defineBucket({ name: "files", spec: {} });
 
 /** A stack with an archive database and a files bucket. */
-const personal = defineStack([], {
-    databases: { archive: archiveDatabase.declare({ retention: { within: { days: 30 } } }) },
-    buckets: { files: filesBucket.declare({ retention: { within: { days: 30 } } }) },
+const personal = defineStack({
+    types: [],
+    databases: { archive: archiveDatabase.provision({ retention: { within: { days: 30 } } }) },
+    buckets: { files: filesBucket.provision({ retention: { within: { days: 30 } } }) },
 });
 
 /** Submit a build declaring a stack to a space, apply it, and reconcile its installations. */
@@ -119,12 +120,12 @@ async function serve(fixture: TestSpace, options: Partial<SpaceOptions> = {}) {
 }
 
 /** The server of gauges in the space. */
-const gauges = implementPackage(PackageHandle.of(gauge.package, { objects: { gauge } }), {
+const gauges = implementPackage(Package.of(gauge.package, { objects: [gauge] }), {
     objects: [gauge],
 });
 
 /** The server of meters in the space. */
-const meters = implementPackage(PackageHandle.of(meter.package, { objects: { meter } }), {
+const meters = implementPackage(Package.of(meter.package, { objects: [meter] }), {
     objects: [meter],
 });
 
@@ -703,7 +704,7 @@ test("install a package and declare records of its type in one approved plan, ap
 
     // publish notes declaring meters, and require approval of every plan in the space
     const release = await MemoryBuild.of(
-        Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",
@@ -880,7 +881,7 @@ interface FixtureRelease {
     /** The registry format. */
     readonly kind: "destack";
     /** The released package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The digest of its manifest. */
     readonly manifest: Digest;
     /** Its build. */
@@ -897,13 +898,13 @@ async function fixtureRelease(
     id: string = Identifier.create("package", environment),
 ): Promise<FixtureRelease> {
     // describe the package as installable, serving a type stored in a space, else as a library
-    const owner = Package.parse({ id, name, version });
+    const owner = PackageVersion.parse({ id, name, version });
     const declared = isInstallable
         ? [
               {
                   ...PACKAGE_KIND.identity,
                   name: "default",
-                  description: describePackage(PackageHandle.of(owner, { objects: {} })),
+                  description: describePackage(Package.of(owner, { objects: [] })),
               },
               {
                   kind: "object",
@@ -943,7 +944,7 @@ function installingStack(
     tags: Readonly<Record<string, { readonly kind: "tag"; readonly tag: string }>> = {},
 ): Promise<BuildReader> {
     // declare the stack's package and an installation of each release
-    const owner = Package.parse({
+    const owner = PackageVersion.parse({
         id: Identifier.create("package", environment),
         name: "@acme/stack",
         version: "2026.10.0",

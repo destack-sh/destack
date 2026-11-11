@@ -10,42 +10,45 @@ import {
 import { principal } from "@destack/access";
 import { TABLE } from "@destack/db";
 import { space } from "@destack/account/object";
-import { graph, Package } from "@destack/package";
+import { graph, PackageVersion } from "@destack/package";
 import { type Identifier, nth, schema } from "@destack/schema";
-import { OBJECT_KIND, PACKAGE_KIND, PackageHandle } from "@destack/object";
+import { OBJECT_KIND, PACKAGE_KIND, Package } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import { RequestId } from "@destack/sync";
 import { testServerContext } from "@destack/object/test";
 import { expect, test } from "@destack/test";
 import { SpaceStore } from "../src/server/index.ts";
 import { ids, TestSpace } from "../src/test/index.ts";
+import { shareable } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A build declaration, as a sandbox receives it. */
-type Declared = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
+type Declaration = Pick<graph.Declaration, "symbol" | "kind" | "kindPackageId" | "description">;
 
 /** The notebooks package. */
-const notebooks = Package.parse({
+const notebooks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000b1",
     name: "@example/notebooks",
     version: "2026.9.0",
 });
 
 /** The tasks package. */
-const tasks = Package.parse({
+const tasks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000b2",
     name: "@example/tasks",
     version: "2026.9.0",
 });
 
 /** A named record of one package, as that package declares it. */
-const named = (name: string, plural: string) =>
+const named = (name: string, pluralName: string) =>
     defineObject(
         {
             name,
-            plural,
+            plural: pluralName,
+            title: t`${plural(argument("count"), { one: "Record", other: "Records" })}`,
             scope: space,
             fields: { title: field.string(schema.string().min(1)) },
-            shareable: {},
+            traits: [shareable({})],
         },
         (method) => ({
             create: method.create("manage"),
@@ -65,9 +68,9 @@ function create(type: ObjectType, title: string) {
 
 /** The sandbox of an installation in a world, whose types have no hooks. */
 const unhooked = async (
-    owner: Package,
+    owner: PackageVersion,
     id: Identifier<"installation">,
-    declarations: readonly Declared[],
+    declarations: readonly Declaration[],
     environment: Environment,
 ) =>
     new HookSandbox({
@@ -80,11 +83,11 @@ const unhooked = async (
 const KNOWN = [space, ...Object.values(principal)];
 
 /** Describe a package's one type and its handle routing it, as its build's declarations do. */
-function declared(owner: Package, type: ObjectType, route: string): Declared[] {
+function declarationsOf(owner: PackageVersion, type: ObjectType, route: string): Declaration[] {
     // describe the type as the package's own, and its handle routing it
     const description = { ...ObjectDescription.of(type), package: owner };
     const own = nth(ObjectTypePool.of(KNOWN).declare([description]), 0);
-    const handle = PackageHandle.of(owner, { objects: { [route]: own } });
+    const handle = Package.of(owner, { objects: [own] });
     const symbol = graph.Moniker.of({ packageId: owner.id, module: "src/index.ts", name: route });
 
     return [
@@ -102,7 +105,7 @@ test("serve two installed packages from one store, writing both in one mutation 
             schema
                 .identifier("installation")
                 .parse("installation-01996ab0-0000-7000-8000-0000000000c1"),
-            declared(notebooks, named("notebook", "notebooks"), "notebook"),
+            declarationsOf(notebooks, named("notebook", "notebooks"), "notebook"),
             fixture.machine.environment,
         ),
         await unhooked(
@@ -110,7 +113,7 @@ test("serve two installed packages from one store, writing both in one mutation 
             schema
                 .identifier("installation")
                 .parse("installation-01996ab0-0000-7000-8000-0000000000c2"),
-            declared(tasks, named("task", "tasks"), "task"),
+            declarationsOf(tasks, named("task", "tasks"), "task"),
             fixture.machine.environment,
         ),
     ];

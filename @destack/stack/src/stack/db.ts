@@ -1,5 +1,5 @@
 import type { Table } from "@destack/db";
-import { type Follow, type PackageHandle, tablesOf } from "@destack/object";
+import { type Follow, type Package, tablesOf } from "@destack/object";
 import settingPackage from "@destack/setting/package";
 import {
     account,
@@ -35,7 +35,7 @@ export const spaceReplicated: readonly Table[] = [
 /** List a space database's tables: object, stack, settings and its host's own. */
 export function spaceTables(host: {
     /** The packages the host serves in addition to the platform's. */
-    readonly packages?: readonly Pick<PackageHandle, "objects" | "tables">[];
+    readonly packages?: readonly Pick<Package, "objects" | "tables">[];
     /** The shapes the host follows in addition to the space's own. */
     readonly follows?: readonly Follow[];
     /** The host's own tables. */

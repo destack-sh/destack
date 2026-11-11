@@ -5,21 +5,14 @@ import { RequestId, Scope, type Subject } from "@destack/sync";
 import { accessRelationship, InstallationId, principal, Relationship } from "@destack/access";
 import { account, residency } from "@destack/account/object";
 import { UNIVERSE_NODE } from "@destack/control/test";
-import {
-    installation,
-    type ObjectType,
-    PACKAGE_KIND,
-    PACKAGE_EXPORT,
-    PackageHandle,
-} from "@destack/object";
+import { installation, PACKAGE_KIND, PACKAGE_EXPORT, Package } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
 import objectPackage from "@destack/object/package";
 import { implementPackage } from "@destack/object/server";
 import { MemoryBuild } from "@destack/package/test";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { defineBucket } from "@destack/bucket";
 import { describeBucket } from "@destack/bucket/inspect";
-import { RESOURCE_KIND } from "@destack/resource";
 import { testHost } from "@destack/test/host";
 import { PROCESS_RUNTIME } from "../../object/index.ts";
 import { PackageManifest } from "@destack/package/manifest";
@@ -292,25 +285,27 @@ test("identify a residency home's declared installation by its name, and forward
 
 test("relate a residency home's declared installation at the universe once a pass after a partition arrives there", async () => {
     // declare a package whose installations ask for what a residency's installation has
-    const released = Package.parse({
+    const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
         name: "@example/registry",
         version: "2026.9.0",
     });
-    const registry = PackageHandle.of(released, {
-        objects: {},
-        permissions: {
-            space: {
-                universe: [
-                    account.permission("entitle"),
-                    account.permission("serve"),
-                    residency.permission("locate"),
-                ],
+    const registry = Package.of(released, {
+        objects: [],
+        access: {
+            permissions: {
+                space: {
+                    universe: [
+                        account.permission("entitle"),
+                        account.permission("serve"),
+                        residency.permission("locate"),
+                    ],
+                },
             },
         },
     });
     const build = await MemoryBuild.of(
-        Package.of(registry),
+        PackageVersion.of(registry),
         [
             {
                 ...PACKAGE_KIND.identity,
@@ -351,16 +346,15 @@ test("relate a residency home's declared installation at the universe once a pas
 
 test("relate a shipped server as consumer of the bucket it binds while its revision serves in process, and unrelate it once uninstalled", async () => {
     // ship a server binding a bucket, and install it in the space
-    const released = Package.parse({
+    const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e1",
         name: "@example/boxes",
         version: "2026.9.0",
     });
     const box = defineBucket({ name: "box", spec: {} }, { package: released });
-    const objects: Readonly<Record<string, ObjectType>> = {};
-    const boxes = PackageHandle.of(released, { objects, resources: { box } });
+    const boxes = Package.of(released, { objects: [], resources: [box] });
     const build = await MemoryBuild.of(
-        Package.of(boxes),
+        PackageVersion.of(boxes),
         [
             {
                 ...PACKAGE_KIND.identity,
@@ -368,7 +362,8 @@ test("relate a shipped server as consumer of the bucket it binds while its revis
                 description: describePackage(boxes),
             },
             {
-                ...RESOURCE_KIND.identity,
+                ...box.kind.identity,
+                provisioned: true,
                 name: box.name,
                 description: describeBucket(box),
             },

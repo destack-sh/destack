@@ -4,7 +4,6 @@ import { defineObject, ObjectDescription, type ObjectType, Observation } from "@
 import { space } from "@destack/account/object";
 import { sudo } from "@destack/account/authentication";
 import { Digest, type Identifier, present } from "@destack/schema";
-import { RESOURCE_KIND } from "@destack/resource";
 import { Build, build } from "./build.ts";
 import {
     type InstallationRevision,
@@ -15,6 +14,8 @@ import {
 } from "./rollout.ts";
 import type { graph, PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
+import { provisioned } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The provider that stores a space's main database in the space's own storage. */
 export const SPACE_PROVIDER = "space";
@@ -23,11 +24,14 @@ export const SPACE_PROVIDER = "space";
 export const database = defineObject({
     name: "database",
     plural: "databases",
+    title: t`${plural(argument("count"), { one: "Database", other: "Databases" })}`,
     scope: space,
-    provisioned: { kind: DatabaseKind },
     fields: {},
-    administration: ["read", "manage"],
-    elevated: { manage: sudo },
+    access: {
+        suspended: ["read", "manage"],
+        elevated: { manage: sudo },
+    },
+    traits: [provisioned({ kind: DatabaseKind })],
 });
 
 /** A persisted database resource. */
@@ -171,7 +175,7 @@ export const Database = {
             const revision = revisions.find((each) => each.id === revisionId);
             const { packageId } = entry.installation;
             const hasBindings = declarations
-                .filter((each) => RESOURCE_KIND.has(each))
+                .filter((each) => each.provisioned === true)
                 .every(
                     (each) =>
                         revision !== undefined &&

@@ -4,7 +4,7 @@ import { AccessContext, Caller, principal } from "@destack/access";
 import { type ObjectReconciliation, type Resource, type ResourceType } from "@destack/object";
 import type { space } from "@destack/account/object";
 import type { ObjectStore } from "@destack/object/server";
-import { Plan, type ContentStore } from "@destack/resource";
+import { Plan, type ContentStore, ResourceRecord } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { Digest, type Identifier, nth, present } from "@destack/schema";
 import { Scope, RequestId } from "@destack/sync";
@@ -71,10 +71,13 @@ export function implementSnapshot(options: TransferOptions) {
                         // copy its content into the space's blobs and record the copy with them as the space
                         const { store, blobs } = recording(options.blobs);
                         const digest = await snapshotter.snapshot(
-                            kind.record(resource),
+                            ResourceRecord.of(kind, resource),
                             await Promise.all(
                                 appliedDigests(resource).map((applied) =>
-                                    reconciliation.store.blobs.readJson(applied, kind.state),
+                                    reconciliation.store.blobs.readJson(
+                                        applied,
+                                        kind.provisioned.state,
+                                    ),
                                 ),
                             ),
                             store,
@@ -215,10 +218,14 @@ async function restoreFirst(
         snapshot: snapshotter,
     } = options.providers.restoring(object, resource);
     const states = await Promise.all(
-        copy.desired.map((digest) => reconciliation.store.blobs.readJson(digest, kind.state)),
+        copy.desired.map((digest) =>
+            reconciliation.store.blobs.readJson(digest, kind.provisioned.state),
+        ),
     );
-    const provisioned = await provisioning.provision(kind.record({ ...resource, reference: null }));
-    const record = kind.record({ ...resource, reference: provisioned.reference });
+    const provisioned = await provisioning.provision(
+        ResourceRecord.of(kind, { ...resource, reference: null }),
+    );
+    const record = ResourceRecord.of(kind, { ...resource, reference: provisioned.reference });
 
     // apply its states, restore the copy and record the restore as the space
     try {
@@ -270,9 +277,11 @@ async function catchUp(
     // restore the later copy onto the earlier one with the provider that stores it
     const { kind, snapshot: snapshotter } = options.providers.snapshotting(object, row.provider);
     await snapshotter.restore(
-        kind.record({ ...resource, reference: row.reference }),
+        ResourceRecord.of(kind, { ...resource, reference: row.reference }),
         await Promise.all(
-            copy.desired.map((digest) => reconciliation.store.blobs.readJson(digest, kind.state)),
+            copy.desired.map((digest) =>
+                reconciliation.store.blobs.readJson(digest, kind.provisioned.state),
+            ),
         ),
         copy.digest,
         copy.store,

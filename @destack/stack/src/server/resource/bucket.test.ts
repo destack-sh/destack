@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { space } from "@destack/account/object";
 import { principal } from "@destack/access";
 import { procedureInvoke } from "@destack/object/server";
@@ -409,7 +409,7 @@ test("refuse callers without the bucket permission", async () => {
                 category: "denial",
                 context: {
                     caller: { subject: member },
-                    package: Package.of(stackPackage),
+                    package: PackageVersion.of(stackPackage),
                     scope: fixture.spaceId,
                     traceId: denial.execution.context.traceId,
                 },

@@ -25,7 +25,7 @@ import {
 } from "@destack/object";
 import { PackageId, PackageRelease } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { RESOURCE_KIND, ResourceDescription } from "@destack/resource";
+import { ResourceDescription } from "@destack/resource";
 import {
     Digest,
     type DigestCrypto,
@@ -657,12 +657,13 @@ async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValu
     // read the build's resource declarations and its exact dependencies once an installation of another package is declared
     const own = PackageManifest.package(reader.manifest);
     const resources = (await reader.declarations())
-        .filter((declaration) => RESOURCE_KIND.has(declaration))
-        .map((declaration) =>
-            ResourceDescription.catchall(schema.json()).parse(declaration.description),
-        );
+        .filter((declaration) => declaration.provisioned === true)
+        .map((declaration) => ({
+            isInstallation: InstallationKind.has(declaration),
+            ...ResourceDescription.catchall(schema.json()).parse(declaration.description),
+        }));
     const callees = resources
-        .filter((resource) => resource.kind === InstallationKind.name)
+        .filter((resource) => resource.isInstallation)
         .map((resource) => InstallationBindingSpec.parse(resource.spec).package);
     const dependencies = callees.some((callee) => callee !== own.id)
         ? Object.values(await reader.dependencies())
@@ -670,9 +671,9 @@ async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValu
 
     // pin an installation to the release of its package the reader compiled against, else take a resource's own state
     const states = new Map<string, JsonValue>();
-    for (const { name, kind, spec, ...state } of resources) {
+    for (const { name, isInstallation, spec, ...state } of resources) {
         // pin an installation's callee release
-        if (kind === InstallationKind.name) {
+        if (isInstallation) {
             const callee = InstallationBindingSpec.parse(spec).package;
             const release =
                 callee === own.id

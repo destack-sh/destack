@@ -5,7 +5,7 @@ import {
     InstallationBindings,
     InstallationName,
     InstallationSelection,
-    type PackageHandle,
+    type Package,
     PinnedRelease,
     Tag,
 } from "@destack/object";
@@ -55,7 +55,7 @@ export type InstallationDefinition = schema.Infer<typeof InstallationDefinition>
 export type SecretSelection = string | { readonly secret: string; readonly version: number };
 
 /** Space resource and secret keys selected for a package's declarations. */
-export type InstallBindingMap<Handle extends Pick<PackageHandle, "resources" | "secrets">> = {
+export type InstallBindingMap<Handle extends Pick<Package, "resources" | "secrets">> = {
     readonly [Name in keyof Handle["resources"]]?: string;
 } & { readonly [Name in keyof Handle["secrets"]]?: SecretSelection };
 
@@ -81,7 +81,7 @@ export interface InstallOptions {
 
 /** Install a package release, binding its declarations to this space's resources and secrets. */
 export function install<
-    const Handle extends Pick<PackageHandle, "id" | "name" | "resources" | "secrets"> & {
+    const Handle extends Pick<Package, "id" | "name" | "resources" | "secrets"> & {
         readonly version?: string;
     },
 >(
@@ -111,7 +111,7 @@ export function install<
             }
             const packageBindings = (bound[resource.package.id] ??= {});
             packageBindings[resource.name] = {
-                target: { type: resource.kind, name: selection },
+                target: { type: resource.kind.name, name: selection },
             };
         }
         // bind a secret declaration to a secret of the stack pinned to a version when selected

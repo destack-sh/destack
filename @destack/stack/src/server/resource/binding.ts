@@ -37,7 +37,6 @@ import {
     Stack,
     StackPlan,
 } from "@destack/object/server";
-import { RESOURCE_KIND, type ResourceKind } from "@destack/resource";
 import { Digest, type Identifier, type JsonObject, present, schema } from "@destack/schema";
 import { StackError } from "../../error/index.ts";
 import {
@@ -52,11 +51,12 @@ import {
     type InstallationRevision,
     type ResourceNeed,
 } from "../../object/index.ts";
+import { Kind, type Provisioning } from "@destack/package";
 
 /** A resource kind bindings target, whose providers provision its objects. */
 export interface ResourceBindable extends Bindable<ResourceType<typeof space>> {
     /** The resource kind the objects are. */
-    readonly kind: ResourceKind;
+    readonly kind: Kind<schema.Schema, Provisioning>;
     /** Read the record an installation's own need declares, as its type's stack declaration. */
     readonly declare: (need: ResourceNeed, installation: string) => JsonObject;
 }
@@ -121,11 +121,13 @@ export const ObjectBindable = {
 /** Resource kinds as bindings target them. */
 export const ResourceBindable = {
     /** Bind resources of one kind, at their generation or a binding's pinned version. */
-    of(kind: ResourceKind, object: ResourceType<typeof space>): ResourceBindable {
+    of(
+        kind: Kind<schema.Schema, Provisioning>,
+        object: ResourceType<typeof space>,
+    ): ResourceBindable {
         return {
             object,
             kind,
-            declaration: RESOURCE_KIND,
             used: [object],
             version: (target, pin) => pin ?? target.generation,
             uses: async (bound) => [object.reference(bound.scope, bound.target)],
@@ -155,8 +157,12 @@ export class Binder {
     constructor(resources: readonly ResourceBindable[], objects: readonly ObjectBindable[]) {
         // index the kinds by resource kind and by declaration kind
         this.#kinds = [...resources, ...objects];
-        this.#resources = new Map(resources.map((kind) => [kind.kind.name, kind]));
-        this.#objects = new Map(objects.map((kind) => [kind.declaration.name, kind]));
+        this.#resources = new Map(
+            resources.map((each) => [Kind.key(each.kind.packageId, each.kind.name), each]),
+        );
+        this.#objects = new Map(
+            objects.map((each) => [Kind.key(each.kind.packageId, each.kind.name), each]),
+        );
     }
 
     /** List the kinds packages serve to workloads, such as secrets. */
@@ -174,9 +180,16 @@ export class Binder {
         return this.#kinds.some((kind) => kind.object.identifies(target));
     }
 
-    /** Report whether a bindable kind binds a declaration, by its kind's identity. */
-    binds(declaration: { readonly kind: string; readonly kindPackageId: string }): boolean {
-        return this.#kinds.some((kind) => kind.declaration.has(declaration));
+    /** Report whether a declaration binds: every resource, and another kind by its identity. */
+    binds(declaration: {
+        readonly kind: string;
+        readonly kindPackageId: string;
+        readonly provisioned?: true;
+    }): boolean {
+        return (
+            declaration.provisioned === true ||
+            this.#kinds.some((each) => each.kind.has(declaration))
+        );
     }
 
     /** Resolve the targets an installation's declared bindings name to the records they select. */
@@ -239,8 +252,12 @@ export class Binder {
     /** List the kinds of some needs no provider here serves yet, which wait until one does. */
     unprovided(needs: readonly ResourceNeed[]): string[] {
         const kinds = needs
-            .map((need) => need.kind)
-            .filter((kind) => !this.#resources.has(kind) && !this.#objects.has(kind));
+            .filter(
+                (need) =>
+                    !this.#resources.has(Binder.#key(need)) &&
+                    !this.#objects.has(Binder.#key(need)),
+            )
+            .map((need) => need.kind);
 
         return [...new Set(kinds)];
     }
@@ -276,8 +293,8 @@ export class Binder {
             target.installation.bindings[need.package.id]?.[need.name] === undefined;
         const unbound = needs.find(
             (each) =>
-                this.#resources.get(each.kind)?.kind.management === "external" &&
-                isUnselected(each),
+                this.#resources.get(Binder.#key(each))?.kind.provisioned.management ===
+                    "external" && isUnselected(each),
         );
         if (unbound !== undefined) {
             throw StackError.of(
@@ -385,7 +402,10 @@ export class Binder {
     #isOwned(target: InstallationRollout, need: ResourceNeed): boolean {
         const isSelected = target.installation.bindings[need.package.id]?.[need.name] !== undefined;
 
-        return (this.#resources.has(need.kind) || this.#objects.has(need.kind)) && !isSelected;
+        return (
+            (this.#resources.has(Binder.#key(need)) || this.#objects.has(Binder.#key(need))) &&
+            !isSelected
+        );
     }
 
     /** Retire a removed installation's records: its own kinds' while it runs, then the others. */
@@ -399,17 +419,22 @@ export class Binder {
         const others = kept.filter(
             (need) =>
                 this.#isOwned(target, need) &&
-                this.#bindable(need.kind).object.package.id !== target.installation.packageId,
+                this.#bindable(need).object.package.id !== target.installation.packageId,
         );
         await this.#declare(context, target, others, bindings);
     }
 
     /** Read the bindable kind of a need's kind. */
-    #bindable(kind: string): Bindable {
+    #bindable(need: ResourceNeed): Bindable {
         return present(
-            this.#resources.get(kind) ?? this.#objects.get(kind),
-            `the bindable kind ${kind}`,
+            this.#resources.get(Binder.#key(need)) ?? this.#objects.get(Binder.#key(need)),
+            `the bindable kind ${need.kind}`,
         );
+    }
+
+    /** Read the key of a need's kind: its package and name. */
+    static #key(need: ResourceNeed): string {
+        return Kind.key(need.kindPackageId, need.kind);
     }
 
     /** Report whether a removed installation still manages records its own code finalizes. */
@@ -485,7 +510,7 @@ export class Binder {
         bindings: readonly Binding[],
     ): { readonly object: ObjectType; readonly input: JsonObject } | undefined {
         // declare a resource under the installation's name
-        const resource = this.#resources.get(need.kind);
+        const resource = this.#resources.get(Binder.#key(need));
         if (resource !== undefined) {
             return {
                 object: resource.object,
@@ -494,7 +519,10 @@ export class Binder {
         }
 
         // declare another kind's record once the bindings it needs exist
-        const bindable = present(this.#objects.get(need.kind), `the object kind ${need.kind}`);
+        const bindable = present(
+            this.#objects.get(Binder.#key(need)),
+            `the object kind ${need.kind}`,
+        );
         const input = bindable.declare(need, bindings);
 
         return input === undefined ? undefined : { object: bindable.object, input };
@@ -548,7 +576,7 @@ export class Binder {
         target: InstallationRollout,
         need: ResourceNeed,
     ): Promise<{ readonly id: string } | undefined> {
-        const kind = this.#bindable(need.kind);
+        const kind = this.#bindable(need);
         const [row] = await context.read(Binder.#declarable(kind.object).table).findMany({
             where: { ...Binder.#managedBy(target, need.package.id), managerName: need.name },
         });
@@ -563,7 +591,7 @@ export class Binder {
         need: ResourceNeed,
     ): Promise<string | undefined> {
         // look for the retained resource of the installation's name only
-        const kind = this.#resources.get(need.kind);
+        const kind = this.#resources.get(Binder.#key(need));
         if (kind === undefined) {
             return undefined;
         }
@@ -633,7 +661,7 @@ export class Binder {
             }
 
             // ready a target its object kind prepares once its row and its provisioned parent arrived
-            const bindable = this.#objects.get(need.kind);
+            const bindable = this.#objects.get(Binder.#key(need));
             if (bindable !== undefined) {
                 const declarer = Binder.#declarer(context, target, bindable.object);
                 isReady =
@@ -1111,7 +1139,7 @@ async function consumedStates(
 ): Promise<ConsumedStates> {
     // require no states of a kind without a state
     const { kind } = present(object.provisioned, `the kind of ${object.name}`);
-    if (!kind.isStateful) {
+    if (!kind.isStateful()) {
         return { targeted: [], running: [] };
     }
 

@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { eq } from "@destack/db";
 import { TestDatabase } from "@destack/db/test";
 import type { DurableObjectNamespace } from "@destack/db/cloudflare";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { modulePlugin } from "@destack/package/vite";
 import { ModuleTransformer } from "@destack/package/transform";
 import { rolldown } from "rolldown";
@@ -32,7 +32,7 @@ test("index a manifest once in its object, show each build of it the rows in its
     const simulation = testSimulation();
     const world = simulation.environment("test");
     const reader = await MemoryBuild.of(
-        Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [{ kind: "notification", kindPackageId: ids.package, name: "mention", description: {} }],
         world.crypto,
     );

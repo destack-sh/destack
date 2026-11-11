@@ -3,10 +3,11 @@ import { space } from "@destack/account/object";
 import { defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import * as object from "../object/index.ts";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
+import { argument, plural, t } from "@destack/locale";
 
 /** The notes package the space serves in process in addition to the stack. */
-const NOTES = Package.parse({
+const NOTES = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000004",
     name: "@example/notes",
     version: "2026.9.0",
@@ -14,7 +15,17 @@ const NOTES = Package.parse({
 
 /** A type of the notes package, declared by stacks and waiting for their main database. */
 export const gauge = defineObject(
-    { name: "gauge", plural: "gauges", scope: space, fields: {}, permissions: ["write"] },
+    {
+        name: "gauge",
+        plural: "gauges",
+        title: t`${plural(argument("count"), { one: "Gauge", other: "Gauges" })}`,
+        scope: space,
+        fields: {},
+        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
+    },
     (method) => ({
         create: method.create("write"),
         get: method.get("write"),
@@ -43,7 +54,17 @@ export const gauge = defineObject(
 
 /** A type the installed notes package declares, which stacks declare once the store serves it. */
 export const meter = defineObject(
-    { name: "meter", plural: "meters", scope: space, fields: {}, permissions: ["write"] },
+    {
+        name: "meter",
+        plural: "meters",
+        title: t`${plural(argument("count"), { one: "Meter", other: "Meters" })}`,
+        scope: space,
+        fields: {},
+        permissions: ["write"],
+        access: {
+            permissions: ["write"],
+        },
+    },
     (method) => ({
         create: method.create("write"),
         get: method.get("write"),
@@ -57,12 +78,15 @@ export const note = defineObject(
     {
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields: {
             author: field.reference(principal.user).caller(),
             title: field.string(schema.string().min(1)),
         },
-        permissions: { read: relation("author"), write: relation("author") },
+        access: {
+            permissions: { read: relation("author"), write: relation("author") },
+        },
     },
     (method) => ({
         create: method.create("write", { fields: ["title"] }),
@@ -74,7 +98,10 @@ export const note = defineObject(
 export const sharedNote = defineObject({
     name: "shared-note",
     plural: "sharedNotes",
+    title: t`${plural(argument("count"), { one: "Shared note", other: "Shared notes" })}`,
     scope: space,
     fields: { body: field.string() },
-    permissions: ["read"],
+    access: {
+        permissions: ["read"],
+    },
 });

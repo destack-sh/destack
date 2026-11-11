@@ -16,21 +16,16 @@ import {
     type ObjectStore,
     type PackageImplementation,
 } from "@destack/object/server";
-import {
-    EGRESS_PROVIDER,
-    type ResourceKind,
-    type ResourceRecord,
-    type Provider,
-    type Rewrapper,
-} from "@destack/resource";
+import { EGRESS_PROVIDER, ResourceRecord, type Provider, type Rewrapper } from "@destack/resource";
 import { StackError } from "../../error/index.ts";
 import type { Controller } from "@destack/db";
 import { type Binding, dependency, type InstallationRollout } from "../../object/index.ts";
 import type {} from "@destack/package/import-meta";
+import type { Kind, Provisioning } from "@destack/package";
 
 /** A provider of a space's resources. */
 export type SpaceProvider = Provider<
-    ResourceKind,
+    Kind<schema.Schema, Provisioning>,
     ResourceType<typeof space>,
     DatabaseHandle,
     Table,
@@ -143,7 +138,7 @@ export class ProviderIndex {
             .flatMap((type): SpaceProvider[] => {
                 const { kind } = present(type.provisioned, `the kind of ${type.name}`);
 
-                return kind.management === "external"
+                return kind.provisioned.management === "external"
                     ? [{ kind, code: EGRESS_PROVIDER, object: type }]
                     : [];
             });
@@ -204,7 +199,7 @@ export class ProviderIndex {
     }
 
     /** Read the kind whose resources an object type is, refusing an object of no kind. */
-    kind(object: ObjectType): ResourceKind {
+    kind(object: ObjectType): Kind<schema.Schema, Provisioning> {
         return present(object.provisioned, `the kind of ${object.name}`).kind;
     }
 
@@ -252,7 +247,7 @@ export class ProviderIndex {
             this.of(object).find((entry) => entry.code === code),
             `provider ${code} of resource ${stored.id}`,
         );
-        await provider.provision?.destroy(provider.kind.record(stored));
+        await provider.provision?.destroy(ResourceRecord.of(provider.kind, stored));
     }
 
     /** List the rewrapping of the providers moving machine-bound rows to another machine. */

@@ -8,7 +8,7 @@ import {
     InstallationKind,
 } from "@destack/object";
 import { Space, space } from "@destack/account/object";
-import { RESOURCE_KIND, ResourceId, type ResourceKind } from "@destack/resource";
+import { ResourceId } from "@destack/resource";
 import {
     and,
     type DatabaseConnection,
@@ -61,6 +61,7 @@ import type { ProviderIndex } from "../resource/resource.ts";
 import type { ObjectBindable } from "../resource/binding.ts";
 import type { SpaceBuildStore } from "../installation/build.ts";
 import { RolloutTarget } from "../installation/target.ts";
+import type { Kind, Provisioning } from "@destack/package";
 
 /** The instance statuses of a recorded workload not stopped for good. */
 const UNSTOPPED_STATUSES = ["starting", "running", "failed"] as const;
@@ -93,7 +94,7 @@ interface BoundResource {
     /** The space of the resource. */
     readonly scope: Identifier<"space">;
     /** The resource kind, such as database. */
-    readonly kind: ResourceKind["name"];
+    readonly kind: Kind<schema.Schema, Provisioning>["name"];
     /** The declared specification. */
     readonly spec: JsonValue;
     /** The provider's reference once provisioned. */
@@ -698,7 +699,7 @@ class Reconcile {
                       {
                           packageId: row.packageId,
                           name: row.name,
-                          kind: kind.declaration.name,
+                          kind: kind.kind.name,
                           provider: kind.provider,
                           target: ResourceId.parse(row.target),
                           version: row.version,
@@ -721,7 +722,7 @@ class Reconcile {
         return rows.map((row) => {
             const declared = declarations.find(
                 (declaration) =>
-                    RESOURCE_KIND.has(declaration) &&
+                    declaration.provisioned === true &&
                     declaration.name === row.name &&
                     declaration.moniker.startsWith(`${row.packageId}/`),
             );

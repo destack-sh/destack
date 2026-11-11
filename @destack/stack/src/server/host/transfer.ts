@@ -51,7 +51,7 @@ import {
 import { type IdentityKeystore } from "@destack/account/identity";
 import { type Resource, type ResourceType, type SettlementContext } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import type { ResourceId, ResourceRecord } from "@destack/resource";
+import { type ResourceId, ResourceRecord } from "@destack/resource";
 import { Recipient } from "@destack/identity";
 import { AccessContext, Caller, principal } from "@destack/access";
 import {
@@ -683,7 +683,10 @@ export class SpaceTransfer {
         for (const { object, row } of await this.#provisioned(providers)) {
             const provider = providers.of(object).find((entry) => entry.code === row.provider);
             if (provider?.fence !== undefined) {
-                fenced.push({ fence: provider.fence, record: provider.kind.record(row) });
+                fenced.push({
+                    fence: provider.fence,
+                    record: ResourceRecord.of(provider.kind, row),
+                });
             }
         }
 
@@ -1023,7 +1026,7 @@ export class SpaceTransfer {
             "the space provider of this machine",
         );
         const provisioning = present(provider.provision, "the space provider's provisioning");
-        const { reference } = await provisioning.provision(provider.kind.record(main));
+        const { reference } = await provisioning.provision(ResourceRecord.of(provider.kind, main));
         await this.space.rewrite(transaction, kind.table, main, {
             ...main,
             reference,

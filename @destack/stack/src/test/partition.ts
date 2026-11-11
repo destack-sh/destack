@@ -1,11 +1,13 @@
 import { Account, account, space } from "@destack/account/object";
-import { defineObject, field, PackageHandle } from "@destack/object";
-import { Package } from "@destack/package";
+import { defineObject, field, Package } from "@destack/object";
+import { PackageVersion } from "@destack/package";
 import { present, schema, type Identifier } from "@destack/schema";
 import { ids, TestSpace, type HostedSpace } from "./space.ts";
+import { propagated } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The package of the cards and memos the spaces serve in addition to the stack. */
-const BOARD = Package.parse({
+const BOARD = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-000000000006",
     name: "@example/board",
     version: "2026.10.0",
@@ -16,9 +18,12 @@ export const card = defineObject(
     {
         name: "card",
         plural: "cards",
+        title: t`${plural(argument("count"), { one: "Card", other: "Cards" })}`,
         scope: [space, account],
         fields: { title: field.string() },
-        permissions: ["read", "write"],
+        access: {
+            permissions: ["read", "write"],
+        },
     },
     undefined,
     { package: BOARD },
@@ -29,17 +34,20 @@ export const memo = defineObject(
     {
         name: "memo",
         plural: "memos",
+        title: t`${plural(argument("count"), { one: "Memo", other: "Memos" })}`,
         scope: [space, account],
-        propagated: {},
         fields: { title: field.string() },
-        permissions: ["read", "write"],
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [propagated({})],
     },
     undefined,
     { package: BOARD },
 );
 
 /** The package of the cards and memos. */
-export const board = PackageHandle.of(BOARD, { objects: { card, memo } });
+export const board = Package.of(BOARD, { objects: [card, memo] });
 
 /** Another space of the fixture's account, beside the account's home. */
 const OTHER_SPACE = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000d1");

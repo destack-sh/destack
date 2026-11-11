@@ -1,7 +1,7 @@
 import { Failure } from "@destack/error";
 import { HandlerAnswer, HookServer } from "@destack/object";
 import { present } from "@destack/schema";
-import type { PackageHandle } from "@destack/object";
+import type { Package } from "@destack/object";
 
 import type { WorkloadContext, WorkloadImplementation } from "@destack/object/workload";
 import stackPackage, { HOOK_PATH } from "../package.ts";
@@ -11,7 +11,7 @@ export const HOOK_WORKLOAD = "hooks";
 
 /** Start serving the hooks of the types packages route, reaching the store through the host. */
 export function serveHooks(
-    packages: readonly PackageHandle[],
+    packages: readonly Package[],
 ): (context: WorkloadContext) => WorkloadImplementation {
     return (context) => {
         // call the space's stack as the installation

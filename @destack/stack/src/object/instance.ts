@@ -5,6 +5,7 @@ import { schema, type Identifier, type Version } from "@destack/schema";
 import { type DeploymentRuntime, PROCESS_RUNTIME } from "./deployment.ts";
 import { deployment } from "./deployment.ts";
 import { space } from "@destack/account/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A condition of an instance, as a pod's conditions are. */
 export const InstanceCondition = StatusCondition.omit({ observedGeneration: true });
@@ -16,6 +17,7 @@ export const instance = defineObject(
     {
         name: "instance",
         plural: "instances",
+        title: t`${plural(argument("count"), { one: "Instance", other: "Instances" })}`,
         scope: space,
         fields: {
             /** The immutable deployment being executed. */
@@ -39,7 +41,6 @@ export const instance = defineObject(
             /** When a failed instance restarts after its backoff, in UTC epoch milliseconds. */
             restartAt: field.time().optional(),
         },
-        permissions: ["read", "record"],
         constraints: {
             // relate each instance to its deployment and index it by status
             deployment: {
@@ -81,13 +82,16 @@ export const instance = defineObject(
                 },
             },
         },
+        access: {
+            permissions: ["read", "record"],
+        },
     },
     (method) => ({
         create: method.create("record", { visibility: "package" }),
         update: method.update("record", { visibility: "package" }),
         delete: method.delete("record", { visibility: "package" }),
         /** Record an instance stopped, as its machine's instance controller decides. */
-        stop: method.mutation({ permission: "record", visibility: "package" }),
+        stop: method.mutation({ title: t`Stop`, permission: "record", visibility: "package" }),
     }),
 );
 

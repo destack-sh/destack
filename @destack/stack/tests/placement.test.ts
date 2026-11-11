@@ -1,7 +1,7 @@
 import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
 import { installation } from "@destack/object";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { BuildStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, nth, present, schema } from "@destack/schema";
@@ -14,26 +14,29 @@ import { testSimulation } from "@destack/object/test";
 import { build, database, rollout, installationRevision } from "../src/object/index.ts";
 import stackPackage from "../src/package.ts";
 import { ids, spaceDatabase, TestSpace } from "../src/test/index.ts";
+import { t } from "@destack/locale";
 
 /** The stack package the spaces install. */
-const stacked = Package.parse({ id: ids.stackPackage, name: "@test/stack", version: "2026.9.0" });
+const stacked = PackageVersion.parse({
+    id: ids.stackPackage,
+    name: "@test/stack",
+    version: "2026.9.0",
+});
 
 /** The color a space's stack sets, which its package declares. */
 const color = defineSetting({
     name: "color",
-    title: "Color",
-    description: "The space's color.",
+    title: t`Color`,
+    description: t`The space's color.`,
     schema: schema.string(),
     default: "blue",
     scope: "space",
-    overrides: [],
-    apply: "immediate",
 });
 
 test("give birth to placed spaces from their replicated rows with main in their own storage, refuse a stack declaring main, and resume a stack left unsubmitted", async () => {
     // publish a stack without main and one declaring it, built in a world of its own
     const { crypto } = testSimulation().environment("test");
-    const main = spaceDatabase.declare({ placement: { provider: "postgresql" } });
+    const main = spaceDatabase.provision({ placement: { provider: "postgresql" } });
     const stackBuild = await MemoryBuild.of(
         stacked,
         [

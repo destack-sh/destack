@@ -2,6 +2,7 @@ import { through, union } from "@destack/access";
 import { account, machine, space } from "@destack/account/object";
 import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** When usage flushes into a segment: hourly, or at 100,000 uses. */
 const USAGE_FLUSH = { maxAge: { hours: 1 }, maxRows: 100_000 } as const;
@@ -22,6 +23,7 @@ export const usage = defineObject(
     {
         name: "usage",
         plural: "usages",
+        title: t`${plural(argument("count"), { one: "Usage record", other: "Usage records" })}`,
         scope: account,
         storage: {
             kind: "events",
@@ -48,15 +50,17 @@ export const usage = defineObject(
             /** The level held at the end of the measure, for meters averaged over time. */
             level: field.number().optional(),
         },
-        permissions: {
-            // let the payer's readers and its residency's servers read every use, a space's readers its own
-            read: union(
-                through("scope", "read"),
-                through("scope", "serve"),
-                through("space", "read"),
-            ),
-            // let the paying account's servers append what they measured: its residency's machines and its own
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                // let the payer's readers and its residency's servers read every use, a space's readers its own
+                read: union(
+                    through("scope", "read"),
+                    through("scope", "serve"),
+                    through("space", "read"),
+                ),
+                // let the paying account's servers append what they measured: its residency's machines and its own
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

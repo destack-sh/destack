@@ -57,7 +57,7 @@ import {
     HookSandbox,
     InstallationMount,
     ObjectType,
-    type PackageHandle,
+    type Package,
     PackageMount,
     Provisioned,
     Installation,
@@ -69,7 +69,7 @@ import {
 } from "@destack/object";
 import { ObjectStore, type PackageImplementation } from "@destack/object/server";
 import { BunSqliteDatabaseHost, connectBunSqlite } from "@destack/db/bun";
-import { Package, PackageId, type PackageRelease } from "@destack/package";
+import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
 import settingPackage from "@destack/setting/package";
 import { describeSetting } from "@destack/setting/inspect";
 import { buildRetention } from "../setting/index.ts";
@@ -342,7 +342,7 @@ export class TestSpace implements AsyncDisposable {
     /** The space's builds, read through to the machine's cache. */
     readonly #builds: SpaceBuildStore;
     /** The packages the space serves in addition to the stack's, with their events and sockets. */
-    readonly #packages: readonly Pick<PackageHandle, "objects" | "tables">[];
+    readonly #packages: readonly Pick<Package, "objects" | "tables">[];
     /** The machine's connectors of bound resources, such as mail, by provider code. */
     readonly #connectors: readonly Connector[];
     /** What each serve of the space serves in addition to its packages. */
@@ -391,7 +391,7 @@ export class TestSpace implements AsyncDisposable {
         readonly main: string;
         readonly blobs: BlobStore<LocalBlobStorage>;
         readonly builds: SpaceBuildStore;
-        readonly packages: readonly Pick<PackageHandle, "objects" | "tables">[];
+        readonly packages: readonly Pick<Package, "objects" | "tables">[];
         readonly connectors: readonly Connector[];
         readonly beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
         readonly linked: Map<PackageId, PackageRelease>;
@@ -827,7 +827,10 @@ export class TestSpace implements AsyncDisposable {
         for (const { packageId, manifest } of restored.linked) {
             const server = (options.servers ?? []).find((each) => each.package.id === packageId);
             if (server !== undefined) {
-                this.#linked.set(packageId, { package: Package.of(server.package), manifest });
+                this.#linked.set(packageId, {
+                    package: PackageVersion.of(server.package),
+                    manifest,
+                });
                 this.#trusted.add(manifest);
             }
         }
@@ -920,7 +923,7 @@ export class TestSpace implements AsyncDisposable {
     static async releases(crypto: Crypto): Promise<StackReleases> {
         // build the empty stack and the stack package, declaring its settings
         const empty = await MemoryBuild.of(
-            Package.parse({
+            PackageVersion.parse({
                 id: STACKS.space.packageId,
                 name: "@example/space",
                 version: STACK_VERSION,
@@ -936,7 +939,7 @@ export class TestSpace implements AsyncDisposable {
             crypto,
         );
         const stack = await MemoryBuild.of(
-            Package.of(stackPackage),
+            PackageVersion.of(stackPackage),
             [buildRetention].map((declared) => ({
                 kind: "setting",
                 kindPackageId: settingPackage.id,
@@ -1056,7 +1059,10 @@ export class TestSpace implements AsyncDisposable {
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);
         const linked = new Map<PackageId, PackageRelease>([
-            [stackPackage.id, { package: Package.of(stackPackage), manifest: releases.manifest }],
+            [
+                stackPackage.id,
+                { package: PackageVersion.of(stackPackage), manifest: releases.manifest },
+            ],
         ]);
         const trusted = new Set<Digest>([releases.manifest]);
 
@@ -2065,7 +2071,7 @@ export type TestSpaceWorld = Pick<TestSpace, "simulation" | "universe" | "regist
 /** How a fixture opens a machine's database. */
 export interface TestSpaceOptions {
     /** The packages the space serves in addition to the stack's, whose tables its database adds. */
-    readonly packages?: readonly Pick<PackageHandle, "objects" | "tables">[];
+    readonly packages?: readonly Pick<Package, "objects" | "tables">[];
     /** The shapes the space follows in addition to its own, whose replicas its database adds. */
     readonly follows?: readonly Follow[];
     /** The host's tables in addition to the space's. */

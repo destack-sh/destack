@@ -1,7 +1,7 @@
 import { BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { testSimulation } from "@destack/object/test";
-import { Package, type PackageId } from "@destack/package";
+import { PackageVersion, type PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { Commit, type Digest, schema } from "@destack/schema";
 import { expect, test, vi } from "@destack/test";
@@ -12,28 +12,28 @@ import { BuildCache, SpaceBuildStore } from "./build.ts";
 const TINY = { name: "tiny", version: "1.0.0", integrity: "sha512-dGlueQ==" };
 
 /** The library the application depends on. */
-const LIBRARY = Package.parse({
+const LIBRARY = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b001",
     name: "@example/library",
     version: "2026.9.0",
 });
 
 /** The second library the application depends on, pinning the same npm unit as the first. */
-const OTHER_LIBRARY = Package.parse({
+const OTHER_LIBRARY = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b003",
     name: "@example/other-library",
     version: "2026.9.0",
 });
 
 /** The application whose build is pulled. */
-const APPLICATION = Package.parse({
+const APPLICATION = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b002",
     name: "@example/application",
     version: "2026.9.0",
 });
 
 /** The builtin the machine links. */
-const BUILTIN = Package.parse({
+const BUILTIN = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-00000000b004",
     name: "@example/builtin",
     version: "2026.11.0",

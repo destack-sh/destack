@@ -1,4 +1,4 @@
-import type { PackageHandle } from "@destack/object";
+import type { Package } from "@destack/object";
 import type { PackageImplementation } from "@destack/object/server";
 import type { BuildReader } from "@destack/package/manifest";
 import type { Connector } from "@destack/resource";
@@ -7,7 +7,7 @@ import type { TestSpaceOptions } from "./space.ts";
 /** A package a test space installs: its linked build, its server and what it needs. */
 export interface TestPackage {
     /** The package, whose tables the space's database has. */
-    readonly handle: Pick<PackageHandle, "objects" | "tables">;
+    readonly handle: Pick<Package, "objects" | "tables">;
     /** The build the machine links and the space installs. */
     readonly build: BuildReader;
     /** The server the machine runs the package with in process. */

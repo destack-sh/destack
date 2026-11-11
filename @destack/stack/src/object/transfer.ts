@@ -6,6 +6,8 @@ import { defineObject, field } from "@destack/object";
 import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { space } from "@destack/account/object";
+import { fencing } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** Where a source stood once fenced: its log position and the digest of the space's rows there. */
 export const Fence = schema.object({
@@ -24,6 +26,7 @@ export const transfer = defineObject(
     {
         name: "transfer",
         plural: "transfers",
+        title: t`${plural(argument("count"), { one: "Transfer", other: "Transfers" })}`,
         scope: space,
         fields: {
             /** The machine serving the space until the transfer activates. */
@@ -39,16 +42,6 @@ export const transfer = defineObject(
             /** How the transfer ended: the target took the space over or the source cancelled. */
             outcome: field.enum(["succeeded", "cancelled"]).optional(),
         },
-        permissions: {
-            read: none(),
-            create: none(),
-            finish: none(),
-            receive: relation("target"),
-            cancel: union(relation("source"), permission("create")),
-        },
-        elevated: { create: sudo },
-        moving: ["receive", "cancel"],
-        fencing: { by: "cancel" },
         constraints: {
             space: {
                 kind: "foreignKey",
@@ -81,15 +74,33 @@ export const transfer = defineObject(
                 },
             },
         },
+        access: {
+            permissions: {
+                read: none(),
+                create: none(),
+                finish: none(),
+                receive: relation("target"),
+                cancel: union(relation("source"), permission("create")),
+            },
+            elevated: { create: sudo },
+            moving: ["receive", "cancel"],
+        },
+        traits: [fencing({ by: "cancel" })],
     },
     (method) => ({
         create: method.create("create", { fields: ["targetId"], prepared: Placement }),
 
         /** Fence the space against writes as its target, answering where its database stands. */
-        fence: method.mutation({ permission: "receive", prepared: Fence, output: Fence }),
+        fence: method.mutation({
+            title: t`Fence`,
+            permission: "receive",
+            prepared: Fence,
+            output: Fence,
+        }),
 
         /** Snapshot a resource of the space for the target's recipient key. */
         snapshot: method.mutation({
+            title: t`Snapshot`,
             permission: "receive",
             input: schema.object({
                 /** The resource to snapshot. */
@@ -104,10 +115,14 @@ export const transfer = defineObject(
         }),
 
         /** Cancel the transfer as its source machine or one who may create transfers. */
-        cancel: method.mutation({ permission: "cancel", prepared: Placement }),
+        cancel: method.mutation({ title: t`Cancel`, permission: "cancel", prepared: Placement }),
 
         /** Record as the target a transfer's success once it took the space over. */
-        complete: method.mutation({ permission: "finish", visibility: "package" }),
+        complete: method.mutation({
+            title: t`Complete`,
+            permission: "finish",
+            visibility: "package",
+        }),
     }),
 ).implement({
     methods: {

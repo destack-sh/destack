@@ -37,7 +37,13 @@ import {
     PackageDescription,
 } from "@destack/object";
 import type { ObjectStore } from "@destack/object/server";
-import { DeclarationName, PackageId, Package, PackageRelease, Sandbox } from "@destack/package";
+import {
+    DeclarationName,
+    PackageId,
+    PackageVersion,
+    PackageRelease,
+    Sandbox,
+} from "@destack/package";
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
 import { Plan, ResourceDescription } from "@destack/resource";
 import { Digest, type DigestCrypto, Identifier, present, schema, type Uuid } from "@destack/schema";
@@ -54,6 +60,7 @@ import { space, Space } from "@destack/account/object";
 import { StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
 import { Binding } from "./binding.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** The name of the installation applying a space's stack from its creation. */
 export const STACK_INSTALLATION = "stack";
@@ -79,7 +86,11 @@ export type SubmissionPreparation = schema.Infer<typeof SubmissionPreparation>;
 /** A resource declaration of an installation's package. */
 export const ResourceNeed = ResourceDescription.extend({
     /** The package declaring the resource. */
-    package: Package,
+    package: PackageVersion,
+    /** The resource's kind, such as database. */
+    kind: DeclarationName,
+    /** The package defining the resource's kind. */
+    kindPackageId: PackageId,
 });
 /** A resource declaration of an installation's package. */
 export type ResourceNeed = schema.Infer<typeof ResourceNeed>;
@@ -113,6 +124,7 @@ export const rollout = defineObject(
     {
         name: "rollout",
         plural: "rollouts",
+        title: t`${plural(argument("count"), { one: "Rollout", other: "Rollouts" })}`,
         scope: space,
         key: "installationId",
         fields: {
@@ -130,16 +142,6 @@ export const rollout = defineObject(
             previousRevision: field.reference(() => installationRevision).optional(),
             /** The digest of the objects the installation last related as their consumer. */
             consumption: field.string(Digest).optional(),
-        },
-        permissions: {
-            read: none(),
-            list: none(),
-            create: none(),
-            update: none(),
-            apply: none(),
-            open: none(),
-            target: none(),
-            deploy: none(),
         },
         // ask approval of a waiting plan through a change request on the rollout
         attachments: [changeRequest.attach({ by: "apply" })],
@@ -170,6 +172,18 @@ export const rollout = defineObject(
                 onDelete: "no action",
             },
         },
+        access: {
+            permissions: {
+                read: none(),
+                list: none(),
+                create: none(),
+                update: none(),
+                apply: none(),
+                open: none(),
+                target: none(),
+                deploy: none(),
+            },
+        },
     },
     (method) => ({
         list: method.list("list"),
@@ -182,6 +196,7 @@ export const rollout = defineObject(
 
         /** Read the plan waiting for approval with the digest approving it names. */
         plan: method.query({
+            title: t`Plan`,
             permission: "read",
             output: schema.object({
                 /** The steps waiting, across the installation, those it manages and resources. */
@@ -195,6 +210,7 @@ export const rollout = defineObject(
 
         /** Target a submitted build's revision. */
         submit: method.mutation({
+            title: t`Submit`,
             permission: "apply",
             input: Submission,
             prepared: SubmissionPreparation,
@@ -202,6 +218,7 @@ export const rollout = defineObject(
 
         /** Follow the space's stack: record its digest, dropping an owner's earlier apply. */
         follow: method.mutation({
+            title: t`Follow`,
             permission: "target",
             visibility: "package",
             input: schema.object({
@@ -212,6 +229,7 @@ export const rollout = defineObject(
 
         /** Approve the plan waiting for approval by its digest. */
         approve: method.mutation({
+            title: t`Approve`,
             permission: "apply",
             input: schema.object({
                 /** The digest of the reviewed plan. */
@@ -222,6 +240,7 @@ export const rollout = defineObject(
 
         /** Read the build and view a client opens at a location, in the opening person's home. */
         open: method.query({
+            title: t`Open`,
             permission: "open",
             isAudited: true,
             input: schema.object({
@@ -235,6 +254,7 @@ export const rollout = defineObject(
 
         /** Describe a permission the installation may ask a person for, as they read it. */
         request: method.query({
+            title: t`Request`,
             permission: "open",
             input: schema.object({
                 /** The permission a call of the installation needs. */
@@ -245,6 +265,7 @@ export const rollout = defineObject(
 
         /** Target the revision applied before the current one again. */
         rollBack: method.mutation({
+            title: t`Roll back`,
             permission: "apply",
             output: schema.object({
                 /** The revision the installation targets again. */
@@ -254,6 +275,7 @@ export const rollout = defineObject(
 
         /** Deploy the revision an application targets, and drain a suspended one. */
         deploy: method.mutation({
+            title: t`Deploy`,
             permission: "deploy",
             visibility: "package",
             output: schema.object({}),
@@ -261,6 +283,7 @@ export const rollout = defineObject(
 
         /** Revise an installation: its build at its bindings, targeted, as its controller does. */
         revise: method.mutation({
+            title: t`Revise`,
             permission: "target",
             visibility: "package",
             input: schema.object({
@@ -335,6 +358,7 @@ export const installationRevision = defineObject(
     {
         name: "installation-revision",
         plural: "installationRevisions",
+        title: t`${plural(argument("count"), { one: "Installation revision", other: "Installation revisions" })}`,
         scope: space,
         fields: {
             /** The evaluated installation. */
@@ -361,7 +385,6 @@ export const installationRevision = defineObject(
             /** The SHA-256 digest of the build, the stack evaluation's inputs and the bindings. */
             digest: field.string(Digest),
         },
-        permissions: ["read", "record"],
         constraints: {
             installationId: { kind: "unique", on: ["installationId", "id"] },
             digest: { kind: "unique", on: ["installationId", "digest"] },
@@ -369,6 +392,9 @@ export const installationRevision = defineObject(
                 kind: "check",
                 condition: { digest: { length: 64, characters: "0-9a-f" } },
             },
+        },
+        access: {
+            permissions: ["read", "record"],
         },
     },
     (method) => ({
@@ -519,7 +545,7 @@ export const Rollout = {
         row: Pick<Installation, "name" | "capabilities" | "allowed">,
         revision: Pick<InstallationRevision, "dependencies">,
         description: PackageDescription | undefined,
-    ): { readonly package: Package; readonly capability?: string }[] {
+    ): { readonly package: PackageVersion; readonly capability?: string }[] {
         // leave out the dependencies that only optional capabilities need
         const optional = new Set(Installation.optionalPackages(description));
         const required = revision.dependencies

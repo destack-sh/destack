@@ -6,6 +6,8 @@ import { type Identifier, schema } from "@destack/schema";
 import { installation } from "@destack/object";
 import { HostnamePattern, space } from "@destack/account/object";
 import { ObjectReference } from "@destack/sync";
+import { controlled } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The HTTP statuses a route redirects with. */
 export const REDIRECT_STATUSES = [301, 302, 303, 307, 308] as const;
@@ -142,8 +144,8 @@ export const route = defineObject(
     {
         name: "route",
         plural: "routes",
+        title: t`${plural(argument("count"), { one: "Route", other: "Routes" })}`,
         scope: space,
-        controlled: true,
         fields: {
             /** The hostname of the space's account the route serves, such as `example.com`. */
             hostname: field.string(HostnamePattern),
@@ -162,7 +164,10 @@ export const route = defineObject(
         constraints: {
             path: { kind: "check", condition: { path: { startsWith: "/" } } },
         },
-        permissions: ["read", "write"],
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [controlled()],
     },
     (method) => ({
         create: method.create("write"),

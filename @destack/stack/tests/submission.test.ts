@@ -8,7 +8,7 @@ import { RequestId } from "@destack/sync";
 import { CallError } from "@destack/object";
 import { and, eq, Snapshot } from "@destack/db";
 import { build, installationRevision, Rollout } from "../src/object/index.ts";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineSetting } from "@destack/setting/declare";
 import { describeSetting } from "@destack/setting/inspect";
@@ -26,6 +26,7 @@ import {
 import { BuildStore } from "@destack/build/store";
 import stackPackage, { STACK_INSTALLATION } from "../src/package.ts";
 import { RolloutTarget } from "../src/server/installation/target.ts";
+import { t } from "@destack/locale";
 
 /** A space whose stack this machine has not applied yet. */
 const UNAPPLIED_SPACE = "space-01996ab0-0000-7000-8000-0000000000f4";
@@ -720,8 +721,8 @@ test("serve the installation of a call at its mount by its identifier or its nam
 /** The region a space must place for the regional package, which declares no default. */
 const region = defineSetting({
     name: "region",
-    title: "Region",
-    description: "The region the space serves.",
+    title: t`Region`,
+    description: t`The region the space serves.`,
     schema: schema.string().min(1),
     scope: "space",
     overrides: ["installation"],
@@ -735,7 +736,11 @@ test("refuse submitting a build whose space settings without a default the space
     const serving = await fixture.serve({ isControlled: false });
     const owner = serving.as(fixture.owner.subject).client(stackPackage);
     const installer = serving.as(fixture.owner.subject).client(objectPackage);
-    const regional = Package.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" });
+    const regional = PackageVersion.parse({
+        id: ids.package,
+        name: "@test/package",
+        version: "2026.9.0",
+    });
     const declaring = await MemoryBuild.of(
         regional,
         [

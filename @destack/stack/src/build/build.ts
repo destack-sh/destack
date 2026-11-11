@@ -19,7 +19,6 @@ import { WORKLOAD_EXPORT, WORKLOAD_KIND } from "@destack/object/workload";
 import { PACKAGE_KIND, PackageDescription } from "@destack/object";
 import { StackError } from "../error/index.ts";
 import { HOOK_WORKLOAD } from "../workload/hook.ts";
-import { RESOURCE_KIND } from "@destack/resource";
 
 /** The prefix of the generated modules running each workload. */
 const PREFIX = "virtual:@destack/stack/workload/";
@@ -72,7 +71,8 @@ function runnable(compilation: Compilation): Runnable[] {
     // import every resource and secret the package declares
     const declarations = owned(compilation);
     const bound = declarations.filter(
-        ({ kind, package: { id } }) => RESOURCE_KIND.is(kind, id) || SECRET_KIND.is(kind, id),
+        ({ kind, package: { id }, provisioned }) =>
+            provisioned === true || SECRET_KIND.is(kind, id),
     );
     const resources = bound.map((declaration) => ({
         name: declaration.name,
@@ -178,13 +178,14 @@ function describe(
     for (const declaration of compiled.declarations(workload.entrypoint)) {
         const owner = declaration.symbol.package;
         const { kind, package: defining } = declaration;
-        const selected = RESOURCE_KIND.is(kind, defining.id)
-            ? selections.resources
-            : SECRET_KIND.is(kind, defining.id)
-              ? selections.secrets
-              : PACKAGE_KIND.is(kind, defining.id) && owner.id === compilation.package.id
-                ? selections.packages
-                : undefined;
+        const selected =
+            declaration.provisioned === true
+                ? selections.resources
+                : SECRET_KIND.is(kind, defining.id)
+                  ? selections.secrets
+                  : PACKAGE_KIND.is(kind, defining.id) && owner.id === compilation.package.id
+                    ? selections.packages
+                    : undefined;
         if (selected === undefined) {
             continue;
         }

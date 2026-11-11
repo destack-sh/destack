@@ -1,12 +1,13 @@
 import { testBuild } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { present } from "@destack/schema";
-import { type Capability, type ObjectType, PackageHandle } from "@destack/object";
+import { type Capability, Package } from "@destack/object";
 import { implementPackage } from "@destack/object/server";
 import type { ServerContext } from "@destack/object/workload";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { testHost } from "@destack/test/host";
 import { TestSpace } from "../../test/index.ts";
+import { t } from "@destack/locale";
 
 /** The one host the test package lists by name. */
 const DECLARED_HOST = "api.example.com";
@@ -14,17 +15,16 @@ const DECLARED_HOST = "api.example.com";
 /** Install a package calling some hosts in a test space, answering the context it serves with. */
 async function installCaller(connect: readonly string[]) {
     // ship a server declaring network access to the hosts, keeping the context its installation serves with
-    const released = Package.parse({
+    const released = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000e2",
         name: "@example/caller",
         version: "2026.9.0",
     });
     const call: Capability = {
-        reason: "Call the example API",
+        reason: t`Call the example API`,
         sandbox: { network: { connect: [...connect] } },
     };
-    const objects: Readonly<Record<string, ObjectType>> = {};
-    const handle = PackageHandle.of(released, { objects, capabilities: { call } });
+    const handle = Package.of(released, { objects: [], capabilities: [{ name: "call", ...call }] });
     const build = await testBuild(handle, testHost().crypto);
     const contexts: ServerContext[] = [];
     const fixture = await TestSpace.open({

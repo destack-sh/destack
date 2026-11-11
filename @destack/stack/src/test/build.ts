@@ -1,10 +1,11 @@
 import { Failure } from "@destack/error";
-import { RESOURCE_KIND } from "@destack/resource";
+import { BucketKind } from "@destack/bucket/declare";
+import { InstallationKind } from "@destack/object";
 import type { Crypto } from "@destack/environment";
 import { StackDefinition } from "../declare/index.ts";
 import { StackError } from "../error/index.ts";
 import { type Digest, type JsonObject, schema } from "@destack/schema";
-import { Package, PackageId, type PackageRelease } from "@destack/package";
+import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
 import { type BuildReader, OutputContent, type OutputExport } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { Registry } from "../server/index.ts";
@@ -32,6 +33,7 @@ const DECLARED: Readonly<
         (packageId: PackageId) => readonly {
             readonly kind: string;
             readonly kindPackageId?: string;
+            readonly provisioned?: true;
             readonly name: string;
             readonly description?: Readonly<Record<string, unknown>>;
         }[]
@@ -41,25 +43,28 @@ const DECLARED: Readonly<
     "2026.9.1": () => [
         { kind: "relation", name: "editor" },
         ...["ledger", "archive"].map((name) => ({
-            ...RESOURCE_KIND.identity,
+            ...BucketKind.identity,
+            provisioned: true as const,
             name,
-            description: { name, kind: "bucket", spec: {} },
+            description: { name, spec: {} },
         })),
     ],
     "2026.9.2": () => [
         { kind: "relation", name: "editor" },
         {
-            ...RESOURCE_KIND.identity,
+            ...BucketKind.identity,
+            provisioned: true as const,
             name: "files",
-            description: { name: "files", kind: "bucket", spec: {} },
+            description: { name: "files", spec: {} },
         },
     ],
     "2026.9.3": (packageId) => [
         { kind: "relation", name: "editor" },
         {
-            ...RESOURCE_KIND.identity,
+            ...InstallationKind.identity,
+            provisioned: true as const,
             name: "tasks",
-            description: { name: "tasks", kind: "installation", spec: { package: packageId } },
+            description: { name: "tasks", spec: { package: packageId } },
         },
     ],
     "2026.10.0": () => [{ kind: "relation", name: "editor" }],
@@ -215,7 +220,7 @@ export async function fixtureBuild(
 ): Promise<BuildReader> {
     // build the version declaring its archive command and the release's own declarations, of the package's kinds
     const built = await MemoryBuild.of(
-        Package.parse({ id: packageId, name: "@test/package", version }),
+        PackageVersion.parse({ id: packageId, name: "@test/package", version }),
         [
             {
                 kind: "command",

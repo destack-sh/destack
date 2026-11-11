@@ -1,7 +1,7 @@
 import { eq, Snapshot } from "@destack/db";
-import { nth, Digest, Identifier } from "@destack/schema";
+import { nth, Digest, Identifier, schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
-import { Package, PackageId } from "@destack/package";
+import { PackageVersion, PackageId } from "@destack/package";
 import { BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ids, insertRelease, insertRollout, readStack, TestSpace } from "../test/index.ts";
@@ -11,7 +11,7 @@ import { installation } from "@destack/object";
 import objectDefinition from "@destack/object/destack.json" with { type: "json" };
 import { describeObject } from "@destack/object/inspect";
 import { note } from "../test/schema.ts";
-import { RESOURCE_KIND } from "@destack/resource";
+import { defineKind } from "@destack/package";
 
 /** The tables the notes installation asks main for. */
 const STATE = { tables: { sqlite: [], postgresql: [] } };
@@ -72,7 +72,7 @@ test("serve an installation once its targets are bound and the space's main data
                 .where(eq(installation.table.id, ids.notes)),
     );
     const notes = await MemoryBuild.of(
-        Package.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
+        PackageVersion.parse({ id: ids.package, name: "@example/notes", version: "2026.9.0" }),
         [
             {
                 kind: "object",
@@ -192,12 +192,23 @@ test("serve an installation once its targets are bound and the space's main data
     });
 });
 
+/** Vaults, which this test's builds declare without a provider. */
+const VaultKind = defineKind(
+    { name: "vault", provisioned: { spec: schema.object({}) } },
+    { package: note.package },
+);
+
 /** A build that declares a vault besides its own declarations. */
 class VaultedReader extends BuildReader {
     /** Read the build's declarations with a vault named credentials. */
     override async declarations() {
         const declarations = await super.declarations();
-        const vault = { ...RESOURCE_KIND.identity, name: "credentials", description: {} };
+        const vault = {
+            ...VaultKind.identity,
+            provisioned: true as const,
+            name: "credentials",
+            description: { name: "credentials", spec: {} },
+        };
 
         return [...declarations, { ...nth(declarations, 0), ...vault }];
     }

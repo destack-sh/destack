@@ -1,5 +1,5 @@
 import { through } from "@destack/access";
-import { Catalog, LocaleTag } from "@destack/locale";
+import { argument, Catalog, LocaleTag, plural, t } from "@destack/locale";
 import { defineObject, field } from "@destack/object";
 import { graph, PackageId } from "@destack/package";
 import { SourceRange } from "@destack/package/source";
@@ -24,6 +24,7 @@ export type Relationship = schema.Infer<typeof Relationship>;
 export const module = defineObject({
     name: "module",
     plural: "modules",
+    title: t`${plural(argument("count"), { one: "Module", other: "Modules" })}`,
     scope: build,
     storage: "external",
     key: "moniker",
@@ -37,13 +38,16 @@ export const module = defineObject({
         /** The relationships of the module's code outside its symbols, by kind and target. */
         relationships: field.json(schema.array(Relationship)),
     },
-    permissions: { read: through("build", "read") },
+    access: {
+        permissions: { read: through("build", "read") },
+    },
 });
 
 /** One declaration of a build's graph, keyed by its moniker. */
 export const declaration = defineObject({
     name: "declaration",
     plural: "declarations",
+    title: t`${plural(argument("count"), { one: "Declaration", other: "Declarations" })}`,
     scope: build,
     storage: "external",
     key: "moniker",
@@ -69,13 +73,16 @@ export const declaration = defineObject({
         /** The relationships to other symbols, by kind and target. */
         relationships: field.json(schema.array(Relationship)),
     },
-    permissions: { read: through("build", "read") },
+    access: {
+        permissions: { read: through("build", "read") },
+    },
 });
 
 /** One code symbol of a build's graph, from its code index, keyed by its moniker. */
 export const symbol = defineObject({
     name: "symbol",
     plural: "symbols",
+    title: t`${plural(argument("count"), { one: "Symbol", other: "Symbols" })}`,
     scope: build,
     storage: "external",
     key: "moniker",
@@ -99,13 +106,16 @@ export const symbol = defineObject({
         /** The relationships of its code to other symbols, by kind and target. */
         relationships: field.json(schema.array(Relationship)),
     },
-    permissions: { read: through("build", "read") },
+    access: {
+        permissions: { read: through("build", "read") },
+    },
 });
 
 /** One package's messages translated into one locale, as a build ships them. */
 export const catalog = defineObject({
     name: "catalog",
     plural: "catalogs",
+    title: t`${plural(argument("count"), { one: "Catalog", other: "Catalogs" })}`,
     scope: build,
     storage: "external",
     key: "name",
@@ -121,7 +131,9 @@ export const catalog = defineObject({
         /** The machine-translated messages no person reviewed yet, absent for none. */
         drafts: field.json(schema.array(schema.string().min(1))).optional(),
     },
-    permissions: { read: through("build", "read") },
+    access: {
+        permissions: { read: through("build", "read") },
+    },
 });
 
 /** The path a build's code index is attached to its manifest at. */

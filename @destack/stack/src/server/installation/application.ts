@@ -43,7 +43,6 @@ import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
     Plan,
-    RESOURCE_KIND,
     ResourceDescription,
     type Step,
     Upgrade,
@@ -863,12 +862,7 @@ export class ApplicationInstallation {
     async #describeDatabases(build: BuildReader): Promise<Refusal | undefined> {
         // read the database declarations
         const declarations = await build.declarations();
-        const databases = declarations.filter(
-            (declaration) =>
-                RESOURCE_KIND.has(declaration) &&
-                ResourceDescription.loose().parse(declaration.description).kind ===
-                    DatabaseKind.name,
-        );
+        const databases = declarations.filter((declaration) => DatabaseKind.has(declaration));
         if (databases.length === 0) {
             return undefined;
         }
@@ -1383,18 +1377,30 @@ function describeNeed(
 ): ResourceNeed {
     // split a resource's description into its kind and specification
     const owner = PackageManifest.package(build.manifest);
-    if (RESOURCE_KIND.has(declaration)) {
-        const { name, kind, spec } = ResourceDescription.catchall(schema.json()).parse(
+    if (declaration.provisioned === true) {
+        const { name, spec } = ResourceDescription.catchall(schema.json()).parse(
             declaration.description,
         );
 
-        return { package: owner, name, kind, spec };
+        return {
+            package: owner,
+            name,
+            kind: declaration.kind,
+            kindPackageId: declaration.kindPackageId,
+            spec,
+        };
     }
 
     // take another kind's description as its specification
     const { name, ...spec } = OtherDescription.parse(declaration.description);
 
-    return { package: owner, name, kind: declaration.kind, spec };
+    return {
+        package: owner,
+        name,
+        kind: declaration.kind,
+        kindPackageId: declaration.kindPackageId,
+        spec,
+    };
 }
 
 /** Find the compare function a kind's package declares for a kind, as its export and name. */

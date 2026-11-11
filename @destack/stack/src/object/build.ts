@@ -22,6 +22,7 @@ import { Failure } from "@destack/error";
 import { installationRevision } from "./rollout.ts";
 import type {} from "@destack/package/import-meta";
 import { StackError } from "../error/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** Where a build stands: waiting for its runner, running, or finished one of three ways. */
 export const BUILD_STATES = ["pending", "running", "succeeded", "failed", "cancelled"] as const;
@@ -124,8 +125,8 @@ export const build = defineObject(
     {
         name: "build",
         plural: "builds",
+        title: t`${plural(argument("count"), { one: "Build", other: "Builds" })}`,
         scope: space,
-        isScope: true,
         fields: {
             // what to build
             /** The source compiled. */
@@ -155,19 +156,6 @@ export const build = defineObject(
             /** When retention removed the succeeded build's files, in UTC epoch milliseconds. */
             expiredAt: field.time().optional(),
         },
-        relations: {
-            runner: { subjects: [machine] },
-        },
-        // let the space's readers read its builds and their index, and a build's runner run it
-        permissions: {
-            read: union(relation("runner"), through("scope", "read")),
-            create: none(),
-            cancel: none(),
-            run: relation("runner"),
-            record: none(),
-            push: none(),
-        },
-        reserved: ["run"],
         constraints: {
             state: { kind: "index", on: ["state"] },
             live: { kind: "index", on: ["scope", "expiredAt", "state"] },
@@ -249,6 +237,22 @@ export const build = defineObject(
                 },
             },
         },
+        container: "scope",
+        access: {
+            relations: {
+                runner: { subjects: [machine] },
+            },
+            // let the space's readers read its builds and their index, and a build's runner run it
+            permissions: {
+                read: union(relation("runner"), through("scope", "read")),
+                create: none(),
+                cancel: none(),
+                run: relation("runner"),
+                record: none(),
+                push: none(),
+            },
+            reserved: ["run"],
+        },
     },
     (method) => ({
         create: method.create("create", {
@@ -263,15 +267,17 @@ export const build = defineObject(
         }),
         cancel: method.update("cancel", { fields: [] }),
         update: method.update("record", { visibility: "package" }),
-        start: method.mutation({ permission: "run", output: schema.object({}) }),
+        start: method.mutation({ title: t`Start`, permission: "run", output: schema.object({}) }),
         /** Push the succeeded build's files to the forge of its package's account. */
         push: method.mutation({
+            title: t`Push`,
             permission: "push",
             output: schema.object({ manifest: Digest }),
             prepared: schema.object({ manifest: Digest }),
         }),
         /** Publish the succeeded build and its unpublished dependencies for the caller. */
         publish: method.mutation({
+            title: t`Publish`,
             permission: "push",
             input: schema.object({
                 /** The account publishing the build's package. */
@@ -283,11 +289,13 @@ export const build = defineObject(
             prepared: schema.object({ releases: schema.array(PackageRelease) }),
         }),
         progress: method.mutation({
+            title: t`Progress`,
             permission: "run",
             input: schema.object({ progress: BuildProgress }),
             output: schema.object({}),
         }),
         finish: method.mutation({
+            title: t`Finish`,
             permission: "run",
             input: schema.object({ end: BuildEnd }),
             output: schema.object({}),

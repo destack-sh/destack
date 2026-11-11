@@ -33,7 +33,7 @@ import {
     InstallationBinding,
     installation,
     type ProcedureRouter,
-    type PackageHandle,
+    type Package,
     PackageMount,
 } from "@destack/object";
 import { InstallationRoot, type ServerContext } from "@destack/object/workload";
@@ -45,7 +45,7 @@ import {
     ResourceId,
     ResourceRecord,
 } from "@destack/resource";
-import { BucketDeclaration } from "@destack/bucket";
+import { BucketKind } from "@destack/bucket";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
 import { ResourceContext } from "@destack/resource/context";
 import { HostAddress } from "@destack/environment";
@@ -714,7 +714,7 @@ export class SpaceHost {
     /** Bind a package's declared resources and secrets to the host's clients for it. */
     async #resources(
         row: InstallationRollout,
-        handle: Pick<PackageHandle, "resources" | "secrets">,
+        handle: Pick<Package, "resources" | "secrets">,
         start: SpaceStart,
         caller: () => Promise<EgressCaller>,
         trusted: readonly PackageImplementation[],
@@ -757,11 +757,11 @@ export class SpaceHost {
             `the binding of ${declaration.name} by ${row.installationId}`,
         );
         const { target } = found;
-        const bindable = ObjectBindable.of(trusted).find(
-            (each) => each.declaration.name === declaration.kind,
+        const bindable = ObjectBindable.of(trusted).find((each) =>
+            each.kind.is(declaration.kind.name, declaration.kind.packageId),
         );
-        const provider = [...start.providers, ...StoreProvider.of(trusted)].find(
-            (each) => each.kind.name === declaration.kind,
+        const provider = [...start.providers, ...StoreProvider.of(trusted)].find((each) =>
+            each.kind.is(declaration.kind.name, declaration.kind.packageId),
         );
 
         // connect to a bound object, such as a secret, or a store resource, such as a vault, through the store
@@ -787,7 +787,7 @@ export class SpaceHost {
             return client;
         }
         // open a bucket from the space's buckets
-        else if (declaration instanceof BucketDeclaration) {
+        else if (declaration.kind.is(BucketKind.name, BucketKind.packageId)) {
             return start.buckets.open({ bucketId: bucket.identifier(target) }, scope);
         }
         // connect another resource where its provider placed it, through the connector of that provider
@@ -798,7 +798,7 @@ export class SpaceHost {
         else {
             throw StackError.of(
                 "RESOURCE_UNSUPPORTED",
-                `in-process ${declaration.kind} on this machine is not supported`,
+                `in-process '${declaration.kind.name}' on this machine is not supported`,
             );
         }
     }
@@ -853,7 +853,7 @@ export class SpaceHost {
     /** Build an installation's in-store caller once per start, at its first call. */
     #callerOnce(
         row: InstallationRollout,
-        handle: Pick<PackageHandle, "resources">,
+        handle: Pick<Package, "resources">,
         start: SpaceStart,
         bindings: readonly Binding[],
     ): () => Promise<EgressCaller> {
@@ -865,7 +865,7 @@ export class SpaceHost {
     /** Read an in-process installation as its egress's caller, with what it binds. */
     async #caller(
         row: InstallationRollout,
-        handle: Pick<PackageHandle, "resources">,
+        handle: Pick<Package, "resources">,
         start: SpaceStart,
         bindings: readonly Binding[],
     ): Promise<EgressCaller> {
@@ -975,7 +975,7 @@ export class SpaceHost {
         return connector.connect(
             {
                 resource: ResourceId.parse(resource),
-                kind: declaration.kind,
+                kind: declaration.kind.name,
                 provider: code,
                 reference: present(found.reference, `the reference of ${resource}`),
             },
@@ -1475,7 +1475,7 @@ export class SpaceHost {
                                 principal.space.reference(Scope.universe.id, spaceId),
                             ),
                             name: MAIN_DATABASE,
-                            ...main.declare({
+                            ...main.provision({
                                 placement: { provider: SPACE_PROVIDER },
                                 retention: "forever",
                             }),

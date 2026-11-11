@@ -2,6 +2,7 @@ import { through } from "@destack/access";
 import { account, space } from "@destack/account/object";
 import { defineObject, field, installation } from "@destack/object";
 import { schema } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** When readings flush into a segment: hourly, or at 100,000 readings. */
 const READING_FLUSH = { maxAge: { hours: 1 }, maxRows: 100_000 } as const;
@@ -22,6 +23,7 @@ export const reading = defineObject(
     {
         name: "reading",
         plural: "readings",
+        title: t`${plural(argument("count"), { one: "Reading", other: "Readings" })}`,
         scope: space,
         storage: {
             kind: "events",
@@ -43,10 +45,12 @@ export const reading = defineObject(
             /** The level of an averaged meter when read. */
             data: field.json(ReadingData),
         },
-        permissions: {
-            // let the space's observers read its readings, and the machine serving it append them
-            read: through("scope", "observe"),
-            append: through("scope", "serve"),
+        access: {
+            permissions: {
+                // let the space's observers read its readings, and the machine serving it append them
+                read: through("scope", "observe"),
+                append: through("scope", "serve"),
+            },
         },
     },
     (method) => ({

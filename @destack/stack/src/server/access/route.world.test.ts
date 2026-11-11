@@ -8,14 +8,14 @@ import type { StackInput } from "../../declare/stack.ts";
 import { TestRoute } from "../../test/index.ts";
 
 /** A route as a stack declares it. */
-type Declared = NonNullable<StackInput["routes"]>[string];
+type RouteInput = NonNullable<StackInput["routes"]>[string];
 
 /** Serve each path of an account's hostnames once across the universe. */
 test("reconcile a space's routes on its account's hostnames, one per hostname path across the universe", async () => {
     await using fixture = await TestRoute.open();
     const [first, second, rival] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
-    const home = (spaceId: string, on = hostname.name): Declared => ({
+    const home = (spaceId: string, on = hostname.name): RouteInput => ({
         hostname: on,
         path: "/",
         match: "prefix",
@@ -29,7 +29,7 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
         path: { kind: "full", value: "/" },
         status: 308,
     } as const;
-    const old: Declared = {
+    const old: RouteInput = {
         hostname: hostname.name,
         path: "/blog",
         match: "exact",
@@ -40,7 +40,11 @@ test("reconcile a space's routes on its account's hostnames, one per hostname pa
     await fixture.apply(first, { home: home(first), old });
 
     // refuse another space's installation, the same path in another space of the account, and rules that cannot serve
-    const invalid = (rules: Declared["rules"]): Declared => ({ ...old, path: "/invalid", rules });
+    const invalid = (rules: RouteInput["rules"]): RouteInput => ({
+        ...old,
+        path: "/invalid",
+        rules,
+    });
     const refused = {
         installation: await fixture.submit(first, { home: home(second) }),
         path: await fixture.submit(second, { home: home(second) }),
@@ -145,7 +149,7 @@ test("refuse a route on a machine the account's hostname requests do not reach",
     await using fixture = await TestRoute.open({ isServingHostnames: false });
     const [first] = fixture.spaceIds;
     const hostname = found(fixture.hostnames, fixture.accountId);
-    const home: Declared = {
+    const home: RouteInput = {
         hostname: hostname.name,
         path: "/",
         match: "prefix",

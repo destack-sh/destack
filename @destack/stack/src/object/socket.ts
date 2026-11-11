@@ -4,6 +4,7 @@ import type { Select } from "@destack/db";
 import { type ObjectOf, defineObject, field } from "@destack/object";
 import { schema } from "@destack/schema";
 import { installation } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The kinds of live links to a space: a browser tab, a desktop view, a machine or a workload. */
 export const SOCKET_KINDS = ["tab", "view", "machine", "workload"] as const;
@@ -15,6 +16,7 @@ export type SocketKind = (typeof SOCKET_KINDS)[number];
 export const socket = defineObject({
     name: "socket",
     plural: "sockets",
+    title: t`${plural(argument("count"), { one: "Socket", other: "Sockets" })}`,
     scope: space,
     storage: "ephemeral",
     fields: {
@@ -36,9 +38,11 @@ export const socket = defineObject({
         /** The last heartbeat of the socket. */
         lastActiveAt: field.time(),
     },
-    permissions: {
-        read: union(relation("principal"), through("space", "member")),
-        inspect: union(relation("principal"), through("space", "manage")),
+    access: {
+        permissions: {
+            read: union(relation("principal"), through("space", "member")),
+            inspect: union(relation("principal"), through("space", "manage")),
+        },
     },
 });
 

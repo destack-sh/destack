@@ -1,4 +1,4 @@
-import { DeclarationName, defineDeclarationKind } from "@destack/package";
+import { DeclarationName, defineKind } from "@destack/package";
 import { schema } from "@destack/schema";
 
 /** The binding target type of a secret of the space. */
@@ -11,4 +11,4 @@ const SecretBinding = schema.looseObject({
 });
 
 /** The secret declaration kind, which stack defines and vault's secrets make. */
-export const SECRET_KIND = defineDeclarationKind("secret", SecretBinding);
+export const SECRET_KIND = defineKind({ name: "secret", description: SecretBinding });

@@ -8,6 +8,7 @@ import { schema, Version } from "@destack/schema";
 import { installation } from "@destack/object";
 import { installationRevision } from "./rollout.ts";
 import { space } from "@destack/account/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** The runtime of a deployment the machine serves in its own process: a shipped server's. */
 export const PROCESS_RUNTIME = "process";
@@ -23,6 +24,7 @@ export const deployment = defineObject(
     {
         name: "deployment",
         plural: "deployments",
+        title: t`${plural(argument("count"), { one: "Deployment", other: "Deployments" })}`,
         scope: space,
         fields: {
             /** The persistent package installation. */
@@ -62,7 +64,6 @@ export const deployment = defineObject(
             /** Retirement time in UTC epoch milliseconds, absent until retired. */
             retiredAt: field.time().optional(),
         },
-        permissions: ["list", "read", "record"],
         constraints: {
             // key deployments by space and allow one active per workload
             scopeId: { kind: "unique", on: ["scope", "id"] },
@@ -99,6 +100,9 @@ export const deployment = defineObject(
                     ],
                 },
             },
+        },
+        access: {
+            permissions: ["list", "read", "record"],
         },
     },
     (method) => ({

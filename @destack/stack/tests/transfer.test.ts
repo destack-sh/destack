@@ -36,9 +36,9 @@ import {
 } from "../src/test/index.ts";
 import { sharedNote } from "../src/test/schema.ts";
 import { installation } from "@destack/object";
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
-import { RESOURCE_KIND } from "@destack/resource";
+import { ResourceRecord } from "@destack/resource";
 import * as object from "../src/object/index.ts";
 import * as accountObject from "@destack/account/object";
 import { principal } from "@destack/access";
@@ -158,7 +158,7 @@ test(
         const desired = [state];
         const digest = await Digest.json(state, world.crypto);
         const provision = await sources.provision.provision(
-            DatabaseKind.record({ ...declared, reference: null }),
+            ResourceRecord.of(DatabaseKind, { ...declared, reference: null }),
         );
         const resource = {
             ...declared,
@@ -182,7 +182,7 @@ test(
             .parse("database-01996ab0-0000-7000-8000-00000000000e");
         const scratchDeclared = { ...declared, id: scratchId, name: "scratch" };
         const scratchProvision = await sources.provision.provision(
-            DatabaseKind.record({ ...scratchDeclared, reference: null }),
+            ResourceRecord.of(DatabaseKind, { ...scratchDeclared, reference: null }),
         );
         const scratch = {
             ...scratchDeclared,
@@ -197,7 +197,7 @@ test(
         await source.transaction(
             async (transaction) => await transaction.insert(object.database.table).values(scratch),
         );
-        const scratchRecord = DatabaseKind.record(scratch);
+        const scratchRecord = ResourceRecord.of(DatabaseKind, scratch);
         await sources.reconcile.apply(
             scratchRecord,
             [],
@@ -223,17 +223,13 @@ test(
 
         // suspend notes at a build declaring the notes database, keeping its data, and bind the declaration to the database
         const declaring = await MemoryBuild.of(
-            Package.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
+            PackageVersion.parse({ id: ids.package, name: "@test/package", version: "2026.9.0" }),
             [
                 {
-                    ...RESOURCE_KIND.identity,
+                    ...DatabaseKind.identity,
+                    provisioned: true,
                     name: "notes",
-                    description: {
-                        name: "notes",
-                        kind: "database",
-                        spec: { replicated: [] },
-                        ...state,
-                    },
+                    description: { name: "notes", spec: { replicated: [] }, ...state },
                 },
             ],
             world.crypto,
@@ -292,7 +288,7 @@ test(
                 })
                 .where(eq(installation.table.id, ids.notes));
         });
-        const provisioned = DatabaseKind.record(resource);
+        const provisioned = ResourceRecord.of(DatabaseKind, resource);
         await sources.reconcile.apply(
             provisioned,
             desired,

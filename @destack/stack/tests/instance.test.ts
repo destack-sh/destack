@@ -1,4 +1,7 @@
-import { RESOURCE_KIND } from "@destack/resource";
+import { BucketKind } from "@destack/bucket/declare";
+import { DatabaseKind } from "@destack/db";
+import { defineKind, type Kind, type Provisioning } from "@destack/package";
+import { InstallationKind } from "@destack/object";
 import { defineSetting } from "@destack/setting/declare";
 import { describeSetting } from "@destack/setting/inspect";
 import settingPackage from "@destack/setting/package";
@@ -40,7 +43,7 @@ import {
     HOST_SANDBOX,
     Sandbox,
     type DirectoryGrant,
-    Package,
+    PackageVersion,
     PackageId,
 } from "@destack/package";
 import { TestEntitlement } from "@destack/account/test";
@@ -75,16 +78,18 @@ import {
     TestSpaceDatabaseHost,
     workload,
 } from "../src/test/index.ts";
+import { argument, plural, t } from "@destack/locale";
+import { shareable } from "@destack/object";
 
 /** The notes package the scenarios install. */
-const notesPackage = Package.parse({
+const notesPackage = PackageVersion.parse({
     id: ids.package,
     name: "@example/notes",
     version: "2026.9.0",
 });
 
 /** The package defining object types, resource kinds and triggers. */
-const objectPackage = Package.parse({
+const objectPackage = PackageVersion.parse({
     id: objectHandle.id,
     name: "@destack/object",
     version: "2026.9.0",
@@ -94,37 +99,57 @@ const objectPackage = Package.parse({
 const mainWorkload = { ...workload, resources: [] };
 
 /** A package an application depends on, which its space may lack. */
-const VAULT = Package.parse({
+const VAULT = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000f2",
     name: "@acme/vault",
     version: "2026.9.0",
 });
 
-/** A declaration of the notes build, with the package defining its kind. */
-interface Declared {
-    /** The declaration kind, a resource when absent. */
-    readonly kind?: "resource" | "package" | "trigger" | "object" | "setting";
-    /** The package defining the declaration's kind. */
-    readonly definer: Package;
+/** A declaration of the notes build: a resource of its kind, or another kind's with its definer. */
+type Declaration = (
+    | {
+          /** The provisioned kind of the resource. */
+          readonly resource: Kind<schema.Schema, Provisioning>;
+      }
+    | {
+          /** The declaration kind. */
+          readonly kind: "package" | "trigger" | "object" | "setting";
+          /** The package defining the declaration's kind. */
+          readonly definer: PackageVersion;
+      }
+) & {
     /** The declaration's name. */
     readonly name: string;
     /** The declaration's description, as the definer's inspector records it. */
     readonly description: Record<string, unknown>;
-}
+};
+
+/** Vaults, which no provider here serves. */
+const VaultKind = defineKind(
+    { name: "vault", provisioned: { spec: schema.object({}) } },
+    { package: objectPackage },
+);
+
+/** Connections, which no server here serves. */
+const ConnectionKind = defineKind(
+    { name: "connection", provisioned: { spec: schema.object({}), management: "external" } },
+    { package: objectPackage },
+);
 
 /** Declare the notes package's note type with some fields, as the object package describes it. */
 function noteType(
     fields: Readonly<Record<string, Field>>,
     release: { readonly version?: string; readonly convert?: ObjectDefinition["convert"] } = {},
-): Declared {
+): Declaration {
     // describe the type as the notes package's release, with the release's conversions
     const { version = notesPackage.version, convert } = release;
     const note = defineObject({
         name: "note",
         plural: "notes",
+        title: t`${plural(argument("count"), { one: "Note", other: "Notes" })}`,
         scope: space,
         fields,
-        shareable: {},
+        traits: [shareable({})],
     });
     const { name, definition } = ObjectDescription.of(note);
     const description = {
@@ -140,18 +165,14 @@ function noteType(
 const main = noteType({ body: field.string().optional() });
 
 /** The tasks binding, calling an installation of the notes package. */
-const tasks: Declared = {
-    definer: objectPackage,
+const tasks: Declaration = {
+    resource: InstallationKind,
     name: "tasks",
-    description: {
-        name: "tasks",
-        kind: "installation",
-        spec: { package: ids.package },
-    },
+    description: { name: "tasks", spec: { package: ids.package } },
 };
 
 /** The notes package's declaration, requesting permissions by scope. */
-function requesting(permissions: GrantDeclaration): Declared {
+function requesting(permissions: GrantDeclaration): Declaration {
     return {
         kind: "package",
         definer: objectPackage,
@@ -170,7 +191,7 @@ function requesting(permissions: GrantDeclaration): Declared {
 
 /** Write the notes build: its workloads in bun and workerd outputs, and a home view. */
 async function notesBuild(
-    declared: readonly Declared[],
+    declared: readonly Declaration[],
     crypto: Crypto,
     sandbox: Sandbox = {},
     workloads: readonly string[] = ["main"],
@@ -183,7 +204,7 @@ async function notesBuild(
             HOST_SANDBOX.filter((name) => sandbox[name] !== undefined),
         ),
         resources: declared
-            .filter((entry) => (entry.kind ?? "resource") === "resource")
+            .filter((entry) => "resource" in entry)
             .map((entry) => ({
                 packageId: ids.package,
                 name: entry.name,
@@ -211,12 +232,12 @@ async function notesBuild(
                   },
     });
 
-    // declare each resource as resource's kind, and each other declaration as its definer's
+    // declare each resource as its provisioned kind's, and each other declaration as its definer's
     const built = await MemoryBuild.of(
         notesPackage,
         declared.map((entry) => ({
-            ...(entry.kind === undefined
-                ? RESOURCE_KIND.identity
+            ...("resource" in entry
+                ? { ...entry.resource.identity, provisioned: true as const }
                 : { kind: entry.kind, kindPackageId: entry.definer.id }),
             module: "src/resource.ts",
             name: entry.name,
@@ -916,10 +937,10 @@ test("redeploy an application once a binding its deployment captured targets ano
     // deploy notes with the bucket it owns for its files
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const files: Declared = {
-        definer: objectPackage,
+    const files: Declaration = {
+        resource: BucketKind,
         name: "files",
-        description: { name: "files", kind: "bucket", spec: {} },
+        description: { name: "files", spec: {} },
     };
     const notes = await installNotes(
         fixture,
@@ -1098,10 +1119,10 @@ test("deploy nothing of a build declaring its own database, and report why", asy
     // install notes declaring a database in addition to the space's main database
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const archive: Declared = {
-        definer: objectPackage,
+    const archive: Declaration = {
+        resource: DatabaseKind,
         name: "archive",
-        description: { name: "archive", kind: "database", spec: {} },
+        description: { name: "archive", spec: {} },
     };
     const notes = await installNotes(
         fixture,
@@ -1131,7 +1152,7 @@ test("deploy nothing of a build routing hooks without serving them, and report w
     // install notes routing hooks on its note type, built without stack's hooks workload
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const hooked: Declared = {
+    const hooked: Declaration = {
         ...requesting({}),
         description: {
             api: { name: "notes", procedures: [] },
@@ -1174,7 +1195,7 @@ test("deploy nothing of a build declaring adapters without a workload answering 
     // install notes declaring an adapter, built without any workload
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const adapted: Declared = {
+    const adapted: Declaration = {
         ...requesting({}),
         description: {
             api: { name: "notes", procedures: [] },
@@ -1211,8 +1232,8 @@ test("deploy nothing of a build declaring adapters without a workload answering 
 /** The region notes reads at start, which has no default. */
 const region = defineSetting({
     name: "region",
-    title: "Region",
-    description: "The region notes serves.",
+    title: t`Region`,
+    description: t`The region notes serves.`,
     schema: schema.string().min(1),
     scope: "space",
     overrides: ["installation"],
@@ -1224,7 +1245,7 @@ test("deploy nothing of a build whose space settings without a default are unset
     // install notes declaring a region that no scope sets
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const regional: Declared = {
+    const regional: Declaration = {
         kind: "setting",
         definer: settingPackage,
         name: region.name,
@@ -1279,22 +1300,22 @@ test("run each workload with its build's sandbox, what its allowed capabilities 
     const { database } = fixture;
     const base = Sandbox.parse({ run: { commands: ["git"] } });
     const declared = requesting({});
-    const request: Declared = {
+    const request: Declaration = {
         ...declared,
         description: {
             ...declared.description,
             capabilities: {
                 issues: {
-                    reason: "Link issues",
+                    reason: t`Link issues`,
                     optional: true,
                     sandbox: { network: { connect: ["api.github.com"] } },
                 },
                 index: {
-                    reason: "Index your notes",
+                    reason: t`Index your notes`,
                     optional: true,
                     sandbox: { files: { access: "read" } },
                 },
-                scanning: { reason: "Scan receipts", optional: true, sandbox: { camera: {} } },
+                scanning: { reason: t`Scan receipts`, optional: true, sandbox: { camera: {} } },
             },
         },
     };
@@ -1553,7 +1574,7 @@ test("retain the columns a draining release still declares, and drop them for ap
     // run the first revision of notes whose notes have a color
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    let declared: readonly Declared[] = [
+    let declared: readonly Declaration[] = [
         noteType({ body: field.string().optional(), color: field.string().optional() }),
     ];
     const notes = await installNotes(
@@ -1626,7 +1647,7 @@ test("recreate over a draining release whose values a conversion narrows: stop i
             },
         },
     );
-    let declared: readonly Declared[] = [first];
+    let declared: readonly Declaration[] = [first];
     const notes = await installNotes(
         fixture,
         ids.notes,
@@ -1724,7 +1745,7 @@ test("serve a release while a caller is pinned to it, and retire it once the cal
     // run the first revision of notes
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    let declared: readonly Declared[] = [main];
+    let declared: readonly Declaration[] = [main];
     const notes = await installNotes(
         fixture,
         ids.notes,
@@ -2115,13 +2136,13 @@ test("let an application ask for its optional capability in approval mode, and r
     const { database } = fixture;
     const unsubscribe = accountObject.client.permission("unsubscribe");
     const declared = requesting({});
-    const request: Declared = {
+    const request: Declaration = {
         ...declared,
         description: {
             ...declared.description,
             capabilities: {
                 push: {
-                    reason: "Push notifications",
+                    reason: t`Push notifications`,
                     optional: true,
                     permissions: { space: { universe: [unsubscribe] } },
                 },
@@ -2186,11 +2207,11 @@ test("refuse deploying a capability whose feature the account lacks, and deploy 
         name: "sync",
     };
     const declared = requesting({});
-    const request: Declared = {
+    const request: Declaration = {
         ...declared,
         description: {
             ...declared.description,
-            capabilities: { sync: { reason: "Sync across devices", features: [feature] } },
+            capabilities: { sync: { reason: t`Sync across devices`, features: [feature] } },
         },
     };
     const notes = await installNotes(
@@ -2248,7 +2269,7 @@ test("deploy an application depending on a package of the space's own, and refus
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const notes = await installNotes(fixture);
-    const depend = async (dependency: Package) =>
+    const depend = async (dependency: PackageVersion) =>
         await database.transaction(
             async (transaction) =>
                 await transaction
@@ -2262,7 +2283,7 @@ test("deploy an application depending on a package of the space's own, and refus
                         eq(object.installationRevision.table.installationId, notes.installationId),
                     ),
         );
-    await depend(Package.of(settingPackage));
+    await depend(PackageVersion.of(settingPackage));
     const { deployments } = await serveControllers(fixture, {});
 
     // deploy it, then depend on a vault package no scope on the chain installs and deploy again
@@ -2341,13 +2362,13 @@ test("deploy an application without a package only its optional capability needs
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const declared = requesting({});
-    const request: Declared = {
+    const request: Declaration = {
         ...declared,
         description: {
             ...declared.description,
             capabilities: {
                 "vault-sync": {
-                    reason: "Keep notes in the vault",
+                    reason: t`Keep notes in the vault`,
                     optional: true,
                     packages: [VAULT.id],
                 },
@@ -2397,10 +2418,10 @@ test("deploy an application without a package only its optional capability needs
 test("wait for a provider of a kind no provider here serves yet, naming the kind", async () => {
     // install notes binding a vault, whose provider no installation here serves yet
     const fixture = await TestSpace.open();
-    const credentials: Declared = {
-        definer: objectPackage,
+    const credentials: Declaration = {
+        resource: VaultKind,
         name: "credentials",
-        description: { name: "credentials", kind: "vault", spec: {} },
+        description: { name: "credentials", spec: {} },
     };
     const notes = await installNotes(
         fixture,
@@ -2421,10 +2442,10 @@ test("wait to revise an installation selecting an object of a kind no server her
     // install notes needing a connection, and select an existing one before any server here serves connections
     const fixture = await TestSpace.open();
     const { database } = fixture;
-    const github: Declared = {
-        definer: objectPackage,
+    const github: Declaration = {
+        resource: ConnectionKind,
         name: "github",
-        description: { name: "github", kind: "connection", spec: {} },
+        description: { name: "github", spec: {} },
     };
     const notes = await installNotes(
         fixture,

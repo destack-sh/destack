@@ -4,12 +4,14 @@ import { defineObject, field } from "@destack/object";
 import { ResourceId } from "@destack/resource";
 import { Digest, schema } from "@destack/schema";
 import { StackError } from "../error/index.ts";
+import { argument, plural, t } from "@destack/locale";
 
 /** A copy of a resource's content at a point in time in its machine's content store. */
 export const snapshot = defineObject(
     {
         name: "snapshot",
         plural: "snapshots",
+        title: t`${plural(argument("count"), { one: "Snapshot", other: "Snapshots" })}`,
         scope: "universe",
         fields: {
             /** The space of the resource. */
@@ -27,8 +29,6 @@ export const snapshot = defineObject(
             /** The blobs of the space's content the replica reads, its manifest among them. */
             blobs: field.blobs().default([]),
         },
-        // the space a record serves reads and writes it
-        permissions: { read: permission("record"), record: relation("space") },
         constraints: {
             recipient: { kind: "unique", on: ["resourceId", "recipient"] },
             taken: {
@@ -40,6 +40,10 @@ export const snapshot = defineObject(
                     ],
                 },
             },
+        },
+        access: {
+            // the space a record serves reads and writes it
+            permissions: { read: permission("record"), record: relation("space") },
         },
     },
     (method) => ({
@@ -60,6 +64,7 @@ export const restore = defineObject(
     {
         name: "restore",
         plural: "restores",
+        title: t`${plural(argument("count"), { one: "Restore", other: "Restores" })}`,
         scope: "universe",
         fields: {
             /** The space of the resource. */
@@ -91,8 +96,6 @@ export const restore = defineObject(
             /** The time the content caught up with the fenced source, in UTC epoch milliseconds. */
             caughtUpAt: field.time().optional(),
         },
-        // the space a record serves reads and writes it
-        permissions: { read: permission("record"), record: relation("space") },
         constraints: {
             source: { kind: "unique", on: ["resourceId", "sourceId", "sourceEpoch"] },
             restored: {
@@ -129,6 +132,10 @@ export const restore = defineObject(
                     ],
                 },
             },
+        },
+        access: {
+            // the space a record serves reads and writes it
+            permissions: { read: permission("record"), record: relation("space") },
         },
     },
     (method) => ({

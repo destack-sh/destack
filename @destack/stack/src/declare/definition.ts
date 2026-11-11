@@ -1,4 +1,4 @@
-import { defineDeclarationKind } from "@destack/package";
+import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { graph, type PackageId, type PackageRelease } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
@@ -150,7 +150,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 });
 
 /** The stack declaration kind, which stack defines. */
-export const STACK_KIND = defineDeclarationKind("stack", StackDefinition);
+export const STACK_KIND = defineKind({ name: "stack", description: StackDefinition });
 
 /** List the releases a build depends on that declare a package with a type stored in a space. */
 export async function installableReleases(

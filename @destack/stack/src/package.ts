@@ -1,6 +1,6 @@
 import { principal } from "@destack/access";
 import { BUILD_STORE_TABLES } from "@destack/build/table";
-import { defineAdapter, definePackage, installation } from "@destack/object";
+import { defineMount, definePackage, installation } from "@destack/object";
 import { catalog, declaration, module, symbol } from "./object/graph.ts";
 import {
     build,
@@ -32,7 +32,7 @@ export const HOOK_PATH = "/hooks";
 
 /** The handle spaces serve their stack through, and machines and people call it by. */
 export default definePackage({
-    objects: {
+    objects: [
         rollout,
         installationRevision,
         deployment,
@@ -49,27 +49,29 @@ export default definePackage({
         catalog,
         reading,
         usage,
-    },
+    ],
     // the index of the space's builds, beside its objects
     tables: BUILD_STORE_TABLES,
-    adapters: {
-        handoff: defineAdapter("handoff", { path: HANDOFF_PATH, callers: [principal.machine] }),
-        push: defineAdapter("push", { path: PUSH_PATH, callers: [principal.machine] }),
-        hook: defineAdapter("hook", { path: HOOK_PATH, callers: [principal.installation] }),
-    },
-    permissions: {
-        // install, change and uninstall the space's declared and installed packages, as their rollouts do
-        space: {
-            space: [
-                installation.permission("install"),
-                installation.permission("update"),
-                installation.permission("delete"),
-                installation.permission("control"),
-                installation.permission("approve"),
-            ],
+    mounts: [
+        defineMount({ name: "handoff", path: HANDOFF_PATH, callers: [principal.machine] }),
+        defineMount({ name: "push", path: PUSH_PATH, callers: [principal.machine] }),
+        defineMount({ name: "hook", path: HOOK_PATH, callers: [principal.installation] }),
+    ],
+    access: {
+        permissions: {
+            // install, change and uninstall the space's declared and installed packages, as their rollouts do
+            space: {
+                space: [
+                    installation.permission("install"),
+                    installation.permission("update"),
+                    installation.permission("delete"),
+                    installation.permission("control"),
+                    installation.permission("approve"),
+                ],
+            },
+            // publish a person's builds under their account, asked on their first publish
+            optional: { account: [account.permission("publish")] },
         },
-        // publish a person's builds under their account, asked on their first publish
-        optional: { account: [account.permission("publish")] },
     },
     errors: StackError,
 });
