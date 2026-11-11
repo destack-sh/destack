@@ -268,9 +268,11 @@ export class SimulatedClock implements Clock {
         // refuse moving back, and a time between whole milliseconds
         const now = this.#at(system);
         if (time < now) {
-            throw new RangeError(`a simulated clock at '${now}' cannot go back to '${time}'`);
+            throw new RangeError(`a simulated clock at ${now} ms cannot go back to ${time} ms`);
         } else if (!Number.isInteger(time)) {
-            throw new RangeError(`a simulated clock moves in whole milliseconds, not to '${time}'`);
+            throw new RangeError(
+                `a simulated clock moves in whole milliseconds, not to ${time} ms`,
+            );
         }
 
         // move the reading, keeping a flowing clock flowing

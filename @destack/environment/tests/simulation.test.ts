@@ -42,14 +42,14 @@ test("release a simulated clock's waits in deadline order as it moves in whole m
     // release passed waits in order
     expect([released, clock.next]).toEqual([[100, 200], START + 300]);
     expect(() => clock.set(START)).toThrow(
-        new RangeError(`a simulated clock at '${START + 250}' cannot go back to '${START}'`),
+        new RangeError(`a simulated clock at ${START + 250} ms cannot go back to ${START} ms`),
     );
 
     // round a fractional wait up to the next whole millisecond, and refuse a fractional time
     void clock.sleep(0.5).then(() => released.push(0.5));
     expect(clock.next).toBe(START + 251);
     expect(() => clock.set(START + 251.5)).toThrow(
-        new RangeError(`a simulated clock moves in whole milliseconds, not to '${START + 251.5}'`),
+        new RangeError(`a simulated clock moves in whole milliseconds, not to ${START + 251.5} ms`),
     );
 });
 
