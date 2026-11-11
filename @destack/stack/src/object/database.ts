@@ -58,11 +58,11 @@ export const Database = {
             .findFirst({ where: { scope: spaceId, name: MAIN_DATABASE } });
     },
 
-    /** Read the revision a space serves each installation at, with its build and declarations. */
+    /** Read the revision a space serves each installation at, leaving out absent builds. */
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
+        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader | undefined>,
     ): Promise<
         {
             readonly rollout: InstallationRollout;
@@ -113,17 +113,22 @@ export const Database = {
                         `the installation of revision ${revision.id}`,
                     );
                     const reader = await open(installed.installation.packageId, manifest);
+                    if (reader === undefined) {
+                        return [];
+                    }
 
                     return [
-                        revision.id,
-                        {
-                            manifest,
-                            declarations: await reader.declarations(),
-                            objects: await ObjectDescription.read(reader),
-                        },
-                    ] as const;
+                        [
+                            revision.id,
+                            {
+                                manifest,
+                                declarations: await reader.declarations(),
+                                objects: await ObjectDescription.read(reader),
+                            },
+                        ] as const,
+                    ];
                 }),
-            ),
+            ).then((entries) => entries.flat()),
         );
 
         // serve each installation at its revision once its targets are bound and main applied its tables, else at the revision it deployed last
@@ -154,11 +159,12 @@ export const Database = {
 
         // select each one whose revision binds its own resources, since servers open them at start and read secrets on use
         return served.flat().flatMap(({ rollout: entry, revisionId }) => {
-            // read the served revision's build and declarations
-            const { manifest, declarations } = present(
-                declared.get(revisionId),
-                `revision ${revisionId}`,
-            );
+            // read the served revision's build and declarations, leaving out one whose build is absent
+            const opened = declared.get(revisionId);
+            if (opened === undefined) {
+                return [];
+            }
+            const { manifest, declarations } = opened;
 
             // serve a stack at once, which runs nothing and whose resources its document instantiates
             const isStack = entry.installation.export !== null;
