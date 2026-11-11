@@ -230,8 +230,8 @@ test("describe a setting and read the settings a build declares", async () => {
     expect(SettingDescription.parse(JSON.parse(JSON.stringify(describeSetting(editor))))).toEqual({
         package: notes,
         name: "editor.mode",
-        title: "Editor mode",
-        description: "Keyboard behavior in the note editor.",
+        title: editor.definition.title,
+        description: editor.definition.description,
         schema: {
             $schema: "https://json-schema.org/draft/2020-12/schema",
             type: "string",

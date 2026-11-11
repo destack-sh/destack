@@ -26,5 +26,14 @@
     },
     "stamps": {
         "defineSetting": { "module": 1 }
+    },
+    "check": {
+        "expect": [
+            {
+                "files": ["src/declare/setting.ts"],
+                "rules": ["destack/no-overload-cast"],
+                "reason": "defineSetting states a setting with a default or a required one, each signature typing what resolving it returns, as defineObject states its type (ruling 2026-11-11)"
+            }
+        ]
     }
 }

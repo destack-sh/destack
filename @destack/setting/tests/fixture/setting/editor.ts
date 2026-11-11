@@ -1,9 +1,10 @@
-import { Package } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { schema } from "@destack/schema";
 import { defineSetting } from "../../../src/declare/index.ts";
+import { t } from "@destack/locale";
 
 /** The package release declaring the fixture's settings. */
-export const notes = Package.parse({
+export const notes = PackageVersion.parse({
     id: "package-019f5530-8000-7000-8000-000000000002",
     name: "@alice/notes",
     version: "2026.9.0",
@@ -13,13 +14,12 @@ export const notes = Package.parse({
 export const editor = defineSetting(
     {
         name: "editor.mode",
-        title: "Editor mode",
-        description: "Keyboard behavior in the note editor.",
+        title: t`Editor mode`,
+        description: t`Keyboard behavior in the note editor.`,
         schema: schema.enum(["standard", "vim"]),
         default: "standard",
         scope: "user",
         overrides: ["space", "installation", "device"],
-        apply: "immediate",
     },
     { package: notes },
 );
@@ -28,12 +28,11 @@ export const editor = defineSetting(
 export const signature = defineSetting(
     {
         name: "editor.signature",
-        title: "Signature",
-        description: "The line closing each note.",
+        title: t`Signature`,
+        description: t`The line closing each note.`,
         schema: schema.string().min(1),
         scope: "user",
         overrides: ["space", "installation", "device"],
-        apply: "immediate",
         required: true,
     },
     { package: notes },
@@ -43,13 +42,12 @@ export const signature = defineSetting(
 export const lineNumbers = defineSetting(
     {
         name: "editor.lineNumbers",
-        title: "Line numbers",
-        description: "Show line numbers in the editor.",
+        title: t`Line numbers`,
+        description: t`Show line numbers in the editor.`,
         schema: schema.boolean(),
         default: true,
         scope: "user",
         overrides: ["device"],
-        apply: "immediate",
     },
     { package: notes },
 );
@@ -58,13 +56,12 @@ export const lineNumbers = defineSetting(
 export const keybindings = defineSetting(
     {
         name: "editor.keybindings",
-        title: "Key bindings",
-        description: "The keys running each command, or none to unbind it.",
+        title: t`Key bindings`,
+        description: t`The keys running each command, or none to unbind it.`,
         schema: schema.record(schema.string(), schema.string().nullable()),
         default: { "note.archive": "mod+shift+a" },
         scope: "user",
         overrides: ["space", "installation", "device"],
-        apply: "immediate",
         merge: "key",
     },
     { package: notes },
@@ -74,13 +71,11 @@ export const keybindings = defineSetting(
 export const history = defineSetting(
     {
         name: "notes.history",
-        title: "History",
-        description: "How many days a space keeps its notes' history.",
+        title: t`History`,
+        description: t`How many days a space keeps its notes' history.`,
         schema: schema.number().int().min(1),
         default: 30,
         scope: "space",
-        overrides: [],
-        apply: "immediate",
     },
     { package: notes },
 );

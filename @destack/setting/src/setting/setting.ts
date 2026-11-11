@@ -1,11 +1,12 @@
-import { defineDeclarationKind } from "@destack/package";
+import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { Package, DeclarationName } from "@destack/package";
+import { PackageVersion, DeclarationName } from "@destack/package";
 import type {} from "@destack/package/import-meta";
 import type { BuildReader } from "@destack/package/manifest";
 import { fromJsonSchema, nth, schema, Version, canonicalize } from "@destack/schema";
 import type { JsonObject, JsonValue } from "@destack/schema";
 import { Expression, Condition } from "@destack/db";
+import { Message } from "@destack/locale";
 import type { SettingDefault, SettingDefinition } from "../declare/setting.ts";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceValue, SettingResolution, SettingSource } from "./resolution.ts";
@@ -63,9 +64,9 @@ export const SettingMetadata = schema.object({
     /** The package-local name. */
     name: DeclarationName,
     /** The label settings views show. */
-    title: schema.string().min(1),
+    title: Message,
     /** The behavior the value controls. */
-    description: schema.string().min(1),
+    description: Message,
     /** The group settings views show it in. */
     group: schema.string().min(1).exactOptional(),
     /** When a consumer applies a changed value. */
@@ -79,7 +80,7 @@ export const SettingMetadata = schema.object({
 /** The serializable fields of a setting description beside its scope. */
 const fields = SettingMetadata.extend({
     /** The declaring package. */
-    package: Package,
+    package: PackageVersion,
     /** The value's JSON Schema. */
     schema: schema.jsonObject(),
     /** The default value, absent for a required setting. */
@@ -100,7 +101,7 @@ export const SettingDescription = schema.discriminatedUnion("scope", [
 export type SettingDescription = schema.Infer<typeof SettingDescription>;
 
 /** The setting declaration kind, which setting defines. */
-export const SETTING_KIND = defineDeclarationKind("setting", SettingDescription);
+export const SETTING_KIND = defineKind({ name: "setting", description: SettingDescription });
 
 /** A value written in a scope, from a write or a stack's declaration. */
 export type SettingWrite = Omit<SettingPlacement, "scope"> & {
@@ -118,12 +119,12 @@ export class Setting<
     Default extends SettingDefault<Value> = SettingDefault<Value>,
 > {
     /** The declaring package. */
-    readonly package: Package;
+    readonly package: PackageVersion;
     /** The name, schema, default, scopes and conversions. */
     readonly definition: SettingDefinition<Value, Default>;
 
     /** Create a setting from a checked declaration. */
-    constructor(owner: Package, definition: SettingDefinition<Value, Default>) {
+    constructor(owner: PackageVersion, definition: SettingDefinition<Value, Default>) {
         this.package = owner;
         this.definition = definition;
     }

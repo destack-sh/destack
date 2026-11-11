@@ -1,5 +1,5 @@
 import { DeclarationReference } from "@destack/package/declare";
-import { DeclarationName, Package, PackageId } from "@destack/package";
+import { DeclarationName, PackageVersion, PackageId } from "@destack/package";
 import { schema, canonicalize, Version } from "@destack/schema";
 import type { SettingValue } from "../object/setting.ts";
 import type { DeviceSettingValue } from "../object/device-setting.ts";
@@ -53,7 +53,7 @@ export const SettingSource = schema.discriminatedUnion("kind", [
         /** The declaration default. */
         kind: schema.literal("default"),
         /** The release declaring the default. */
-        package: Package,
+        package: PackageVersion,
     }),
     ValueSource,
     DeviceSource,

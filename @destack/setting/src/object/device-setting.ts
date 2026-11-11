@@ -3,11 +3,13 @@ import { type Select } from "@destack/db";
 import { defineObject, device, field } from "@destack/object";
 import { PackageId, DeclarationName } from "@destack/package";
 import { schema, Version } from "@destack/schema";
+import { argument, plural, t } from "@destack/locale";
 
 /** A setting value one device stores for everyone using it, above every value placed in a scope. */
 export const deviceSetting = defineObject({
     name: "device-setting",
     plural: "deviceSettings",
+    title: t`${plural(argument("count"), { one: "Device setting", other: "Device settings" })}`,
     scope: device,
     storage: "local",
     fields: {
@@ -20,10 +22,12 @@ export const deviceSetting = defineObject({
         /** The release of the setting's package the value was written against. */
         release: field.string(Version),
     },
-    // let the people signed in on the device read and write them
-    permissions: { read: through("device", "use"), write: through("device", "use") },
     constraints: {
         name: { kind: "index", on: ["packageId", "name"], unique: true },
+    },
+    access: {
+        // let the people signed in on the device read and write them
+        permissions: { read: through("device", "use"), write: through("device", "use") },
     },
 });
 

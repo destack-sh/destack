@@ -8,18 +8,17 @@ import { SettingSelection } from "../setting/placement.ts";
 import { DeviceValue, SettingResolution } from "../setting/resolution.ts";
 import { defineObject, field } from "@destack/object";
 import { Duration, type Identifier, schema, Version } from "@destack/schema";
-import { DeclarationName, type Package, PackageId } from "@destack/package";
+import { DeclarationName, type PackageVersion, PackageId } from "@destack/package";
 import { SETTING_MODES } from "../setting/mode.ts";
+import { declarable, propagated } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
 
 /** A setting value placed in a scope. */
 export const setting = defineObject(
     {
         name: "setting",
         plural: "settings",
-        // propagate every value into the scopes inside its scope
-        propagated: {},
-        // let a stack write a declared value against the release of the build declaring its setting
-        supplied: ["release"],
+        title: t`${plural(argument("count"), { one: "Setting", other: "Settings" })}`,
         fields: {
             /** The package declaring the setting. */
             packageId: field.string(PackageId).immutable(),
@@ -41,7 +40,6 @@ export const setting = defineObject(
             /** The release of the setting's package the value was written against. */
             release: field.string(Version),
         },
-        permissions: ["read", "write"],
         constraints: {
             placement: {
                 kind: "index",
@@ -65,10 +63,20 @@ export const setting = defineObject(
                 },
             },
         },
+        access: {
+            permissions: ["read", "write"],
+        },
+        traits: [
+            // propagate every value into the scopes inside its scope
+            propagated({}),
+            // let a stack write a declared value against the release of the build declaring its setting
+            declarable(["release"]),
+        ],
     },
     (method) => ({
         /** Resolve a setting's value for a selection with its sources, as git config shows them. */
         resolve: method.query({
+            title: t`Resolve`,
             permission: "read",
             target: "scope",
             input: schema.object({
@@ -104,7 +112,7 @@ export const SettingValue = {
     /** Read the retention a package's setting of days gives a scope. */
     retention(
         database: DatabaseConnection,
-    ): (described: object, owner: Package, scope: string) => Promise<number> {
+    ): (described: object, owner: PackageVersion, scope: string) => Promise<number> {
         return async (described, owner, scope) => {
             // rebuild the setting from the definition its kind's description stores, refusing anything but days
             const definition = schema.record(schema.string(), schema.unknown()).parse(described);
