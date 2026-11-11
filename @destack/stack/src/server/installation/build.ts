@@ -238,11 +238,17 @@ export class BuildCache {
             }
         }
 
-        // pull what each emitted output the machine runs pins, as far as its runtime closure reaches
+        // pull the builds each emitted output reaches, with every export of each
         const reader = await this.store.contents(manifest);
         const emitted = this.served(reader.manifest).map(([, output]) => output);
         for (const output of emitted) {
-            const closure = await this.store.closure(manifest, packageId, output.runtime, read);
+            const closure = await this.store.closure(
+                manifest,
+                packageId,
+                output.runtime,
+                read,
+                "export",
+            );
             const pulled = new Set<Digest>([manifest]);
             const pulling = { runtime: output.runtime, closure, read, locate, pulled };
             const pinned = Object.values(output.dependencies).filter((dependency) =>
