@@ -298,6 +298,69 @@ export class BuildStore<
         }
     }
 
+    /** List builds and the Destack builds they pin, each once and after what it pins. */
+    static async ordered(
+        store: Pick<BuildStore, "contents">,
+        manifests: readonly Digest[],
+    ): Promise<Digest[]> {
+        // visit each build once, listing its pinned builds before it
+        const visited = new Set<Digest>();
+        const ordered: Digest[] = [];
+        const visit = async (manifest: Digest): Promise<void> => {
+            if (!visited.has(manifest)) {
+                visited.add(manifest);
+                for (const dependency of await (await store.contents(manifest)).releases()) {
+                    await visit(dependency.manifest);
+                }
+                ordered.push(manifest);
+            }
+        };
+        for (const manifest of manifests) {
+            await visit(manifest);
+        }
+
+        return ordered;
+    }
+
+    /** Pull a build's manifest and lists without its outputs. */
+    async pullLists(
+        location: PackageLocation,
+        fetch: (input: URL, init: RequestInit) => Promise<Response>,
+        signal?: AbortSignal,
+    ): Promise<void> {
+        // return a build the store has the manifest of
+        if ((await this.find(location.manifest)) !== undefined) {
+            return;
+        }
+
+        // read the manifest, verified by its digest, and store its lists, then the manifest
+        const reader = await BuildReader.open(location, fetch, this.environment.crypto, signal);
+        const lists = reader.references();
+        await this.blobs.put(
+            lists.map((file) => ({
+                digest: file.digest,
+                size: file.size,
+                open: () => reader.stream(file.path),
+            })),
+            this.#leasedUntil,
+        );
+        const bytes = PackageManifest.serialize(reader.manifest);
+        await this.#write(location.manifest, bytes);
+
+        // record the lists as the build's references
+        await this.database.transaction(async (transaction) => {
+            await BuildStore.#reference(
+                transaction,
+                location.manifest,
+                lists.map((file) => file.digest),
+            );
+            await transaction
+                .insert(buildManifest)
+                .values({ digest: location.manifest, size: bytes.byteLength, isComplete: false })
+                .onConflictDoNothing();
+        });
+    }
+
     /** Pull one output of a served build with its maps, in one request for its archive. */
     async pull(
         location: PackageLocation,
