@@ -757,8 +757,13 @@ export class StackPlan {
 
         // plan the declarations of the types the stack installs and wait until the store serves them
         if (this.stack.installing.length > 0) {
+            // defer the whole plan while an installation still waits for its build
             const installing = this.stack.installing.join(", ");
-            steps.push(...(await this.#planInstalling()));
+            const planned = await StackPlan.#unlessWaiting(() => this.#planInstalling());
+            if (planned.kind === "waiting") {
+                return { steps, deferred: planned.message };
+            }
+            steps.push(...planned.value);
 
             return { steps, deferred: `${installing} wait for the store to serve their types` };
         }
