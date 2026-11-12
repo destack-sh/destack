@@ -1,82 +1,108 @@
 # @destack/bucket
 
-`Bucket` is Cloudflare R2's Workers binding API (`put`, `get`, `head`, `onlyIf`, `httpMetadata`, `createMultipartUpload`, `ssecKey`) with S3 Object Lock's `retainUntil`, hosted in local directories by `/bun`, in R2 by `/cloudflare` and in memory by `/test`, and `/s3` serves any bucket over the path-style S3 API with Signature Version 4 and SSE-C.
+Store files in buckets on local disk, Cloudflare R2 or any S3 endpoint.
+
+## Overview
+
+A package declares the buckets it uses, and the host binds each to a directory, an R2 bucket or an S3 endpoint.
+
+- **Bucket**: files by key; `put`, `get`, `head`, `list` and `delete`, with R2's `onlyIf` preconditions and S3 Object Lock's `retainUntil`.
+- **File**: one stored body with its `etag`, HTTP metadata and custom metadata; a `put` replaces it whole.
+- **Multipart upload**: a large file sent in numbered parts; `uploadPart`, `complete` and `abort`.
 
 ```ts
-// R2Bucket.put
-await bucket.put("documents/readme.txt", "Hello", { httpMetadata: { contentType: "text/plain" } });
-// R2's onlyIf, PRECONDITION_FAILED
-await bucket.put("index.json", body, { onlyIf: { etagMatches: previous.etag } });
-// S3 Object Lock in compliance mode
-await bucket.put("audit/2026-10/segment.parquet", body, { retainUntil });
-const upload = await bucket.createMultipartUpload("media/video.mp4"); // R2's multipart upload
-// an S3 presigned URL
-await new S3Signature({ region: "auto" }).presign(request, credentials, 900, Date.now());
-```
-
-## Declarations
-
-`defineBucket` declares a bucket by name, and `files.get(context)` returns the bucket a host binds it to.
-
-```ts
+import type { Bucket } from "@destack/bucket";
 import { defineBucket } from "@destack/bucket/declare";
 
-export const files = defineBucket({ name: "files", spec: {} });
-const document = await files.get(context).get("documents/readme.txt");
-const text = document ? await document.text() : undefined;
+export const files = defineBucket({ name: "files" });
+
+async (bucket: Bucket) => {
+    const httpMetadata = { contentType: "text/plain" };
+    const stored = await bucket.put("notes/first.txt", "Hello", { httpMetadata });
+    const file = await bucket.get("notes/first.txt");
+    const text = await file?.text();
+    const listing = await bucket.list({ prefix: "notes/" });
+    await bucket.delete("notes/first.txt");
+};
 ```
 
-## Hosts
+## Examples
 
-`LocalBucket` keeps a bucket in a directory of an environment's files, `R2Bucket` wraps a Workers R2 binding, and `MemoryBucket` keeps files in memory on a clock a test sets.
+### Replace a file only if unchanged
+
+`onlyIf` rejects a write with `PRECONDITION_FAILED` when the stored file changed since it was read.
+
+```ts
+import type { Bucket } from "@destack/bucket";
+
+async (bucket: Bucket, body: string) => {
+    const current = await bucket.head("index.json");
+    const onlyIf = current ? { etagMatches: current.etag } : { etagDoesNotMatch: "*" };
+    await bucket.put("index.json", body, { onlyIf });
+};
+```
+
+### Upload a large file in parts
+
+A multipart upload sends numbered parts, each but the last at least 5 MiB, then assembles them into one file.
+
+```ts
+import type { Bucket } from "@destack/bucket";
+
+async (bucket: Bucket, parts: Uint8Array<ArrayBuffer>[]) => {
+    const upload = await bucket.createMultipartUpload("media/video.mp4");
+    const uploaded = [];
+    for (const [index, part] of parts.entries()) {
+        uploaded.push(await upload.uploadPart(index + 1, part));
+    }
+    await upload.complete(uploaded);
+};
+```
+
+### Keep a bucket in a directory
+
+`LocalBucket` keeps a bucket in a directory of an environment's files.
 
 ```ts
 import { LocalBucket } from "@destack/bucket/bun";
-import { R2Bucket } from "@destack/bucket/cloudflare";
+import { BunEnvironment } from "@destack/environment/bun";
+
+await using bucket = await LocalBucket.open("/var/files", "space-1", BunEnvironment.system);
+await bucket.put("hello.txt", "Hello");
+```
+
+### Call a bucket over S3
+
+`S3Client` is a bucket over the path-style S3 API, signing each request with Signature Version 4.
+
+```ts
+import { S3Client } from "@destack/bucket/s3";
+import { BunEnvironment } from "@destack/environment/bun";
+
+const send = (request: Request) => fetch(request);
+const bucket = new S3Client("https://s3.example.com/files", send, BunEnvironment.system.crypto);
+await bucket.put("notes/first.txt", "Hello");
+```
+
+### Test code that stores files
+
+`MemoryBucket` keeps files in memory on a clock the test sets.
+
+```ts
 import { MemoryBucket } from "@destack/bucket/test";
+import { testSimulation } from "@destack/test/world";
 
-await using local = await LocalBucket.open("./resources/files", undefined, environment); // its files, clock and randomness
-const remote = new R2Bucket(environment.FILES);
-remote.takeOperations(); // { classA: 1, classB: 1 }, R2's billing classes
-const memory = new MemoryBucket(world.clock); // versions counted per bucket
+await using simulation = testSimulation();
+const bucket = new MemoryBucket(simulation.clock);
+await bucket.put("a.txt", "a");
 ```
 
-## Providers
+## Comparison
 
-`bucketProvider` manages a machine's buckets as resources: it snapshots and fences them, and its host sweeps each one as it opens.
+### Cloudflare R2
 
-```ts
-import { LocalBucketHost } from "@destack/bucket/bun";
-import { bucketProvider } from "@destack/bucket/provider";
+The `Bucket` interface follows R2's Workers binding; Destack's differs in three ways.
 
-const buckets = new LocalBucketHost({
-    directory,
-    endpoint,
-    region: "local",
-    credentials,
-    environment,
-});
-const provider = bucketProvider(buckets, implementBucket(buckets));
-```
-
-## S3
-
-`S3Server` serves the path-style S3 API over any `S3Bucket`, and `S3Client` is a `Bucket` over it, as a workload calls its bound buckets at its machine's egress.
-
-```ts
-import { S3Client, S3Server } from "@destack/bucket/s3";
-
-const server = new S3Server({
-    region: "auto",
-    environment, // the clock signatures are checked on, and the randomness of request ids
-    credentials: async (accessKeyId) => keys.get(accessKeyId),
-    open: async (bucketName, accessKeyId) => host.open(bucketName, accessKeyId),
-    cors: [{ allowed: { origins: ["https://app.example"], methods: ["GET", "PUT"] } }],
-});
-const response = await server.fetch(request); // SigV4, or server.serve(request, accessKeyId) once authorized
-// a send reads bodies as stored, never decoded by their content encoding
-const send = (request: Request) => environment.network.fetch(request, { decompress: false });
-const files = new S3Client(`${egress}/${bucketId}`, send, environment.crypto);
-await files.put("notes/first.txt", "Hello", { sha256 }); // PUT with x-amz-checksum-sha256
-const builds = S3Client.of({ location, credentials }, environment); // SigV4 on every request through environment.network
-```
+- `retainUntil` locks a file against replacement and deletion, as S3 Object Lock does in compliance mode.
+- The same interface runs over a local directory, R2, any S3 endpoint and memory, so tests and machines use the code that production does.
+- `S3Server` serves any bucket over the path-style S3 API, so S3 tools reach a local bucket too.
