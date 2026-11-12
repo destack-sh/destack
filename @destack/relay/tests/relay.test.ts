@@ -218,7 +218,7 @@ test("refuse the installation's own calls to a tunnel without a handshake or a c
     ]);
 });
 
-test("refuse a handshake with a person's token, of a machine left keyless, and of a revoked machine", async () => {
+test("refuse a handshake with a person's token, of a machine left keyless, and of a deleted machine", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     const host = await computer.host("eu");
@@ -238,7 +238,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         });
     const shake = (token: string) => refusal(handshakes.handshake(offer(token)));
 
-    // offer the owner's token, then the machine's after its keys' revoke, then after its own
+    // offer the owner's token, then the machine's after its keys' revoke, then after its deletion
     const person = await computer.owner.exchange(relayPackage.id);
     const machine = await computer.machine.token(relayPackage.id);
     const accounts = computer.owner.client(accountPackage);
@@ -254,7 +254,7 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
         });
     }
     const keyless = await shake(machine);
-    await accounts.machine.revoke({
+    await accounts.machine.delete({
         scope: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
@@ -263,7 +263,11 @@ test("refuse a handshake with a person's token, of a machine left keyless, and o
     expect([await shake(person.accessToken), keyless, await shake(machine)]).toEqual([
         ["FORBIDDEN", "MACHINE_DENIED", "tunnel is forbidden: only machines can open tunnels"],
         ["UNAUTHORIZED", "MACHINE_UNAUTHENTICATED", `machine ${computer.machine.id} has no key`],
-        ["UNAUTHORIZED", "MACHINE_UNAUTHENTICATED", `machine ${computer.machine.id} is revoked`],
+        [
+            "UNAUTHORIZED",
+            "MACHINE_UNAUTHENTICATED",
+            `machine ${computer.machine.id} is not in the directory`,
+        ],
     ]);
 });
 
@@ -311,18 +315,18 @@ test("refuse a machine's handshake at a relay of another residency than its acco
     ]);
 });
 
-test("leave a machine revoked elsewhere alone, starting no tunnel partition for it", async () => {
+test("leave a machine deleted elsewhere alone, starting no tunnel partition for it", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
 
-    // enroll and revoke another machine of the account, which tunnels nowhere
+    // enroll and delete another machine of the account, which tunnels nowhere
     const other = await computer.universe.enroll(
         computer.owner,
         computer.accountId,
         "https://other.test/",
     );
-    await computer.owner.client(accountPackage).machine.revoke({
+    await computer.owner.client(accountPackage).machine.delete({
         scope: computer.accountId,
         id: other.id,
         requestId: RequestId.create(computer.environment),
@@ -520,15 +524,15 @@ test("resolve a handle from the relay's replica after the account renames it", a
     ]).toEqual(["hello GET /", unresolved(computer.notes), "hello GET /"]);
 });
 
-test("end a revoked machine's tunnel at once, refuse its names, and emit the opening and the close", async () => {
+test("end a deleted machine's tunnel at once, refuse its names, and emit the opening and the close", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
     const name = await computer.computer();
     const before = await computer.request(relay, name, "/");
 
-    // revoke the machine as its owner, and wait for its tunnel to end
-    await computer.owner.client(accountPackage).machine.revoke({
+    // delete the machine as its owner, and wait for its tunnel to end
+    await computer.owner.client(accountPackage).machine.delete({
         scope: computer.accountId,
         id: computer.machine.id,
         requestId: RequestId.create(computer.environment),
@@ -545,21 +549,25 @@ test("end a revoked machine's tunnel at once, refuse its names, and emit the ope
     ]).toEqual([
         "hello GET /",
         unresolved(name),
-        await disconnected(computer),
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-revoked")],
+        [
+            "SERVICE_UNAVAILABLE",
+            "MACHINE_UNAVAILABLE",
+            `machine '${computer.machine.id}' is unavailable: it is not in the directory`,
+        ],
+        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-unknown")],
     ]);
 });
 
-test("end a tunnel at once as its relay restarts, when its machine was revoked meanwhile", async () => {
+test("end a tunnel at once as its relay restarts, when its machine was deleted meanwhile", async () => {
     await using computer = await TestTunnelMachine.open();
     const relay = await computer.relay();
     await computer.tunnel(relay);
     const before = await computer.request(relay, computer.notes, "/");
 
-    // revoke the machine as its owner while the relay's instances are stopped
+    // delete the machine as its owner while the relay's instances are stopped
     let isRestarted = false;
     const restarting = relay.restart(async () => {
-        await computer.owner.client(accountPackage).machine.revoke({
+        await computer.owner.client(accountPackage).machine.delete({
             scope: computer.accountId,
             id: computer.machine.id,
             requestId: RequestId.create(computer.environment),
@@ -574,7 +582,7 @@ test("end a tunnel at once as its relay restarts, when its machine was revoked m
     await computer.waitUntil(() => computer.tunnels().length === 2);
     expect([before, computer.tunnels()]).toEqual([
         "hello GET /",
-        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-revoked")],
+        [event(computer, "tunnel.open"), event(computer, "tunnel.close", "machine-unknown")],
     ]);
 });
 

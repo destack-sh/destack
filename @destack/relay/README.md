@@ -78,7 +78,7 @@ Each tunnel runs in its own partition, opened with a ten-minute token.
 | `fetch(request)`       | answers the tunnel's metadata, opens a machine's tunnel, or relays a request |
 | `handshake(request)`   | accepts a machine's WebSocket with a token of a standing, resident machine   |
 | `standing(machineId)`  | reads whether a machine stands, and its name                                 |
-| `machines(accountId)`  | lists an account's unrevoked machines                                        |
+| `machines(accountId)`  | lists an account's live machines                                             |
 | `tunnelled()`          | lists the machines whose endpoints lead to tunnels here                      |
 | `reconcile(machineId)` | renames or closes a machine's tunnel as its replica changed                  |
 

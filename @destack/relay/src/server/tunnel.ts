@@ -33,7 +33,6 @@ const PARTITION_PREFIX = "tunnel-";
 
 /** The errors the relay answers for each reason a machine no longer stands. */
 export const STANDING_ERRORS = {
-    "machine-revoked": ["MACHINE_UNAUTHENTICATED", "is revoked"],
     "key-revoked": ["MACHINE_UNAUTHENTICATED", "has no key"],
     "machine-unknown": ["MACHINE_UNAUTHENTICATED", "is not in the directory"],
 } as const;
@@ -72,9 +71,8 @@ export type TunnelAttachment = schema.Infer<typeof TunnelAttachment>;
 /** The calls the relay's root makes to a machine's tunnel in its partition. */
 export type TunnelCall = "open" | "forward" | "rename" | "close";
 
-/** Why a tunnel's socket ends: a revoke, a lapsed token, its endpoint's move, or its close. */
+/** Why a tunnel's socket ends: a revoked key, a deleted machine, a lapse, a move, or its close. */
 export const TunnelCloseReason = schema.enum([
-    "machine-revoked",
     "key-revoked",
     "machine-unknown",
     "lapsed",
@@ -84,12 +82,8 @@ export const TunnelCloseReason = schema.enum([
 /** Why a tunnel's socket ends. */
 export type TunnelCloseReason = schema.Infer<typeof TunnelCloseReason>;
 
-/** Why a machine does not stand here: its revoke, no standing key, or no directory entry. */
-export const TunnelStandingReason = schema.enum([
-    "machine-revoked",
-    "key-revoked",
-    "machine-unknown",
-]);
+/** Why a machine does not stand here: no standing key, or no directory entry. */
+export const TunnelStandingReason = schema.enum(["key-revoked", "machine-unknown"]);
 
 /** Whether a machine stands: the name the relay routes to it, or why its tunnel ends. */
 export const TunnelStanding = schema.union([
@@ -341,7 +335,7 @@ export class Tunnel implements SocketHandler {
 
     /** Close the woken sockets of a machine that no longer stands, or of a revoked key. */
     async #verifyWoken(): Promise<void> {
-        // close every socket of a machine revoked or left keyless while the partition slept
+        // close every socket of a machine deleted or left keyless while the partition slept
         const woken = this.#sockets.filter((each) => !each.isVerified);
         if (woken.length === 0) {
             return;

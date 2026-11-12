@@ -24,7 +24,7 @@ import {
 import { Change, type DatabaseConnection, Projection, type Snapshot } from "@destack/db";
 import { type Clock, type Environment, Forwarded } from "@destack/environment";
 import { Failure } from "@destack/error";
-import { type Identifier, present, schema } from "@destack/schema";
+import { type Identifier, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { PackageMount, refusal, reportError } from "@destack/object";
 import { CLIENT_HEAD_HEADER, ClientHead, PARTITION_HEADER } from "@destack/object/workload";
@@ -191,11 +191,11 @@ export class Relay {
         return { machineId, lapsesAt, kid, name: standing.name, account: standing.account };
     }
 
-    /** List the standing machines of an account. */
+    /** List the live machines of an account. */
     async machines(accountId: Identifier<"account">): Promise<readonly Identifier<"machine">[]> {
         const rows = await this.#view
             .read(machine.table)
-            .findMany({ where: { scope: accountId, revokedAt: { isNull: true } } });
+            .findMany({ where: { scope: accountId, deletedAt: { isNull: true } } });
 
         return rows.map((row) => row.id);
     }
@@ -229,8 +229,6 @@ export class Relay {
         const replicated = await this.#machine(machineId);
         if (replicated === undefined) {
             return { reason: "machine-unknown" };
-        } else if (replicated.isRevoked) {
-            return { reason: "machine-revoked" };
         } else if (!(await this.#isKeyed(machineId, this.#clock.now()))) {
             return { reason: "key-revoked" };
         }
@@ -283,7 +281,7 @@ export class Relay {
 
             return wasHere !== isHere ? [Change.image(change).parentId] : [];
         }
-        // select a renamed machine tunnelled here, its revoke selected by its endpoint's deletion
+        // select a renamed machine tunnelled here, its deletion selected by its endpoint's deletion
         else if (Change.of(change, machine.table)) {
             const isRenamed = Change.before(change)?.name !== Change.after(change)?.name;
             const { id } = Change.image(change);
@@ -492,18 +490,14 @@ export class Relay {
 
     /** Find a standing machine of any residency by its name within its account. */
     async #locateMachine(name: string, handle: string, machineName: string): Promise<Destination> {
-        // find the account by its handle, and its standing machine by name
+        // find the account by its handle, and its live machine by name
         const accountId = await this.#directory.account(handle);
         const [named] =
             accountId === undefined
                 ? []
-                : await this.#view.read(machine.table).findMany({
-                      where: {
-                          scope: accountId,
-                          name: machineName,
-                          revokedAt: { isNull: true },
-                      },
-                  });
+                : await this.#view
+                      .read(machine.table)
+                      .findMany({ where: machine.address(accountId, machineName) });
         if (named === undefined) {
             throw RelayError.of("NAME_NOT_FOUND", `name '${name}' not found`);
         }
@@ -513,15 +507,17 @@ export class Relay {
 
     /** Find where a machine's requests go. */
     async #destination(machineId: Identifier<"machine">): Promise<Destination> {
-        // refuse a machine without an answering endpoint
+        // refuse a machine without an answering endpoint, by its name while the directory has it
         const published = await this.#view
             .read(endpoint.table)
             .findFirst({ where: { parentId: machineId } });
         if (published === undefined || !Endpoint.isAnswering(published, this.#clock.now())) {
-            const named = present(await this.#machine(machineId), `machine ${machineId}`);
+            const named = await this.#machine(machineId);
             throw RelayError.of(
                 "MACHINE_UNAVAILABLE",
-                `'${named.name}' is unavailable: it is disconnected`,
+                named === undefined
+                    ? `machine '${machineId}' is unavailable: it is not in the directory`
+                    : `'${named.name}' is unavailable: it is disconnected`,
             );
         }
 
@@ -531,32 +527,30 @@ export class Relay {
             : { kind: "endpoint", url: published.relay?.url ?? published.url };
     }
 
-    /** Read a replicated machine's name, its account and whether it was revoked. */
+    /** Read a live machine's name and its account, absent once deleted. */
     async #machine(machineId: Identifier<"machine">): Promise<
         | {
               readonly name: string;
               readonly account: Identifier<"account">;
-              readonly isRevoked: boolean;
           }
         | undefined
     > {
-        // read the machine and the handle its account claims, none for a machine outside accounts
+        // read the live machine and the handle its account claims, none for a machine outside accounts
         const replicated = await this.#view
             .read(machine.table)
-            .findFirst({ where: { id: machineId } });
+            .findFirst({ where: { id: machineId, deletedAt: { isNull: true } } });
         const handle =
             replicated === undefined ? undefined : await this.#directory.handle(replicated.scope);
         if (replicated === undefined || handle === undefined) {
             return undefined;
         }
 
-        // read the machine's name and whether it was revoked
+        // read the machine's name
         const address = { machine: replicated.name, handle };
 
         return {
             name: MachineAddress.format(address, this.domains.machine),
             account: schema.identifier("account").parse(replicated.scope),
-            isRevoked: replicated.revokedAt !== null,
         };
     }
 

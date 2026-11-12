@@ -227,7 +227,7 @@ test("forward through the newest socket, fall back to the older once the newest 
     // close the newer's socket, then close the tunnel
     await running.close(newer);
     const older = await forward(running, "/b");
-    await running.closeAll("machine-revoked");
+    await running.closeAll("machine-unknown");
 
     expect([both, older, await forward(running, "/c"), telemetry.records()]).toEqual([
         "newer /a",
@@ -241,7 +241,7 @@ test("forward through the newest socket, fall back to the older once the newest 
             event("tunnel.open"),
             event("tunnel.open"),
             event("tunnel.close", "closed"),
-            event("tunnel.close", "machine-revoked"),
+            event("tunnel.close", "machine-unknown"),
         ],
     ]);
 });
@@ -348,7 +348,7 @@ test("renew a socket's token through a stream the machine opens, answering its n
     ]);
 });
 
-test("refuse a renewal of a machine revoked, left keyless or missing from the directory meanwhile, lapsing and closing its socket at once", async () => {
+test("refuse a renewal of a machine left keyless or missing from the directory meanwhile, lapsing and closing its socket at once", async () => {
     const {
         tunnel: running,
         connect,
@@ -361,7 +361,7 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
     using telemetry = recorded;
 
     // renew each over a socket of its own once the machine no longer stands for a reason
-    const renew = async (reason: "machine-revoked" | "key-revoked" | "machine-unknown") => {
+    const renew = async (reason: "key-revoked" | "machine-unknown") => {
         standing.standing = async () => ({ name: NAME, account: ACCOUNT });
         const opened = await connect("host", simulation.clock.now() + 60_000);
         const machine = schema.instanceof(Session).parse(machines.get(opened.id));
@@ -370,24 +370,12 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
 
         return [answered, attachments.get(opened.id)];
     };
-    const revoked = await renew("machine-revoked");
     const keyless = await renew("key-revoked");
     const unknown = await renew("machine-unknown");
 
     // refuse each for its reason, each socket lapsed and closed at once, forwarding nothing
     const lapsed = { machineId, lapsesAt: TEST_START, kid: KID };
-    expect([revoked, keyless, unknown, await forward(running, "/a"), telemetry.records()]).toEqual([
-        [
-            [
-                401,
-                refused(
-                    "UNAUTHORIZED",
-                    "MACHINE_UNAUTHENTICATED",
-                    `machine ${machineId} is revoked`,
-                ),
-            ],
-            lapsed,
-        ],
+    expect([keyless, unknown, await forward(running, "/a"), telemetry.records()]).toEqual([
         [
             [
                 401,
@@ -416,8 +404,6 @@ test("refuse a renewal of a machine revoked, left keyless or missing from the di
             "the machine is unavailable: it is disconnected",
         ],
         [
-            event("tunnel.open"),
-            event("tunnel.close", "lapsed"),
             event("tunnel.open"),
             event("tunnel.close", "lapsed"),
             event("tunnel.open"),
