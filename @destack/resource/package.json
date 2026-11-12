@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare, bind, and inspect Destack resources.",
+    "description": "Declare the resources a package uses, bind their clients in a workload, and plan their changes.",
     "exports": {
         ".": "./src/index.ts",
         "./context": "./src/context/index.ts",
@@ -12,7 +12,7 @@
         "./inspect": "./src/inspect/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "destack-check readme && tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {

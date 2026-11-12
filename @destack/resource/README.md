@@ -1,71 +1,70 @@
 # @destack/resource
 
-`defineKind` with `provisioned` is a Kubernetes CustomResourceDefinition with `spec` and desired `state` schemas (`management: "external"` for kinds whose resources live outside Destack, such as a third-party API), a `Provider` is a Terraform provider that plans, applies, snapshots and fences one kind's resources on a host, and `ResourceContext` holds a workload's clients as a Cloudflare Worker's `env` holds its bindings.
+Declare the resources a package uses, bind their clients in a workload, and plan their changes.
+
+## Overview
+
+A package declares the resources it uses by kind, a stack provisions them, and the host binds each declaration to a client when a workload runs.
+
+- **ResourceDeclaration**: one resource a package uses, of a kind such as a bucket or a database, with its spec; `provision` describes the resource a stack creates, and `get` returns the bound client.
+- **ResourceContext**: the clients a host binds for one invocation, as a Worker's `env` keeps its bindings; `bind` and `get`.
+- **Provider**: what plans, applies, provisions, snapshots and fences one kind's resources on a host, as a Terraform provider does.
+- **Plan**: the steps that change resources, each with a risk from `safe` to `privileged`; a plan at or above `backward-incompatible` needs approval.
+- **Secret**: a credential a package reads by version.
 
 ```ts
-// a CRD's spec and status
-const DatabaseKind = defineKind({ name: "database", provisioned: { spec: DatabaseSpec, state: DatabaseState } });
-const plan = await provider.reconcile.plan(record, desired); // terraform plan
-// terraform apply of a saved plan
-await provider.reconcile.apply(record, desired, await Plan.digest(plan, environment.crypto));
-Plan.classify(plan); // "safe", "fallible", "backward-incompatible", "destructive" or "privileged"
-// env.DATABASE in a Worker
-await database.get(new ResourceContext().bind(database, connection)).select().from(note);
-```
+import { defineKind } from "@destack/package";
+import { Plan, ResourceDeclaration } from "@destack/resource";
+import { ResourceContext } from "@destack/resource/context";
+import { schema } from "@destack/schema";
 
-## Declaring
+interface Queue {
+    readonly send: (body: string) => Promise<void>;
+}
+const QueueKind = defineKind({ name: "queue", provisioned: { spec: schema.object({}) } });
+const owner = import.meta.destack.package;
+const jobs = new ResourceDeclaration<Queue>(owner, QueueKind, { name: "jobs", spec: {} });
 
-`provision` describes the resource a stack creates from a declaration, and an external kind such as `https` takes the connection whose credential its calls carry.
-
-```ts
-export default defineStack({
-    types: [vaultPackage],
-    buckets: {
-        files: files.provision({
-            retention: { within: { days: 30 } },
-            placement: { provider: "r2" },
-        }),
-    },
-});
-// an external API, called with the connection's credential
-const stripe = stripeApi.provision({ connection: stripeConnection });
-```
-
-## Connectors
-
-`connectors` maps a provider code to the `Connector` that opens a declaration's client in a workload.
-
-```ts
-const connection = await main.connectors["sqlite"]?.connect(binding, main, environment);
-```
-
-## Plans
-
-A `Plan` lists the `Step`s that change resources, and a plan at or above `backward-incompatible` needs approval.
-
-```ts
+const created = jobs.provision({ retention: { within: { days: 30 } } });
+const context = new ResourceContext().bind(jobs, { send: async () => undefined });
+await jobs.get(context).send("hello");
 const plan: Plan = {
-    steps: [
-        {
-            action: "create",
-            target: "resource/main/table/note/column/priority",
-            risk: "safe",
-            detail: "add column priority",
-        },
-        { action: "delete", target: "role/viewer", risk: "destructive", detail: "retire" },
-    ],
+    steps: [{ action: "create", target: "resource/jobs", risk: "safe", detail: "create jobs" }],
 };
-Plan.isAtLeast(plan, "backward-incompatible"); // true
+Plan.isAtLeast(plan, "backward-incompatible"); // false
 ```
 
-## Upgrades
+## Examples
 
-`Upgrade.plan` lists the steps from the latest release to a build, and a `Vocabulary` refuses a name reused with another definition.
+### Use an operator's value as a secret
+
+`Secret.of` turns a value an operator sets, such as an environment variable, into a secret with one version.
 
 ```ts
-const history = await History.read(latest.reader, vocabulary);
-const upgrade = Upgrade.plan(history, build.package, declarations, (declaration) =>
-    compares.get(declaration.kind),
-);
-const advanced = Vocabulary.advance(vocabulary, declarations, "2026.11.0");
+import { Secret } from "@destack/resource";
+
+const stripe = Secret.of("sk_test_…");
+const { value } = await stripe.read();
 ```
+
+### Call an external API
+
+A connection's client calls the API below its bound address, the host's egress adding the credential.
+
+```ts
+import type { ExternalClient } from "@destack/resource";
+
+async (api: ExternalClient) => {
+    const response = await api.fetch("/v1/customers");
+};
+```
+
+## Comparison
+
+### Kubernetes custom resources
+
+Kinds with a spec and desired state follow Kubernetes' CustomResourceDefinitions, planned and applied as Terraform does; three things differ.
+
+- A package declares only what it uses, and the stack that installs it decides where each resource lives.
+- Every plan step has a risk, and a risky plan waits for the space's managers to approve it.
+- A workload reads its clients from a `ResourceContext`, never from globals or environment variables.
