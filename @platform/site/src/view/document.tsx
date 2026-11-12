@@ -3,6 +3,7 @@ import { DEFAULT_DISPLAY } from "@destack/theme";
 import type { ParentProps } from "@destack/view";
 import { AppearanceScript, Font, Viewport } from "@destack/view/document";
 import { HydrationScript } from "@destack/view/static";
+import { skyScript } from "./effect/sky";
 import { mono, sans, sansItalics } from "./font.ts";
 import { theme } from "./theme.ts";
 
@@ -26,6 +27,7 @@ export default function Document(properties: ParentProps) {
                 <meta charset="utf-8" />
                 <Viewport colorScheme="light dark" />
                 <AppearanceScript />
+                <script innerHTML={skyScript} />
                 <Font font={sans} />
                 <Font font={sansItalics} />
                 <Font font={mono} />

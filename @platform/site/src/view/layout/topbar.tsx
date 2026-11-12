@@ -71,7 +71,7 @@ export function TopBar(properties: { readonly path: string }) {
     return (
         <header {...style.attrs(styles.root)}>
             <Sheet open={isMenuOpen()} onOpenChange={setIsMenuOpen}>
-                <Sky xstyle={styles.band}>
+                <Sky view="strip" xstyle={styles.band}>
                     <div {...style.attrs(lattice.frame, styles.bar)}>
                         {/* run the head as a dictionary page does: the headword, its guide words, then the controls */}
                         <div {...style.attrs(styles.content)}>

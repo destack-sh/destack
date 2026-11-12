@@ -19,7 +19,8 @@
         "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-markdown.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
         "generate": "bun run scripts/generate-release.ts && bun run scripts/generate-pricing.ts && bun run scripts/generate-headword.ts",
-        "generate-icons": "bun run scripts/generate-icons.ts"
+        "generate-icons": "bun run scripts/generate-icons.ts",
+        "generate-sky": "bun run scripts/generate-sky.ts"
     },
     "dependencies": {
         "@destack/environment": "workspace:*",
