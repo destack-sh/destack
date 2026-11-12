@@ -1,123 +1,131 @@
 # @destack/observability
 
-`@destack/observability` keeps a space's logs, spans, metric points, visits and actions, groups failures into issues, fires alerts, and declares the meters a space's use is priced by.
+Query, follow and alert on the telemetry and analytics of Destack scopes, group their failures into issues, and measure what their spaces use.
+
+## Overview
+
+The observability installation keeps a space's logs, spans, metrics, sessions, visits and actions, groups its failures into issues and fires alerts on them.
+
+- **Event types**: `log`, `span`, `metric`, `session`, `visit` and `action`, their personal attributes masked unless the reader may unmask them.
+- **Exception**: one failure a log record or span reports, named into its issue by installation and fingerprint.
+- **Issue**: failures grouped by fingerprint; `resolve`, `ignore` and assign, reopened when it fails again.
+- **Alert rule**: a condition over issues or folds of events, with its actions; an `Alert` fires once its condition lasts its pending time, unless a `Silence` covers it.
 
 ```ts
-await client.span.list({ spaceId, where: { trace } });
-await client.issue.resolve({ spaceId, requestId, id, until: { kind: "revision", after } }); // reopen on a later revision
-await client.issue.ignore({ spaceId, requestId, id, until: { kind: "never" } });
+import type observabilityPackage from "@destack/observability/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+
+async (
+    client: ClientOf<typeof observabilityPackage>,
+    spaceId: Identifier<"space">,
+    issue: Identifier<"issue">,
+    requestId: string,
+) => {
+    const exceptions = await client.exception.list({ spaceId, where: { issue } });
+    const logs = await client.log.list({ scope: spaceId, where: { session: "session-1" } });
+    await client.issue.resolve({ spaceId, requestId, id: issue, until: { kind: "never" } });
+};
 ```
 
-## Events
+## Examples
 
-`log`, `span`, `metric`, `session`, `visit` and `action` are events types, all but `metric` keyed by session, their personal attributes masked unless the reader may unmask them.
+### Install observability
+
+A space installs observability, and its machine forwards every installation's telemetry to it.
+
+```sh
+destack install @destack/observability
+```
+
+### Send telemetry over OTLP
+
+The `otlp` mount takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics`.
 
 ```ts
-import { log, session } from "@destack/observability";
-
-await client.log.list({ spaceId, where: { session: "session-1" } }); // one session's timeline
-await events.series(session.eventKind(), { scopes }, { fold: "count", group: ["build", "status"] }); // release health
+async (origin: string, token: string, body: string) => {
+    const headers = { authorization: `Bearer ${token}`, "content-type": "application/json" };
+    await fetch(`${origin}/v1/logs`, { method: "POST", headers, body });
+};
 ```
 
-## OTLP
+### Alert on an error rate
 
-The `otlp` mount takes OTLP/HTTP JSON exports at `/v1/traces`, `/v1/logs` and `/v1/metrics` into the request's scope, appending an `exception` event for each failure a log record or span carries.
+An alert rule over events folds them per window and fires once the fold stays above its threshold for the pending time.
 
 ```ts
-import { OtlpExport, OtlpIntake } from "@destack/observability";
+import type observabilityPackage from "@destack/observability/package";
+import { log } from "@destack/observability/object";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
 
-const stamped = new OtlpExport("logs", body).stamp({ installation, build }); // as the forwarding machine
-await new OtlpIntake(store).append(caller, scope, "logs", stamped.body); // appends only, its retries once each
+async (
+    client: ClientOf<typeof observabilityPackage>,
+    spaceId: Identifier<"space">,
+    requestId: string,
+) => {
+    await client.alertRule.create({
+        spaceId,
+        requestId,
+        title: "Error rate",
+        condition: {
+            kind: "events",
+            event: log.typeReference,
+            where: "severity >= 17",
+            fold: "count",
+            group: ["installationId"],
+            per: {},
+            window: { minutes: 5 },
+            comparison: "above",
+            threshold: 50,
+        },
+        actions: [{ kind: "notify" }],
+        pending: { minutes: 2 },
+        noData: "ok",
+    });
+};
 ```
 
-## Exceptions
+### Silence alerts
 
-Each `exception` event names its issue by installation and fingerprint, and the `issues` reader counts a minute of a space's exceptions into their issues at a time, as Sentry buffers its counters.
+A silence mutes the alerts whose labels match, between its start and end.
 
 ```ts
-await client.exception.list({ spaceId, where: { issue } }); // an issue's exceptions, kept as long as its logs
+import type observabilityPackage from "@destack/observability/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+
+async (
+    client: ClientOf<typeof observabilityPackage>,
+    spaceId: Identifier<"space">,
+    requestId: string,
+    startsAt: number,
+    endsAt: number,
+) => {
+    await client.silence.create({
+        spaceId,
+        requestId,
+        matchers: [{ label: "installationId", operator: "=", value: "notes" }],
+        startsAt,
+        endsAt,
+        comment: "maintenance",
+    });
+};
 ```
 
-## Issues and alerts
+## Comparison
 
-Failures group into issues that are assigned, resolved, ignored and regress; alert rules raise alerts over issues or folds of events, pending until they fire, announced and answered by their rule's actions unless a silence covers them.
+### Sentry
 
-```ts
-await client.alertRule.create({
-    spaceId,
-    requestId,
-    title: "Error rate",
-    condition: {
-        kind: "events",
-        event: log.typeReference,
-        where: "severity >= 17",
-        fold: "count",
-        group: ["installationId"],
-        per: {},
-        window: { minutes: 5 },
-        comparison: "above",
-        threshold: 0.05,
-    },
-    actions: [{ kind: "notify" }, { kind: "call", method: "rollBack" }], // the call runs as the author, waiting on approval
-    pending: { minutes: 2 },
-    noData: "ok",
-});
-await client.silence.create({
-    spaceId,
-    requestId,
-    matchers: [{ label: "installationId", operator: "=", value }],
-    startsAt,
-    endsAt,
-    comment,
-});
-```
+Issues, fingerprints, regressions and release health follow Sentry; three things differ.
 
-## Server
+- Telemetry arrives over OTLP from every installation of a space, kept in the space's event store.
+- Personal attributes stay masked unless the reader may unmask them.
+- Issues are objects of the space, so their access, audit and sync are any object's.
 
-The package's server, its default export of `./server`, serves issues, alert rules, alerts, the responses to fired alerts and the `otlp` mount.
+### Prometheus Alertmanager
 
-```ts
-import observabilityServer from "@destack/observability/server";
+Alert rules, pending alerts and silences follow Prometheus and its Alertmanager; two things differ.
 
-const store = new ObjectStore({ servers: [observabilityServer, notificationServer], ...options });
-```
-
-## Readings
-
-A `reading` records one increment of a meter a space used, with the SKU and payer it is billed at, and its `metering` reader hands each hour's readings to the machine billing them, as `@destack/finance` does.
-
-```ts
-await store.mutate(machine, { id, calls: [reading.call("append", { ...reading.in(spaceId), items })] });
-controllers: [reading.consume("metering", async (page) => bill(page.events))],
-```
-
-## Meters
-
-`defineMeter` declares what a meter's events count and how a period's events fold into usage; the platform's meters measure a space's use in generic units that each vendor's pricing maps to its own SKUs.
-Platform meters are named `resource.measure`, with the measures `time`, `usage`, `operation`, `transfer` and `cost`, and each attribute lists the values its events take, each priced by its own SKU.
-
-```ts
-const requests = defineMeter({
-    name: "api.requests",
-    description,
-    aggregation: "sum",
-    unit: "request",
-    attributes: { method: ["read", "write"] },
-});
-import { computeTime, databaseOperation, machineTime } from "@destack/telemetry/meter";
-```
-
-## Settings
-
-`telemetryRetention`, `analyticsRetention` and `traceSampling` set how many days a space keeps its telemetry and analytics, and the share of traces it keeps.
-
-```ts
-import { telemetryRetention, traceSampling } from "@destack/observability/setting";
-
-export const personal = defineStack({
-    settings: {
-        retention: { setting: telemetryRetention, value: 90, mode: "set" },
-        sampling: { setting: traceSampling, value: 0.1, mode: "set" },
-    },
-});
-```
+- A rule's condition folds the space's events or watches its issues, never a separate metrics store.
+- An alert's actions can call an installation's method, such as a rollback, as the rule's author.
