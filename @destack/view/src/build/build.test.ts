@@ -66,6 +66,7 @@ test(
             compiler.build({
                 directory: NOTEBOOK,
                 dependencies,
+                links: {},
                 outputs: { browser: { kind: "module", runtime: "browser" } },
             }),
         );
