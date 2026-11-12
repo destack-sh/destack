@@ -180,7 +180,10 @@ export class CatalogueBucket implements S3Bucket, AsyncDisposable {
         // stream the file from its source
         const response = await this.#storage.environment.network.fetch(new Request(url));
         if (!response.ok) {
-            throw BucketError.of("WRITE_BROKEN", `fetching '${key}' returned ${response.status}`);
+            throw BucketError.of(
+                "SOURCE_UNREACHABLE",
+                `could not fetch file '${key}' from its source: HTTP ${response.status}`,
+            );
         }
         await this.restore(key, response.body, identity);
     }

@@ -64,9 +64,7 @@ export const BucketError = defineErrorFamily({
 
         // unreachable
         S3_UNREACHABLE: {},
-
-        // broken
-        WRITE_BROKEN: {},
+        SOURCE_UNREACHABLE: {},
     },
 });
 

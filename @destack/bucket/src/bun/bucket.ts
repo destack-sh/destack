@@ -3,6 +3,7 @@ import { BlobStore } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
 import type { Environment, FileLock, FileSystem } from "@destack/environment";
+import { present } from "@destack/schema";
 import { BucketKey } from "../bucket/index.ts";
 import { BucketError } from "../error/index.ts";
 import { CatalogueBucket } from "../catalogue/bucket.ts";
@@ -48,7 +49,10 @@ export class LocalBucket extends CatalogueBucket {
         }
 
         // create the blob directory before publishing any catalogue entries, and share the bucket's lock until the open fails or the storage takes it
-        const blobs = await LocalBlobStorage.open(join(directory, "files"), environment);
+        const blobs = await LocalBlobStorage.open(join(directory, "files"), environment, {
+            layout: "loose",
+            synchronous: "full",
+        });
         await using opening = new AsyncDisposableStack();
         const lock = opening.use(await files.lock(join(directory, "bucket.lock"), "shared"));
 
@@ -68,9 +72,9 @@ export class LocalBucket extends CatalogueBucket {
 
     /** Clone a plain file's bytes to a path, copying them where the file system cannot clone. */
     async clone(key: string, destination: string): Promise<void> {
-        // read the current plain single-part file's blob
+        // read where the current plain single-part file's blob lies
         BucketKey.check(key);
-        const blob = await this.#storage.exclusive(async () => {
+        const placement = await this.#storage.exclusive(async () => {
             // refuse a missing file, then one with several or encrypted segments
             const entry = await this.#storage.entry(key);
             if (!entry) {
@@ -84,11 +88,14 @@ export class LocalBucket extends CatalogueBucket {
                 );
             }
 
-            return segment.blob;
+            // read where its blob lies
+            const [placed] = await this.#storage.blobs.placements([segment.blob]);
+
+            return present(placed, `blob ${segment.blob}`);
         });
 
-        // clone the blob file
-        await this.#blobs.copy(blob, destination);
+        // clone the blob's bytes
+        await this.#blobs.copy(placement, destination);
     }
 }
 

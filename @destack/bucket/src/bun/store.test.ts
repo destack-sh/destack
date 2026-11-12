@@ -4,6 +4,9 @@ import { expect, refusal, test } from "@destack/test";
 import { Digest, present } from "@destack/schema";
 import { LocalBlobStorage } from "./store.ts";
 
+/** The layout of a bucket's blobs: a file per blob, synced fully. */
+const LOOSE = { layout: "loose", synchronous: "full" } as const;
+
 /** Yield text as one chunk of bytes. */
 async function* bytesOf(content: string): AsyncIterable<Uint8Array> {
     yield new TextEncoder().encode(content);
@@ -21,7 +24,7 @@ test("store a body once as a pack of its own under its digest, list the packs an
     await using simulation = testSimulation();
     const world = simulation.environment("host");
     const directory = await world.files.makeTemporaryDirectory("blobs-");
-    const store = await LocalBlobStorage.open(directory, world);
+    const store = await LocalBlobStorage.open(directory, world, LOOSE);
     const kept = await written(store, bytesOf("kept"));
     const dropped = await written(store, bytesOf("dropped"));
     const again = await written(store, bytesOf("kept"));
@@ -42,7 +45,7 @@ test("move a file into its blob once, refusing one whose bytes do not match its 
     const world = simulation.environment("host");
     const { files } = world;
     const directory = await files.makeTemporaryDirectory("moves-");
-    const store = await LocalBlobStorage.open(join(directory, "blobs"), world);
+    const store = await LocalBlobStorage.open(join(directory, "blobs"), world, LOOSE);
     const expected = await written(store, bytesOf("moved"));
     await store.delete(expected);
     await files.writeTextFile(join(directory, "first"), "moved");
@@ -78,6 +81,7 @@ test("read a range of a blob at an unaligned offset across read-sized chunks, an
     const store = await LocalBlobStorage.open(
         await world.files.makeTemporaryDirectory("slice-"),
         world,
+        LOOSE,
     );
     const bytes = new Uint8Array(160 * 1024).map((_, index) => index % 251);
     const digest = await written(
@@ -102,4 +106,56 @@ test("read a range of a blob at an unaligned offset across read-sized chunks, an
         isExact: joined.every((byte, index) => byte === bytes[1000 + index]),
         empty: empty.length,
     }).toEqual({ sizes: [65_536, 4464], isExact: true, empty: 0 });
+});
+
+test("store a write's bodies in one pack, read and copy each, and delete the pack", async () => {
+    // write two bodies
+    await using simulation = testSimulation();
+    const world = simulation.environment("host");
+    const { files } = world;
+    const directory = await files.makeTemporaryDirectory("packed-");
+    const store = await LocalBlobStorage.open(join(directory, "blobs"), world, {
+        layout: "packed",
+        synchronous: "full",
+    });
+    const packed = await store.write([{ body: bytesOf("first") }, { body: bytesOf("second") }]);
+    const first = present(packed[0], "the first packed blob");
+    const second = present(packed[1], "the second packed blob");
+    const alone = present((await store.write([{ body: bytesOf("alone") }]))[0], "the lone blob");
+    const placements = [first, second, alone];
+
+    // read each blob's range
+    const read = await Promise.all(
+        placements.map(async ({ pack, offset, size }) => {
+            const chunks = await Array.fromAsync(store.slice(pack, offset, size));
+
+            return await new Blob(chunks.map((chunk) => new Uint8Array(chunk))).text();
+        }),
+    );
+    await store.copy(second, join(directory, "second"));
+    await store.copy(alone, join(directory, "alone"));
+
+    // keep the two packs
+    const listed = await Array.fromAsync(store.packs());
+    await store.delete(first.pack);
+    expect({
+        placements: placements.map(({ pack, offset, size }) => [pack, offset, size]),
+        read,
+        copied: [
+            await files.readTextFile(join(directory, "second")),
+            await files.readTextFile(join(directory, "alone")),
+        ],
+        listed: listed.toSorted(),
+        left: await Array.fromAsync(store.packs()),
+    }).toEqual({
+        placements: [
+            [first.pack, 0, 5],
+            [first.pack, 5, 6],
+            [alone.digest, 0, 5],
+        ],
+        read: ["first", "second", "alone"],
+        copied: ["second", "alone"],
+        listed: [first.pack, alone.digest].toSorted(),
+        left: [alone.digest],
+    });
 });
