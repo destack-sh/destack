@@ -19,7 +19,6 @@ export { Script, type ScriptProperties, type ScriptStrategy } from "./script.tsx
 export {
     AppearanceScript,
     type AppearanceOptions,
-    type ColorScheme,
     createAppearance,
     createColorScheme,
     type LocalAppearance,

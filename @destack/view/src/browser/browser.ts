@@ -8,6 +8,7 @@ import { present, schema } from "@destack/schema";
 import { PackageId } from "@destack/package";
 import type { ObjectType } from "@destack/object";
 import { BrowserTab } from "@destack/object/browser";
+import { ObjectClient } from "@destack/object/client";
 import { BrowserClient } from "@destack/account/browser";
 import type { Subject } from "@destack/sync";
 import { principal } from "@destack/access";
@@ -433,13 +434,15 @@ async function openTabs(
 ): Promise<Map<string, BrowserTab>> {
     // follow a person's own settings and profile, and group the view's types by the scope each lives in
     const byScope = new Map<string, Readonly<Record<string, ObjectType>>>(
-        device === undefined ? [] : [[context.user.id, { setting, deviceSetting, user }]],
+        device === undefined
+            ? []
+            : [[context.user.id, ObjectClient.keyed([setting, deviceSetting, user])]],
     );
     for (const name of CONTEXT_SCOPES) {
         const scope = context[name];
         const objects = view.opens(name === "account" ? account : space);
         if (scope !== undefined && objects.length > 0) {
-            const named = Object.fromEntries(objects.map((object) => [object.name, object]));
+            const named = ObjectClient.keyed(objects);
             byScope.set(scope, { ...byScope.get(scope), ...named });
         }
     }

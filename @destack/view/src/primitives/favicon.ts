@@ -1,3 +1,4 @@
+import type { ColorScheme } from "@destack/theme";
 import { isServer } from "@solidjs/web";
 import { type Accessor, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { makeEventListener } from "./event-listener.ts";
@@ -72,9 +73,6 @@ export type FaviconBadgeOptions = FaviconOptions & {
     readonly scale?: number;
 };
 
-/** The scheme a favicon follows. */
-export type FaviconColorScheme = "light" | "dark";
-
 /** A favicon for each scheme. */
 export type FaviconSchemeIcons = {
     /** The favicon for a light scheme. */
@@ -86,7 +84,7 @@ export type FaviconSchemeIcons = {
 /** A scheme favicon's controller, with the scheme it shows. */
 export type FaviconSchemeController = FaviconController & {
     /** The scheme the favicon shows. */
-    readonly scheme: FaviconColorScheme;
+    readonly scheme: ColorScheme;
 };
 
 /** How a progress ring looks. */
@@ -133,7 +131,7 @@ const PROGRESS_COLOR = "#6366f1";
 const DEFAULT_ICON_SIZE = 32;
 
 /** The scheme the server renders. */
-const SERVER_SCHEME: FaviconColorScheme = "light";
+const SERVER_SCHEME: ColorScheme = "light";
 
 /** The query of a dark scheme. */
 const DARK_QUERY = "(prefers-color-scheme: dark)";
@@ -368,7 +366,7 @@ export function makeFaviconScheme(
 
     // show the scheme's icon, again whenever the display's scheme changes
     const list = display.media(DARK_QUERY);
-    let scheme: FaviconColorScheme = list.matches ? "dark" : "light";
+    let scheme: ColorScheme = list.matches ? "dark" : "light";
     const favicon = makeFavicon(icons[scheme], options);
     const stop = makeEventListener(list, "change", (event) => {
         scheme = event.matches ? "dark" : "light";
@@ -394,7 +392,7 @@ export function makeFaviconScheme(
 export function createFaviconScheme(
     icons: MaybeAccessor<FaviconSchemeIcons>,
     options: FaviconOptions = {},
-): { href: Accessor<string>; scheme: Accessor<FaviconColorScheme> } {
+): { href: Accessor<string>; scheme: Accessor<ColorScheme> } {
     // show the light icon on the server
     if (isServer) {
         return { href: () => access(icons)[SERVER_SCHEME], scheme: () => SERVER_SCHEME };
@@ -402,7 +400,7 @@ export function createFaviconScheme(
 
     // follow the display's scheme, and show its icon now
     const list = useEnvironment().display.media(DARK_QUERY);
-    const [scheme, setScheme] = createSignal<FaviconColorScheme>(list.matches ? "dark" : "light", {
+    const [scheme, setScheme] = createSignal<ColorScheme>(list.matches ? "dark" : "light", {
         ownedWrite: true,
     });
     makeEventListener(list, "change", (event) => setScheme(event.matches ? "dark" : "light"));

@@ -131,8 +131,8 @@ async function openScope(
     environment: Environment,
     signal: AbortSignal,
 ): Promise<ObjectClient> {
-    // keep the objects in memory
-    const named = Object.fromEntries(objects.map((object) => [object.name, object]));
+    // keep the objects in memory, keyed by their package-qualified types
+    const named = ObjectClient.keyed(objects);
     const memory = await WasmClient.memory(environment);
     const database = new SqliteDatabase(memory, ObjectClient.tables(named), "embedded", "writer", {
         environment,

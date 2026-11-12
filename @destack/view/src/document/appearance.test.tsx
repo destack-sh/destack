@@ -1,3 +1,4 @@
+import type { ColorScheme } from "@destack/theme";
 import { testSimulation } from "@destack/test/world";
 import { expect, onTestFinished, test } from "@destack/test";
 import { BrowserSimulation } from "@destack/environment/browser/simulation";
@@ -6,7 +7,6 @@ import { render } from "../test/dom.ts";
 import { type Accessor, flush } from "../solid/reactive.ts";
 import {
     AppearanceScript,
-    type ColorScheme,
     createAppearance,
     createColorScheme,
     type LocalAppearance,

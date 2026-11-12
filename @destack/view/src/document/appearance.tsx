@@ -1,3 +1,4 @@
+import type { ColorScheme } from "@destack/theme";
 import type { Appearance } from "@destack/theme";
 import type { JSX } from "@solidjs/web";
 import { createPrefersDark } from "../primitives/media.ts";
@@ -11,9 +12,6 @@ import type {} from "@destack/package/import-meta";
 
 /** The browser storage key a page keeps a visitor's appearance under. */
 const STORAGE_KEY = "destack-appearance";
-
-/** A color scheme a page renders in. */
-export type ColorScheme = "light" | "dark";
 
 /** Where a visitor's appearance is stored, and the appearance before they choose one. */
 export interface AppearanceOptions {
