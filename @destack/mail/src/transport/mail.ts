@@ -20,7 +20,7 @@ const mail = schema.object({
     text: schema.string().max(BODY_LENGTH),
     /** The HTML body, absent for plain text only. */
     html: schema.string().max(BODY_LENGTH).exactOptional(),
-    /** The key the provider deduplicates by, which the Message-ID digests. */
+    /** The key the Message-ID digests, so an email sent again has the same Message-ID. */
     key: schema.string().min(1).max(KEY_LENGTH),
     /** The origination time in the Date header, in milliseconds since the epoch. */
     date: schema.number().int(),

@@ -50,8 +50,8 @@ export const MailError = defineErrorFamily({
         PROVIDER_UNREACHABLE: {},
         RESPONSE_UNREACHABLE: {},
 
-        // broken
-        CREDENTIALS_BROKEN: { data: SesFailure },
+        // denied
+        CREDENTIALS_DENIED: { data: SesFailure },
     },
 });
 

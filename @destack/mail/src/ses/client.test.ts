@@ -114,7 +114,7 @@ const REFUSALS: [string, () => Response, MailReason, string | undefined][] = [
     [
         "a bad signature",
         () => refused(403, "InvalidSignatureException", "Signature mismatch."),
-        "CREDENTIALS_BROKEN",
+        "CREDENTIALS_DENIED",
         "InvalidSignatureException",
     ],
     [

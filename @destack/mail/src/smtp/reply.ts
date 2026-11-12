@@ -112,36 +112,25 @@ export class Reply {
             : { ...data, enhancedCode: this.enhancedCode };
     }
 
-    /** Refuse a send by a negative reply: a transient 4xx unavailable, a permanent 5xx invalid. */
-    refuse(options?: ErrorOptions): FamilyError<"COMMAND_UNAVAILABLE" | "COMMAND_INVALID"> {
+    /** Refuse a step by a negative reply: a transient 4xx unavailable, any other invalid. */
+    refuse(step: string): FamilyError<"COMMAND_UNAVAILABLE" | "COMMAND_INVALID"> {
         return this.class === 4
             ? MailError.of(
                   "COMMAND_UNAVAILABLE",
-                  `mail server is unavailable: it answered ${this.code} '${this.text}'`,
-                  { ...options, data: this.data() },
+                  `command '${step}' is unavailable: the server answered ${this.code} '${this.text}'`,
+                  { data: this.data() },
               )
             : MailError.of(
                   "COMMAND_INVALID",
-                  `message is invalid: the mail server answered ${this.code} '${this.text}'`,
-                  { ...options, data: this.data() },
+                  `command '${step}' is invalid: the server answered ${this.code} '${this.text}'`,
+                  { data: this.data() },
               );
     }
 
-    /** Return the reply when it completes positively, and reject the step otherwise. */
+    /** Return the reply when it completes positively, and refuse the step otherwise. */
     require(step: string): Reply {
-        // refuse a transient 4xx as unavailable, and any other negative reply as invalid
-        if (this.class === 4) {
-            throw MailError.of(
-                "COMMAND_UNAVAILABLE",
-                `command '${step}' is unavailable: the server answered ${this.code} '${this.text}'`,
-                { data: this.data() },
-            );
-        } else if (this.class !== 2) {
-            throw MailError.of(
-                "COMMAND_INVALID",
-                `command '${step}' is invalid: the server answered ${this.code} '${this.text}'`,
-                { data: this.data() },
-            );
+        if (this.class !== 2) {
+            throw this.refuse(step);
         }
 
         return this;

@@ -8,7 +8,7 @@ import { MailError, SesFailure } from "../error/error.ts";
 /** The SESv2 operation that sends one message. */
 const SEND_PATH = "/v2/email/outbound-emails";
 
-/** How long a send may take before it retries: fifteen seconds, far past SES's sub-second sends. */
+/** How long a send may take before it fails: fifteen seconds, far past SES's sub-second sends. */
 const TIMEOUT_MILLISECONDS = 15_000;
 
 /** The service name SES signs requests under. */
@@ -142,8 +142,9 @@ export class SesClient {
         try {
             response = await environment.network.fetch(request);
         } catch (error) {
-            const reason = signal.aborted ? "PROVIDER_UNREACHABLE" : "PROVIDER_UNREACHABLE";
-            throw MailError.of(reason, `SES at ${endpoint} did not respond`, { cause: error });
+            throw MailError.of("PROVIDER_UNREACHABLE", `could not reach SES at '${endpoint}'`, {
+                cause: error,
+            });
         }
 
         // read the MessageId, or the refusal
@@ -192,7 +193,7 @@ async function refusal(response: Response): Promise<FamilyError> {
     } else if (permanent !== undefined) {
         return MailError.of(permanent, message, { data });
     } else if (status === 401 || status === 403) {
-        return MailError.of("CREDENTIALS_BROKEN", message, { data });
+        return MailError.of("CREDENTIALS_DENIED", message, { data });
     } else {
         return MailError.of("REQUEST_INVALID", message, { data });
     }
