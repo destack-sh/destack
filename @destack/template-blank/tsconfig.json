@@ -31,5 +31,6 @@
         ]
     },
     "include": ["**/*"],
+    "files": ["node_modules/.cache/destack/readme/README.ts"],
     "exclude": ["node_modules", "dist", "target", "coverage", "out"]
 }
