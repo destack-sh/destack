@@ -101,16 +101,14 @@ export class BuildReader {
 
     /** Read the source, executable and asset list. */
     files(): Promise<readonly PackageFile[]> {
-        return this.#files.get(() =>
-            this.read(this.manifest.lists.files, schema.array(PackageFile)),
-        );
+        return this.#files.get(() => this.read<PackageFile[]>(this.manifest.lists.files));
     }
 
     /** Read the files an output's runtime loads, by the output's name. */
     loaded(name: string): Promise<readonly PackageFile[]> {
         const output = present(this.manifest.outputs[name], `the output ${name}`);
 
-        return this.read(output.files, schema.array(PackageFile));
+        return this.read<PackageFile[]>(output.files);
     }
 
     /** Read the source maps of an output's files, which symbolicate what its runtime loads. */
@@ -139,15 +137,16 @@ export class BuildReader {
     /** Read generated-file and source-map associations. */
     sourceMaps(): Promise<readonly SourceMapReference[]> {
         return this.#sourceMaps.get(() =>
-            this.read(this.manifest.lists.sourceMaps, schema.array(SourceMapReference)),
+            this.read<SourceMapReference[]>(this.manifest.lists.sourceMaps),
         );
     }
 
     /** List the files the manifest lists directly: its lists and each output's. */
     references(): PackageFile[] {
+        const { files, sourceMaps, declarations } = this.manifest.lists;
         const outputs = Object.values(this.manifest.outputs).map((output) => output.files);
 
-        return [...Object.values(this.manifest.lists), ...outputs];
+        return [files, sourceMaps, declarations, ...outputs];
     }
 
     /** Collect all distributed file records for complete downloads and verification. */
@@ -158,18 +157,39 @@ export class BuildReader {
     /** Read the package's declarations, without the members they derive. */
     async declarations(): Promise<Declaration[]> {
         const listed = await this.#declarations.get(() =>
-            this.read(this.manifest.lists.declarations, schema.array(Declaration)),
+            this.read<Declaration[]>(this.manifest.lists.declarations),
         );
 
         return listed.filter((declaration) => !Declaration.isMember(declaration));
     }
 
-    /** Read a listed JSON file and parse it with a schema. */
-    async read<Definition extends schema.Schema>(
-        file: PackageFile,
-        definition: Definition,
-    ): Promise<schema.Output<Definition>> {
-        return definition.parse(decode(await this.load(file.path)));
+    /** Refuse lists without their formats, as a store checks a build it takes in from outside. */
+    async check(): Promise<void> {
+        // parse each list against its format
+        const { files, sourceMaps, declarations } = this.manifest.lists;
+        const checked = [
+            [files, schema.array(PackageFile)],
+            [sourceMaps, schema.array(SourceMapReference)],
+            [declarations, schema.array(Declaration)],
+            ...Object.values(this.manifest.outputs).map(
+                (output) => [output.files, schema.array(PackageFile)] as const,
+            ),
+        ] as const;
+        for (const [list, format] of checked) {
+            const parsed = format.safeParse(await this.read(list));
+            if (!parsed.success) {
+                throw PackageError.of(
+                    "FILE_INVALID",
+                    `list '${list.path}' is invalid: it does not have its format`,
+                );
+            }
+        }
+    }
+
+    /** Read a listed JSON file, typed by its verified digest as the build wrote it. */
+    async read<Value>(file: PackageFile): Promise<Value> {
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the verified digest fixes the bytes the build wrote
+        return decode(await this.load(file.path)) as Value;
     }
 
     /** Write the build, or the files given of it, to a new directory, its manifest last. */
@@ -281,10 +301,7 @@ export class BuildReader {
         }
         const response = await BuildReader.#request(url, fetch, options.signal);
         const files = new Map<string, Uint8Array<ArrayBuffer>>();
-        for await (const entry of Tarball.read(
-            present(response.body, "a package's archive"),
-            environment.compression,
-        )) {
+        for await (const entry of Tarball.read(present(response.body, "a package's archive"))) {
             files.set(entry.path, await TarballEntry.bytes(entry));
         }
         const bytes = present(files.get(MANIFEST_PATH), "the archive's manifest");

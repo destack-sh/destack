@@ -76,7 +76,15 @@ export const PackageManifest = Object.assign(manifest, {
 
     /** Serialize a manifest as its canonical bytes, whose digest identifies the build. */
     serialize(value: PackageManifest): Uint8Array<ArrayBuffer> {
-        return new TextEncoder().encode(canonicalize(manifest.parse(value)));
+        return new TextEncoder().encode(canonicalize(value));
+    },
+
+    /** Read a manifest's bytes from a store that verified their digest, as its build wrote them. */
+    deserialize(bytes: Uint8Array<ArrayBuffer>): PackageManifest {
+        const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the verified digest fixes the bytes a parsed manifest wrote
+        return JSON.parse(text) as PackageManifest;
     },
 });
 

@@ -70,7 +70,13 @@ export const Lock = Object.assign(lock, {
 
     /** Serialize a lock as its canonical bytes, whose digest identifies it. */
     serialize(value: Lock): Uint8Array<ArrayBuffer> {
-        return new TextEncoder().encode(canonicalize(lock.parse(value)));
+        return new TextEncoder().encode(canonicalize(value));
+    },
+
+    /** Read a lock's bytes from a store that verified their digest, as its writer wrote them. */
+    deserialize(bytes: Uint8Array<ArrayBuffer>): Lock {
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- the verified digest fixes the bytes a parsed lock wrote
+        return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes)) as Lock;
     },
 
     /** Take the digest of a lock, its address in every store. */
@@ -115,9 +121,11 @@ export const Lock = Object.assign(lock, {
 
     /** List every build a lock has: its root's, then the others in digest order. */
     builds(value: Lock): Digest[] {
-        const others = Object.keys(value.builds).filter((digest) => digest !== value.root);
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- a lock keys its builds by digest
+        const builds = Object.keys(value.builds) as Digest[];
+        const others = builds.filter((digest) => digest !== value.root);
 
-        return [value.root, ...others.toSorted().map((digest) => Digest.parse(digest))];
+        return [value.root, ...others.toSorted()];
     },
 
     /** Report whether a lock lists a build. */

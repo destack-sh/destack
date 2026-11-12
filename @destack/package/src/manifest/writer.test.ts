@@ -1,6 +1,6 @@
 import { testSimulation } from "@destack/test/world";
 import { expect, test } from "@destack/test";
-import { found, schema } from "@destack/schema";
+import { found } from "@destack/schema";
 import { PackageVersion } from "../definition/package.ts";
 import { PackageFile } from "../file/file.ts";
 import { BuildReader } from "./reader.ts";
@@ -49,7 +49,7 @@ test("write a file's equal bytes once, a concurrent writer waiting for them, and
         (path) => Promise.resolve(new Blob([stored.get(path) ?? new Uint8Array()]).stream()),
         crypto,
     );
-    const listed = await reader.read(manifest.lists.files, schema.array(PackageFile));
+    const listed = await reader.files();
 
     // answer neither before the bytes are kept, keep them once, and list no failed file
     expect({
