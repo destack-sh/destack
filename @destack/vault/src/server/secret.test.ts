@@ -338,6 +338,43 @@ test("rotate a generated secret to a new value of its algorithm, a capture of it
     });
 });
 
+test("keep a secret's name in its vault until its deletion, then refuse restoring it while another secret has the name", async () => {
+    const fixture = await TestVault.open();
+    const client = fixture.owner.client(vaultPackage);
+    const vaultId = await fixture.vault();
+    const create = () =>
+        client.secret.create({
+            scope: ids.space,
+            parentId: vaultId,
+            name: "token",
+            requestId: RequestId.create(fixture.environment),
+        });
+
+    // refuse the name while the first secret is live
+    const first = await create();
+    const taken = await refusal(create());
+
+    // delete the first secret, which frees its name for a second one
+    const key = { scope: ids.space, id: first.id };
+    await client.secret.delete({
+        ...key,
+        revision: first.revision,
+        requestId: RequestId.create(fixture.environment),
+    });
+    const second = await create();
+    const restored = await refusal(
+        client.secret.restore({ ...key, requestId: RequestId.create(fixture.environment) }),
+    );
+
+    // expect the name taken twice, and given to the second secret
+    const conflict = [
+        "CONFLICT",
+        "OBJECT_EXISTS",
+        "'secret' with the same 'parent and name' already exists",
+    ];
+    expect([taken, second.name, restored]).toEqual([conflict, "token", conflict]);
+});
+
 test("purge a deleted secret at once or when its window ends, destroying its values and keeping its records", async () => {
     const fixture = await TestVault.open();
     const client = fixture.owner.client(vaultPackage);

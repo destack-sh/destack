@@ -75,7 +75,7 @@ export const secret = defineObject(
                 kind: "index",
                 on: ["parentId", "name"],
                 unique: true,
-                where: { purgedAt: { isNull: true } },
+                where: { deletedAt: { isNull: true } },
             },
             scopeId: { kind: "unique", on: ["scope", "id"] },
             vault: {
