@@ -126,6 +126,42 @@ test("retain a blob while a row references it or its write's lease lasts, and de
     });
 });
 
+test("keep a pack of several blobs while a row references any of them, and delete it once none is left", async () => {
+    // put two blobs in one pack
+    const { simulation, environment, store, storage, database } = await openBlobs();
+    const upload = async (content: string) => ({
+        digest: await Digest.of(new TextEncoder().encode(content), environment.crypto),
+        size: new TextEncoder().encode(content).byteLength,
+        open: async () =>
+            (async function* () {
+                yield new TextEncoder().encode(content);
+            })(),
+    });
+    const [kept, dropped] = await Promise.all([upload("kept"), upload("dropped")]);
+    await store.put([kept, dropped]);
+    await database.transaction(async (transaction) => {
+        await transaction.insert(attachment).values({ id: "a", file: kept.digest });
+    });
+
+    // collect past the leases and graces
+    await simulation.jump(simulation.clock.now() + LEASE_MILLISECONDS);
+    await settle(simulation, store);
+    const shared = {
+        packs: storage.size,
+        missing: await store.missing([kept.digest, dropped.digest]),
+        kept: new TextDecoder().decode(await store.bytes(kept.digest)),
+    };
+    await database.transaction(async (transaction) => {
+        await transaction.delete(attachment).where(eq(attachment.id, "a"));
+    });
+    await settle(simulation, store);
+
+    expect({ shared, packs: storage.size }).toEqual({
+        shared: { packs: 1, missing: [dropped.digest], kept: "kept" },
+        packs: 0,
+    });
+});
+
 test("rescue a blob a deleted row let go when a writer leases it again before the collection", async () => {
     // let a blob go with its row, then lease it again for a new row before collecting
     const { simulation, environment, store, database } = await openBlobs();
