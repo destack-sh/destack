@@ -182,6 +182,7 @@ test("refuse to open the graph of a build the space does not record", async () =
         {
             store: refuse,
             contains: async () => false,
+            lock: refuse,
             contents: refuse,
             referrer: refuse,
             file: refuse,

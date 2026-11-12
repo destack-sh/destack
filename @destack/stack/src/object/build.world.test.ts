@@ -16,7 +16,7 @@ test("retain each source's latest builds and every build a revision applies", as
     const now = fixture.machine.clock.now();
 
     // record four builds of the root, one of another directory and a failed one, as retention reads them
-    const record = async (directory: string, manifest: Digest | null, finishedAt: number) => {
+    const record = async (directory: string, lock: Digest | null, finishedAt: number) => {
         const id = Identifier.create("build", fixture.environment);
         await database.transaction(
             async (transaction) =>
@@ -30,10 +30,9 @@ test("retain each source's latest builds and every build a revision applies", as
                         directory,
                     },
                     outputs: ["bun"],
-                    state: manifest === null ? "failed" : "succeeded",
-                    manifest,
-                    failure:
-                        manifest === null ? Failure.http("INTERNAL_SERVER_ERROR", "failed") : null,
+                    state: lock === null ? "failed" : "succeeded",
+                    lock,
+                    failure: lock === null ? Failure.http("INTERNAL_SERVER_ERROR", "failed") : null,
                     startedAt: finishedAt,
                     finishedAt,
                     createdAt: finishedAt,
@@ -96,7 +95,7 @@ test("retain each source's latest builds and every build a revision applies", as
             Digest.parse("a".repeat(64)),
             Digest.parse("c".repeat(64)),
             Digest.parse("d".repeat(64)),
-            fixture.releases.sourceManifest,
+            fixture.releases.sourceLock,
             Digest.parse("e".repeat(64)),
         ].toSorted(),
         [{ id: dropped, scope: ids.space }],
@@ -122,7 +121,7 @@ test("decide the retention of many builds in two statements and one retention re
                     },
                     outputs: ["bun" as const],
                     state: "succeeded" as const,
-                    manifest: Digest.parse(index.toString(16).padStart(64, "0")),
+                    lock: Digest.parse(index.toString(16).padStart(64, "0")),
                     failure: null,
                     startedAt: now - index,
                     finishedAt: now - index,

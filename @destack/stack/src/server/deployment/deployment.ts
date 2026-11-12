@@ -471,7 +471,7 @@ class Reconcile {
         );
         const built = await Build.require(snapshot, revision.scope, revision.buildId);
         try {
-            await this.#launch(recorded, built.manifest, bindings, resources, running);
+            await this.#launch(recorded, built.lock, bindings, resources, running);
         } catch (error) {
             // record the failure on the instance and restart it after its backoff
             return this.#recordFailure(recorded, restarts, error);
@@ -516,7 +516,7 @@ class Reconcile {
     /** Start an instance's workload on its runtime from the revision's build with its resources. */
     async #launch(
         recorded: Instance,
-        manifest: Digest,
+        lock: Digest,
         bindings: readonly Binding[],
         resources: readonly BoundResource[],
         running: Runtime,
@@ -526,7 +526,7 @@ class Reconcile {
         this.#refuseUnsupported(running);
 
         // start the workload as its installation, by its name, with its bindings, and record an unasked exit
-        const reader = await this.#options.builds.contents(manifest);
+        const reader = await this.#options.builds.root(lock);
         const installed = present(
             await Snapshot.live(this.#reconciliation.database)
                 .read(installation.table)
@@ -545,7 +545,7 @@ class Reconcile {
                 scope: current.scope,
                 deploymentId: current.id,
                 build: reader,
-                manifest,
+                lock,
                 output: current.output,
                 workload: current.workload,
                 sandbox: current.description.sandbox,

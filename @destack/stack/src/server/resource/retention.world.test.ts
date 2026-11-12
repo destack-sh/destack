@@ -4,7 +4,7 @@ import { present } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { BuildStore } from "@destack/build/store";
 import { build } from "../../object/index.ts";
-import { fixtureBuild, ids, TestSpace } from "../../test/index.ts";
+import { fixtureBuild, ids, lockOf, TestSpace } from "../../test/index.ts";
 
 /** The builds of a source a space retains by default, the build retention setting's default. */
 const RETAINED = 10;
@@ -33,10 +33,9 @@ test("expire a dropped build as builds change, and collect it with its graph onc
             fixture.environment.crypto,
         );
         const { build: id } = await fixture.recordBuild(built);
-        recorded.push({
-            id,
-            manifest: await BuildStore.digest(built.manifest, fixture.environment.crypto),
-        });
+        const manifest = await BuildStore.digest(built.manifest, fixture.environment.crypto);
+        const lock = await lockOf(built, fixture.environment.crypto);
+        recorded.push({ id, manifest, lock });
 
         // read the first build's graph while it is live, attaching its index
         if (minor === 0) {
@@ -57,9 +56,12 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         await (await fixture.builds()).space.referrer(dropped.manifest, "graph"),
         "the dropped build's graph index",
     );
-    const isIndexedWithinLease = await (await fixture.builds()).space.has(attached.digest);
+    const [isIndexedWithinLease] = await (await fixture.builds()).space.has([attached.digest]);
     await fixture.simulation.jump(start + LEASE_MILLISECONDS + RETAINED + 1);
     await fixture.simulation.jump(start + WEEK_MILLISECONDS);
+    await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
+
+    // wait a grace for the builds the dropped lock alone kept, as a writer may still refer to them
     await fixture.simulation.jump(fixture.simulation.clock.now() + GRACE_MILLISECONDS);
 
     // expire it at once, retain it with its graph through its lease, then collect both
@@ -69,7 +71,7 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         isStoredWithinLease,
         isStored: await space.contains(dropped.manifest),
         isIndexedWithinLease,
-        isIndexed: await space.has(attached.digest),
+        isIndexed: (await space.has([attached.digest]))[0],
         retained: (
             await space.database.select({ digest: buildManifest.digest }).from(buildManifest)
         )
@@ -81,6 +83,6 @@ test("expire a dropped build as builds change, and collect it with its graph onc
         isStored: false,
         isIndexedWithinLease: true,
         isIndexed: false,
-        retained: newer.map((each) => each.manifest).toSorted(),
+        retained: newer.flatMap((each) => [each.manifest, each.lock]).toSorted(),
     });
 });

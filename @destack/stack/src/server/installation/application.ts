@@ -36,9 +36,10 @@ import {
     graph,
     PackageDefinition,
     type PackageId,
+    type DependencyRelease,
     type PackageRelease,
 } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import { ServerRuntime } from "@destack/package/runtime";
 import {
     Address,
@@ -110,7 +111,7 @@ export interface ApplicationOptions {
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
-    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    /** The locks of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
     /** The space's blobs, storing the states its revisions require. */
     readonly blobs: BlobStore;
@@ -219,7 +220,7 @@ export class ApplicationInstallation {
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
         // relate it at the universe as its space, through the uplink, converging on each pass
-        const calls = await InstallationAccess.relate(snapshot, deployed ?? target, set);
+        const calls = await InstallationAccess.relate(snapshot, target, deployed ?? target, set);
         if (calls.length > 0) {
             const delegator = principal.space.reference(Scope.universe.id, target.scope);
             const lending = Caller.acting(delegator, reconciliation.caller.subject);
@@ -270,7 +271,7 @@ export class ApplicationInstallation {
         );
         const built = await Build.require(snapshot, revision.scope, revision.buildId);
 
-        return Rollout.isSuperseded(target.installation, built.manifest, this.#options.trusted);
+        return Rollout.isSuperseded(target.installation, built.lock, this.#options.trusted);
     }
 
     /** Revise the installation: a build at its bindings, retaining each revision once. */
@@ -290,11 +291,11 @@ export class ApplicationInstallation {
             target.scope,
             input.build,
         );
-        const reader = await this.#options.builds.contents(built.manifest);
+        const reader = await this.#options.builds.root(built.lock);
         const description = await PackageDescription.of(reader);
-        const { stranded } = this.#selectWorkloads(built.manifest, reader, description);
+        const { stranded } = this.#selectWorkloads(built.lock, reader, description);
         const isRefused =
-            this.#describeRefusal(built.manifest, reader, stranded, description) !== undefined ||
+            this.#describeRefusal(built.lock, reader, stranded, description) !== undefined ||
             (await this.#describeDatabases(reader)) !== undefined;
 
         // bind a stack's nothing, and a refused build's selected targets alone, as it creates nothing
@@ -313,7 +314,7 @@ export class ApplicationInstallation {
         const [revision] = await call.mutate(call.self, [
             await RolloutTarget.create(
                 target.installation,
-                { id: built.id, manifest: built.manifest },
+                { id: built.id, lock: built.lock },
                 input,
                 input.evaluation,
                 bindings,
@@ -345,7 +346,7 @@ export class ApplicationInstallation {
             revision.buildId,
         );
 
-        return this.#readNeeds(await this.#options.builds.contents(built.manifest), []);
+        return this.#readNeeds(await this.#options.builds.root(built.lock), []);
     }
 
     /** Read the needs of the revisions the installation's live deployments still run. */
@@ -493,7 +494,7 @@ export class ApplicationInstallation {
             revision.scope,
             revision.buildId,
         );
-        if (Rollout.isSuperseded(target.installation, built.manifest, this.#options.trusted)) {
+        if (Rollout.isSuperseded(target.installation, built.lock, this.#options.trusted)) {
             const message = `waiting for the space's stack to move it to a release this machine runs`;
             await call.observe(installation, target.installation, {
                 conditions: { Ready: Rollout.waiting("WaitingForStack", message) },
@@ -503,10 +504,9 @@ export class ApplicationInstallation {
         }
 
         // wait for a build this machine lacks, which a pull or its stack brings, as an image pull waits
-        if (!(await this.#options.builds.contains(built.manifest))) {
-            const message = `waiting for build ${built.manifest}, which this machine does not have yet`;
+        if (!(await this.#options.builds.contains(built.lock))) {
             await call.observe(installation, target.installation, {
-                conditions: { Ready: Rollout.waiting("WaitingForBuild", message) },
+                conditions: { Ready: Rollout.waitingForBuild(built.lock) },
             });
 
             return;
@@ -517,11 +517,11 @@ export class ApplicationInstallation {
         const description = await PackageDescription.of(build);
 
         // select the workloads the machine runs
-        const { workloads, stranded } = this.#selectWorkloads(built.manifest, build, description);
+        const { workloads, stranded } = this.#selectWorkloads(built.lock, build, description);
 
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
-            this.#describeRefusal(built.manifest, build, stranded, description) ??
+            this.#describeRefusal(built.lock, build, stranded, description) ??
             (await this.#describeUnentitled(call, description)) ??
             (await this.#describeUninstalled(call, revision, description)) ??
             (await this.#describeDatabases(build));
@@ -530,7 +530,7 @@ export class ApplicationInstallation {
         }
 
         // stop for a broken upgrade chain or an approval of the upgrade from the applied release
-        if (await this.#holdForUpgrade(call, revision, build)) {
+        if (await this.#holdForUpgrade(call, revision, build, built.lock)) {
             return;
         }
 
@@ -682,7 +682,7 @@ export class ApplicationInstallation {
 
     /** Describe why a build cannot deploy. */
     #describeRefusal(
-        manifest: Digest,
+        lock: Digest,
         build: BuildReader,
         stranded: readonly string[],
         description: PackageDescription | undefined,
@@ -705,7 +705,7 @@ export class ApplicationInstallation {
         // refuse a host installation of a build the machine neither ships nor links
         else if (
             this.#target.installation.isolation === "host" &&
-            !this.#options.trusted.has(manifest)
+            !this.#options.trusted.has(lock)
         ) {
             const message = `${name} runs on the host, which only releases the machine ships or links may`;
 
@@ -723,7 +723,7 @@ export class ApplicationInstallation {
         const isHooked = Object.values(description?.objects ?? {}).some(
             (routed) => Object.keys(routed.hooks).length > 0,
         );
-        const isHosted = this.#isStored(manifest);
+        const isHosted = this.#isStored(lock);
         const isServed =
             isHosted ||
             Object.values(build.manifest.outputs).some((output) =>
@@ -879,6 +879,7 @@ export class ApplicationInstallation {
         call: MethodContextOf<typeof rollout, "deploy">,
         revision: InstallationRevision,
         build: BuildReader,
+        lock: Digest,
     ): Promise<boolean> {
         // pass a first deploy and a redeploy of the applied revision
         const target = this.#target;
@@ -894,7 +895,7 @@ export class ApplicationInstallation {
             call,
             present(applied, `revision ${target.appliedRevisionId}`),
         );
-        const upgrade = await this.#planUpgrade(previous, build);
+        const upgrade = await this.#planUpgrade(previous, build, lock);
         const access = await this.#planAccess(previous, build);
         const plan = { steps: [...upgrade.steps, ...access.steps] };
 
@@ -994,7 +995,7 @@ export class ApplicationInstallation {
     }
 
     /** Plan the upgrade steps from an applied build to the next by its kinds' comparisons. */
-    async #planUpgrade(previous: BuildReader, next: BuildReader): Promise<Plan> {
+    async #planUpgrade(previous: BuildReader, next: BuildReader, lock: Digest): Promise<Plan> {
         // skip rollbacks
         const from = previous.manifest.package.version;
         const release = next.manifest.package.version;
@@ -1009,7 +1010,8 @@ export class ApplicationInstallation {
             declarations,
             vocabulary: Vocabulary.advance({}, declarations, from),
         };
-        const compared = await this.#compare(declarations, from, next);
+        const { builds } = this.#options;
+        const compared = await this.#compare(declarations, from, next, await builds.lock(lock));
         const owner = PackageManifest.package(next.manifest);
         const upgrade = Upgrade.plan(history, owner, await next.declarations(), (declaration) => {
             const plan = compared.get(Address.join(declaration.kind, declaration.name));
@@ -1069,27 +1071,30 @@ export class ApplicationInstallation {
         declarations: readonly graph.Declaration[],
         from: string,
         next: BuildReader,
+        lock: Lock,
     ): Promise<ReadonlyMap<string, Plan>> {
         // pair the applied declarations with the next build's by kind and name
         const kept = new Map(
             declarations.map((each) => [Address.join(each.kind, each.name), each] as const),
         );
-        // find each kind's package among the releases the next build resolved
-        const releases = await next.releases();
+        // find each kind's package in the next build's lock
+        const { builds } = this.#options;
+        const entries = await Lock.entries(lock, (digest) => builds.get(digest));
         const owner = PackageManifest.package(next.manifest);
         const [runtime] = this.#options.runtimes;
         const compared = new Map<string, Plan>();
         for (const after of await next.declarations()) {
-            // find the kind's compare function in its package's build, the next build's own or a release's
+            // find the kind's compare function in its package's build
             const address = Address.join(after.kind, after.name);
             const before = kept.get(address);
             if (before === undefined) {
                 continue;
             }
-            const kind =
+            const locked =
                 after.kindPackageId === owner.id
-                    ? next
-                    : await this.#pullRelease(releases, after.kindPackageId);
+                    ? await builds.cache.store.putLock(lock)
+                    : await this.#kindLock(lock, entries, after.kindPackageId);
+            const kind = await builds.root(locked);
             const reference = await kindCompare(kind, after.kind);
             if (reference === undefined) {
                 continue;
@@ -1109,7 +1114,7 @@ export class ApplicationInstallation {
                 description: declaration.description,
                 symbol: { package: { ...owner, version } },
             });
-            const plan = await machine.call(kind, exported.path, reference.name, [
+            const plan = await machine.call(locked, exported.path, reference.name, [
                 entry(before, from),
                 entry(after, owner.version),
             ]);
@@ -1119,25 +1124,38 @@ export class ApplicationInstallation {
         return compared;
     }
 
-    /** Bring a release a build depends on into the machine's cache by its package. */
-    async #pullRelease(
-        releases: readonly PackageRelease[],
+    /** Read the lock of a package defining a kind: in the next build's, else the linked one. */
+    async #kindLock(
+        lock: Lock,
+        entries: Readonly<Record<string, DependencyRelease>>,
         packageId: PackageId,
-    ): Promise<BuildReader> {
-        const release = present(
-            releases.find((each) => "id" in each.package && each.package.id === packageId),
-            `the release of ${packageId}`,
+    ): Promise<Digest> {
+        // take the builtin the machine links, as every build resolves a linked package to it
+        const { builds, linked } = this.#options;
+        const builtin = linked.get(packageId);
+        if (builtin !== undefined) {
+            await builds.pull(packageId, builtin.lock);
+
+            return builtin.lock;
+        }
+
+        // derive the package's lock within the next build's, stored where the machine reads it
+        const entry = present(
+            Object.values(entries).find(
+                (each) => each.kind === "destack" && each.package.id === packageId,
+            ),
+            `the build of the kind package ${packageId}`,
         );
 
-        return await this.#options.builds.pull(packageId, release.manifest);
+        return await builds.cache.store.putLock(Lock.at(lock, entry.manifest));
     }
 
     /** Decide whether a build runs in the store's process: linked, or a host installation's. */
-    #isStored(manifest: Digest): boolean {
+    #isStored(lock: Digest): boolean {
         const { installation: installed } = this.#target;
 
         return (
-            this.#options.linked.get(installed.packageId)?.manifest === manifest ||
+            this.#options.linked.get(installed.packageId)?.lock === lock ||
             installed.isolation === "host"
         );
     }
@@ -1163,7 +1181,7 @@ export class ApplicationInstallation {
 
     /** Select a build's workloads: one in the store for a linked or process build, else its own. */
     #selectWorkloads(
-        manifest: Digest,
+        lock: Digest,
         build: BuildReader,
         description: PackageDescription | undefined,
     ): {
@@ -1171,7 +1189,7 @@ export class ApplicationInstallation {
         readonly stranded: string[];
     } {
         // serve a linked release or a host installation's build in the store
-        if (this.#isStored(manifest)) {
+        if (this.#isStored(lock)) {
             return { workloads: [this.#processWorkload(description)], stranded: [] };
         }
 

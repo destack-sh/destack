@@ -40,7 +40,7 @@ test("serve an installation once its targets are bound and the space's main data
     const release = {
         package: ids.package,
         version: "2026.9.0",
-        manifest: Digest.parse("d".repeat(64)),
+        lock: Digest.parse("d".repeat(64)),
     };
     const pulled = await insertRelease(
         connection,
@@ -84,10 +84,10 @@ test("serve an installation once its targets are bound and the space's main data
         fixture.environment.crypto,
     );
     const builds = await fixture.builds();
-    const open = async (packageId: PackageId, manifest: Digest) =>
-        manifest === release.manifest ? notes : builds.pull(packageId, manifest);
+    const open = async (packageId: PackageId, lock: Digest) =>
+        lock === release.lock ? notes : builds.pullRoot(packageId, lock);
     const served = async (
-        opening: (packageId: PackageId, manifest: Digest) => Promise<BuildReader> = open,
+        opening: (packageId: PackageId, lock: Digest) => Promise<BuildReader> = open,
     ) =>
         (await Database.installed(Snapshot.live(connection), ids.space, opening))
             .map((entry) => [
@@ -97,8 +97,8 @@ test("serve an installation once its targets are bound and the space's main data
             .toSorted(([left], [right]) => String(left).localeCompare(String(right)));
 
     // open the stack's build with a vault it declares for its document, which nothing binds to it
-    const vaulted = async (packageId: PackageId, manifest: Digest) => {
-        const built = await open(packageId, manifest);
+    const vaulted = async (packageId: PackageId, lock: Digest) => {
+        const built = await open(packageId, lock);
 
         return packageId === stack.installation.packageId
             ? new VaultedReader(built.manifest, built.stream, fixture.environment.crypto)

@@ -1,3 +1,4 @@
+import { Lock } from "@destack/package/manifest";
 import { type BuildReference } from "@destack/stack/declare";
 import { installation, type InstallationSelection } from "@destack/object";
 import objectPackage from "@destack/object/package";
@@ -75,7 +76,7 @@ test("apply a submitted stack build and open its installations' views", async ()
         spaceId: ids.space,
         id: stack.installationId,
         selection,
-        build: await fixture.recordBuild(await fixture.buildStack("personal", definition)),
+        build: await fixture.recordStack("personal", definition),
         stack: { export: "personal", parameters: {} },
         requestId: RequestId.create(fixture.machine.environment),
     });
@@ -110,7 +111,7 @@ test("apply a submitted stack build and open its installations' views", async ()
     ).toEqual({
         installationId: notes.installationId,
         revisionId: revised.revisionId,
-        manifest: await fixture.registry.find(ids.package, "2026.9.0"),
+        lock: await fixture.registry.find(ids.package, "2026.9.0"),
         view: "home",
         description: {
             entrypoint: "view.js",
@@ -153,7 +154,7 @@ test("apply an earlier build submitted again after a later one, approving each p
             spaceId: ids.space,
             id: stack.installationId,
             selection,
-            build: await fixture.recordBuild(await fixture.buildStack("personal", definition)),
+            build: await fixture.recordStack("personal", definition),
             stack: { export: "personal", parameters: {} },
         };
         await owner.rollout.submit({
@@ -237,7 +238,10 @@ test("install an application from a checkout by submitting its build, following 
     ).toEqual({
         installationId: notes.id,
         revisionId: followed.revisionId,
-        manifest: await BuildStore.digest(reader.manifest, fixture.environment.crypto),
+        lock: await Lock.digest(
+            Lock.of(await BuildStore.digest(reader.manifest, fixture.environment.crypto)),
+            fixture.environment.crypto,
+        ),
         view: "home",
         description: {
             entrypoint: "view.js",
@@ -506,16 +510,16 @@ test("follow a distribution tag, recording the version of the release it points 
     const followed = await readInstalled(fixture.database, notes.id);
     const selected = await installer.installation.get({ scope: ids.space, id: notes.id });
     const [revision] = await fixture.database
-        .select({ source: build.table.source, manifest: build.table.manifest })
+        .select({ source: build.table.source, lock: build.table.lock })
         .from(installationRevision.table)
         .innerJoin(build.table, eq(build.table.id, installationRevision.table.buildId))
         .where(eq(installationRevision.table.id, present(followed.revisionId, "the revision")));
-    const manifest = await fixture.registry.find(ids.package, "latest");
+    const lock = await fixture.registry.find(ids.package, "latest");
     expect([selected.selection, revision]).toEqual([
         latest,
         {
-            source: { kind: "release", package: ids.package, version: "2026.10.0", manifest },
-            manifest,
+            source: { kind: "release", package: ids.package, version: "2026.10.0", lock },
+            lock,
         },
     ]);
 });

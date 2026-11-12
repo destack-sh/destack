@@ -1,6 +1,14 @@
 import { PROCESS_RUNTIME } from "../object/index.ts";
 import { KNOWN_TYPES } from "../stack/kernel.ts";
-import { type BlobStore, type Database, type DatabaseConnection, eq, Snapshot } from "@destack/db";
+import {
+    and,
+    type BlobStore,
+    type Database,
+    type DatabaseConnection,
+    eq,
+    isNull,
+    Snapshot,
+} from "@destack/db";
 import { principal } from "@destack/access";
 import { hostname, machine } from "@destack/account/object";
 import { type PackageId, PackageRelease } from "@destack/package";
@@ -342,11 +350,11 @@ export class SpaceStore {
         }
         // pull a named version
         else if (version !== undefined) {
-            return builds.pull(packageId, await registry.find(packageId, version));
+            return builds.pullRoot(packageId, await registry.find(packageId, version));
         }
         // pull the distribution's release of a package the space does not install
         else if (distributed !== undefined) {
-            return builds.pull(packageId, distributed.manifest);
+            return builds.pullRoot(packageId, distributed.lock);
         }
         // run nothing of a package outside the distribution
         else {
@@ -681,7 +689,12 @@ async function leaveMachine(store: ObjectStore, subject: Subject): Promise<void>
     const [row] = await store.database
         .select({ scope: machine.table.scope, id: machine.table.id })
         .from(machine.table)
-        .where(eq(machine.table.id, schema.identifier("machine").parse(subject.id)));
+        .where(
+            and(
+                eq(machine.table.id, schema.identifier("machine").parse(subject.id)),
+                isNull(machine.table.deletedAt),
+            ),
+        );
     if (row === undefined) {
         return;
     }

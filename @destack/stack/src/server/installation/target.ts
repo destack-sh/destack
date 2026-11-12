@@ -1,6 +1,6 @@
 import { Failure } from "@destack/error";
 import { DeclarationReference } from "@destack/package/declare";
-import { installableReleases, MAIN_DATABASE, StackDefinition } from "../../declare/index.ts";
+import { installableBuilds, MAIN_DATABASE, StackDefinition } from "../../declare/index.ts";
 import {
     and,
     type BlobStore,
@@ -23,8 +23,8 @@ import {
     ObjectTypePool,
     PackageDescription,
 } from "@destack/object";
-import { PackageId, PackageRelease } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type DependencyRelease, PackageId, PackageRelease } from "@destack/package";
+import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import { ResourceDescription } from "@destack/resource";
 import {
     Digest,
@@ -72,16 +72,16 @@ export interface RevisionOptions {
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
-    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    /** The locks of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
 }
 
-/** The build a selection resolves to: the space's build, its manifest and source. */
+/** The build a selection resolves to: the space's build, its lock and source. */
 interface SelectedBuild {
     /** The space's build. */
     readonly build: Identifier<"build">;
-    /** The digest of the build's manifest. */
-    readonly manifest: Digest;
+    /** The digest of the build's lock. */
+    readonly lock: Digest;
     /** Where the build comes from. */
     readonly source: BuildSource;
 }
@@ -124,7 +124,7 @@ export const RolloutTarget = {
                 selected ??
                 (revision === undefined || current === undefined
                     ? undefined
-                    : { build: current.id, manifest: Build.manifest(current) });
+                    : { build: current.id, lock: Build.lock(current) });
             // wait for an installation selecting a target of a kind no server here serves yet
             const selections = Object.values(row.installation.bindings).flatMap((each) =>
                 Object.values(each),
@@ -147,6 +147,13 @@ export const RolloutTarget = {
             else if (chosen === undefined) {
                 continue;
             }
+            // wait for a missing build
+            else if (!(await options.builds.contains(chosen.lock))) {
+                await reconciliation.observe(installation, row.installation, {
+                    conditions: { Ready: Rollout.waitingForBuild(chosen.lock) },
+                });
+                continue;
+            }
 
             // pass over a stack whose targeted revision has this build at these inputs, as stacks bind nothing
             const inputs =
@@ -159,7 +166,7 @@ export const RolloutTarget = {
                 revision.buildId === chosen.build &&
                 revision.digest ===
                     (await InstallationRevision.digest(
-                        chosen.manifest,
+                        chosen.lock,
                         inputs,
                         [],
                         store.environment.crypto,
@@ -169,22 +176,17 @@ export const RolloutTarget = {
             }
 
             // describe a new build's revision, reusing the targeted one's for the same build
-            const reader = await options.builds.contents(chosen.manifest);
+            const lock = await options.builds.lock(chosen.lock);
             const described =
                 revision !== undefined && revision.buildId === chosen.build
                     ? { dependencies: revision.dependencies, states: revision.states }
-                    : await RolloutTarget.describe(
-                          row.installation,
-                          reader,
-                          store.objects,
-                          options,
-                      );
+                    : await RolloutTarget.describe(row.installation, lock, store.objects, options);
 
             // evaluate a stack's export of it at its inputs
             const evaluation =
                 inputs === undefined
                     ? undefined
-                    : await RolloutTarget.evaluate(inputs, reader, options);
+                    : await RolloutTarget.evaluate(inputs, lock, options);
             calls.push(
                 rollout.call("revise", {
                     ...rollout.target({ scope: row.scope, id: row.installationId }),
@@ -208,7 +210,7 @@ export const RolloutTarget = {
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
         options: Pick<RevisionOptions, "forge" | "registry" | "linked"> & {
-            readonly builds: Pick<SpaceBuildStore, "contents" | "pull">;
+            readonly builds: Pick<SpaceBuildStore, "get" | "pull" | "pullRoot" | "root">;
         },
     ): Promise<BuildReader | undefined> {
         // read the installation's rollout, refusing several of the package unless one is named
@@ -243,7 +245,7 @@ export const RolloutTarget = {
         }
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {
-            return options.builds.pull(packageId, linked.manifest);
+            return options.builds.pullRoot(packageId, linked.lock);
         }
         // resolve the release a planned installation selects as its rollout will
         else if (selection?.kind === "release" || selection?.kind === "tag") {
@@ -254,7 +256,7 @@ export const RolloutTarget = {
                 options,
             );
             if (resolved !== undefined) {
-                return options.builds.pull(packageId, resolved.manifest);
+                return options.builds.pullRoot(packageId, resolved.lock);
             }
         }
 
@@ -302,18 +304,38 @@ export const RolloutTarget = {
         return rows.filter((each) => matches(each.selection));
     },
 
-    /** Evaluate a build's stack at an export from its inputs, with the releases it reads. */
+    /** Evaluate a locked build's stack at an export, with the builds its lock has. */
     async evaluate(
         inputs: Omit<StackEvaluation, "definition">,
-        reader: BuildReader,
+        lock: Lock,
         options: {
-            readonly builds: Pick<SpaceBuildStore, "read">;
-            readonly registry: Pick<Registry, "locate">;
+            readonly builds: Pick<SpaceBuildStore, "cache" | "contents" | "get" | "read">;
+            readonly registry: Pick<Registry, "store">;
         },
     ): Promise<StackEvaluation> {
-        // read the stack the build declares at the export, with the settings it places
+        // take the lock's builds
+        const { builds } = options;
+        const linked = await Promise.all(
+            [...builds.cache.linked.values()].map(async (release) => {
+                const { root } = await builds.cache.store.lock(release.lock);
+                const entry: DependencyRelease = {
+                    kind: "destack",
+                    package: release.package,
+                    manifest: root,
+                };
+
+                return entry;
+            }),
+        );
+        const releases = [
+            ...linked,
+            ...(await Lock.releases(lock, (digest) => builds.get(digest))),
+        ];
+
+        // read the stack the lock's root declares at the export
         const definition = await StackDefinition.declared(
-            reader,
+            await builds.contents(lock.root),
+            releases,
             inputs.export,
             inputs.settings,
             (packageId, manifest) => options.builds.read(packageId, manifest),
@@ -369,22 +391,24 @@ export const RolloutTarget = {
     /** Describe a build's revision of an installation: its dependencies and required states. */
     async describe(
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
-        reader: BuildReader,
+        lock: Lock,
         objects: readonly ObjectType[],
         options: Pick<RevisionOptions, "builds" | "registry" | "blobs" | "known">,
     ): Promise<Pick<InstallationRevision, "dependencies" | "states">> {
-        // read the installable packages it depends on, at the releases it compiled against
+        // read the lock's root and the builds of the installable packages the lock has
         const { builds, blobs } = options;
+        const reader = await builds.contents(lock.root);
+        const entries = await Lock.entries(lock, (digest) => builds.get(digest));
         const read = (dependency: PackageId, manifest: Digest) => builds.read(dependency, manifest);
-        const dependencies = await installableReleases(reader, read);
+        const dependencies = await installableBuilds(entries, lock.root, read);
 
-        // describe the state each declaration requires: main's tables, an installation's pinned release, a resource's own
+        // describe the state each declaration requires: main's tables, an installation's release, a resource's own
         const required = new Map<string, JsonValue>();
         const tables = await mainTables(target, reader, { dependencies }, objects, options);
         if (tables !== undefined) {
             required.set(MAIN_DATABASE, tables);
         }
-        for (const [name, state] of await declaredStates(reader)) {
+        for (const [name, state] of await declaredStates(reader, entries)) {
             required.set(name, state);
         }
 
@@ -401,7 +425,7 @@ export const RolloutTarget = {
     /** Describe the call that records a space's build and its stack evaluation as a revision. */
     async create(
         target: Pick<Installation, "id" | "scope" | "packageId" | "generation">,
-        evaluated: { readonly id: Identifier<"build">; readonly manifest: Digest },
+        evaluated: { readonly id: Identifier<"build">; readonly lock: Digest },
         described: Pick<InstallationRevision, "dependencies" | "states">,
         evaluation: StackEvaluation | undefined,
         bindings: readonly Binding[],
@@ -417,12 +441,7 @@ export const RolloutTarget = {
             ...(evaluation === undefined ? {} : { definition: evaluation.definition }),
             bindings: [...bindings],
             generation: target.generation,
-            digest: await InstallationRevision.digest(
-                evaluated.manifest,
-                evaluation,
-                bindings,
-                crypto,
-            ),
+            digest: await InstallationRevision.digest(evaluated.lock, evaluation, bindings, crypto),
         });
     },
 };
@@ -442,43 +461,37 @@ async function selectBuild(
         const replacement =
             running === undefined
                 ? undefined
-                : { version: running.package.version, manifest: running.manifest };
+                : { version: running.package.version, lock: running.lock };
         const isCurrentSuperseded =
             current !== undefined &&
-            Rollout.isSuperseded(row.installation, Build.manifest(current), options.trusted);
-        const pinned =
+            Rollout.isSuperseded(row.installation, Build.lock(current), options.trusted);
+        const resolved =
             isCurrentSuperseded && replacement !== undefined
                 ? replacement
                 : await selectedRelease(snapshot, row.installation, current, options);
-        if (pinned === undefined) {
+        if (resolved === undefined) {
             return undefined;
         }
 
         // move one whose resolved release this machine no longer runs too, as a system image updates its apps
-        const isSuperseded = Rollout.isSuperseded(
-            row.installation,
-            pinned.manifest,
-            options.trusted,
-        );
-        const selected = isSuperseded && replacement !== undefined ? replacement : pinned;
+        const isSuperseded = Rollout.isSuperseded(row.installation, resolved.lock, options.trusted);
+        const selected = isSuperseded && replacement !== undefined ? replacement : resolved;
+
+        // pull the release, then reuse its current build
+        const { builds } = options;
+        const { lock } = selected;
+        const pulled = await builds.pull(packageId, lock);
         const source = current?.source;
-        if (
-            source?.kind === "release" &&
-            current !== undefined &&
-            Build.manifest(current) === selected.manifest
-        ) {
-            return { manifest: selected.manifest, source, build: current.id };
+        if (source?.kind === "release" && current !== undefined && Build.lock(current) === lock) {
+            return { lock, source, build: current.id };
         }
 
-        // pull the release and record it as the space's build once, at the version its manifest has
-        const { builds } = options;
-        const { manifest } = selected;
-        const pulled = await builds.pull(packageId, manifest);
+        // record the release
         const released = {
             kind: "release" as const,
             package: packageId,
-            version: pulled.manifest.package.version,
-            manifest,
+            version: (await builds.get(pulled.root)).package.version,
+            lock,
         };
         const recorded = await Build.release(
             snapshot,
@@ -487,7 +500,7 @@ async function selectBuild(
             released,
         );
 
-        return { build: recorded.id, manifest, source: released };
+        return { build: recorded.id, lock, source: released };
     }
     // take the succeeded build of the commit a repository reference points at
     else if (selection.kind === "repository") {
@@ -512,7 +525,7 @@ async function selectBuild(
         const found = await Build.find(snapshot, row.scope, source);
 
         return found?.state === "succeeded"
-            ? { manifest: Build.manifest(found), source, build: found.id }
+            ? { lock: Build.lock(found), source, build: found.id }
             : undefined;
     }
     // take the checkout's newest succeeded build
@@ -535,27 +548,26 @@ async function selectBuild(
 
         return newest === undefined
             ? undefined
-            : { manifest: Build.manifest(newest), source: newest.source, build: newest.id };
+            : { lock: Build.lock(newest), source: newest.source, build: newest.id };
     }
 }
 
-/** Resolve a release or tag selection to its version and manifest, none while its tag is unset. */
+/** Resolve a release or tag selection to its version and lock, none while its tag is unset. */
 async function selectedRelease(
     snapshot: Pick<Snapshot, "read">,
     installed: Pick<Installation, "selection" | "packageId">,
     current: Build | undefined,
     options: Pick<RevisionOptions, "forge" | "registry"> & {
-        readonly builds: Pick<SpaceBuildStore, "pull">;
+        readonly builds: Pick<SpaceBuildStore, "get" | "pull">;
     },
-): Promise<{ readonly version: string; readonly manifest: Digest } | undefined> {
-    // take a release's version and its pinned manifest, else the registry's
+): Promise<{ readonly version: string; readonly lock: Digest } | undefined> {
+    // take a release's version and the registry's lock of it
     const { selection, packageId } = installed;
     const { forge, builds, registry } = options;
     if (selection.kind === "release") {
-        const manifest =
-            selection.manifest ?? (await published(registry, packageId, selection.version));
+        const lock = await published(registry, packageId, selection.version);
 
-        return manifest === undefined ? undefined : { version: selection.version, manifest };
+        return lock === undefined ? undefined : { version: selection.version, lock };
     }
     // take the version a tag points at in the forge's replica
     else if (selection.kind === "tag" && forge !== null) {
@@ -563,21 +575,22 @@ async function selectedRelease(
 
         return version === undefined
             ? undefined
-            : { version, manifest: await registry.find(packageId, version) };
+            : { version, lock: await registry.find(packageId, version) };
     }
     // keep the targeted release of a tag on a machine following no forge
     else if (selection.kind === "tag" && current?.source.kind === "release") {
-        return { version: current.source.version, manifest: Build.manifest(current) };
+        return { version: current.source.version, lock: Build.lock(current) };
     }
     // resolve a tag at the registry once, on a machine following no forge
     else if (selection.kind === "tag") {
-        const manifest = await published(registry, packageId, selection.tag);
-        if (manifest === undefined) {
+        const lock = await published(registry, packageId, selection.tag);
+        if (lock === undefined) {
             return undefined;
         }
-        const version = (await builds.pull(packageId, manifest)).manifest.package.version;
+        const version = (await builds.get((await builds.pull(packageId, lock)).root)).package
+            .version;
 
-        return { version, manifest };
+        return { version, lock };
     }
     // follow nothing else here
     else {
@@ -585,7 +598,7 @@ async function selectedRelease(
     }
 }
 
-/** Find a published release's manifest by version or tag, absent while none is published. */
+/** Find a published release's lock by version or tag, absent while none is published. */
 async function published(
     registry: Pick<Registry, "find">,
     packageId: PackageId,
@@ -653,8 +666,11 @@ async function mainTables(
 }
 
 /** Describe the state each resource declaration of a build requires of its target, by name. */
-async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValue>> {
-    // read the build's resource declarations and its exact dependencies once an installation of another package is declared
+async function declaredStates(
+    reader: BuildReader,
+    entries: Readonly<Record<string, DependencyRelease>>,
+): Promise<Map<string, JsonValue>> {
+    // read the build's resource declarations
     const own = PackageManifest.package(reader.manifest);
     const resources = (await reader.declarations())
         .filter((declaration) => declaration.provisioned === true)
@@ -662,33 +678,27 @@ async function declaredStates(reader: BuildReader): Promise<Map<string, JsonValu
             isInstallation: InstallationKind.has(declaration),
             ...ResourceDescription.catchall(schema.json()).parse(declaration.description),
         }));
-    const callees = resources
-        .filter((resource) => resource.isInstallation)
-        .map((resource) => InstallationBindingSpec.parse(resource.spec).package);
-    const dependencies = callees.some((callee) => callee !== own.id)
-        ? Object.values(await reader.dependencies())
-        : [];
 
-    // pin an installation to the release of its package the reader compiled against, else take a resource's own state
+    // record an installation's callee release
     const states = new Map<string, JsonValue>();
     for (const { name, isInstallation, spec, ...state } of resources) {
-        // pin an installation's callee release
+        // record the callee's version in the lock
         if (isInstallation) {
             const callee = InstallationBindingSpec.parse(spec).package;
             const release =
                 callee === own.id
                     ? own.version
-                    : dependencies.find(
-                          (entry) => "id" in entry.package && entry.package.id === callee,
+                    : Object.values(entries).find(
+                          (entry) => entry.kind === "destack" && entry.package.id === callee,
                       )?.package.version;
             if (release === undefined) {
                 throw StackError.of(
                     "DEFINITION_INVALID",
-                    `binding of installation '${name}' is invalid: the reader binds it without depending on '${callee}'`,
+                    `binding of installation '${name}' is invalid: the build binds it without requiring '${callee}'`,
                 );
             }
-            const pinned: InstallationBindingState = { release: Version.parse(release) };
-            states.set(name, pinned);
+            const recorded: InstallationBindingState = { release: Version.parse(release) };
+            states.set(name, recorded);
         }
         // take the state another resource requires, none for a stateless one
         else if (Object.keys(state).length > 0) {

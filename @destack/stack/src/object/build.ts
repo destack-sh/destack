@@ -11,7 +11,6 @@ import {
 import { none, relation, through, union } from "@destack/access";
 import { defineObject, defineShape, field } from "@destack/object";
 import { PackageFile } from "@destack/package/file";
-import { PackageManifest } from "@destack/package/manifest";
 import { PackageId, PackageRelease } from "@destack/package";
 import type { ResultsOf } from "@destack/object";
 import type { Call } from "@destack/sync";
@@ -65,8 +64,8 @@ export const BuildSource = schema.discriminatedUnion("kind", [
         package: PackageId,
         /** The released version. */
         version: Version,
-        /** The digest of the release's manifest, which identifies its exact build. */
-        manifest: Digest,
+        /** The digest of the release's lock: its build and every build it runs with. */
+        lock: Digest,
     }),
 ]);
 /** The source a build has. */
@@ -96,13 +95,13 @@ const FailedBuild = schema.object({
     failure: Failure,
 });
 
-/** How a runner reports a build's end: stored under its manifest, or failed. */
+/** How a runner reports a build's end: stored under its lock, or failed. */
 export const BuildEnd = schema.discriminatedUnion("kind", [
     schema.object({
         /** A build whose files the runner stored. */
         kind: schema.literal("stored"),
-        /** The stored build's manifest. */
-        manifest: PackageManifest,
+        /** The digest of the lock the runner pushed: its build and every build it runs with. */
+        lock: Digest,
         /** The digest and size of its code index, which the runner stored as a file. */
         code: PackageFile.pick({ digest: true, size: true }),
     }),
@@ -112,10 +111,10 @@ export const BuildEnd = schema.discriminatedUnion("kind", [
 /** How a build ended, as its space records it. */
 export const BuildOutcome = schema.discriminatedUnion("kind", [
     schema.object({
-        /** A build whose manifest the space stores. */
+        /** A build whose lock the space stores. */
         kind: schema.literal("stored"),
-        /** The digest of the stored manifest. */
-        digest: Digest,
+        /** The digest of the stored lock. */
+        lock: Digest,
     }),
     FailedBuild,
 ]);
@@ -143,8 +142,8 @@ export const build = defineObject(
             commit: field.string(Commit).optional(),
             /** The repository, directory and commit of a commit build, absent for a release. */
             checkout: field.string().optional(),
-            /** The stored build's manifest once succeeded, kept until retention expires it. */
-            manifest: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
+            /** The stored build's lock once succeeded, kept until retention expires it. */
+            lock: field.blob({ while: { expiredAt: { isNull: true } } }).optional(),
             /** Why the build failed, once failed. */
             failure: field.json(Failure).optional(),
             /** The start of the build's run, in UTC epoch milliseconds. */
@@ -179,12 +178,12 @@ export const build = defineObject(
                     ],
                 },
             },
-            manifest: {
+            lock: {
                 kind: "check",
                 condition: {
                     OR: [
-                        { state: "succeeded", manifest: { isNotNull: true } },
-                        { state: { ne: "succeeded" }, manifest: { isNull: true } },
+                        { state: "succeeded", lock: { isNotNull: true } },
+                        { state: { ne: "succeeded" }, lock: { isNull: true } },
                     ],
                 },
             },
@@ -272,8 +271,12 @@ export const build = defineObject(
         push: method.mutation({
             title: t`Push`,
             permission: "push",
-            output: schema.object({ manifest: Digest }),
-            prepared: schema.object({ manifest: Digest }),
+            input: schema.object({
+                /** The account publishing the build's package. */
+                account: schema.identifier("account"),
+            }),
+            output: schema.object({ lock: Digest }),
+            prepared: schema.object({ lock: Digest }),
         }),
         /** Publish the succeeded build and its unpublished dependencies for the caller. */
         publish: method.mutation({
@@ -304,22 +307,22 @@ export const build = defineObject(
     }),
 );
 
-/** A build's state with the manifest and failure the table's checks require of it. */
+/** A build's state with the lock and failure the table's checks require of it. */
 export type BuildState =
-    | { readonly state: "succeeded"; readonly manifest: Digest; readonly failure: null }
-    | { readonly state: "failed"; readonly manifest: null; readonly failure: Failure }
+    | { readonly state: "succeeded"; readonly lock: Digest; readonly failure: null }
+    | { readonly state: "failed"; readonly lock: null; readonly failure: Failure }
     | {
           readonly state: "pending" | "running" | "cancelled";
-          readonly manifest: null;
+          readonly lock: null;
           readonly failure: null;
       };
 
-/** One recorded build: a succeeded build has its manifest, a failed build its failure. */
+/** One recorded build: a succeeded build has its lock, a failed build its failure. */
 export type Build = Omit<Select<typeof build.table>, keyof BuildState> & BuildState;
 
 /** What build retention retains and drops. */
 export interface BuildRetention {
-    /** The manifests of the retained builds, releases among them. */
+    /** The locks of the retained builds, releases among them. */
     readonly retained: ReadonlySet<Digest>;
     /** The unexpired builds retention drops. */
     readonly expired: readonly {
@@ -334,29 +337,24 @@ export const Build = {
     of<Row extends Pick<Select<typeof build.table>, "id" | keyof BuildState>>(
         row: Row,
     ): Omit<Row, keyof BuildState> & BuildState {
-        const { state, manifest, failure } = row;
+        const { state, lock, failure } = row;
 
-        // accept a succeeded build with its manifest
-        if (state === "succeeded" && manifest !== null && failure === null) {
-            return { ...row, state, manifest, failure };
+        // accept a succeeded build with its lock
+        if (state === "succeeded" && lock !== null && failure === null) {
+            return { ...row, state, lock, failure };
         }
         // accept a failed build with its failure
-        else if (state === "failed" && manifest === null && failure !== null) {
-            return { ...row, state, manifest, failure };
+        else if (state === "failed" && lock === null && failure !== null) {
+            return { ...row, state, lock, failure };
         }
         // accept an unfinished or cancelled build without either
-        else if (
-            state !== "succeeded" &&
-            state !== "failed" &&
-            manifest === null &&
-            failure === null
-        ) {
-            return { ...row, state, manifest, failure };
+        else if (state !== "succeeded" && state !== "failed" && lock === null && failure === null) {
+            return { ...row, state, lock, failure };
         }
         // refuse a row the table's checks refuse
         else {
             throw new TypeError(
-                `build '${row.id}' is '${state}' with a mismatched manifest or failure`,
+                `build '${row.id}' is '${state}' with a mismatched lock or failure`,
             );
         }
     },
@@ -366,14 +364,12 @@ export const Build = {
         return FINISHED_BUILD_STATES.some((state) => state === entry.state);
     },
 
-    /** Read a build's manifest. */
-    manifest(
-        entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>,
-    ): Digest {
-        // read a succeeded build's manifest until retention removes its files
+    /** Read a build's lock. */
+    lock(entry: Pick<Select<typeof build.table>, "id" | "expiredAt" | keyof BuildState>): Digest {
+        // read a succeeded build's lock until retention removes its files
         const narrowed = Build.of(entry);
         if (narrowed.state === "succeeded" && narrowed.expiredAt === null) {
-            return narrowed.manifest;
+            return narrowed.lock;
         }
         // refuse an expired build
         else if (narrowed.state === "succeeded") {
@@ -383,7 +379,7 @@ export const Build = {
         else if (narrowed.state === "failed") {
             throw Failure.error(narrowed.failure);
         }
-        // refuse a build without a manifest
+        // refuse a build without a lock
         else {
             throw StackError.of(
                 "BUILD_UNAVAILABLE",
@@ -416,12 +412,12 @@ export const Build = {
         return JSON.stringify([source.repository, source.directory, source.commit]);
     },
 
-    /** Require a space's build with its manifest, as a revision evaluates it. */
+    /** Require a space's build with its lock, as a revision evaluates it. */
     async require(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
         buildId: Identifier<"build">,
-    ): Promise<Select<typeof build.table> & { readonly manifest: Digest }> {
+    ): Promise<Select<typeof build.table> & { readonly lock: Digest }> {
         // require the space's build, refusing one without its files
         const [found] = await snapshot
             .read(build.table)
@@ -430,7 +426,7 @@ export const Build = {
             throw StackError.of("BUILD_NOT_FOUND", `build '${buildId}' not found`);
         }
 
-        return { ...found, manifest: Build.manifest(found) };
+        return { ...found, lock: Build.lock(found) };
     },
 
     /** Read a space's build of a release, creating it pulled and born succeeded the first time. */
@@ -441,17 +437,17 @@ export const Build = {
         release: {
             readonly package: PackageId;
             readonly version: string;
-            readonly manifest: Digest;
+            readonly lock: Digest;
         },
-    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
-        // take the space's live build of the release's manifest
+    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
+        // take the space's live build of the release's lock
         const [found] = await reader.read(build.table).findMany({
-            where: { scope: spaceId, manifest: release.manifest, expiredAt: { isNull: true } },
+            where: { scope: spaceId, lock: release.lock, expiredAt: { isNull: true } },
         });
 
         // create it pulled from the registry the first time
-        const { package: packageId, version, manifest } = release;
-        const source = { kind: "release" as const, package: packageId, version, manifest };
+        const { package: packageId, version, lock } = release;
+        const source = { kind: "release" as const, package: packageId, version, lock };
         const id =
             found?.id ??
             (await mutate([build.call("create", { ...build.in(spaceId), source })]))[0].id;
@@ -477,7 +473,7 @@ export const Build = {
                 id: build.table.id,
                 scope: build.table.scope,
                 source: build.table.source,
-                manifest: build.table.manifest,
+                lock: build.table.lock,
             })
             .from(build.table)
             .where(and(eq(build.table.state, "succeeded"), isNull(build.table.expiredAt)))
@@ -502,7 +498,7 @@ export const Build = {
                 // retain the latest builds and every applied one, and expire the rest
                 const id = schema.identifier("build").parse(row.id);
                 if (position < count || appliedBuilds.has(id)) {
-                    retained.add(present(row.manifest, "a succeeded build's manifest"));
+                    retained.add(present(row.lock, "a succeeded build's lock"));
                 } else {
                     expired.push({ id, scope: schema.identifier("space").parse(row.scope) });
                 }

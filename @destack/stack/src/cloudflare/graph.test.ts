@@ -1,3 +1,4 @@
+import { Lock } from "@destack/package/manifest";
 import { WORKERD_COMPATIBILITY_DATE } from "@destack/package/runtime";
 import { Miniflare } from "miniflare";
 import { fileURLToPath } from "node:url";
@@ -37,6 +38,8 @@ test("index a manifest once in its object, show each build of it the rows in its
         world.crypto,
     );
     const manifest = await Digest.json(reader.manifest, world.crypto);
+    const locked = Lock.of(manifest);
+    const lock = await Lock.digest(locked, world.crypto);
     const storage = await TestDatabase.create(spaceTables({}).tables, {
         environment: world,
         isMigrated: true,
@@ -52,11 +55,11 @@ test("index a manifest once in its object, show each build of it the rows in its
                         kind: "release",
                         package: ids.package,
                         version: "2026.9.0",
-                        manifest,
+                        lock,
                     },
                     outputs: [],
                     state: "succeeded",
-                    manifest,
+                    lock,
                     startedAt: 1000,
                     finishedAt: 1000 + index,
                     createdAt: 1000,
@@ -73,6 +76,7 @@ test("index a manifest once in its object, show each build of it the rows in its
             storage.database,
             {
                 contains: async () => true,
+                lock: async () => locked,
                 contents: async () => {
                     opened += 1;
 

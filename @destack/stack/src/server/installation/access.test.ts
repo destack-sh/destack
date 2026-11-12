@@ -1,5 +1,12 @@
 import { schema } from "@destack/schema";
-import { AccessContext, Caller, Permission, principal } from "@destack/access";
+import {
+    AccessContext,
+    accessRelationship,
+    Caller,
+    Permission,
+    principal,
+    Relationship,
+} from "@destack/access";
 import { account, residency, space, user } from "@destack/account/object";
 import { Snapshot, Table } from "@destack/db";
 import { grant, role, type PackageDescription } from "@destack/object";
@@ -76,12 +83,12 @@ test("bind an installation's requests on other packages' types on its consenter'
 
     // run the consented role for the installer
     const binding = (permissions: readonly Permission[]) =>
-        role.call("upsertBinding", {
+        role.call("declare", {
             ...role.in(ids.space),
             name: `installation/${ids.notes}`,
             description: "What notes requests in this space",
             permissions: [...permissions],
-            subject: installation,
+            subjects: [installation],
             manager: { installationId: ids.notes, packageId: ids.package, name: "permissions" },
         });
     const delegator = AccessContext.of(Caller.of(subject), now);
@@ -104,7 +111,7 @@ test("bind an installation's requests on other packages' types on its consenter'
     });
 });
 
-test("relate a residency home's declared installation for its universe-scoped requests, and unrelate it once it goes", async () => {
+test("relate a residency home's declared installation while it asks the universe, unrelate it once it stops, leave a settled relationship, and relate it again after an upgrade", async () => {
     // declare notes in the space, which homes a residency
     const { database, now } = await installNotes();
     const lab = schema
@@ -136,22 +143,57 @@ test("relate a residency home's declared installation for its universe-scoped re
     const managed = { ...read.installation, managerInstallationId: stack };
     const target = { ...read, installation: managed };
 
-    // relate it while it asks for the universe's permissions, and unrelate it once it goes
+    // relate an unrelated installation asking the universe, and leave one asking nothing
     const set = { universe: [user.permission("recipient")] };
     const at = residency.target({ scope: Scope.universe.id, id: lab });
-    expect({
-        installed: await InstallationAccess.relate(snapshot, target, set),
-        removed: await InstallationAccess.relate(snapshot, target, {}),
-    }).toEqual({
-        installed: [
-            residency.call("touch", {
-                ...at,
-                installation: ids.notes,
-                name: "notes",
-                packageId: ids.package,
-                release: "2026.9.0",
-            }),
-        ],
-        removed: [residency.call("revoke", { ...at, installation: ids.notes, name: "notes" })],
+    const unrelated = {
+        asking: await InstallationAccess.relate(snapshot, target, target, set),
+        silent: await InstallationAccess.relate(snapshot, target, target, {}),
+    };
+
+    // relate it at the residency, then leave it while it asks, and unrelate it once it stops
+    const related = Relationship.encode({
+        id: "relationship-01996ab0-0000-7000-8000-00000000000f",
+        object: residency.reference(Scope.universe.id, lab),
+        relation: "installation",
+        subject: principal.installation.reference(ids.space, ids.notes),
+        createdAt: now,
+        expiresAt: null,
+    });
+    await database.transaction(
+        async (transaction) =>
+            await transaction
+                .insert(accessRelationship)
+                .values(Table.complete(accessRelationship, related)),
+    );
+    const settled = {
+        asking: await InstallationAccess.relate(snapshot, target, target, set),
+        silent: await InstallationAccess.relate(snapshot, target, target, {}),
+    };
+
+    // relate it again once a deploy applies another revision
+    const applied = schema
+        .identifier("installation-revision")
+        .parse("installation-revision-01996ab0-0000-7000-8000-000000000010");
+    const upgraded = await InstallationAccess.relate(
+        snapshot,
+        target,
+        { ...target, appliedRevisionId: applied },
+        set,
+    );
+    const touch = residency.call("touch", {
+        ...at,
+        installation: ids.notes,
+        name: "notes",
+        packageId: ids.package,
+        release: "2026.9.0",
+    });
+    expect({ unrelated, settled, upgraded }).toEqual({
+        unrelated: { asking: [touch], silent: [] },
+        settled: {
+            asking: [],
+            silent: [residency.call("revoke", { ...at, installation: ids.notes, name: "notes" })],
+        },
+        upgraded: [touch],
     });
 });

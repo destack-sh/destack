@@ -6,6 +6,7 @@ import {
     Manager,
     PermissionSet,
     principal,
+    Relationship,
 } from "@destack/access";
 import { Snapshot } from "@destack/db";
 import { grant, installation, type MethodContext, PackageDescription, role } from "@destack/object";
@@ -73,12 +74,12 @@ export const InstallationAccess = {
             packageId: target.installation.packageId,
             name: GRANT_NAME,
         };
-        const binding = role.call("upsertBinding", {
+        const binding = role.call("declare", {
             ...role.in(target.scope),
             name: `installation/${target.installationId}`,
             description: `What ${target.installation.name} requests in this space`,
             permissions: consented,
-            subject: installed,
+            subjects: [installed],
             manager,
         });
 
@@ -126,9 +127,10 @@ export const InstallationAccess = {
         ];
     },
 
-    /** Build the calls relating a residency home's declared installation, or unrelating it. */
+    /** Build the calls relating a residency home's declared installation as a deploy left it. */
     async relate(
         reader: Pick<Snapshot, "read">,
+        previous: Pick<InstallationRollout, "appliedRevisionId">,
         target: InstallationRollout,
         set: PermissionSet,
     ): Promise<Call[]> {
@@ -143,11 +145,28 @@ export const InstallationAccess = {
             return [];
         }
 
-        // unrelate one asking for nothing there
+        // read whether the residency relates the installation now
         const at = residency.target({ scope: Scope.universe.id, id: homed.id });
         const { installationId: installed } = target;
         const { name, packageId, selection } = target.installation;
-        if ((set.universe ?? []).length === 0) {
+        const [related] = await Relationship.read(
+            reader,
+            residency.reference(Scope.universe.id, homed.id),
+            {
+                relation: "installation",
+                subject: principal.installation.reference(target.scope, installed),
+            },
+        );
+        const isAsking = (set.universe ?? []).length > 0;
+        const isRelated = related !== undefined;
+        const isUpgraded = target.appliedRevisionId !== previous.appliedRevisionId;
+
+        // leave a settled relationship: related at the applied release while asking, else unrelated
+        if (isAsking ? isRelated && !isUpgraded : !isRelated) {
+            return [];
+        }
+        // unrelate one asking for nothing there
+        else if (!isAsking) {
             return [residency.call("revoke", { ...at, installation: installed, name })];
         }
         // refuse one following no release, which every installation a residency's home declares follows
@@ -157,7 +176,7 @@ export const InstallationAccess = {
                 `cannot grant residency: home installation '${name}' follows no release`,
             );
         }
-        // relate one following a release for what its universe-scoped requests ask
+        // relate one following a release for what its universe-scoped requests ask, again after an upgrade
         else {
             const release = selection.version;
 

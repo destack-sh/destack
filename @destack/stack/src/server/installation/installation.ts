@@ -242,13 +242,13 @@ async function requireUnneeded(
             revisions.find((each) => each.id === row.revisionId),
             `the revision of ${row.installation.name}`,
         );
-        const manifest = Build.manifest(
+        const lock = Build.lock(
             present(
                 built.find((each) => each.id === revision.buildId),
                 `the build of ${row.installation.name}`,
             ),
         );
-        const reader = await options.builds.contents(manifest);
+        const reader = await options.builds.root(lock);
         const description = await PackageDescription.of(reader);
         const needed = Rollout.needed(row.installation, revision, description);
         if (needed.some((entry) => entry.package.id === target.installation.packageId)) {
@@ -291,18 +291,18 @@ export function implementRollouts(options: InstallationOptions) {
 
                     // pull a selected release, and describe the submitted build's revision
                     const release = await pull(target, submitted, options);
-                    const manifest =
+                    const digest =
                         submitted.kind === "build"
-                            ? (await Build.require(context, target.scope, submitted.build)).manifest
+                            ? (await Build.require(context, target.scope, submitted.build)).lock
                             : present(release, `the pulled release of ${target.installation.name}`)
-                                  .manifest;
-                    const reader = await options.builds.contents(manifest);
+                                  .lock;
+                    const lock = await options.builds.lock(digest);
 
                     return {
                         release,
                         ...(await RolloutTarget.describe(
                             target.installation,
-                            reader,
+                            lock,
                             context.objects,
                             options,
                         )),
@@ -373,7 +373,8 @@ async function submit(
 
     // resolve the submitted build and require a build of the installation's package
     const resolved = await resolveBuild(context, target, submitted, prepared.release);
-    const reader = await options.builds.contents(resolved.manifest);
+    const lock = await options.builds.lock(resolved.lock);
+    const reader = await options.builds.contents(lock.root);
     const built = PackageManifest.package(reader.manifest);
     if (built.id !== target.installation.packageId) {
         throw StackError.of(
@@ -397,7 +398,7 @@ async function submit(
             ? undefined
             : await RolloutTarget.evaluate(
                   await RolloutTarget.inputs(context, { ...target.installation, ...stack }),
-                  reader,
+                  lock,
                   options,
               );
     const revision = await new ApplicationInstallation(target, options).revise(context, {
@@ -451,25 +452,25 @@ async function pull(
         return null;
     }
 
-    // read the manifest a tag or version selects, and pull it
+    // read the lock a tag or version selects
     const { builds, registry } = options;
-    const manifest =
-        reference.kind === "tag"
-            ? await registry.find(target.installation.packageId, reference.tag)
-            : (reference.manifest ??
-              (await registry.find(target.installation.packageId, reference.version)));
-    const reader = await builds.pull(target.installation.packageId, manifest);
+    const lock = await registry.find(
+        target.installation.packageId,
+        reference.kind === "tag" ? reference.tag : reference.version,
+    );
+    const pulled = await builds.pull(target.installation.packageId, lock);
 
-    // refuse a manifest of another version
-    const version = reader.manifest.package.version;
+    // refuse a lock rooted at another version
+    const root = await builds.get(pulled.root);
+    const version = root.package.version;
     if (reference.kind === "release" && reference.version !== version) {
         throw StackError.of(
             "VERSION_INVALID",
-            `version '${version}' is invalid: '${reader.manifest.package.name}' must be at '${reference.version}'`,
+            `version '${version}' is invalid: '${root.package.name}' must be at '${reference.version}'`,
         );
     }
 
-    return { manifest, version };
+    return { lock, version };
 }
 
 /** Resolve a submitted build: a succeeded build of the space, or the pulled release. */
@@ -478,7 +479,7 @@ async function resolveBuild(
     target: InstallationRollout,
     reference: Submission["build"],
     release: SubmissionPreparation["release"],
-): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
+): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
     // take a succeeded build of the space
     if (reference.kind === "build") {
         return Build.require(context, target.scope, reference.build);
@@ -490,7 +491,7 @@ async function resolveBuild(
     return Build.release(context, (calls) => context.mutate(context.self, calls), target.scope, {
         package: target.installation.packageId,
         version: pulled.version,
-        manifest: pulled.manifest,
+        lock: pulled.lock,
     });
 }
 
@@ -827,7 +828,7 @@ async function request(
         );
     }
     const built = await Build.require(context, target.scope, revision.buildId);
-    const declared = await PackageDescription.of(await options.builds.contents(built.manifest));
+    const declared = await PackageDescription.of(await options.builds.root(built.lock));
 
     // keep the permission where the package asks it on use or on first use, refusing one it never asks
     const sets = (["user", "optional"] as const).map((delegator) =>
@@ -905,7 +906,7 @@ async function open(
 
     // read the revision's build and the view it mounts
     const built = await Build.require(context, target.scope, revision.buildId);
-    const reader = await options.builds.contents(built.manifest);
+    const reader = await options.builds.root(built.lock);
     const mounted = ViewDescription.list(reader.manifest)[view];
     if (mounted === undefined) {
         throw StackError.of(
@@ -922,7 +923,7 @@ async function open(
     return {
         installationId: target.installationId,
         revisionId: revision.id,
-        manifest: built.manifest,
+        lock: built.lock,
         view,
         package: reader.manifest.package.name,
         description: mounted,

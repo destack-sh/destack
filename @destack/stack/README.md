@@ -116,19 +116,20 @@ export async function approveThenRollBack(
 
 ### Build a checkout
 
-The checkout's machine compiles the package, and `push` sends its lock to the forge.
+The checkout's machine compiles the package, and `push` sends its lock to its account's forge.
 
 ```ts
 import type { ClientOf } from "@destack/object/client";
 import type { Identifier } from "@destack/schema";
 import type stackPackage from "@destack/stack/package";
 
-/** Build a checkout's package for Bun, and push its lock to the forge. */
+/** Build a checkout's package for Bun, and push its lock to its account's forge. */
 export async function buildCheckout(
     client: ClientOf<typeof stackPackage>,
     spaceId: Identifier<"space">,
     machine: Identifier<"machine">,
     checkout: Identifier<"checkout">,
+    account: Identifier<"account">,
     requestId: string,
 ): Promise<void> {
     // compile on the checkout's machine
@@ -140,7 +141,7 @@ export async function buildCheckout(
     });
 
     // push the build's lock
-    await client.build.push({ spaceId, id: build.id, requestId });
+    await client.build.push({ spaceId, id: build.id, account, requestId });
 }
 ```
 

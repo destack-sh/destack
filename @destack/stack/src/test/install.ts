@@ -54,11 +54,7 @@ export async function openSpaceDatabase(): Promise<{
                 name: "notes",
                 stack: {
                     packageId: stackPackage.id,
-                    selection: {
-                        kind: "release",
-                        version: stackPackage.version,
-                        manifest: await Digest.json({}, world.crypto),
-                    },
+                    selection: { kind: "release", version: stackPackage.version },
                     export: "default",
                     settings: {},
                 },
@@ -159,14 +155,14 @@ export async function readStack(database: DatabaseConnection): Promise<Installat
 export async function insertRelease(
     database: DatabaseConnection,
     scope: Identifier<"space">,
-    release: { readonly package: PackageId; readonly version: string; readonly manifest: Digest },
+    release: { readonly package: PackageId; readonly version: string; readonly lock: Digest },
     outputs: readonly string[],
     environment: Environment,
-): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
-    // record the build succeeded at the release's manifest, and its own scope, at the world's time
+): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
+    // record the build succeeded at the release's lock
     const now = environment.clock.now();
     const id = Identifier.create("build", environment);
-    const { manifest } = release;
+    const { lock } = release;
     await database.transaction(
         async (transaction) =>
             await transaction.insert(build.table).values({
@@ -175,7 +171,7 @@ export async function insertRelease(
                 source: { kind: "release", ...release },
                 outputs: [...outputs],
                 state: "succeeded",
-                manifest,
+                lock,
                 startedAt: now,
                 finishedAt: now,
                 createdAt: now,
@@ -184,7 +180,7 @@ export async function insertRelease(
     );
     await insertBuildScope(database, scope, id);
 
-    return { id, manifest };
+    return { id, lock };
 }
 
 /** Insert a build's own scope inside its space's, as creating a build does. */

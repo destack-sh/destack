@@ -41,7 +41,7 @@ import {
     DeclarationName,
     PackageId,
     PackageVersion,
-    PackageRelease,
+    PackageBuild,
     Sandbox,
 } from "@destack/package";
 import { type BuildReader, ViewDescription } from "@destack/package/manifest";
@@ -55,7 +55,6 @@ import {
     type Subject,
 } from "@destack/sync";
 import { build, Build } from "./build.ts";
-import type { BuildStore } from "@destack/build/store";
 import { space, Space } from "@destack/account/object";
 import { StackEvaluation, Submission } from "./stack.ts";
 import { StackError } from "../error/index.ts";
@@ -74,9 +73,9 @@ const REVISION_NAMESPACE: Uuid = "472ed1a0-20d1-8e8e-b9d9-c6879123e146";
 /** What a submission prepares: the pulled release, and the revision's dependencies and states. */
 export const SubmissionPreparation = schema.object({
     /** The pulled release a tag or version selects, null for a space build. */
-    release: schema.object({ manifest: Digest, version: schema.string() }).nullable(),
-    /** The installable packages the selected build depends on, at their compiled releases. */
-    dependencies: schema.array(PackageRelease),
+    release: schema.object({ lock: Digest, version: schema.string() }).nullable(),
+    /** The builds of the installable packages the selected build's lock has. */
+    dependencies: schema.array(PackageBuild),
     /** The state each declaration of the selected build requires of its target, as a blob. */
     states: schema.record(schema.string(), Digest),
 });
@@ -101,8 +100,8 @@ export const InstallationView = schema.object({
     installationId: schema.identifier("installation"),
     /** The revision whose build serves the view. */
     revisionId: schema.identifier("installation-revision"),
-    /** The digest of the manifest of the build serving the view. */
-    manifest: Digest,
+    /** The digest of the lock of the build serving the view. */
+    lock: Digest,
     /** The view's name. */
     view: DeclarationName,
     /** The installed package's name, such as @acme/notes. */
@@ -289,8 +288,8 @@ export const rollout = defineObject(
             input: schema.object({
                 /** The build to run. */
                 build: schema.identifier("build"),
-                /** The installable packages the build depends on, at their compiled releases. */
-                dependencies: schema.array(PackageRelease),
+                /** The installable packages the build depends on, at the builds its lock has. */
+                dependencies: schema.array(PackageBuild),
                 /** The state each declaration of the build requires of its target, as a blob. */
                 states: schema.record(schema.string(), Digest),
                 /** The stack's evaluation of the build, for a stack. */
@@ -372,8 +371,8 @@ export const installationRevision = defineObject(
             build: field.reference((): ObjectOf<{ identity: "build" }> => build, {
                 delete: "restrict",
             }),
-            /** The installable packages its build depends on, at their compiled releases. */
-            dependencies: field.json(schema.array(PackageRelease)),
+            /** The installable packages its build depends on, at the builds its lock has. */
+            dependencies: field.json(schema.array(PackageBuild)),
             /** The state each declaration requires, such as main's tables, by name. */
             states: field.blobMap(),
             /** The evaluated stack definition, for stacks. */
@@ -447,15 +446,20 @@ export const Rollout = {
         return { status: "false", reason, message };
     },
 
-    /** Report whether a stack's host installation pins a build this machine does not run. */
+    /** Describe an installation's condition waiting for a lock's builds this machine lacks. */
+    waitingForBuild(lock: Digest): Condition {
+        const message = `waiting for build ${lock}, which this machine does not have yet`;
+
+        return Rollout.waiting("WaitingForBuild", message);
+    },
+
+    /** Report whether a stack's host installation selects a lock this machine does not run. */
     isSuperseded(
         installed: Pick<Installation, "isolation"> & Parameters<typeof Manager.isManaged>[0],
-        manifest: Digest,
+        lock: Digest,
         trusted: ReadonlySet<Digest>,
     ): boolean {
-        return (
-            installed.isolation === "host" && Manager.isManaged(installed) && !trusted.has(manifest)
-        );
+        return installed.isolation === "host" && Manager.isManaged(installed) && !trusted.has(lock);
     },
 
     /** Read the rollouts of some installations joined with them. */
@@ -514,13 +518,6 @@ export const Rollout = {
         ]);
 
         return present(joined, `the rollout ${context.target.id}`);
-    },
-
-    /** Read the manifest of an installation's release selection, none for another selection. */
-    pinned(installed: Pick<Installation, "selection">): Digest | undefined {
-        const { selection } = installed;
-
-        return selection.kind === "release" ? selection.manifest : undefined;
     },
 
     /** List the optional capabilities an installation allows: declared ones and requested ones. */
@@ -871,11 +868,11 @@ export type InstallationRevision = Select<typeof installationRevision.table>;
 
 /** The revisions of an installation: one per distinct build and stack evaluation. */
 export const InstallationRevision = {
-    /** Read the build a revision evaluated from a store of builds. */
+    /** Read the build a revision evaluated from the space's builds. */
     async reader(
         snapshot: Pick<Snapshot, "read">,
         revisionId: Identifier<"installation-revision">,
-        packages: Pick<BuildStore, "contents">,
+        builds: { readonly root: (lock: Digest) => Promise<BuildReader> },
     ): Promise<BuildReader> {
         // read the revision, refusing an unknown one
         const revision = await snapshot
@@ -885,10 +882,10 @@ export const InstallationRevision = {
             throw StackError.of("REVISION_NOT_FOUND", `revision '${revisionId}' not found`);
         }
 
-        // read its build from the store
+        // read its lock's root build
         const built = await Build.require(snapshot, revision.scope, revision.buildId);
 
-        return packages.contents(built.manifest);
+        return builds.root(built.lock);
     },
 
     /** Read the revision an installation follows, absent before its first. */
@@ -907,18 +904,18 @@ export const InstallationRevision = {
         return revision;
     },
 
-    /** Digest a build's manifest and its stack evaluation's inputs, which decide its definition. */
+    /** Digest a build's lock and its stack evaluation's inputs, which decide its definition. */
     digest(
-        manifest: Digest,
+        lock: Digest,
         inputs: Omit<StackEvaluation, "definition"> | undefined,
         bindings: readonly Binding[],
         crypto: DigestCrypto,
     ): Promise<Digest> {
         return Digest.json(
             inputs === undefined
-                ? { manifest, bindings }
+                ? { lock, bindings }
                 : {
-                      manifest,
+                      lock,
                       export: inputs.export,
                       parameters: inputs.parameters,
                       settings: inputs.settings,

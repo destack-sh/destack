@@ -185,7 +185,7 @@ export const Handoff = {
                     }),
                 );
                 const archive = present(response.body, "the blobs' tarball");
-                for await (const entry of Tarball.read(archive, environment.compression)) {
+                for await (const entry of Tarball.read(archive)) {
                     yield { digest: Digest.parse(entry.path), size: entry.size, body: entry.body };
                 }
             },
@@ -249,8 +249,6 @@ async function* linesOf(pages: AsyncIterable<Page>): AsyncGenerator<Uint8Array> 
 
 /** What a source hands its spaces off with. */
 export interface HandoffOptions {
-    /** The environment whose compression packs the blobs a target asks for. */
-    readonly environment: Pick<Environment, "compression">;
     /** The space's database. */
     readonly database: DatabaseConnection;
     /** The account package's uplink, which places the spaces as this machine. */
@@ -343,8 +341,8 @@ export function handoffMount(options: HandoffOptions): MountFetch {
                 }
             })();
 
-            return new Response(Tarball.stream(entries, options.environment.compression), {
-                headers: { "content-type": "application/gzip" },
+            return new Response(Tarball.stream(entries), {
+                headers: { "content-type": "application/x-tar" },
             });
         }
         // refuse any other request

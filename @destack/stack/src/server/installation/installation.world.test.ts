@@ -99,7 +99,7 @@ test("find and list only the enabled installations not being deleted, as a machi
         const release = {
             package: ids.package,
             version: "2026.9.0",
-            manifest: Digest.parse("e".repeat(64)),
+            lock: Digest.parse("e".repeat(64)),
         };
         const pulled = await insertRelease(
             database,
@@ -266,7 +266,7 @@ test("identify a residency home's declared installation by its name, and forward
     await home.simulation.idle();
 
     // read the residency's installation relationships at the universe
-    const related = await Relationship.readOn(
+    const related = await Relationship.read(
         Snapshot.live(home.universe.storage.database),
         residency.reference(Scope.universe.id, "eu"),
         { relation: "installation" },
@@ -329,7 +329,7 @@ test("relate a residency home's declared installation at the universe once a pas
     );
     const related = async () =>
         (
-            await Relationship.readOn(snapshot, residency.reference(Scope.universe.id, eu.id), {
+            await Relationship.read(snapshot, residency.reference(Scope.universe.id, eu.id), {
                 relation: "installation",
             })
         ).map((row) => row.subjectId);

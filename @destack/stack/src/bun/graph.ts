@@ -30,7 +30,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** The builds and code indexes the space and its machine store. */
     readonly #builds: Pick<
         SpaceBuildStore,
-        "store" | "contains" | "contents" | "referrer" | "file"
+        "store" | "contains" | "contents" | "lock" | "referrer" | "file"
     >;
     /** The files the indexes are written in before they are stored. */
     readonly #files: FileSystem;
@@ -40,7 +40,10 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Index the builds a database records, attaching each index to its build where stored. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<SpaceBuildStore, "store" | "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<
+            SpaceBuildStore,
+            "store" | "contains" | "contents" | "lock" | "referrer" | "file"
+        >,
         files: FileSystem,
     ) {
         // store the database, the builds and the files
@@ -77,7 +80,7 @@ export class BunGraphStorage implements ExternalStorage, AsyncDisposable {
     /** Open a succeeded build's view of its manifest's index, attaching the index when absent. */
     async #open(scope: string): Promise<OpenedIndex> {
         // read the build's place in its manifest's index, and the store with the build
-        const index = await GraphIndex.of(this.#database, scope);
+        const index = await GraphIndex.of(this.#database, scope, this.#builds);
         const { manifest } = index;
         const store = await this.#builds.store(manifest);
         const { storage } = store.blobs;

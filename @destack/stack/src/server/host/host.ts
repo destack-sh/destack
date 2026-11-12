@@ -145,12 +145,12 @@ export interface SpaceMachine {
     /** Send a request to another origin as it is. */
     readonly send: (request: Request) => Promise<Response>;
     /** The machine's builds, which installations' revisions read. */
-    readonly builds: Pick<SpaceBuildStore, "contents">;
+    readonly builds: Pick<SpaceBuildStore, "root">;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
     readonly shipped: ReadonlyMap<PackageId, PackageRelease>;
-    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    /** The locks of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
 }
 
@@ -172,8 +172,8 @@ export interface SpaceStart {
     readonly buckets: Pick<CatalogueBucketHost, "open">;
     /** Send an installation's call below the machine's egress, as it sends an instance's. */
     readonly egress: (caller: EgressCaller, request: Request) => Promise<Response>;
-    /** Load the server a build exports, absent for a build exporting none. */
-    readonly server: (manifest: Digest) => Promise<PackageImplementation | undefined>;
+    /** Load the server a lock's root exports, absent for a root exporting none. */
+    readonly server: (lock: Digest) => Promise<PackageImplementation | undefined>;
     /** Report an installation the start leaves unserved, such as one whose server fails to load. */
     readonly report: (error: unknown) => void;
     /** Run the hooks of an installation served in its sandbox. */
@@ -471,22 +471,21 @@ export class SpaceHost {
 
         // load the server of each other installation the store runs from its build
         const loaded = await Promise.all(
-            installed.map(async ({ rollout: row, manifest }, index) => {
+            installed.map(async ({ rollout: row, lock }, index) => {
                 // take the earlier load, else load a trusted one, reporting a server that fails to load
                 const kept = earlier.get(present(keys[index], "the installation's key"));
-                const isLinked =
-                    this.machine.linked.get(row.installation.packageId)?.manifest === manifest;
+                const isLinked = this.machine.linked.get(row.installation.packageId)?.lock === lock;
                 if (kept !== undefined) {
                     return kept.load;
                 } else if (row.installation.isolation !== "host" && !isLinked) {
                     return { kind: "sandbox" } as const;
                 }
                 // leave unserved a stack's host installation on a build this machine no longer runs
-                else if (Rollout.isSuperseded(row.installation, manifest, this.machine.trusted)) {
+                else if (Rollout.isSuperseded(row.installation, lock, this.machine.trusted)) {
                     return { kind: "unserved" } as const;
                 }
                 try {
-                    return { kind: "host", server: await start.server(manifest) } as const;
+                    return { kind: "host", server: await start.server(lock) } as const;
                 } catch (error) {
                     const name = row.installation.name ?? row.installationId;
                     start.report(

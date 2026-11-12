@@ -6,14 +6,14 @@ import {
     InstallationName,
     InstallationSelection,
     type Package,
-    PinnedRelease,
+    Release,
     Tag,
 } from "@destack/object";
 import { StackError } from "../error/index.ts";
 
 /** The build a submission selects. */
 export const BuildReference = schema.discriminatedUnion("kind", [
-    PinnedRelease,
+    Release,
     Tag,
     schema.object({
         /** A succeeded build of the space. */

@@ -155,17 +155,17 @@ export const CodeIndex = Object.assign(
 
         /** Read the code index attached to a build, empty for a release pulled without one. */
         async read(
-            packages: Pick<BuildStore, "referrer" | "file">,
+            builds: Pick<BuildStore, "referrer" | "file">,
             manifest: Digest,
         ): Promise<CodeIndex> {
             // read an empty index of a build without one
-            const attached = await packages.referrer(manifest, CODE_INDEX_PATH);
+            const attached = await builds.referrer(manifest, CODE_INDEX_PATH);
             if (attached === undefined) {
                 return { code: [], modules: [] };
             }
 
             // read and verify the attached file
-            const bytes = await packages.file(attached);
+            const bytes = await builds.file(attached);
 
             return CodeIndex.parse(JSON.parse(new TextDecoder().decode(bytes)));
         },
@@ -188,7 +188,7 @@ export class GraphIndex {
     readonly build: Identifier<"build">;
     /** The space of the build. */
     readonly space: Identifier<"space">;
-    /** The digest of the build's manifest, which keys the index. */
+    /** The digest of the manifest of its lock's root build, which keys the index. */
     readonly manifest: Digest;
     /** When the build finished, which its rows are made at. */
     readonly finishedAt: number;
@@ -224,16 +224,20 @@ export class GraphIndex {
         }
     }
 
-    /** Read the succeeded build of an index scope, refusing one without its files. */
-    static async of(database: DatabaseConnection, scope: string): Promise<GraphIndex> {
-        // read the build's space, manifest and finish
+    /** Read an index scope's succeeded build and its lock's root, refusing one without files. */
+    static async of(
+        database: DatabaseConnection,
+        scope: string,
+        builds: Pick<BuildStore, "lock">,
+    ): Promise<GraphIndex> {
+        // read the build's space
         const id = schema.identifier("build").parse(scope);
         const [found] = await database
             .select({
                 id: build.table.id,
                 scope: build.table.scope,
                 state: build.table.state,
-                manifest: build.table.manifest,
+                lock: build.table.lock,
                 failure: build.table.failure,
                 expiredAt: build.table.expiredAt,
                 finishedAt: build.table.finishedAt,
@@ -246,14 +250,14 @@ export class GraphIndex {
         return new GraphIndex({
             build: id,
             space: record.scope,
-            manifest: Build.manifest(record),
+            manifest: (await builds.lock(Build.lock(record))).root,
             finishedAt,
         });
     }
 
     /** Derive the rows of the build and its code index, stored once for its manifest. */
     async rows(
-        packages: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
         crypto: DigestCrypto,
     ): Promise<{
         modules: Insert<typeof module.table>[];
@@ -262,8 +266,8 @@ export class GraphIndex {
         catalogs: Insert<typeof catalog.table>[];
     }> {
         // read the build and its code index
-        const reader = await packages.contents(this.manifest);
-        const { code, modules: graphs } = await CodeIndex.read(packages, this.manifest);
+        const reader = await builds.contents(this.manifest);
+        const { code, modules: graphs } = await CodeIndex.read(builds, this.manifest);
 
         // derive the module and declaration objects of every module, each identified within the manifest
         const packageId = PackageManifest.package(reader.manifest).id;

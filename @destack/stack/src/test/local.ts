@@ -1,7 +1,7 @@
 import type { Scheduler } from "@destack/environment";
 import { startSilentTelemetry } from "@destack/telemetry/test";
 import type { Authentication } from "@destack/access";
-import type { Identifier, JsonValue } from "@destack/schema";
+import type { Digest, Identifier, JsonValue } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { Egress, InstallationMount, CallError, VERSION_HEADER } from "@destack/object";
 import type { Deriver } from "@destack/identity";
@@ -36,6 +36,8 @@ export class LocalRuntime implements Runtime {
     readonly #runner: (spec: InstanceSpec) => RunnerOptions;
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
+    /** Open a lock's root build, whose module a call imports. */
+    readonly #root: (lock: Digest) => Promise<BuildReader>;
     /** The workloads starting and running. */
     readonly #registry = new InstanceRegistry<Running>();
 
@@ -51,6 +53,8 @@ export class LocalRuntime implements Runtime {
         readonly runner: (spec: InstanceSpec) => RunnerOptions;
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
+        /** Open a lock's root build, whose module a call imports. */
+        readonly root: (lock: Digest) => Promise<BuildReader>;
     }) {
         // set the egress, the space identities and the workloads
         this.#egress = options.egress;
@@ -58,6 +62,7 @@ export class LocalRuntime implements Runtime {
         this.#runner = options.runner;
         this.#report = options.report;
         this.#scheduler = options.scheduler;
+        this.#root = options.root;
     }
 
     /** Start an instance's workload in this process. */
@@ -80,14 +85,14 @@ export class LocalRuntime implements Runtime {
         return this.#registry.identify(secret);
     }
 
-    /** Call an export of a build's module in this process, as the workspace installs it. */
-    call(
-        build: BuildReader,
+    /** Call an export of a lock's root module in this process, as the workspace installs it. */
+    async call(
+        lock: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        return callInProcess(build, path, name, input, this.#scheduler);
+        return await callInProcess(await this.#root(lock), path, name, input, this.#scheduler);
     }
 
     /** Stop every instance. */

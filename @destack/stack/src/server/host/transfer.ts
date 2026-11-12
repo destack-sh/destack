@@ -621,24 +621,21 @@ export class SpaceTransfer {
         }
     }
 
-    /** Read the manifests of the space's own live builds, its releases left out. */
-    static async manifests(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<Digest>> {
+    /** Read the locks of the space's own live builds, its releases left out. */
+    static async locks(reader: Snapshot, spaceId: Identifier<"space">): Promise<Set<Digest>> {
         const built = await reader
             .read(build.table)
             .findMany({ where: { scope: spaceId, expiredAt: { isNull: true } } });
         const own = built.filter((row) => row.source.kind !== "release");
 
-        return new Set(own.flatMap((row) => (row.manifest === null ? [] : [row.manifest])));
+        return new Set(own.flatMap((row) => (row.lock === null ? [] : [row.lock])));
     }
 
-    /** Index the space's builds from the blobs it brought, leaving releases to the registry. */
+    /** Index the space's locks and builds from its blobs, leaving releases to the registry. */
     async #indexBuilds(builds: SpaceBuildStore): Promise<void> {
-        const manifests = await SpaceTransfer.manifests(
-            Snapshot.live(this.space.database),
-            this.spaceId,
-        );
-        for (const manifest of manifests) {
-            await builds.space.index(manifest);
+        const locks = await SpaceTransfer.locks(Snapshot.live(this.space.database), this.spaceId);
+        for (const lock of locks) {
+            await builds.space.record(lock);
         }
     }
 

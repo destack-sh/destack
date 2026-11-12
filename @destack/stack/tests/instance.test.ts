@@ -70,6 +70,7 @@ import {
     fixtureOutputs,
     ids,
     insertRollout,
+    lockOf,
     reconcile,
     reconcileResources,
     settle,
@@ -315,12 +316,8 @@ async function submitRevision(
         reader,
     );
     const { crypto } = fixture.machine.environment;
-    const digest = await object.InstallationRevision.digest(
-        await reader.digest(),
-        undefined,
-        [],
-        crypto,
-    );
+    const lock = await lockOf(reader, crypto);
+    const digest = await object.InstallationRevision.digest(lock, undefined, [], crypto);
     const revision = nth(
         await database.transaction(
             async (transaction) =>
@@ -368,8 +365,11 @@ async function serveControllers(
     const { database } = fixture;
     const directory = await fixture.environment.files.makeTemporaryDirectory("destack-instance-");
     const root = pathToFileURL(`${directory}/`);
+
+    // run each runtime the options leave out as a test runtime over the space's builds
+    const builds = await fixture.builds();
     const runtime =
-        options.runtime ?? new TestRuntime({ scheduler: fixture.environment.scheduler });
+        options.runtime ?? new TestRuntime({ scheduler: fixture.environment.scheduler, builds });
     const runtimes = options.runtimes ?? ["bun"];
 
     // run the chosen runtimes on the machine serving the space and record instances on the one test runtime
@@ -386,7 +386,7 @@ async function serveControllers(
         runtimes: runtimes.map((name) =>
             name === runtime.name
                 ? runtime
-                : new TestRuntime({ scheduler: fixture.environment.scheduler, name }),
+                : new TestRuntime({ scheduler: fixture.environment.scheduler, name, builds }),
         ),
     });
     const { store } = served;
@@ -748,7 +748,10 @@ test("restart a failing instance in place after a doubling backoff, with one rec
     const fixture = await TestSpace.open();
     const { simulation } = fixture;
     const { database } = fixture;
-    const failing = new FailingRuntime({ scheduler: simulation.scheduler });
+    const failing = new FailingRuntime({
+        scheduler: simulation.scheduler,
+        builds: await fixture.builds(),
+    });
     const { first, early, second, recorded } = await (async () => {
         const notes = await installNotes(fixture);
         const { deployments, instances, resources } = await serveControllers(fixture, {
@@ -805,7 +808,8 @@ test("start a running instance again once its machine restarted and no longer ru
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const notes = await installNotes(fixture);
-    const before = new TestRuntime({ scheduler: fixture.environment.scheduler });
+    const builds = await fixture.builds();
+    const before = new TestRuntime({ scheduler: fixture.environment.scheduler, builds });
     const first = await serveControllers(fixture, { runtime: before });
     await first.deployments.reconcile(notes.installationId);
     await first.resources.reconcile(ids.space);
@@ -813,7 +817,7 @@ test("start a running instance again once its machine restarted and no longer ru
     await first.instances.reconcile(deployed.id);
 
     // restart the machine with an idle runtime and reconcile again
-    const after = new TestRuntime({ scheduler: fixture.environment.scheduler });
+    const after = new TestRuntime({ scheduler: fixture.environment.scheduler, builds });
     const second = await serveControllers(fixture, { runtime: after });
     await second.instances.reconcile(deployed.id);
     const recorded = await database.select().from(object.instance.table);
@@ -1425,7 +1429,11 @@ test("fail an instance granted files on a runtime without a filesystem to grant"
     );
     const { deployments, instances, resources } = await serveControllers(fixture, {
         runtimes: ["workerd"],
-        runtime: new TestRuntime({ scheduler: fixture.environment.scheduler, name: "workerd" }),
+        runtime: new TestRuntime({
+            scheduler: fixture.environment.scheduler,
+            name: "workerd",
+            builds: await fixture.builds(),
+        }),
     });
     await deployments.reconcile(notes.installationId);
     await resources.reconcile(ids.space);

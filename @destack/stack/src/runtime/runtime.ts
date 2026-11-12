@@ -81,9 +81,9 @@ export interface Runtime {
         authentication: Authentication | undefined,
         partition?: string,
     ) => Promise<Response>;
-    /** Call an export of a build's module once with JSON arguments, as it runs package code. */
+    /** Call an export of a lock's root module once with JSON arguments, as it runs package code. */
     readonly call: (
-        build: BuildReader,
+        lock: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
@@ -110,8 +110,8 @@ export interface InstanceSpec {
     readonly deploymentId: Identifier<"deployment">;
     /** The build the deployment runs. */
     readonly build: BuildReader;
-    /** The digest of the build's manifest, absent for a release no machine resolved. */
-    readonly manifest?: Digest;
+    /** The digest of the build's lock. */
+    readonly lock: Digest;
     /** The build output with the workload. */
     readonly output: string;
     /** The package-local workload. */

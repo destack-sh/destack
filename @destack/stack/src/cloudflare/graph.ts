@@ -88,7 +88,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** The database with the builds. */
     readonly #database: DatabaseConnection;
     /** The builds and code indexes the spaces store. */
-    readonly #builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">;
+    readonly #builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">;
     /** The index objects, one per manifest. */
     readonly #indexes: DurableObjectNamespace;
     /** How often a build views its index again, renewing the index's lease. */
@@ -99,7 +99,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** Index the builds a database records and their spaces store, in one object per manifest. */
     constructor(
         database: DatabaseConnection,
-        builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">,
         indexes: DurableObjectNamespace,
         leaseMilliseconds = GRAPH_LEASE_MILLISECONDS,
     ) {
@@ -128,7 +128,7 @@ export class DurableObjectGraphStorage implements ExternalStorage {
     /** Show a build its manifest's index, writing the index first when it is not complete. */
     async #open(scope: string): Promise<DatabaseConnection> {
         // read the build's place, and its manifest's object
-        const index = await GraphIndex.of(this.#database, scope);
+        const index = await GraphIndex.of(this.#database, scope, this.#builds);
         const object = this.#indexes.get(this.#indexes.idFromName(index.manifest));
         const fields = {
             build: index.build,

@@ -2,7 +2,6 @@ import { MAIN_DATABASE } from "@destack/stack/declare";
 import { eq, isNotNull } from "@destack/db";
 import { installation } from "@destack/object";
 import { PackageVersion } from "@destack/package";
-import { BuildStore } from "@destack/build/store";
 import { MemoryBuild } from "@destack/package/test";
 import { Identifier, nth, present, schema } from "@destack/schema";
 import { defineSetting } from "@destack/setting/declare";
@@ -13,7 +12,7 @@ import { expect, test } from "@destack/test";
 import { testSimulation } from "@destack/object/test";
 import { build, database, rollout, installationRevision } from "../src/object/index.ts";
 import stackPackage from "../src/package.ts";
-import { ids, spaceDatabase, TestSpace } from "../src/test/index.ts";
+import { ids, lockOf, spaceDatabase, TestSpace } from "../src/test/index.ts";
 import { t } from "@destack/locale";
 
 /** The stack package the spaces install. */
@@ -55,10 +54,9 @@ test("give birth to placed spaces from their replicated rows with main in their 
         ],
         crypto,
     );
-    const manifest = await BuildStore.digest(stackBuild.manifest, crypto);
     const carrying = (name: string) => ({
         packageId: stacked.id,
-        selection: { kind: "release" as const, version: stacked.version, manifest },
+        selection: { kind: "release" as const, version: stacked.version },
         export: name,
         settings: {},
     });
@@ -122,11 +120,12 @@ test("give birth to placed spaces from their replicated rows with main in their 
 });
 
 test("retain a person's own apply of a placed space's stack, and submit the space's stack again once it changes, once only", async () => {
-    // publish two builds of the stack declaring its color, the second exporting one more, and create a space carrying the first
+    // publish two releases of the stack declaring its color
     const { crypto } = testSimulation().environment("test");
-    const declaring = (names: readonly string[]) =>
+    const next = { ...stacked, version: "2026.9.1" };
+    const declaring = (version: PackageVersion, names: readonly string[]) =>
         MemoryBuild.of(
-            stacked,
+            version,
             [
                 {
                     kind: "setting",
@@ -144,12 +143,12 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             ],
             crypto,
         );
-    const builds = [await declaring(["home"]), await declaring(["home", "studio"])];
-    const first = await BuildStore.digest(nth(builds, 0).manifest, crypto);
-    const second = await BuildStore.digest(nth(builds, 1).manifest, crypto);
+    const builds = [await declaring(stacked, ["home"]), await declaring(next, ["home", "studio"])];
+    const first = await lockOf(nth(builds, 0), crypto);
+    const second = await lockOf(nth(builds, 1), crypto);
     const carried = {
         packageId: stacked.id,
-        selection: { kind: "release" as const, version: stacked.version, manifest: first },
+        selection: { kind: "release" as const, version: stacked.version },
         export: "home",
         settings: {},
     };
@@ -173,15 +172,15 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         return present(row, "the space's stack");
     };
 
-    // read the manifest of a pulled release build, or mark a compiled one
-    const pulledManifest = async (buildId: Identifier<"build">) => {
+    // read the lock of a pulled release build
+    const pulledLock = async (buildId: Identifier<"build">) => {
         const [row] = await fixture.database
-            .select({ source: build.table.source, manifest: build.table.manifest })
+            .select({ source: build.table.source, lock: build.table.lock })
             .from(build.table)
             .where(eq(build.table.id, buildId));
         const found = present(row, `build ${buildId}`);
 
-        return found.source.kind === "release" ? found.manifest : "build";
+        return found.source.kind === "release" ? found.lock : "build";
     };
 
     // read the build and settings the space's stack follows once the space settles
@@ -191,7 +190,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
         const { revision } = await stack();
 
         return {
-            manifest: await pulledManifest(revision.buildId),
+            lock: await pulledLock(revision.buildId),
             settings: present(revision.definition, "the definition")["settings"],
         };
     };
@@ -205,7 +204,7 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
             id: installed.id,
             requestId: RequestId.create(fixture.machine.environment),
             selection: { kind: "release", version: stacked.version },
-            build: { kind: "release", version: stacked.version, manifest: second },
+            build: { kind: "release", version: next.version },
             stack: { export: "home", parameters: {} },
         });
     };
@@ -234,14 +233,14 @@ test("retain a person's own apply of a placed space's stack, and submit the spac
     };
     expect({ steps, revisions: revisions.length }).toEqual({
         steps: [
-            // follow the space's first build
-            { manifest: first, settings: {} },
-            // retain the owner's apply of the second build
-            { manifest: second, settings: {} },
+            // follow the space's first release
+            { lock: first, settings: {} },
+            // retain the owner's apply of the second release
+            { lock: second, settings: {} },
             // submit the space's stack again once it places a setting value
-            { manifest: first, settings: placed },
+            { lock: first, settings: placed },
             // retain the revision of an unchanged stack
-            { manifest: first, settings: placed },
+            { lock: first, settings: placed },
         ],
         // record one revision per submission
         revisions: 3,

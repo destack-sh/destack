@@ -66,12 +66,12 @@ export const Database = {
     async installed(
         snapshot: Pick<Snapshot, "read">,
         spaceId: Identifier<"space">,
-        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader | undefined>,
+        open: (packageId: PackageId, lock: Digest) => Promise<BuildReader | undefined>,
     ): Promise<
         {
             readonly rollout: InstallationRollout;
             readonly revisionId: InstallationRevision["id"];
-            readonly manifest: Digest;
+            readonly lock: Digest;
             readonly declarations: graph.Declaration[];
         }[]
     > {
@@ -102,12 +102,12 @@ export const Database = {
         const declared = new Map(
             await Promise.all(
                 revisions.map(async (revision) => {
-                    // open the revision's build by its installation's package and its manifest
+                    // open the revision's build by its installation's package and its lock
                     const built = present(
                         builds.find((each) => each.id === revision.buildId),
                         `the build of revision ${revision.id}`,
                     );
-                    const manifest = Build.manifest(built);
+                    const lock = Build.lock(built);
                     const installed = present(
                         installations.find(
                             (entry) =>
@@ -116,7 +116,7 @@ export const Database = {
                         ),
                         `the installation of revision ${revision.id}`,
                     );
-                    const reader = await open(installed.installation.packageId, manifest);
+                    const reader = await open(installed.installation.packageId, lock);
                     if (reader === undefined) {
                         return [];
                     }
@@ -125,7 +125,7 @@ export const Database = {
                         [
                             revision.id,
                             {
-                                manifest,
+                                lock,
                                 declarations: await reader.declarations(),
                                 objects: await ObjectDescription.read(reader),
                             },
@@ -168,7 +168,7 @@ export const Database = {
             if (opened === undefined) {
                 return [];
             }
-            const { manifest, declarations } = opened;
+            const { lock, declarations } = opened;
 
             // serve a stack at once, which runs nothing and whose resources its document instantiates
             const isStack = entry.installation.export !== null;
@@ -185,7 +185,7 @@ export const Database = {
                 );
 
             return isStack || hasBindings
-                ? [{ rollout: entry, revisionId, manifest, declarations }]
+                ? [{ rollout: entry, revisionId, lock, declarations }]
                 : [];
         });
     },

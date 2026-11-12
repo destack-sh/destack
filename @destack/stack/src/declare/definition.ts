@@ -1,7 +1,7 @@
 import { defineKind } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
-import { graph, type PackageId, type PackageRelease } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type DependencyRelease, graph, type PackageBuild, type PackageId } from "@destack/package";
+import type { BuildReader } from "@destack/package/manifest";
 import { type Digest, type JsonObject, JsonValue, schema } from "@destack/schema";
 import {
     Installation,
@@ -37,9 +37,10 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         return StackCollections.parse(definition);
     },
 
-    /** Read the stack a package declares at an export, with its installations' dependencies. */
+    /** Read the stack a package declares at an export, requiring every installation it binds to. */
     async declared(
         reader: BuildReader,
+        releases: readonly DependencyRelease[],
         name: string,
         settings: Readonly<Record<string, JsonValue>>,
         read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
@@ -56,9 +57,6 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
         }
         const declared = found.description;
 
-        // read the one release the build resolved each Destack package at
-        const resolved = oneReleaseEach(await reader.releases(), name);
-
         // refuse a stack declaring the main database every space has
         const document = StackDefinition.collections(declared);
         if (document.databases[MAIN_DATABASE] !== undefined) {
@@ -68,56 +66,60 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             );
         }
 
-        // read each installation with the manifest of the release its package resolved to
+        // read each package's one build in the stack's lock, refusing a second
+        const builds = new Map<PackageId, DependencyRelease>();
+        for (const entry of releases.filter((each) => each.kind === "destack")) {
+            const known = builds.get(entry.package.id);
+            if (known !== undefined && known.manifest !== entry.manifest) {
+                throw StackError.of(
+                    "DEFINITION_INVALID",
+                    `stack '${name}' is invalid: it locks two builds of '${entry.package.name}'`,
+                );
+            }
+            builds.set(entry.package.id, entry);
+        }
+        const entries = Object.fromEntries(releases.map((entry) => [entry.package.name, entry]));
         const declaredInstallations = Object.entries(document.installations).map(
             ([key, installed]) => {
-                const manifest = resolved.get(installed.packageId)?.manifest;
-                if (manifest === undefined) {
+                const built = builds.get(installed.packageId);
+                if (built === undefined) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation '${key}' of '${name}' is invalid: it installs a package without a release in the stack's build, so add the package to the stack's dependencies`,
+                        `installation '${key}' of '${name}' is invalid: it installs a package without a build in the stack's lock, so add the package to the stack's dependencies`,
                     );
                 }
 
-                return { key, installed, manifest };
+                return { key, installed, manifest: built.manifest };
             },
         );
 
-        // pin each release selection to its manifest, leaving a tag selection to follow its tag
-        const pinned = Object.fromEntries(
-            declaredInstallations.map(({ key, installed, manifest }) => [
-                key,
-                installed.selection.kind === "release"
-                    ? { ...installed, selection: { ...installed.selection, manifest } }
-                    : installed,
-            ]),
-        );
-
-        // read the installable packages each declared installation's build depends on, except those only its optional capabilities need
+        // require an installation of each installable package each declared installation requires
         const own = new Set(Object.values(BOOTSTRAP_PACKAGES).map((handle) => handle.id));
         for (const { key, installed, manifest } of declaredInstallations) {
-            // read the installation's package and the packages only its optional capabilities need
+            // read the installation's build and the installable builds it requires
             const build = await read(installed.packageId, manifest);
             const description = await PackageDescription.of(build);
             const optional = new Set(Installation.optionalPackages(description));
-            const releases = (await installableReleases(build, read)).filter(
-                (release) => !optional.has(release.package.id) && !own.has(release.package.id),
+            const required = Object.fromEntries(
+                Object.keys(build.manifest.requires).flatMap((each) => {
+                    const entry = entries[each];
+
+                    return entry === undefined ? [] : [[each, entry] as const];
+                }),
+            );
+            const needed = (await installableBuilds(required, manifest, read)).filter(
+                (built) => !optional.has(built.package.id) && !own.has(built.package.id),
             );
 
-            // require each dependency declared at the release it resolved, in the store with a store-run dependent
-            for (const release of releases) {
+            // require each one declared
+            for (const built of needed) {
                 const dependency = declaredInstallations.find(
-                    (each) => each.installed.packageId === release.package.id,
+                    (each) => each.installed.packageId === built.package.id,
                 );
                 if (dependency === undefined) {
                     throw StackError.of(
                         "DEFINITION_INVALID",
-                        `installation '${key}' of '${name}' is invalid: it needs '${release.package.name}', so declare an installation of it`,
-                    );
-                } else if (dependency.manifest !== release.manifest) {
-                    throw StackError.of(
-                        "DEFINITION_INVALID",
-                        `stack '${name}' is invalid: it declares '${release.package.name}' at another release than '${PackageManifest.package(build.manifest).name}' depends on`,
+                        `installation '${key}' of '${name}' is invalid: it needs '${built.package.name}', so declare an installation of it`,
                     );
                 } else if (
                     installed.isolation === "host" &&
@@ -133,7 +135,6 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 
         return StackDefinition.parse({
             ...declared,
-            installations: pinned,
             settings: { ...document.settings, ...StackDefinition.placed(settings) },
         });
     },
@@ -152,49 +153,39 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
 /** The stack declaration kind, which stack defines. */
 export const STACK_KIND = defineKind({ name: "stack", description: StackDefinition });
 
-/** List the releases a build depends on that declare a package with a type stored in a space. */
-export async function installableReleases(
-    reader: BuildReader,
+/** List the Destack builds of a lock other than its root whose packages store types in a space. */
+export async function installableBuilds(
+    entries: Readonly<Record<string, DependencyRelease>>,
+    root: Digest,
     read: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
-): Promise<PackageRelease[]> {
+): Promise<PackageBuild[]> {
+    // list the lock's Destack builds other than its root
+    const destack = Object.values(entries).flatMap((entry) =>
+        entry.kind === "destack" && entry.manifest !== root
+            ? [{ package: entry.package, manifest: entry.manifest }]
+            : [],
+    );
+
+    // read each build, keeping the installable ones
     const installable = await Promise.all(
-        (await reader.releases()).map(async (release) => {
-            // take a dependency serving its own package with a type stored in a space, leaving a contract another package implements
-            const dependency = await read(release.package.id, release.manifest);
+        destack.map(async (built) => {
+            // read the build's description, types and server export
+            const dependency = await read(built.package.id, built.manifest);
             const declared = await PackageDescription.of(dependency);
             const types = await ObjectDescription.read(dependency);
             const isServing = Object.values(dependency.manifest.outputs).some((output) =>
                 Object.hasOwn(output.exports, SERVER_EXPORT),
             );
+
+            // take one that describes itself, serves, and stores a type in a space
             const isInstallable =
                 declared !== undefined &&
                 isServing &&
                 types.some((type) => ObjectDescription.isInSpace(type));
 
-            return isInstallable ? [release] : [];
+            return isInstallable ? [built] : [];
         }),
     );
 
     return installable.flat();
-}
-
-/** Key releases by package, refusing two releases of one package in a stack. */
-function oneReleaseEach(
-    releases: readonly PackageRelease[],
-    stack: string,
-): Map<PackageId, PackageRelease> {
-    const byPackage = new Map<PackageId, PackageRelease>();
-    for (const release of releases) {
-        // refuse a second release of a package
-        const known = byPackage.get(release.package.id);
-        if (known !== undefined && known.manifest !== release.manifest) {
-            throw StackError.of(
-                "DEFINITION_INVALID",
-                `stack '${stack}' is invalid: it resolves two releases of '${release.package.name}'`,
-            );
-        }
-        byPackage.set(release.package.id, release);
-    }
-
-    return byPackage;
 }

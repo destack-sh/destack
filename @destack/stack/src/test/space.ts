@@ -20,7 +20,7 @@ import {
     type Table,
     TABLE,
 } from "@destack/db";
-import type { BuildReader } from "@destack/package/manifest";
+import { type BuildReader, Lock } from "@destack/package/manifest";
 import { RequestId, Scope } from "@destack/sync";
 import {
     TestBearer,
@@ -114,7 +114,7 @@ import type { ClientOf } from "@destack/object/client";
 import { spaceReplicated, spaceTables } from "../stack/index.ts";
 import stackPackage, { PUSH_PATH } from "../package.ts";
 import type { EventStore } from "@destack/event";
-import { TestRegistry } from "./build.ts";
+import { lockBuild, lockOf, TestRegistry } from "./build.ts";
 import { TestGateway } from "./gateway.ts";
 import { TestRuntime } from "./runtime.ts";
 import { EgressCaller, ProcessRuntime } from "../runtime/index.ts";
@@ -123,7 +123,7 @@ import { BunGraphStorage } from "../bun/graph.ts";
 import { PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { StackRelease } from "@destack/account/object";
-import { PackageClient, BuildStore } from "@destack/build/store";
+import { BuildObject, PackageClient, BuildStore } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
 import { RolloutTarget } from "../server/installation/target.ts";
 
@@ -148,10 +148,10 @@ export interface StackReleases {
     readonly stack: BuildReader;
     /** The stack of the fixture's space: the empty stack's release. */
     readonly source: StackRelease;
-    /** The digest of the empty stack's release. */
-    readonly sourceManifest: Digest;
-    /** The digest of the stack package's release. */
-    readonly manifest: Digest;
+    /** The digest of the empty stack's release's lock. */
+    readonly sourceLock: Digest;
+    /** The digest of the stack package's release's lock. */
+    readonly lock: Digest;
 }
 
 /** The residency a test universe declares, whose home a residency fixture hosts. */
@@ -197,7 +197,7 @@ function spaceWorldOf<World extends JsonValue>(world: schema.Schema<World>) {
                 /** The releases the registry published, published again on restore. */
                 releases: schema.array(Digest),
                 /** The linked release of each server's package the write installed, by package. */
-                linked: schema.array(schema.object({ packageId: PackageId, manifest: Digest })),
+                linked: schema.array(schema.object({ packageId: PackageId, lock: Digest })),
             }),
         ),
         /** What the fixture's write returned. */
@@ -349,7 +349,7 @@ export class TestSpace implements AsyncDisposable {
     readonly #beside: Required<Pick<TestSpaceOptions, "companions" | "providers">>;
     /** The release the machine links of each server's package, as the test installs it. */
     readonly #linked: Map<PackageId, PackageRelease>;
-    /** The manifests the kit's machine runs in its process: the releases it links. */
+    /** The locks the kit's machine runs in its process: the releases it links. */
     readonly #trusted: Set<Digest>;
     /** The servers the test runs in the store, by the linked releases of their packages. */
     readonly #servers: readonly PackageImplementation[];
@@ -656,13 +656,13 @@ export class TestSpace implements AsyncDisposable {
     #state(): Omit<SpaceWorld<null>["spaces"][number], "key" | "owner"> {
         const linked = [...this.#linked.values()]
             .filter((release) => release.package.id !== stackPackage.id)
-            .map((release) => ({ packageId: release.package.id, manifest: release.manifest }));
+            .map((release) => ({ packageId: release.package.id, lock: release.lock }));
 
         return {
             id: this.id,
             account: this.account,
             stack: this.#stack,
-            releases: [...this.registry.manifests],
+            releases: [...this.registry.locks],
             linked,
         };
     }
@@ -818,20 +818,20 @@ export class TestSpace implements AsyncDisposable {
         options: TestSpaceOptions,
     ): Promise<void> {
         // record the releases the write published again, from the registry's builds it kept
-        for (const manifest of restored.releases) {
-            await this.registry.push(this.#builds, manifest);
+        for (const lock of restored.releases) {
+            await this.registry.push(this.#builds, lock);
         }
 
         // store the stack the write applied, and ship the releases it installed of the servers given
         this.#stack = restored.stack;
-        for (const { packageId, manifest } of restored.linked) {
+        for (const { packageId, lock } of restored.linked) {
             const server = (options.servers ?? []).find((each) => each.package.id === packageId);
             if (server !== undefined) {
                 this.#linked.set(packageId, {
                     package: PackageVersion.of(server.package),
-                    manifest,
+                    lock,
                 });
-                this.#trusted.add(manifest);
+                this.#trusted.add(lock);
             }
         }
     }
@@ -949,23 +949,18 @@ export class TestSpace implements AsyncDisposable {
             crypto,
         );
 
-        // identify both by their manifests' digests, the space following the empty stack's release
-        const sourceManifest = await BuildStore.digest(empty.manifest, crypto);
+        // follow the space stack at its release, each build identified by its lock alone
         const source = {
             ...STACKS.space,
-            selection: {
-                kind: "release" as const,
-                version: STACK_VERSION,
-                manifest: sourceManifest,
-            },
+            selection: { kind: "release" as const, version: STACK_VERSION },
         };
 
         return {
             space: empty,
             stack,
             source,
-            sourceManifest,
-            manifest: await BuildStore.digest(stack.manifest, crypto),
+            sourceLock: await lockOf(empty, crypto),
+            lock: await lockOf(stack, crypto),
         };
     }
 
@@ -1059,12 +1054,9 @@ export class TestSpace implements AsyncDisposable {
         const servers = [...(options.servers ?? []), ...(options.companions ?? [])];
         const releases = await TestSpace.releases(machine.environment.crypto);
         const linked = new Map<PackageId, PackageRelease>([
-            [
-                stackPackage.id,
-                { package: PackageVersion.of(stackPackage), manifest: releases.manifest },
-            ],
+            [stackPackage.id, { package: PackageVersion.of(stackPackage), lock: releases.lock }],
         ]);
-        const trusted = new Set<Digest>([releases.manifest]);
+        const trusted = new Set<Digest>([releases.lock]);
 
         // lend the machine to the space's host, answering where the test serves it or where it published
         const lent: SpaceMachine = {
@@ -1129,9 +1121,9 @@ export class TestSpace implements AsyncDisposable {
         for (const build of options.linked ?? []) {
             await fixture.registry.release(build);
             const released = PackageManifest.package(build.manifest);
-            const manifest = await fixture.registry.find(released.id, released.version);
-            linked.set(released.id, { package: released, manifest });
-            trusted.add(manifest);
+            const lock = await fixture.registry.find(released.id, released.version);
+            linked.set(released.id, { package: released, lock });
+            trusted.add(lock);
         }
 
         return fixture;
@@ -1171,7 +1163,9 @@ export class TestSpace implements AsyncDisposable {
         });
         const builds = await TestBuildStore.open(join(directory, "builds"), environment);
         const blobs = (spaceId: Identifier<"space">) =>
-            LocalBlobStorage.open(join(directory, "blobs", spaceId), environment);
+            LocalBlobStorage.open(join(directory, "blobs", spaceId), environment, {
+                synchronous: "off",
+            });
         defer(async () => {
             await buckets[Symbol.asyncDispose]();
             await builds[Symbol.asyncDispose]();
@@ -1190,8 +1184,8 @@ export class TestSpace implements AsyncDisposable {
             handoff: async (source) => {
                 throw new TypeError(`the fixture knows no handoff of '${source}'`);
             },
-            publish: async (_store, manifest) => {
-                throw new TypeError(`the fixture publishes no build, such as '${manifest}'`);
+            publish: async (_store, lock) => {
+                throw new TypeError(`the fixture publishes no lock, such as '${lock}'`);
             },
             buildRunner: this.machine.id,
             main: spaceDatabase,
@@ -1202,7 +1196,7 @@ export class TestSpace implements AsyncDisposable {
             buckets: await this.buckets(),
             builds: await this.builds(),
             runtimes: [
-                new TestRuntime({ scheduler: this.simulation.scheduler }),
+                new TestRuntime({ scheduler: this.simulation.scheduler, builds: this.#builds }),
                 new ProcessRuntime(),
             ],
             events: overrides.events ?? (await this.#events()),
@@ -1259,10 +1253,8 @@ export class TestSpace implements AsyncDisposable {
             report: (error) => {
                 throw error;
             },
-            server: async (manifest) =>
-                this.#servers.find(
-                    (server) => this.#linked.get(server.package.id)?.manifest === manifest,
-                ),
+            server: async (lock) =>
+                this.#servers.find((server) => this.#linked.get(server.package.id)?.lock === lock),
             call,
             store,
             providers,
@@ -1291,8 +1283,8 @@ export class TestSpace implements AsyncDisposable {
 
     /** Read the installed set main applied, each installation at its revision. */
     #installed(): ReturnType<typeof Database.installed> {
-        return Database.installed(Snapshot.live(this.database), this.id, (packageId, manifest) =>
-            this.#builds.pull(packageId, manifest),
+        return Database.installed(Snapshot.live(this.database), this.id, (packageId, lock) =>
+            this.#builds.pullRoot(packageId, lock),
         );
     }
 
@@ -1445,29 +1437,36 @@ export class TestSpace implements AsyncDisposable {
         const pushing = new PackageClient(
             `${SPACE_URL}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             async (request) => {
-                // record the files the space reports missing, which the push uploads next
+                // record the objects the space lacks, which the push writes next
+                const asked = request.clone();
                 const answer = await fetch(request);
-                if (new URL(request.url).pathname.endsWith("/files/missing")) {
-                    uploaded.push(...schema.array(Digest).parse(await answer.clone().json()));
+                if (new URL(request.url).pathname.endsWith("/has")) {
+                    const digests = schema.array(Digest).parse(await asked.json());
+                    const stored = schema
+                        .array(schema.boolean())
+                        .parse(await answer.clone().json());
+                    uploaded.push(...digests.filter((_digest, index) => stored[index] !== true));
                 }
 
                 return answer;
             },
-            this.machine.environment,
         );
-        await pushing.push(reader);
+        await using store = await TestBuildStore.create(this.machine.environment);
+        const root = await store.put(reader);
+        const lock = await store.putLock(Lock.of(root));
+        await pushing.push(store, [lock]);
 
-        // upload an empty code index with it, then finish with the manifest
+        // upload an empty code index with it
         const bytes = new TextEncoder().encode(JSON.stringify([]));
         const code = {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await pushing.upload([{ digest: code.digest, load: async () => bytes }]);
+        await pushing.write(BuildObject.files([{ digest: code.digest, bytes: bytes }]));
         await client.build.finish({
             ...target,
             requestId: RequestId.create(this.machine.environment),
-            end: { kind: "stored", manifest: reader.manifest, code },
+            end: { kind: "stored", lock, code },
         });
 
         return uploaded;
@@ -1478,33 +1477,45 @@ export class TestSpace implements AsyncDisposable {
         target: Pick<Installation, "name" | "capabilities" | "allowed">,
         reader: BuildReader,
     ): Promise<Pick<object.InstallationRevision, "dependencies" | "states">> {
+        // read the store's types and the options a submission describes with
         const { store } = new SpaceStore(await this.options());
-        const options = {
-            builds: await this.builds(),
-            registry: this.registry,
-            blobs: this.blobs,
-            known: KNOWN_TYPES,
-        };
+        const builds = await this.builds();
+        const options = { builds, registry: this.registry, blobs: this.blobs, known: KNOWN_TYPES };
 
-        return RolloutTarget.describe(target, reader, store.objects, options);
+        // lock the build alone in the space's store
+        const { lock } = await this.#store(reader, []);
+
+        return RolloutTarget.describe(target, await builds.lock(lock), store.objects, options);
     }
 
-    /** Put a build with its code index in the build store, and record it succeeded now. */
+    /** Store a build locked with the builds it runs with, answering its lock and root. */
+    async #store(
+        reader: BuildReader,
+        builds: readonly BuildReader[],
+    ): Promise<{ readonly lock: Digest; readonly root: Digest }> {
+        // put each build and their lock in the space's store
+        const stored = await this.builds();
+
+        return await lockBuild(stored.space, reader, builds);
+    }
+
+    /** Store a build locked with the builds it runs with, and record it succeeded now. */
     async recordBuild(
         reader: BuildReader,
         index: object.CodeIndex = { code: [], modules: [] },
+        builds: readonly BuildReader[] = [],
     ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
-        // put the build in the build store, with its code index attached as its runner's finish does
+        // put the build and its lock in the build store
         const { database } = this;
         const { space: packages } = await this.builds();
-        const manifest = await packages.put(reader);
+        const { lock, root } = await this.#store(reader, builds);
         const bytes = new TextEncoder().encode(JSON.stringify(index));
         const indexed = {
             digest: await Digest.of(bytes, this.machine.environment.crypto),
             size: bytes.byteLength,
         };
-        await packages.receive([{ digest: indexed.digest, bytes }]);
-        await packages.attach(manifest, object.CodeIndex.file(indexed));
+        await packages.write(BuildObject.files([{ digest: indexed.digest, bytes: bytes }]));
+        await packages.attach(root, object.CodeIndex.file(indexed));
 
         // record the build succeeded now
         const id = Identifier.create("build", this.machine.environment);
@@ -1522,7 +1533,7 @@ export class TestSpace implements AsyncDisposable {
                     },
                     outputs: ["bun"],
                     state: "succeeded",
-                    manifest,
+                    lock,
                     startedAt: now,
                     finishedAt: now,
                     createdAt: now,
@@ -1536,42 +1547,49 @@ export class TestSpace implements AsyncDisposable {
         return { kind: "build", build: id };
     }
 
-    /** Write a build of the space's stack declaring a definition at an export. */
-    async buildStack(exported: string, definition: JsonObject): Promise<BuildReader> {
-        // resolve each installed release in the registry, as the stack's build depends on it
+    /** Record a build of the space's stack declaring a definition, locked with its releases. */
+    async recordStack(
+        exported: string,
+        definition: JsonObject,
+    ): Promise<{ readonly kind: "build"; readonly build: Identifier<"build"> }> {
+        // pull each installed release's lock
         const { installations } = StackDefinition.collections(definition);
         const released = Object.values(installations).flatMap(({ packageId, selection }) =>
             selection.kind === "release" ? [{ packageId, version: selection.version }] : [],
         );
-        const dependencies = await Promise.all(
-            released.map(async ({ packageId, version }) => {
-                const manifest = await this.registry.find(packageId, version);
-                const owner = PackageManifest.package(
-                    (await this.registry.open(packageId, version)).manifest,
-                );
-
-                return [owner.name, { kind: "destack", package: owner, manifest }] as const;
-            }),
-        );
+        const builds = await this.builds();
+        const requires: Record<string, string> = {};
+        const locked: BuildReader[] = [];
+        for (const { packageId, version } of released) {
+            const lock = await builds.pull(packageId, await this.registry.find(packageId, version));
+            const root = await builds.contents(lock.root);
+            requires[root.manifest.package.name] = version;
+            for (const build of Lock.builds(lock)) {
+                locked.push(await builds.contents(build));
+            }
+        }
 
         // declare the definition at the space stack's export
-        return MemoryBuild.of(
+        const reader = await MemoryBuild.of(
             PackageManifest.package(this.releases.space.manifest),
             [{ ...STACK_KIND.identity, name: exported, description: definition }],
             this.machine.environment.crypto,
-            { dependencies: Object.fromEntries(dependencies) },
+            { requires },
         );
+
+        return await this.recordBuild(reader, undefined, locked);
     }
 
     /** Put a package's fixture release in the build store, as the space's build of it. */
     async release(
         packageId: PackageId,
         version: string,
-    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: string }> {
+    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
         // replicate the registry's release into the build store, and record it as the space's build
-        const manifest = await this.registry.find(packageId, version);
-        const reader = await (await this.builds()).pull(packageId, manifest);
-        const release = { package: packageId, version, manifest };
+        const builds = await this.builds();
+        const lock = await this.registry.find(packageId, version);
+        const reader = await builds.pullRoot(packageId, lock);
+        const release = { package: packageId, version, lock };
 
         return insertRelease(
             this.database,
@@ -1934,12 +1952,11 @@ export class TestSpace implements AsyncDisposable {
         const stack = single(listed.items.filter((entry) => entry.export !== null));
 
         // submit a build of the space's stack declaring the definition, which the space evaluates
-        const built = await this.buildStack(STACKS.space.export, this.#stack);
         await owner.rollout.submit({
             spaceId: this.id,
             id: stack.id,
             selection: stack.selection,
-            build: await this.recordBuild(built),
+            build: await this.recordStack(STACKS.space.export, this.#stack),
             stack: { export: STACKS.space.export, parameters: {} },
             requestId: RequestId.create(this.machine.environment),
         });

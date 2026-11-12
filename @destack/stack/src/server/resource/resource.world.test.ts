@@ -223,7 +223,7 @@ test("apply a resource's bound states, waiting for approval of a destructive pla
     const pulled = await insertRelease(
         database,
         ids.space,
-        { package: ids.package, version: "2026.9.0", manifest: Digest.parse("d".repeat(64)) },
+        { package: ids.package, version: "2026.9.0", lock: Digest.parse("d".repeat(64)) },
         [],
         fixture.machine.environment,
     );
@@ -419,7 +419,7 @@ test("retry a provisioning that failed, and retain a deleted resource while its 
     const release = {
         package: ids.package,
         version: "2026.9.0",
-        manifest: Digest.parse("e".repeat(64)),
+        lock: Digest.parse("e".repeat(64)),
     };
     const pulled = await insertRelease(
         database,

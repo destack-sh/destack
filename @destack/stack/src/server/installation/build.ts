@@ -4,7 +4,7 @@ import { LATEST_TAG } from "@destack/registry/object";
 import { and, eq, Projection, Snapshot } from "@destack/db";
 import { SettingValue } from "@destack/setting/object";
 import { buildRetention } from "../../setting/index.ts";
-import { type ImportClosure, type ManifestRead, BuildStore } from "@destack/build/store";
+import { type BuildObject, type ImportClosure, BuildStore } from "@destack/build/store";
 import type { Runtime } from "@destack/package/runtime";
 import {
     type MethodContextOf,
@@ -17,13 +17,8 @@ import { SpaceAddress } from "@destack/account/address";
 import type { GrantRequest } from "@destack/account/authentication";
 import stackPackage from "../../package.ts";
 import type { MountFetch, ObjectStore } from "@destack/object/server";
-import {
-    BuildReader,
-    type PackageLocation,
-    PackageManifest,
-    type PackageOutput,
-} from "@destack/package/manifest";
-import { DependencyRelease, PackageId, type PackageRelease } from "@destack/package";
+import { BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
+import { PackageId, type PackageRelease } from "@destack/package";
 import { Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
 import {
@@ -47,26 +42,37 @@ export type CheckoutSource = Extract<BuildSource, { readonly kind: "checkout" }>
 /** A repository commit source of a build. */
 export type CommitSource = Extract<BuildSource, { readonly kind: "commit" }>;
 
+/** The build store a push or publish reads a lock and its builds from. */
+export type PublishStore = Pick<
+    BuildStore,
+    "closure" | "contents" | "get" | "head" | "lock" | "putLock" | "read"
+>;
+
 /** The registry of published releases. */
 export interface Registry {
-    /** Find the digest of a package release's manifest, by its version or a distribution tag. */
+    /** Find the digest of a package release's lock, by its version or a distribution tag. */
     readonly find: (packageId: PackageId, release: string) => Promise<Digest>;
     /** The releases the distribution ships, which a scope runs of a package it installs none of. */
     readonly distribution: readonly PackageRelease[];
-    /** Push a stored build with its npm units to its forge, answering its digest. */
+    /** Push a stored lock and its builds to its account's forge. */
     readonly push: (
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
+        store: PublishStore,
+        lock: Digest,
+        account: Identifier<"account">,
         signal?: AbortSignal,
-    ) => Promise<Digest>;
-    /** Locate the files of a package's published build by its manifest's digest. */
-    readonly locate: (
+    ) => Promise<void>;
+    /** Pull a published lock into a store for some runtimes, refusing another package's root. */
+    readonly pull: (
+        store: Pick<BuildStore, "get" | "lock" | "pull">,
         packageId: PackageId,
-        manifest: Digest,
-    ) => Promise<{
-        readonly location: PackageLocation;
-        readonly fetch: (input: URL, init: RequestInit) => Promise<Response>;
-    }>;
+        lock: Digest,
+        runtimes: readonly Runtime[] | "all",
+    ) => Promise<Lock>;
+    /** Open a published lock's or build's objects at its package's forge, as a build store. */
+    readonly store: (
+        packageId: PackageId,
+        root: Pick<BuildObject, "kind" | "digest">,
+    ) => Promise<Pick<BuildStore, "read">>;
 }
 
 /** The options of the build server. */
@@ -77,10 +83,10 @@ export interface BuildOptions {
     readonly builds: SpaceBuildStore;
     /** The registry the space's builds are pushed to. */
     readonly registry: Registry;
-    /** Publish a stored build and its account's unpublished dependencies for a caller. */
+    /** Publish each of an account's packages in a stored lock for a caller. */
     readonly publish: (
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
+        store: PublishStore,
+        lock: Digest,
         account: Identifier<"account">,
         tag: string,
         caller: Caller,
@@ -94,10 +100,10 @@ export class BuildCache {
     readonly store: BuildStore;
     /** The runtimes the machine serves: its instances' server runtime and its views' browser. */
     readonly runtimes: readonly Runtime[];
-    /** The builtins the machine links, by package, whose builds it loads in place of any other. */
+    /** The builtins the machine links, by package, whose locks it runs in place of any other. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
-    /** The published builds pulled with their runtime closures, by manifest, each pulled once. */
-    readonly #pulled = new Map<Digest, Promise<BuildReader>>();
+    /** The published locks pulled with their runtime closures, by digest, each pulled once. */
+    readonly #pulled = new Map<Digest, Promise<Lock>>();
 
     /** Cache builds in a store for the runtimes the machine serves and the builtins it links. */
     constructor(
@@ -110,9 +116,9 @@ export class BuildCache {
         this.linked = linked;
     }
 
-    /** Retain the builds a space runs and what they reference, replacing its earlier set. */
-    async root(space: Identifier<"space">, manifests: Iterable<Digest>): Promise<void> {
-        await this.store.root(`${SPACE_ROOT_PREFIX}${space}`, new Set(manifests));
+    /** Retain the locks a space runs and the builds they list, replacing its earlier set. */
+    async root(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
+        await this.store.root(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));
     }
 
     /** Forget the builds of every space but those the machine still stores. */
@@ -126,177 +132,41 @@ export class BuildCache {
         }
     }
 
-    /** Resolve a release to the build the machine loads: a builtin's linked build, else its own. */
-    resolve(packageId: PackageId, manifest: Digest): Digest {
-        return this.linked.get(packageId)?.manifest ?? manifest;
+    /** Resolve a release to the lock the machine runs: a builtin's linked one, else its own. */
+    resolve(packageId: PackageId, lock: Digest): Digest {
+        return this.linked.get(packageId)?.lock ?? lock;
     }
 
-    /** Report whether the cache has each emitted output of a build the machine runs or serves. */
-    async serves(manifest: Digest): Promise<boolean> {
-        // take a build whose manifest the cache lacks as missing
-        const found = await this.store.find(manifest);
-        if (found === undefined) {
-            return false;
-        }
-
-        // require each output the machine runs or serves
-        const contained = await Promise.all(
-            this.served(found).map(([name]) => this.store.containsOutput(manifest, name)),
-        );
-
-        return contained.every(Boolean);
-    }
-
-    /** List a build's emitted outputs on the runtimes the machine runs or serves, by name. */
-    served(manifest: PackageManifest): [string, PackageOutput][] {
-        return Object.entries(manifest.outputs).filter(
-            ([, output]) => output.emit && this.runtimes.includes(output.runtime),
-        );
-    }
-
-    /** Pull what the machine's runtimes load of a published build, with its runtime closures. */
+    /** Pull what the machine's runtimes load of a published lock, with its runtime closures. */
     pull(
-        registry: Pick<Registry, "locate">,
+        registry: Pick<Registry, "pull" | "store">,
         packageId: PackageId,
-        manifest: Digest,
-    ): Promise<BuildReader> {
-        // pull a build once, as its files and closure stay cached while it is served, forgetting a failed pull
-        manifest = this.resolve(packageId, manifest);
-        const known = this.#pulled.get(manifest);
+        lock: Digest,
+    ): Promise<Lock> {
+        // pull a lock once
+        lock = this.resolve(packageId, lock);
+        const known = this.#pulled.get(lock);
         if (known !== undefined) {
             return known;
         }
-        const pulling = this.#pullClosure(registry, packageId, manifest);
-        this.#pulled.set(manifest, pulling);
-        pulling.catch(() => this.#pulled.delete(manifest));
+        const pulling = registry.pull(this.store, packageId, lock, this.runtimes);
+        this.#pulled.set(lock, pulling);
+        pulling.catch(() => this.#pulled.delete(lock));
 
         return pulling;
     }
 
-    /** Pull a build whole with what its emitted outputs' runtime closures pin. */
-    async #pullClosure(
-        registry: Pick<Registry, "locate">,
-        packageId: PackageId,
-        manifest: Digest,
-    ): Promise<BuildReader> {
-        // locate each build once, and read its manifest from the cache, else where it is located
-        const located = new Map<Digest, Promise<Located>>();
-        const locate = (digest: Digest, at: PackageId) => {
-            const found = located.get(digest) ?? registry.locate(at, digest);
-            located.set(digest, found);
-
-            return found;
-        };
-        const read: ManifestRead = async (digest, at) => {
-            // read a stored build's manifest, else pull its manifest and lists once
-            const stored = await this.store.find(digest);
-            if (stored !== undefined) {
-                return stored;
-            }
-            const { location, fetch } = await locate(digest, at);
-            await this.store.pull(location, fetch);
-
-            return await this.store.find(digest);
-        };
-
-        // pull the release's manifest and lists, then the outputs the machine runs and serves, unless the cache has them
-        if (!(await this.serves(manifest))) {
-            const declared = present(await read(manifest, packageId), `the build ${manifest}`);
-            const { location, fetch } = await locate(manifest, packageId);
-            for (const [name] of this.served(declared)) {
-                await this.store.pull(location, fetch, name);
-            }
-        }
-
-        // pull the builds each emitted output reaches, with every export of each
-        const reader = await this.store.contents(manifest);
-        const emitted = this.served(reader.manifest).map(([, output]) => output);
-        for (const output of emitted) {
-            const closure = await this.store.closure(
-                manifest,
-                packageId,
-                output.runtime,
-                read,
-                "export",
-            );
-            const pulled = new Set<Digest>([manifest]);
-            const pulling = { runtime: output.runtime, closure, read, locate, pulled };
-            const pinned = Object.values(output.dependencies).filter((dependency) =>
-                DependencyRelease.hasManifest(dependency),
-            );
-            for (const dependency of pinned) {
-                if (closure.has(dependency.manifest)) {
-                    const at = dependency.kind === "destack" ? dependency.package.id : packageId;
-                    await this.#pull({ manifest: dependency.manifest, packageId: at }, pulling);
-                }
-            }
-        }
-
-        return reader;
-    }
-
-    /** Copy a build of a space into the cache whole. */
-    async adopt(source: BuildReader, manifest: Digest): Promise<BuildReader> {
-        if (!(await this.store.contains(manifest))) {
-            await this.store.put(source);
-        }
-
-        return await this.store.contents(manifest);
-    }
-
-    /** Pull a closure build's output on a runtime after the builds it pins, visiting each once. */
-    async #pull(
-        release: { readonly manifest: Digest; readonly packageId: PackageId },
-        pulling: Pulling,
-    ): Promise<void> {
-        // visit each build once, leaving an output the cache has, whose pinned builds it has too
-        const { runtime, closure, read, locate, pulled } = pulling;
-        if (pulled.has(release.manifest)) {
-            return;
-        }
-        pulled.add(release.manifest);
-        const recorded = present(await read(release.manifest, release.packageId), release.manifest);
-        const [name, output] = present(
-            Object.entries(recorded.outputs).find(([, each]) => each.runtime === runtime),
-            `the ${runtime} output of ${release.manifest}`,
+    /** Read the lock of each builtin the machine links, by package name. */
+    async linkedLocks(): Promise<Map<string, Lock>> {
+        const locks = await Promise.all(
+            [...this.linked.values()].map(
+                async (release) =>
+                    [release.package.name, await this.store.lock(release.lock)] as const,
+            ),
         );
-        if (await this.store.containsOutput(release.manifest, name)) {
-            return;
-        }
 
-        // pull the builds it pins first, an npm unit found at its dependent's registry
-        const pinned = Object.values(output.dependencies).filter((dependency) =>
-            DependencyRelease.hasManifest(dependency),
-        );
-        for (const dependency of pinned) {
-            if (closure.has(dependency.manifest)) {
-                const at =
-                    dependency.kind === "destack" ? dependency.package.id : release.packageId;
-                await this.#pull({ manifest: dependency.manifest, packageId: at }, pulling);
-            }
-        }
-
-        // pull the output's files
-        const { location, fetch } = await locate(release.manifest, release.packageId);
-        await this.store.pull(location, fetch, name);
+        return new Map(locks);
     }
-}
-
-/** Where a registry locates a build: its location and the fetch reading it. */
-type Located = Awaited<ReturnType<Registry["locate"]>>;
-
-/** One runtime's pull of a release: its closure, reads, locations and the builds visited. */
-interface Pulling {
-    /** The runtime whose outputs the pull takes. */
-    readonly runtime: Runtime;
-    /** The builds the release's runtime closure reaches. */
-    readonly closure: ReadonlySet<Digest>;
-    /** Read a build's manifest from the cache, else where it is located. */
-    readonly read: ManifestRead;
-    /** Locate a build once by its digest, at a package's registry. */
-    readonly locate: (digest: Digest, at: PackageId) => Promise<Located>;
-    /** The builds the pull visited. */
-    readonly pulled: Set<Digest>;
 }
 
 /** A space's build store: its runners' pushes, read through to its machine's cache and registry. */
@@ -306,22 +176,22 @@ export class SpaceBuildStore {
     /** The machine's cache of what it runs. */
     readonly cache: BuildCache;
     /** The registry the space's published builds come from, whole or a file at a time. */
-    readonly registry: Pick<Registry, "locate">;
+    readonly registry: Pick<Registry, "pull" | "store">;
     /** The closure of each build mapped so far, by build, runtime and base path. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The builds opened so far, by manifest, each opened once as a build never changes. */
     readonly #opened = new Map<Digest, Promise<BuildReader>>();
 
     /** Store a space's builds in its blobs, reading through to the machine's cache and registry. */
-    constructor(space: BuildStore, cache: BuildCache, registry: Pick<Registry, "locate">) {
+    constructor(space: BuildStore, cache: BuildCache, registry: Pick<Registry, "pull" | "store">) {
         this.space = space;
         this.cache = cache;
         this.registry = registry;
     }
 
-    /** Report whether the space stores a build, or the machine has what it runs of it. */
-    async contains(manifest: Digest): Promise<boolean> {
-        return (await this.space.contains(manifest)) || (await this.cache.serves(manifest));
+    /** Report whether the space or the machine stores a build or lock. */
+    async contains(digest: Digest): Promise<boolean> {
+        return (await this.space.contains(digest)) || (await this.cache.store.contains(digest));
     }
 
     /** Open a build the space stores, else the machine's copy, a missing file from the registry. */
@@ -351,19 +221,20 @@ export class SpaceBuildStore {
         // read each file from the store, else once from the build's registry
         const { crypto } = this.cache.store.environment;
         const stream: BuildReader["stream"] = async (path, signal) => {
-            // read a file the store holds
+            // read a file the store holds, else write it into the cache from the build's forge first
             const file = await reader.file(path);
-            if (await store.has(file.digest)) {
-                return await reader.stream(path, signal);
+            const [isStored] = await store.has([file.digest]);
+            if (isStored !== true) {
+                const source = await this.registry.store(owner.id, {
+                    kind: "manifest",
+                    digest: manifest,
+                });
+                await this.cache.store.write(source.read([{ kind: "file", digest: file.digest }]));
             }
 
-            // fetch a file it lacks from the build's registry, then keep it in the cache
-            const { location, fetch } = await this.registry.locate(owner.id, manifest);
-            const remote = await BuildReader.open(location, fetch, crypto, signal);
-            const bytes = await remote.load(path, signal);
-            await this.cache.store.receive([{ digest: file.digest, bytes }]);
-
-            return new Blob([bytes]).stream();
+            return await (
+                isStored === true ? reader : await this.cache.store.contents(manifest)
+            ).stream(path, signal);
         };
 
         return new BuildReader(reader.manifest, stream, crypto);
@@ -381,17 +252,13 @@ export class SpaceBuildStore {
 
     /** Read one complete stored file, from the space, else from the machine. */
     async file(file: PackageFile): Promise<Uint8Array<ArrayBuffer>> {
-        const store = (await this.space.has(file.digest)) ? this.space : this.cache.store;
+        const [isSpace] = await this.space.has([file.digest]);
+        const store = isSpace === true ? this.space : this.cache.store;
 
         return store.file(file);
     }
 
-    /** List the npm units a build depends on, reading each from the space or the machine. */
-    units(manifest: Digest, packageId: PackageId): Promise<Digest[]> {
-        return this.cache.store.units(manifest, packageId, (digest) => this.get(digest));
-    }
-
-    /** Serve the mount taking the files and manifest a running build's runner pushes. */
+    /** Serve the mount taking the files, builds and lock a running build's runner pushes. */
     mount(): MountFetch {
         return async (request, admitted, _context, store) => {
             // read the build below the mount, refusing a caller acting for none of its runners
@@ -420,7 +287,7 @@ export class SpaceBuildStore {
             }
             requireRunning(row);
 
-            // take pushes of its files and its manifest into the space's builds, serving no pulls
+            // take pushes of its files, builds and lock into the space's builds, serving no pulls
             const mount = new URL(`${url.origin}/${spaceId}/${buildId}/`);
 
             return await this.space.fetch(request, mount, {
@@ -432,20 +299,46 @@ export class SpaceBuildStore {
         };
     }
 
-    /** Map a build's imports on a runtime below a base path, builtins at their linked releases. */
-    imports(manifest: Digest, runtime: Runtime, base: string): Promise<ImportClosure> {
-        // map each build once per runtime and base, as builds never change
-        const key = `${manifest} ${runtime} ${base}`;
+    /** Map a lock's imports on a runtime below a base path, builtins at their linked roots. */
+    imports(lock: Digest, runtime: Runtime, base: string): Promise<ImportClosure> {
+        // map each lock once per runtime and base
+        const key = `${lock} ${runtime} ${base}`;
         let found = this.#closures.get(key);
         if (found === undefined) {
-            found = this.cache.store.imports(manifest, runtime, base, this.cache.linked, (digest) =>
-                this.get(digest),
-            );
+            found = this.#imports(lock, runtime, base);
             this.#closures.set(key, found);
             found.catch(() => this.#closures.delete(key));
         }
 
         return found;
+    }
+
+    /** Map a lock's imports on a runtime below a base path, with the builtins the machine links. */
+    async #imports(lock: Digest, runtime: Runtime, base: string): Promise<ImportClosure> {
+        // read the lock and the builtins the machine links
+        const read = await this.lock(lock);
+        const linked = await this.cache.linkedLocks();
+
+        return await this.cache.store.imports(read, runtime, base, linked, (digest) =>
+            this.get(digest),
+        );
+    }
+
+    /** Open a lock's root build: the space's own, else the machine's copy. */
+    async root(lock: Digest): Promise<BuildReader> {
+        return await this.contents((await this.lock(lock)).root);
+    }
+
+    /** Bring a lock into the machine's cache, then open its root build. */
+    async pullRoot(packageId: PackageId, lock: Digest): Promise<BuildReader> {
+        return await this.contents((await this.pull(packageId, lock)).root);
+    }
+
+    /** Read a lock the space stores, else the machine's copy. */
+    async lock(digest: Digest): Promise<Lock> {
+        return (await this.space.contains(digest))
+            ? await this.space.lock(digest)
+            : await this.cache.store.lock(digest);
     }
 
     /** Read a build in place to inspect it: the space's own, else the cached or published one. */
@@ -456,61 +349,32 @@ export class SpaceBuildStore {
         }
 
         // pull a published build's manifest and lists once
-        const resolved = this.cache.resolve(packageId, manifest);
+        const linked = this.cache.linked.get(packageId);
+        const resolved =
+            linked === undefined ? manifest : (await this.cache.store.lock(linked.lock)).root;
         if ((await this.cache.store.find(resolved)) === undefined) {
-            const { location, fetch } = await this.registry.locate(packageId, resolved);
-            await this.cache.store.pull(location, fetch);
+            const root = { kind: "manifest", digest: resolved } as const;
+            await this.cache.store.pull(await this.registry.store(packageId, root), root, []);
         }
 
         return await this.contents(resolved);
     }
 
-    /** Bring a build into the machine's cache to run it: the space's own, else a published one. */
-    pull(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
-        return this.#pull(packageId, manifest, new Map());
-    }
-
-    /** Bring a build into the cache after the builds it pins, visiting each build once per pull. */
-    #pull(
-        packageId: PackageId,
-        manifest: Digest,
-        visited: Map<Digest, Promise<BuildReader>>,
-    ): Promise<BuildReader> {
-        // share the visit of a build another dependent reached first
-        const known = visited.get(manifest);
-        if (known !== undefined) {
-            return known;
-        }
-        const visiting = this.#visit(packageId, manifest, visited);
-        visited.set(manifest, visiting);
-
-        return visiting;
-    }
-
-    /** Pull a published build with its closure, or the space's own after the builds it pins. */
-    async #visit(
-        packageId: PackageId,
-        manifest: Digest,
-        visited: Map<Digest, Promise<BuildReader>>,
-    ): Promise<BuildReader> {
-        // pull a published build with its runtime closure
-        if (!(await this.space.contains(manifest))) {
-            return await this.cache.pull(this.registry, packageId, manifest);
+    /** Bring a lock into the machine's cache to run it: the space's own, else a published one. */
+    async pull(packageId: PackageId, lock: Digest): Promise<Lock> {
+        // pull a published lock with its runtime closures
+        if (!(await this.space.contains(lock))) {
+            return await this.cache.pull(this.registry, packageId, lock);
         }
 
-        // bring the builds the space's own build pins first, its npm units under its package, then adopt it
-        const own = await this.space.contents(manifest);
-        for (const output of Object.values(own.manifest.outputs)) {
-            const pinned = Object.values(output.dependencies).filter((dependency) =>
-                DependencyRelease.hasManifest(dependency),
-            );
-            for (const dependency of pinned) {
-                const owner = dependency.kind === "destack" ? dependency.package.id : packageId;
-                await this.#pull(PackageId.parse(owner), dependency.manifest, visited);
-            }
-        }
+        // pull the space's own lock from the space's store
+        await this.cache.store.pull(
+            this.space,
+            { kind: "lock", digest: lock },
+            this.cache.runtimes,
+        );
 
-        return await this.cache.adopt(own, manifest);
+        return await this.cache.store.lock(lock);
     }
 
     /** Take the build a stored build ends with, which its runner pushed. */
@@ -520,18 +384,16 @@ export class SpaceBuildStore {
             return end;
         }
 
-        // require the build its runner pushed, then attach its code index
-        const bytes = PackageManifest.serialize(end.manifest);
-        const digest = await Digest.of(bytes, this.space.environment.crypto);
-        if (!(await this.space.contains(digest))) {
+        // require the lock its runner pushed
+        if (!(await this.space.contains(end.lock))) {
             throw StackError.of(
                 "BUILD_NOT_FOUND",
-                `build '${digest}' not found: it was not pushed to the space`,
+                `lock '${end.lock}' not found: it was not pushed to the space`,
             );
         }
-        await this.space.attach(digest, CodeIndex.file(end.code));
+        await this.space.attach((await this.space.lock(end.lock)).root, CodeIndex.file(end.code));
 
-        return { kind: "stored", digest };
+        return { kind: "stored", lock: end.lock };
     }
 
     /** Delete the space's builds as it leaves the machine, with their attached graph indexes. */
@@ -609,19 +471,20 @@ export function implementBuild(options: BuildOptions) {
                     const spaceId = schema.identifier("space").parse(context.scope);
                     const source = BuildSource.parse(context.input.source);
                     if (source.kind === "release") {
-                        const { manifest } = source;
-                        const pulled = await options.builds.cache.store.find(manifest);
-                        if (pulled === undefined) {
+                        const { lock } = source;
+                        const { store } = options.builds.cache;
+                        if (!(await store.contains(lock))) {
                             throw StackError.of(
                                 "RELEASE_BLOCKED",
-                                `cannot create a build of release '${manifest}': pull it into the build store first`,
+                                `cannot create a build of release '${lock}': pull it into the build store first`,
                             );
                         }
-                        const built = PackageManifest.package(pulled);
+                        const root = await store.get((await store.lock(lock)).root);
+                        const built = PackageManifest.package(root);
                         if (built.id !== source.package || built.version !== source.version) {
                             throw StackError.of(
                                 "MANIFEST_INVALID",
-                                `manifest '${manifest}' is invalid: it builds ${built.id} '${built.version}', not ${source.package} '${source.version}'`,
+                                `lock '${lock}' is invalid: its root builds ${built.id} '${built.version}', not ${source.package} '${source.version}'`,
                             );
                         }
 
@@ -630,8 +493,8 @@ export function implementBuild(options: BuildOptions) {
                                 input: {
                                     ...context.input,
                                     state: "succeeded",
-                                    manifest,
-                                    outputs: Object.keys(pulled.outputs),
+                                    lock,
+                                    outputs: Object.keys(root.outputs),
                                     startedAt: context.now,
                                     finishedAt: context.now,
                                 },
@@ -674,8 +537,8 @@ export function implementBuild(options: BuildOptions) {
                 prepare: async (context) => ({
                     releases: [
                         ...(await options.publish(
-                            options.builds,
-                            Build.manifest(context.target),
+                            options.builds.space,
+                            Build.lock(context.target),
                             context.input.account,
                             context.input.tag ?? LATEST_TAG,
                             context.caller,
@@ -686,13 +549,13 @@ export function implementBuild(options: BuildOptions) {
                 handle: async (context) => context.prepared,
             },
             push: {
-                // push a succeeded build with its npm units and referrers to its package's forge before the transaction
-                prepare: async (context) => ({
-                    manifest: await options.registry.push(
-                        options.builds,
-                        Build.manifest(context.target),
-                    ),
-                }),
+                // push a succeeded build's lock and its builds to its package's forge before the transaction
+                prepare: async (context) => {
+                    const lock = Build.lock(context.target);
+                    await options.registry.push(options.builds.space, lock, context.input.account);
+
+                    return { lock };
+                },
                 handle: async (context) => context.prepared,
             },
             progress: async (context) => {
@@ -778,18 +641,18 @@ function reported(
     };
 }
 
-/** Read the fields a finished build records: its failure, or the digest of its stored manifest. */
+/** Read the fields a finished build records: its failure, or the digest of its stored lock. */
 function ended(adopted: schema.Infer<typeof BuildOutcome>, now: number) {
     // record a failed build's failure
     if (adopted.kind === "failed") {
         return { state: "failed" as const, phase: null, failure: adopted.failure, finishedAt: now };
     }
-    // record a stored build's manifest
+    // record a stored build's lock
     else {
         return {
             state: "succeeded" as const,
             phase: null,
-            manifest: adopted.digest,
+            lock: adopted.lock,
             finishedAt: now,
         };
     }

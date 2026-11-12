@@ -56,7 +56,7 @@ export interface CommitBuildOptions {
     /** The space's builds, read through to the machine's cache. */
     readonly builds: SpaceBuildStore;
     /** The registry of the releases a stack's build depends on. */
-    readonly registry: Pick<Registry, "locate">;
+    readonly registry: Pick<Registry, "store">;
 }
 
 /** The build of the commit an installation's selected reference resolves to. */

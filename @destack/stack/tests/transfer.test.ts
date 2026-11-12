@@ -407,10 +407,10 @@ test(
         );
         const record = nth(await target.database.select().from(object.transfer.table), 0);
         const [recorded] = await target.database
-            .select({ manifest: object.build.table.manifest })
+            .select({ lock: object.build.table.lock })
             .from(object.build.table)
             .where(eq(object.build.table.id, built.build));
-        const manifest = present(recorded?.manifest, "the moved build's manifest");
+        const lock = present(recorded?.lock, "the moved build's lock");
         const served = await target.database
             .select({ id: accountObject.space.table.id })
             .from(accountObject.space.table)
@@ -423,7 +423,7 @@ test(
             placement: await placementOf(universe),
             notes: await read.select().from(note).orderBy(note.id),
             completed: [record.completedAt !== null, record.sourceId, record.targetId],
-            moved: await (await target.builds()).contains(manifest),
+            moved: await (await target.builds()).space.contains(lock),
             reference: replicated.reference,
             kept: kept.map((entry) => [entry.name, entry.provider]),
             databases: (await world.files.readDirectory(join(files, "target", ids.space)))
@@ -646,6 +646,7 @@ test("stop the instances of a moving space running on its machine once its fence
     const runtime = new TestRuntime({
         scheduler: space.machine.environment.scheduler,
         earlier: [running],
+        builds: await space.builds(),
     });
 
     // fence the moving space on the machine running it

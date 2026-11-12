@@ -1,8 +1,9 @@
 import type { Scheduler } from "@destack/environment";
 import type { BuildReader } from "@destack/package/manifest";
 import type { ServerRuntime } from "@destack/package/runtime";
-import { JsonValue, present } from "@destack/schema";
+import { type Digest, JsonValue, present } from "@destack/schema";
 import type { InstanceSpec, Runtime } from "../runtime/index.ts";
+import type { SpaceBuildStore } from "../server/index.ts";
 
 /** A runtime recording the instances it starts and stops. */
 export class TestRuntime implements Runtime {
@@ -16,11 +17,15 @@ export class TestRuntime implements Runtime {
     readonly #earlier: ReadonlySet<string>;
     /** The scheduler a call's module import runs on. */
     readonly #scheduler: Scheduler;
+    /** The builds whose lock's root module a call imports. */
+    readonly #builds: Pick<SpaceBuildStore, "root">;
 
     /** Run instances as a server runtime, bun by default, importing on a world's scheduler. */
     constructor(options: {
         /** The scheduler a call's module import runs on. */
         readonly scheduler: Scheduler;
+        /** The builds whose lock's root module a call imports. */
+        readonly builds: Pick<SpaceBuildStore, "root">;
         /** The server runtime, bun by default. */
         readonly name?: ServerRuntime;
         /** The instances an earlier process of its machine left running, none by default. */
@@ -30,6 +35,7 @@ export class TestRuntime implements Runtime {
         this.name = options.name ?? "bun";
         this.#earlier = new Set(options.earlier ?? []);
         this.#scheduler = options.scheduler;
+        this.#builds = options.builds;
     }
 
     /** Record a run started. */
@@ -66,14 +72,20 @@ export class TestRuntime implements Runtime {
         throw new TypeError(`the test runtime delivers nothing to '${instanceId}'`);
     }
 
-    /** Call an export of a build's module in this process, as the workspace installs it. */
-    call(
-        build: BuildReader,
+    /** Call an export of a lock's root module in this process, as the workspace installs it. */
+    async call(
+        lock: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        return callInProcess(build, path, name, input, this.#scheduler);
+        return await callInProcess(
+            await this.#builds.root(lock),
+            path,
+            name,
+            input,
+            this.#scheduler,
+        );
     }
 }
 

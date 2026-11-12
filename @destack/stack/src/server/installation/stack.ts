@@ -317,7 +317,7 @@ async function installedTypes(
     objects: readonly ObjectType[],
     options: StackApplicationOptions,
 ): Promise<{ readonly types: readonly ObjectType[]; readonly isPending: boolean }> {
-    // read the installations the stack manages that follow a revision or a pinned release
+    // read the installations the stack manages that follow a revision or select a release
     const installed = await snapshot.read(installation.table).findMany({
         where: { scope: stack.scope, managerInstallationId: stack.installationId },
     });
@@ -328,7 +328,10 @@ async function installedTypes(
             .findMany({ where: { installationId: { in: installed.map((entry) => entry.id) } } }),
     );
     const following = managed.filter(
-        (entry) => entry.revisionId !== null || Rollout.pinned(entry.installation) !== undefined,
+        (entry) =>
+            entry.revisionId !== null ||
+            entry.installation.selection.kind === "release" ||
+            entry.installation.selection.kind === "tag",
     );
 
     // read the object types each one's build declares

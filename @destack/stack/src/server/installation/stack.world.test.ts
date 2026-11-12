@@ -23,7 +23,7 @@ import {
 } from "@destack/schema";
 import type { BuildReader } from "@destack/package/manifest";
 import { describeObject, describePackage } from "@destack/object/inspect";
-import { PackageVersion, PackageId } from "@destack/package";
+import { type DependencyRelease, PackageVersion, PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { defineBucket } from "@destack/bucket";
 import { defineStack } from "../../declare/index.ts";
@@ -77,7 +77,7 @@ async function submit(
 ): Promise<InstallationRollout> {
     // record a build of the stack declaring the definition, and submit it for the space to evaluate
     const { export: exported, parameters, definition } = submission.stack;
-    const build = await fixture.recordBuild(await fixture.buildStack(exported, definition));
+    const build = await fixture.recordStack(exported, definition);
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
@@ -412,7 +412,7 @@ test("move a stack's host installation pinned to a release the machine no longer
 
     // read the release the installation's revision runs
     const [revised] = await database
-        .select({ manifest: object.build.table.manifest, source: object.build.table.source })
+        .select({ lock: object.build.table.lock, source: object.build.table.source })
         .from(installation.table)
         .innerJoin(
             object.installationRevision.table,
@@ -424,12 +424,12 @@ test("move a stack's host installation pinned to a release the machine no longer
         )
         .where(eq(installation.table.name, "notes"));
     expect(revised).toEqual({
-        manifest: await fixture.registry.find(ids.package, "2026.10.0"),
+        lock: await fixture.registry.find(ids.package, "2026.10.0"),
         source: {
             kind: "release",
             package: ids.package,
             version: "2026.10.0",
-            manifest: await fixture.registry.find(ids.package, "2026.10.0"),
+            lock: await fixture.registry.find(ids.package, "2026.10.0"),
         },
     });
 });
@@ -716,7 +716,7 @@ test("install a package and declare records of its type in one approved plan, ap
         fixture.environment.crypto,
         { outputs: fixtureOutputs({}) },
     );
-    const manifest = await fixture.registry.release(release);
+    await fixture.registry.release(release);
     await database.transaction(
         async (transaction) =>
             await transaction
@@ -728,7 +728,7 @@ test("install a package and declare records of its type in one approved plan, ap
     // submit a stack installing notes and declaring a meter
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0", manifest },
+        selection: { kind: "release", version: "2026.9.0" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -741,7 +741,7 @@ test("install a package and declare records of its type in one approved plan, ap
     const definition = { installations: { notes }, meters: { main: {} } };
     const stack = await readStack(database);
     const store = await serve(fixture);
-    const build = await fixture.recordBuild(await fixture.buildStack("personal", definition));
+    const build = await fixture.recordStack("personal", definition);
     await store.mutate(store.as(rollout), {
         id: RequestId.create(fixture.machine.environment),
         calls: [
@@ -811,36 +811,35 @@ test("install a package and declare records of its type in one approved plan, ap
     ]).toEqual(["Applied", applied.revisionId, [{ name: "main" }]]);
 });
 
-test("install the packages a stack declares without its libraries, refuse one leaving out an installable dependency, and refuse two releases of one package", async () => {
-    // publish an installable dependency at two releases, and a library, in the test's world
+test("install the packages a stack declares without its libraries, refusing a missing installable dependency and a package outside the stack's lock", async () => {
+    // publish an installable dependency and a library
     const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) }).environment("test");
     const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
-    const newer = await fixtureRelease(
-        "@acme/vault",
-        "2026.10.1",
-        true,
-        [],
-        world,
-        vault.package.id,
-    );
     const library = await fixtureRelease("@acme/library", "2026.10.0", false, [], world);
 
     // publish two installable packages depending on them
     const notes = await fixtureRelease("@acme/notes", "2026.10.0", true, [vault, library], world);
-    const pages = await fixtureRelease("@acme/pages", "2026.10.0", true, [newer], world);
+    const pages = await fixtureRelease("@acme/pages", "2026.10.0", true, [vault], world);
     const builds = new Map(
-        [vault, newer, library, notes, pages].map((each) => [each.manifest, each.build]),
+        [vault, library, notes, pages].map((each) => [each.manifest, each.build]),
     );
     const read = async (_packageId: PackageId, manifest: string) =>
         present(builds.get(Digest.parse(manifest)), `the build ${manifest}`);
 
-    // install notes with the vault it declares, and refuse notes alone and pages needing another vault
+    // install notes with the vault it requires
+    const locked = [vault, library, notes];
     const declare = async (installed: readonly FixtureRelease[]) =>
-        StackDefinition.declared(await installingStack(installed, world), "space", {}, read);
+        StackDefinition.declared(
+            await installingStack(installed, world),
+            Object.values(entriesOf(locked)),
+            "space",
+            {},
+            read,
+        );
     const definition = StackDefinition.collections(await declare([notes, vault]));
     const alone = await refusal(declare([notes]));
-    const twice = await refusal(declare([notes, pages, vault]));
-    expect([Object.keys(definition.installations).toSorted(), alone, twice]).toEqual([
+    const outside = await refusal(declare([notes, vault, pages]));
+    expect([Object.keys(definition.installations).toSorted(), alone, outside]).toEqual([
         ["notes", "vault"],
         [
             "BAD_REQUEST",
@@ -850,12 +849,12 @@ test("install the packages a stack declares without its libraries, refuse one le
         [
             "BAD_REQUEST",
             "DEFINITION_INVALID",
-            "stack 'space' is invalid: it declares '@acme/vault' at another release than '@acme/pages' depends on",
+            "installation 'pages' of 'space' is invalid: it installs a package without a build in the stack's lock, so add the package to the stack's dependencies",
         ],
     ]);
 });
 
-test("keep a stack's installation following a tag, and pin a release selection to the manifest it resolved", async () => {
+test("keep a stack's installation selections as declared, by tag and by release version", async () => {
     // publish notes depending on an installable vault, and declare notes following its latest tag beside vault
     const world = new Simulation({ seed: 1, start: Date.UTC(2026, 9, 1) }).environment("test");
     const vault = await fixtureRelease("@acme/vault", "2026.10.0", true, [], world);
@@ -866,13 +865,19 @@ test("keep a stack's installation following a tag, and pin a release selection t
     const latest = { kind: "tag", tag: "latest" } as const;
     const stack = await installingStack([notes, vault], world, { notes: latest });
 
-    // follow the tag for notes, and pin vault to the release the stack resolved
+    // follow the tag for notes
     const { installations } = StackDefinition.collections(
-        await StackDefinition.declared(stack, "space", {}, read),
+        await StackDefinition.declared(
+            stack,
+            Object.values(entriesOf([vault, notes])),
+            "space",
+            {},
+            read,
+        ),
     );
     expect([installations["notes"]?.selection, installations["vault"]?.selection]).toEqual([
         latest,
-        { kind: "release", version: "2026.10.0", manifest: vault.manifest },
+        { kind: "release", version: "2026.10.0" },
     ]);
 });
 
@@ -926,7 +931,7 @@ async function fixtureRelease(
         },
     });
     const build = await MemoryBuild.of(owner, declared, environment.crypto, {
-        dependencies: resolutions(dependencies),
+        requires: requirementsOf(dependencies),
         outputs,
     });
     const manifest = await Digest.of(
@@ -976,15 +981,20 @@ function installingStack(
             },
         ],
         environment.crypto,
-        { dependencies: resolutions(installed) },
+        { requires: requirementsOf(installed) },
     );
 }
 
-/** Record releases as a build's resolved dependencies. */
-function resolutions(released: readonly FixtureRelease[]) {
+/** Require releases at their versions, by package name. */
+function requirementsOf(released: readonly FixtureRelease[]): Record<string, string> {
+    return Object.fromEntries(released.map((each) => [each.package.name, each.package.version]));
+}
+
+/** Read releases as a lock's entries, by package name. */
+function entriesOf(released: readonly FixtureRelease[]): Record<string, DependencyRelease> {
     return Object.fromEntries(
         released.map(({ kind, package: dependency, manifest }) => [
-            `${dependency.name}@${dependency.version}`,
+            dependency.name,
             { kind, package: dependency, manifest },
         ]),
     );

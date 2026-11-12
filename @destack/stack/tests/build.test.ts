@@ -2,7 +2,7 @@ import { testHost } from "@destack/test/host";
 import { Failure } from "@destack/error";
 import { principal } from "@destack/access";
 import { ObjectReference, Scope, RequestId } from "@destack/sync";
-import { BuildReader, PackageManifest } from "@destack/package/manifest";
+import { BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { Digest, present } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
@@ -61,7 +61,7 @@ async function implementBuild() {
     };
 }
 
-test("run a checkout's build as its machine and read it back from the build store", async () => {
+test("run a checkout's build as its machine and read its lock back from the build store", async () => {
     // create the build, naming the checkout's machine its runner
     const { fixture, runner, machine, create } = await implementBuild();
     const created = await create();
@@ -78,30 +78,32 @@ test("run a checkout's build as its machine and read it back from the build stor
         progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
     });
 
-    // push every file into the space's empty builds, and the empty code index, then finish
+    // push every file, the manifest and the lock into the space's empty builds, then finish
     const reader = await writeBuild();
-    const index = await Digest.of(JSON.stringify([]), testHost().crypto);
-    const lacking = [...new Set([...(await digests(reader)), index])].toSorted();
+    const root = await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto);
+    const expected = Lock.of(root);
+    const locked = await Lock.digest(expected, testHost().crypto);
+    const lacking = [...new Set([...(await digests(reader)), root, locked])].toSorted();
     const uploaded = await fixture.storeBuild(machine, target, reader);
     const finished = await runner.build.get(target);
-    const manifest = present(finished.manifest, "the stored manifest");
+    const lock = present(finished.lock, "the stored lock");
 
-    // read the build back from the build store
-    const readBack = await (await fixture.builds()).space.contents(manifest);
+    // read the lock and its root back from the build store
+    const { space } = await fixture.builds();
+    const stored = await space.lock(lock);
+    const readBack = await space.contents(stored.root);
 
     expect({
         runner: ObjectReference.at("runner", created),
         uploaded: [...uploaded].toSorted(),
-        finished: [finished.state, finished.commit, manifest],
+        finished: [finished.state, finished.commit, lock],
+        stored,
         read: [readBack.manifest, await readBack.files()],
     }).toEqual({
         runner: principal.machine.reference(Scope.universe.id, fixture.machine.id),
         uploaded: lacking,
-        finished: [
-            "succeeded",
-            COMMIT,
-            await Digest.of(PackageManifest.serialize(reader.manifest), testHost().crypto),
-        ],
+        finished: ["succeeded", COMMIT, locked],
+        stored: expected,
         read: [reader.manifest, await reader.files()],
     });
 });
@@ -112,10 +114,14 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
     const created = await create();
     const target = { spaceId: ids.space, id: created.id };
     const unfinished = await refusal(
-        owner.build.push({ ...target, requestId: RequestId.create(fixture.machine.environment) }),
+        owner.build.push({
+            ...target,
+            account: ids.account,
+            requestId: RequestId.create(fixture.machine.environment),
+        }),
     );
 
-    // run it to its stored manifest as the runner
+    // run it to its stored lock
     await runner.build.start({
         ...target,
         requestId: RequestId.create(fixture.machine.environment),
@@ -126,14 +132,19 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         progress: { phase: "building", outputs: OUTPUTS, commit: COMMIT },
     });
     await fixture.storeBuild(machine, target, await writeBuild());
-    const manifest = present((await runner.build.get(target)).manifest, "the stored manifest");
+    const lock = present((await runner.build.get(target)).lock, "the stored lock");
 
     // push it as the runner and as the owner
     const asRunner = await refusal(
-        runner.build.push({ ...target, requestId: RequestId.create(fixture.machine.environment) }),
+        runner.build.push({
+            ...target,
+            account: ids.account,
+            requestId: RequestId.create(fixture.machine.environment),
+        }),
     );
     const pushed = await owner.build.push({
         ...target,
+        account: ids.account,
         requestId: RequestId.create(fixture.machine.environment),
     });
 
@@ -141,7 +152,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
         unfinished,
         asRunner,
         pushed,
-        isInRegistry: await fixture.registry.contains(manifest),
+        isInRegistry: await fixture.registry.contains(lock),
     }).toEqual({
         unfinished: [
             "SERVICE_UNAVAILABLE",
@@ -153,7 +164,7 @@ test("push a succeeded build to the registry as its space's owner, refusing its 
             "PERMISSION_DENIED",
             "permission 'push' is forbidden: the caller lacks it",
         ],
-        pushed: { manifest },
+        pushed: { lock },
         isInRegistry: true,
     });
 });

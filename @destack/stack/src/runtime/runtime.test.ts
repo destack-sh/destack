@@ -1,10 +1,13 @@
 import { PackageId } from "@destack/package";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceId } from "@destack/resource";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import { testKeys, testSimulation } from "@destack/object/test";
 import { expect, refusal, test } from "@destack/test";
 import { InstanceRegistry, InstanceSpec } from "./runtime.ts";
+
+/** The lock of the instance's build, which the test never reads. */
+const LOCK = Digest.parse("1".repeat(64));
 
 /** The egress the instances call addresses below. */
 const EGRESS = "http://127.0.0.1:7470/.destack/egress";
@@ -147,6 +150,7 @@ test("bind a workload's own provisioned resources by name, refusing another pack
         workload: "main",
         scope,
         build,
+        lock: LOCK,
         settings: {},
         sandbox: {},
         enabled: [],

@@ -1,3 +1,4 @@
+import type { Runtime } from "@destack/package/runtime";
 import { Failure } from "@destack/error";
 import { BucketKind } from "@destack/bucket/declare";
 import { InstallationKind } from "@destack/object";
@@ -6,7 +7,12 @@ import { StackDefinition } from "../declare/index.ts";
 import { StackError } from "../error/index.ts";
 import { type Digest, type JsonObject, schema } from "@destack/schema";
 import { PackageVersion, PackageId, type PackageRelease } from "@destack/package";
-import { type BuildReader, OutputContent, type OutputExport } from "@destack/package/manifest";
+import {
+    type BuildReader,
+    Lock,
+    OutputContent,
+    type OutputExport,
+} from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import type { Registry } from "../server/index.ts";
 import type { ReleaseRegistry } from "@destack/account/server";
@@ -82,7 +88,7 @@ export function fixtureOutputs(
             const parsed = OutputContent.parse({
                 directory: name,
                 exports: {},
-                dependencies: {},
+                peers: {},
                 ...output,
             });
             const exported = Object.values(parsed.workloads).map(
@@ -103,14 +109,11 @@ export function fixtureOutputs(
     );
 }
 
-/** The mount the fixture registry serves its builds below. */
-const REGISTRY_MOUNT = new URL("http://registry.test/builds/");
-
 /** The registry the fixture's releases come from. */
 export class TestRegistry implements Registry, ReleaseRegistry {
     /** The stored fixture builds. */
     readonly #store: BuildStore;
-    /** The manifests of the pushed releases, by package and version. */
+    /** The locks of the pushed releases, by package and version. */
     readonly #pushed = new Map<string, Digest>();
 
     /** The fixture app whose declared releases it serves, absent where it serves released ones. */
@@ -133,8 +136,9 @@ export class TestRegistry implements Registry, ReleaseRegistry {
         // serve a declared release of the fixture app, built as its forge stored it
         else if (packageId === this.#fixture && Object.hasOwn(DECLARED, version)) {
             const crypto = this.#store.environment.crypto;
+            const root = await this.#store.put(await fixtureBuild(packageId, version, crypto));
 
-            return this.#store.put(await fixtureBuild(packageId, version, crypto));
+            return await this.#store.putLock(Lock.of(root));
         }
         // refuse any other release, as a forge does
         else {
@@ -152,63 +156,65 @@ export class TestRegistry implements Registry, ReleaseRegistry {
 
     /** Open a release's build, as the universe opens the stacks it applies. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
-        return this.#store.contents(await this.find(packageId, release));
+        const lock = await this.#store.lock(await this.find(packageId, release));
+
+        return await this.#store.contents(lock.root);
     }
 
-    /** Release a build with its npm units, answering its manifest's digest. */
-    async release(build: BuildReader, units: readonly BuildReader[] = []): Promise<Digest> {
-        // store the units, then the build, and record its manifest under its release
-        for (const unit of units) {
-            await this.#store.put(unit);
-        }
-        const manifest = await this.#store.put(build);
+    /** Release a build locked with the builds it runs with, answering its lock's digest. */
+    async release(build: BuildReader, builds: readonly BuildReader[] = []): Promise<Digest> {
+        // store the builds and their lock
+        const { lock } = await lockBuild(this.#store, build, builds);
         const released = PackageManifest.package(build.manifest);
-        this.#pushed.set(`${released.id}@${released.version}`, manifest);
+        this.#pushed.set(`${released.id}@${released.version}`, lock);
 
-        return manifest;
+        return lock;
     }
 
-    /** Receive a stored build with its npm units, as its forge does. */
-    async push(store: Pick<BuildStore, "contents" | "units">, manifest: Digest): Promise<Digest> {
-        // read the build the registry has, else copy each npm unit, then the build
-        const isStored = await this.#store.contains(manifest);
-        const build = isStored
-            ? await this.#store.contents(manifest)
-            : await store.contents(manifest);
+    /** Receive a stored lock with the builds it lists, as its forge does. */
+    async push(store: Pick<BuildStore, "contents" | "lock">, lock: Digest): Promise<void> {
+        // read the lock the registry has
+        const isStored = await this.#store.contains(lock);
+        const read = isStored ? await this.#store.lock(lock) : await store.lock(lock);
         if (!isStored) {
-            const packageId = PackageManifest.package(build.manifest).id;
-            for (const unit of await store.units(manifest, packageId)) {
-                await this.#store.put(await store.contents(unit));
+            for (const build of Lock.builds(read)) {
+                if (!(await this.#store.contains(build))) {
+                    await this.#store.put(await store.contents(build));
+                }
             }
-            await this.#store.put(build);
+            await this.#store.putLock(read);
         }
 
-        // record the build under its release
-        const released = PackageManifest.package(build.manifest);
-        this.#pushed.set(`${released.id}@${released.version}`, manifest);
-
-        return manifest;
+        // record the lock under its root's release
+        const released = PackageManifest.package((await this.#store.contents(read.root)).manifest);
+        this.#pushed.set(`${released.id}@${released.version}`, lock);
     }
 
-    /** The manifests of the pushed releases. */
-    get manifests(): readonly Digest[] {
+    /** Pull a stored lock into a store for some runtimes. */
+    async pull(
+        store: Pick<BuildStore, "get" | "lock" | "pull">,
+        _packageId: PackageId,
+        lock: Digest,
+        runtimes: readonly Runtime[] | "all",
+    ): Promise<Lock> {
+        await store.pull(this.#store, { kind: "lock", digest: lock }, runtimes);
+
+        return await store.lock(lock);
+    }
+
+    /** Open the stored fixture builds as the store a lock or build is read from. */
+    async store(): Promise<Pick<BuildStore, "read">> {
+        return this.#store;
+    }
+
+    /** The locks of the pushed releases. */
+    get locks(): readonly Digest[] {
         return [...this.#pushed.values()];
     }
 
     /** Report whether the registry has a build by its manifest's digest. */
     contains(manifest: Digest): Promise<boolean> {
         return this.#store.contains(manifest);
-    }
-
-    /** Locate a stored fixture build by its manifest's digest, read through the store's fetch. */
-    async locate(_packageId: PackageId, manifest: Digest) {
-        return {
-            location: { manifest, url: new URL(`${manifest}/`, REGISTRY_MOUNT).href },
-            fetch: (input: URL, request: RequestInit) =>
-                this.#store.fetch(new Request(input.href, request), REGISTRY_MOUNT, {
-                    pull: async () => {},
-                }),
-        };
     }
 }
 
@@ -276,6 +282,33 @@ export async function fixtureBuild(
     );
 
     return built;
+}
+
+/** Put a build and the builds it runs with in a store, hoisted into a lock, answering both. */
+export async function lockBuild(
+    store: Pick<BuildStore, "get" | "put" | "putLock">,
+    build: BuildReader,
+    builds: readonly BuildReader[],
+): Promise<{ readonly lock: Digest; readonly root: Digest }> {
+    // put each build by its package
+    const locked: Record<string, Digest> = {};
+    for (const each of builds) {
+        locked[each.manifest.package.name] = await store.put(each);
+    }
+    const root = await store.put(build);
+
+    // lock them hoisted
+    const hoisted = await Lock.hoisted(root, locked, (digest) => store.get(digest));
+
+    return { lock: await store.putLock(hoisted), root };
+}
+
+/** Compute the digest of the lock of a build that runs alone. */
+export async function lockOf(
+    build: Pick<BuildReader, "manifest">,
+    crypto: Crypto,
+): Promise<Digest> {
+    return await Lock.digest(Lock.of(await BuildStore.digest(build.manifest, crypto)), crypto);
 }
 
 /** The command every fixture build declares. */
