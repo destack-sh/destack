@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { card } from "@destack/machine-board-fixture/object";
 import { schema } from "@destack/schema";
-import { expect, onTestFinished, test } from "@destack/test";
+import { expect, onTestFinished, single, test } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { type TestInstall, WORK_BOARD } from "@destack/machine/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
@@ -261,30 +261,28 @@ Usage: destack card create
     });
 });
 
-test("pass a flag of identifiers to a method as given, refusing a key for a type without one", async () => {
-    // create a space on the computer's machine by its identifier, then by a name machines do not key
+test("pass a flag naming an object by its identifier or its key, refusing a key nobody holds", async () => {
+    // create spaces on the computer's cloud machine by its identifier and by its declared name
     const terminal = await TerminalFixture.open();
     const machine = terminal.computer.machine.id;
-    const createOn = (on: string) =>
-        terminal.printed(["space", "create", "--name", "notes", "--machine", on, "--json"]);
-    const created = await createOn(machine);
-    const refused = await createOn("laptop");
+    const { machines } = terminal.computer.world.universe.control.definition.platform;
+    const { name } = single(machines.filter((declared) => declared.id === machine));
+    const createOn = (space: string, on: string) =>
+        terminal.printed(["space", "create", "--name", space, "--machine", on, "--json"]);
+    const byIdentifier = await createOn("notes", machine);
+    const byName = await createOn("tasks", name);
+    const unknown = await createOn("chat", "laptop");
 
-    // expect the identifier passed through, and the name refused by the method's input
-    const { id } = Printed.parse(JSON.parse(created.output));
-    expect({ created, refused }).toEqual({
-        created: {
-            code: 0,
-            output: (await terminal.printed(["space", id, "--json"])).output,
-            error: "",
-        },
-        refused: {
+    // expect both creates to succeed, and a name no machine holds refused by the store
+    expect({
+        created: [byIdentifier.code, byName.code],
+        unknown,
+    }).toEqual({
+        created: [0, 0],
+        unknown: {
             code: 1,
             output: "",
-            error: failure(
-                "BAD_REQUEST",
-                "invalid input: machine: invalid string: must match pattern /^machine-[0-9a-f]{8}-[0-9a-f]{4}-[78][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u",
-            ),
+            error: failure("NOT_FOUND", "'machine' with key 'laptop' not found"),
         },
     });
 });
