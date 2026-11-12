@@ -72,9 +72,7 @@ export const Catalog = Object.assign(catalogSchema, {
         const files = (await reader.files()).filter((file) => Catalog.isPath(file.path));
 
         return Promise.all(
-            files.map(async (file) =>
-                Catalog.of(file.path, await reader.read(file, schema.json()), owner),
-            ),
+            files.map(async (file) => Catalog.of(file.path, await reader.read(file), owner)),
         );
     },
 });
