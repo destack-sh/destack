@@ -28,10 +28,17 @@ export const ReleaseSelection = schema.discriminatedUnion("kind", [Release, Tag]
 /** A published release an installation follows. */
 export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
 
-/** The release, repository reference or checkout an installation follows. */
-export const InstallationSelection = schema.discriminatedUnion("kind", [
+/** The release its host provides, which moves as the host upgrades. */
+export const Host = schema.object({
+    /** Follow the release the host provides. */
+    kind: schema.literal("host"),
+});
+
+/** The schema of what an installation follows. */
+const selections = schema.discriminatedUnion("kind", [
     Release,
     Tag,
+    Host,
     schema.object({
         /** Follow committed repository history. */
         kind: schema.literal("repository"),
@@ -53,8 +60,17 @@ export const InstallationSelection = schema.discriminatedUnion("kind", [
         directory: PackageDirectory,
     }),
 ]);
-/** The release, repository reference or checkout an installation follows. */
-export type InstallationSelection = schema.Infer<typeof InstallationSelection>;
+/** The release, repository reference, checkout or host's release an installation follows. */
+export const InstallationSelection = Object.assign(selections, {
+    /** Report whether a selection resolves to a release: by version, by tag, or the host's. */
+    isRelease(selection: InstallationSelection): boolean {
+        return (
+            selection.kind === "release" || selection.kind === "tag" || selection.kind === "host"
+        );
+    },
+});
+/** The release, repository reference, checkout or host's release an installation follows. */
+export type InstallationSelection = schema.Infer<typeof selections>;
 /** An installation's selection of a repository reference. */
 export type RepositorySelection = Extract<InstallationSelection, { readonly kind: "repository" }>;
 
