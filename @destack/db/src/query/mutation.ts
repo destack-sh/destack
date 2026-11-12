@@ -252,17 +252,18 @@ export class MutationQuery<
             return [rendered(this.#sql(records))];
         }
 
+        // render every row at once when the statement binds within the limit
+        const whole = rendered(this.#sql(records));
+        const { variables } = driver.session.limits;
+        if (whole.parameters.length <= variables) {
+            return [whole];
+        }
+
         // count the values one row binds and the ones the statement binds once, as rendered
         const one = rendered(this.#sql(records.slice(0, 1))).parameters.length;
         const two = rendered(this.#sql(records.slice(0, 2))).parameters.length;
         const perRow = Math.max(two - one, 1);
-        const rows = Math.max(
-            Math.floor((driver.session.limits.variables - (one - perRow)) / perRow),
-            1,
-        );
-        if (records.length <= rows) {
-            return [rendered(this.#sql(records))];
-        }
+        const rows = Math.max(Math.floor((variables - (one - perRow)) / perRow), 1);
 
         // split the rows, which only a transaction keeps one write
         if (driver.transaction === undefined) {
