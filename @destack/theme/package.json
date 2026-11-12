@@ -1,6 +1,7 @@
 {
     "name": "@destack/theme",
     "version": "2026.11.0",
+    "description": "Theme views with an accent, a base and roles solved for contrast, in light and dark.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -17,7 +18,7 @@
         "./tokens.stylex": "./src/token/tokens.stylex.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
         "generate": "bun run src/token/generate.ts"
     },
