@@ -1,14 +1,20 @@
 # @destack/sandbox
 
-Run processes with explicit filesystem and network permissions on macOS (Seatbelt) and Linux (bubblewrap with `socat` and `ripgrep`).
+Launch processes with operating system filesystem and network restrictions.
 
-## Processes
+## Overview
 
-`Sandbox.start` runs an executable with only the environment, paths and hosts its options list.
+A sandbox runs one executable with only the environment, paths, hosts and sockets its options list, under Seatbelt on macOS and bubblewrap on Linux.
+
+- **Sandbox**: one restricted process; `start` launches it, with its `stdin`, `stdout`, `stderr` and `exited`.
+- **SandboxOptions**: what the process may use: its environment, the paths it reads and writes, the hosts it connects to, extra Unix sockets, and whether it listens on loopback.
+- **SandboxExit**: how the process ended, its code or its signal.
 
 ```ts
 import { Sandbox } from "@destack/sandbox";
+import { BunEnvironment } from "@destack/environment/bun";
 
+const environment = BunEnvironment.system;
 await using sandbox = await Sandbox.start(
     {
         executable: environment.process.executable,
@@ -23,82 +29,47 @@ await using sandbox = await Sandbox.start(
     },
     environment,
 );
-
-// drain both streams while the workload runs
 const output = new Response(sandbox.stdout).text();
-const errors = new Response(sandbox.stderr).text();
-const exit = await sandbox.exited; // { code, signal }
+const exit = await sandbox.exited; // { code: 0, signal: null }
 ```
 
-## Sockets
+## Examples
 
-`sockets` lists further Unix sockets the workload connects to, in addition to its private `TMPDIR` that the sandbox removes when the workload stops.
+### Allow hosts
+
+`network` lists hosts as names, `*.` wildcards or IP addresses with optional ports, reached only through the proxy in `HTTP_PROXY` and `HTTPS_PROXY`.
 
 ```ts
-await using sandbox = await Sandbox.start(
-    { ...options, sockets: ["/run/destack/services.sock"] },
-    environment,
-);
+import type { SandboxOptions } from "@destack/sandbox";
+
+(options: SandboxOptions): SandboxOptions => ({
+    ...options,
+    network: ["api.example.com", "*.example.org", "203.0.113.7:8443"],
+});
 ```
 
-## Messages
+### Write to a process
 
-`SandboxOptions` and `SandboxExit` are schemas that parse the messages between the host and the sandbox launcher.
+`listening: "loopback"` lets the process listen on loopback ports, and `stdin` writes to its standard input.
 
 ```ts
-const options = SandboxOptions.parse(JSON.parse(line));
+import { Sandbox, type SandboxOptions } from "@destack/sandbox";
+import { BunEnvironment } from "@destack/environment/bun";
+
+async (options: SandboxOptions) => {
+    const environment = BunEnvironment.system;
+    await using runner = await Sandbox.start({ ...options, listening: "loopback" }, environment);
+    const writer = runner.stdin.getWriter();
+    await writer.write(new TextEncoder().encode("start\n"));
+    await writer.close();
+};
 ```
 
-## Runners
+## Comparison
 
-`listening: "loopback"` lets the workload listen on loopback ports, and `stdin` is a writable stream to its standard input.
+### Anthropic's sandbox runtime
 
-```ts
-await using runner = await Sandbox.start({ ...options, listening: "loopback" }, environment);
-const writer = runner.stdin.getWriter();
-await writer.write(new TextEncoder().encode(`${JSON.stringify(start)}\n`));
-await writer.close();
-```
+Seatbelt and bubblewrap profiles and the filtering proxy follow `@anthropic-ai/sandbox-runtime`, which the sandbox runs; two things differ.
 
-## Network
-
-`network` lists the hosts a workload connects to as names, `*.` wildcards or IP addresses with optional ports, and the workload connects to them only through the proxy in `HTTP_PROXY` and `HTTPS_PROXY`.
-
-```ts
-const options = { ...base, network: ["api.example.com", "*.example.org", "203.0.113.7:8443"] };
-```
-
-## Tools
-
-A Linux release runs the `ripgrep` and `socat` it ships beside its programs, and a checkout runs the system's.
-
-```ts
-import { SandboxTool } from "@destack/sandbox";
-
-SandboxTool.path("ripgrep", environment.process, environment.host.os);
-// "<helpers>/rg" in a Linux release, else undefined
-```
-
-## Refusals
-
-The proxy answers HTTP requests and HTTPS tunnels to a host outside `network` with status 403, and the operating system refuses direct connections.
-
-```http
-CONNECT other.example.com:443 HTTP/1.1
-
-HTTP/1.1 403 Forbidden
-```
-
-## Errors
-
-A refused or failed sandbox throws a `SandboxError` failure: `INVALID_GRACE_PERIOD` for a stop timeout out of range, `UNSUPPORTED` where the platform has no sandbox, and `START_FAILED` or `STOP_FAILED` for a launcher that fails.
-
-```ts
-import { SandboxError } from "@destack/sandbox/error";
-
-if (SandboxError.is(error, "UNSUPPORTED")) {
-    console.warn(`running unsandboxed: ${error.message}`);
-}
-// { code: "NOT_IMPLEMENTED", reason: "UNSUPPORTED", domain: "@destack/sandbox", … }
-SandboxError.of("UNSUPPORTED", "sandboxing is unsupported on win32").toCallError();
-```
+- Options are one schema, which the host and the sandbox launcher both parse.
+- Each process gets a private `TMPDIR`, removed when it stops.
