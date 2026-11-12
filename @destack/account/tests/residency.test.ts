@@ -522,7 +522,7 @@ test("relate an installation its residency's space declares once its release ask
     const eu = await fixture.residency("eu");
     const related = async () =>
         (
-            await Relationship.readOn(snapshot, residency.reference(Scope.universe.id, eu.id), {
+            await Relationship.read(snapshot, residency.reference(Scope.universe.id, eu.id), {
                 relation: "installation",
             })
         ).map((row) => row.subjectId);

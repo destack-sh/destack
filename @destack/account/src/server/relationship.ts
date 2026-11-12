@@ -25,7 +25,7 @@ export const StoreRelationship = {
     async delete(context: MethodContext, fields: RelatedFields): Promise<void> {
         // find the relationship
         const { object, relation, subject } = fields;
-        const [related] = await Relationship.readOn(context, object, { relation, subject });
+        const [related] = await Relationship.read(context, object, { relation, subject });
         if (related === undefined) {
             throw AccessError.of(
                 "RELATIONSHIP_NOT_FOUND",

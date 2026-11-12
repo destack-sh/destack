@@ -136,7 +136,7 @@ async function releaseReceivers(
 ): Promise<void> {
     // read the receivers other than the kept machine
     const object = space.reference(row.scope, row.spaceId);
-    const receivers = await Relationship.readOn(context, object, { relation: "receiver" });
+    const receivers = await Relationship.read(context, object, { relation: "receiver" });
     const released = receivers.filter((each) => each.subjectId !== kept);
 
     // revoke each, which ends its replication of the space's chain

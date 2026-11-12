@@ -112,7 +112,7 @@ test("grant a trusted workflow a token once by its issuer's OIDC token, refusing
         await ask(await sign(signing.privateKey, WORKFLOW, "https://elsewhere.test/token")),
         await ask(await sign(forger.privateKey, WORKFLOW, ENDPOINT)),
     ];
-    const publishers = await Relationship.readOn(
+    const publishers = await Relationship.read(
         Snapshot.live(fixture.database),
         account.reference(owned.scope, owned.id),
         { relation: "publisher" },

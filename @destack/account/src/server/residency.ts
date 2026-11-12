@@ -88,7 +88,7 @@ async function revoke(
     // revoke its relationship once, as its home converges on each pass
     const fields = residencyInstallation(context.target, context.input);
     const { object, relation, subject } = fields;
-    const [related] = await Relationship.readOn(context, object, { relation, subject });
+    const [related] = await Relationship.read(context, object, { relation, subject });
     if (related !== undefined) {
         await StoreRelationship.delete(context, fields);
     }

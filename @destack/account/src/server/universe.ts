@@ -13,7 +13,7 @@ import {
     SIGNED_IN,
 } from "@destack/access";
 import { and, eq, inArray, isNull, Snapshot, Transaction } from "@destack/db";
-import { RequestId, Scope, Subject } from "@destack/sync";
+import { RequestId, Scope } from "@destack/sync";
 import type { ObjectStore } from "@destack/object/server";
 import { canonicalize, type Identifier, present, schema } from "@destack/schema";
 import { PublicKey } from "@destack/identity";
@@ -167,7 +167,7 @@ export const UniverseRole = {
         if (operator === undefined) {
             return undefined;
         }
-        const bindings = await Relationship.readOn(reader, Scope.universe, {
+        const bindings = await Relationship.read(reader, Scope.universe, {
             role: operator.id,
         });
 
@@ -288,16 +288,13 @@ export class Platform {
 
         // make its owners the universe's operators
         await this.#authorize(Scope.universe.id, now, async (authorization) => {
-            const operator = await Role.upsert(Scope.universe, OPERATOR_ROLE, authorization);
-            await Role.assign(
+            const owners = {
+                ...organization.reference(Scope.universe.id, organizationId),
+                relation: "owner",
+            };
+            await Role.declare(
                 Scope.universe,
-                operator.id,
-                [
-                    {
-                        ...organization.reference(Scope.universe.id, organizationId),
-                        relation: "owner",
-                    },
-                ],
+                { ...OPERATOR_ROLE, subjects: [owners] },
                 authorization,
             );
         });
@@ -360,7 +357,11 @@ export class Platform {
                     relation,
                 })),
             );
-            await Platform.#bind(authorization, SERVER_ROLE, servers);
+            await Role.declare(
+                Scope.universe,
+                { ...SERVER_ROLE, subjects: servers },
+                authorization,
+            );
 
             // relate every machine and every signed-in caller to the universe through wildcards
             const wildcards = [
@@ -375,12 +376,18 @@ export class Platform {
             }
 
             // bind the machines' and signed-in callers' roles to them
-            await Platform.#bind(authorization, MACHINE_ROLE, [
-                { ...Scope.universe, relation: "machine" },
-            ]);
-            await Platform.#bind(authorization, SIGNED_IN_ROLE, [
-                { ...Scope.universe, relation: "signed-in" },
-            ]);
+            const machines = { ...Scope.universe, relation: "machine" };
+            const signedIn = { ...Scope.universe, relation: "signed-in" };
+            await Role.declare(
+                Scope.universe,
+                { ...MACHINE_ROLE, subjects: [machines] },
+                authorization,
+            );
+            await Role.declare(
+                Scope.universe,
+                { ...SIGNED_IN_ROLE, subjects: [signedIn] },
+                authorization,
+            );
         });
     }
 
@@ -556,7 +563,7 @@ export class Platform {
             for (const row of publishing) {
                 // revoke every workload publisher the declaration leaves out, keeping the people managers added
                 const object = account.reference(organizationId, row.id);
-                const related = await Relationship.readOn(authorization.snapshot, object, {
+                const related = await Relationship.read(authorization.snapshot, object, {
                     relation: "publisher",
                 });
                 for (const relationship of related) {
@@ -793,15 +800,5 @@ export class Platform {
                 missing.map((name) => hostname.call("create", { ...hostname.in(accountId), name })),
             );
         }
-    }
-
-    /** Bind a universe role to exactly some subjects, revoking the bindings no longer declared. */
-    static async #bind(
-        authorization: Authorization,
-        request: RoleRequest,
-        subjects: readonly Subject[],
-    ): Promise<void> {
-        const role = await Role.upsert(Scope.universe, request, authorization);
-        await Role.assign(Scope.universe, role.id, subjects, authorization);
     }
 }

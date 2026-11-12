@@ -1,3 +1,4 @@
+import { TestAccess } from "@destack/access/test";
 import objectPackage from "@destack/object/package";
 import accountPackage from "../src/package.ts";
 import {
@@ -24,7 +25,7 @@ import {
 } from "../src/object/index.ts";
 import { Platform, PlatformDefinition, UniverseRole } from "../src/server/index.ts";
 import { LocalKeyring } from "@destack/identity";
-import { Digest, Identifier, nth, present } from "@destack/schema";
+import { Identifier, nth, present } from "@destack/schema";
 import {
     TestAccountStore,
     ids,
@@ -206,7 +207,7 @@ test("revoke the bindings of a universe role its definition no longer declares",
         Scope.universe.id,
         Identifier.create("machine", fixture.environment),
     );
-    await Relationship.insert(database, {
+    await new TestAccess(database, fixture.environment).relate({
         id: Identifier.create("relationship", fixture.environment),
         object: Scope.universe,
         role,
@@ -255,11 +256,11 @@ test("move each residency home to its own newly declared stack once, giving each
     await new Platform(fixture.store, PLATFORM).apply(fixture.store.clock.now());
     const europe = {
         ...RESIDENCY_STACK,
-        selection: { ...RESIDENCY_STACK.selection, manifest: Digest.parse("c".repeat(64)) },
+        selection: { ...RESIDENCY_STACK.selection, version: "2026.9.1" },
     };
     const america = {
         ...RESIDENCY_STACK,
-        selection: { ...RESIDENCY_STACK.selection, manifest: Digest.parse("d".repeat(64)) },
+        selection: { ...RESIDENCY_STACK.selection, version: "2026.9.2" },
     };
     const declared: PlatformDefinition = {
         ...PLATFORM,
@@ -381,7 +382,7 @@ test("apply the declared cloud machines with their keys in the universe once, an
         accounts.map(async (row) => [
             row.handle,
             (
-                await Relationship.readOn(
+                await Relationship.read(
                     Snapshot.live(database),
                     account.reference(organizationId, row.id),
                     { relation: "publisher" },

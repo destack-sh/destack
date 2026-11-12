@@ -36,7 +36,7 @@ import {
 import { PackageVersion, PackageId } from "@destack/package";
 import { ENTITLED_PACKAGE } from "./entitlement.ts";
 import type { BuildReader } from "@destack/package/manifest";
-import { Digest, found, Identifier, type JsonValue, present, schema } from "@destack/schema";
+import { found, Identifier, type JsonValue, present, schema } from "@destack/schema";
 import { CallError, type FeatureReference, type Fetch, PackageMount } from "@destack/object";
 import { settingServer } from "@destack/setting/server";
 import settingPackage from "@destack/setting/package";
@@ -148,7 +148,7 @@ export type HomeServer = "fixture" | "machine";
 /** The stand-in stack each residency's home runs. */
 export const RESIDENCY_STACK: StackRelease = {
     packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b1"),
-    selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("a".repeat(64)) },
+    selection: { kind: "release", version: "2026.9.0" },
     export: "RESIDENCY",
     settings: {},
 };
@@ -157,13 +157,13 @@ export const RESIDENCY_STACK: StackRelease = {
 export const STACKS: PlatformDefinition["stacks"] = {
     home: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b2"),
-        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("b".repeat(64)) },
+        selection: { kind: "release", version: "2026.9.0" },
         export: "HOME",
         settings: {},
     },
     space: {
         packageId: PackageId.parse("package-01996ab0-0000-7000-8000-0000000000b3"),
-        selection: { kind: "release", version: "2026.9.0", manifest: Digest.parse("d".repeat(64)) },
+        selection: { kind: "release", version: "2026.9.0" },
         export: "SPACE",
         settings: {},
     },

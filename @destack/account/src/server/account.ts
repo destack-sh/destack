@@ -147,7 +147,7 @@ export async function residentCalls(
         .findMany({ where: { scope: organizationId } });
     const wanted = new Set<string>(accounts.map((row) => row.residencyId));
     const object = organization.reference(Scope.universe.id, organizationId);
-    const related = await Relationship.readOn(reader, object, { relation: "resident" });
+    const related = await Relationship.read(reader, object, { relation: "resident" });
 
     // revoke the residencies it left, and grant the ones it lacks
     const current = new Set(related.map((entry) => entry.subjectId));
