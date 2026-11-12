@@ -115,6 +115,8 @@ export class ErrorFamily<Reasons extends ReasonDeclarations> {
     readonly reason: schema.Schema<keyof Reasons & string, keyof Reasons & string>;
     /** Who the family's failures are for. */
     readonly audience: ErrorAudience;
+    /** The call error code of each reason, read from its condition once. */
+    readonly #codes: ReadonlyMap<string, CallErrorCode>;
 
     /** Create a family of a package's declared reasons, for an audience. */
     constructor(domain: string, reasons: Reasons, audience: ErrorAudience) {
@@ -127,6 +129,9 @@ export class ErrorFamily<Reasons extends ReasonDeclarations> {
                 Object.hasOwn(reasons, name),
             ),
         );
+
+        // read each reason's code once
+        this.#codes = new Map(Object.keys(reasons).map((name) => [name, ErrorFamily.code(name)]));
     }
 
     /** Create a failure of a reason, with the data its schema checks when it declares one. */
@@ -143,7 +148,7 @@ export class ErrorFamily<Reasons extends ReasonDeclarations> {
             {
                 domain: this.domain,
                 reason,
-                code: ErrorFamily.code(reason),
+                code: present(this.#codes.get(reason), `the code of ${reason}`),
                 data,
                 audience: this.audience,
             },

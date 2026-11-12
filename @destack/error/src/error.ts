@@ -89,6 +89,11 @@ export type ErrorCondition = keyof typeof ERROR_CONDITIONS;
 /** A reason: what failed, then its condition, such as INSTALLATION_NOT_FOUND. */
 export type Reason = `${string}_${ErrorCondition}`;
 
+/** The conditions, the longest first, so a reason's suffix matches its longest condition. */
+const CONDITIONS = Object.keys(ERROR_CONDITIONS)
+    .filter((name): name is ErrorCondition => Object.hasOwn(ERROR_CONDITIONS, name))
+    .toSorted((left, right) => right.length - left.length);
+
 /** Read conditions from reasons. */
 export const ErrorCondition = {
     /** Check whether a name is an error condition. */
@@ -108,10 +113,7 @@ export const ErrorCondition = {
 
     /** Find the condition a reason ends with, the longest when several match. */
     find(reason: string): ErrorCondition | undefined {
-        return Object.keys(ERROR_CONDITIONS)
-            .filter((name) => ErrorCondition.is(name))
-            .filter((condition) => reason.endsWith(`_${condition}`))
-            .toSorted((left, right) => right.length - left.length)[0];
+        return CONDITIONS.find((condition) => reason.endsWith(`_${condition}`));
     },
 };
 
