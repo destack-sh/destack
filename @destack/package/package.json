@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Describe Destack packages, builds, and source code.",
+    "description": "Describe Destack packages, their declarations, builds and source code.",
     "exports": {
         "./template": "./src/template/index.ts",
         "./error": "./src/error/index.ts",
@@ -29,7 +29,7 @@
         "./schemas/destack.json": "./schemas/destack.json"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
