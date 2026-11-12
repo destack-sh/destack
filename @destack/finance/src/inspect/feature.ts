@@ -52,7 +52,7 @@ export const compareFeature: Comparator = (before, after) => {
     }
     // let a static feature accept the values earlier grants set
     else if (earlier.kind === "static" && later.kind === "static") {
-        return Plan.values({
+        return Plan.of({
             target,
             before: earlier.value,
             after: later.value,

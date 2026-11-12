@@ -7,7 +7,7 @@ import { AccessContext } from "@destack/access";
 import type { MethodContext } from "@destack/object";
 import type { PackageId } from "@destack/package";
 import type { BuildReader } from "@destack/package/manifest";
-import type { Digest, Identifier } from "@destack/schema";
+import type { Identifier } from "@destack/schema";
 import type { Environment } from "@destack/environment";
 import { TelemetryScope } from "@destack/telemetry";
 import { release } from "@destack/registry/object";
@@ -20,7 +20,7 @@ export class Metering {
     /** The distribution tag of each package's current release, such as latest or dev. */
     readonly tag: string;
     /** Open a package's published build by its manifest's digest. */
-    readonly #open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>;
+    readonly #open: (packageId: PackageId, release: string) => Promise<BuildReader>;
     /** The instruments capturing the uses their declarations or terms refuse. */
     readonly #instruments: TelemetryScope;
 
@@ -30,7 +30,7 @@ export class Metering {
     /** Meter usage against the packages' current builds. */
     constructor(
         tag: string,
-        open: (packageId: PackageId, manifest: Digest) => Promise<BuildReader>,
+        open: (packageId: PackageId, release: string) => Promise<BuildReader>,
         telemetry: Environment["telemetry"],
     ) {
         // store the tag and the builds, capturing on the telemetry
@@ -86,7 +86,7 @@ export class Metering {
             const key = `${packageId}@${resolved.version}`;
             const declared =
                 this.#released.get(key) ??
-                (await ReleaseReader.read(await this.#open(packageId, resolved.manifest)));
+                (await ReleaseReader.read(await this.#open(packageId, resolved.version)));
             this.#released.set(key, declared);
 
             return declared;

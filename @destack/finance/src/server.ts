@@ -27,7 +27,7 @@ export default implementPackage(financePackage, (context) => {
     );
     const metering = new Metering(
         tag.read(context.settings),
-        (packageId, manifest) => registry.read(packageId, manifest),
+        (packageId, release) => registry.open(packageId, release),
         context.environment.telemetry,
     );
 

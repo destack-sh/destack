@@ -26,7 +26,7 @@ import { PackageVersion } from "@destack/package";
 import { DeclarationReference } from "@destack/package/declare";
 import { type BuildReader } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
-import { Digest, Identifier, present, schema } from "@destack/schema";
+import { Identifier, present, schema } from "@destack/schema";
 import type { StackDocument } from "@destack/stack/declare";
 import { install } from "@destack/stack/declare";
 import { TestPackage, TestSpace } from "@destack/stack/test";
@@ -213,7 +213,7 @@ export class TestFinance {
     readonly telemetry: TestTelemetry;
     /** The platform's account in the residency. */
     readonly platform: Identifier<"account">;
-    /** The published builds the metering reads, by their manifest's digest. */
+    /** The published builds the metering reads, by package and version. */
     readonly #published: Map<string, BuildReader>;
     /** Finance's cursors, which the test runs where the control loop would. */
     readonly #cursors: readonly Cursor[];
@@ -249,12 +249,12 @@ export class TestFinance {
         releases: readonly (readonly [PackageVersion, readonly (Feature | Meter | Sku)[]])[],
         options: FinanceFixtureOptions = {},
     ): Promise<TestFinance> {
-        // build each release, which the metering reads by its manifest's digest
+        // build each release
         const published = new Map<string, BuildReader>();
         const { crypto } = testHost();
         for (const [owner, declared] of releases) {
             const build = await TestFinance.release(owner, declared, crypto);
-            published.set(await Digest.json(build.manifest, crypto), build);
+            published.set(releaseKey(owner.id, owner.version), build);
         }
 
         // copy the home with finance billing through the provider and metering against the releases
@@ -585,7 +585,7 @@ export class TestFinance {
     ): Promise<void> {
         const build = await TestFinance.release(owner, declared, this.environment.crypto);
         await publishBuild(this.database, this.home, this.platform, build, this.environment);
-        this.#published.set(await Digest.json(build.manifest, this.environment.crypto), build);
+        this.#published.set(releaseKey(owner.id, owner.version), build);
     }
 
     /** Build a package release declaring some features, meters and SKUs, as its build does. */
@@ -662,8 +662,16 @@ function financeServer(
 function metering(context: ServerContext, published: ReadonlyMap<string, BuildReader>): Metering {
     return new Metering(
         RELEASE_TAG,
-        async (_packageId, manifest) =>
-            present(published.get(manifest), `the published build ${manifest}`),
+        async (packageId, version) =>
+            present(
+                published.get(releaseKey(packageId, version)),
+                `the published build ${version}`,
+            ),
         context.environment.telemetry,
     );
+}
+
+/** Key a published build by its package and version. */
+function releaseKey(packageId: string, version: string): string {
+    return `${packageId}@${version}`;
 }
