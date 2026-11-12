@@ -1,136 +1,164 @@
 # @destack/build
 
-`@destack/build` compiles a package into one module output per runtime with Vite on Rolldown, and keeps builds by content as an OCI registry does.
+Compile Destack packages into one module output per runtime, and keep the builds by content.
+
+## Overview
+
+`@destack/build` is Vite on Rolldown per package: sandboxed compilers, builds stored by digest, and locks of the builds a package runs with.
+
+Workspaces build packages:
+
+- `Workspace`: a checkout's packages, each built on its dependencies' builds.
+- `CompilerPool`: warm, sandboxed compilers, leased one package at a time.
+- `BuildExtension`: Vite plugins a dependency adds to the packages using it.
+- `Template`: a template package, written out as a new package.
+
+Stores keep builds and locks:
+
+- `BuildStore` and `LocalBuildStore`: builds and locks by digest, as an OCI registry keeps images.
+- `Lock`: a root build and the build of each package it runs with, from `@destack/package`.
+- `PackageClient`: pushes builds and locks to a forge.
+
+Build a package, store it, and lock it with what it runs with:
 
 ```ts
-// vite build, in a sandboxed compiler building into a store with a toolchain read on first use
-await using compiler = await Compiler.start(directory, { store, toolchain });
-await using build = await compiler.build({ directory, dependencies, outputs });
-// warm compilers, like vite build --watch, building a workspace's units into one store
-await using compilers = await CompilerPool.open(store, toolchain);
-await using build = await (await Workspace.open(directory, compilers)).build({ outputs });
-// Vite plugins
-export const viewExtension: BuildExtension = {
-    transform: ({ server, options }) => viewPlugins(server, options["@destack/view"]),
+import { CompilerPool, outputsOf, Workspace } from "@destack/build";
+import type { LocalBuildStore } from "@destack/build";
+import { Toolchain } from "@destack/check/toolchain";
+
+/** Build a checkout's package, and lock it with its dependencies. */
+export async function buildAndLock(store: LocalBuildStore, directory: string) {
+    // build the root on its dependencies' builds
+    await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
+    const workspace = await Workspace.open(directory, compilers);
+    const build = await workspace.build({ outputs: outputsOf(workspace.root.packageJson) });
+
+    // store it, and lock it with every build it runs with
+    const root = await store.put(build);
+
+    return await workspace.lock(root);
+}
+```
+
+## Reference
+
+### Workspace
+
+`Workspace.open(directory, compilers)` reads the closure of packages a checkout's root requires, in build order.
+Each unit is keyed by its toolchain, sources and its inputs' interfaces, and compiles only on a miss.
+
+| Verb                     | What it does                                    |
+| ------------------------ | ----------------------------------------------- |
+| `build(request)`         | builds the root with given outputs              |
+| `storeUnits(options)`    | builds every unit, the root last                |
+| `lock(root, options)`    | locks a root build with every build it requires |
+| `inspect(…)`, `index(…)` | inspects or indexes the root's code             |
+
+`isPrerelease` stamps each build as a dev version, `<release>-dev.<time>.<key>`.
+
+### BuildStore
+
+| Verb                                   | What it does                                              |
+| -------------------------------------- | --------------------------------------------------------- |
+| `put(build)`                           | stores a build's missing files, then its manifest         |
+| `putLock(lock)`, `lock(digest)`        | stores or reads a lock                                    |
+| `entries(digest)`                      | reads a lock's builds by package name                     |
+| `contains(digest)`, `missing(digests)` | reports what the store has                                |
+| `copy(…)`                              | copies a served build in one archive request              |
+| `referencing(digest)`                  | lists the manifests and locks referencing a blob or build |
+| `fetch(request, mount)`                | serves manifests, files and archives below a mount        |
+
+A `LocalBuildStore` also lays out a lock's tree for a runtime with `runTree`, and writes distribution layers with `writeLayer`.
+
+### PackageClient
+
+`new PackageClient(url, fetch, environment)` calls a forge's build mount.
+`pushLock(builds, lock, store)` asks which files are missing, sends them in one tarball, then each manifest, then the lock.
+
+## Examples
+
+### Build named outputs
+
+Each output is a module for one runtime, and a browser output bundles its dependencies.
+
+```ts
+import type { Workspace } from "@destack/build";
+
+/** Build a library for Bun and a bundle for browsers, at a dev version. */
+export async function buildBoth(workspace: Workspace) {
+    return await workspace.build({
+        outputs: {
+            library: { kind: "module", runtime: "bun" },
+            browser: { kind: "module", runtime: "browser" },
+        },
+    });
+}
+```
+
+### Push a lock
+
+`pushLock` sends only the files the forge lacks.
+
+```ts
+import { PackageClient } from "@destack/build/store";
+import type { LocalBuildStore } from "@destack/build";
+import { BunEnvironment } from "@destack/environment/bun";
+import { Lock } from "@destack/package/manifest";
+import type { Digest } from "@destack/schema";
+
+/** Push a stored lock and its builds to a forge's build mount. */
+export async function pushLock(store: LocalBuildStore, digest: Digest, url: string) {
+    // read the lock and open each build it lists
+    const lock = await store.lock(digest);
+    const builds = await Promise.all(Lock.builds(lock).map((build) => store.contents(build)));
+
+    // push the missing files, the manifests, then the lock
+    const client = new PackageClient(url, fetch, BunEnvironment.system);
+    await client.pushLock(builds, lock, store);
+}
+```
+
+### Add a build extension
+
+A package's `destack.json` names its extension in `build`.
+
+```ts
+import type { BuildExtension } from "@destack/package/build";
+
+// add no plugins yet, to every dependent package's build
+export const markdownExtension: BuildExtension = {
+    transform: () => [],
 };
-// OCI push: blobs, then the manifest
-await new PackageClient("https://packages.example.com/builds/", fetch, crypto).push(reader);
-await PackageBuild.read(destination, environment); // every file checked against the manifest's digests
 ```
 
-## Builds
+### Create a package from a template
 
-`Compiler.build` compiles named module outputs, and `PackageBuild.write` writes a build with the manifest that describes it.
-
-```ts
-import { Compiler } from "@destack/build";
-
-await using compiler = await Compiler.start(directory, { store, toolchain });
-await using build = await compiler.build({
-    directory,
-    dependencies,
-    outputs: {
-        library: { kind: "module", runtime: "bun" },
-        browser: { kind: "module", runtime: "browser" }, // a browser output bundles its dependencies
-    },
-    versions: { "@example/notes": "2026.10.0-dev.3" }, // listed sources at -dev.3
-});
-await PackageBuild.write(build.reader, destination, environment.files);
-```
-
-## Compilers
-
-`Compiler.start` keeps one sandboxed compiler warm across a workspace's builds into a store, and `CompilerPool` leases warm compilers one package at a time.
-
-```ts
-const toolchain = async () => Toolchain.workspace(); // a release's: () => distribution.toolchain()
-await using compiler = await Compiler.start(directory, { store, toolchain });
-const inspection = await compiler.inspect({ directory, runtime: "bun", dependencies });
-const code = await compiler.index({ directory, runtime: "bun", dependencies }); // graph.Document[]
-// warm.reused: ["bun"]
-await using warm = await compiler.build({ directory, dependencies, outputs, timeout: 60_000 });
-
-await using compilers = await CompilerPool.open(store, toolchain);
-const built = await compilers.use(directory, (leased) =>
-    leased.build({ directory, dependencies, outputs }),
-);
-```
-
-## Workspaces
-
-`Workspace.open` reads a checkout once: the Destack members a package requires, the lockfile's npm pins, the toolchain and the git listing its keys read.
-
-```ts
-const workspace = await Workspace.open(directory, compilers);
-workspace.units; // [{ name: "@example/notes", directory, requires: [] }, ..., the root last]
-await using build = await workspace.build({ outputs, history }); // each unit stored once by its key
-const inspection = await workspace.inspect({ runtime: "bun" });
-const code = await workspace.index({ runtime: "bun" });
-const dependencies = await workspace.storeDependencies({}); // the root's builds and npm units
-```
-
-## Extensions
-
-`build` in a package's `destack.json` names a `BuildExtension`, which every package depending on it applies once.
-
-```json
-{ "build": "./build#viewExtension" }
-```
-
-## Listed extensions
-
-`extensions` lists the packages whose extensions compile a package beyond its runtime dependencies, as Vite names its plugins.
-
-```json
-{ "extensions": ["@destack/view"] }
-```
-
-## npm units
-
-`Workspace` builds each npm package a unit reaches as an npm unit for the unit's server runtimes: Bun runs the package as installed, workerd runs it converted to ESM, and a browser output bundles its packages.
-
-```ts
-// the workerd output follows Node's rules: a require of a missing host module or package throws when it runs,
-// an import of one fails when workerd loads the module, and a native addon and its importers have no workerd output
-const installation = new NpmInstallation(pins, store, toolchain, environment);
-const unit = await installation.open(installed);
-const release = await installation.store(unit, convert); // { kind: "npm", ..., manifest }
-```
-
-## Store
-
-`BuildStore` keeps builds in a bucket by content, and `fetch` serves their manifests, files and archives below a mount.
-
-```ts
-import { BuildStore, Retention } from "@destack/build/store";
-
-const store = new BuildStore(bucket, environment);
-const digest = await store.put(build.reader);
-const response = await store.fetch(request, new URL("https://packages.example.com/"), access);
-const now = environment.clock.now();
-await store.sweep(retained, new Date(now - 60 * 60 * 1000), Retention.none, new Date(now));
-const closure = await store.closure(digest, packageId, "bun"); // the builds it runs with, its builtins left to the runtime
-const { map } = await store.browser(digest, "/.destack/build/", linked); // builtins at the linked releases, one copy per page
-```
-
-## Local store
-
-`LocalBuildStore` caches one toolchain's builds on disk for a week, keyed by the files a build reads.
-
-```ts
-import { LocalBuildStore } from "@destack/build";
-
-await using store = await LocalBuildStore.checkout(directory, "test", environment); // <checkout root>/node_modules/.cache/destack/test, or $DESTACK_CACHE_DIRECTORY/test
-await store.rootDirectory(directory, manifests); // retained until the directory is gone
-```
-
-## Templates
-
-`Template.read` reads a template package, and `write` creates a new package from it.
+`write` gives the new package a fresh identity.
 
 ```ts
 import { Template } from "@destack/build/template";
+import { Toolchain } from "@destack/check/toolchain";
+import { BunEnvironment } from "@destack/environment/bun";
+import type { TemplateInput } from "@destack/package/template";
 
-const template = await Template.read(directory, environment.files);
-await template.write(destination, { id, name: "@example/site", dependencies }, environment.files);
+/** Create a site package from the blank template. */
+export async function createSite(parameters: TemplateInput) {
+    // read the template, and write a package with a fresh identity
+    const { files } = BunEnvironment.system;
+    const template = await Template.read("/templates/blank", files);
+    await template.write("/work/site", parameters, Toolchain.workspace(), files);
+}
 ```
+
+## Comparison
+
+### Vite
+
+Outputs, plugins and the module graph follow Vite on Rolldown.
+
+| Vite                 | `@destack/build`        | Difference                                               |
+| -------------------- | ----------------------- | -------------------------------------------------------- |
+| one bundle of an app | a build per package     | Only a browser output bundles its dependencies.          |
+| a cache of a project | builds keyed by inputs  | A unit compiles only when its key misses, as Bazel does. |
+| `dist/`              | builds by digest, locks | Stored and fetched as an OCI registry serves images.     |
+| plugins in a config  | `BuildExtension`        | A dependency adds plugins to the packages using it.      |
