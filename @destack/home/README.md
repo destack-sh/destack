@@ -1,89 +1,32 @@
 # @destack/home
 
-Home is the first view the desktop opens, installed in the home space of every person's personal account.
+Start from Home: see your spaces and their apps, approve their plans, search commands and change your settings.
 
-## Home
+## Overview
 
-`home` lists the account's spaces by name, each with the views its installations mount, opening one through the page's open path.
+`@destack/home` is the app every person starts from: their spaces, a command palette, settings, and the universe's sign-in pages.
 
-```ts
-export const home = defineView({
-    name: "home",
-    categories: ["home"],
-    objects: [space],
-    component: () => import("./home.tsx"),
-});
+Each person's home space installs it:
 
-<Spaces /> // "Personal · Connected · home--florian", then its views: "Notes", "Tasks"
+- `home`: the account's spaces, their apps, and the plans waiting on their managers.
+- `command`: the command palette over windows, commands, views, spaces and recent objects.
+- `settings`: the person's settings, such as `start`, the link a new window opens.
+- `start`, `sign-in`, `sign-up`, `consent` and `apps`: the universe's sign-in pages.
+
+Install Home in another space, and set the link new windows open:
+
+```sh
+destack install @destack/home
+destack setting start set destack://notes--personal--ada/home --scope device
 ```
 
-## Approvals
+## Comparison
 
-Each space shows the plans its installations wait on, each asked of the space's managers by a change request, and a manager approves or rejects it.
+### Spotlight
 
-```ts
-const waiting = await readWaitingPlans(spaceId, origin, environment); // installations whose progress is "approval"
-waiting[0]; // { name: "notes", plan: { steps: [{ action: "grant", risk: "privileged", detail: "request read on space" }] }, digest, approval }
-await objects.approval.approve({ scope: spaceId, id: waiting[0].approval, requestId }); // or reject
-```
+The command palette follows Spotlight's search over apps, windows and recent items.
 
-## Settings
-
-`settings` shows and changes the person's settings.
-
-```ts
-export const settings = defineView({ name: "settings", objects: [setting], component });
-```
-
-## Start
-
-`start` is the link a new window opens, the person's own or this computer's, which the desktop reads from Home.
-
-```ts
-import { start } from "@destack/home/setting";
-
-start.default; // null: Home's start view
-// destack setting start set destack://home--florian/home --scope device
-```
-
-## Clients
-
-Home binds the shell's credential to this browser's client once it shows, as a person's page registers its browser at its origin.
-
-```ts
-await new BrowserClient({ path: CLIENT_PATH, origin, environment }).bind(
-    BrowserClient.describe(navigator),
-);
-```
-
-## Commands
-
-`command` is the command palette, Home's view the desktop opens over a window: `PaletteListing` reads each space's `SpaceCatalog` from one `ObjectStoreDescription` of its store, and the device's windows and recent objects at the device's home.
-
-```ts
-const listing = await PaletteListing.read(
-    origin,
-    { user, home, device },
-    { keybindings, sources },
-    Clock.system,
-);
-const catalog = listing.catalog(entry); // the space's installations, commands, views and types
-catalog.command(entry); // the Command, bound to the type it calls
-await catalog.call(entry, input, id); // through the installation, at /.destack/home/<space>
-```
-
-## Palette
-
-`CommandPalette` searches the person's windows, commands, views, spaces and recent objects, picks a command's object and fills its input with `SchemaForm`.
-
-```tsx
-// offers the command, run once confirmed
-<CommandPalette
-    listing={listing}
-    focus={focus}
-    command={{ packageId, name: "complete" }}
-    onOpen={open}
-    onWindow={focus}
-    onClose={close}
-/>
-```
+| Spotlight          | `command`                 | Difference                                                 |
+| ------------------ | ------------------------- | ---------------------------------------------------------- |
+| installed apps     | the spaces' installations | A new app appears once a space installs it.                |
+| actions on results | object commands           | Runs the commands packages declare, with a form for input. |
