@@ -1399,6 +1399,10 @@
     "@platform/brand": {
       "name": "@platform/brand",
       "version": "2026.11.0",
+      "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@types/bun": "1.4.4",
+      },
     },
     "@platform/pricing": {
       "name": "@platform/pricing",

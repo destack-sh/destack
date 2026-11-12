@@ -13,6 +13,11 @@
         "./wordmark/*": "./wordmark/*"
     },
     "scripts": {
-        "generate": "bun run generate.ts"
+        "generate": "bun run generate.ts",
+        "typecheck": "tsc --project tsconfig.json"
+    },
+    "devDependencies": {
+        "@destack/environment": "workspace:*",
+        "@types/bun": "1.4.4"
     }
 }
