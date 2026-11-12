@@ -1,62 +1,94 @@
 # @destack/finance
 
-`@destack/finance` sells products with features, bills accounts for subscriptions and usage through a payment provider, and derives what each account may use.
+Sell products with features, bill accounts for subscriptions and usage, and derive their entitlements.
+
+## Overview
+
+A package declares the features it sells and the meters that measure them, and a stack sells products that grant those features through a payment provider.
+
+- **Feature**: what a product grants: access alone, a fixed value or metered usage up to a limit; `grant` sets a product's value.
+- **SKU**: a provider's list price per unit of what a meter measures, such as R2 storage per GB-month.
+- **Product**: what a seller sells, with recurring prices and feature grants; `defineCatalog` declares products in a stack.
+- **Subscription**: an account's purchase of a product, created through a checkout session and billed by the provider.
+- **Charge**: usage rated into money at the home of the account paying for it, which entitlements follow.
 
 ```ts
-defineFeature({
+import { defineCatalog, defineFeature } from "@destack/finance/declare";
+import { t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import { defineMeter } from "@destack/telemetry/declare";
+
+export const requests = defineMeter({
+    name: "api.requests",
+    description: t`Requests to the API.`,
+    aggregation: "sum",
+    unit: "request",
+    attributes: {},
+});
+export const calls = defineFeature({
     name: "api.calls",
-    description,
+    description: t`API requests per billing period.`,
     kind: "metered",
-    meters: [requests.reference],
+    meters: [requests],
     reset: "period",
 });
-await client.checkoutSession.create({
-    spaceId: home,
-    accountId,
-    requestId,
-    product,
-    currency: "EUR",
+export const support = defineFeature({
+    name: "support",
+    description: t`The support tier.`,
+    kind: "static",
+    value: schema.enum(["community", "priority"]),
 });
-const { items } = await client.entitlement.list({ spaceId: home, where: { accountId } });
-```
-
-## Products
-
-A stack declares a seller and its products, each with recurring prices and feature grants.
-
-```ts
-export const shop = defineStack({
-    sellers: { platform: { provider: "stripe", country: "AT", creditPrices: { EUR: "1" } } },
-    products: {
-        go: {
-            name: t`Go`,
-            description: t`More room to build.`,
-            prices: {
-                eur: {
-                    currency: "EUR",
-                    unitAmount: 900,
-                    includedUsage: 900,
-                    recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
-                },
+export const catalog = defineCatalog({
+    go: {
+        name: t`Go`,
+        description: t`More room to build.`,
+        isDefault: false,
+        prices: {
+            eur: {
+                currency: "EUR",
+                unitAmount: 900,
+                includedUsage: 900,
+                recurring: { interval: "month", intervalCount: 1, usage: "licensed" },
             },
-            productFeatures: { calls: calls.grant(null), support: support.grant("priority") },
         },
+        productFeatures: { calls: calls.grant(10_000), support: support.grant("priority") },
     },
 });
 ```
 
-## SKUs
+## Examples
 
-`defineSku` declares a provider's list price per pricing unit of what a meter measures at some of its attribute values, optionally capped per billing period with `maximumQuantity`.
+### Install finance
+
+Finance installs in each residency's home with its Stripe key as a secret.
+
+```sh
+destack install @destack/finance
+```
+
+### Price a SKU
+
+`defineSku` declares a provider's list price, in minor units, per pricing unit of what a meter measures.
 
 ```ts
+import { defineSku } from "@destack/finance/declare";
+import { t } from "@destack/locale";
+import { defineMeter } from "@destack/telemetry/declare";
+
+const stored = defineMeter({
+    name: "storage.bytes",
+    description: t`Bytes stored, averaged over the month.`,
+    aggregation: "average",
+    unit: "byte",
+    attributes: {},
+});
 export const storage = defineSku({
     name: "cloudflare.r2.storage",
-    description: "R2 standard storage, averaged over the month.",
+    description: t`R2 standard storage, averaged over the month.`,
     provider: "cloudflare",
     service: "R2",
     category: "Storage",
-    meter: bucketUsage.reference,
+    meter: stored,
     attributes: {},
     pricingUnit: "GB-month",
     unitSize: 1_000_000_000,
@@ -67,61 +99,56 @@ export const storage = defineSku({
 });
 ```
 
-## Usage
+### Start a checkout
 
-A space's machine appends `usage` at the home of the account paying for it, and `Metering` rates it into charges and entitlements.
-
-```ts
-await finance.usage.append({
-    accountId: payer,
-    requestId,
-    items: [
-        { id, time, meter, sku, spaceId, machineId: null, installationId, quantity, level, data },
-    ],
-});
-await finance.usage.series({
-    accountId: payer,
-    where: { spaceId, meter },
-    fold: "sum",
-    measure: "quantity",
-    group: [],
-    from,
-    before,
-});
-```
-
-## Server
-
-Finance's server runs in each residency's home: it reads its `provider` and `tag` settings and its Stripe key, finds sellers through the account package, and resolves catalogs through forge.
+A checkout session sends the buyer to the provider's payment page, and the subscription follows once they paid.
 
 ```ts
-import financeServer from "@destack/finance/server";
+import type financePackage from "@destack/finance/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+import type { ObjectReference } from "@destack/sync";
 
-const extension = financeServer(context); // one installation's server, built from its context
-```
-
-## Installation
-
-Finance installs in each residency's home with its Stripe key as a secret, and its `provider` and `tag` settings.
-
-```ts
-install(financePackage, { "stripe-secret-key": "stripe-secret-key" }, { name: "finance" });
-settings: {
-    provider: { setting: provider, value: "stripe", mode: "set" },
-    tag: { setting: tag, value: "dev", mode: "set" },
+async (
+    client: ClientOf<typeof financePackage>,
+    spaceId: Identifier<"space">,
+    accountId: Identifier<"account">,
+    product: ObjectReference,
+    requestId: string,
+) => {
+    const session = await client.checkoutSession.create({
+        spaceId,
+        accountId,
+        requestId,
+        productPackageId: product.packageId,
+        productType: product.type,
+        productScope: product.scope,
+        productId: product.id,
+        currency: "EUR",
+        successUrl: "https://example.com/paid",
+        cancelUrl: "https://example.com/plans",
+    });
 };
 ```
 
-## Tests
+### Test billing
 
-`TestFinance` runs finance over a test database with each package published as a forge release, and `TestStripe` is an in-process Stripe.
+`TestFinance` runs finance over a test database, with each package published as a forge release and Stripe in process.
 
 ```ts
-const finance = await TestFinance.open([[plan.package, [storage, storageSku]]], {
-    provider,
-    clock,
-});
-await finance.append(payer, [{ id, space, meter, quantity, time }]);
-await finance.publish(plan.package, [storage, storageSku]); // a later release, now the latest
-const stripe = new TestStripe(Date.now());
+import { TestFinance } from "@destack/finance/test";
+
+const finance = await TestFinance.open([]);
+await finance.entitle();
+await finance.close();
 ```
+
+## Comparison
+
+### Stripe Billing
+
+Products, prices, subscriptions and checkout follow Stripe Billing, which finance mirrors; three things differ.
+
+- A package declares the features it sells and the meters that measure them, so a product grants features and never hard-codes limits.
+- Usage is rated at the home of the account paying for it, after the SKUs' list prices.
+- Entitlements are derived from subscriptions and usage, and every package reads them the same way.
