@@ -4,12 +4,12 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Name the service errors Destack's callers receive.",
+    "description": "Declare the errors a package's callers receive, each with a stable reason, an HTTP code and typed data.",
     "exports": {
         ".": "./src/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "destack-check readme && tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
