@@ -61,7 +61,8 @@ export const Identifier = {
         prefix: Prefix,
         environment: UuidEnvironment,
     ): Identifier<Prefix> {
-        return identifier(prefix).parse(`${prefix}-${Uuid.v7(environment)}`);
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- a prefix and a UUIDv7 make an identifier
+        return `${prefix}-${Uuid.v7(environment)}` as Identifier<Prefix>;
     },
 
     /** Hash a name in a namespace into a prefixed UUIDv8 identifier, the same everywhere. */
@@ -71,7 +72,8 @@ export const Identifier = {
         name: string,
         crypto: DigestCrypto,
     ): Promise<Identifier<Prefix>> {
-        return identifier(prefix).parse(`${prefix}-${await Uuid.v8(namespace, name, crypto)}`);
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- a prefix and a UUIDv8 make an identifier
+        return `${prefix}-${await Uuid.v8(namespace, name, crypto)}` as Identifier<Prefix>;
     },
 
     /** Derive a request object's identifier: the request's time and bits as a UUIDv7. */

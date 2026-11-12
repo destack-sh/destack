@@ -47,7 +47,8 @@ export const JsonValue = {
             throw new TypeError("value cannot be converted to JSON");
         }
 
-        return json().parse(JSON.parse(text));
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- JSON text parses to a JSON value
+        return JSON.parse(text) as JsonValue;
     },
 
     /** Parse JSON text, absent for invalid JSON, such as an untrusted header a schema refuses. */
