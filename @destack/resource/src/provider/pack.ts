@@ -47,7 +47,7 @@ export const BlobPack = {
 
     /** Report whether a name is a pack's key: a digest, or a pack of fresh name. */
     isKey(name: string): boolean {
-        return Digest.safeParse(name).success || PACK_KEY.test(name);
+        return Digest.is(name) || PACK_KEY.test(name);
     },
 
     /** Refuse a body's bytes unlike its expected digest or size. */
