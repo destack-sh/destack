@@ -39,13 +39,13 @@ export function installCommand(context: Context): Verb {
             // resolve the release, stay on a version or follow a tag, and follow it until its space serves it
             const { client, home } = await openForge(packageName, context);
             const found = await client.package.resolve({ spaceId: home, name: packageName });
-            const { version, manifest } = await client.release.resolve({
+            const { version } = await client.release.resolve({
                 spaceId: home,
                 parentId: found.id,
                 release,
             });
             const selection: InstallationSelection = Version.safeParse(release).success
-                ? { kind: "release", version, manifest }
+                ? { kind: "release", version }
                 : { kind: "tag", tag: release };
             const id = await upsert(context, found.id, name, selection);
             await driveInstallation(id, options["yes"] === true, json, context);

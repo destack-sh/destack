@@ -8,11 +8,11 @@ import { TerminalFixture } from "../test/terminal.ts";
 /** The checkout the owner builds and previews the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package, as its checkout declares it: a dev build of an uncommitted tree. */
+/** The notebooks package as its checkout declares it. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
     name: "@acme/notebooks",
-    version: "2026.11.0-dev.1",
+    version: "2026.11.0",
 } as const;
 
 /** How long the scenario takes at most: a build of the checkout and a preview. */
@@ -25,7 +25,7 @@ const Phase = schema.looseObject({ state: schema.string(), phase: schema.string(
 const Summary = schema.object({
     space: schema.string(),
     id: schema.string(),
-    manifest: schema.string(),
+    lock: schema.string(),
     package: schema.unknown(),
 });
 
@@ -56,7 +56,7 @@ test(
         const { database } = terminal.computer.machine;
         const rows = await Snapshot.live(database).read(preview.table).findMany();
 
-        // show the build's phases to a summary of its manifest, and keep the preview running past the command line
+        // show the build's phases to its summary, and keep the preview running past the command line
         const { home } = terminal.computer.world.owner;
         expect({
             built: [built.code, built.error, phases, summary.space, summary.package],

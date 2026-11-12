@@ -1,13 +1,13 @@
 import { fileURLToPath } from "node:url";
-import { schema } from "@destack/schema";
+import { present, schema, Version } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { jsonLines, TerminalFixture } from "../test/terminal.ts";
 
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package, as its checkout declares it: a dev build of an uncommitted tree. */
-const VERSION = "2026.11.0-dev.1";
+/** The version the checkout declares, which its uncommitted tree releases a prerelease of. */
+const RELEASE = "2026.11.0";
 
 /** How long the scenario takes at most: a build of the checkout, a publish and a rollout. */
 const SCENARIO_MILLISECONDS = 120_000;
@@ -19,6 +19,13 @@ const Installed = schema.object({
     package: schema.string(),
     version: schema.string(),
     selection: schema.object({ kind: schema.literal("tag"), tag: schema.string() }),
+});
+
+/** The printed releases a publish made, by version. */
+const Published = schema.looseObject({
+    releases: schema.array(
+        schema.looseObject({ package: schema.looseObject({ version: schema.string() }) }),
+    ),
 });
 
 /** The printed statuses of an installation's rollout, as far as the scenario reads them. */
@@ -46,6 +53,11 @@ test(
             { stdin: "yes\n" },
         );
 
+        // read the release publishing made of the checkout
+        const last = present(published.output.trim().split("\n").at(-1), "the publish's output");
+        const { releases } = Published.parse(JSON.parse(last));
+        const released = present(releases.at(-1), "the published checkout");
+
         // install the latest release in the owner's home, which returns once the home serves it
         const installing = await run(["install", "@acme/notebooks", "--json"]);
         const lines = jsonLines(installing.output);
@@ -72,6 +84,7 @@ test(
                 statuses.at(-1)?.rollout.servedRevisionId === served.revisionId,
             ],
             installed,
+            version: [Version.release(installed.version), Version.isPrerelease(installed.version)],
             watched: [watched.code, jsonLines(watched.output), watched.error],
             calls: calls
                 .map((call) => call.data.method)
@@ -87,8 +100,9 @@ test(
                 selection: { kind: "tag", tag: "latest" },
                 name: "notebooks",
                 package: "@acme/notebooks",
-                version: VERSION,
+                version: released.package.version,
             },
+            version: [RELEASE, true],
             watched: [130, [[], [JSON.parse(created.output)]], ""],
             calls: ["notebook.create"],
         });

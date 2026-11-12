@@ -1,6 +1,6 @@
 import { Observation } from "@destack/object";
 import { fileURLToPath } from "node:url";
-import { type JsonValue, present, schema } from "@destack/schema";
+import { type JsonValue, present, schema, Version } from "@destack/schema";
 import type { InstallationRollout } from "@destack/stack/object";
 import { expect, test } from "@destack/test";
 import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
@@ -8,11 +8,11 @@ import { TerminalFixture, type TerminalInput } from "../test/terminal.ts";
 /** The checkout Acme publishes the notebooks package from. */
 const NOTEBOOKS = fileURLToPath(new URL("../../tests/fixture/notebooks/", import.meta.url));
 
-/** The notebooks package, as its checkout declares it: a dev build of an uncommitted tree. */
+/** The notebooks package as its checkout declares it, released as a prerelease of its version. */
 const PACKAGE = {
     id: "package-01996ab0-0000-7000-8000-0000000000d4",
     name: "@acme/notebooks",
-    version: "2026.11.0-dev.1",
+    version: "2026.11.0",
 } as const;
 
 /** How long the scenario takes at most: a build of the checkout and two rollouts. */
@@ -24,12 +24,12 @@ const Created = schema.looseObject({ id: schema.identifier("installation") });
 /** A printed object's revision. */
 const Revisioned = schema.looseObject({ revision: schema.number() });
 
-/** A printed release's version and manifest. */
+/** A printed release's version and lock. */
 const Published = schema.looseObject({
     releases: schema.array(
         schema.looseObject({
             package: schema.looseObject({ version: schema.string() }),
-            manifest: schema.string(),
+            lock: schema.string(),
         }),
     ),
 });
@@ -37,12 +37,12 @@ const Published = schema.looseObject({
 /** A printed installation revision's build. */
 const Revised = schema.looseObject({ buildId: schema.identifier("build") });
 
-/** A printed build's source, manifest and state. */
+/** A printed build's source, lock and state. */
 const Built = schema.looseObject({
     /** What the build compiled. */
     source: schema.jsonObject(),
-    /** The stored manifest's digest. */
-    manifest: schema.string(),
+    /** The digest of the stored build's lock. */
+    lock: schema.string(),
     /** How the build ended. */
     state: schema.string(),
 });
@@ -70,7 +70,7 @@ async function build(terminal: TerminalFixture, target: InstallationRollout) {
     const revision = Revised.parse(await json(terminal, ["installation-revision", revisionId]));
     const built = Built.parse(await json(terminal, ["stack:build", revision.buildId]));
 
-    return { source: built.source, manifest: built.manifest, state: built.state };
+    return { source: built.source, lock: built.lock, state: built.state };
 }
 
 /** Read an installation's name, selection and ready condition, apart from when it last changed. */
@@ -126,12 +126,12 @@ test(
         const converged = await terminal.rollout(following.id, isReady);
 
         // pin it to the release instead, until it runs it at the new generation
-        const { manifest } = released;
+        const { lock } = released;
         const { version } = released.package;
         const { revision } = Revisioned.parse(await json(terminal, ["installation", following.id]));
         const update = ["installation", following.id, "update", "--revision", String(revision)];
         const pin = ["--selection-kind", "release", "--selection-version", version];
-        await json(terminal, [...update, ...pin, "--selection-manifest", manifest]);
+        await json(terminal, [...update, ...pin]);
         const settled = await terminal.rollout(following.id, isReady);
 
         // run the one release, following stable and then pinned, on the build publishing made
@@ -150,7 +150,7 @@ test(
             organized: [organized.code, organized.error],
             unpublished: readiness(unpublished),
             tagged: [tagged.code, tagged.output, tagged.error],
-            version,
+            version: [Version.release(version), Version.isPrerelease(version)],
             installations: [readiness(converged), readiness(settled)],
             builds,
         }).toEqual({
@@ -165,19 +165,19 @@ test(
                     message: "notebooks has no published release for its selection",
                 },
             },
-            tagged: [0, `Tagged ${PACKAGE.name}@${PACKAGE.version} stable.\n`, ""],
-            version: PACKAGE.version,
+            tagged: [0, `Tagged ${PACKAGE.name}@${version} stable.\n`, ""],
+            version: [PACKAGE.version, true],
             installations: [
                 { name: "notebooks", selection: { kind: "tag", tag: "stable" }, ready },
                 {
                     name: "notebooks",
-                    selection: { kind: "release", version, manifest },
+                    selection: { kind: "release", version },
                     ready: { ...ready, observedGeneration: 3 },
                 },
             ],
             builds: [
-                { source, manifest, state: "succeeded" },
-                { source, manifest, state: "succeeded" },
+                { source, lock, state: "succeeded" },
+                { source, lock, state: "succeeded" },
             ],
         });
     },

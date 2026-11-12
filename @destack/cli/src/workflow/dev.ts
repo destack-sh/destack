@@ -56,7 +56,7 @@ export function buildCommand(context: Context): Verb {
                 json,
                 options,
             );
-            await context.terminal.print(json ? JSON.stringify(built) : `Built ${built.manifest}.`);
+            await context.terminal.print(json ? JSON.stringify(built) : `Built ${built.lock}.`);
         },
     };
 }
@@ -120,7 +120,7 @@ async function build(
 ): Promise<{
     readonly space: string;
     readonly id: Identifier<"build">;
-    readonly manifest: string;
+    readonly lock: string;
     readonly package: PackageJson["package"];
 }> {
     // draw request identifiers from the device's environment
@@ -158,7 +158,7 @@ async function build(
     return {
         space,
         id: created.id,
-        manifest: stackObject.Build.manifest(finished),
+        lock: stackObject.Build.lock(finished),
         package: read.package,
     };
 }
