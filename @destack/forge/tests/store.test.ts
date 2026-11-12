@@ -198,20 +198,11 @@ test("authorize a manifest push from the forge's replica of the account, followi
     });
     await forge.simulation.idle();
 
-    // refuse the stranger's push at its first request, asking for the missing files
-    const uploads = `${forgePackage.mounts.builds.path}/${PackageName.split(build.manifest.package.name).handle}`;
-    const answer = JSON.stringify({
-        defined: true,
-        code: "NOT_FOUND",
-        status: 404,
-        message: "upload target account not found",
-        reason: "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
-        domain: "@destack/forge",
-    });
+    // refuse the stranger's push at its first request with the forge's own error
     expect(refused).toEqual([
-        "BAD_GATEWAY",
-        "UPLOAD_UNREACHABLE",
-        `could not call '${uploads}/has': HTTP 404 '${answer}'`,
+        "NOT_FOUND",
+        "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
+        "upload target account not found",
     ]);
     expect({
         accepted: await push(),

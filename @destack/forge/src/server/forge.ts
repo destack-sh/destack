@@ -2,6 +2,7 @@ import { Caller, principal } from "@destack/access";
 import registryPackage from "@destack/registry/package";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
+import type { BuildLayer } from "@destack/package/manifest";
 import type { Environment } from "@destack/environment";
 import { type BlobStore, inArray, Snapshot, TABLE, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
@@ -51,6 +52,8 @@ export interface ForgeOptions {
     readonly home: Identifier<"space">;
     /** The home's blobs, with the store's tables beside the forge's objects. */
     readonly blobs: BlobStore;
+    /** The builds of the host's distribution, which the forge has without anyone pushing them. */
+    readonly distribution: BuildLayer;
     /** The environment the store of builds runs in. */
     readonly environment: Environment;
     /** The URL clients call the forge at, below which they push and pull builds. */
@@ -163,6 +166,7 @@ export class Forge {
         return new Forge({
             home: schema.identifier("space").parse(context.scope),
             blobs: context.blobs,
+            distribution: context.distribution,
             environment: context.environment,
             endpoint: new URL(`${context.url}${PackageMount.path(forgePackage.id)}`),
             storage: context.resources.get(repositoryStorage),
@@ -221,11 +225,14 @@ export class Forge {
         });
     }
 
-    /** Open the store of pushed builds in the home's blobs, leasing unreleased ones two weeks. */
-    static openStore(options: Pick<ForgeOptions, "blobs" | "environment">): BuildStore {
+    /** Open the store of pushed builds in the home's blobs over the host's distribution. */
+    static openStore(
+        options: Pick<ForgeOptions, "blobs" | "environment" | "distribution">,
+    ): BuildStore {
         return new BuildStore({
             blobs: options.blobs,
             environment: options.environment,
+            layer: options.distribution,
             leaseMilliseconds: UNRELEASED_MILLISECONDS,
         });
     }

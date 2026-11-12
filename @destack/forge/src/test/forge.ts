@@ -1,3 +1,4 @@
+import { BuildLayer } from "@destack/package/manifest";
 import { install } from "@destack/stack/declare";
 import { VAULT } from "@destack/vault/test";
 import { Account, account, type ResidencyCode } from "@destack/account/object";
@@ -533,7 +534,11 @@ export class TestForge {
 
     /** Open the store of builds and npm archives in the forge home's blobs. */
     async store(): Promise<BuildStore> {
-        return Forge.openStore({ blobs: this.served.store.blobs, environment: this.environment });
+        return Forge.openStore({
+            blobs: this.served.store.blobs,
+            environment: this.environment,
+            distribution: BuildLayer.empty(),
+        });
     }
 
     /** Sign a person in at the universe, such as a stranger to the account. */
