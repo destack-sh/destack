@@ -4,6 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
+    "description": "Draw Phosphor icons by name, each one loaded only where it is used.",
     "exports": {
         ".": "./src/index.ts",
         "./lazy": "./src/lazy/index.ts",
@@ -12,7 +13,7 @@
         "./icons": "./src/phosphor/icons.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
         "generate": "bun run src/phosphor/generate.ts"
     },
