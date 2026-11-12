@@ -95,7 +95,22 @@ export const UNIVERSE_PAGES = {
     apps: "/apps",
 } as const;
 
-/** The universe's origin: its issuer below its path, and its packages below their mounts. */
+/** A link at the universe's origin: an account's profile, or one of its apps. */
+export type UniverseLink =
+    | {
+          /** A profile, at `/@<handle>`. */
+          readonly kind: "profile";
+          /** The account's handle. */
+          readonly handle: string;
+      }
+    | {
+          /** An app, at `/@<handle>/<space>/<app>`, redirecting to its installation. */
+          readonly kind: "app";
+          /** The installation the link opens. */
+          readonly installation: InstallationOrigin;
+      };
+
+/** The universe's origin: its issuer, its links below `/@`, and its packages' mounts. */
 export const UniverseOrigin = {
     /** Build the URL of one of the universe's pages, such as `https://destack.app/sign-in`. */
     page(origin: string, page: keyof typeof UNIVERSE_PAGES): URL {
@@ -107,20 +122,48 @@ export const UniverseOrigin = {
         return `${new URL(origin).origin}${OAUTH_PATH}`;
     },
 
-    /** Read what a URL addresses at the universe's origin: its issuer or a package. */
-    of(url: string, origin: string): "issuer" | "package" | undefined {
+    /** Read what a URL addresses at the universe's origin: its issuer, a link or a package. */
+    of(url: string, origin: string): "issuer" | "link" | "package" | undefined {
         const { origin: requested, pathname } = new URL(url);
 
         return requested === new URL(origin).origin ? UniverseOrigin.path(pathname) : undefined;
     },
 
-    /** Read what a path addresses below the universe's origin: its issuer or a package. */
-    path(pathname: string): "issuer" | "package" | undefined {
-        // read the issuer's path, else a package's path
+    /** Read what a path addresses below the universe's origin: its issuer, a link or a package. */
+    path(pathname: string): "issuer" | "link" | "package" | undefined {
+        // read the issuer's path
         if (pathname === OAUTH_PATH || pathname.startsWith(`${OAUTH_PATH}/`)) {
             return "issuer";
+        } else if (UniverseOrigin.link(pathname) !== undefined) {
+            return "link";
         } else if (PackageMount.parse(pathname) !== undefined) {
             return "package";
+        }
+
+        return undefined;
+    },
+
+    /** Read the link a path holds: a profile at `/@<handle>`, or an app below it. */
+    link(pathname: string): UniverseLink | undefined {
+        // split the path below its `@`
+        const [handle, space, name, ...rest] = pathname.replace(/\/$/u, "").split("/").slice(1);
+        if (handle === undefined || !handle.startsWith("@") || rest.length > 0) {
+            return undefined;
+        }
+        const account = handle.slice(1);
+        const isHandle = AccountHandle.safeParse(account).success;
+
+        // read a profile
+        if (isHandle && space === undefined) {
+            return { kind: "profile", handle: account };
+        } else if (
+            isHandle &&
+            space !== undefined &&
+            name !== undefined &&
+            SpaceName.safeParse(space).success &&
+            InstallationName.safeParse(name).success
+        ) {
+            return { kind: "app", installation: { name, space, handle: account } };
         }
 
         return undefined;
