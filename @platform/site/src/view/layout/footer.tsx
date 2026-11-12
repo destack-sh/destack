@@ -1,16 +1,15 @@
 import { frame } from "./frame.stylex";
 import { media } from "@destack/style/media.stylex";
-import { color, font, stroke, weight } from "@destack/theme/tokens.stylex";
+import { color, font, weight } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 
 import { Sky } from "../effect/sky";
-import { PartOfSpeech, Syllables } from "../home/entry/entry";
+import { Mark, planet } from "./mark";
+import { tagline } from "../content/site";
+import { Entry, type Form } from "../home/entry/entry";
 import { lattice, rule } from "./lattice.stylex";
 import { headwordBox, headwordDot, headwordLetters } from "../content/generated/headword";
-import { Mark } from "./mark";
-import { AgentField, TerminalField } from "../install/install";
-import { agentPrompt } from "../content/site";
-import { release } from "../content/generated/release";
+import InstallIsland from "../islands/install";
 import {
     type Destination,
     isExternal,
@@ -31,40 +30,38 @@ const HATCH_PITCH = 24;
 /** The width of each line of the headword's hatching in its own units, about 2.5px. */
 const HATCH_LINE = 7;
 
-/** Close every page with a colophon in starry space, ending in the sheet's title block. */
-export function Footer(properties: { path: string }) {
-    // fill the title block as a drawing's, for the sheet this page is
-    const fields = [
-        ["Project", "Destack"],
-        ["Sheet", properties.path],
-        ["Revision", release.version],
-        ["Stage", release.stability],
-        ["Scale", "1 : 1"],
-        ["Units", "CSS px"],
-    ] as const;
+/** The mark's box across, scaled so its planet covers the headword's dot. */
+const DOT_MARK = (headwordDot.radius / planet.radius) * 2 * planet.centre.x;
 
+/** The mark standing in for the headword's dot, placed and sized in shares of the headword. */
+const DOT_PLANET = {
+    left: `${(headwordDot.x / headwordBox.width) * 100}%`,
+    top: `${(headwordDot.y / headwordBox.height) * 100}%`,
+    width: `${(DOT_MARK / headwordBox.width) * 100}%`,
+};
+
+/** The verb the footer closes on, in the sense of the whole universe. */
+const closing: Form = {
+    syllables: ["de", "stack"],
+    pronunciation: "/diːˈstak/",
+    partOfSpeech: "verb",
+    sense: { definition: "to program the universe", highlight: [], sentence: tagline },
+};
+
+/** Close every page with a colophon in the sky, ending on the headword flush with the bottom. */
+export function Footer() {
     return (
         <footer data-component="SiteFooter" {...style.attrs(styles.root)}>
             {/* mark the rails where the footer's top edge meets them */}
             <span aria-hidden="true" {...style.attrs(lattice.crossings, lattice.crossingsTop)} />
-            <Sky xstyle={styles.band}>
+            <Sky view="plate" xstyle={styles.band}>
                 {/* spread hairlines down from the footer's top edge, a stack coming apart */}
                 <span aria-hidden="true" {...style.attrs(lattice.stave)} />
                 <div {...style.attrs(lattice.frame, styles.colophon)}>
                     {/* the verb's dictionary entry, as each section heads with one */}
-                    <div {...style.attrs(styles.cell, styles.entry)}>
-                        <p {...style.attrs(styles.kicker)}>
-                            <Mark />
-                            <b {...style.attrs(styles.word)}>
-                                <Syllables syllables={["de", "stack"]} />
-                            </b>
-                            <span>/diːˈstak/</span>
-                            <PartOfSpeech>verb</PartOfSpeech>
-                        </p>
-                        <p {...style.attrs(styles.definition)}>to program the universe</p>
-                    </div>
+                    <Entry form={closing} isAnchor={false} />
 
-                    {/* the link columns and the install command */}
+                    {/* the link columns and the ways to install */}
                     {columns.map(([title, destinations], index) => (
                         <nav
                             aria-label={title}
@@ -82,55 +79,43 @@ export function Footer(properties: { path: string }) {
                         </nav>
                     ))}
                     <div {...style.attrs(styles.cell, styles.column, styles.install)}>
-                        <h2 {...style.attrs(styles.heading)}>Ask your agent, or install</h2>
-                        <AgentField prompt={agentPrompt} />
-                        <TerminalField />
+                        <h2 {...style.attrs(styles.heading)}>Install</h2>
+                        <InstallIsland />
                     </div>
 
-                    {/* close on the headword itself, its ink touching every edge */}
-                    <svg
-                        aria-hidden="true"
-                        viewBox={`0 0 ${headwordBox.width} ${headwordBox.height}`}
-                        {...style.attrs(styles.poster)}
-                    >
-                        {/* hatch the letters like a cut face, inside their outline */}
-                        <defs>
-                            <pattern
-                                id={HATCH_ID}
-                                width={HATCH_PITCH}
-                                height={HATCH_PITCH}
-                                patternTransform="rotate(-45)"
-                                patternUnits="userSpaceOnUse"
-                            >
-                                <rect
-                                    width={HATCH_LINE}
+                    {/* close on the headword itself, its ink touching every edge, the planet as its dot */}
+                    <div {...style.attrs(styles.poster)}>
+                        <svg
+                            aria-hidden="true"
+                            viewBox={`0 0 ${headwordBox.width} ${headwordBox.height}`}
+                            {...style.attrs(styles.letterbox)}
+                        >
+                            {/* hatch the letters like a cut face, inside their outline */}
+                            <defs>
+                                <pattern
+                                    id={HATCH_ID}
+                                    width={HATCH_PITCH}
                                     height={HATCH_PITCH}
-                                    {...style.attrs(styles.hatch)}
-                                />
-                            </pattern>
-                        </defs>
-                        <path
-                            d={headwordLetters}
-                            fill={`url(#${HATCH_ID})`}
-                            {...style.attrs(styles.letters)}
-                        />
-                        <circle
-                            cx={headwordDot.x}
-                            cy={headwordDot.y}
-                            r={headwordDot.radius}
-                            {...style.attrs(styles.dot)}
-                        />
-                    </svg>
-
-                    {/* sign the sheet off with its title block */}
-                    <dl {...style.attrs(styles.block)}>
-                        {fields.map(([label, value]) => (
-                            <div {...style.attrs(styles.field)}>
-                                <dt {...style.attrs(styles.fieldLabel)}>{label}</dt>
-                                <dd {...style.attrs(styles.fieldValue)}>{value}</dd>
-                            </div>
-                        ))}
-                    </dl>
+                                    patternTransform="rotate(-45)"
+                                    patternUnits="userSpaceOnUse"
+                                >
+                                    <rect
+                                        width={HATCH_LINE}
+                                        height={HATCH_PITCH}
+                                        {...style.attrs(styles.hatch)}
+                                    />
+                                </pattern>
+                            </defs>
+                            <path
+                                d={headwordLetters}
+                                fill={`url(#${HATCH_ID})`}
+                                {...style.attrs(styles.letters)}
+                            />
+                        </svg>
+                        <span style={DOT_PLANET} {...style.attrs(styles.planet)}>
+                            <Mark xstyle={styles.mark} />
+                        </span>
+                    </div>
                 </div>
             </Sky>
         </footer>
@@ -198,31 +183,6 @@ const styles = style.create({
         paddingInline: frame.inset,
         rowGap: "0.75rem",
     },
-    entry: {
-        gridColumn: "1 / -1",
-        paddingBlock: { default: "7rem 6rem", [media.maxMd]: "4rem 3rem" },
-        rowGap: "1.25rem",
-    },
-    kicker: {
-        alignItems: "center",
-        color: `color-mix(in srgb, ${color.foreground} 60%, transparent)`,
-        columnGap: "0.625rem",
-        display: "flex",
-        flexWrap: "wrap",
-        fontSize: typeScale.body,
-        margin: 0,
-    },
-    word: {
-        color: color.primary,
-        fontWeight: weight.semibold,
-    },
-    definition: {
-        fontSize: typeScale.closing,
-        fontWeight: weight.semibold,
-        letterSpacing: tracking.display,
-        lineHeight: 1.05,
-        margin: 0,
-    },
     column: {
         // band the column's top, and its left where a column stands beside it
         backgroundImage: `${rule.band}, ${rule.band}`,
@@ -273,8 +233,19 @@ const styles = style.create({
         backgroundImage: rule.band,
         backgroundRepeat: "no-repeat",
         backgroundSize: `100% ${rule.bandHeight}`,
-        display: "block",
         gridColumn: "1 / -1",
+        position: "relative",
+    },
+    letterbox: {
+        display: "block",
+        width: "100%",
+    },
+    planet: {
+        position: "absolute",
+        transform: "translate(-50%, -50%)",
+    },
+    mark: {
+        height: "auto",
         width: "100%",
     },
     letters: {
@@ -283,46 +254,5 @@ const styles = style.create({
     },
     hatch: {
         fill: color.foreground,
-    },
-    block: {
-        backgroundImage: rule.band,
-        backgroundRepeat: "no-repeat",
-        backgroundSize: `100% ${rule.bandHeight}`,
-        paddingBlockStart: rule.bandHeight,
-        display: "grid",
-        gridColumn: "1 / -1",
-        gridTemplateColumns: {
-            default: "repeat(6, minmax(0, 1fr))",
-            [media.maxMd]: "repeat(2, minmax(0, 1fr))",
-        },
-        margin: 0,
-    },
-    field: {
-        borderColor: rule.color,
-        borderStyle: "solid",
-        borderWidth: 0,
-        borderInlineStartWidth: { default: stroke.border, ":first-child": 0 },
-        display: "grid",
-        paddingBlock: "0.875rem",
-        paddingInline: frame.inset,
-        rowGap: "0.25rem",
-    },
-    fieldLabel: {
-        color: `color-mix(in srgb, ${color.foreground} 55%, transparent)`,
-        fontFamily: font.code,
-        fontSize: "0.625rem",
-        letterSpacing: tracking.label,
-        textTransform: "uppercase",
-    },
-    fieldValue: {
-        fontFamily: font.code,
-        fontSize: typeScale.label,
-        letterSpacing: tracking.label,
-        margin: 0,
-        overflowWrap: "anywhere",
-        textTransform: "uppercase",
-    },
-    dot: {
-        fill: color.primary,
     },
 });

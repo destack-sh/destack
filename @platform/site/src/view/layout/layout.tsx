@@ -47,7 +47,7 @@ export function Layout(properties: RouteSectionProps) {
                     <Loading>{properties.children}</Loading>
                     <Zones isBottom />
                 </main>
-                <Footer path={location.pathname} />
+                <Footer />
             </div>
         </Metadata>
     );

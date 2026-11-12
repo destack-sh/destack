@@ -68,8 +68,8 @@ export function PartOfSpeech(properties: { children: string }) {
     );
 }
 
-/** Head a section with a dictionary entry. */
-export function Entry(properties: { form: Form; isTitle?: boolean }) {
+/** Head a section with a dictionary entry, anchored by its part of speech unless told not to be. */
+export function Entry(properties: { form: Form; isTitle?: boolean; isAnchor?: boolean }) {
     // draw the definition's underline once, the first time the entry rises past the screen's bottom fifth
     let header: HTMLElement | undefined;
     const [isSeen, setIsSeen] = createSignal(false);
@@ -94,7 +94,7 @@ export function Entry(properties: { form: Form; isTitle?: boolean }) {
     return (
         <header
             ref={header}
-            id={anchorOf(properties.form)}
+            id={properties.isAnchor === false ? undefined : anchorOf(properties.form)}
             {...style.attrs(lattice.cell, styles.entry)}
         >
             {/* the rule between the word and its meaning, from the section's top to its bottom */}
