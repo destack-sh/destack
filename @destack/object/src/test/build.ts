@@ -15,7 +15,6 @@ const SERVER_OUTPUT: OutputContent = {
     views: {},
     directory: "server",
     exports: { [SERVER_EXPORT]: { path: "server/index.js", imports: [] } },
-    dependencies: {},
 };
 
 /** A declaration a test build declares beside its package and object types. */
@@ -24,11 +23,11 @@ export type TestDeclaration = Parameters<typeof MemoryBuild.of>[1][number];
 /** What a test build has beside its package and object types. */
 export type TestBuildOptions = Omit<
     NonNullable<Parameters<typeof MemoryBuild.of>[3]>,
-    "dependencies"
+    "requires"
 > & {
     /** The further declarations, such as settings or notifications, none by default. */
     readonly declared?: readonly TestDeclaration[];
-    /** The builds of the packages it depends on, which its types may refer to, none by default. */
+    /** The builds of the packages it requires, which its types may refer to, none by default. */
     readonly dependencies?: readonly BuildReader[];
 };
 
@@ -61,25 +60,19 @@ export async function testBuild(
             })),
     ];
 
-    // record each dependency's build and the closure it compiled against, as a compiler resolves them
-    const resolved = await Promise.all(
-        dependencies.map(async (dependency) => {
-            // take the dependency's release beside the releases it depends on
+    // require each dependency at its version
+    const requires = Object.fromEntries(
+        dependencies.map((dependency) => {
             const owner = PackageManifest.package(dependency.manifest);
-            const manifest = await dependency.digest();
-            const release = { kind: "destack" as const, package: owner, manifest };
 
-            return [
-                ...Object.entries(await dependency.dependencies()),
-                [owner.name, release] as const,
-            ];
+            return [owner.name, owner.version] as const;
         }),
     );
 
-    // write the build with a server output unless given others, beside its dependencies
+    // write the build with a server output unless given others
     return MemoryBuild.of(PackageVersion.of(handle), [...described, ...declared], crypto, {
         outputs: { server: SERVER_OUTPUT },
         ...contents,
-        dependencies: Object.fromEntries(resolved.flat()),
+        requires,
     });
 }

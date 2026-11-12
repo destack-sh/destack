@@ -1,24 +1,18 @@
 import { DeclarationName, PackageId } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
-import { Digest, schema, Version } from "@destack/schema";
+import { schema, Version } from "@destack/schema";
 import { AccessName } from "@destack/sync";
 import { InstallationName } from "./name.ts";
 
 /** A package directory within a repository or checkout, or its root. */
 export const PackageDirectory = schema.union([schema.literal("."), PackagePath]);
 
-/** A published registry release by version. */
-const Release = schema.object({
+/** A published registry release by version, immutable once published. */
+export const Release = schema.object({
     /** A published registry release. */
     kind: schema.literal("release"),
     /** The released package version. */
     version: Version,
-});
-
-/** A published release by version, pinned to its manifest where the selector pinned it. */
-export const PinnedRelease = Release.extend({
-    /** The digest of the release manifest, absent to resolve the version at the registry. */
-    manifest: Digest.exactOptional(),
 });
 
 /** The release a distribution tag points at. */
@@ -29,17 +23,14 @@ export const Tag = schema.object({
     tag: schema.string().min(1),
 });
 
-/** A release by version, or the one a distribution tag points at now. */
-export type ReleaseReference = schema.Infer<typeof Release> | schema.Infer<typeof Tag>;
-
-/** A published release an installation follows: by version, pinned or not, or by a tag. */
-export const ReleaseSelection = schema.discriminatedUnion("kind", [PinnedRelease, Tag]);
+/** A published release an installation follows: by version, or by a tag. */
+export const ReleaseSelection = schema.discriminatedUnion("kind", [Release, Tag]);
 /** A published release an installation follows. */
 export type ReleaseSelection = schema.Infer<typeof ReleaseSelection>;
 
 /** The release, repository reference or checkout an installation follows. */
 export const InstallationSelection = schema.discriminatedUnion("kind", [
-    PinnedRelease,
+    Release,
     Tag,
     schema.object({
         /** Follow committed repository history. */
