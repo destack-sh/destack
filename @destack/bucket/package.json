@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare object storage in Destack.",
+    "description": "Store files in buckets on local disk, Cloudflare R2 or any S3 endpoint.",
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
@@ -27,7 +27,7 @@
         "@destack/schema": "workspace:*"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
         "test:cloudflare": "bun run tests/cloudflare/run.ts"
     },
