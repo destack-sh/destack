@@ -56,6 +56,21 @@ export type ObjectConstraint<Property extends string = string, Foreign extends s
 
 /** The constraints a definition declares. */
 export const ObjectConstraint = {
+    /** Find the declared constraint making a key unique within its scope, absent for none. */
+    keying(
+        constraints: Readonly<Record<string, ObjectConstraint>>,
+        key: string,
+    ): Extract<ObjectConstraint, { readonly kind: "index" | "unique" }> | undefined {
+        return Object.values(constraints).find(
+            (constraint): constraint is Extract<ObjectConstraint, { kind: "index" | "unique" }> =>
+                (constraint.kind === "unique" ||
+                    (constraint.kind === "index" && constraint.unique === true)) &&
+                constraint.on.length === 2 &&
+                constraint.on.includes("scope") &&
+                constraint.on.includes(key),
+        );
+    },
+
     /** Build a declared constraint over an object's table, named after the table. */
     build(name: string, constraint: ObjectConstraint, table: Table): TableConstraint {
         const sqlName = `${table[TABLE].name}_${Casing.snake(name)}`;

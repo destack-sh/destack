@@ -159,7 +159,7 @@ import { Casing } from "./name.ts";
 import { ObjectPolicy } from "./access.ts";
 import type { KnownDeclaration } from "./description.ts";
 import { type ConstraintColumn, ObjectTable, type TraitOf, type TraitTable } from "./table.ts";
-import type { ObjectConstraint } from "./constraint.ts";
+import { ObjectConstraint } from "./constraint.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -179,6 +179,8 @@ interface Derived {
     declaration?: schema.Schema;
     /** The references a declaration gives, by created field. */
     stackTargets?: Readonly<Record<string, StackTarget>>;
+    /** The create input fields beyond reference fields that declare what they refer to. */
+    inputTargets?: Readonly<Record<string, StackTarget>>;
     /** The fields a declaration sets, which a managed record's manager owns. */
     declaredFields?: ReadonlySet<string>;
     /** The object types of plain reference relations, read by the type's permissions. */
@@ -944,6 +946,17 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return keySchema === undefined ? this.idSchema : schema.union([this.idSchema, keySchema]);
     }
 
+    /** The condition selecting the objects whose keys are unique, all objects when absent. */
+    get keyCondition(): Condition {
+        const { keyed } = this;
+        const keying =
+            keyed === undefined
+                ? undefined
+                : ObjectConstraint.keying(this.definition.constraints ?? {}, keyed);
+
+        return keying?.kind === "index" && keying.where !== undefined ? keying.where : {};
+    }
+
     /** Read the column selecting an object by a value: its identifier, else its key. */
     identify(value: string): string {
         return this.keyed === undefined || this.identifies(value) ? "id" : this.keyed;
@@ -1451,7 +1464,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         scope: string,
         view: Pick<Snapshot, "read">,
     ): Promise<JsonObject> {
-        // list the references and the parent an input may name by key
+        // list the fields an input may name by key: references, the parent and targeted inputs
         const resolved: Record<string, string> = {};
         const parent = this.parent?.object;
         const references: [string, ObjectType | undefined][] = [
@@ -1462,6 +1475,12 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 ],
             ),
             ["parentId", parent === "any" ? undefined : parent],
+            ...Object.entries(this.inputTargets).map(
+                ([name, target]): [string, ObjectType | undefined] => [
+                    name,
+                    target instanceof ObjectType ? target : undefined,
+                ],
+            ),
         ];
         for (const [column, target] of references) {
             // leave a missing value, an identifier, and a reference to a type without a key
@@ -1474,10 +1493,14 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
                 continue;
             }
 
-            // read the identifier of the target holding the key in its scope, the universe for universal types
-            const at = target.route.field === undefined ? Scope.universe.id : scope;
-            const where = { scope: at, [target.identify(value)]: value };
-            const row = await view.read(target.table).findFirst({ where });
+            // read the key in the call's scope, then in the universe
+            const scopes = target.route.field === undefined ? [Scope.universe.id] : [scope];
+            const searched = target.isInUniverse ? [...new Set([...scopes, Scope.universe.id])] : scopes;
+            const key = { ...target.keyCondition, [target.identify(value)]: value };
+            let row: Record<string, unknown> | undefined;
+            for (const at of searched) {
+                row ??= await view.read(target.table).findFirst({ where: { ...key, scope: at } });
+            }
             if (row === undefined) {
                 throw ObjectError.of(
                     "REFERENCE_NOT_FOUND",
@@ -1790,6 +1813,29 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         return isOptional ? declared.exactOptional() : declared;
     }
 
+    /** The create input fields beyond reference fields whose schemas declare what they refer to. */
+    get inputTargets(): Readonly<Record<string, StackTarget>> {
+        // derive them once, none for a type nothing creates
+        if (this.derived.inputTargets !== undefined) {
+            return this.derived.inputTargets;
+        }
+        const created = Object.hasOwn(this.methods, "create")
+            ? InputSchema.fields(this.input("create")).shape
+            : {};
+
+        // keep each input field whose schema declares what it refers to
+        const derived = Object.fromEntries(
+            Object.entries(created).flatMap(([name, input]): [string, StackTarget][] => {
+                const target = StackTarget.of(input);
+
+                return target === undefined ? [] : [[name, target]];
+            }),
+        );
+        this.derived.inputTargets = derived;
+
+        return derived;
+    }
+
     /** The create fields a declaration refers to other records by: reference and listed fields. */
     get stackTargets(): Readonly<Record<string, StackTarget>> {
         // derive them once
@@ -1816,13 +1862,7 @@ export class ObjectType<Configuration extends ObjectConfiguration = ObjectConfig
         );
 
         // refer by each further create input field whose schema declares what it refers to
-        const declared = Object.entries(created).flatMap(
-            ([name, input]): [string, StackTarget][] => {
-                const target = StackTarget.of(input);
-
-                return target === undefined || supplied.has(name) ? [] : [[name, target]];
-            },
-        );
+        const declared = Object.entries(this.inputTargets).filter(([name]) => !supplied.has(name));
 
         // refer to the parent, and by the listed fields
         const parent = this.parent?.object;

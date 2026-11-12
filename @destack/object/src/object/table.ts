@@ -192,8 +192,9 @@ export const ObjectTable = {
                     ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
-                    // address each object by its key once within its scope
-                    ...(definition.key === undefined
+                    // make each key unique in its scope, unless a declared constraint does
+                    ...(definition.key === undefined ||
+                    ObjectConstraint.keying(definition.constraints ?? {}, definition.key) !== undefined
                         ? []
                         : [
                               ObjectConstraint.build(

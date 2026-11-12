@@ -28,7 +28,6 @@ import {
     OrderBy,
     Row,
     type Scalar,
-    type SQL,
     Expression,
     DatabaseError,
     declareState,
@@ -1945,13 +1944,8 @@ export class ObjectClient<
     }
 
     /** Match the row a call names by its identifier or its key in a scope. */
-    static #identified(object: ObjectType, scope: string, value: string): SQL {
-        const columns = object.table[TABLE];
-
-        return and(
-            eq(columns.column("scope"), scope),
-            eq(columns.column(object.identify(value)), value),
-        );
+    static #identified(object: ObjectType, scope: string, value: string): Condition {
+        return { ...object.keyCondition, scope, [object.identify(value)]: value };
     }
 
     /** Widen a durable query to every scope of its type the replica last read. */
@@ -2333,13 +2327,12 @@ export class ObjectClient<
         // load the target by its identifier or its key, at the given revision
         const requested = id === undefined ? undefined : schema.string().parse(id);
         const table = object.table;
-        const [target] =
+        const target =
             Method.loads(method) && requested !== undefined
-                ? await database
-                      .select()
-                      .from(table)
-                      .where(ObjectClient.#identified(object, scope, requested))
-                : [];
+                ? await Snapshot.live(database)
+                      .read(table)
+                      .findFirst({ where: ObjectClient.#identified(object, scope, requested) })
+                : undefined;
         if (Method.loads(method) && target === undefined) {
             throw CallError.http("NOT_FOUND", {
                 message: `${object.name} '${requested}' not found`,

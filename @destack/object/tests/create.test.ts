@@ -641,6 +641,83 @@ test("create an object under a natural key the creator chooses, read it by that 
     ]);
 });
 
+/** Desks keyed by a name only open desks hold, which closing one frees. */
+const desk = defineObject(
+    {
+        name: "desk",
+        plural: "desks",
+        title: t`${plural(argument("count"), { one: "Desk", other: "Desks" })}`,
+        scope: space,
+        key: "name",
+        fields: {
+            name: field.string(),
+            holder: field.reference(principal.user),
+            closedAt: field.time().optional(),
+        },
+        constraints: {
+            openName: {
+                kind: "index",
+                on: ["scope", "name"],
+                unique: true,
+                where: { closedAt: { isNull: true } },
+            },
+        },
+        access: {
+            permissions: { read: relation("holder"), write: relation("holder") },
+        },
+    },
+    (method) => ({
+        create: method.create("write"),
+        get: method.get("read"),
+        update: method.update("write", { fields: ["closedAt"] }),
+    }),
+);
+
+test("address an object by a key its unique index holds only for open objects, the closed one keeping its name", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { desk }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([desk]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: desk.package },
+    });
+    const access = userContext(users.alice, spaceId, { environment: world }).access();
+    const open = () =>
+        store
+            .mutate(access, {
+                id: RequestId.create(world),
+                calls: [desk.call("create", { spaceId, name: "front", holderId: users.alice })],
+            })
+            .then(([written]) => written);
+
+    // open a desk, close it by its name, then open another under the freed name
+    const first = await open();
+    await store.mutate(access, {
+        id: RequestId.create(world),
+        calls: [desk.call("update", { spaceId, id: "front", closedAt: 1 })],
+    });
+    const second = await open();
+    const read = await store.query(access, desk.call("get", { spaceId, id: "front" }));
+
+    // expect the name to reach the open desk alone
+    expect([read.id === second.id, read.id === first.id]).toEqual([true, false]);
+});
+
 /** Topics of a space, which a holder creates. */
 const topic = defineObject(
     {

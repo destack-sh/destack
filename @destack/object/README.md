@@ -1,742 +1,154 @@
 # @destack/object
 
-`defineObject` declares an object type: a table with access rules, methods and history, whose rows sync to clients.
+Declare object types with access, methods and sync, and call them from anywhere.
+
+## Overview
+
+A package declares its object types, and Destack derives their API, access checks, audit and sync from them.
+
+- **Object type**: rows of one kind in a scope, with fields, access and methods; every type has `get`, `list`, `create`, `update` and `delete`.
+- **Method**: a verb on a type, called by request id, so a retried call runs once; a mutation is one transaction.
+- **Trait**: an adjective adding columns, permissions and methods to a type, such as `shareable` or `nested`.
+- **Package**: a package's types, views, mounts and resources; its API lives at `/<package>/<type>/<method>`.
+- **Client**: a caller of a package's methods, which keeps a scope's objects synced and predicts its own writes.
 
 ```ts
-export const page = defineObject({
-    name: "page",
-    plural: "pages",
-    scope: space,
-    fields,
-    permissions,
-    constraints: { title: { kind: "index", on: ["title"] } },
-}); // get and list by read; create, update and delete by write
-// serves its package over one database
-const store = new ObjectStore({
-    servers: [implementPackage(pages, { objects: [page] })],
-    principal: space,
-    database,
-    callKey,
-    events,
-    origin,
-    environment,
-});
-const [created] = await store.mutate(caller, {
-    id: requestId,
-    calls: [page.call("create", { spaceId, title: "Ideas" })],
-});
-const listed = client.query.page.findMany().subscribe(); // a client's live local replica
-for await (const pages of client.query.page.findMany().watch(signal)) show(pages); // each change
-```
-
-## Objects
-
-`defineObject` declares a type and `implement` gives it code, which also runs on clients unless it sits in a server module.
-
-```ts
-import { relation } from "@destack/access";
-import { space } from "@destack/account/object";
-import { defineObject, field } from "@destack/object";
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, definePackage, field, shareable } from "@destack/object";
+import type { ClientOf } from "@destack/object/client";
 import { schema } from "@destack/schema";
 
-// page.ts, which clients and the server import
-export const page = defineObject(
+const project = defineObject({
+    name: "project",
+    plural: "projects",
+    title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
+    container: "scope",
+    fields: { name: field.string() },
+});
+const task = defineObject({
+    name: "task",
+    plural: "tasks",
+    title: t`${plural(argument("count"), { one: "Task", other: "Tasks" })}`,
+    scope: project,
+    fields: {
+        title: field.string(schema.string().max(200)),
+        isDone: field.boolean().default(false),
+    },
+    traits: [shareable({})],
+});
+const tasks = definePackage({ objects: [project, task] });
+
+async (client: ClientOf<typeof tasks>, projectId: string, requestId: string) => {
+    const created = await client.task.create({ projectId, title: "Write the README", requestId });
+    await client.task.update({ projectId, id: created.id, isDone: true, requestId });
+    const open = await client.task.list({ projectId, where: { isDone: false } });
+};
+```
+
+## Examples
+
+### Add a method
+
+A type declares a method only for a change `update` cannot make, and implements it.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, shareable } from "@destack/object";
+
+const list = defineObject(
     {
-        name: "page",
-        plural: "pages",
-        scope: space,
-        fields: {
-            title: field.string(schema.string().max(500)).default(""),
-            archivedAt: field.time().optional(),
-            url: field.string(schema.string()).optional(),
-            template: field.string().immutable(),
-        },
-        permissions: { read: relation("viewer"), write: relation("editor") },
+        name: "list",
+        plural: "lists",
+        title: t`${plural(argument("count"), { one: "List", other: "Lists" })}`,
+        container: "scope",
+        fields: { name: field.string(), archivedAt: field.time().optional() },
+        traits: [shareable({})],
     },
     (method) => ({
-        delete: false,
-        archive: method.mutation({ permission: "write" }),
-        publish: method.mutation({
-            permission: "write",
-            prepared: schema.object({ url: schema.string() }),
-        }),
+        archive: method.mutation({ title: t`Archive`, permission: "write" }),
     }),
 ).implement({
-    methods: { archive: (context) => context.update({ archivedAt: context.now }) },
-});
-
-// server/page.ts: prepare runs outside the transaction, so clients never predict publish
-export const servedPage = page.implement({
     methods: {
-        publish: {
-            prepare: (context) => cdn.publish(context.target),
-            handle: (context) => context.update({ url: context.prepared.url }),
-        },
-    },
-});
-
-// a client predicts archive at once and confirms it once the server's changes arrive
-const { predicted, confirmed } = client.mutate(page).archive({ id });
-```
-
-## Methods
-
-Every type gets `get` and `list`, a type with a `write` permission also gets `create`, `update` and `delete`, and `false` removes one.
-
-```ts
-export const label = defineObject(
-    {
-        name: "label",
-        plural: "labels",
-        scope: space,
-        fields: { name: field.string(), color: field.string().immutable() },
-        permissions: { read: relation("viewer"), write: relation("editor") },
-    },
-    () => ({ delete: false }), // get, list, create, update; update leaves color out
-);
-```
-
-## Custom methods
-
-A type should only add its own method to change its object in a way `update` cannot, to follow another standard's protocol, or to run a step of its controller.
-
-```ts
-(method) => ({
-    cancel: method.mutation({ permission: "cancel" }), // change the object
-    token: method.mutation({ permission: "token", output: Token }), // follow OAuth 2.0
-    follow: method.mutation({ permission: "follow", visibility: "package" }), // run the controller's step
-}),
-// read and write everything else through the standard methods of the type keeping the state
-// sign up through user.create, invite through invitation.create
-// compute derived values where they are read
-```
-
-## Visibility
-
-A method's `visibility` says who may call it: clients by default, any installation's code with `"installation"`, or only its own package's code with `"package"`; creations clients cannot call take caller fields as input.
-
-```ts
-remark: method.mutation({ permission: "read" }), // clients, on its public route
-notify: method.mutation({ permission: "post", visibility: "installation" }), // any app's server code
-post: method.create("post", { visibility: "package" }), // only this package's code
-```
-
-## Commands
-
-`defineCommand` declares a titled call of a method, with some input preset and a condition its target meets, which menus, the command palette and the command line offer.
-
-```ts
-export const markDone = defineCommand({
-    name: "mark-done",
-    title: t`Mark Done`,
-    category: t`Task`, // the palette shows "Task: Mark Done"
-    object: task,
-    method: "update",
-    input: { status: "done" }, // the caller gives the target and the rest
-    when: { status: { ne: "done" } }, // a condition over the target's fields
-    keybinding: "mod+enter",
-});
-
-markDone.target; // "object", or "scope" for a method such as create
-markDone.parameters; // the JSON Schema of the input the caller still gives
-await client.queryType(task).findFirst(markDone.query([id])); // the target, if it applies and the person may update it
-client.call(task, markDone.method, markDone.input({ id })); // { status: "done", id }
-```
-
-## References
-
-`field.reference` stores one type's identifier as `<name>Id`, and `field.object` or `field.subject` store a reference to any object or principal as `<name>PackageId`, `<name>Type`, `<name>Scope` and `<name>Id`.
-
-```ts
-fields: {
-    folder: field.reference(folder, { delete: "cascade" }), // a foreign key in the space's database
-    parent: field.reference((): ObjectOf<{ identity: "page" }> => page), // a type declared later
-    owner: field.reference(principal.user), // a global principal's identifier
-    origin: field.object(page), // originPackageId, originType, originScope, originId
-    author: field.subject(principal.user, principal.agent), // authorPackageId … authorId
-},
-```
-
-```ts
-await notes.create({ ...ObjectReference.columns("origin", page.reference(scope, id)), title });
-const origin = ObjectReference.at("origin", row);
-```
-
-## Keys
-
-Every object has its own identifier, and `key` is a column unique within its scope that callers can also address it by.
-
-```ts
-const channel = defineObject({
-    name: "channel",
-    key: "slug",
-    fields: { slug: field.string(Slug).immutable() },
-});
-await store.query(caller, channel.call("get", { spaceId, id: "core" })); // by key or by identifier
-await post.call("create", { spaceId, channelId: "core", text: "Hi" }); // stored as the channel's identifier
-```
-
-## Traits
-
-A trait adds columns, permissions and methods to a type.
-
-```ts
-defineObject({
-    ...definition,
-    traits: [
-        recoverable({ within: { days: 30 }, by: "write" }), // delete, restore and purge
-        controlled({ approval: true }), // desired generation, conditions and approved plan
-        provisioned({ kind }), // a resource kind's specification and provider
-        shareable({ isPublic: true }), // owner, editor, commenter and viewer roles
-        tracked({ by: "write", activity, session: { minutes: 10 } }), // history and revert
-        orderable(), // a fractional index among the siblings
-        searchable({ text: ["title"], filter: ["status"], sort: ["dueAt"] }),
-    ],
-});
-```
-
-## Declarations
-
-A durable type with a `create` method takes stack declarations as its create input: the declaration's name fills its `name` field, and references take declared names, from reference fields or from schemas that declare one.
-
-```ts
-const badge = defineObject({
-    ...definition,
-    fields: {
-        tag: field.reference(tag),
-        holder: field.json(StackTarget.on(Subject, () => "subject")),
-    },
-});
-
-const badges: Record<string, StackInputOf<typeof badge>> = {
-    open: { tag: "red", holder: { anyone: true } }, // a declared tag, every caller
-    personal: { tag: { id: tagId }, holder: { id: userId } }, // an existing tag, a global principal
-    staff: { tag: "red", holder: { id: groupId, scope: "enclosing", relation: "member" } },
-    owners: { tag: "red", holder: { scope: "enclosing", relation: "owner" } },
-};
-```
-
-## Declaration handlers
-
-A declaration handler names the document collection users declare in, and reads a declared record with fields another row keeps.
-
-```ts
-rollout.implement({
-    declaration: {
-        collection: "installations", // the type's plural by default
-        immutable: ["name"],
-        read: async (row, reader) => nth(await Rollout.read(reader, [row]), 0), // its get by default
+        archive: async (call) => call.update({ archivedAt: call.now }),
     },
 });
 ```
 
-## Installations
+### Nest objects
 
-`installation` is the principal of a package installed in a space under a name, created by a person, an agent or a stack; a scope's own packages serve without one and act as the scope.
-
-```ts
-// serve a scope's own package acting as the scope, or a package at its installation
-const own = stackServer; // { installation: undefined }
-const served = notesServer.at(context); // { installation: { installation, name, scope, capabilities, ... } }
-
-// a named installation, created by its caller and rolled out by the stack package's controller
-const created = await client.installation.create({ scope: spaceId, packageId, selection, name });
-
-// a record its stack manages is detached before anyone else changes it, and attached again after
-await client.installation.detach({ scope: spaceId, id: created.id, requestId });
-await client.installation.update({ scope: spaceId, id: created.id, capabilities: [], requestId });
-await client.installation.attach({ scope: spaceId, id: created.id, requestId });
-```
-
-## Relationships
-
-Relationships relate subjects to objects, a subject set among them, and `relationship.check` and `relationship.lookup` answer Zanzibar's Check and LookupSubjects to whoever sees the object's relationships.
+`nested` keeps a type's rows inside a parent's, moving and deleting them with it.
 
 ```ts
-await client.relationship.check({ scope, subject: ada, permission: "read", object: page }); // { isAllowed: true }
-await client.relationship.lookup({
-    scope,
-    object: group,
-    permission: "member",
-    type: user,
-    limit: 50,
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, nested } from "@destack/object";
+
+const folder = defineObject({
+    name: "folder",
+    plural: "folders",
+    title: t`${plural(argument("count"), { one: "Folder", other: "Folders" })}`,
+    container: "scope",
+    fields: { name: field.string() },
 });
-// { items: [ada, ben, …], cursor } — nested sets expanded, paged in subject order
-```
-
-## Branches and approvals
-
-A `branch` is a line of calls over a space's main line, and a `changeRequest` makes a call once approved, as roles gate permissions on approvals.
-
-```ts
-await client.branch.push({ scope, requestId, id, calls: [note.call("create", input)] }); // its rows over the main line
-await client.branch.merge({ scope, requestId, id }); // replays the calls as their authors, refused for missing approvals
-await client.changeRequest.create({ scope, requestId, parent, call: merge, approvers: [alice] });
-await client.approval.approve({ ...approval.target(asked), requestId }); // applies the call once enough others approve
-```
-
-## Approver sets
-
-A change request may ask a subject set as one approver, as GitHub asks a team: any member decides, and the approval records who did; the sets come from the types that contribute them.
-
-```ts
-// account's space offers its managers to approvals: contributes: [{ object: () => approval, relation: "approver", members: "manage" }]
-await client.changeRequest.create({
-    scope,
-    requestId,
-    parent,
-    call,
-    as: "approver",
-    approvers: [{ ...space, relation: "manage" }],
-});
-Approval.asked(row); // the space's managers, as one set
-Approval.decider(row); // the manager who approved
-```
-
-## Controllers
-
-A type's `controller` works through its pending rows, and says when to look again.
-
-```ts
-export const reminder = base.reminder.implement({
-    controller: {
-        pending: { sentAt: { isNull: true } },
-        key: (row) => ({ topic: row.topic }),
-        watches: [{ table: topic.table, keys: (row) => [{ topic: row.id }] }],
-        async reconcile({ rows, now, mutate }) {
-            const due = rows.filter((row) => row.dueAt <= now);
-            await mutate(due.map((row) => base.reminder.call("send", base.reminder.target(row))));
-
-            return nextDue(rows, now);
-        },
-    },
-});
-export const reminderConditions = new Conditions(["Sent"]);
-```
-
-## Controller status
-
-A pass records `Synced` at the generation it reconciled, on the controlled objects it reports on: its own, or those a projection's `reports` reads; a declared failure no retry resolves records `Synced=False`, and `Observation.progress` reads the outcome as kstatus does.
-
-```ts
-const projection = {
-    watches,
-    reports: { object: installation, identifiers: (rows) => rows.map((row) => row.installationId) },
-    project, // Synced=False with ReconcileError on a lasting failure, Synced=True once projected
-};
-Observation.progress(installed); // "waiting" until a pass ends, then "failed", "approval" or "current"
-```
-
-## Calls
-
-`type.call` builds a method call as a value, and `type.target` names the row it acts on.
-
-```ts
-const rename = page.call("rename", { ...page.target(row), title: "Plans" });
-const create = page.call("create", { spaceId, title: "Ideas" });
-```
-
-## Contexts
-
-A handler gets a `MethodContext` with the call's `input`, `target` and `caller`, and reads and writes in the call's transaction.
-
-```ts
-const rename = method.mutation({
-    permission: "write",
-    input: schema.object({ title: schema.string() }),
-});
-page.implement({
-    methods: {
-        rename: (context) => context.update({ title: context.input.title }), // target: the loaded page
-    },
+const page = defineObject({
+    name: "page",
+    plural: "pages",
+    title: t`${plural(argument("count"), { one: "Page", other: "Pages" })}`,
+    scope: folder,
+    fields: { title: field.string() },
+    traits: [nested({ in: folder, delete: "cascade", add: "write" })],
 });
 ```
 
-## Reads
+### Search objects
 
-A handler reads object types as clients query them, and plain tables row by row.
-
-```ts
-const pages = await context.read(page).findMany({ where: { folderId } });
-const books = await context.read({ notebook, note }).notebook.findMany({ with: { notes: true } });
-const [row] = await context.read(accessGrant).findMany({ where: { id } }); // a table
-```
-
-## Implementations
-
-`implementPackage` implements a package's types, controllers and follows, and `at` implements it as one installation in a store.
+`searchable` indexes a type's text and the fields callers filter and sort by.
 
 ```ts
-import { implementPackage } from "@destack/object/server";
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field, searchable } from "@destack/object";
 
-export default implementPackage(pages, { objects: [page.implement({ methods })], controllers: [] });
-const vault = vaultServer.at(installation); // served as its installation in a space's store
-```
-
-## Servers
-
-`Server.start` hosts a package's handler over HTTP with its health, authentication and controllers, and `implementHealth` answers its health procedures.
-
-```ts
-import { Health, Server } from "@destack/object/server";
-
-const server = Server.start({
-    ...handler, // the routes and enforcement a store builds for a package
-    environment,
-    health: new Health(handler.package.name),
-    authenticate: (request) => verifier.authenticate(request, environment.clock.now()),
-    authorizeMachine: async () => {},
-});
-await server.fetch(request);
-```
-
-## Stores
-
-`ObjectStore` serves packages over one database: `query` reads, and `mutate` runs calls in one transaction.
-
-```ts
-import { ObjectStore } from "@destack/object/server";
-
-const store = new ObjectStore({
-    servers: [implementPackage(pages, { objects: [page] })],
-    principal: space,
-    database,
-    callKey,
-    events,
-    origin,
-    environment,
-});
-const row = await store.query(caller, page.call("get", { spaceId, id }));
-const [renamed] = await store.mutate(caller, { id: requestId, calls: [rename] });
-// the installation serving the type
-await store.mutate(store.as(page), { id: RequestId.create(environment), calls: [create] });
-```
-
-## Replicas
-
-A server follows a `defineShape` to keep a copy of rows that live in another store, and every store also follows its scope's chain and the universe's grants into it.
-
-```ts
-import { defineShape, Follow } from "@destack/object";
-
-const cards = defineShape({
-    name: "cards",
-    parameters: schema.object({ title: schema.string() }),
-    objects: [card],
-    queries: ({ title }) => [card.query({ where: { title } })],
-});
-const usable = defineShape({
-    name: "connections",
-    parameters: schema.object({}),
-    objects: [connection],
-    queries: () => [connection.query({ permission: "use" })], // only the connections the follower may use
-});
-const directory = directoryShape.at({ key: { scope: Scope.universe.id } });
-const activities = activityShape.per(relationship, { key: keyOf });
-const byTitle = cards.onDemand({ minutes: 10 });
-
-await store.acquire(byTitle, { key: { scope: spaceId, title: "Milk" } }, signal); // replicated once this returns
-```
-
-## Watermarks
-
-`wait` waits until a store has caught up to a position in another store's log, and asks that store when it falls behind.
-
-```ts
-await store.wait({ scope: homeId, epoch, sequence }, signal); // asks the source only while behind
-```
-
-## Events
-
-A type with `storage: { kind: "events" }` keeps its rows in the event log, where `create` appends and `series` folds them.
-
-```ts
-export const call = defineObject(
-    {
-        name: "call",
-        plural: "calls",
-        storage: {
-            kind: "events",
-            flush: { maxAge: { hours: 1 }, maxRows: 100_000 },
-            retention: { days: 400 },
-            delivery: "exactly-once",
-            isLocked: true,
-            subject: "actor",
-        },
-        fields: {
-            data: field.json(CallEvent).guard({ read: "unmask" }),
-            actor: field.string(),
-            method: field.string(),
-        },
-        permissions: ["read", "unmask", "record"],
-    },
-    (method) => ({
-        record: method.createMany("record", {
-            visibility: "package",
-            fields: ["data", "actor", "method"],
-        }),
-    }),
-);
-const events = new EventStore({
-    database,
-    kinds: [call.eventKind()],
-    files,
-    personal,
-    clock,
-    report,
-});
-const store = new ObjectStore({
-    servers: [objectServer],
-    principal: space,
-    database,
-    callKey,
-    events,
-    origin,
-    environment,
-});
-await store.mutate(store.as(call), {
-    id: requestId,
-    calls: [call.call("record", { scope, items: [{ id, time, data, actor, method }] })],
-});
-await store.query(
-    caller,
-    call.call("list", { scope, where: { outcome: "failure" }, orderBy: { time: "desc" } }),
-);
-await store.query(
-    caller,
-    call.call("series", { scope, fold: "count", group: ["method"], from, before }),
-);
-```
-
-## Call log
-
-The journal records each audited call as a `call` event.
-
-```ts
-import objectPackage from "@destack/object/package";
-import objectServer, { ObjectStore } from "@destack/object/server";
-
-const store = new ObjectStore({ servers: [objectServer, ...servers], ...options });
-const calls = createClient(objectPackage, endpoint);
-await calls.call.list({ scope, where: { outcome: "failure" }, orderBy: { time: "desc" } });
-```
-
-## Global indexes
-
-An index declared `across` a scope keeps its names unique across databases, and a migration builds it from the rows stored before.
-
-```ts
-indexes: {
-    handle: { on: ["handle"], across: () => universe },
-    lookalike: { on: ["handle"], across: () => universe, fold: "hyphens" }, // de-stack takes destack
-},
-
-const claim = defineObject({ name: "claim", /* … */ }, () => claimMethods);
-const home = RemoteStore.of(accounts.store, Scope.universe.id);
-const store = new ObjectStore({ servers: [profileServer], claims: { object: claim, home }, principal: space, database, callKey, events, origin, environment });
-const owner = await Claim.lookup(profile, store.claims, "handle", ["ada"]); // { scope, id }
-```
-
-## Partitions
-
-A scope type with `partition: true` keeps each object's contents in its own partition, served by one instance, and a store answers a call for another partition with a 421 that names it.
-
-```ts
-const room = defineObject({
-    name: "room",
-    plural: "rooms",
-    scope: space,
-    isScope: true,
-    partition: true,
-});
-const store = new ObjectStore({
-    servers: [implementPackage(rooms, { objects: [message] })],
-    partition: roomId,
-    database,
-    principal,
-    callKey,
-    origin,
-    environment,
-});
-// a call in another room: 421 MISDIRECTED_REQUEST { scope, partition }, which the router resends once
-request.headers.set(PARTITION_HEADER, roomId);
-```
-
-## Nested calls
-
-`context.mutate` runs more calls in a handler's transaction as the caller or the code itself (`context.self`), `context.insert` writes an object of the package's own type as its create method does without running its handler, `context.delegated()` acts with the space's grant to the installation, and `context.enabled` reads a capability.
-
-```ts
-export const shelf = base.shelf.implement({
-    methods: {
-        lend: async (context) => {
-            const [slip] = await context.mutate(context.self, [
-                base.slip.call("issue", { shelf: context.target.name }),
-            ]);
-
-            return { slip: slip.id };
-        },
-    },
-});
-const card = await context.insert(base.card, { parentId: board.id, label: "Ship" }); // the card's row
-const recipient = await context.query(await context.delegated(), user.call("recipient", { id }));
-if (context.enabled("push")) await deliverPush(recipient);
-```
-
-## Descriptions
-
-`ObjectDescription.of` writes a type's definition as data, and `ObjectTypePool.declare` reads it back.
-
-```ts
-const description = ObjectDescription.of(page); // { package, definition: { fields: { title: { $field: [...] } } } }
-const [declared] = ObjectTypePool.of([space, principal.user]).declare([description]);
-```
-
-## Store descriptions
-
-`ObjectStoreDescription.read` reflects what a store serves in one call, its installations with their listed types and declarations, which the command line, Home and the desktop read alike.
-
-```ts
-const description = await ObjectStoreDescription.read(
-    ObjectClient.store(options, environment),
-    known,
-);
-for (const installation of description.installations) {
-    description.types(installation); // the ObjectTypes it lists, declared from their descriptions
-    description.commands(installation); // each Command bound to the type it calls
-    description.declarations(installation, VIEW_KIND); // any kind's declarations, read by its schema
-}
-```
-
-## Packages
-
-`definePackage` declares a package's handle from its objects, views, mounts, resources, secrets, the permissions its installations request of their space and their users, and its capabilities, and `defineMount` answers a protocol others define below the package's path.
-
-```ts
-export const npm = defineMount({ name: "npm", path: "/npm" });
-export const hooks = defineMount({ name: "hooks", path: "/hooks", callers: [principal.installation] });
-export const sync = defineMount({ name: "sync", path: "/sync", callers: "self" }); // the installation itself
-export default definePackage({
-    objects: [repository, release],
-    mounts: [npm, hooks],
-    access: {
-        permissions: {
-            space: {
-                space: [message.permission("send")],
-                universe: [user.permission("recipient")],
-            },
-            user: { home: [notification.permission("read")] },
-        },
-    },
-    capabilities: [
-        {
-            name: "push",
-            reason: t`Push notifications`,
-            optional: true, // asked for once its code needs it
-            permissions: { space: { universe: [client.permission("unsubscribe")] } },
-            features: [{ packageId: pricing, name: "push" }], // the account's plan must include it
-        },
-    ],
-    since: "2026.8.0",
+const article = defineObject({
+    name: "article",
+    plural: "articles",
+    title: t`${plural(argument("count"), { one: "Article", other: "Articles" })}`,
+    container: "scope",
+    fields: { title: field.string(), body: field.text(), publishedAt: field.time() },
+    traits: [searchable({ text: ["title", "body"], sort: ["publishedAt"] })],
 });
 ```
 
-## Call errors
+### Rename a field
 
-`CallError` is the error a caller receives, as oRPC's `ORPCError`.
-
-```ts
-throw new CallError("NOT_FOUND", { message: `no page ${id}` });
-```
-
-## Workloads
-
-`defineWorkload` declares a `start` that runs once per instance and returns the served packages and what it does with the WebSockets its host hibernates, as Durable Objects do.
+A release renames a field by converting the stored rows from the old column.
 
 ```ts
-export const workload = defineWorkload({
-    name: "main",
-    start: async (context) => ({
-        packages: [implementPages(context)],
-    }),
+import { Expression } from "@destack/db";
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, field } from "@destack/object";
+
+const contact = defineObject({
+    name: "contact",
+    plural: "contacts",
+    title: t`${plural(argument("count"), { one: "Contact", other: "Contacts" })}`,
+    container: "scope",
+    fields: { fullName: field.string() },
+    convert: { "2026.11.0": { fullName: Expression.column("name") } },
 });
-
-// a room's partition: accept a socket in a route, answer its messages through the host
-start: async ({ server, hibernation }) => ({
-    packages: [
-        { package: rooms, router: {}, fetch: async () => hibernation.accept({ id, attachment }) },
-    ],
-    sockets: { message: async (socket, bytes) => socket.send(bytes), close: async () => {} },
-});
-server.partition; // the one partition the instance serves, from the Destack-Partition header
-server.at(Egress.address(alias, spaceId)); // another installation by its alias, through the egress
-await server.keys.derivePrivateKey("vapid"); // a key of the package's own, rooted in its space's identity
-ClientHead.restore(request); // in a mount, the client's request a machine's route handed on
-await instance.fetch(rooms, request); // a request to one served package
-await instance.reload(); // serve the next start once started, drain the previous beside it, fold reloads meanwhile
-{ package: rooms, router: {}, controllers, activation }; // run its controllers once activation settles
 ```
 
-## Bindings
+## Comparison
 
-`defineInstallationBinding` declares a dependency on an installation of another package, called through the host's egress; an external API is a connection, which `@destack/connection` declares.
+### Convex
 
-```ts
-export const pages = defineInstallationBinding("pages", pagesPackage);
+Methods, reactive queries and optimistic transactions follow Convex; Destack differs in three ways.
 
-const result = await safe(pages.get(context.resources).page.update(input)); // oRPC's safe
-```
+- Access is declared on the type and decided per row, so no method checks access by hand.
+- Every write is a method of the type keeping the state, deriving its route, audit, CLI command and agent tool.
+- A space's objects live in one database with every installed package's, so apps join each other's rows.
 
-## Clients
+### Rails resources
 
-`createClient` calls a package's procedures at its mount, and `ObjectClient` keeps a scope's objects in a local database, follows queries live, and undoes changes.
+Every type gets the standard verbs, as Rails routes a resource; two things differ.
 
-```ts
-import { createClient, ObjectClient } from "@destack/object/client";
-
-const forge = createClient(forgePackage, { url: PackageMount.url(origin, forgePackage.id) });
-await forge.release.list({ scope });
-```
-
-```ts
-import { ObjectClient } from "@destack/object/client";
-
-const client = await ObjectClient.open({
-    database,
-    objects: { page },
-    scope,
-    caller,
-    endpoint,
-    reconnect,
-});
-for await (const rows of client.query.page
-    .findMany({ orderBy: { position: "asc" } })
-    .subscribe()
-    .watch(signal)) {
-    render(rows);
-}
-await client.undo().predicted;
-await client.check(page, id, "write");
-```
-
-## Browser tabs
-
-`BrowserTab` shares one SQLite database across the tabs of an origin.
-
-```ts
-import { BrowserTab } from "@destack/object/browser";
-
-const tab = await BrowserTab.open({
-    environment,
-    worker,
-    name: "pages",
-    objects: { page },
-    scope,
-    caller,
-    client,
-    endpoint,
-    reconnect,
-    report,
-});
-await tab.client.query.page.findMany();
-```
+- `get`, `list`, `create`, `update` and `delete` are methods of the type, each with its permission, never controller actions.
+- A type declares a method of its own only for a change `update` cannot make, such as `archive`.
