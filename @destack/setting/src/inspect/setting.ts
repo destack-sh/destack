@@ -10,7 +10,7 @@ export const compareSetting: Comparator = (before, after) => {
     const later = SettingDescription.parse(after.description);
     const release = after.symbol.package.version;
 
-    return Plan.values({
+    return Plan.of({
         target: Address.join("setting", later.name),
         before: earlier.schema,
         after: later.schema,
