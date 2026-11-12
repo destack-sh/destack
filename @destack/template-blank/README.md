@@ -1,13 +1,19 @@
 # @destack/template-blank
 
-An empty Destack package that new packages start from.
+Start a new Destack package from an empty package with one setting.
 
-## Setting
+## Overview
 
-`language` declares the content language a user picks; resolve it along a scope chain, nearest scope first:
+`@destack/template-blank` is the smallest Destack package: a package handle and one setting, to copy and grow.
 
-```ts
-import { language } from "@destack/template-blank/setting";
+It has:
 
-const { value } = language.resolve(selection, rows, chain);
+- `package`: the handle stacks install the package by, with no objects yet.
+- `language`: a setting for the language of generated content, per user and overridable per space.
+
+Install it, and resolve its setting:
+
+```sh
+destack install @destack/template-blank
+destack setting language get
 ```
