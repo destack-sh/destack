@@ -1,185 +1,116 @@
 # @destack/stack
 
-`defineStack` declares a space's resources and package installations, each rolled out by its `rollout`, which targets, applies and serves its revisions with a plan and an approval.
+Declare and apply a space's stack: its installations, resources, bindings, deployments, routes, runs and transfers.
+
+## Overview
+
+A stack declares what a space runs, and each installation's rollout plans, applies and serves its revisions, waiting for approval on a risky plan.
+
+- **Stack**: a space's resources, installations, roles, relationships, routes and settings; `defineStack`.
+- **Installation**: a package installed in a space with its resources bound by name; `install`.
+- **Rollout**: how one installation follows a release, a tag or a build; `submit`, `plan`, `approve` and `rollBack`.
+- **Revision**: one applied release of an installation with its plan, which the space's deployment serves.
+- **Build**: a package source compiled into a stored build by a checkout's machine or the space's build runner; `create` and `push`.
+- **Route**: a path under a domain the space's account administers, served by an installation.
 
 ```ts
-// a stack, as Pulumi and CloudFormation declare one
+import { defineBucket } from "@destack/bucket/declare";
+import { definePackage } from "@destack/object";
+import { defineStack, install } from "@destack/stack";
+
+const files = defineBucket({ name: "files" });
+const notes = definePackage({ resources: [files] });
+
 export const personal = defineStack({
-    resources,
+    types: [],
+    buckets: { files: files.provision({ retention: { within: { days: 30 } } }) },
     installations: { notes: install(notes, { files: "files" }) },
 });
-// a release by npm dist-tag, recorded at its resolved version as a lockfile does
-await client.rollout.submit({
-    spaceId,
-    id,
-    requestId,
-    selection: { kind: "tag", tag: "latest" },
-    build,
-});
-// terraform apply of a saved plan
-const digest = await Plan.digest(waiting, crypto);
-await client.rollout.approve({ spaceId, id, requestId, plan: digest });
-await client.rollout.rollBack({ spaceId, id, requestId }); // the release applied before
-// the revision the space serves each rollout at, the status its host records as Kubernetes' Pod.status
-await Rollout.serve(store, spaceId, revisions); // rollout.servedRevision
-// the stack targets the revisions of every installation it manages in one transaction, as a Deployment its ReplicaSets
-await reconciliation.mutate([rollout.call("target", { ...rollout.target(managed), revisionId })]);
 ```
 
-## Declarations
+## Examples
 
-`defineStack` declares a space's resources, installations, roles, relationships and routes, and `install` installs a package with its bindings.
+### Apply a stack
+
+`destack apply` applies a stack export to the current space, asking before a plan that needs approval.
+
+```sh
+destack apply ./stack --export personal
+```
+
+### Follow a tag
+
+A rollout follows a release tag, resolving it to a version as a lockfile records one.
 
 ```ts
-import notes, { note } from "@acme/notes/package";
-import { defineStack, install } from "@destack/stack";
-import { files } from "@destack/template-stack";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+import type stackPackage from "@destack/stack/package";
 
-export const personal = defineStack({
-    resources: { files: { declaration: files, retention: { within: { days: 30 } }, tags: {} } },
-    // allow notes its optional publishing capability
-    installations: { notes: install(notes, { files: "files" }, { capabilities: ["publishing"] }) },
-    roles: { editor: { description: "Edit notes", permissions: [note.permission("update")] } },
-    relationships: { notes: { subject: { kind: "installation", name: "notes" }, role: "editor" } },
-});
+async (
+    client: ClientOf<typeof stackPackage>,
+    spaceId: Identifier<"space">,
+    id: Identifier<"rollout">,
+    requestId: string,
+) => {
+    const latest = { kind: "tag", tag: "latest" } as const;
+    await client.rollout.submit({ spaceId, id, requestId, selection: latest, build: latest });
+};
 ```
 
-## Builds
+### Approve or roll back a plan
 
-`build.create` asks a runner to compile a package source into a stored build: a checkout's machine, or the space's build runner for a commit.
+A manager approves the plan a rollout waits on by its digest, and `rollBack` returns to the release applied before.
 
 ```ts
-const build = await client.build.create({
-    spaceId,
-    requestId,
-    source: { kind: "checkout", machine, checkout, directory: "." },
-    outputs: ["bun"],
-});
-// a space no build runner serves, such as one on a Cloudflare machine, refuses a commit's build
-await client.build.create({
-    spaceId,
-    requestId,
-    source: { kind: "commit", repository, commit, directory: "." },
-});
-await client.rollout.submit({
-    spaceId,
-    id,
-    requestId,
-    selection,
-    build: { kind: "build", build: build.id },
-});
-// push the succeeded build to its package's forge, as docker push answers the pushed digest
-const { manifest } = await client.build.push({ spaceId, id: build.id, requestId });
+import type { ClientOf } from "@destack/object/client";
+import type { Digest, Identifier } from "@destack/schema";
+import type stackPackage from "@destack/stack/package";
+
+async (
+    client: ClientOf<typeof stackPackage>,
+    spaceId: Identifier<"space">,
+    id: Identifier<"rollout">,
+    plan: Digest,
+    requestId: string,
+) => {
+    await client.rollout.approve({ spaceId, id, requestId, plan });
+    await client.rollout.rollBack({ spaceId, id, requestId });
+};
 ```
 
-## Build store
+### Build a checkout
 
-A machine keeps every build and pulled release of its spaces by manifest digest in one `SpaceBuildStore`, and retention sweeps what no space's root keeps.
+`build.create` asks the checkout's machine to compile a package, and `push` sends the build to its package's forge.
 
 ```ts
-const builds = await SpaceBuildStore.of(host, { scope: machine, bucketId });
-const reader = await builds.installed(snapshot, spaceId, packageId);
-const release = await builds.open(registry, packageId, manifest); // copied from the registry once
-const declared = await builds.read(registry, packageId, manifest); // stored, else streamed without storing
-const retained = await builds.sweepIfDue(objects, retention, before, now, interval); // undefined when not due
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+import type stackPackage from "@destack/stack/package";
+
+async (
+    client: ClientOf<typeof stackPackage>,
+    spaceId: Identifier<"space">,
+    machine: Identifier<"machine">,
+    checkout: Identifier<"checkout">,
+    requestId: string,
+) => {
+    const build = await client.build.create({
+        spaceId,
+        requestId,
+        source: { kind: "checkout", machine, checkout, directory: "." },
+        outputs: ["bun"],
+    });
+    const { manifest } = await client.build.push({ spaceId, id: build.id, requestId });
+};
 ```
 
-## Package
+## Comparison
 
-`serveSpace` serves one space over its one database: as `primary`, the stack package beside the space's other packages; as `standby`, the stack alone, receiving or removing the space in a move.
+### Pulumi
 
-```ts
-import { serveSpace } from "@destack/stack/server";
+A stack declared in code and applied as a plan follows Pulumi; three things differ.
 
-// each installation: a role with its package's `space` permissions, and the space's `grant`
-// with its `account` and `universe` ones; a package requesting `home` permissions is refused
-
-const { store, packages } = serveSpace({
-    role: "primary", // "standby" while the space moves here or away
-    servers: [vaultServer, messageServer],
-    principal,
-    database,
-    callKey,
-    events,
-    claims,
-    publisher,
-    machine,
-    buildRunner: machine,
-    ...options,
-});
-```
-
-## Views
-
-`rollout.open` reads the view an installation's applied revision declares, and `readBuilds` reads every installation's build through the space's build contents.
-
-```ts
-const opened = await stack.rollout.open({ spaceId, id, view: "home", path: "/" }); // its build, permissions and home
-const builds = await readBuilds(spaceId, url, fetch); // [{ installation, reader }], each build by its manifest
-const views = ViewDescription.list(builds[0].reader.manifest); // the views a build mounts
-```
-
-## Transfers
-
-`transfer.create` moves a space to another machine, and each side of the move ends it with one verb, as QEMU's migration does.
-
-```ts
-await owner.transfer.create({ spaceId, id, requestId, targetId: machineId });
-// the target asks the fenced source, whose transfer methods stay available while it moves
-await source.fence(record);
-await source.snapshot(record, { resourceId, recipient });
-// the source's owner cancels, or the target cuts over and places the space
-await owner.transfer.cancel({ spaceId, id, requestId });
-await move.cutover(source, signal, options, store);
-await move.place({ publisher, keystore }, database, now);
-```
-
-## Runtimes
-
-A `Runtime` starts, stops and serves the instances a machine runs on one server runtime, keeping them in an `InstanceRegistry`, as the machine's Bun and Cloudflare runtimes do.
-
-```ts
-import { InstanceRegistry, InstanceSpec, RUNTIME_SUPPORT } from "@destack/stack/runtime";
-
-const registry = new InstanceRegistry<Running>();
-await registry.start(spec, async (identify) => {
-    const start = await InstanceSpec.start(spec, { egress, sampling, identity });
-    identify(start.secret); // its requests prove the secret while it starts
-    return { spec, secret: start.secret, process: await spawn(start) };
-});
-RUNTIME_SUPPORT.workerd.hasFilesystem; // false
-```
-
-## Settings
-
-`buildRetention` keeps the latest builds of each source.
-
-```ts
-import { buildRetention, defineStack } from "@destack/stack/declare";
-
-export const shop = defineStack({
-    settings: {
-        builds: { setting: buildRetention, value: 20, mode: "set" },
-    },
-});
-```
-
-## Tests
-
-`StackFixture` copies a machine's space database with one space from the run's `SPACE_TEMPLATE`, serves it, and stands in for the machine serving installed revisions.
-
-```ts
-import { ids, StackFixture } from "@destack/stack/test";
-
-const fixture = await StackFixture.open();
-const host = fixture.host(store, ids.space); // a controller recording rollout.servedRevision, as a host would
-const owner = (await fixture.serve())(ids.owner);
-// install a package: its installation and the rollout following its selection, in one call
-await installer.installation.create({
-    scope: ids.space,
-    requestId,
-    packageId,
-    selection,
-    name: "notes",
-});
-```
+- A plan step has a risk, and a plan at or above `backward-incompatible` waits for the space's managers.
+- Installations follow release tags as npm dist-tags, each resolved to a version and recorded.
+- The space's deployment serves every installation's revision together, switching them in one transaction as a Kubernetes Deployment switches its ReplicaSets.
