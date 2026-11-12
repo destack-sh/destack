@@ -51,14 +51,24 @@ export const ObjectReference = Object.assign(objectReference, {
             >
         >,
     ): ObjectReference {
+        // read each column of the reference, refusing one that is not text
         const columns: { readonly [Column in string]?: unknown } = row;
+        const text = (column: string): string => {
+            const value = columns[`${name}${column}`];
+            if (typeof value !== "string") {
+                throw new TypeError(`column '${name}${column}' is not text`);
+            }
 
-        return objectReference.parse({
-            packageId: columns[`${name}PackageId`],
-            type: columns[`${name}Type`],
-            scope: columns[`${name}Scope`],
-            id: columns[`${name}Id`],
-        });
+            return value;
+        };
+
+        return {
+            // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- package columns store package identifiers
+            packageId: text("PackageId") as ObjectReference["packageId"],
+            type: text("Type"),
+            scope: text("Scope"),
+            id: text("Id"),
+        };
     },
 
     /** Read the parent a nested row refers to, in the row's scope. */
