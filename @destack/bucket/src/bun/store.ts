@@ -137,7 +137,7 @@ export class LocalBlobStorage implements BlobStorage {
             const blobs = await this.#written(file, bodies);
 
             // key a lone blob by its digest
-            const pack = BlobPack.key(blobs, () => Uuid.v4(this.#random));
+            const pack = BlobPack.key(blobs, () => LocalBlobStorage.#contentKey(blobs));
 
             // store the file under its key once
             if (await this.#files.exists(this.path(pack))) {
@@ -151,6 +151,15 @@ export class LocalBlobStorage implements BlobStorage {
             await this.#removed(temporary, error);
             throw error;
         }
+    }
+
+    /** Derive a pack's key from the blobs it has, so one key always has the same bytes. */
+    static #contentKey(
+        blobs: readonly { readonly digest: Digest; readonly size: number }[],
+    ): string {
+        const listed = JSON.stringify(blobs.map(({ digest, size }) => [digest, size]));
+
+        return createHash("sha256").update(listed).digest("hex");
     }
 
     /** Store a file this store may consume under its digest, moving it in, and place it. */
