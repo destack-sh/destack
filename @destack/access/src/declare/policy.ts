@@ -1,6 +1,11 @@
 import { JsonValue, schema } from "@destack/schema";
 import { PackageId, type PackageVersion } from "@destack/package";
-import { ObjectReference, AccessName, type ObjectTypeReference, type Subject } from "@destack/sync";
+import {
+    type ObjectReference,
+    AccessName,
+    type ObjectTypeReference,
+    type Subject,
+} from "@destack/sync";
 import { Condition, type Predicate } from "@destack/db";
 import {
     type AccessExpression,
@@ -96,12 +101,7 @@ export class Policy<
 
     /** Identify an object of this type in the scope containing it. */
     reference(scope: string, id: string): ObjectReference {
-        return ObjectReference.parse({
-            packageId: this.definition.packageId,
-            type: this.definition.name,
-            scope,
-            id,
-        });
+        return { packageId: this.definition.packageId, type: this.definition.name, scope, id };
     }
 
     /** Reference a declared permission of this type, marked declared by the policy alone. */

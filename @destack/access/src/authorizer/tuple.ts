@@ -1,7 +1,6 @@
 import { AccessContext } from "../context/context.ts";
 import { ObjectReference, type ObjectTypeReference, Scope, Subject } from "@destack/sync";
 import { type Match, Predicate, type Row, type Snapshot, TABLE, type Select } from "@destack/db";
-import { PackageId } from "@destack/package";
 import { found, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
 import { CONTAINED, type AccessExpression } from "../declare/expression.ts";
@@ -523,16 +522,16 @@ export class Reader {
         // read the referenced object where its type grants and lives in this database
         const columns = TableMapping.reference(mapping, reference);
         const referenced = {
-            packageId: PackageId.parse(row[columns.packageId]),
-            type: schema.string().parse(row[columns.type]),
+            packageId: TableMapping.packageId(row, columns.packageId),
+            type: TableMapping.text(row, columns.type),
         };
         const target = this.#authorizer.mapping(referenced);
         const grantedBy = target?.policy.definition.grantedBy;
         if (target === undefined || grantedBy === undefined) {
             return Tree.some([]);
         }
-        const [related] = await this.#rows(target, schema.string().parse(row[columns.scope]), [
-            schema.string().parse(row[columns.id]),
+        const [related] = await this.#rows(target, TableMapping.text(row, columns.scope), [
+            TableMapping.text(row, columns.id),
         ]);
 
         return related === undefined
@@ -556,16 +555,16 @@ export class Reader {
         // read the referenced object when its type is local and differs from the row's type
         const columns = TableMapping.reference(mapping, expression.reference);
         const referenced = {
-            packageId: PackageId.parse(row[columns.packageId]),
-            type: schema.string().parse(row[columns.type]),
+            packageId: TableMapping.packageId(row, columns.packageId),
+            type: TableMapping.text(row, columns.type),
         };
         const mapped = this.#authorizer.mapping(referenced);
         const target = mapped?.policy === mapping.policy ? undefined : mapped;
         const [related] =
             target === undefined
                 ? []
-                : await this.#rows(target, schema.string().parse(row[columns.scope]), [
-                      schema.string().parse(row[columns.id]),
+                : await this.#rows(target, TableMapping.text(row, columns.scope), [
+                      TableMapping.text(row, columns.id),
                   ]);
         if (target === undefined || related === undefined) {
             return Tree.some([]);
@@ -678,7 +677,7 @@ export class Reader {
                 relation !== undefined && row[relation] !== null && row[relation] !== undefined;
 
             return {
-                packageId: PackageId.parse(row[columns.packageId]),
+                packageId: TableMapping.packageId(row, columns.packageId),
                 type: TableMapping.text(row, columns.type),
                 scope: TableMapping.text(row, columns.scope),
                 id: TableMapping.text(row, field.column),
@@ -1171,7 +1170,7 @@ export class Reader {
             packageId: definition.packageId,
             type: definition.name,
             scope: TableMapping.scope(mapping, row),
-            id: schema.string().parse(row[mapping.id]),
+            id: TableMapping.text(row, mapping.id),
         };
     }
 

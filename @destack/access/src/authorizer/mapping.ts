@@ -12,6 +12,7 @@ import {
     type Tree,
     type Row,
 } from "@destack/db";
+import type { PackageId } from "@destack/package";
 import { Scope } from "@destack/sync";
 import { AccessError } from "../error/index.ts";
 import type { Policy } from "../declare/policy.ts";
@@ -342,6 +343,12 @@ export const TableMapping = {
         }
 
         return value;
+    },
+
+    /** Read a mapped row's package column, as the package identifier its write stored. */
+    packageId(row: Row, name: string): PackageId {
+        // oxlint-disable-next-line typescript/consistent-type-assertions, typescript/no-unsafe-type-assertion -- package columns store package identifiers
+        return TableMapping.text(row, name) as PackageId;
     },
 
     /** Read the column storing a mapping's attribute, refusing an unmapped attribute. */
