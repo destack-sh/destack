@@ -1,7 +1,8 @@
 import { CLOUD_RUNTIMES } from "./cloud.ts";
 import { MachineError } from "../error/index.ts";
 import type { CatalogueBucketHost } from "@destack/bucket/provider";
-import { type BuildLayer, BuildStore } from "@destack/build/store";
+import { BuildStore } from "@destack/build/store";
+import type { BuildLayer } from "@destack/package/manifest";
 import type { Connector } from "@destack/resource";
 import type * as Cloudflare from "@cloudflare/workers-types";
 import { Entitlement } from "@destack/account/object";
@@ -171,7 +172,7 @@ export class DurableObjectSpaceStorage implements SpaceStorage {
         return new BuildCache(
             new BuildStore({ blobs, environment, layer: releases }),
             CLOUD_RUNTIMES,
-            DistributionManifest.builtins(distribution),
+            DistributionManifest.builtins(distribution, "workerd"),
         );
     }
 
@@ -322,7 +323,7 @@ export class DurableObjectVolume implements Volume {
 
     /** Open the graphs of the space's builds once, one object per manifest. */
     graphs(
-        builds: Pick<BuildStore, "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<BuildStore, "contains" | "contents" | "lock" | "referrer" | "file">,
     ): DurableObjectGraphStorage {
         // index each manifest in an object of the jurisdiction
         const indexes = Jurisdiction.narrow(this.#options.graphs, this.#options.jurisdiction);

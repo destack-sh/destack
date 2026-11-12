@@ -371,9 +371,9 @@ export class PartitionObject {
             hibernation: undefined,
             alarm: this.#alarms.alarm(SPACE_PARTY),
             // run in process the servers the deploy bundled with the machine
-            server: (manifest) => Promise.resolve(bundle.server(manifest)),
-            linked: DistributionManifest.builtins(shipped),
-            shipped: DistributionManifest.releases(shipped),
+            server: (lock) => Promise.resolve(bundle.server(lock)),
+            linked: DistributionManifest.builtins(shipped, "workerd"),
+            shipped: DistributionManifest.releases(shipped, "workerd"),
             registry: bindings.DESTACK_REGISTRY,
             skus: rates.skus,
             endpoint: `https://${bindings.DESTACK_HOST}`,

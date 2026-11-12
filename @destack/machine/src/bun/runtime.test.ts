@@ -1,3 +1,4 @@
+import { Lock } from "@destack/package/manifest";
 import type { InstanceExit } from "@destack/stack/runtime";
 import { Program } from "@destack/package/bun";
 import { testHost } from "@destack/test/host";
@@ -63,6 +64,13 @@ const server = Bun.serve({
 console.log(JSON.stringify({}));
 `;
 
+/** Write a fixture build's authored package.json, which a placed tree reads. */
+function authored(name: string): [string, Uint8Array<ArrayBuffer>] {
+    const json = { name, version: "2026.9.0", type: "module", exports: {} };
+
+    return ["package.json", new TextEncoder().encode(JSON.stringify(json))];
+}
+
 test("run an instance as a Bun process bound at the egress, serving forwarded callers and refusing forged ones", async () => {
     // spec instances below a scratch directory, keyed from a world of their own
     const world = testSimulation().environment("runtime");
@@ -88,7 +96,10 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
     onTestFinished(() => runtime.close());
 
     // spec a build with the runner in its server output
-    const files = new Map([["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)]]);
+    const files = new Map([
+        ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
+        authored("@example/notes"),
+    ]);
     const build = await MemoryBuild.write(
         files,
         {
@@ -110,8 +121,12 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
                     },
                     views: {},
                     directory: "bun",
-                    exports: { "./workload/notes": { path: "bun/workload.js", imports: [] } },
-                    dependencies: {},
+                    exports: {
+                        "./workload/notes": {
+                            path: "bun/workload.js",
+                            imports: [],
+                        },
+                    },
                     peers: {},
                 },
             },
@@ -128,7 +143,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
         .parse("space-01996ab0-0000-7000-8000-0000000000eb");
     const exits: InstanceExit[] = [];
     const exit = Promise.withResolvers<void>();
-    await packages.put(build);
+    const lock = await packages.putLock(Lock.of(await packages.put(build)));
     const spec: InstanceSpec = {
         settings: {},
         instanceId,
@@ -140,6 +155,7 @@ test("run an instance as a Bun process bound at the egress, serving forwarded ca
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
         build,
+        lock,
         output: "bun",
         workload: "notes",
         enabled: [],
@@ -339,7 +355,10 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
 
     // start an instance of the layered build
     const build = await MemoryBuild.write(
-        new Map([["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)]]),
+        new Map([
+            ["bun/workload.js", new TextEncoder().encode(ECHO_RUNNER)],
+            authored("@example/notes"),
+        ]),
         {
             role: "app",
             package: { id: PACKAGE, name: "@example/notes", version: "2026.9.0" },
@@ -359,15 +378,19 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
                     },
                     views: {},
                     directory: "bun",
-                    exports: { "./workload/notes": { path: "bun/workload.js", imports: [] } },
-                    dependencies: {},
+                    exports: {
+                        "./workload/notes": {
+                            path: "bun/workload.js",
+                            imports: [],
+                        },
+                    },
                     peers: {},
                 },
             },
         },
         world.crypto,
     );
-    await store.put(build);
+    const lock = await store.putLock(Lock.of(await store.put(build)));
     const installationId = schema
         .identifier("installation")
         .parse("installation-01996ab0-0000-7000-8000-0000000000f1");
@@ -384,6 +407,7 @@ test("keep an instance's data in the runtime's own directory when it runs its bu
                 .identifier("deployment")
                 .parse("deployment-01996ab0-0000-7000-8000-0000000000f3"),
             build,
+            lock,
             output: "bun",
             workload: "notes",
             enabled: [],
@@ -468,7 +492,10 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
         sandbox: {},
     };
     const build = await MemoryBuild.write(
-        new Map([["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)]]),
+        new Map([
+            ["bun/workload.js", new TextEncoder().encode(FETCH_RUNNER)],
+            authored("@example/fetch"),
+        ]),
         {
             role: "app",
             package: { id: PACKAGE, name: "@example/fetch", version: "2026.10.0" },
@@ -479,8 +506,12 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
                     workloads: { fetch: workload },
                     views: {},
                     directory: "bun",
-                    exports: { "./workload/fetch": { path: "bun/workload.js", imports: [] } },
-                    dependencies: {},
+                    exports: {
+                        "./workload/fetch": {
+                            path: "bun/workload.js",
+                            imports: [],
+                        },
+                    },
                     peers: {},
                 },
             },
@@ -491,7 +522,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
     const instanceId = schema
         .identifier("instance")
         .parse("instance-01996ab0-0000-7000-8000-0000000000d2");
-    await packages.put(build);
+    const lock = await packages.putLock(Lock.of(await packages.put(build)));
     const spec: InstanceSpec = {
         settings: {},
         instanceId,
@@ -503,6 +534,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000d3"),
         build,
+        lock,
         output: "bun",
         workload: "fetch",
         scope,
@@ -566,7 +598,7 @@ test("run a workload sandboxed: call the hosts its capabilities allow, see other
 });
 
 test("import and call a shared package's export as the machine's own instance, and import another's from its placed build", async () => {
-    // share one package's server, and store a build of it and of another, each exporting a placed marker
+    // share one package's server
     const world = testSimulation().environment("runtime");
     const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
     onTestFinished(() => world.files.remove(directory, { recursive: true }));
@@ -592,6 +624,7 @@ test("import and call a shared package's export as the machine's own instance, a
     const stored = async (name: string, index: number) => {
         const files = new Map([
             ["bun/server.js", new TextEncoder().encode('export const marker = "placed";\n')],
+            authored(name),
         ]);
         const id = PackageId.parse(`package-01996ab0-0000-7000-8000-0000000001a${index}`);
         const build = await MemoryBuild.write(
@@ -606,8 +639,9 @@ test("import and call a shared package's export as the machine's own instance, a
                         workloads: {},
                         views: {},
                         directory: "bun",
-                        exports: { "./server": { path: "bun/server.js", imports: [] } },
-                        dependencies: {},
+                        exports: {
+                            "./server": { path: "bun/server.js", imports: [] },
+                        },
                         peers: {},
                     },
                 },
@@ -615,7 +649,9 @@ test("import and call a shared package's export as the machine's own instance, a
             world.crypto,
         );
 
-        return await packages.put(build);
+        const root = await packages.put(build);
+
+        return await packages.putLock(Lock.of(root));
     };
     const [shared, other] = [await stored("@example/shared", 1), await stored("@example/other", 2)];
 
@@ -626,15 +662,87 @@ test("import and call a shared package's export as the machine's own instance, a
     ];
 
     // call the shared one's export in the machine's instance too, which a sandbox could not load
-    const called = await runtime.call(
-        await packages.contents(shared),
-        "bun/server.js",
-        "describe",
-        [],
-    );
+    const called = await runtime.call(shared, "bun/server.js", "describe", []);
     expect([
         imported[0] === own,
         schema.looseObject({ marker: schema.string() }).parse(imported[1]).marker,
         called,
     ]).toEqual([true, "placed", "own"]);
+});
+
+test("refuse a sandboxed call of a release running a native addon, and load it for a host installation", async () => {
+    // store a release whose Bun output carries a native addon
+    const world = testSimulation().environment("runtime");
+    const directory = await world.files.makeTemporaryDirectory("destack-runtime-");
+    onTestFinished(() => world.files.remove(directory, { recursive: true }));
+    const packages = await testStore(world);
+    onTestFinished(() => packages[Symbol.asyncDispose]());
+    const name = "@example/native";
+    const files = new Map([
+        [
+            "bun/server.js",
+            new TextEncoder().encode(
+                'export const marker = "native";\nexport function describe() { return "native"; }\n',
+            ),
+        ],
+        ["bun/addon.node", new Uint8Array(0)],
+        authored(name),
+    ]);
+    const build = await MemoryBuild.write(
+        files,
+        {
+            role: "app",
+            package: {
+                id: PackageId.parse("package-01996ab0-0000-7000-8000-0000000001b1"),
+                name,
+                version: "2026.9.0",
+            },
+            outputs: {
+                bun: {
+                    runtime: "bun",
+                    emit: true,
+                    workloads: {},
+                    views: {},
+                    directory: "bun",
+                    exports: { "./server": { path: "bun/server.js", imports: [] } },
+                    peers: {},
+                },
+            },
+        },
+        world.crypto,
+    );
+    const lock = await packages.putLock(Lock.of(await packages.put(build)));
+
+    // call it sandboxed, then import it as a host installation does, on one sandboxed runtime
+    const runtime = new BunRuntime({
+        isolation: "sandbox",
+        program: Program.of({}, world.process.loader),
+        environment: world,
+        identity: async () => testKeys(world),
+        directory,
+        packages,
+        egress: () => "http://127.0.0.1:7470/.destack/egress",
+        sampling: async () => 1,
+        url: async () => "http://127.0.0.1:7470/installation",
+        output: () => {},
+        report: (error) => {
+            throw error;
+        },
+    });
+    onTestFinished(() => runtime.close());
+    const sandboxed = await refusal(runtime.call(lock, "bun/server.js", "describe", []));
+    const hosted = await runtime.import(lock, "./server");
+
+    // refuse the addon in the sandbox, and load it for the host installation
+    expect([
+        sandboxed,
+        schema.looseObject({ marker: schema.string() }).parse(hosted).marker,
+    ]).toEqual([
+        [
+            "BAD_REQUEST",
+            "RELEASE_INVALID",
+            "release '@example/native@2026.9.0' is invalid: it runs the native addon 'bun/addon.node', which only host packages may",
+        ],
+        "native",
+    ]);
 });

@@ -188,9 +188,9 @@ export class Machine {
     readonly hibernation: Pick<HibernationHost, "answer"> | undefined;
     /** Set a wake-up for a space's earliest due controller key, absent where timers wake them. */
     readonly alarm: Alarm | undefined;
-    /** Load the server a build exports into the machine's process, absent for none. */
-    readonly server: (manifest: Digest) => Promise<PackageImplementation | undefined>;
-    /** The manifests of the releases the machine runs in its process: those it ships or links. */
+    /** Load the server a lock's root exports into the machine's process, absent for none. */
+    readonly server: (lock: Digest) => Promise<PackageImplementation | undefined>;
+    /** The locks of the releases the machine runs in its process: those it ships or links. */
     readonly trusted: ReadonlySet<Digest>;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
@@ -258,7 +258,7 @@ export class Machine {
             options.shipped.map((release) => [PackageId.parse(release.package.id), release]),
         );
         this.trusted = new Set(
-            [...options.shipped, ...options.linked.values()].map((release) => release.manifest),
+            [...options.shipped, ...options.linked.values()].map((release) => release.lock),
         );
         this.skus = options.skus;
 
@@ -437,7 +437,7 @@ export class Machine {
             },
             this.environment,
         );
-        await accounts.machine.revoke({
+        await accounts.machine.delete({
             scope: MachineEnrollment.scope(enrollment),
             id: this.id,
             requestId: RequestId.create(this.environment),
@@ -904,15 +904,23 @@ export class Machine {
             await this.cache.prune(stored);
         }
 
-        // start each stored space and each space placed or moving here, reporting a failed start apart from the others
-        for (const space of new Set([...stored, ...rows.map((row) => row.spaceId)])) {
-            await this.space(space).catch((error: unknown) => this.report(error));
-        }
+        // start each stored space and each one placed or moving here, at once, reporting each failed start
+        const spaces = new Set([...stored, ...rows.map((row) => row.spaceId)]);
+        await Promise.all(
+            [...spaces].map((space) =>
+                this.space(space).catch((error: unknown) => this.report(error)),
+            ),
+        );
 
-        // restart a started space whose role here changed
-        for (const started of this.#started.values()) {
-            await (await started).restartIfRoleChanged();
-        }
+        // restart each started space whose role here changed
+        const started = [...this.#started.values()];
+        await Promise.all(
+            started.map((starting) =>
+                starting
+                    .then((space) => space.restartIfRoleChanged())
+                    .catch((error: unknown) => this.report(error)),
+            ),
+        );
     }
 
     /** Pause serving: refuse requests and close every space. */

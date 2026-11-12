@@ -4,9 +4,12 @@ import { expect, refusal, test } from "@destack/test";
 import { channelFiles } from "@destack/db/channel/socket";
 import { PackageId, Sandbox } from "@destack/package";
 import { ResourceId } from "@destack/resource";
-import { schema } from "@destack/schema";
+import { Digest, schema } from "@destack/schema";
 import type { InstanceSpec } from "@destack/stack/runtime";
 import { type BunWorkloadSandboxOptions, BunWorkloadSandbox } from "./sandbox.ts";
+
+/** The lock of the instance's build, which the test never reads. */
+const LOCK = Digest.parse("1".repeat(64));
 
 /** The world the fixture's builds are hashed in. */
 const fixtureWorld = testSimulation().environment("fixture");
@@ -31,6 +34,7 @@ const spec: InstanceSpec = {
     deploymentId: schema
         .identifier("deployment")
         .parse("deployment-01996ab0-0000-7000-8000-0000000000f5"),
+    lock: LOCK,
     build: await MemoryBuild.write(
         new Map(),
         {

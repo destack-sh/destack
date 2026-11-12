@@ -20,7 +20,7 @@ import { DIRECTORY_PREFIX, directoryConfiguration, directoryWorkload } from "./d
 import type { Alarm } from "@destack/db";
 import { R2Bucket } from "@destack/bucket/cloudflare";
 import { BucketBlobStorage } from "@destack/bucket/blob";
-import { BuildLayer, type LayerAssets } from "@destack/build/store";
+import { BuildLayer, type LayerAssets } from "@destack/package/manifest";
 import { DurableObjectDatabaseHost, type DurableObjectStorage } from "@destack/db/cloudflare";
 import type { DurableObjectWorkloadInstance } from "@destack/object/cloudflare";
 import { Bookmark, createClient } from "@destack/object/client";

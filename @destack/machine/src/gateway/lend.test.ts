@@ -102,7 +102,7 @@ test("apply a bound connection's key to a workload's calls below its resource wi
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000c3"),
         build: await fixtureBuild(ids.package, "2026.9.0", world.crypto),
-        manifest: Digest.parse("d".repeat(64)),
+        lock: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
         enabled: [],

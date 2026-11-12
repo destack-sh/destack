@@ -49,7 +49,10 @@ export interface Volume {
     ) => CatalogueBucketHost;
     /** Open the graphs of the space's builds once, as external objects. */
     readonly graphs: (
-        builds: Pick<SpaceBuildStore, "store" | "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<
+            SpaceBuildStore,
+            "store" | "contains" | "contents" | "lock" | "referrer" | "file"
+        >,
     ) => ExternalStorage;
     /** Read what the space used over an interval, with the traffic its gateway counted. */
     readonly measure: (

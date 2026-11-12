@@ -43,16 +43,16 @@ export class ServerBundle {
         return new ServerBundle(servers, shipped);
     }
 
-    /** Find the bundled server of a shipped build, none for one without, refusing others. */
-    server(manifest: Digest): PackageImplementation | undefined {
-        // refuse a build the deploy did not ship, whose server the bundle cannot have
-        const release = DistributionManifest.releases(this.#shipped).find(
-            (each) => each.manifest === manifest,
+    /** Find the bundled server of a shipped release's lock, none without one, refusing others. */
+    server(lock: Digest): PackageImplementation | undefined {
+        // refuse a lock the deploy did not ship
+        const release = DistributionManifest.releases(this.#shipped, "workerd").find(
+            (each) => each.lock === lock,
         );
         if (release === undefined) {
             throw MachineError.of(
                 "SERVER_BROKEN",
-                `a cloud machine runs in its process only the servers its deploy ships, not build '${manifest}'`,
+                `a cloud machine runs in its process only the servers its deploy ships, not lock '${lock}'`,
             );
         }
 

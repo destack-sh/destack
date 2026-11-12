@@ -117,8 +117,7 @@ async function servedForge(home: TestComputer, residency: Identifier<"space">, p
             await stackObject.Database.installed(
                 Snapshot.live(database),
                 residency,
-                async (_packageId, manifest) =>
-                    (await machine.space(residency)).builds.contents(manifest),
+                async (_packageId, lock) => (await machine.space(residency)).builds.root(lock),
             )
         ).find(
             (entry) =>
@@ -309,8 +308,8 @@ test(
         const builds = stored.filter((row) => row.source.kind === "commit");
         const packages = await Promise.all(
             builds.map(async (row) => {
-                const manifest = present(row.manifest, "the manifest");
-                const reader = await (await machine.space(space)).builds.contents(manifest);
+                const lock = present(row.lock, "the lock");
+                const reader = await (await machine.space(space)).builds.root(lock);
 
                 return PackageManifest.package(reader.manifest).id;
             }),
@@ -321,7 +320,7 @@ test(
             (await machine.cache.store.roots()).get(`space:${space}`),
             "the space's root",
         );
-        const rooted = builds.map((row) => root.has(present(row.manifest, "the manifest")));
+        const rooted = builds.map((row) => root.has(present(row.lock, "the lock")));
         expect([
             builds.map((row) => [row.source, row.outputs, row.state, row.commit]),
             packages,

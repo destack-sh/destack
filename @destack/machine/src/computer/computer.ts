@@ -24,7 +24,7 @@ import {
 import type { Server } from "@destack/object/server";
 import { LocalBlobStorage, LocalBucket } from "@destack/bucket/bun";
 import { CompilerPool, LocalBuildStore } from "@destack/build";
-import { BuildLayer } from "@destack/build/store";
+import { BuildLayer } from "@destack/package/manifest";
 import { BlobStore, type DatabaseConnection, Snapshot, TABLE } from "@destack/db";
 import { connectBunSqlite } from "@destack/db/bun";
 import type { SqliteDatabase } from "@destack/db/sqlite";
@@ -39,7 +39,12 @@ import type { ObjectStore } from "@destack/object/server";
 import { traceSampling } from "@destack/stack/setting";
 import { ResourceContext } from "@destack/resource/context";
 import { Identifier, present, schema } from "@destack/schema";
-import { DistributionManifest } from "@destack/package";
+import {
+    DistributionManifest,
+    DistributionPlatform,
+    type PackageId,
+    type PackageRelease,
+} from "@destack/package";
 import { serveProcess } from "@destack/object/bun";
 import { HibernationHost, WorkloadInstance } from "@destack/object/workload";
 import { deviceSetting, SettingValue } from "@destack/setting/object";
@@ -147,10 +152,11 @@ export interface ComputerOptions {
     readonly isolation: BunIsolation;
     /** The installation residency homes serve the registry protocol at, such as forge. */
     readonly registry: string;
-    /** Run the machine's instances that call addresses through an egress. */
+    /** Run the machine's instances, calling out through an egress and reading its builds. */
     readonly runtime?: (
         egress: (scope: Identifier<"space">) => string,
         identity: (scope: Identifier<"space">) => Promise<Deriver>,
+        packages: LocalBuildStore,
     ) => Runtime & { readonly close: () => Promise<void> };
     /** The forges' registry, by default the directory's forges called as the machine. */
     readonly releases?: Registry;
@@ -283,11 +289,13 @@ export class Computer implements AsyncDisposable {
             machineId,
         );
 
-        // open the build cache over the shipped builds read in place, the compilers and the spaces' storage
-        const builds = await Computer.#openCache(options, database);
+        // read the releases the distribution ships on the host, its builtins linked to the servers the machine loads
+        const platform = DistributionPlatform.of(options.environment.host);
+        const shipped = DistributionManifest.releases(options.shipped, platform);
+        const linked = DistributionManifest.builtins(options.shipped, platform);
 
-        // read the builtins the distribution ships, which the machine links to the servers it loads
-        const linked = DistributionManifest.builtins(options.shipped);
+        // open the build cache over the shipped builds read in place, the compilers and the spaces' storage
+        const builds = await Computer.#openCache(options, linked, database);
 
         // share the builtins with the servers the machine loads, from its compiled table or its files
         const program = await Program.current(
@@ -374,9 +382,9 @@ export class Computer implements AsyncDisposable {
             runtimes: [runtime, new ProcessRuntime()],
             hibernation,
             alarm: undefined,
-            server: (manifest) => processes.server(manifest),
+            server: (lock) => processes.server(lock),
             linked,
-            shipped: DistributionManifest.releases(options.shipped),
+            shipped,
             skus: undefined,
             registry: options.registry,
             endpoint,
@@ -601,7 +609,8 @@ export class Computer implements AsyncDisposable {
 
     /** Open the build cache: blobs below the machine's directory, shipped builds read in place. */
     static async #openCache(
-        options: Pick<ComputerOptions, "directory" | "environment" | "layer" | "shipped">,
+        options: Pick<ComputerOptions, "directory" | "environment" | "layer">,
+        linked: ReadonlyMap<PackageId, PackageRelease>,
         database: SqliteDatabase,
     ): Promise<{ readonly cache: BuildCache; readonly packages: LocalBuildStore }> {
         // store the blobs in a directory, indexed in the machine's database, layered over the shipped builds
@@ -619,8 +628,6 @@ export class Computer implements AsyncDisposable {
         });
 
         // cache builds for the computer's runtimes, loading the shipped builtins in place of any other build of them
-        const linked = DistributionManifest.builtins(options.shipped);
-
         return { cache: new BuildCache(packages, COMPUTER_RUNTIMES, linked), packages };
     }
 
@@ -648,7 +655,10 @@ export class Computer implements AsyncDisposable {
             machine,
         );
 
-        return { runtime: options.runtime?.(egress, identity) ?? processes, processes };
+        // run them in the given runtime, else in the Bun processes
+        const runtime = options.runtime?.(egress, identity, builds.packages) ?? processes;
+
+        return { runtime, processes };
     }
 
     /** Start the runtime running each instance as a Bun process of its own. */

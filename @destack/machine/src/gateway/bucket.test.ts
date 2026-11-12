@@ -71,7 +71,7 @@ test("connect a workload to its bound bucket over S3 at its machine's egress, an
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000b4"),
         build: await fixtureBuild(ids.package, "2026.9.0", world.crypto),
-        manifest: Digest.parse("d".repeat(64)),
+        lock: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
         enabled: [],

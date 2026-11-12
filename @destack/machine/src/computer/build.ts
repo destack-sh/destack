@@ -1,17 +1,17 @@
 import type { LocalGitEnvironment } from "@destack/git/local";
 import { join } from "node:path";
 import type { ClientOf } from "@destack/object/client";
-import { type CompilerPool, type DependencyBuild, outputsOf, Workspace } from "@destack/build";
-import type { PackageVersion, PackageId } from "@destack/package";
-import type { BuildReader } from "@destack/package/manifest";
+import { type CompilerPool, outputsOf, Workspace } from "@destack/build";
+import type { PackageVersion } from "@destack/package";
+import type { BuildReader, Lock } from "@destack/package/manifest";
 import { type Controller, eq, type Select, Reconciliation } from "@destack/db";
 import { GitLease } from "@destack/git/local";
-import { Commit, Digest, type Identifier, present, schema, Uuid } from "@destack/schema";
-import { HOST_RUNTIME, PRIMARY_RUNTIMES } from "@destack/package/runtime";
+import { Digest, type Identifier, present, schema, Uuid } from "@destack/schema";
+import { PRIMARY_RUNTIMES } from "@destack/package/runtime";
 import { CallError } from "@destack/object";
 import { RequestId } from "@destack/sync";
 import stackPackage, { PUSH_PATH } from "@destack/stack/package";
-import { PackageClient } from "@destack/build/store";
+import { BuildObject, PackageClient } from "@destack/build/store";
 import { ACTIVE_BUILD_STATES, build } from "@destack/stack/object";
 import type { CheckoutSource, CommitSource } from "@destack/stack/server";
 import { Failure } from "@destack/error";
@@ -135,12 +135,11 @@ export class BuildRunner {
     ): Promise<void> {
         // open the source and its workspace, compiling only its publisher's members as a published build does
         await using opened = await this.#open(target.spaceId, replicated, signal);
-        const workspace = await Workspace.open(
-            opened.directory,
-            this.#compilers,
-            (dependency) => this.#release(dependency),
-            "account",
-        );
+        const workspace = await Workspace.open(opened.directory, this.#compilers, {
+            resolver: (dependency) => this.#release(dependency),
+            selection: "account",
+            host: await this.#builtins(),
+        });
         const implied = outputsOf(workspace.root.packageJson);
         const outputs = replicated.outputs ?? Object.keys(implied);
         await space.build.progress({
@@ -177,59 +176,34 @@ export class BuildRunner {
         const pushing = new PackageClient(
             `${endpoint.url}${PUSH_PATH}/${target.spaceId}/${target.id}/`,
             endpoint.fetch,
-            this.#environment,
         );
-        await pushing.push(compiled, signal);
-        await pushing.upload([{ digest: indexed.digest, load: async () => code }]);
+        const digest = await workspace.lock(await compiled.digest());
+        await pushing.push(this.#compilers.store, [digest], signal);
+        await pushing.write(BuildObject.files([{ digest: indexed.digest, bytes: code }]), signal);
         await space.build.finish({
             ...target,
             requestId: RequestId.create(this.#machine.environment),
             end: {
                 kind: "stored",
-                manifest: compiled.manifest,
+                lock: digest,
                 code: { digest: indexed.digest, size: indexed.size },
             },
         });
     }
 
-    /** Pull a release a build requires from its publisher's forge, with the releases it records. */
-    async #release(dependency: PackageVersion): Promise<DependencyBuild> {
-        // find the release of its version, then pull it and what it records into the compilers' store
+    /** Read the locks of the builtins the machine links. */
+    async #builtins(): Promise<readonly Lock[]> {
+        return [...(await this.#machine.cache.linkedLocks()).values()];
+    }
+
+    /** Pull a required release's lock from its publisher's forge, with every build it lists. */
+    async #release(dependency: PackageVersion): Promise<Digest> {
+        // pull the lock of its version whole
         const { cache, releases } = this.#machine;
-        const manifest = await releases.find(dependency.id, dependency.version);
-        const copied = async (digest: Digest, located: PackageId) => {
-            // read a build its closure reaches, copying it from the registry when missing
-            if (!(await cache.store.contains(digest))) {
-                const { location, fetch } = await releases.locate(located, digest);
-                await cache.store.copy(location, fetch);
-            }
+        const digest = await releases.find(dependency.id, dependency.version);
+        await releases.pull(cache.store, dependency.id, digest, "all");
 
-            return await cache.store.get(digest);
-        };
-        const pulled = new Map<Digest, Promise<void>>();
-        const pull = (packageId: PackageId, digest: Digest): Promise<void> => {
-            // pull each build once
-            const started =
-                pulled.get(digest) ??
-                (async () => {
-                    // pull it, then copy whole the builds its host output's exports import, which a compile reads
-                    const reader = await cache.pull(releases, packageId, digest);
-                    await cache.store.closure(digest, packageId, HOST_RUNTIME, copied, "export");
-
-                    // pull the releases it records at once
-                    await Promise.all(
-                        (await reader.releases()).map((each) =>
-                            pull(each.package.id, each.manifest),
-                        ),
-                    );
-                })();
-            pulled.set(digest, started);
-
-            return started;
-        };
-        await pull(dependency.id, manifest);
-
-        return { kind: "destack", package: dependency, manifest };
+        return digest;
     }
 
     /** Open a build's source on this machine. */
@@ -305,9 +279,10 @@ export class BuildRunner {
         outputs: readonly string[],
         signal: AbortSignal,
     ): Promise<BuildReader> {
+        // stamp a build of uncommitted source as a prerelease
         const request = {
             outputs: outputsOf(workspace.root.packageJson, outputs),
-            ...(opened.commit === undefined ? {} : { commit: Commit.parse(opened.commit) }),
+            isPrerelease: opened.commit === undefined,
             signal,
         };
 

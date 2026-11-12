@@ -8,10 +8,9 @@ import settingPackage from "@destack/setting/package";
 import * as settingObject from "@destack/setting/object";
 import * as accountObject from "@destack/account/object";
 import type { Login } from "@destack/account/native";
-import { BuildStore } from "@destack/build/store";
 import { placement } from "@destack/account/object";
 import type { Crypto, Environment } from "@destack/environment";
-import { type DependencyResolution, PackageVersion } from "@destack/package";
+import { PackageVersion } from "@destack/package";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { fixtureOutputs, LocalRuntime } from "@destack/stack/test";
 import { found, Identifier, present } from "@destack/schema";
@@ -58,7 +57,7 @@ const MOVE_STEP_UP = StepUp.schema.parse({ assurance: 2, maxAge: 900_000 });
 const echo = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a4",
     name: "@acme/echo",
-    version: "2026.10.0-dev.1",
+    version: "2026.10.0-dev.20260912100001.0123456789ab",
 });
 
 /** The echo package's handle. */
@@ -91,7 +90,7 @@ const echoWorkload = defineWorkload(
 const visitor = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000a5",
     name: "@acme/visitor",
-    version: "2026.10.0-dev.1",
+    version: "2026.10.0-dev.20260912100001.0123456789ab",
 });
 
 /** The visitor's binding of an echo installation, which a space binds across spaces. */
@@ -120,7 +119,13 @@ async function workloadBuild(
         })),
         crypto,
         {
-            dependencies: await releases(dependencies, crypto),
+            requires: Object.fromEntries(
+                dependencies.map((each) => {
+                    const { name, version } = PackageManifest.package(each.manifest);
+
+                    return [name, version];
+                }),
+            ),
             outputs: fixtureOutputs({
                 server: {
                     runtime: "bun",
@@ -143,23 +148,6 @@ async function workloadBuild(
             }),
         },
     );
-}
-
-/** Resolve builds as the Destack releases a build depends on, by package name. */
-async function releases(
-    dependencies: readonly BuildReader[],
-    crypto: Crypto,
-): Promise<Record<string, DependencyResolution>> {
-    const resolved: Record<string, DependencyResolution> = {};
-    for (const dependency of dependencies) {
-        resolved[PackageManifest.package(dependency.manifest).name] = {
-            kind: "destack",
-            package: PackageManifest.package(dependency.manifest),
-            manifest: await BuildStore.digest(dependency.manifest, crypto),
-        };
-    }
-
-    return resolved;
 }
 
 /** The echo build, declaring nothing beside its workload. */
@@ -228,13 +216,14 @@ async function openEcho(world: TestWorld, name: string, relay: TestRelay): Promi
     const served = await openComputer(world, world.owner.account, name, {
         node,
         relay: relay.url,
-        runtime: (egress, identity) => {
+        runtime: (egress, identity, packages) => {
             const runtime = new LocalRuntime({
                 scheduler: world.simulation.scheduler,
                 egress,
                 identity,
                 runner: (spec) => found(runners, PackageManifest.package(spec.build.manifest).id),
                 report: (error) => failures.push(error),
+                root: async (lock) => await packages.contents((await packages.lock(lock)).root),
             });
             runtimes.push(runtime);
 
@@ -390,7 +379,7 @@ async function openBoard(
     const { computer, login, space } = served;
     const database = (await computer.machine.space(space)).database;
     const build = await TestDistribution.fixture("board");
-    await home.publish(build);
+    await home.publish(TestDistribution.lockOf("board"));
     await computer.install(login.id, space, build, "board");
     await storing(served, boardPackage.id);
 
@@ -496,9 +485,9 @@ async function openComputers() {
     const { crypto } = world.simulation.environment("builds");
     const echoRelease = await echoBuild(crypto);
     const visitorRelease = await visitorBuild(echoRelease, crypto);
-    for (const release of [echoRelease, visitorRelease]) {
-        await home.publish(release, world.owner);
-    }
+    const { distribution } = world;
+    await home.publish(await distribution.lock(echoRelease), world.owner);
+    await home.publish(await distribution.lock(visitorRelease, [echoRelease]), world.owner);
 
     // run the echo package in the source and the visitor in the caller
     const called = await install(source, echoRelease, "echo");
@@ -687,7 +676,7 @@ test(
         const boardId = present(boards, "the board's installation").id;
         const [running] = await stackObject.Instance.endpoints(sourced, boardId);
         const [built] = await sourced
-            .select({ manifest: stackObject.build.table.manifest })
+            .select({ lock: stackObject.build.table.lock })
             .from(stackObject.rollout.table)
             .innerJoin(
                 installation.table,
@@ -703,7 +692,7 @@ test(
             )
             .where(eq(stackObject.rollout.table.installationId, boardId));
         const instance = present(running, "the board's instance").instanceId;
-        const manifest = present(built?.manifest, "the board's build manifest");
+        const lock = present(built?.lock, "the board's build lock");
 
         // read the started records the board's runner exported to its machine
         const { events } = (await computer.machine.space(space)).volume;
@@ -724,7 +713,7 @@ test(
 
         // record it under the board's installation, its running instance and its build
         await computer.waitUntil(sourced, async () => (await started()).length > 0);
-        expect([await started(), computer.reports]).toEqual([[[boardId, instance, manifest]], []]);
+        expect([await started(), computer.reports]).toEqual([[[boardId, instance, lock]], []]);
     },
 );
 
@@ -933,7 +922,7 @@ test(
         const served = await openComputer(world, found(organizations, PUBLISHER.handle), "board");
         const { computer, login, space } = served;
         const build = await TestDistribution.fixture("board");
-        await home.publish(build);
+        await home.publish(TestDistribution.lockOf("board"));
         const refused = await computer
             .install(login.id, space, build, "board", { isolation: "host" })
             .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
@@ -964,7 +953,7 @@ test(
             "regional",
         );
         const build = await TestDistribution.fixture("regional");
-        await home.publish(build);
+        await home.publish(TestDistribution.lockOf("regional"));
         const released = PackageManifest.package(build.manifest);
         const { device } = computer;
         const settings = createClient(

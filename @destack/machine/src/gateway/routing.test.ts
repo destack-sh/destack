@@ -15,6 +15,9 @@ import { ids, fixtureBuild, TestSpace } from "@destack/stack/test";
 import accountPackage from "@destack/account/package";
 import { RequestId } from "@destack/sync";
 
+/** The lock of the instance's build, which the test never reads. */
+const LOCK = Digest.parse("1".repeat(64));
+
 /** The package of a universe service. */
 const ACCOUNT_PACKAGE = PackageId.parse("package-01996ab0-0000-7000-8000-0000000000f1");
 
@@ -50,7 +53,7 @@ async function notesInstance(crypto: Crypto): Promise<InstanceSpec> {
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
         build: await fixtureBuild(ids.package, "2026.9.0", crypto),
-        manifest: Digest.parse("d".repeat(64)),
+        lock: Digest.parse("d".repeat(64)),
         output: "bun",
         workload: "main",
         enabled: [],
@@ -104,6 +107,7 @@ test("resolve each kind of address a workload calls", async () => {
         deploymentId: schema
             .identifier("deployment")
             .parse("deployment-01996ab0-0000-7000-8000-0000000000e3"),
+        lock: LOCK,
         build: await fixtureBuild(ids.package, "2026.9.0", fixture.machine.environment.crypto),
         output: "bun",
         workload: "main",

@@ -53,21 +53,21 @@ const MEMBER_EMAIL = "member@example.test";
 const GREETING = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d2",
     name: "@acme/greeting",
-    version: "2026.9.0-dev.1",
+    version: "2026.9.0-dev.20260912100001.0123456789ab",
 });
 
-/** The widget library the greeting package pins as a release, with catalogs of its own. */
+/** The widget library the greeting package requires as a release, with catalogs of its own. */
 const WIDGETS = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000d3",
     name: "@acme/widgets",
-    version: "2026.9.0-dev.1",
+    version: "2026.9.0-dev.20260912100001.0123456789ab",
 });
 
 /** The notes package whose views the launches open. */
 const notes = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000e1",
     name: "@acme/notes",
-    version: "2026.9.0-dev.1",
+    version: "2026.9.0-dev.20260912100001.0123456789ab",
 });
 
 /** The notes package: it reads the person's settings, writes them once asked, and scans notes. */
@@ -90,7 +90,7 @@ const notesPackage = definePackage(
 const tasks = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c4",
     name: "@acme/tasks",
-    version: "2026.10.0-dev.1",
+    version: "2026.10.0-dev.20260912100001.0123456789ab",
 });
 
 /** A task its owner completes. */
@@ -225,7 +225,6 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
                     views: { board },
                     directory: "browser",
                     exports: {},
-                    dependencies: {},
                     peers: {},
                 },
             },
@@ -237,7 +236,7 @@ function tasksBuild(crypto: Crypto): Promise<BuildReader> {
 const articles = PackageVersion.parse({
     id: "package-01996ab0-0000-7000-8000-0000000000c5",
     name: "@acme/articles",
-    version: "2026.10.0-dev.1",
+    version: "2026.10.0-dev.20260912100001.0123456789ab",
 });
 
 /** An article its owner shares, publicly through a link. */
@@ -332,7 +331,6 @@ function articlesBuild(crypto: Crypto): Promise<BuildReader> {
                     views: { reader },
                     directory: "browser",
                     exports: {},
-                    dependencies: {},
                     peers: {},
                 },
             },
@@ -412,10 +410,15 @@ async function openShared(
 }
 
 /** Publish a build as the owner of its scope and install it in a served space, until applied. */
-async function install(served: Served, build: BuildReader, name: string) {
-    // publish the build into its organization's forge as the owner, then install it
+async function install(
+    served: Served,
+    build: BuildReader,
+    name: string,
+    builds: readonly BuildReader[] = [],
+) {
+    // lock the build with the builds it runs with
     const { world } = served.computer;
-    await served.cloud.publish(build, world.owner);
+    await served.cloud.publish(await world.distribution.lock(build, builds), world.owner);
 
     return served.computer.install(served.login, served.spaceId, build, name);
 }
@@ -1628,7 +1631,7 @@ const ServedCatalog = schema.looseObject({
 test(
     "serve a view's build with the German catalogs of its package and of a release dependency, and no French ones",
     async () => {
-        // publish a widget library with its German catalog, and install a greeting view pinning it
+        // publish a widget library with its German catalog
         const { crypto } = testHost();
         const widgets = await TestViewBuild.of(
             WIDGETS,
@@ -1658,8 +1661,8 @@ test(
         );
         const opened = await openHome();
         const { world } = opened.computer;
-        await opened.cloud.publish(widgets, world.owner);
-        await install(opened, greeting, "greeting");
+        await opened.cloud.publish(await world.distribution.lock(widgets), world.owner);
+        await install(opened, greeting, "greeting", [widgets]);
 
         // open the greeting view and read its own and the library's German catalogs at its origin
         const page = await openPage(opened, {
@@ -1732,7 +1735,7 @@ function siteBuild(crypto: Crypto): Promise<BuildReader> {
     const site = PackageVersion.parse({
         id: "package-01996ab0-0000-7000-8000-0000000000d1",
         name: "@acme/site",
-        version: "2026.9.0-dev.1",
+        version: "2026.9.0-dev.20260912100001.0123456789ab",
     });
 
     return TestViewBuild.of(

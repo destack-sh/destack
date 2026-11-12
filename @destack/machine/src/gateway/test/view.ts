@@ -1,5 +1,4 @@
 import type { Crypto } from "@destack/environment";
-import { BuildStore } from "@destack/build/store";
 import {
     OBJECT_KIND,
     ObjectDescription,
@@ -9,12 +8,7 @@ import {
     type Package,
 } from "@destack/object";
 import { describePackage } from "@destack/object/inspect";
-import {
-    type DependencyRelease,
-    graph,
-    type PackageVersion,
-    type PackageRelease,
-} from "@destack/package";
+import { graph, type PackageVersion } from "@destack/package";
 import {
     type BuildReader,
     PackageManifest,
@@ -23,7 +17,7 @@ import {
 } from "@destack/package/manifest";
 import { MemoryBuild } from "@destack/package/test";
 import { ResourceDeclaration } from "@destack/resource";
-import { Commit, type JsonObject } from "@destack/schema";
+import type { JsonObject } from "@destack/schema";
 import { SecretDeclaration } from "@destack/vault/declare";
 import { TestVault } from "@destack/vault/test";
 import { VIEW_KIND } from "@destack/view/declare";
@@ -33,9 +27,6 @@ const SITE_ORIGIN = "https://example.test";
 
 /** The main module a view build's browser output exports, as a compiled view's index. */
 const BROWSER_MAIN = "browser/index.js";
-
-/** The commit the in-memory builds record, as a release of a committed source does. */
-const SHIPPED_COMMIT = Commit.parse("a".repeat(40));
 
 /** In-memory builds of view packages, whose files the gateway's tests serve. */
 export const TestViewBuild = {
@@ -50,7 +41,7 @@ export const TestViewBuild = {
             readonly package?: Package;
             /** The object types the package declares, its definition's when absent. */
             readonly objects?: readonly ObjectType[];
-            /** The builds of the Destack packages it depends on, pinned with their closures. */
+            /** The builds of the Destack packages it depends on, which it requires and imports. */
             readonly dependencies?: readonly BuildReader[];
             /** The other declarations it makes, such as commands, each at an export. */
             readonly declarations?: readonly Omit<graph.Declaration, "moniker" | "symbol">[];
@@ -111,14 +102,13 @@ export const TestViewBuild = {
             ...(options.declarations ?? []),
         ];
 
-        // pin the Destack packages it depends on with the closures they resolved, as a build records them
+        // require the Destack packages it depends on at their versions
         const given = options.dependencies ?? [];
-        const direct = await Promise.all(given.map((each) => releaseOf(each, crypto)));
-        const resolved = (await Promise.all(given.map((each) => each.releases()))).flat();
-        const dependencies = pin([...direct, ...resolved]);
+        const direct = given.map((each) => PackageManifest.package(each.manifest));
+        const requires = Object.fromEntries(direct.map((each) => [each.name, each.version]));
 
         // export the main module and each view's, each importing the direct dependencies
-        const imports = direct.map((release) => release.package.name);
+        const imports = direct.map((each) => each.name);
         const exports: Record<string, { path: string; imports: string[] }> = {
             ".": { path: BROWSER_MAIN, imports },
         };
@@ -128,8 +118,7 @@ export const TestViewBuild = {
 
         return MemoryBuild.of(built, declared, crypto, {
             files,
-            commit: SHIPPED_COMMIT,
-            dependencies,
+            requires,
             outputs: {
                 browser: {
                     runtime: "browser",
@@ -138,8 +127,6 @@ export const TestViewBuild = {
                     views,
                     directory: "browser",
                     exports,
-                    // pin the direct ones in its browser output, as a view's code imports them
-                    dependencies: pin(direct),
                     peers: {},
                 },
             },
@@ -156,19 +143,4 @@ function renderOf(render: ViewRender): JsonObject {
 
     // describe a client or server view by its mode
     return { mode: render.mode };
-}
-
-/** Pin releases as a build's Destack dependencies, by package name. */
-function pin(releases: readonly PackageRelease[]): Record<string, DependencyRelease> {
-    return Object.fromEntries(
-        releases.map((release) => [release.package.name, { ...release, kind: "destack" }]),
-    );
-}
-
-/** Name a build as the release a dependent pins: its package and its manifest's digest. */
-async function releaseOf(reader: BuildReader, crypto: Crypto): Promise<PackageRelease> {
-    return {
-        package: PackageManifest.package(reader.manifest),
-        manifest: await BuildStore.digest(reader.manifest, crypto),
-    };
 }

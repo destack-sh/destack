@@ -86,7 +86,7 @@ export class WorkerdRuntime implements Runtime {
     /** The randomness the instances' secrets draw from. */
     readonly #random: Random;
     /** Read the space's builds, which map a build's imports and open its dependencies. */
-    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
+    readonly #builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "root">;
     /** The instances starting and running. */
     readonly #registry = new InstanceRegistry<Runner>();
 
@@ -119,7 +119,7 @@ export class WorkerdRuntime implements Runtime {
         /** The randomness the instances' secrets draw from. */
         readonly random: Random;
         /** Read the space's builds, which map a build's imports and open its dependencies. */
-        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents">;
+        readonly builds: () => Pick<SpaceBuildStore, "imports" | "contents" | "root">;
     }) {
         // set the objects and facets, the space, its egress, the sampling and the spaces' identities
         this.#instances = options.instances;
@@ -177,21 +177,21 @@ export class WorkerdRuntime implements Runtime {
     /** Read every module of the build a secret proves and of its dependencies, imports resolved. */
     async modules(secret: string): Promise<Record<string, string>> {
         // require the build a secret proves
-        const build = this.identify(secret)?.build;
-        if (build === undefined) {
+        const identified = this.identify(secret);
+        if (identified === undefined) {
             throw MachineError.of(
                 "INSTANCE_SECRET_UNAUTHENTICATED",
                 "authentication required: the instance secret is invalid",
             );
         }
 
-        return this.#modules(build);
+        return this.#modules(identified.build, identified.lock);
     }
 
-    /** Read each module a build's imports reach, resolved through its import map. */
-    async #modules(build: BuildReader): Promise<Record<string, string>> {
-        // read each module the build's imports reach, its specifiers resolved through the closure's import map
-        const closure = await this.#closure(build);
+    /** Read each module a lock's root's imports reach, resolved through its import map. */
+    async #modules(build: BuildReader, lock: Digest): Promise<Record<string, string>> {
+        // read each module the root's imports reach
+        const closure = await this.#builds().imports(lock, WORKERD_RUNTIME, MODULE_BASE);
         const own = await build.digest();
         const read = await Promise.all(
             (await this.#names(build, closure)).map(async (name) => {
@@ -209,15 +209,16 @@ export class WorkerdRuntime implements Runtime {
         return Object.fromEntries(read);
     }
 
-    /** Call an export of a build's module once, in an isolate of its own beside the space. */
+    /** Call an export of a lock's root module once, in an isolate of its own beside the space. */
     async call(
-        build: BuildReader,
+        lock: Digest,
         path: string,
         name: string,
         input: readonly JsonValue[],
     ): Promise<JsonValue> {
-        // load the build's modules beside a module calling the export, in a fresh isolate
-        const modules = await this.#modules(build);
+        // load the root's modules beside a module calling the export
+        const build = await this.#builds().root(lock);
+        const modules = await this.#modules(build, lock);
         const main = JSON.stringify(`./${await build.digest()}/${path}`);
         const isolate = this.#loader.get(this.#random.bytes(SECRET_BYTES).toHex(), async () => ({
             compatibilityDate: WORKERD_COMPATIBILITY_DATE,
@@ -397,11 +398,6 @@ export class WorkerdRuntime implements Runtime {
         );
 
         return names.flat();
-    }
-
-    /** Map a build's imports on workerd to its dependencies' modules, below their digests. */
-    async #closure(build: BuildReader): Promise<ImportClosure> {
-        return this.#builds().imports(await build.digest(), WORKERD_RUNTIME, MODULE_BASE);
     }
 
     /** Read an object's answer to the end, refusing a failed one. */

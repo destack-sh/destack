@@ -1,8 +1,7 @@
-import { BuildStore } from "@destack/build/store";
 import { CompilerPool } from "@destack/build";
 import { testStore } from "@destack/build/test";
 import { TestRun } from "@destack/db/test/run";
-import { canonicalize } from "@destack/schema";
+import { canonicalize, type Digest } from "@destack/schema";
 import type { TestProject } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import {
@@ -14,9 +13,10 @@ import {
     START_FIXTURE,
     TestDistribution,
 } from "./distribution.ts";
-import { SCENARIO_FIXTURES, TestFixture, WORLD_FIXTURES } from "./fixture.ts";
+import { SCENARIO_FIXTURES, WORLD_FIXTURES } from "./fixture.ts";
 import { WorldDriver } from "./world.ts";
 import { Toolchain } from "@destack/check/toolchain";
+import { COMPUTER_RUNTIMES } from "../computer.ts";
 
 /** The module of machine's test templates, which the run writes once. */
 const TEMPLATES = new URL("./templates.ts", import.meta.url);
@@ -24,13 +24,11 @@ const TEMPLATES = new URL("./templates.ts", import.meta.url);
 /** Build the platform, the stacks and the fixtures, write the templates and make a trash. */
 export default async function setup(project: TestProject): Promise<() => Promise<void>> {
     // build the platform's packages, the stacks and the fixtures at once, so each world only reads the run's store
-    const built: Record<string, string> = {};
+    const built: Record<string, Digest> = {};
     const scenario: Record<string, string> = {};
     {
         await using store = await testStore();
         await using compilers = await CompilerPool.open(store, async () => Toolchain.workspace());
-        const { crypto, files } = store.environment;
-        const versions = await TestFixture.versions(files);
         const builds = [
             [RUNTIME_PACKAGE, built, () => TestDistribution.runtime(compilers)] as const,
             [DESKTOP_PACKAGE, built, () => TestDistribution.desktop(compilers)] as const,
@@ -42,18 +40,28 @@ export default async function setup(project: TestProject): Promise<() => Promise
                     [
                         name,
                         SCENARIO_FIXTURES.some((each) => each === name) ? scenario : built,
-                        () => WorldDriver.build(name, compilers, versions),
+                        () => WorldDriver.build(name, compilers),
                     ] as const,
             ),
         ];
         await Promise.all(
             builds.map(async ([name, digests, build]) => {
-                digests[name] = await BuildStore.digest((await build()).manifest, crypto);
+                digests[name] = (await build()).lock;
             }),
         );
+
+        // lock the runtime's builtins too
+        const { units } = await TestDistribution.runtime(compilers);
+        for (const [name, lock] of units) {
+            built[name] ??= lock;
+        }
+
+        // write the layer every computer ships once here, so no test pays for it
+        const shipped = await TestDistribution.shipped(store, built, []);
+        await store.writeLinkedLayer(shipped, COMPUTER_RUNTIMES);
     }
 
-    // hand the digests to the tests, and to the templates, whose distributions ship the platform's builds
+    // hand the locks to the tests
     project.provide("built", built);
     project.provide("scenarios", scenario);
     const variables = { [BUILDS_VARIABLE]: canonicalize(built) };

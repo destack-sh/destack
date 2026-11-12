@@ -430,7 +430,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
     const registered = await universe.storage.database
         .select({
             name: accountObject.machine.table.name,
-            revokedAt: accountObject.machine.table.revokedAt,
+            deletedAt: accountObject.machine.table.deletedAt,
         })
         .from(accountObject.machine.table)
         .where(eq(accountObject.machine.table.id, machineId));
@@ -443,7 +443,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
         again,
         registered: registered.map((row) => ({
             name: row.name,
-            isRevoked: row.revokedAt !== null,
+            isDeleted: row.deletedAt !== null,
         })),
     }).toEqual({
         isEnrolled: [false, true, false],
@@ -459,7 +459,7 @@ test("enroll as the signed-in person, serve spaces only while enrolled, and revo
             "MACHINE_BLOCKED",
             "cannot enroll this machine: it was revoked, and a revoked machine can only enroll as a new machine",
         ],
-        registered: [{ name: "workstation", isRevoked: true }],
+        registered: [{ name: "workstation", isDeleted: true }],
     });
 });
 
@@ -664,10 +664,10 @@ test("register a working tree's directory, build its stack in a space as the per
         throw new TypeError("the submission names no build");
     }
     const built = await service.build.get({ spaceId: space, id: build.build });
-    if (built.manifest === null) {
-        throw new TypeError("the build has no manifest");
+    if (built.lock === null) {
+        throw new TypeError("the build has no lock");
     }
-    const reader = await (await machine.space(space)).builds.contents(built.manifest);
+    const reader = await (await machine.space(space)).builds.root(built.lock);
     expect({
         checkout: registered,
         submission: evaluated,

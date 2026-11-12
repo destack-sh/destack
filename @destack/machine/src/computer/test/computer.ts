@@ -15,7 +15,7 @@ import { reference, repository } from "@destack/registry/object";
 import { MemoryKeychain } from "@destack/identity";
 import { installation, type ObjectType, type Package, PackageMount } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { Identifier, schema } from "@destack/schema";
+import { type Digest, Identifier, schema } from "@destack/schema";
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import { rollout, Rollout } from "@destack/stack/object";
 import type { Installation } from "@destack/object";
@@ -634,7 +634,7 @@ export class TestComputer implements AsyncDisposable {
                     );
                     if (!published.has(fixture)) {
                         published.add(fixture);
-                        await home.publish(build);
+                        await home.publish(TestDistribution.lockOf(fixture));
                     }
                     await home.install(login.id, owner.home, build, name);
                 }
@@ -765,10 +765,10 @@ export class TestComputer implements AsyncDisposable {
         return created.id;
     }
 
-    /** Publish a build onto the computer's machine, as the operator by default. */
-    async publish(build: BuildReader, publisher?: TestPublisher): Promise<void> {
+    /** Publish a lock in the run's store onto the computer's machine, the operator's by default. */
+    async publish(lock: Digest, publisher?: TestPublisher): Promise<void> {
         const by = publisher ?? (await this.world.universe.operator());
-        await this.world.distribution.publish(build, by, this.machine);
+        await this.world.distribution.publish(lock, by, this.machine);
     }
 
     /** Install a build's shipped or published release in a space as a person, until applied. */

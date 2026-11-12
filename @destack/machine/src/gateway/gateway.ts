@@ -25,7 +25,6 @@ import {
 } from "@destack/object";
 import {
     PeerCall,
-    type Registry,
     type SpaceBuildStore,
     type SpaceHost,
     type SpaceMachine,
@@ -105,7 +104,7 @@ export type GatewaySpace = Pick<
     /** The space's builds, read through to the machine's cache. */
     readonly builds: Pick<
         SpaceBuildStore,
-        "pull" | "contents" | "referrer" | "file" | "imports" | "get"
+        "pullRoot" | "contents" | "referrer" | "file" | "imports" | "get"
     >;
     /** The space's identity and its link to the universe, which the gateway signs with. */
     readonly host: Pick<SpaceHost, "identityOf" | "contain" | "database"> & {
@@ -127,9 +126,7 @@ export type GatewaySpace = Pick<
         | "locate"
         | "authenticate"
         | "domain"
-    > & {
-        readonly releases: Pick<Registry, "locate">;
-    };
+    >;
 };
 
 /** Where an address a workload calls leads. */
@@ -1243,11 +1240,7 @@ export class Gateway {
     /** Append an instance's OTLP/JSON export to its space as the machine, stamped by emitter. */
     async telemetry(spec: InstanceSpec, signal: OtlpSignal, body: unknown): Promise<void> {
         const emitter = { installation: spec.installationId, instance: spec.instanceId };
-        await this.record(
-            spec.manifest === undefined ? emitter : { ...emitter, build: spec.manifest },
-            signal,
-            body,
-        );
+        await this.record({ ...emitter, build: spec.lock }, signal, body);
     }
 
     /** Record an installation's export: stamp its emitter, attribute its frames, forward it. */

@@ -166,6 +166,7 @@ export class LocalSpaceStorage implements SpaceStorage, AsyncDisposable {
                 blobs: await LocalBlobStorage.open(
                     join(this.#options.directory, "blobs", space),
                     environment,
+                    { synchronous: "full" },
                 ),
                 sockets: this.#sockets,
                 providers: this.#providers,
@@ -270,7 +271,10 @@ export class LocalVolume implements Volume {
 
     /** Open the graphs of the space's builds once, each attached to its build. */
     graphs(
-        builds: Pick<SpaceBuildStore, "store" | "contains" | "contents" | "referrer" | "file">,
+        builds: Pick<
+            SpaceBuildStore,
+            "store" | "contains" | "contents" | "lock" | "referrer" | "file"
+        >,
     ): BunGraphStorage {
         this.#graph ??= this.#lifetime.use(
             new BunGraphStorage(this.database, builds, this.#options.environment.files),

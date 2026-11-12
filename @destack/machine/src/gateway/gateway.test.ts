@@ -7,7 +7,7 @@ import { MemoryBuild } from "@destack/package/test";
 import { expect, refusal, test } from "@destack/test";
 import { Authentication, Caller, CALLER_HEADER, principal } from "@destack/access";
 import { PackageId } from "@destack/package";
-import { Identifier, type JsonValue, nth, present, schema } from "@destack/schema";
+import { Digest, Identifier, type JsonValue, nth, present, schema } from "@destack/schema";
 import { Exchange } from "@destack/access/token";
 import {
     CallError,
@@ -27,6 +27,9 @@ import { ids, TestSpace } from "@destack/stack/test";
 import { Traffic } from "./traffic.ts";
 import { RecordingTokenExchange } from "./test/exchange.ts";
 import { deployNotes, openGateway } from "./test/gateway.ts";
+
+/** The lock of the instance's build, which the test never reads. */
+const LOCK = Digest.parse("1".repeat(64));
 
 /** The deployment of notes' earlier release. */
 const EARLIER = {
@@ -91,6 +94,7 @@ const tasks: InstanceSpec = {
     deploymentId: schema
         .identifier("deployment")
         .parse("deployment-01996ab0-0000-7000-8000-0000000000b3"),
+    lock: LOCK,
     build: await MemoryBuild.write(
         new Map(),
         {
@@ -308,9 +312,9 @@ test("route each call to the newest deployment serving the caller's release, and
         await call("2026.8.0"),
         await call("2026.9.0"),
         await call("2026.10.0"),
-        await call("2026.10.0-dev.2"),
+        await call("2026.10.0-dev.20260912100002.0123456789ab"),
         await call("2026.11.0"),
-        await call("2026.11.0-dev.1"),
+        await call("2026.11.0-dev.20260912100001.0123456789ab"),
         await call(),
         await call("next"),
     ]).toEqual([
@@ -319,7 +323,7 @@ test("route each call to the newest deployment serving the caller's release, and
         NEWEST.instanceId,
         NEWEST.instanceId,
         `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0' is unavailable: none is running`,
-        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0-dev.1' is unavailable: none is running`,
+        `SERVICE_UNAVAILABLE: DEPLOYMENT_UNAVAILABLE: deployment of installation 'runs release 2026.11.0-dev.20260912100001.0123456789ab' is unavailable: none is running`,
         "BAD_REQUEST: VERSION_INVALID: requires Destack-Version",
         "BAD_REQUEST: VERSION_INVALID: invalid Destack-Version: next",
     ]);

@@ -133,7 +133,7 @@ export class ViewOrigin {
     /** The static site of each build served so far, none for a build without, by build and view. */
     readonly #sites = new Map<string, Promise<StaticHost | undefined>>();
     /** The build of each revision served so far, which a revision never changes, by revision. */
-    readonly #builds = new Map<string, Promise<Pick<Page, "manifest" | "reader">>>();
+    readonly #builds = new Map<string, Promise<Pick<Page, "lock" | "reader">>>();
     /** The browser import map closure of each build served so far, by build and base. */
     readonly #closures = new Map<string, Promise<ImportClosure>>();
     /** The catalog paths each build's pages load, by build and base. */
@@ -562,21 +562,21 @@ export class ViewOrigin {
                 `'${found.installation.name}' is unavailable: it has no revision to serve yet`,
             );
         }
-        const { manifest, reader } = await ViewOrigin.#memo(this.#builds, revision.id, async () => {
+        // read the revision's lock and its root once per revision
+        const { lock, reader } = await ViewOrigin.#memo(this.#builds, revision.id, async () => {
+            // pull the revision's lock and open its root
             const built = await Build.require(
                 Snapshot.live(this.#space.database),
                 this.#space.id,
                 revision.buildId,
             );
-            const pulled = await this.#space.builds.pull(
-                PackageId.parse(found.installation.packageId),
-                built.manifest,
-            );
+            const packageId = PackageId.parse(found.installation.packageId);
+            const root = await this.#space.builds.pullRoot(packageId, built.lock);
 
-            return { manifest: built.manifest, reader: pulled };
+            return { lock: built.lock, reader: root };
         });
 
-        return { rollout: found, manifest, reader, visitor, linkSecrets, mount: mount ?? ROOT };
+        return { rollout: found, lock, reader, visitor, linkSecrets, mount: mount ?? ROOT };
     }
 
     /** Read the person of a session cookie, anonymous without one, refusing an invalid one. */
@@ -968,7 +968,7 @@ export class ViewOrigin {
         }
         const body = await RequestBody.json(request, `an OTLP/JSON ${signal} export`);
         await this.#gateway.record(
-            { installation: page.rollout.installationId, build: page.manifest },
+            { installation: page.rollout.installationId, build: page.lock },
             signal,
             body,
         );
@@ -988,8 +988,8 @@ export class ViewOrigin {
         const { reader, rollout: found } = page;
         const policy = await this.#policy(page);
         const { base } = page.mount;
-        const closure = await ViewOrigin.#memo(this.#closures, `${page.manifest} ${base}`, () =>
-            this.#space.builds.imports(page.manifest, "browser", `${base}${BUILD_PATH}`),
+        const closure = await ViewOrigin.#memo(this.#closures, `${page.lock} ${base}`, () =>
+            this.#space.builds.imports(page.lock, "browser", `${base}${BUILD_PATH}`),
         );
         if (pathname.startsWith(BUILD_PATH)) {
             const [digest = "", ...path] = pathname.slice(BUILD_PATH.length).split("/");
@@ -1008,13 +1008,10 @@ export class ViewOrigin {
 
         // redirect as the static site's host configuration has it, before serving any file
         const files = ViewOrigin.#publicFiles(reader.manifest, await reader.files());
-        const site = await ViewOrigin.#memo(
-            this.#sites,
-            `${page.manifest} ${page.mount.view}`,
-            () =>
-                StaticHost.open(reader.manifest, files, page.mount.view, (file) =>
-                    reader.load(file.path),
-                ),
+        const site = await ViewOrigin.#memo(this.#sites, `${page.lock} ${page.mount.view}`, () =>
+            StaticHost.open(reader.manifest, files, page.mount.view, (file) =>
+                reader.load(file.path),
+            ),
         );
         const redirected = site?.redirect(pathname);
         if (redirected !== undefined) {
@@ -1051,7 +1048,7 @@ export class ViewOrigin {
             return asset.path.endsWith(".html")
                 ? ViewOrigin.#file(request, asset, load, siteHeaders, {
                       map: closure.map,
-                      build: page.manifest,
+                      build: page.lock,
                   })
                 : ViewOrigin.#file(request, asset, load, siteHeaders);
         } else if (resolved?.kind === "redirect") {
@@ -1097,7 +1094,7 @@ export class ViewOrigin {
 
             return ViewOrigin.#file(request, missing, load, siteHeaders, {
                 map: closure.map,
-                build: page.manifest,
+                build: page.lock,
                 status: 404,
             });
         }
@@ -1134,7 +1131,7 @@ export class ViewOrigin {
                 view: name,
                 base,
                 universe: new URL(this.#space.host.machine.universe.issuer).origin,
-                catalogs: await ViewOrigin.#memo(this.#catalogs, `${page.manifest} ${base}`, () =>
+                catalogs: await ViewOrigin.#memo(this.#catalogs, `${page.lock} ${base}`, () =>
                     this.#catalogPaths(reader, closure),
                 ),
                 ...(visitor.kind === "person"
@@ -1500,8 +1497,8 @@ export class ViewOrigin {
 interface Page {
     /** The rollout of the installation the origin serves. */
     readonly rollout: InstallationRollout;
-    /** The digest of the manifest of the build its revision follows. */
-    readonly manifest: Digest;
+    /** The digest of the lock of the build serving the page. */
+    readonly lock: Digest;
     /** The build. */
     readonly reader: BuildReader;
     /** Who the page serves: the person whose client launched it, or an anonymous visitor. */

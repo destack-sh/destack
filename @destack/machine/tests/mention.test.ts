@@ -111,7 +111,7 @@ async function openBoard(
         // publish a missing one as the platform's operator, and install it
         if (installed === undefined) {
             const build = await TestDistribution.fixture(fixture);
-            await home.publish(build);
+            await home.publish(TestDistribution.lockOf(fixture));
             await computer.install(login.id, space, build, name);
         }
     }

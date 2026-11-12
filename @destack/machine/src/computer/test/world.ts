@@ -15,14 +15,7 @@ import {
 import { type BuildReader, PackageManifest } from "@destack/package/manifest";
 import type { PackageId } from "@destack/package";
 import type { SetStep } from "@destack/package/declare";
-import {
-    type Identifier,
-    type JsonObject,
-    type JsonValue,
-    present,
-    schema,
-    type Version,
-} from "@destack/schema";
+import { type Identifier, type JsonObject, type JsonValue, present, schema } from "@destack/schema";
 import stackPackage from "@destack/stack/package";
 import { replica, Scope } from "@destack/sync";
 import { type Counters, type Driver } from "@destack/test";
@@ -253,20 +246,19 @@ export class WorldDriver implements Driver<typeof worldInteraction> {
         return this.home.world.simulation.telemetry.counts();
     }
 
-    /** Build a fixture package's outputs, the published fixtures at their dev versions. */
+    /** Build and lock a fixture package at its authored version. */
     static build(
         fixture: string,
         compilers: CompilerPool,
-        versions: Readonly<Record<string, Version>>,
-    ): Promise<BuildReader> {
-        return TestDistribution.compile(compilers, new TestFixture(fixture).directory, versions);
+    ): ReturnType<typeof TestDistribution.compile> {
+        return TestDistribution.compile(compilers, new TestFixture(fixture).directory);
     }
 
     /** Install a fixture build in the owner's home as the owner, recording its object types. */
     async #install(fixture: string, build: BuildReader): Promise<void> {
         // publish the build as the platform's operator, and install it as the owner
         const { world } = this.home;
-        await this.home.publish(build);
+        await this.home.publish(TestDistribution.lockOf(fixture));
         await this.home.install(this.login, world.owner.home, build, fixture);
 
         // record its object types by name

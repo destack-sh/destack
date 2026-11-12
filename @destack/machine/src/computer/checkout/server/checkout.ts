@@ -188,7 +188,7 @@ export class CheckoutServer {
         client: StackClient,
         spaceId: Identifier<"space">,
         source: CheckoutSource,
-    ): Promise<{ readonly id: Identifier<"build">; readonly manifest: Digest }> {
+    ): Promise<{ readonly id: Identifier<"build">; readonly lock: Digest }> {
         // require the space here, noting its log position before the build
         const { spaces } = this.machine;
         if (!(await spaces.list()).includes(spaceId)) {
@@ -230,7 +230,7 @@ export class CheckoutServer {
             );
         }
 
-        return { id: created.id, manifest: Build.manifest(current) };
+        return { id: created.id, lock: Build.lock(current) };
     }
 
     /** Inspect a checkout's package directory for one output, on its dependencies' builds. */
@@ -325,7 +325,7 @@ export class CheckoutServer {
         const client = await this.connect(stackPackage, login, spaceId);
         const built = await this.build(client, spaceId, selection);
         const { builds } = await this.machine.space(spaceId);
-        const reader = await builds.contents(built.manifest);
+        const reader = await builds.root(built.lock);
 
         return { selection, built, client, builds, reader };
     }

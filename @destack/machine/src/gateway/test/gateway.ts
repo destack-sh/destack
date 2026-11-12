@@ -93,7 +93,7 @@ export function openGateway(
                 },
             },
             builds: {
-                pull: refuse("pull builds"),
+                pullRoot: refuse("pull builds"),
                 contents: refuse("read builds"),
                 referrer: refuse("read code indexes"),
                 file: refuse("read code indexes"),
@@ -118,7 +118,6 @@ export function openGateway(
 
                     return undefined;
                 },
-                releases: { locate: refuse("locate releases") },
             },
         },
         {
@@ -153,7 +152,7 @@ export async function deployNotes(
     const release = await insertRelease(
         database,
         ids.space,
-        { package: ids.package, version: "2026.9.0", manifest: Digest.parse("d".repeat(64)) },
+        { package: ids.package, version: "2026.9.0", lock: Digest.parse("d".repeat(64)) },
         ["server"],
         environment,
     );

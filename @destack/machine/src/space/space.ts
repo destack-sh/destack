@@ -35,6 +35,7 @@ import { type Digest, type Identifier, present } from "@destack/schema";
 import { Database, Rollout, rollout } from "@destack/stack/object";
 import stackPackage, { STACK_INSTALLATION } from "@destack/stack/package";
 import {
+    type PublishStore,
     SpaceBuildStore,
     type SpaceOptions,
     serveS3,
@@ -381,10 +382,10 @@ export class Space {
     /** Retain the builds the space runs in the machine's cache while the machine stores it. */
     async #root(installed: Awaited<ReturnType<typeof Database.installed>>): Promise<void> {
         const { cache } = this.machine;
-        const manifests = installed.map((each) =>
-            cache.resolve(each.rollout.installation.packageId, each.manifest),
+        const locks = installed.map((each) =>
+            cache.resolve(each.rollout.installation.packageId, each.lock),
         );
-        await cache.root(this.id, manifests);
+        await cache.retain(this.id, locks);
     }
 
     /** Apply a primary's installed set in place, then report whether it serves each revision. */
@@ -419,24 +420,24 @@ export class Space {
     }> {
         // open each build the cache has, or pull it, noting one that is absent or a forge answers as unavailable
         const unavailable: Digest[] = [];
-        const open = async (packageId: PackageId, manifest: Digest) => {
-            // open a cached build, a builtin's linked one, as a start makes no network calls
+        const open = async (packageId: PackageId, lock: Digest) => {
+            // open a cached lock's root
             if (source === "cache") {
-                const resolved = this.builds.cache.resolve(packageId, manifest);
+                const resolved = this.builds.cache.resolve(packageId, lock);
                 const isCached = await this.builds.contains(resolved);
                 if (!isCached) {
-                    unavailable.push(manifest);
+                    unavailable.push(lock);
                 }
 
-                return isCached ? await this.builds.contents(resolved) : undefined;
+                return isCached ? await this.builds.root(resolved) : undefined;
             }
-            // pull a build, noting one its forge cannot answer yet
+            // pull a lock
             else {
-                return await this.builds.pull(packageId, manifest).catch((error: unknown) => {
+                return await this.builds.pullRoot(packageId, lock).catch((error: unknown) => {
                     if (!PackageError.is(error, "FILE_UNAVAILABLE")) {
                         throw error;
                     }
-                    unavailable.push(manifest);
+                    unavailable.push(lock);
 
                     return undefined;
                 });
@@ -591,10 +592,10 @@ export class Space {
         return this.#current().mounts.filter((each) => each.installationId === installationId);
     }
 
-    /** Publish a build and its account's unpublished dependencies for a caller. */
+    /** Publish each of an account's packages in a stored lock for a caller. */
     async #publish(
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
+        store: PublishStore,
+        lock: Digest,
         account: Identifier<"account">,
         tag: string,
         caller: Caller,
@@ -624,7 +625,7 @@ export class Space {
             [...this.machine.shipped.values()],
         );
 
-        return await forges.publish(store, manifest, account, tag);
+        return await forges.publish(store, lock, account, tag);
     }
 
     /** Lease a repository of the space's account to read, at the forge in its residency's home. */
@@ -752,8 +753,8 @@ export class Space {
             isServingHostnames: machine.isServingHostnames,
             runtimes: machine.runtimes,
             registry: machine.releases,
-            publish: (store, manifest, account, tag, caller, requested) =>
-                this.#publish(store, manifest, account, tag, caller, requested),
+            publish: (store, lock, account, tag, caller, requested) =>
+                this.#publish(store, lock, account, tag, caller, requested),
             buckets,
             builds: this.builds,
             blobs: this.blobs,
