@@ -386,7 +386,8 @@
                 "@platform/site/scripts/generate-release.ts",
                 "@platform/site/scripts/generate-pricing.ts",
                 "@platform/site/scripts/generate-headword.ts",
-                "@platform/site/scripts/generate-icons.ts"
+                "@platform/site/scripts/generate-icons.ts",
+                "@platform/site/scripts/generate-sky.ts"
             ],
             "roles": {
                 "@destack/access": "builtin",
