@@ -7,9 +7,6 @@ import { Tray } from "./tray.ts";
 /** The language the tray shows in: the one its messages are written in. */
 const SOURCE = Localization.of(SOURCE_LOCALE, []);
 
-/** The time the tray reads the rows at. */
-const NOW = 1_800_000_000_000;
-
 /** The space the machine serves shown by its name. */
 const NOTES = schema.identifier("space").parse("space-019f5530-8000-7000-8000-000000000001");
 
@@ -25,8 +22,8 @@ const PERSONAL_SPACE = { name: "personal", title: "Personal" };
 /** The space shown by its name. */
 const NOTES_SPACE = { name: "notes", title: null };
 
-/** The machine as it serves: enabled and standing. */
-const SERVING = { status: "enabled" as const, revokedAt: null };
+/** The machine as it serves: enabled. */
+const SERVING = { status: "enabled" as const };
 
 /** The placements of both spaces, neither moving. */
 const PLACED = [
@@ -81,11 +78,7 @@ test("read syncing, paused, offline and withdrawn machines in that order of prec
             SOURCE,
         ),
         Tray.view({ machine: SERVING, tunnel: "dialing", placements: moving }, openNothing, SOURCE),
-        Tray.view(
-            { machine: { ...SERVING, revokedAt: NOW }, tunnel: "open", placements: PLACED },
-            openNothing,
-            SOURCE,
-        ),
+        Tray.view({ machine: undefined, tunnel: "open", placements: PLACED }, openNothing, SOURCE),
         Tray.view({ machine: undefined, tunnel: "open", placements: [] }, openNothing, SOURCE),
     ];
 

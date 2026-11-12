@@ -23,8 +23,8 @@ export type TrayStatus = "serving" | "syncing" | "paused" | "offline" | "error";
 /** Whether a computer's relay tunnel runs, as its record states. */
 type ComputerTunnel = (typeof COMPUTER_TUNNELS)[number];
 
-/** A machine as the tray reads it: whether it stands and serves. */
-type TrayMachine = Pick<Select<typeof machine.table>, "status" | "revokedAt">;
+/** A machine as the tray reads it: whether it serves. */
+type TrayMachine = Pick<Select<typeof machine.table>, "status">;
 
 /** A placement as the tray reads it: its space's name and title, and the machine it moves to. */
 type TrayPlacement = Pick<Select<typeof placement.table>, "spaceId" | "targetId"> & {
@@ -102,9 +102,9 @@ export class Tray {
 
     /** Read the status of this computer's machine, its tunnel and the placements on it. */
     static status(read: TrayRead): TrayStatus {
-        // fail without a standing machine
+        // fail without a live machine
         const { machine: row, placements } = read;
-        if (row === undefined || row.revokedAt !== null) {
+        if (row === undefined) {
             return "error";
         }
         // pause while the machine drains or is disabled
