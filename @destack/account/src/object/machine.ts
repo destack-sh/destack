@@ -116,6 +116,7 @@ export const machine = defineObject(
         plural: "machines",
         title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
         scope: [account, "universe"],
+        key: "name",
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The name within the account. */

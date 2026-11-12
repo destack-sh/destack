@@ -30,7 +30,8 @@ import {
 import { SPACE_NAME_LENGTH, SpaceName } from "../address/address.ts";
 import { Label } from "../address/label.ts";
 import { AccountError } from "../error/error.ts";
-import { controlled, shareable, suspendable } from "@destack/object";
+import { controlled, shareable, StackTarget, suspendable } from "@destack/object";
+import { machine } from "./machine.ts";
 import { argument, plural, t } from "@destack/locale";
 
 /** The tenancies: shared or dedicated cloud machines, or a space's people's computers. */
@@ -117,8 +118,11 @@ export const space = defineObject(
             fields: ["name", "title", "stack"],
             filled: ["stack"],
             input: schema.object({
-                /** The machine to place it on. */
-                machine: schema.identifier("machine").exactOptional(),
+                /** The machine to place it on, by its identifier or its name. */
+                machine: StackTarget.on(
+                    schema.lazy(() => machine.addressSchema),
+                    () => machine,
+                ).exactOptional(),
             }),
         }),
         update: method.update("update", { fields: ["title", "approval", "tenancy"] }),

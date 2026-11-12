@@ -172,6 +172,11 @@ export type Account = Select<typeof account.table>;
 
 /** The residency, relations and payers of accounts. */
 export const Account = {
+    /** Read the account a handle names, absent for a handle nobody holds. */
+    byHandle(reader: Pick<Snapshot, "read">, handle: string): Promise<Account | undefined> {
+        return reader.read(account.table).findFirst({ where: { handle } });
+    },
+
     /** Read a scope's account: itself, a person's, an organization's payer, or its parent's. */
     async of(reader: Pick<Snapshot, "read">, scope: string): Promise<Account> {
         // refuse a scope without an account

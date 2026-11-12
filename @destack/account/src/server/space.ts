@@ -51,7 +51,9 @@ async function create(
     // create the space with its stack, the space stack by default
     const accountId = schema.identifier("account").parse(context.scope);
     const spaceId = space.identifier(context.id);
-    const target = await pickMachine(context, accountId, spaceId, context.input.machine);
+    const { machine: chosen } = context.input;
+    const requested = chosen === undefined ? undefined : machine.identifier(chosen);
+    const target = await pickMachine(context, accountId, spaceId, requested);
     const stack = context.input.stack ?? stacks.space;
     const created = await next(context.with({ input: { ...context.input, stack } }));
 

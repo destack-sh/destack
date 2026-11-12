@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Administer Destack accounts and sessions.",
+    "description": "Sign people and machines in, and manage their accounts, organizations and spaces.",
     "exports": {
         "./package": "./src/package.ts",
         "./inspect": "./src/inspect/index.ts",
@@ -57,7 +57,7 @@
         "@types/node": "26.6.1"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "destack-check readme && tsc --project tsconfig.json",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }
