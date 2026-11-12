@@ -1,40 +1,199 @@
 # @destack/locale
 
-`t`, `plural` and `select` are Lingui's macros writing Unicode MessageFormat 2 through `messageformat`, `Localization` is `Intl`'s formatters bound to a locale and its catalogs, and `Locale` is BCP 47 tags with CLDR parent locales and RFC 4647 lookup.
+Localise messages and format numbers, money and dates for a person's language and region.
+
+## Overview
+
+`@destack/locale` is Lingui's `t` macro over Unicode MessageFormat 2: messages as JSON, catalogs, and per-reader rendering and formatting.
+
+Packages write messages in their source language:
+
+- `t`: writes a `Message` from a template, as Lingui's `t` does.
+- `argument`, `plural` and `select`: a supplied value, text by plural category, and text by case.
+- `verbatim`: text no catalog translates, such as a brand.
+- `Message`: a message as JSON.
+
+Translations ship with the package:
+
+- `Catalog`: one package's translations into one locale, in `locale/<tag>.json`.
+
+Readers render in their locale:
+
+- `Localization`: renders messages and formats numbers, money, dates and lists in a locale.
+- `Locale`: reads, orders and negotiates BCP 47 language tags.
+
+Write a message, then render it for a reader in Austria:
 
 ```ts
-// Lingui's msg descriptor as JSON of its package, rendered later
-t`Archived ${plural(count, { one: "# page", other: "# pages" })} in ${space.name}`;
-Message.context("button")`Open`; // Lingui's context option as a tag
-verbatim`Destack`; // left out of extraction and catalogs, where Lingui leaves plain strings
-localization.money(1200, "EUR"); // minor units, where Intl.NumberFormat takes major: "12,00 €"
-localization.money(1200, "x-credits"); // a custom currency beside its code: "1,200 credits"
-// the largest whole unit, where Intl.RelativeTimeFormat takes one
-localization.relative(threeDaysAgo, Date.now());
-// CLDR parents, then the source language: ["es-MX", "es-419", "es", "en"]
-Locale.fallback("es-MX", "en");
-Locale.accepted("fr-CH, de;q=0.7, *;q=0.5"); // an Accept-Language header by weight: ["fr-CH", "de"]
-Country.parse("CH"); // an ISO 3166-1 alpha-2 country code
+import { argument, Localization, plural, t } from "@destack/locale";
+
+// write a message with a count
+const archived = t`Archived ${plural(argument("count"), { one: "# page", other: "# pages" })}`;
+
+// render it, and format a price
+const localization = Localization.of("de-AT", []);
+const text = localization.render(archived, { count: 3 });
+const price = localization.money(1200, "EUR");
 ```
 
-## Messages
+## Reference
 
-`t` writes a message of its module's package, which the reader's locale renders later, such as a notification in each recipient's.
+### t
+
+`t` writes a `Message` from a template, tagged with the module's package.
+`Message.context(context)` gives the same text separate identifiers, such as a button's "Save" and a menu's.
+
+| Part                               | Becomes                                                                           |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| a JSON value                       | a positional variable, `p0`, `p1`, …, its value kept in the message               |
+| `argument(name)`                   | a variable of a camel case name, which the reader supplies when rendering         |
+| `plural(value, { one, other, … })` | a text by the value's CLDR plural category, `#` standing for the value            |
+| `select(value, { …, other })`      | a text by the value, `other` covering every unlisted one                          |
+| `` verbatim`…` ``                  | a plain string instead of a message, which no catalog translates, such as a brand |
+
+### Message
+
+A `Message` is JSON, rendered later by each reader.
+
+| Field     | What it is                                                          |
+| --------- | ------------------------------------------------------------------- |
+| `package` | the package that wrote it, whose catalogs translate it              |
+| `id`      | a hash of its source and context, which catalogs translate it under |
+| `source`  | the source text in MessageFormat 2                                  |
+| `values`  | the values of its positional variables                              |
+
+### Catalog
+
+A catalog is a JSON file in a package's `locale` directory, `locale/<tag>.json` for its own messages and `locale/<package>/<tag>.json` for a dependency's.
+`Catalog.read(reader)` reads every catalog a build ships.
+
+| Field      | What it is                                                     |
+| ---------- | -------------------------------------------------------------- |
+| `package`  | the package whose messages it translates                       |
+| `locale`   | the locale it translates into, such as `de`                    |
+| `messages` | the translated MessageFormat 2 source of each message, by `id` |
+| `drafts`   | the identifiers of machine translations no person reviewed yet |
+
+### Localization
+
+`Localization.of(tag, catalogs, { source, direction, request })` binds a locale to catalogs.
+It renders in the nearest translated locale, else in the `source` language, English by default.
+`request` loads a missing package's catalogs.
+
+| Verb                             | What it does                                                                                 |
+| -------------------------------- | -------------------------------------------------------------------------------------------- |
+| `render(message, arguments)`     | renders a message with the arguments its reader supplies                                     |
+| `number(value, options)`         | formats a number, as `Intl.NumberFormat`                                                     |
+| `money(amount, currency)`        | formats minor units, such as `1200` `"EUR"` as `€12.00`, and `"x-credits"` as `1200 credits` |
+| `date(time, options)`            | formats an instant in epoch milliseconds, as `Intl.DateTimeFormat`                           |
+| `dateRange(start, end, options)` | formats the span between two instants, sharing their common parts                            |
+| `list(items, options)`           | joins items, such as `Ada, Grace, and Linus`                                                 |
+| `relative(time, now)`            | formats an instant in its largest whole unit, such as `3 days ago`                           |
+| `tag`, `direction`               | the locale, and the direction its text runs in                                               |
+
+### Locale
+
+`Locale` reads language tags, and `LocaleTag`, `Country` and `Direction` are their schemas.
+
+| Verb                                     | What it does                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------------------- |
+| `Locale.parse(tag)`                      | reads a tag in its canonical casing, such as `en-GB`, refusing one that is no tag |
+| `Locale.accepted(header)`                | reads the tags of an `Accept-Language` header, most preferred first               |
+| `Locale.negotiate(preferred, available)` | picks the available tag nearest to a person's preferred ones, as RFC 4647 lookup  |
+| `Locale.fallback(tag, source)`           | lists the tags a message is read in, through CLDR's parents to the source         |
+| `Locale.direction(tag)`                  | reads `"ltr"` or `"rtl"` from the tag's likely script                             |
+
+## Examples
+
+### Render a notification in each reader's language
+
+Each reader's `Localization` renders a stored message.
 
 ```ts
-const archived = t`Archived ${count} pages`;
-Localization.of("de-AT", catalogs).render(archived); // "3 Seiten archiviert"
+import { type Catalog, Locale, Localization, type Message } from "@destack/locale";
+
+/** Render a stored message in the language a request asks for. */
+export function renderFor(
+    request: Request,
+    message: Message,
+    catalogs: readonly Catalog[],
+): string {
+    // pick the nearest language
+    const header = request.headers.get("accept-language") ?? "";
+    const available = ["en", ...catalogs.map((catalog) => catalog.locale)];
+    const tag = Locale.negotiate(Locale.accepted(header), available) ?? "en";
+
+    return Localization.of(tag, catalogs).render(message);
+}
 ```
 
-## Catalogs
+### Choose words by case and count
 
-A `Catalog` translates one package's messages into one locale from the package's `locale/<tag>.json`, which its build ships and `Catalog.read` reads back.
+`select` picks text by a value, and `plural` by a count's plural category.
+
+```ts
+import { argument, plural, select, t } from "@destack/locale";
+
+// say who shared how many notes, as each language words it
+export const shared = t`${select(argument("pronoun"), { woman: "She", man: "He", other: "They" })} shared ${plural(argument("count"), { one: "# note", other: "# notes" })}`;
+```
+
+### Tell two messages with one text apart
+
+`Message.context` gives the same text separate identifiers, so a button's "Save" and a menu's can translate differently.
+
+```ts
+import { Message } from "@destack/locale";
+
+// title the save button under its own context
+export const save = Message.context("button")`Save`;
+```
+
+### Format values for a reader
+
+A `Localization` formats numbers, money in minor units, dates, ranges, lists and relative times.
+
+```ts
+import { Localization } from "@destack/locale";
+
+/** Describe an invoice for a German reader. */
+export function describeInvoice(total: number, due: number, now: number): string {
+    // format the amount and the due date, relative to now
+    const german = Localization.of("de", []);
+    const amount = german.money(total, "EUR");
+
+    return `${amount}, ${german.relative(due, now)}`;
+}
+```
+
+### Translate a message
+
+A catalog translates each message by its identifier, in MessageFormat 2 with the same variables.
+This is `locale/de.json` for the overview's `archived` message, as a draft.
 
 ```json
 {
-    "package": "package-01a1075a-34ee-7343-832f-9faf3e1c456c",
+    "package": "package-01a0e95b-c8db-7258-a257-e7661dbc93c3",
     "locale": "de",
-    "messages": { "1x3k9q2…": "Schließen" },
-    "drafts": ["1x3k9q2…"]
+    "messages": {
+        "g5cu7a6oiuz6": ".input {$count :number}\n.match $count\none {{{$count} Seite archiviert}}\n* {{{$count} Seiten archiviert}}"
+    },
+    "drafts": ["g5cu7a6oiuz6"]
 }
 ```
+
+## Comparison
+
+### Lingui
+
+`t`, `plural` and `select` basically follow Lingui's macros, with messages in MessageFormat 2 instead of ICU MessageFormat.
+Messages are JSON, rendered by each reader.
+
+| Lingui                         | `@destack/locale`                 | Difference                                                      |
+| ------------------------------ | --------------------------------- | --------------------------------------------------------------- |
+| `` t`…` ``                     | `` t`…` ``                        | Writes a `Message` as JSON instead of the rendered text.        |
+| `plural`, `select`             | the same                          | The same.                                                       |
+| `t({ message, context })`      | `` Message.context(context)`…` `` | A tag of its own for each context.                              |
+| ICU MessageFormat              | MessageFormat 2                   | Rendered by the `messageformat` library.                        |
+| `locales/<locale>/messages.po` | `locale/<tag>.json`               | JSON, with machine translations marked as `drafts`.             |
+| `i18n.number`, `i18n.date`     | `Localization.number`, `date`, …  | Adds `money` in minor units and `relative` in the largest unit. |
