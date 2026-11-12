@@ -1,19 +1,25 @@
 import { Directory } from "@destack/account/address";
-import { BuildStore, PackageClient } from "@destack/build/store";
+import { BuildObject, BuildStore, PackageClient } from "@destack/build/store";
 import { Claim, ClaimLookup, claimTable } from "@destack/object";
 import { type PackageId, PackageName, PackageRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
-import { BuildReader, type PackageLocation, PackageManifest } from "@destack/package/manifest";
-import { type Digest, type Identifier, schema } from "@destack/schema";
+import {
+    BuildReader,
+    Lock,
+    type PackageLocation,
+    PackageManifest,
+} from "@destack/package/manifest";
+import { Digest, type Identifier, nth, present, schema } from "@destack/schema";
 import type { Fetch } from "@destack/object";
 import { createClient } from "@destack/object/client";
-import { Failure } from "@destack/error";
 import { RegistryError } from "../error/index.ts";
 import { packageObject } from "../object/index.ts";
 import registryPackage from "../package.ts";
 import type { Environment } from "@destack/environment";
 import type { Lease } from "@destack/resource";
 import { RequestId } from "@destack/sync";
+import { TarballEntry } from "@destack/package/archive";
+import type { Runtime } from "@destack/package/runtime";
 
 /** The forge a caller calls for a package. */
 type ForgeEndpoint = {
@@ -24,6 +30,12 @@ type ForgeEndpoint = {
     /** Fetch from it as the caller. */
     readonly fetch: Fetch;
 };
+
+/** The store a publisher pushes and releases locks from. */
+type LockStore = Pick<
+    BuildStore,
+    "closure" | "contents" | "get" | "head" | "lock" | "putLock" | "read"
+>;
 
 /** Whose forge a caller calls: a package's publisher's, or an account's. */
 type ForgeOwner = { readonly package: PackageId } | { readonly account: Identifier<"account"> };
@@ -117,165 +129,168 @@ export class Registry {
         return client.repository.open({ spaceId: forge.space, id: repositoryId, mode: "read" });
     }
 
-    /** Find the digest of the manifest of a shipped release, or of a package's published one. */
+    /** Find the digest of the lock of a shipped release, or of a package's published one. */
     async find(packageId: PackageId, release: string): Promise<Digest> {
         // take a shipped release first, a dev build of it among them
         const shipped = PackageRelease.select(this.#releases, packageId, release);
         if (shipped !== undefined) {
-            return shipped.manifest;
+            return shipped.lock;
         }
 
         // resolve the release at its forge
-        const { manifest } = await this.resolve(packageId, release);
+        const { lock } = await this.resolve(packageId, release);
 
-        return manifest;
+        return lock;
     }
 
-    /** Push a stored build and its npm units to its package's forge. */
+    /** Push a stored lock and the builds it lists to its account's forge, staging it unreleased. */
     async push(
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
+        store: LockStore,
+        lock: Digest,
+        account: Identifier<"account">,
         signal?: AbortSignal,
-    ): Promise<Digest> {
-        // find the forge of the build's package
-        const build = await store.contents(manifest);
-        const packageId = PackageManifest.package(build.manifest).id;
-        const forge = await this.#find({ package: packageId });
-        await Registry.#push(forge, store, manifest, packageId, signal, this.#environment);
-
-        return manifest;
-    }
-
-    /** Release a stored build under a tag at its account's forge, or point the tag at it. */
-    async release(
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
-        account: Identifier<"account">,
-        tag: string,
-    ): Promise<"released" | "pointed"> {
-        // create the build's package once at the account's forge
-        const build = await store.contents(manifest);
-        const { id, name, version } = PackageManifest.package(build.manifest);
+    ): Promise<void> {
+        // push the lock's objects below the account's handle
+        const read = await store.lock(lock);
+        const { handle } = PackageName.split(
+            PackageManifest.package(await store.get(read.root)).name,
+        );
         const forge = await this.#find({ account });
-        const client = createClient(registryPackage, forge, this.#environment);
-        const spaceId = forge.space;
-        await client.package.create({
-            spaceId,
-            requestId: RequestId.create(this.#environment),
-            id,
-            accountId: account,
-            name: PackageName.split(name).local,
-        });
-
-        // read the release the forge has at the version
-        const listed = await client.release.list({
-            spaceId,
-            where: { parentId: id, version },
-            limit: 1,
-        });
-        const [published] = listed.items;
-
-        // push and release a version the forge lacks, under the tag
-        if (published === undefined) {
-            await Registry.#push(forge, store, manifest, id, undefined, this.#environment);
-            await client.release.create({
-                spaceId,
-                requestId: RequestId.create(this.#environment),
-                parentId: id,
-                manifest,
-                tag,
-            });
-
-            return "released";
-        }
-        // refuse a version the forge has from another build
-        else if (published.manifest !== manifest) {
-            throw RegistryError.of(
-                "RELEASE_EXISTS",
-                `release '${name}@${version}' already exists: another build published it`,
-            );
-        }
-        // point the tag at the version the forge has from this build
-        else {
-            await client.package.point({
-                spaceId,
-                id,
-                requestId: RequestId.create(this.#environment),
-                name: tag,
-                version,
-            });
-
-            return "pointed";
-        }
+        await Registry.#uploads(forge, handle, this.#environment).push(store, [lock], signal);
     }
 
-    /** Publish a stored build under a tag, after the account's unpublished builds it pins. */
-    async publish(
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
+    /** Release stored locks' roots under a tag at their account's forge, required ones first. */
+    async release(
+        store: LockStore,
+        locks: readonly Digest[],
         account: Identifier<"account">,
         tag: string,
+        commit?: string,
     ): Promise<readonly PackageRelease[]> {
-        // order the build's closure with each dependency before the builds pinning it
-        const root = PackageManifest.package((await store.contents(manifest)).manifest);
-        const { handle } = PackageName.split(root.name);
-        const ordered = await BuildStore.ordered(store, [manifest]);
+        // read each lock and its root's package
+        const read = await Promise.all(locks.map((lock) => store.lock(lock)));
+        const roots = new Map<Digest, PackageRelease>();
+        for (const [index, each] of read.entries()) {
+            const own = PackageManifest.package(await store.get(each.root));
+            roots.set(each.root, { lock: nth(locks, index), package: own });
+        }
+        if (roots.size === 0) {
+            return [];
+        }
 
-        // release the account's builds the forge lacks, and require every other one published
+        // push every lock's objects once below the account's handle
+        const { handle } = PackageName.split(nth([...roots.values()], 0).package.name);
+        const forge = await this.#find({ account });
+        await Registry.#uploads(forge, handle, this.#environment).push(store, locks);
+        const merged = Lock.of(
+            nth(read, 0).root,
+            Object.fromEntries(read.flatMap((each) => Object.entries(each.builds))),
+        );
+
+        // publish a layer at a time
         const released: PackageRelease[] = [];
-        for (const digest of ordered) {
-            const built = PackageManifest.package((await store.contents(digest)).manifest);
-            if (PackageName.split(built.name).handle === handle) {
-                const outcome = await this.release(store, digest, account, tag);
-                released.push(
-                    ...(outcome === "released" ? [{ package: built, manifest: digest }] : []),
-                );
-            } else {
-                await this.#requirePublished(built, digest);
-            }
+        for (const layer of Lock.layers(merged)) {
+            const outcomes = await Promise.all(
+                layer.flatMap((digest) => {
+                    const root = roots.get(digest);
+
+                    return root === undefined
+                        ? []
+                        : [this.#publish(forge, root, account, tag, commit)];
+                }),
+            );
+            released.push(...outcomes);
         }
 
         return released;
     }
 
-    /** Refuse a build of another account that its forge has not released at its version. */
-    async #requirePublished(built: PackageRelease["package"], manifest: Digest): Promise<void> {
-        // read the published build of its version, none where its forge has no such release
-        const published = await this.find(built.id, built.version).catch((error: unknown) => {
-            if (Failure.of(error).code !== "NOT_FOUND") {
-                throw error;
+    /** Release the account's packages in a stored lock under a tag, each under its own lock. */
+    async publish(
+        store: LockStore,
+        lock: Digest,
+        account: Identifier<"account">,
+        tag: string,
+        commit?: string,
+    ): Promise<readonly PackageRelease[]> {
+        // lock each of the account's Destack builds within the lock
+        const read = await store.lock(lock);
+        const { handle } = PackageName.split(
+            PackageManifest.package(await store.get(read.root)).name,
+        );
+        const owned: Digest[] = [];
+        for (const digest of Lock.builds(read)) {
+            const manifest = await store.get(digest);
+            if (
+                PackageManifest.isPackage(manifest) &&
+                PackageName.split(manifest.package.name).handle === handle
+            ) {
+                owned.push(await store.putLock(Lock.at(read, digest)));
             }
-
-            return undefined;
-        });
-
-        // refuse a version unpublished, or published from another build
-        if (published !== manifest) {
-            throw RegistryError.of(
-                "DEPENDENCY_BLOCKED",
-                `cannot publish this build: dependency '${built.name}@${built.version}' is not published`,
-            );
         }
+
+        return await this.release(store, owned, account, tag, commit);
     }
 
-    /** Push a stored build and its npm units below its package at a forge. */
-    static async #push(
+    /** Publish a pushed lock as its package's release, creating the package the first time. */
+    async #publish(
         forge: ForgeEndpoint,
-        store: Pick<BuildStore, "contents" | "units">,
-        manifest: Digest,
-        packageId: PackageId,
-        signal: AbortSignal | undefined,
-        environment: Environment,
-    ): Promise<void> {
-        // upload below the package, which its forge stages for a publisher to release
-        const uploads = `${forge.url}${registryPackage.mounts.builds.path}/${packageId}/`;
-        const client = new PackageClient(uploads, forge.fetch, environment);
+        root: PackageRelease,
+        account: Identifier<"account">,
+        tag: string,
+        commit: string | undefined,
+    ): Promise<PackageRelease> {
+        await createClient(registryPackage, forge, this.#environment).package.publish({
+            spaceId: forge.space,
+            requestId: RequestId.create(this.#environment),
+            packageId: root.package.id,
+            accountId: account,
+            name: PackageName.split(root.package.name).local,
+            lock: root.lock,
+            ...(commit === undefined ? {} : { commit }),
+            tag,
+        });
 
-        // push each npm unit, then the build
-        const units = await store.units(manifest, packageId);
-        for (const subject of [...units, manifest]) {
-            await client.push(await store.contents(subject), signal);
+        return root;
+    }
+
+    /** Open the upload endpoint below an account's handle at its forge. */
+    static #uploads(forge: ForgeEndpoint, handle: string, environment: Environment): PackageClient {
+        const uploads = `${forge.url}${registryPackage.mounts.builds.path}/${handle}/`;
+
+        return new PackageClient(uploads, forge.fetch, environment);
+    }
+
+    /** Pull a published lock into a store for some runtimes, refusing another package's root. */
+    async pull(
+        store: Pick<BuildStore, "get" | "lock" | "pull">,
+        packageId: PackageId,
+        lock: Digest,
+        runtimes: readonly Runtime[] | "all",
+    ): Promise<Lock> {
+        // pull the lock, reaching its package's forge only for what the store lacks
+        const root = { kind: "lock", digest: lock } as const;
+        const open = () => this.store(packageId, root);
+        const source = {
+            async *read(objects: readonly Pick<BuildObject, "kind" | "digest">[]) {
+                if (objects.length > 0) {
+                    yield* (await open()).read(objects);
+                }
+            },
+        };
+        await store.pull(source, root, runtimes);
+        const pulled = await store.lock(lock);
+
+        // require its root to be a build of the package
+        const built = PackageManifest.package(await store.get(pulled.root));
+        if (built.id !== packageId) {
+            throw RegistryError.of(
+                "MANIFEST_INVALID",
+                `lock '${lock}' is invalid: its root is a build of '${built.name}' instead of the requested package`,
+            );
         }
+
+        return pulled;
     }
 
     /** Locate the files of a package's published build by its manifest's digest. */
@@ -295,6 +310,17 @@ export class Registry {
             },
             fetch: (input, request) => forge.fetch(new Request(input.href, request)),
         };
+    }
+
+    /** Open a published lock's or build's objects at its package's forge, as a build store. */
+    async store(
+        packageId: PackageId,
+        root: Pick<BuildObject, "kind" | "digest">,
+    ): Promise<PackageClient> {
+        const forge = await this.#find({ package: packageId });
+        const url = `${forge.url}${registryPackage.mounts.builds.path}/${BuildObject.path(root)}/`;
+
+        return new PackageClient(url, forge.fetch, this.#environment);
     }
 
     /** Read the build a published build attached at a path, such as its runtime build. */
@@ -337,22 +363,12 @@ export class Registry {
         return reader;
     }
 
-    /** Open the build the forge serves by its digest, refusing another package's build. */
+    /** Open a build the forge serves by its digest, among the builds a package's locks list. */
     async #open(packageId: PackageId, manifest: Digest): Promise<BuildReader> {
         // read the build the forge serves by its manifest's digest
         const { location, fetch } = await this.locate(packageId, manifest);
-        const reader = await BuildReader.open(location, fetch, this.#environment.crypto);
 
-        // require a build of the package
-        const built = PackageManifest.package(reader.manifest);
-        if (built.id !== packageId) {
-            throw RegistryError.of(
-                "MANIFEST_INVALID",
-                `build '${manifest}' is invalid: it is a build of '${built.name}' instead of the requested package`,
-            );
-        }
-
-        return reader;
+        return await BuildReader.open(location, fetch, this.#environment.crypto);
     }
 
     /** The releases the machine's distribution ships, run by scopes that install none of them. */
@@ -362,6 +378,22 @@ export class Registry {
 
     /** Open the build of a package's published release, by its version or a distribution tag. */
     async open(packageId: PackageId, release: string): Promise<BuildReader> {
-        return this.read(packageId, await this.find(packageId, release));
+        // read the release's lock from its forge, then open its root build
+        const digest = await this.find(packageId, release);
+        const source = await this.store(packageId, { kind: "lock", digest });
+        let bytes: Uint8Array<ArrayBuffer> | undefined;
+        for await (const entry of source.read([{ kind: "lock", digest }])) {
+            bytes = await TarballEntry.bytes(entry);
+        }
+        const read = present(bytes, `lock '${digest}'`);
+        if ((await Digest.of(read, this.#environment.crypto)) !== digest) {
+            throw RegistryError.of(
+                "MANIFEST_INVALID",
+                `lock '${digest}' is invalid: its bytes do not match its digest`,
+            );
+        }
+        const lock = Lock.parse(JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(read)));
+
+        return this.read(packageId, lock.root);
     }
 }

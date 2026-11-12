@@ -13,28 +13,26 @@ function finance(version: string) {
     });
 }
 
-test("answer a shipped version exactly and a shipped release by its newest dev build, and ask the forges for any other release or tag", async () => {
-    // ship two dev builds of one release beside forges that refuse every call, naming the release
+test("answer a shipped release by its version or prerelease, and ask the forges for any other release or tag", async () => {
+    // ship a prerelease beside forges that refuse every call
     const environment = testSimulation().environment("registry");
+    const prerelease = "2026.9.0-dev.20260912100000.0123456789ab";
     const registry = new Registry(
         (owner) => Promise.reject(new TypeError(`asked the forge of ${JSON.stringify(owner)}`)),
         environment,
-        [
-            { package: finance("2026.9.0-dev.1"), manifest: Digest.parse("1".repeat(64)) },
-            { package: finance("2026.9.0-dev.2"), manifest: Digest.parse("2".repeat(64)) },
-        ],
+        [{ package: finance(prerelease), lock: Digest.parse("1".repeat(64)) }],
     );
     const { id } = finance("2026.9.0");
     const asked = `asked the forge of ${JSON.stringify({ package: id })}`;
 
-    // find the shipped ones without a forge, and ask the publisher's forge for the others
+    // find the shipped one without a forge
     expect({
         shipped: await registry.find(id, "2026.9.0"),
-        exact: await registry.find(id, "2026.9.0-dev.1"),
+        exact: await registry.find(id, prerelease),
         other: await registry.find(id, "2026.10.0").catch((error: unknown) => String(error)),
         tag: await registry.find(id, "latest").catch((error: unknown) => String(error)),
     }).toEqual({
-        shipped: "2".repeat(64),
+        shipped: "1".repeat(64),
         exact: "1".repeat(64),
         other: `TypeError: ${asked}`,
         tag: `TypeError: ${asked}`,
