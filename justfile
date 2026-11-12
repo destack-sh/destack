@@ -93,7 +93,12 @@ gate +directories:
         echo "gate $directory"
         cd "{{justfile_directory()}}/$directory"
         bun run destack-check format-check
-        bunx tsc --noEmit -p .
+        # typecheck through the package's script, which also compiles its README listings
+        if [ -n "$(jq -r '.scripts.typecheck // ""' package.json)" ]; then
+            bun run typecheck
+        else
+            bunx tsc --noEmit -p .
+        fi
         bun run destack-check check
         # run vitest suites on the workers, and other test scripts as written
         test="$(jq -r '.scripts.test // ""' package.json)"
