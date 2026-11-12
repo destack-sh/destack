@@ -90,11 +90,24 @@ export class ArtifactsStorage implements GitStorage {
         return `${prefix}${NAME_SEPARATOR}${id}`;
     }
 
-    /** Create an empty repository and answer the remote Artifacts gives it. */
+    /** Create an empty repository, or leave an existing one, and answer its remote. */
     async create(id: string): Promise<string> {
-        // create the repository under its name
+        // create the repository under its name, answering an existing one's remote
         const name = ArtifactsStorage.name(this.#prefix, id);
-        const created = ArtifactsRepository.parse(await this.#namespace.create(name));
+        const answered = await this.#namespace.create(name).catch(async (error: unknown) => {
+            if (
+                typeof error === "object" &&
+                error !== null &&
+                "code" in error &&
+                error.code === "ALREADY_EXISTS"
+            ) {
+                using existing = await this.#namespace.get(name);
+
+                return { name, remote: existing.remote };
+            }
+            throw error;
+        });
+        const created = ArtifactsRepository.parse(answered);
 
         // refuse a repository created under another name
         if (created.name !== name) {

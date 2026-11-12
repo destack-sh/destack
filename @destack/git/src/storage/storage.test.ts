@@ -52,9 +52,11 @@ test("create a local repository, push a branch and a tag into it, list them and 
     ]);
 
     // refuse names leaving the directory, and delete the repository twice
-    await expect(storage.create("../escape")).rejects.toThrow(
-        "invalid local repository name: '../escape'",
-    );
+    expect(await refusal(storage.create("../escape"))).toEqual([
+        "BAD_REQUEST",
+        "NAME_INVALID",
+        "repository name '../escape' is invalid: it must be letters, digits, '_' and '-', starting with a letter or digit",
+    ]);
     await storage.delete(id);
     await storage.delete(id);
     expect(await host.files.readDirectory(storage.directory)).toEqual([]);
@@ -83,7 +85,7 @@ test("parse the reference advertisement git upload-pack serves, peeling annotate
     expect(await storage.references("repository-advertised")).toEqual(listing);
 });
 
-test("create, list, lease and delete an Artifacts repository through its namespace binding, refusing a second create", async () => {
+test("create, list, lease and delete an Artifacts repository through its namespace binding, leaving it on a second create", async () => {
     // store one repository's history for the remote to advertise
     const history = new History();
     history.commit("main", "README.md", "# Site\n");
@@ -101,11 +103,11 @@ test("create, list, lease and delete an Artifacts repository through its namespa
         });
     };
 
-    // create the repository, refuse it again, list its branch, lease push access and delete it twice
+    // create the repository, leave it on a second create, list its branch, lease push access and delete it twice
     const namespace = new TestArtifactsNamespace();
     const storage = new ArtifactsStorage(namespace, "git-site", fetch);
     const remote = await storage.create("repository-site");
-    const duplicate = await storage.create("repository-site").catch((error: unknown) => error);
+    const again = await storage.create("repository-site");
     const listing = await storage.references("repository-site");
     const lease = await storage.open("repository-site", "write");
     await storage.delete("repository-site");
@@ -113,9 +115,9 @@ test("create, list, lease and delete an Artifacts repository through its namespa
 
     // answer the remote Artifacts gave, and lease it with Bearer tokens Artifacts issued
     const created = "https://acme.artifacts.cloudflare.net/git/sites/git-site.repository-site.git";
-    expect([remote, duplicate, listing, lease]).toEqual([
+    expect([remote, again, listing, lease]).toEqual([
         created,
-        artifactsError("ALREADY_EXISTS", "git-site.repository-site"),
+        created,
         {
             defaultReference: "refs/heads/main",
             references: [{ name: "refs/heads/main", object: commit, commit }],
@@ -133,6 +135,8 @@ test("create, list, lease and delete an Artifacts repository through its namespa
         [
             ["create", "git-site.repository-site"],
             ["create", "git-site.repository-site"],
+            ["get", "git-site.repository-site"],
+            ["dispose"],
             ["get", "git-site.repository-site"],
             ["createToken", "read", 3600],
             ["dispose"],

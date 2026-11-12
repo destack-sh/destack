@@ -4,6 +4,9 @@ import type {} from "@destack/package/import-meta";
 /** The git package's failures, each reason with the call error code it answers. */
 export const GitError = defineErrorFamily({
     reasons: {
+        // invalid
+        NAME_INVALID: {},
+
         // unreachable
         ADVERTISEMENT_UNREACHABLE: {},
         ARTIFACT_NAME_UNREACHABLE: {},

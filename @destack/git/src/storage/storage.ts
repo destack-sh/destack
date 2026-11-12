@@ -65,7 +65,7 @@ export const GitCredential = Object.assign(credential, {
 export interface GitStorage {
     /** The provider name repositories stored here record. */
     readonly provider: string;
-    /** Create an empty repository and answer its credential-free remote. */
+    /** Create an empty repository, or leave an existing one, and answer its remote. */
     readonly create: (id: string) => Promise<string>;
     /** Delete a repository and its history, accepting one already gone. */
     readonly delete: (id: string) => Promise<void>;

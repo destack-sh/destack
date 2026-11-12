@@ -5,6 +5,7 @@ import type { Connector, Lease, LeaseMode } from "@destack/resource";
 import { found, Uuid, zip } from "@destack/schema";
 import type { GitListing, GitReference, GitStorage } from "../storage/index.ts";
 import { Git } from "./git.ts";
+import { GitError } from "../error/index.ts";
 
 /** The provider and connector code of local Git storage. */
 export const LOCAL_PROVIDER = "local";
@@ -185,7 +186,10 @@ export class LocalGitStorage implements GitStorage {
     /** Locate a repository's directory and refuse names outside the storage directory. */
     #path(name: string): string {
         if (!NAME.test(name)) {
-            throw new TypeError(`invalid local repository name: '${name}'`);
+            throw GitError.of(
+                "NAME_INVALID",
+                `repository name '${name}' is invalid: it must be letters, digits, '_' and '-', starting with a letter or digit`,
+            );
         }
 
         return join(this.directory, `${name}.git`);
