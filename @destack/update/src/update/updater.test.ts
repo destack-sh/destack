@@ -396,7 +396,15 @@ test("preserve the installed release when signed replacements contradict its ide
         5,
         repository.root,
         repository.keys,
-        [{ kind: "release", target, version: "2026.9.2-dev.1", commit: COMMIT, directory: source }],
+        [
+            {
+                kind: "release",
+                target,
+                version: "2026.9.2-dev.20260912100001.0123456789ab",
+                commit: COMMIT,
+                directory: source,
+            },
+        ],
         repository.environment,
     );
     {
@@ -404,7 +412,7 @@ test("preserve the installed release when signed replacements contradict its ide
         expect(await refusal(updater.check())).toEqual([
             "INTERNAL_SERVER_ERROR",
             "RELEASE_BROKEN",
-            "could not use dev build '2026.9.2-dev.1' from the feed",
+            "could not use dev build '2026.9.2-dev.20260912100001.0123456789ab' from the feed",
         ]);
         expect(await updater.current()).toEqual(installed);
         expect(await updater.staged()).toBeUndefined();
