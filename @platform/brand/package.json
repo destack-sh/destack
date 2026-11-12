@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Destack's mark, wordmarks, app icons, favicons and social banners.",
+    "description": "Draw Destack's brand: its mark, wordmarks, app icons, favicons and social banners.",
     "exports": {
         "./mark.svg": "./mark.svg",
         "./icon/*": "./icon/*",
