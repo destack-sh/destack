@@ -170,15 +170,18 @@ jobs:
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
+            - name: Pack toolchain
+              # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
+              env:
+                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+              run: tar -cf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" .
             - name: Upload unsigned toolchain
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: toolchain-unsigned-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  path: ${{ runner.temp }}/toolchain.tar
                   if-no-files-found: error
-                  # carry the dotfiles the toolchain's manifest lists, such as a dependency's .babelrc
-                  include-hidden-files: true
 
     sign:
         name: Sign distribution (${{ matrix.target }})
@@ -215,7 +218,11 @@ jobs:
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: toolchain-unsigned-${{ matrix.target }}
-                  path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  path: ${{ runner.temp }}
+            - name: Unpack toolchain
+              env:
+                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+              run: mkdir -p "$TOOLCHAIN" && tar -xf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" && rm "$RUNNER_TEMP/toolchain.tar"
             - name: Prepare Apple signing credentials
               if: matrix.signer == 'apple'
               uses: ./.github/actions/setup-apple
@@ -237,15 +244,18 @@ jobs:
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/*.tar.gz
                   if-no-files-found: error
+            - name: Pack toolchain
+              # a tarball keeps every file the manifest lists, dotfiles included, which directory artifacts drop
+              env:
+                  TOOLCHAIN: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+              run: tar -cf "$RUNNER_TEMP/toolchain.tar" -C "$TOOLCHAIN" .
             - name: Upload signed toolchain
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: toolchain-signed-${{ matrix.target }}
                   retention-days: 14
-                  path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
+                  path: ${{ runner.temp }}/toolchain.tar
                   if-no-files-found: error
-                  # carry the dotfiles the toolchain's manifest lists, such as a dependency's .babelrc
-                  include-hidden-files: true
             - name: Remove Apple signing credentials
               if: always() && matrix.signer == 'apple'
               run: bun run src/main.ts signing credential remove
@@ -357,6 +367,14 @@ jobs:
               with:
                   pattern: toolchain-unsigned-${{ needs.prepare.outputs.unsigned }}
                   path: dist/${{ needs.prepare.outputs.version }}/toolchain
+            - name: Unpack toolchains
+              env:
+                  TOOLCHAINS: dist/${{ needs.prepare.outputs.version }}/toolchain
+              run: |
+                  for directory in "$TOOLCHAINS"/*/; do
+                      tar -xf "$directory/toolchain.tar" -C "$directory"
+                      rm "$directory/toolchain.tar"
+                  done
             - name: Attest build provenance of the archives and installers
               uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
               with:
