@@ -2,12 +2,13 @@
     "name": "@platform/release",
     "version": "2026.11.0",
     "type": "module",
+    "description": "Ship Destack: build, sign and publish the desktop, the CLI and the machine as one distribution, and deploy the operated platform.",
     "exports": {
         "./catalog": "./src/distribution/catalog.ts",
         "./deployment/universe": "./src/deployment/cloudflare/universe.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun run src/main.ts platform format-check && bun run src/main.ts platform validate && bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
