@@ -4,6 +4,7 @@
     "type": "module",
     "license": "Apache-2.0",
     "sideEffects": false,
+    "description": "Decide who may do what to each object, and share, delegate and revoke that access.",
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
@@ -25,7 +26,7 @@
         "@types/bun": "1.4.4"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }

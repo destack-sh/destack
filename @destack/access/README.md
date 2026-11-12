@@ -1,176 +1,360 @@
 # @destack/access
 
-`Policy` is a SpiceDB schema definition (`relation`, `permission`, `union` as `+`, `intersection` as `&`, `exclusion` as `-`, `through` as the `->` arrow, `members` as a subject set, `resource` and `context` as caveats), `Authorizer` is SpiceDB's `CheckPermission`, `LookupSubjects` and `LookupResources` compiled to SQL over the object's own database, and `elevated` is RFC 9470 step-up authentication.
+Decide who may do what to each object, and share, delegate and revoke that access.
+
+## Overview
+
+`@destack/access` is SpiceDB's model in the space's own database: policies, relationships as rows, and authorization in the same transaction.
+
+Packages declare access per object type:
+
+- `Policy`: the relations and permissions of one object type, built from `relation`, `union`, `through` and the other expressions.
+
+Servers decide each call:
+
+- `Authorizer`: checks, requires and explains a caller's permissions.
+- `Authorization`: one caller's changes in one transaction.
+
+People share and delegate:
+
+- `Relationship`: a subject related to an object, such as `alice` as a note's `editor`.
+- `Role`: a named set of permissions in a scope, bound to subjects.
+- `Grant`: permissions a delegate, such as an agent, uses on someone's behalf.
+- `Invitation`: a relationship that applies once accepted.
+
+Declare a policy, share a note with Bob, then require read access:
 
 ```ts
-// owner + editor + parent->read
-read: union(relation("owner"), relation("editor"), through("parent", "read"));
-// user | folder#read
-const reader = { subjects: [principal.user, folder.members("read")] };
-edit: intersection(relation("editor"), resource({ team: sql.placeholder("team") })); // a caveat
-await authorizer.check(snapshot, page.permission("edit"), target, access); // CheckPermission
-// LookupSubjects
-await authorizer.subjects(snapshot, page.permission("read"), target, type, Date.now(), {
-    limit: 50,
-});
-// LookupResources as SQL
-await database
-    .select()
-    .from(pages)
-    .where(authorizer.where(page.permission("read"), access));
-await Relationship.grant({ object: page, relation: "editor", subject }, authorization); // WriteRelationships
-```
+import {
+    AccessContext,
+    Authorization,
+    type AuthorizationEnvironment,
+    Authorizer,
+    Caller,
+    Policy,
+    principal,
+    Relationship,
+    relation,
+    union,
+} from "@destack/access";
+import { type DatabaseConnection, Snapshot } from "@destack/db";
+import type { ObjectReference, Subject } from "@destack/sync";
 
-## Policies
-
-A `Policy` declares an object type's relations and permissions, `self()` allows the principal an object represents, `onDelete: "cascade"` removes rows with their subject, and `elevated` asks for a recent stronger sign-in.
-
-```ts
+// declare who may read and share a note
 export const note = new Policy(import.meta.destack.package, {
     name: "note",
     relations: {
         owner: { subjects: [principal.user], grantedBy: null },
-        editor: { subjects: [principal.user, group.members("member")] },
-        parent: { subjects: ["note"], grantedBy: null, onDelete: "cascade" },
+        editor: { subjects: [principal.user] },
+    },
+    permissions: { read: union(relation("owner"), relation("editor")), share: relation("owner") },
+    grantedBy: "share",
+});
+
+/** Share a note with Bob as Alice, then require that Alice may still read it. */
+export async function shareNote(
+    authorizer: Authorizer,
+    database: DatabaseConnection,
+    environment: AuthorizationEnvironment,
+    alice: Subject,
+    bob: Subject,
+    target: ObjectReference,
+) {
+    // make Bob an editor as Alice
+    const context = AccessContext.of(Caller.of(alice), Date.now());
+    await Authorization.run(
+        authorizer,
+        database,
+        () => context,
+        environment,
+        (authorization) =>
+            Relationship.grant({ object: target, relation: "editor", subject: bob }, authorization),
+    );
+
+    // require that Alice may read
+    const snapshot = Snapshot.live(database);
+    const access = await authorizer.resolve(snapshot, target.scope, context);
+    await authorizer.require(snapshot, [note.permission("read")], target, access);
+}
+```
+
+## Reference
+
+### Policy
+
+`new Policy(owner, { name, relations, permissions, … })` declares an object type's access.
+
+| Field                   | What it is                                                                 |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `relations`             | relations by name, each `{ subjects, grantedBy, isRequired, onDelete, … }` |
+| `permissions`           | permissions by name, each an expression below                              |
+| `grantedBy`             | the permission that grants relations and binds roles by default            |
+| `attributes`, `context` | the object and request attributes conditions read                          |
+| `elevated`              | permissions that need a recent stronger sign-in, `{ assurance, maxAge }`   |
+| `reserved`              | permissions owner roles leave out                                          |
+| `suspended`, `moving`   | permissions left while the scope is suspended or moving                    |
+| `scope`, `partition`    | whether its objects are scopes, and whether each is a partition            |
+
+Permissions are expressions over relations, as in SpiceDB's schema language:
+
+| Expression                                 | Permits                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------- |
+| `relation(name)`                           | the subjects of a relation                                          |
+| `permission(name)`                         | whoever has another permission on the same object                   |
+| `union(…)`, `intersection(…)`              | whoever any, or every, expression permits                           |
+| `exclusion(include, exclude)`              | whoever one permits and the other doesn't                           |
+| `through(relation, permission)`            | whoever has a permission on the related object, as SpiceDB's `->`   |
+| `contained(…)`                             | the principals inside a scope and its enclosed scopes               |
+| `subjectSet(…)`                            | the members of an object's subject set, such as a group             |
+| `self()`                                   | the principal the object is                                         |
+| `resource(where)`, `context(where)`        | objects, or requests, whose attributes meet a condition             |
+| `grantersOf(field)`, `readersOf(field, …)` | who may grant on, or sees the relationships of, a referenced object |
+| `none()`                                   | nobody, so only roles grant it                                      |
+
+### Authorizer
+
+An authorizer decides permissions over a database's policies and relationships.
+
+| Verb                                             | What it does                                                                 |
+| ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `resolve(snapshot, scope, context)`              | resolves a caller's `Access` in a scope: subject sets, roles and scope chain |
+| `check(snapshot, permission, target, access)`    | decides one permission on one object, and until when                         |
+| `require(snapshot, permissions, target, access)` | throws for the first permission the caller lacks                             |
+| `explain(snapshot, permission, target, access)`  | lists the gate and each grant that decided it                                |
+| `candidates(…)`, `visibility(…)`                 | turns a permission into SQL over a table, for list queries                   |
+| `subjects(…)`                                    | lists the principals with a permission on an object                          |
+
+### Authorization
+
+`Authorization.run(authorizer, database, context, environment, call)` runs a call as one caller in a transaction.
+Each change requires the caller's permission.
+
+### Relationship, Role, Grant and Invitation
+
+These run as the caller of an `Authorization`.
+
+| Verb                                                     | What it does                                                                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `Relationship.grant(request, authorization)`             | relates a subject to an object by a relation or role                                                                 |
+| `Relationship.revoke(…)`, `Relationship.replace(…)`      | revokes one relationship, or replaces a set with exactly the wanted ones                                             |
+| `Role.create(scope, request, authorization)`             | defines a role with permissions the caller has there                                                                 |
+| `Role.update(…)`, `Role.delete(…)`                       | changes or deletes a role                                                                                            |
+| `Role.declare(scope, declaration, authorization)`        | declares a role: exactly its permissions and subjects, removed once it grants none, as Kubernetes' server-side apply |
+| `Role.assign(scope, role, subjects, authorization)`      | binds a role to exactly some subjects                                                                                |
+| `Grant.create(delegator, request, authorization)`        | lets a delegate use some of the delegator's permissions                                                              |
+| `Grant.act(snapshot, { delegator, delegate }, now)`      | gives the caller acting for a delegator within its grant                                                             |
+| `Grant.revoke(delegator, grant, authorization)`          | revokes a grant                                                                                                      |
+| `Invitation.create(request, authorization)`              | invites a relationship that applies once accepted                                                                    |
+| `Invitation.accept(id, …)`, `Invitation.withdraw(id, …)` | accepts or withdraws an invitation                                                                                   |
+
+## Examples
+
+### Declare nested permissions
+
+`through` follows a relation, so a folder's readers can read its pages.
+
+```ts
+import { Policy, principal, relation, through, union } from "@destack/access";
+
+// declare folders
+export const folder = new Policy(import.meta.destack.package, {
+    name: "folder",
+    relations: { owner: { subjects: [principal.user], grantedBy: null } },
+    permissions: { read: relation("owner"), delete: relation("owner") },
+});
+
+// declare pages in folders, deleted after a recent strong sign-in
+export const page = new Policy(import.meta.destack.package, {
+    name: "page",
+    relations: {
+        owner: { subjects: [principal.user], grantedBy: null },
+        parent: { subjects: [folder], grantedBy: null, onDelete: "cascade" },
     },
     permissions: {
-        read: union(relation("owner"), relation("editor"), through("parent", "read")),
-        share: relation("owner"),
+        read: union(relation("owner"), through("parent", "read")),
         delete: relation("owner"),
     },
-    grantedBy: "share",
     elevated: { delete: { assurance: 2, maxAge: 15 * 60 * 1000 } },
 });
 ```
 
-## Callers
+### Invite someone
 
-A `Caller` is who calls, a `Credential` is what its request presented, a verifier answers both as an `Authentication`, and an `AccessContext` is what the authorizer decides on.
-
-```ts
-const { caller, credential } = await verifier.verify(token, now);
-const context = AccessContext.of(caller, now, { credential, linkSecrets });
-const own = AccessContext.of(Caller.of(space), now);
-const applying = AccessContext.of(caller, now, { approvers }); // lifts grants their delegator approved, roles by others' count
-AccessContext.assurance(context);
-await Grant.permissions(snapshot, applying); // what its chain's live grants give it, read from their rows
-Caller.principal(caller);
-```
-
-## Decisions
-
-An `Authorizer` resolves a caller's `Access` in a scope, `require` throws an `AccessError` with the first permission the caller lacks, and each related object's permission is decided with the chain of the scope it lives in, as a direct check of it would.
+An invitation offers a relationship that applies once its addressee accepts it.
 
 ```ts
-const authorizer = new Authorizer(
-    [note],
-    [{ policy: note, table: notes, id: "id", scope: "scope", attributes: {}, relations: {} }],
-);
-const snapshot = Snapshot.live(database);
-const access = await authorizer.resolve(snapshot, spaceId, context);
-await authorizer.require(snapshot, [note.permission("read")], target, access);
-// the gate or failing grants
-await authorizer.explain(snapshot, note.permission("delete"), target, access);
-```
+import { type Authorization, Invitation } from "@destack/access";
+import type { ObjectReference, Subject } from "@destack/sync";
 
-## Changes
-
-An `Authorization` is one caller's session in a transaction: it records scopes, and `Relationship`, `Invitation`, `Role` and `Grant` change access through it, each requiring the caller's permission.
-
-```ts
-await Authorization.run(
-    authorizer,
-    database,
-    () => context,
-    async (authorization) => {
-        // a scope created here, then born at its home below its account
-        await authorization.create(space, { owner: alice });
-        await authorization.receive(space, [accountId], { owner: alice });
-        await authorization.remove(space);
-        await Relationship.revoke(page, relationshipId, authorization);
-        // a share link
-        const { id, secret } = await Relationship.link(
-            { object: page, relation: "viewer" },
-            authorization,
-        );
-        const offer = await Invitation.create(
-            { relationship: { object: page, relation: "editor", subject: contact } },
-            authorization,
-        );
-        await Invitation.accept(page, offer.id, authorization);
-    },
-);
-```
-
-## Roles
-
-`Role.create` defines a role granting permissions the caller has, `Role.upsert` creates or updates a declared role by name, `Role.assign` binds a role to one subject, and `Role.OWNER` is the one owner role of every scope.
-
-```ts
-const role = await Role.create(
-    space,
-    {
-        name: "reviewer",
-        description: "Read and share every note",
-        permissions: [note.permission("read"), note.permission("share")],
-    },
-    authorization,
-);
-await Role.assign(space, role.id, carol, authorization);
-const merging = { ...branch.permission("merge"), approvals: 2 }; // a use waits for two others' approvals
-await authorizer.requiredApprovals(snapshot, merging, access, allows); // 2 for a denied caller its roles give it on approvals
-await Relationship.grant({ object: space, role: Role.OWNER, subject: bob }, authorization);
-```
-
-## Grants
-
-A `Grant` lets a delegate act for its delegator with what both allow, one grant per pair, its RFC 9396 permissions used at once or each once approved; a caller presents its RFC 8693 actor chain with each link's grant by reference, read where decided.
-
-```ts
-const grant = await Grant.create(
-    aliceScope,
-    {
-        delegate: installation,
-        permissions: [
-            { ...note.permission("read"), scope: spaceId, method: "get" },
-            { ...message.permission("send"), mode: "approval" }, // every scope alice reaches, each send approved
-        ],
-    },
-    authorization,
-); // replaces alice's earlier grant to the installation
-GrantPermission.includes(grant.permissions, wanted); // whether the grant covers what a view asks
-GrantPermission.merge(grant.permissions, wanted); // what a grant grown to cover it gives
-const caller = await Grant.act(snapshot, { delegator: alice, delegate: installation }, now);
-// { subject: alice, actors: [installation], grants: [{ id, scope }] }, a sub-agent adding its own link
-await Grant.permissions(snapshot, context); // what every live grant of the chain gives
-await Grant.revoke(aliceScope, grant.id, authorization);
-```
-
-## Requests
-
-A `GrantRequest` declares what each delegator may grant a package or one of its capabilities as a `PermissionSet`: its space at install, each user on use, and `optional` ones each user grants on first use (GitHub App installation and user permissions, Chrome's optional permissions).
-
-```ts
-definePackage({
-    access: {
-        permissions: {
-            space: {
-                space: [note.permission("write")],
-                universe: [user.permission("recipient")],
-            },
-            user: { home: [notification.permission("read")] },
-            optional: { home: [notification.permission("archive")] }, // asked when first used
+/** Invite Dana to edit a note, then accept as Dana. */
+export async function inviteDana(
+    inviter: Authorization,
+    dana: Authorization,
+    note: ObjectReference,
+    subject: Subject,
+) {
+    // offer the relationship for a week
+    const invitation = await Invitation.create(
+        {
+            relationship: { object: note, relation: "editor", subject },
+            purpose: "Review the draft",
         },
-    },
-});
-PermissionSet.grant(set, { space, home: [userId, homeId], account }); // [{ within: "home", permission }, …]
+        inviter,
+    );
+
+    // accept it as the addressee
+    return await Invitation.accept(invitation.id, dana);
+}
 ```
 
-## Tokens
+### Share until a date
 
-`TokenIssuer` issues access tokens carrying an RFC 8693 actor chain and an RFC 9396 grant, `TokenVerifier` verifies them, and `Exchange` asks a call's callee to act for its caller.
+A relationship with `expiresAt` stops applying at that time.
 
 ```ts
-await issuer.issue({ caller, credential }, now); // a caller's verified authentication
-client.notes.list({}, { context: { exchange: Exchange.of(served) } });
+import { type Authorization, Relationship } from "@destack/access";
+import type { ObjectReference, Subject } from "@destack/sync";
+
+/** Let a contractor read a project until the end of the month. */
+export async function shareUntil(
+    authorization: Authorization,
+    project: ObjectReference,
+    contractor: Subject,
+    endOfMonth: number,
+) {
+    await Relationship.grant(
+        { object: project, relation: "reader", subject: contractor, expiresAt: endOfMonth },
+        authorization,
+    );
+}
 ```
+
+### List who may read an object
+
+`subjects` lists the principals of a type with a permission, through groups and roles.
+
+```ts
+import { type Authorizer, type PermissionReference, principal } from "@destack/access";
+import type { Snapshot } from "@destack/db";
+import type { ObjectReference } from "@destack/sync";
+
+/** List the first hundred users who may read a note. */
+export async function readers(
+    authorizer: Authorizer,
+    snapshot: Snapshot,
+    read: PermissionReference,
+    note: ObjectReference,
+) {
+    // read users, by their type's reference
+    const user = { packageId: principal.user.definition.packageId, type: principal.user.name };
+
+    return await authorizer.subjects(snapshot, read, note, user, Date.now(), { limit: 100 });
+}
+```
+
+### Explain a denial
+
+`check` answers a `Decision`, and `explain` lists why each path failed.
+
+```ts
+import type { Access, Authorizer, PermissionReference } from "@destack/access";
+import type { Snapshot } from "@destack/db";
+import type { ObjectReference } from "@destack/sync";
+
+/** Read why a caller may not use a permission on an object, absent when it may. */
+export async function explainDenial(
+    authorizer: Authorizer,
+    snapshot: Snapshot,
+    permission: PermissionReference,
+    target: ObjectReference,
+    access: Access,
+) {
+    // explain only a denial
+    const decision = await authorizer.check(snapshot, permission, target, access);
+    if (decision.isAllowed) {
+        return undefined;
+    }
+
+    return await authorizer.explain(snapshot, permission, target, access);
+}
+```
+
+### Add a reviewer role
+
+A role grants only permissions its creator has.
+
+```ts
+import { type Authorization, type PermissionReference, Role } from "@destack/access";
+import type { ObjectReference, Subject } from "@destack/sync";
+
+/** Let Carol read every note in a space as its reviewer. */
+export async function addReviewer(
+    authorization: Authorization,
+    space: ObjectReference,
+    read: PermissionReference,
+    carol: Subject,
+) {
+    // define the role, then bind it to Carol
+    const request = { name: "reviewer", description: "Read every note", permissions: [read] };
+    const role = await Role.create(space, request, authorization);
+    await Role.assign(space, role.id, [carol], authorization);
+}
+```
+
+### Delegate to an agent
+
+A delegate acts with what both it and the delegator may do.
+
+```ts
+import { type Authorization, Grant, type PermissionReference } from "@destack/access";
+import type { Snapshot } from "@destack/db";
+import type { ObjectReference, Subject } from "@destack/sync";
+
+/** Let an agent read for Alice, act once as her, then revoke it. */
+export async function delegateReading(
+    authorization: Authorization,
+    snapshot: Snapshot,
+    alice: ObjectReference,
+    agent: Subject,
+    read: PermissionReference,
+) {
+    // grant the agent Alice's read permission
+    const grant = await Grant.create(
+        alice,
+        { delegate: agent, permissions: [read] },
+        authorization,
+    );
+
+    // act as Alice, then revoke the grant
+    const caller = await Grant.act(snapshot, { delegator: alice, delegate: agent }, Date.now());
+    await Grant.revoke(alice, grant.id, authorization);
+
+    return caller;
+}
+```
+
+## Comparison
+
+### SpiceDB
+
+Relations, permissions and their operators basically follow SpiceDB's schema language.
+Relationships are rows next to the objects, so checks and list filters are SQL in the same transaction.
+
+| SpiceDB              | `@destack/access`                               | Difference                                                      |
+| -------------------- | ----------------------------------------------- | --------------------------------------------------------------- |
+| `definition`         | `Policy`                                        | Declared in TypeScript by the package that owns the type.       |
+| `+`, `&`, `-`, `->`  | `union`, `intersection`, `exclusion`, `through` | The same.                                                       |
+| `CheckPermission`    | `Authorizer.check`                              | Also answers until when the decision holds.                     |
+| `LookupResources`    | `Authorizer.candidates`                         | Gives SQL over the object's table instead of a list of ids.     |
+| `WriteRelationships` | `Relationship.grant`, `revoke`                  | Requires the caller's grant permission in the same transaction. |
+| caveats              | `resource(where)`, `context(where)`             | Conditions on object and request attributes.                    |
+
+### OAuth delegation and step-up
+
+Grants and elevation follow OAuth's delegation and step-up standards.
+
+| Standard                        | `@destack/access`          | Difference                                           |
+| ------------------------------- | -------------------------- | ---------------------------------------------------- |
+| RFC 8693 actor chains           | `Grant.act`, `Grant.chain` | A delegate acts with what every link allows.         |
+| RFC 9396 authorization details  | a grant's `permissions`    | Permissions on objects instead of free-form details. |
+| RFC 9470 step-up authentication | `elevated`                 | Declared per permission in the policy.               |
