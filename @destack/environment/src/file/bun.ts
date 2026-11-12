@@ -86,16 +86,16 @@ export class BunFileSystem implements FileSystem {
 
     /** Read whether a path exists. */
     async exists(path: string): Promise<boolean> {
-        // answer false only for a missing path
+        // answer false for a missing path, which is an answer here and builds no failure
         try {
-            await this.lstat(path);
+            await lstat(path);
 
             return true;
         } catch (error) {
-            if (FileSystemError.is(error, "FILE_NOT_FOUND")) {
+            if (error instanceof Error && "code" in error && error.code === "ENOENT") {
                 return false;
             }
-            throw error;
+            throw BunFileSystem.refusal(error, `read ${path}`);
         }
     }
 
