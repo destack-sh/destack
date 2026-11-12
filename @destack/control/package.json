@@ -4,7 +4,7 @@
     "type": "module",
     "license": "Apache-2.0",
     "sideEffects": false,
-    "description": "Run a universe: the object, account, setting and universe packages over one store.",
+    "description": "Run a universe: the account, object, setting and control packages over one store at one origin.",
     "exports": {
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
@@ -13,7 +13,7 @@
         "./destack.json": "./destack.json"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
