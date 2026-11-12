@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { Text } from "../text/text.ts";
 
-/** A calendar version: year, month, release, and an optional dev build's sequence. */
-const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-dev\.(0|[1-9]\d*))?$/u;
+/** A calendar version, and a dev build's UTC time and key, as in Go's pseudo-versions. */
+const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-dev\.(\d{14})\.([0-9a-f]{12}))?$/u;
 
-/** A package release version, such as 2026.9.0 or 2026.9.0-dev.4. */
+/** A package release version, such as 2026.9.0 or 2026.9.0-dev.20260912103000.0123456789ab. */
 export const Version = Object.assign(z.string().regex(VERSION), {
     /** Order versions by release, dev builds before the release they lead to. */
     compare(left: string, right: string): number {
@@ -15,7 +16,8 @@ export const Version = Object.assign(z.string().regex(VERSION), {
             first.month - second.month,
             first.release - second.release,
             first.stage - second.stage,
-            first.sequence - second.sequence,
+            Text.compare(first.time, second.time),
+            Text.compare(first.key, second.key),
         ];
 
         return Math.sign(differences.find((difference) => difference !== 0) ?? 0);
@@ -31,6 +33,13 @@ export const Version = Object.assign(z.string().regex(VERSION), {
         const { year, month, release } = components(version);
 
         return `${year}.${month}.${release}`;
+    },
+
+    /** Write a dev build's version from its release, UTC time and build key. */
+    dev(release: string, at: number, key: string): Version {
+        const time = new Date(at).toISOString().replaceAll(/[-:T]/gu, "").slice(0, 14);
+
+        return Version.parse(`${Version.release(release)}-dev.${time}.${key.slice(0, 12)}`);
     },
 
     /** Read the next release in a version's year and month. */
@@ -88,21 +97,22 @@ export interface VersionRange {
     readonly newest: Version;
 }
 
-/** Read a version's numbers, stage and dev sequence, in comparison order. */
+/** Read a version's numbers, stage and dev time and key, in comparison order. */
 function components(version: string) {
-    // read the calendar numbers and the dev build's sequence
+    // read the calendar numbers and the dev build's time and key
     const match = VERSION.exec(version);
     if (match === null) {
         throw new TypeError(`invalid version: '${version}'`);
     }
-    const [, year, month, release, sequence] = match;
+    const [, year, month, release, time, key] = match;
 
     // sort a dev build before the release it leads to
     return {
         year: Number(year),
         month: Number(month),
         release: Number(release),
-        stage: sequence === undefined ? 1 : 0,
-        sequence: sequence === undefined ? 0 : Number(sequence),
+        stage: time === undefined ? 1 : 0,
+        time: time ?? "",
+        key: key ?? "",
     };
 }
