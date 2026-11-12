@@ -3,8 +3,8 @@ import { defineConfiguration } from "@destack/test/config";
 
 export default defineConfiguration(
     {
-        // run every test against each database the package stores in
-        targets: { database: ["sqlite"] },
+        // run every test against the database control mostly runs on, the universe's
+        targets: { database: ["postgresql"] },
         test: {
             include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
             testTimeout: 5000,
