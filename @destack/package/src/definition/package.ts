@@ -139,15 +139,25 @@ export const PackageVersion = Object.assign(packageSchema, {
 /** A named, versioned package. */
 export type PackageVersion = Readonly<schema.Infer<typeof packageSchema>>;
 
+/** A Destack package's build: the package and the digest of its build's manifest. */
+export const PackageBuild = schema.object({
+    /** The package name and version. */
+    package: PackageVersion,
+    /** The digest of its build's manifest. */
+    manifest: Digest,
+});
+/** A Destack package's build. */
+export type PackageBuild = schema.Infer<typeof PackageBuild>;
+
 /** The structure of a package release. */
 const packageRelease = schema.object({
     /** The released package name and version. */
     package: PackageVersion,
-    /** The digest of its immutable build manifest. */
-    manifest: Digest,
+    /** The digest of its lock: its build and every build it runs with. */
+    lock: Digest,
 });
 
-/** An immutable Destack release and the manifest identifying its distributed contents. */
+/** An immutable Destack release and the lock it runs with. */
 export const PackageRelease = Object.assign(packageRelease, {
     /** Select the newest of the releases of a package, none when it has none. */
     newest(releases: readonly PackageRelease[], packageId: PackageId): PackageRelease | undefined {

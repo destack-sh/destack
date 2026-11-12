@@ -21,10 +21,7 @@ const manifest = schema.object({
 export const DistributionManifest = Object.assign(manifest, {
     /** Read the releases without their roles, as machines resolve installations to them. */
     releases(value: DistributionManifest): PackageRelease[] {
-        return value.releases.map(({ package: released, manifest: digest }) => ({
-            package: released,
-            manifest: digest,
-        }));
+        return value.releases.map(({ package: released, lock }) => ({ package: released, lock }));
     },
 
     /** Read the shipped builtins by package, which machines link to the servers they load. */
@@ -32,10 +29,7 @@ export const DistributionManifest = Object.assign(manifest, {
         return new Map(
             value.releases
                 .filter((release) => release.role === "builtin")
-                .map(({ package: released, manifest: digest }) => [
-                    released.id,
-                    { package: released, manifest: digest },
-                ]),
+                .map(({ package: released, lock }) => [released.id, { package: released, lock }]),
         );
     },
 });

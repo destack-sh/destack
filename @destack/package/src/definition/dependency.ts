@@ -1,5 +1,5 @@
 import { Digest, schema } from "@destack/schema";
-import { DependencyPackage, PackageVersion, PackageRelease } from "./package.ts";
+import { DependencyPackage, NpmPackage, PackageBuild, PackageVersion } from "./package.ts";
 import { PackageFile } from "../file/file.ts";
 
 /** An npm release the lockfile pins: its package, registry and integrity. */
@@ -14,39 +14,24 @@ export const NpmRelease = schema.object({
 /** An npm release the lockfile pins. */
 export type NpmRelease = schema.Infer<typeof NpmRelease>;
 
-/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
-const dependencyRelease = schema.union([
-    PackageRelease.extend({
+/** A build a compile reads a dependency at: a Destack package's build, or an npm unit's. */
+export const DependencyRelease = schema.union([
+    PackageBuild.extend({
         /** The Destack registry format. */
         kind: schema.literal("destack"),
     }),
-    NpmRelease.extend({
+    schema.object({
         /** The npm registry format. */
         kind: schema.literal("npm"),
-        /** The digest of its npm unit's build manifest: the release built for server runtimes. */
+        /** The npm release, verified by its integrity. */
+        package: NpmPackage,
+        /** The digest of its npm unit's build manifest. */
         manifest: Digest,
-    }),
-    schema.object({
-        /** A builtin, which every runtime links at its platform's release. */
-        kind: schema.literal("builtin"),
-        /** The builtin package at the release the build compiled against. */
-        package: PackageVersion,
     }),
 ]);
 
-/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
-export const DependencyRelease = Object.assign(dependencyRelease, {
-    /** Report whether a release names its build's manifest: a Destack build's or an npm unit's. */
-    hasManifest(release: DependencyRelease): release is ManifestRelease {
-        return release.kind !== "builtin";
-    },
-});
-
-/** An immutable dependency release: a Destack build, an npm unit's build, or a builtin. */
-export type DependencyRelease = schema.Infer<typeof dependencyRelease>;
-
-/** A dependency release with its build's manifest: a Destack build or an npm unit's. */
-export type ManifestRelease = Exclude<DependencyRelease, { readonly kind: "builtin" }>;
+/** A build a compile reads a dependency at: a Destack package's build, or an npm unit's. */
+export type DependencyRelease = schema.Infer<typeof DependencyRelease>;
 
 /** A registry release or source snapshot selected during package resolution. */
 export const DependencyResolution = schema.union([
