@@ -10,11 +10,11 @@ const PACK_KEY = new RegExp(`^${PACK_PREFIX}[0-9a-f-]+$`, "u");
 
 /** Packs of blobs: their bytes back to back under one key, as git packs objects. */
 export const BlobPack = {
-    /** Key the pack of some bodies: a lone body's expected digest, else a fresh pack name. */
-    key(bodies: readonly BlobBody[], fresh: () => string): string {
-        const [only] = bodies;
+    /** Key the pack of some blobs: a lone blob's digest where known, else a fresh pack name. */
+    key(blobs: readonly Pick<BlobBody, "digest">[], fresh: () => string): string {
+        const [only] = blobs;
 
-        return bodies.length === 1 && only?.digest !== undefined
+        return blobs.length === 1 && only?.digest !== undefined
             ? only.digest
             : `${PACK_PREFIX}${fresh()}`;
     },
