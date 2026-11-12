@@ -66,7 +66,7 @@ export const Plan = Object.assign(
         /** Why the plan stops before later steps. */
         deferred: schema.string().min(1).exactOptional(),
     }),
-    { classify, isAtLeast, join, digest: digestSteps, values: planValues },
+    { classify, isAtLeast, join, digest: digestSteps, of: planOf },
 );
 
 /** Which readers must accept a changed schema. */
@@ -151,8 +151,8 @@ function digestSteps(plan: Plan, crypto: Pick<Crypto, "digest">): Promise<Digest
     );
 }
 
-/** Plan a value schema change. */
-function planValues(change: SchemaChange): Plan {
+/** Plan a schema change, safe when it stays compatible. */
+function planOf(change: SchemaChange): Plan {
     // compare the accepted values and keep an unchanged schema out of the plan
     const { target, release, compatibility } = change;
     const compared = compareJsonSchemas(change.before, change.after);

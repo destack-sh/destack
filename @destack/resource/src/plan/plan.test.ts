@@ -11,7 +11,7 @@ function plan(
     isConverted = false,
 ) {
     try {
-        return Plan.values({
+        return Plan.of({
             target: "value",
             before: toJsonSchema(before),
             after: toJsonSchema(after),
