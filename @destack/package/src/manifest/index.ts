@@ -6,3 +6,4 @@ export * from "./workload.ts";
 export * from "./writer.ts";
 export * from "./compilation.ts";
 export * from "./lock.ts";
+export * from "./layer.ts";
