@@ -1,6 +1,7 @@
 {
     "name": "@destack/style",
     "version": "2026.11.0",
+    "description": "Style components with StyleX, compiled into one stylesheet per build.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -13,7 +14,7 @@
         "./preflight.css": "./src/preflight/preflight.css"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
