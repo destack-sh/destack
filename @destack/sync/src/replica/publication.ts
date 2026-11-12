@@ -5,7 +5,7 @@ import {
     eq,
     integer,
     json,
-    lte,
+    lt,
     ne,
     LogPosition,
     or,
@@ -13,7 +13,7 @@ import {
     sql,
     text,
 } from "@destack/db";
-import { canonicalize, Duration, schema } from "@destack/schema";
+import { canonicalize, Duration, type JsonObject, JsonValue, schema } from "@destack/schema";
 import { SyncError } from "../error/index.ts";
 import type { Call, Mutation } from "../call/call.ts";
 import { Subject } from "../call/subject.ts";
@@ -87,21 +87,22 @@ export type SubscriptionRequest = Select<typeof subscriptionTable>;
 
 /** A follower's subscription and the requests it records at its source. */
 export const Subscription = Object.assign(subscriptionSchema, {
-    /** Record a caller's request at its source, unless it holds a later revision of the log. */
+    /** Record a caller's request unless its source has it or a later one, reporting a write. */
     async request(
         database: DatabaseConnection,
         subscription: Subscription,
         caller: string,
-    ): Promise<void> {
+    ): Promise<boolean> {
         // take the request at its revision, a follower's other log or epoch replacing what it recorded
-        const { name, scope, target, parameters, revision } = subscription;
+        const { name, scope, target, revision } = subscription;
+        const parameters = Subscription.canonical(subscription.parameters);
         const revised = {
             revisionLog: revision.log,
             revisionEpoch: revision.epoch,
             revisionSequence: revision.sequence,
         };
         const row = { name, scope, target, caller, parameters, ...revised };
-        await database
+        const written = await database
             .insert(subscriptionTable)
             .values(row)
             .onConflictDoUpdate({
@@ -115,9 +116,21 @@ export const Subscription = Object.assign(subscriptionSchema, {
                 setWhere: or(
                     ne(subscriptionTable.revisionLog, revision.log),
                     ne(subscriptionTable.revisionEpoch, revision.epoch),
-                    lte(subscriptionTable.revisionSequence, revision.sequence),
+                    lt(subscriptionTable.revisionSequence, revision.sequence),
+                    and(
+                        eq(subscriptionTable.revisionSequence, revision.sequence),
+                        ne(subscriptionTable.parameters, parameters),
+                    ),
                 ),
-            });
+            })
+            .returning({ name: subscriptionTable.name });
+
+        return written.length > 0;
+    },
+
+    /** Read parameters with their keys in canonical order, so equal ones store as equal text. */
+    canonical(parameters: JsonObject): JsonObject {
+        return JsonValue.object(JSON.parse(canonicalize(parameters)));
     },
 
     /** Read the recorded requests of some keys in one statement. */

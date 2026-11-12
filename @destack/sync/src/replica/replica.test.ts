@@ -607,7 +607,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
     // read each table once per page of its rows, write each table's rows once, prune each table once,
     //  the target's first commit reading when its log next compacts in two more
     expect({ small, large }).toEqual({
-        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 61 },
+        small: { pages: [[true, true, 24]], staged: 0, read: 42, written: 59 },
         large: {
             pages: [
                 [true, false, 500],
@@ -615,7 +615,7 @@ test("capture a space's few dozen rows across many tables as one page applied in
             ],
             staged: 1,
             read: 43,
-            written: 62,
+            written: 61,
         },
     });
     expect(await target.select().from(head)).toHaveLength(INSERT_BATCH);

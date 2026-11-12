@@ -1,5 +1,5 @@
 import { FOLLOWER_REVISION } from "../test/index.ts";
-import { schema } from "@destack/schema";
+import { type JsonObject, schema } from "@destack/schema";
 import { expect, refusal, test } from "@destack/test";
 import type { Call } from "../call/call.ts";
 import type { Page } from "../query/index.ts";
@@ -104,6 +104,38 @@ test("record a follower's request at its source, keeping its latest revision of 
         [reshaped.parameters, "first", 3],
         [subscription.parameters, "restored", 1],
     ]);
+});
+
+test("write a follower's request only when it is new, at a later revision or with other parameters", async () => {
+    // record a request, the same one with its parameters' keys reordered, and an earlier revision
+    const database = await openReplica({ simulation: new Simulation({ seed: 1, start: 1000 }) });
+    const subscription = {
+        name: "notes",
+        publication: "queries",
+        scope: "inbox",
+        target: "inbox",
+        parameters: { folder: "inbox", queries: {} },
+        revision: at("first", 2),
+    };
+    const caller = "user alice";
+    const request = (parameters: JsonObject, sequence: number) =>
+        Subscription.request(
+            database,
+            { ...subscription, parameters, revision: at("first", sequence) },
+            caller,
+        );
+    const written = [
+        await request({ folder: "inbox", queries: {} }, 2),
+        await request({ queries: {}, folder: "inbox" }, 2),
+        await request({ folder: "inbox", queries: {} }, 1),
+
+        // take other parameters at the same revision, then the same ones at a later revision
+        await request({ folder: "archive", queries: {} }, 2),
+        await request({ folder: "archive", queries: {} }, 3),
+    ];
+
+    // expect writes for the new request, the other parameters and the later revision only
+    expect(written).toEqual([true, false, false, true, true]);
 });
 
 test("refuse a subscription whose parameters its publication rejects, reading valid ones as parsed", async () => {

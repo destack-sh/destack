@@ -211,7 +211,7 @@ const POSITIONED = and(
     eq(replicaPosition.scope, replica.scope),
 );
 
-/** The staged pages of a replica's run in progress. */
+/** The staged pages of a replica's latest unfinished run. */
 export const replicaPage = defineTable("replica_page", {
     /** The replica's name. */
     name: text("name").primaryKey(),
@@ -1637,11 +1637,7 @@ export class Replica {
         pages: AsyncIterable<Page> | Iterable<Page>,
         options: ApplyOptions = {},
     ): AsyncGenerator<Page> {
-        // drop an earlier stream's staged pages
-        await database.transaction(
-            async (transaction) =>
-                await transaction.delete(replicaPage).where(this.#match(replicaPage)),
-        );
+        // start at the record, staging nothing yet
         let staged = 0;
         let isSnapshot = false;
         let parameters = options.subscription?.parameters;
@@ -1703,10 +1699,13 @@ export class Replica {
                 marks = Replica.#marks(page);
                 staged = 0;
             }
-            // stage a page within a run
+            // stage a page within a run, its first page dropping an earlier stream's
             else {
                 const order = staged;
                 await database.transaction(async (transaction) => {
+                    if (order === 0) {
+                        await transaction.delete(replicaPage).where(this.#match(replicaPage));
+                    }
                     await transaction
                         .insert(replicaPage)
                         .values({ name: this.name, scope: this.scope, index: order, page });
@@ -1897,10 +1896,10 @@ export class Replica {
                           })
                         : undefined;
 
-                    // record the position of a run without rows
+                    // record the position of a run without rows, unless the record has it
                     const origin = page.origin ?? relayed;
                     const position = Replica.#position(page, run, record, origin);
-                    if (!isWritten) {
+                    if (!isWritten && !Replica.#isAt(record, position)) {
                         await transaction.log.asReplica(() =>
                             this.#writePosition(transaction, position),
                         );
@@ -2044,6 +2043,19 @@ export class Replica {
                 target: [replicaPosition.name, replicaPosition.scope],
                 set: position,
             });
+    }
+
+    /** Decide whether a record has a position, its home position included. */
+    static #isAt(record: ReplicaRecord | undefined, position: ReplicaPosition): boolean {
+        return (
+            record !== undefined &&
+            record.log === position.log &&
+            record.epoch === position.epoch &&
+            record.sequence === position.sequence &&
+            record.originLog === position.originLog &&
+            record.originEpoch === position.originEpoch &&
+            record.originSequence === position.originSequence
+        );
     }
 
     /** Report whether a page only moves the position of a stream's applied run. */
