@@ -1,7 +1,6 @@
 import * as access from "@destack/access";
-import { accessRole, Role, RoleRequest } from "@destack/access";
+import { accessRole, Role, RoleDeclaration, RoleRequest } from "@destack/access";
 import { Empty } from "../method/procedure.ts";
-import { ObjectReference, Subject } from "@destack/sync";
 import { present, schema } from "@destack/schema";
 import { defineMethod } from "../method/method.ts";
 import { type MethodBuilder } from "../method/record.ts";
@@ -11,13 +10,9 @@ import { ObjectPolicy } from "../object/access.ts";
 import { type Select } from "@destack/db";
 import { argument, plural, t } from "@destack/locale";
 
-/** A role upserted by name under a manager, granting exactly some permissions to one subject. */
-const RoleBinding = RoleRequest.extend({
-    /** The one subject the role is bound to. */
-    subject: Subject,
-    /** The object in the scope the role is bound on, the scope itself when absent. */
-    object: ObjectReference.exactOptional(),
-    /** The stack declaration managing the role and its binding. */
+/** A role a declaration applies, with the declaration managing it. */
+const ManagedRole = RoleDeclaration.extend({
+    /** The stack declaration managing the role and its bindings. */
     manager: access.Manager.schema,
 });
 
@@ -112,35 +107,35 @@ export const role = defineObject(
                 return readRole(store, call.target.id);
             },
         ),
-        upsertBinding: defineMethod<{
+        declare: defineMethod<{
             kind: "custom";
             permission: "update";
-            input: typeof RoleBinding;
+            input: typeof ManagedRole;
             output: typeof Empty;
             mutates: true;
             target: "scope";
             table: typeof accessRole;
         }>({
-            title: t`Upsert binding`,
+            title: t`Declare`,
             kind: "custom",
             permission: "update",
-            input: RoleBinding,
+            input: ManagedRole,
             output: Empty,
             mutates: true,
             target: "scope",
             result: "value",
             isPredicted: false,
             procedure: (_name, schemas) => ({
-                route: { method: "POST", path: "/upsert-binding" },
-                input: schemas.scope.extend({ ...schemas.replay, ...RoleBinding.shape }),
+                route: { method: "POST", path: "/declare" },
+                input: schemas.scope.extend({ ...schemas.replay, ...ManagedRole.shape }),
                 output: Empty,
             }),
             handler: async (context, execution) => {
-                // bind the role under the manager with exactly its permissions, or drop both for none
-                const { manager, ...binding } = RoleBinding.parse(context.input);
-                await Role.upsertBinding(
+                // declare the role
+                const { manager, ...declaration } = ManagedRole.parse(context.input);
+                await Role.declare(
                     await ObjectPolicy.scopeObject(context, execution),
-                    binding,
+                    declaration,
                     Execution.store(execution, context).authorization.applying(manager),
                 );
 
