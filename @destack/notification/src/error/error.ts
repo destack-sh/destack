@@ -6,7 +6,6 @@ export const NotificationError = defineErrorFamily({
     reasons: {
         // not found
         ACTION_TYPE_NOT_FOUND: {},
-        INSTALLATION_NOT_FOUND: {},
 
         // invalid
         ACTION_INVALID: {},
