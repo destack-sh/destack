@@ -1,6 +1,7 @@
 {
     "name": "@destack/ui",
     "version": "2026.11.0",
+    "description": "Build views from accessible Solid components styled with StyleX and themed by the person's theme.",
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": [
@@ -102,7 +103,7 @@
         "./content": "./src/content/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts",
         "generate": "bun run src/chart/generate.ts"
     },
