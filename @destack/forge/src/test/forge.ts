@@ -528,11 +528,7 @@ export class TestForge {
     builds(handle: string, person: TestPerson = this.owner): PackageClient {
         const { url, fetch } = this.endpoint(person);
 
-        return new PackageClient(
-            `${url}${forgePackage.mounts.builds.path}/${handle}/`,
-            fetch,
-            this.environment,
-        );
+        return new PackageClient(`${url}${forgePackage.mounts.builds.path}/${handle}/`, fetch);
     }
 
     /** Open the store of builds and npm archives in the forge home's blobs. */

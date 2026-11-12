@@ -42,7 +42,6 @@ test("serve a release's build by its digest to its package's readers only, yanke
     const source = new PackageClient(
         `${forge.origin}${forgePackage.mounts.builds.path}/${BuildObject.path(root)}/`,
         forge.endpoint(forge.owner).fetch,
-        environment,
     );
     await copied.pull(source, root, "all");
 
@@ -90,7 +89,6 @@ test("refuse uploads outside an account, and a manifest push from a caller who m
 
     // refuse the owner's manifest outside an account
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
-    const { compression } = testHost();
     const post = (person: TestPerson, path: string) =>
         as(forge, person)(new URL(`${builds}/${path}manifests`), {
             method: "POST",
@@ -98,9 +96,8 @@ test("refuse uploads outside an account, and a manifest push from a caller who m
                 (async function* () {
                     yield TarballEntry.of(digest, manifest);
                 })(),
-                compression,
             ),
-            headers: { "content-type": "application/gzip" },
+            headers: { "content-type": "application/x-tar" },
         });
     const outside = await post(forge.owner, "");
     const pushed = await post(
@@ -152,11 +149,7 @@ test("stage a machine's push without releasing it", async () => {
     const { url } = forge.endpoint();
     const { fetch } = forge.served.as(forge.home.machine.id).endpoint(forgePackage);
     const builds = (packageId: string) =>
-        new PackageClient(
-            `${url}${forgePackage.mounts.builds.path}/${packageId}/`,
-            fetch,
-            forge.environment,
-        );
+        new PackageClient(`${url}${forgePackage.mounts.builds.path}/${packageId}/`, fetch);
     const handle = PackageName.split(build.manifest.package.name).handle;
     await using pushed = await TestBuildStore.create(forge.environment);
     const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
@@ -339,7 +332,6 @@ test("serve a release's npm units and its Bun output by digest to its readers on
     const source = new PackageClient(
         `${builds}/${BuildObject.path(root)}/`,
         forge.endpoint(forge.owner).fetch,
-        environment,
     );
     await copied.pull(source, root, ["bun"]);
 

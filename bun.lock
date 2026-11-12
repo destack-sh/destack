@@ -460,14 +460,12 @@
         "@destack/telemetry": "workspace:*",
         "@destack/vault": "workspace:*",
         "@destack/workflow": "workspace:*",
-        "semver": "7.8.5",
       },
       "devDependencies": {
         "@destack/check": "workspace:*",
         "@destack/identity": "workspace:*",
         "@destack/test": "workspace:*",
         "@types/bun": "1.4.4",
-        "@types/semver": "7.8.0",
       },
     },
     "@destack/git": {
