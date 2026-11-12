@@ -1,74 +1,209 @@
 # @destack/telemetry
 
-`TelemetryScope.of` is OpenTelemetry's logs, tracer and meter for one package on an environment's telemetry, `captureException`, `captureMessage` and sessions are Sentry's with its `level`, `tags`, `fingerprint` and errored or crashed sessions, `visit` and `track` are Segment's `page` and `track`, and `/otlp` exports and receives OTLP/JSON.
+Instrument Destack packages with traces, metrics, logs, exceptions and analytics.
+
+## Overview
+
+`@destack/telemetry` is OpenTelemetry with Sentry's exceptions and Segment's analytics: package-scoped instruments, meters, sessions and OTLP export.
+
+Packages instrument themselves:
+
+- `TelemetryScope`: one package's logs, spans, metrics, exceptions and analytics.
+- `Meter`: a measure of what a space uses, declared with `defineMeter`.
+
+Hosts start and export telemetry:
+
+- `Telemetry`: a program's OpenTelemetry SDK.
+- `Session`: one run of a program.
+- `OtlpExporter`: exports signals as OTLP/JSON.
+
+Tests:
+
+- `TestTelemetry`: what a simulation's telemetry recorded.
+
+Log, trace, count, capture and track from a package's code:
 
 ```ts
-const { log, span, metric, track, visit, captureException } = TelemetryScope.of(
-    import.meta.destack.package,
-    environment.telemetry,
-);
-log.info("page.saved", { length: text.length }); // an OpenTelemetry LogRecord, stamped on the environment's clock
-await span("page.render", { blocks: 12 }, () => render(page)); // tracer.startActiveSpan
-// meter.createCounter
-metric
-    .counter("page.saves", { unit: "{save}", attributes: { space: ["personal", "shared"] } })
-    .add(1, { space: "shared" });
-captureException(error, { tags: { feature: "export" } }); // Sentry.captureException
-track("page.shared", { audience: "space" }); // Segment's analytics.track
+import type { Environment } from "@destack/environment";
+import { TelemetryScope } from "@destack/telemetry";
+
+/** Save a page, recording what happened on every signal. */
+export async function savePage(environment: Environment, text: string) {
+    // attribute the signals to this package
+    const { log, span, metric, captureException, track } = TelemetryScope.of(
+        import.meta.destack.package,
+        environment.telemetry,
+    );
+    const saves = metric.counter("page.saves", {
+        unit: "{save}",
+        attributes: { space: ["personal", "shared"] },
+    });
+
+    // render in a span, count the save, and log its length
+    await span("page.render", { blocks: 12 }, async () => {
+        saves.add(1, { space: "shared" });
+        log.info("page.saved", { length: text.length });
+    });
+
+    // capture the failure, and track the action
+    captureException(new Error("export failed"), { tags: { feature: "export" } });
+    track("page.shared", { audience: "space" });
+}
 ```
 
-## Failures
+## Reference
 
-`startTelemetry` records uncaught failures on Bun, in browsers and in Workers, on the environment's clock and randomness, and `exceptionAttributes` sets `error.type` to a failure's service code, `code` or name.
+### TelemetryScope
+
+`TelemetryScope.of(package, telemetry)` attributes every signal to a package, on the environment's clock.
+
+| Member                                            | What it does                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `log.debug`, `info`, `warn`, `error`              | emits a log record named by an event name, with attributes                           |
+| `span(name, attributes, work)`                    | runs work in a child span of the active one, recording its failure                   |
+| `span.current()`                                  | reads the active span, such as the call the platform traces                          |
+| `metric.counter`, `histogram`, `gauge`            | declares an instrument whose attributes take bounded values, checked by the compiler |
+| `captureException(error, context)`                | records a handled failure as an exception in the active trace                        |
+| `captureMessage(message, context)`                | records a message as an exception-level event                                        |
+| `track(name, attributes)`                         | records an action a person took                                                      |
+| `visit(route, { path, title, referrer, locale })` | records a view a person opened                                                       |
+| `tracer`, `meter`, `logger`                       | the package's OpenTelemetry tracer, meter and logger                                 |
+
+A capture takes a context:
+
+| Field         | What it is                                                                 |
+| ------------- | -------------------------------------------------------------------------- |
+| `level`       | `"fatal"`, `"error"`, the default, `"warning"` or `"info"`                 |
+| `tags`        | bounded labels issues are filtered and grouped by, such as the feature     |
+| `fingerprint` | the fingerprint grouping the failure into an issue, instead of its frames' |
+| `attributes`  | details issues never group by, such as the failing key                     |
+| `isEscaped`   | whether the failure escaped its code, such as a request handler            |
+
+### Meter
+
+`defineMeter({ name, description, aggregation, unit, attributes })` declares a measure of what a space uses.
+
+| Field         | What it is                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------------- |
+| `name`        | the name within the package, such as `api.requests`                                           |
+| `description` | what it counts, as a message                                                                  |
+| `aggregation` | how a period's events fold: `"sum"`, `"count"`, `"max"`, `"last"` or `"average"`              |
+| `unit`        | the unit of an event's value, such as `request` or `byte`                                     |
+| `attributes`  | each attribute with the values it takes, priced apart, such as `direction: ["read", "write"]` |
+
+### Telemetry
+
+`startTelemetry(options, environment)` starts a program's SDK, from `@destack/telemetry/bun` or `@destack/telemetry/browser`.
+It captures uncaught failures.
+
+| Option       | What it is                                                         |
+| ------------ | ------------------------------------------------------------------ |
+| `name`       | the running service's or frontend's name                           |
+| `version`    | the deployed release every signal names                            |
+| `propagator` | the HTTP propagator, W3C trace context and baggage by default      |
+| `metrics`    | the metric readers, aggregation and limits                         |
+| `signals`    | the trace and log processors, sampling and limits                  |
+| `report`     | reports the SDK's own warnings and failures, such as dropped spans |
+
+| Verb                             | What it does                                                         |
+| -------------------------------- | -------------------------------------------------------------------- |
+| `capture(error)`                 | records an escaped failure, crashing the running session             |
+| `startSession()`, `endSession()` | starts or ends a session, which every signal carries as `session.id` |
+| `flush(signals)`                 | exports the buffered signals                                         |
+| `shutdown()`                     | exports what is left and stops                                       |
+
+### OtlpExporter
+
+`OtlpExporter.http({ endpoint, fetch }, report)` exports to `<endpoint>/v1/traces`, `/v1/logs` and `/v1/metrics`.
+Metrics are deltas, and histograms base-2 exponential.
+
+## Examples
+
+### Start telemetry in a program
+
+A program starts its SDK once, exporting every signal as OTLP to an endpoint.
 
 ```ts
-import { observeProcess, startTelemetry } from "@destack/telemetry/bun";
+import { BunEnvironment } from "@destack/environment/bun";
+import { OtlpExporter } from "@destack/telemetry/otlp";
+import { startTelemetry } from "@destack/telemetry/bun";
 
-// every failed or slow trace kept beside the ratio
-const telemetry = await startTelemetry(
-    exporter.options(runner.package, { ratio: 0.1 }),
-    environment,
-);
-observeProcess(telemetry, runner.package, environment); // process.cpu.time by mode
-telemetry.startSession(); // a handled exception marks it errored, an escaped one crashed
+/** Start the program's telemetry, exporting to an OTLP endpoint until shut down. */
+export async function startExporting(endpoint: string) {
+    // export over HTTP, reporting the exporter's own failures
+    const environment = BunEnvironment.system;
+    const exporter = OtlpExporter.http({ endpoint, fetch }, (error) => console.error(error));
+
+    // start the SDK with the exporter, named after this package
+    return await startTelemetry(exporter.options(import.meta.destack.package), environment);
+}
 ```
+
+### Declare a meter
+
+Meters can be priced apart by attribute.
 
 ```ts
-import { startTelemetry } from "@destack/telemetry/browser";
+import { t } from "@destack/locale";
+import { defineMeter } from "@destack/telemetry/declare";
 
-// a page's uncaught errors and unhandled rejections, flushed as the page hides
-const telemetry = await startTelemetry(
-    exporter.options(view.package),
-    BrowserEnvironment.system,
-    window,
-);
+// count API requests, reads and writes priced apart
+export const requests = defineMeter({
+    name: "api.requests",
+    description: t`Requests to the API.`,
+    aggregation: "sum",
+    unit: "request",
+    attributes: { direction: ["read", "write"] },
+});
 ```
 
-## Export
+### Assert a captured exception
 
-`OtlpExporter.http` exports every signal as OTLP/JSON below an endpoint through a target's fetch, naming only the service and its release, and the receiver at the instance's host stamps the scope, installation, instance and build it verified.
+`TestTelemetry` reads a simulation's recorded exceptions.
 
 ```ts
-import { OTLP_ORIGIN_PATH, OtlpExporter } from "@destack/telemetry/otlp";
+import { TelemetryScope } from "@destack/telemetry";
+import { TestTelemetry } from "@destack/telemetry/test";
+import { expect, test } from "@destack/test";
+import { testSimulation } from "@destack/test/world";
 
-// a workload's signals to its host, under the runner's secret
-const exporter = OtlpExporter.http(
-    {
-        endpoint: new URL(OTLP_ORIGIN_PATH, start.egress).href,
-        headers: () => ({ authorization: `Bearer ${start.secret}` }),
-        fetch: environment.network.fetch,
-    },
-    report,
-    new Symbolicator(build), // exceptions leave with their frames resolved through the build
-);
-// a page's signals to /.destack/telemetry on its origin, outliving the page
-const browser = OtlpExporter.http(
-    { endpoint: OTLP_ORIGIN_PATH, isKeepalive: true, fetch: environment.network.fetch },
-    reportToDevtools,
-);
-// the desktop's signals to its machine's observability package, through the machine's loopback client
-const desktop = OtlpExporter.http(
-    { endpoint: intake, fetch: (request) => Endpoint.send(home, request) },
-    report,
-);
+test("capture a failed export", async () => {
+    // capture an exception on a simulated node
+    await using simulation = testSimulation();
+    using telemetry = new TestTelemetry(simulation.telemetry);
+    const { captureException } = TelemetryScope.of(
+        import.meta.destack.package,
+        simulation.environment("host").telemetry,
+    );
+    captureException(new Error("export failed"));
+
+    expect(telemetry.take().length).toBe(1);
+});
 ```
+
+## Comparison
+
+### OpenTelemetry
+
+Logs, spans, metrics and their export basically follow OpenTelemetry's API and OTLP.
+Instruments come from the environment instead of a global.
+
+| OpenTelemetry                         | `@destack/telemetry`                   | Difference                                               |
+| ------------------------------------- | -------------------------------------- | -------------------------------------------------------- |
+| `trace.getTracer`, `metrics.getMeter` | `TelemetryScope.of`                    | Per package, from the environment.                       |
+| `tracer.startActiveSpan(name, fn)`    | `span(name, attributes, work)`         | Records the work's failure on the span.                  |
+| `meter.createCounter(name, options)`  | `metric.counter(name, { attributes })` | Attributes take bounded values, checked by the compiler. |
+| `logger.emit(record)`                 | `log.info(name, attributes)`           | Named by an event name.                                  |
+| the OTLP/HTTP exporters               | `OtlpExporter.http`                    | OTLP/JSON through a fetch.                               |
+
+### Sentry and Segment
+
+Exceptions and sessions follow Sentry's, and analytics Segment's.
+
+| Prior art                                                      | `@destack/telemetry`               | Difference                                             |
+| -------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| Sentry `captureException(error, { level, tags, fingerprint })` | `captureException(error, context)` | Recorded as an exception event in the active trace.    |
+| Sentry `captureMessage`                                        | `captureMessage`                   | The same.                                              |
+| Sentry release health sessions                                 | `Session`                          | `ok`, `errored` or `crashed`, carried as `session.id`. |
+| Segment `track(event, properties)`                             | `track(name, attributes)`          | A log record of the package.                           |
+| Segment `page(name, properties)`                               | `visit(route, detail)`             | Keyed by the view's route pattern.                     |
