@@ -298,28 +298,37 @@ export class BuildStore<
         }
     }
 
-    /** List builds and the Destack builds they pin, each once and after what it pins. */
-    static async ordered(
+    /** Layer builds by their pins: each layer's builds pin only builds of earlier layers. */
+    static async layers(
         store: Pick<BuildStore, "contents">,
         manifests: readonly Digest[],
-    ): Promise<Digest[]> {
-        // visit each build once, listing its pinned builds before it
-        const visited = new Set<Digest>();
-        const ordered: Digest[] = [];
-        const visit = async (manifest: Digest): Promise<void> => {
-            if (!visited.has(manifest)) {
-                visited.add(manifest);
-                for (const dependency of await (await store.contents(manifest)).releases()) {
-                    await visit(dependency.manifest);
-                }
-                ordered.push(manifest);
+    ): Promise<Digest[][]> {
+        // read each build's depth once: one past the deepest build it pins
+        const depths = new Map<Digest, Promise<number>>();
+        const depth = (manifest: Digest): Promise<number> => {
+            let known = depths.get(manifest);
+            if (known === undefined) {
+                known = (async () => {
+                    const pinned = await (await store.contents(manifest)).releases();
+                    const below = await Promise.all(pinned.map((each) => depth(each.manifest)));
+
+                    return below.length === 0 ? 0 : Math.max(...below) + 1;
+                })();
+                depths.set(manifest, known);
             }
+
+            return known;
         };
-        for (const manifest of manifests) {
-            await visit(manifest);
+        await Promise.all(manifests.map((manifest) => depth(manifest)));
+
+        // group the builds by depth, the shallowest first
+        const layers: Digest[][] = [];
+        for (const [manifest, known] of depths) {
+            const at = await known;
+            layers[at] = [...(layers[at] ?? []), manifest];
         }
 
-        return ordered;
+        return layers;
     }
 
     /** Pull a build's manifest and lists, with one output and its maps in one archive request. */
