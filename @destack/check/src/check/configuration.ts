@@ -203,10 +203,13 @@ export async function lintSettings(directory: string, files: FileSystem): Promis
     const members: WorkspaceMember[] = [];
     const declared = new Map<string, readonly string[]>();
     const roles: Record<string, PackageRole> = {};
+    const manifests: WorkspaceMember[] = [];
     for (const member of [directory, ...(await workspaceMembers(directory, files))]) {
+        // read every member's manifest, as any package's scripts start programs
         const definition = await readDefinition(member, files);
+        const manifest = (await readManifest(member, files)) ?? {};
+        manifests.push({ directory: member, manifest });
         if (definition !== undefined) {
-            const manifest = (await readManifest(member, files)) ?? {};
             members.push({ directory: member, manifest });
             declared.set(member, definition.entrypoints ?? []);
             roles[present(manifest.name, `the name of ${member}`)] = definition.role;
@@ -228,7 +231,7 @@ export async function lintSettings(directory: string, files: FileSystem): Promis
 
     // take the modules each package's bin, declared entrypoints, Bun scripts and preloads run
     const entrypoints: string[] = [];
-    for (const member of members) {
+    for (const member of manifests) {
         const { bin = {}, scripts = {} } = member.manifest;
         const run = Object.values(scripts).flatMap((script) => scriptModules(script));
         const programs = typeof bin === "string" ? [bin] : Object.values(bin);

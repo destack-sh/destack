@@ -374,6 +374,7 @@
                 "@destack/update/src/test/command.ts",
                 "@destack/view/src/build/prerender/program.ts",
                 "@destack/view/src/test/browser.ts",
+                "@platform/brand/generate.ts",
                 "@platform/pricing/scripts/refresh.ts",
                 "@platform/release/src/main.ts",
                 "@platform/release/src/key/tests/bitwarden.ts",

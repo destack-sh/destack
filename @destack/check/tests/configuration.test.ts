@@ -145,7 +145,7 @@ test("write lint and format settings at the workspace root and compiler settings
     await files.mkdir(member);
     await files.writeTextFile(
         join(workspace, "package.json"),
-        JSON.stringify({ workspaces: ["member"] }),
+        JSON.stringify({ workspaces: ["member", "assets"] }),
     );
     await files.writeTextFile(
         join(member, "package.json"),
@@ -204,6 +204,13 @@ test("write lint and format settings at the workspace root and compiler settings
         join(member, "bunfig.toml"),
         'preload = ["@example/member/preload", "@example/outside/preload"]\n',
     );
+    // add a package of plain files whose script is a program too
+    const assets = join(workspace, "assets");
+    await files.mkdir(assets);
+    await files.writeTextFile(
+        join(assets, "package.json"),
+        JSON.stringify({ name: "@example/assets", scripts: { generate: "bun run generate.ts" } }),
+    );
     // install an app and an npm package it depends on, reading the app's role
     const notes = join(workspace, "node_modules", "@example", "notes");
     await files.mkdir(notes, { recursive: true });
@@ -228,6 +235,7 @@ test("write lint and format settings at the workspace root and compiler settings
             "member/src/worker.ts",
             "member/scripts/refresh.ts",
             "member/src/preload.ts",
+            "assets/generate.ts",
         ],
     });
 
