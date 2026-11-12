@@ -1,135 +1,232 @@
 # @destack/environment
 
-An `Environment` is every effect code takes: the system's at an entry point, or a `Simulation`'s, which runs nodes on simulated time, seeded randomness and a faulty network.
+Take every effect through one environment: time, randomness and the network, real or simulated.
+
+## Overview
+
+`@destack/environment` is every effect as one object: real environments for Bun, workerd and browsers, and seeded simulations for tests.
+
+Your code takes its effects from an environment:
+
+- `Environment`: the clock, scheduler, randomness, WebCrypto, network, compression and telemetry on every target.
+- `Environment<"files" | "process" | …>`: an environment with some host effects.
+
+Targets have real environments:
+
+- `BunEnvironment`, `WorkerdEnvironment` and `BrowserEnvironment`: the system's effects on Bun, Cloudflare Workers and browsers.
+
+Tests use simulations:
+
+- `Simulation`: nodes on one simulated clock, with seeded randomness and a faulty network.
+- `World`: a simulation as data: its seed, start and steps.
+
+Write code against an environment, then run it on Bun or in a simulation:
 
 ```ts
-import { Environment } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { BunEnvironment } from "@destack/environment/bun";
 import { Simulation } from "@destack/environment/simulation";
 
-// the base every target has, and the capabilities code asks for by name
-function backup(environment: Environment<"files" | "process">) {}
-backup(BunEnvironment.system); // at the process's entry point only
-const world = new Simulation({ seed: 7, start: Date.UTC(2026, 9, 24) }).environment("host");
-backup(world); // the same code in a seeded world
-```
+/** Copy today's note to the backup folder a second later. */
+export async function backUpNote(environment: Environment<"files">) {
+    const text = await environment.files.readTextFile("/notes/today.md");
+    await environment.clock.sleep(1000);
+    await environment.files.writeTextFile("/backup/today.md", text);
+}
 
-## Base
+// run it on the system
+await backUpNote(BunEnvironment.system);
 
-Every target has the clock, scheduler, randomness, WebCrypto, network, compression, telemetry, locale and time zone.
-
-```ts
-await environment.clock.sleep(30_000, signal); // rejects with the signal's reason once it aborts
-await environment.scheduler.yield(); // the web's scheduler.yield()
-await environment.scheduler.run(statement); // real work answered in the order it began, as a world does
-await environment.scheduler.waitUntil(child.exited); // real work that keeps the world's time, answered at quiescence
-await environment.process.run(["git", "status"]); // a command run to completion as one operation
-environment.random.bytes(16);
-await environment.crypto.digest("SHA-256", bytes); // crypto.subtle's operations
-await environment.network.fetch(new Request("https://notes.test/today"));
-environment.network.websocket(url, ["tunnel"]); // a WebSocket, binary as ArrayBuffers
-environment.network.connect({ hostname: "smtp.test", port: 25 }); // a TCP socket, as Cloudflare's connect()
-environment.network.connect({ unix: "/run/destack.sock" }); // a Unix socket, as Bun.connect({ unix })
-body.pipeThrough(environment.compression.compress("gzip")); // CompressionStream
-environment.telemetry.tracers.getTracer("notes"); // OpenTelemetry's providers, stamped on telemetry.clock
-new TraceIdGenerator(environment); // OpenTelemetry's IdGenerator, trace ids starting with their millisecond
-at.toLocaleString(environment.locale, { timeZone: environment.timeZone });
-```
-
-## Capabilities
-
-`files`, `process`, `server`, `host`, `opener` and `workers` exist on some targets, and code asks for each by name.
-
-```ts
-// Deno's file system API, failing with NOT_FOUND, ALREADY_EXISTS, PERMISSION_DENIED or FILE_SYSTEM_FAILED
-await environment.files.readTextFile(join(home, "notes.md"));
-await using lock = await environment.files.lock(join(home, "notes.lock"), "exclusive");
-// Bun's Subprocess, its whole output read as Deno's ChildProcess.output
-const { code, stdout } = await environment.process
-    .spawn(["git", "status"], { workingDirectory: home })
-    .output();
-environment.process.variables["HOME"];
-// Bun.serve and Bun.listen
-environment.server.http({ hostname: "127.0.0.1", port: 0, fetch });
-await environment.server.socket({ hostname: "127.0.0.1", accept });
-environment.host.os; // "darwin" | "linux" | "win32"
-// Tauri's openUrl: a URL in the person's browser; a simulation records it per node instead
-await environment.opener.openUrl("https://destack.app/login");
-simulation.opener.opened("terminal"); // ["https://destack.app/login"]
-environment.workers.start(new URL("./worker.ts", import.meta.url), { name: "database" });
-```
-
-## Browser
-
-`@destack/environment/browser` adds the browser's effects, each after its web API.
-
-```ts
-import { BrowserEnvironment } from "@destack/environment/browser";
-import { BrowserSimulation } from "@destack/environment/browser/simulation";
-
-// the Web Locks API, one origin's locks across its tabs and workers
-await environment.locks.request("destack:space", { signal }, async (lock) => lead(lock));
-// BroadcastChannel
-const port = environment.broadcast.open("destack:space");
-using _subscription = port.on((message) => apply(message));
-await environment.storage.persist(); // the Storage Standard's persist(), beside localStorage's getItem and setItem
-environment.navigation.navigate("/inbox"); // the Navigation API
-environment.navigation.assign("/blog/"); // Location.assign, a new document
-environment.display.media("(prefers-color-scheme: dark)"); // matchMedia
-// each node a tab of one origin, sharing its locks and broadcast channels
-const tab = new BrowserSimulation(simulation).environment("tab");
-```
-
-## Simulation
-
-A `Simulation` runs nodes on one clock, scheduler, randomness and network, and moves time only while the test waits on it and no real work runs: operations answered in the order they began, lifetimes once the world is quiescent.
-
-```ts
+// run it in a simulation with files in memory
 await using simulation = new Simulation({
     seed: 7,
-    start: Date.UTC(2026, 9, 24),
-    files: "memory", // the nodes' files in memory, "host" by default
-    skew: { offset: 500, drift: 100 }, // each node's clock off by up to 500 ms, drifting up to 100 ppm
-    isTracing: true, // each event a log record and each work a span, on simulated time
+    start: Date.UTC(2026, 10, 12),
+    files: "memory",
 });
-const host = simulation.node("host");
-await host.start((environment, signal) => Host.start(environment, signal));
-simulation.network.degrade({ drop: 0.01, delay: { least: 5, most: 80 } }); // a lost message breaks its socket
-simulation.network.partition("tab", "host");
-simulation.network.publish("host", { hostname: "127.0.0.1", port: 0, fetch }); // url in the world, hostUrl on the host
-simulation.network.bridge("lab"); // http://<origin>.localhost:<port> reaches https://<origin> in the world
-simulation.workers.define(new URL("./db.worker.ts", import.meta.url), serve); // a worker body, run as a node
-host.crash(); // drops its memory, listeners, sockets, children, workers and locks, keeps its files
-await simulation.idle(); // the next point with nothing left before the next timer
-await simulation.sleep(5000); // move time 5 s, each timer firing at its time
-await simulation.wait(client.fetch(request)); // move time while a world result waits on it
-await simulation.waitUntil(() => run.state === "completed", deadline); // moving time to each next timer
-await simulation.jump(simulation.clock.now() + 30 * DAY); // a 30-day sleep: each due wait wakes once
-simulation.scheduler.pending(); // the work in flight: who finishes it, running or settled, and where it began
-simulation.fingerprint; // equal across runs of one seed and the same work
-// a stalled short operation fails the run after 10 s, long work after 2 min, busy work without time as a livelock
+await backUpNote(simulation.environment("host"));
 ```
 
-## Worlds
+## Reference
 
-A `World` is a simulation as data: its seed, start and steps, the shared ones taken by `Simulation.take`.
+### Environment
+
+Each effect follows a web or runtime API.
+
+| Effect        | Verbs                                                                          | Prior art                           |
+| ------------- | ------------------------------------------------------------------------------ | ----------------------------------- |
+| `clock`       | `now`, `sleep`, `timeout`, `setTimeout`, `setInterval`                         | timers and `AbortSignal`            |
+| `scheduler`   | `yield`, `run`, `task`, `waitUntil`                                            | the Prioritized Task Scheduling API |
+| `random`      | `bytes`, `sequence`                                                            | `crypto.getRandomValues`            |
+| `crypto`      | `digest`, `sign`, `verify`, `encrypt`, `decrypt`, …                            | WebCrypto's `SubtleCrypto`          |
+| `network`     | `fetch`, `connect`, `websocket`, `resolve`                                     | `fetch`, Cloudflare's `connect`     |
+| `compression` | `compress(format)`, `decompress(format)`                                       | `CompressionStream`                 |
+| `telemetry`   | `tracers`, `meters`, `loggers`, `propagator`, `context`                        | OpenTelemetry                       |
+| `files`       | `readFile`, `writeFile`, `stat`, `readDirectory`, `rename`, `watch`, `lock`, … | Deno's file system API              |
+| `process`     | `arguments`, `variables`, `spawn`, `run`, `fork`, `on(signal)`, `exit`         | Deno's `Deno.Command`               |
+| `server`      | `http(options)`, `socket(options)`                                             | `Bun.serve`                         |
+| `host`        | `os`, `architecture`, `hostname`, `home`                                       | Node's `os`                         |
+| `opener`      | `openUrl(url)`                                                                 | the system's URL opener             |
+| `workers`     | `start(create)`                                                                | Web Workers                         |
+
+The last six are host effects, requested in the type, such as `Environment<"files" | "process">`.
+
+### Simulation
+
+`new Simulation({ seed, start, files })` creates a world of nodes, and `environment(node)` gives one node's environment.
+Its clock moves only while the test waits, so a seed runs the same every time.
+
+| Verb                                 | What it does                                                 |
+| ------------------------------------ | ------------------------------------------------------------ |
+| `environment(node)`                  | gives a node's environment, creating the node                |
+| `sleep(milliseconds)`, `run(to)`     | moves time, every timer firing on time                       |
+| `jump(to)`                           | moves time at once, as a sleeping laptop wakes               |
+| `idle()`                             | waits until no work is left                                  |
+| `waitUntil(condition, deadline)`     | moves time until a condition holds                           |
+| `network.degrade({ drop, delay })`   | drops and delays deliveries                                  |
+| `network.partition(left, right)`     | cuts the network between two nodes                           |
+| `node(name).crash()`                 | crashes a node, ending its work and breaking its connections |
+| `bump(node, by)`                     | jumps a node's clock, as a clock fault does                  |
+| `fork(label)`                        | copies the simulation to try another path                    |
+| `Simulation.of(world)`, `take(step)` | runs a world from its seed, one step at a time               |
+
+### World
+
+A world is `{ seed, start, steps }`.
+Its steps are the shared ones below or a driver's own, and `World.isStep` tells them apart.
+
+| Step                                     | What it does                               |
+| ---------------------------------------- | ------------------------------------------ |
+| `{ action: "run", milliseconds }`        | runs the world for a while                 |
+| `{ action: "jump", milliseconds }`       | moves the clock at once                    |
+| `{ action: "partition", nodes }`         | cuts the network between two nodes         |
+| `{ action: "heal", nodes }`              | joins two nodes again, or every pair       |
+| `{ action: "isolate", node }`, `rejoin`  | cuts a node off from every other, and back |
+| `{ action: "crash", node }`              | crashes a node                             |
+| `{ action: "degrade", drop, delay }`     | sets the faults every delivery meets       |
+| `{ action: "bump", node, milliseconds }` | jumps a node's clock                       |
+
+`World.scrub(world, steps)` keeps a world's first steps, and `World.branch` continues them with new ones.
+
+## Examples
+
+### Append under a lock
+
+`files.lock` takes a shared or exclusive lock other processes respect, released on disposal.
+Writing a new file and renaming it over the old one replaces it at once.
+
+```ts
+import type { Environment } from "@destack/environment";
+
+/** Append a line to a log that several processes write. */
+export async function appendLine(environment: Environment<"files">, path: string, line: string) {
+    // hold the log's lock while reading and writing it
+    const { files } = environment;
+    await using held = await files.lock(`${path}.lock`, "exclusive");
+    const text = (await files.exists(path)) ? await files.readTextFile(path) : "";
+
+    // write the next version beside it, then move it into place
+    await files.writeTextFile(`${path}.next`, `${text}${line}\n`);
+    await files.rename(`${path}.next`, path);
+}
+```
+
+### Run a command
+
+`process.spawn` starts a command, and `output` waits for its end and reads what it wrote.
+
+```ts
+import type { Environment } from "@destack/environment";
+
+/** Read the working tree's status of a Git checkout. */
+export async function readStatus(environment: Environment<"process">, directory: string) {
+    const child = environment.process.spawn(["git", "status", "--short"], {
+        workingDirectory: directory,
+    });
+    const { code, stdout } = await child.output();
+
+    return code === 0 ? new TextDecoder().decode(stdout) : undefined;
+}
+```
+
+### Break the network in a simulation
+
+A simulation drops, delays and partitions messages between its nodes.
+
+```ts
+import { Simulation } from "@destack/environment/simulation";
+
+// start a world with a laptop and a host
+await using simulation = new Simulation({ seed: 7, start: Date.UTC(2026, 10, 12) });
+const laptop = simulation.environment("laptop");
+const host = simulation.environment("host");
+
+// lose one message in a hundred, and cut the laptop off for five seconds
+simulation.network.degrade({ drop: 0.01, delay: { least: 5, most: 80 } });
+simulation.network.partition("laptop", "host");
+await simulation.sleep(5000);
+```
+
+### Replay a world
+
+`Simulation.of` runs a world from its seed, and `take` plays its steps.
 
 ```ts
 import { World } from "@destack/environment";
+import { Simulation } from "@destack/environment/simulation";
 
-const world: World<AppStep> = {
+// describe a minute with the laptop cut off
+const world: World = {
     seed: 7,
-    start,
+    start: Date.UTC(2026, 10, 12),
     steps: [
-        { action: "partition", nodes: ["laptop", "home"] },
+        { action: "partition", nodes: ["laptop", "host"] },
         { action: "run", milliseconds: 60_000 },
-        { action: "open", computer: "laptop" }, // a driver's own step
     ],
 };
+
+// play its shared steps in a simulation
 await using simulation = Simulation.of(world);
 for (const step of world.steps) {
-    await (World.isStep(step) ? simulation.take(step) : driver.act(step));
+    if (World.isStep(step)) {
+        await simulation.take(step);
+    }
 }
-World.scrub(world, 2); // its first two steps
-World.branch(world, 1, [{ action: "crash", node: "home" }]); // its first step, then new ones
 ```
+
+### Take a browser lock
+
+`BrowserEnvironment` adds Web Locks, `BroadcastChannel`, storage, navigation and display.
+
+```ts
+import type { BrowserEnvironment } from "@destack/environment/browser";
+
+/** Sync a space in one tab at a time. */
+export async function syncOnce(environment: BrowserEnvironment, sync: () => Promise<void>) {
+    await environment.locks.request("space", {}, sync);
+}
+```
+
+## Comparison
+
+### FoundationDB simulation
+
+Simulation basically follows FoundationDB's: every node in one process, on a seeded clock and a faulty network.
+Production code takes the same `Environment`, and a run is replayable data.
+
+| FoundationDB                | `@destack/environment`                  | Difference                                                  |
+| --------------------------- | --------------------------------------- | ----------------------------------------------------------- |
+| `g_network`, `INetwork`     | `Environment`                           | Passed to code instead of a global.                         |
+| simulated processes         | `simulation.environment(node)`          | The same.                                                   |
+| buggify and fault injection | `degrade`, `partition`, `crash`, `bump` | Steps of a `World`, chosen by the test.                     |
+| a seed                      | `World`                                 | The seed plus its steps, which `scrub` and `branch` change. |
+
+### Deno
+
+Host effects follow Deno's APIs, taken as an object instead of the `Deno` global.
+
+| Deno                   | `@destack/environment`         | Difference                                                |
+| ---------------------- | ------------------------------ | --------------------------------------------------------- |
+| `Deno.readTextFile`, … | `files.readTextFile`, …        | The same, plus `lock` and `tryLock`.                      |
+| `Deno.Command`         | `process.spawn`, `process.run` | Takes the command as one array.                           |
+| `Deno.serve`           | `server.http`                  | Takes a handler and WebSocket upgrades as in `Bun.serve`. |
+| `--allow-read`, …      | `Environment<"files">`         | Asked for in the type, not at run time.                   |
