@@ -1,7 +1,7 @@
 import { BUILD_STORE_TABLES } from "@destack/build/table";
 import { defineMount, definePackage } from "@destack/object";
 import { githubWebhook } from "./stack/webhook.ts";
-import { appInstallation, issuer, unit } from "./object/index.ts";
+import { appInstallation, issuer } from "./object/index.ts";
 import {
     credentialVault,
     githubPrivateKey,
@@ -15,7 +15,7 @@ export { FORGE_INSTALLATION } from "./client/installation.ts";
 
 /** The handle stacks install the forge by, and clients call its packages and repositories by. */
 export default definePackage({
-    objects: [unit, issuer, appInstallation],
+    objects: [issuer, appInstallation],
     // the store of pushed builds, indexed beside the forge's objects
     tables: BUILD_STORE_TABLES,
     mounts: [defineMount({ name: "builds", path: "/builds" }), githubWebhook],
