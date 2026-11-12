@@ -30,7 +30,7 @@ import type { MethodContext } from "../method/context.ts";
 import { EventLog } from "../query/event.ts";
 import type { StoreExecution } from "../method/execution.ts";
 import type { MethodKind } from "../method/kind.ts";
-import { SCOPE_LIST, SCOPE_READ, type ObjectType } from "../object/object.ts";
+import { SCOPE_LIST, SCOPE_READ, ObjectType } from "../object/object.ts";
 
 import type {} from "@destack/package/import-meta";
 
@@ -212,7 +212,7 @@ export class Authorization extends access.Authorization {
         const scoped = rows.map((row, position) => ({
             position,
             row,
-            scope: schema.string().parse(row["scope"]),
+            scope: ObjectType.scopeOf(row),
         }));
         const others = scoped.filter((entry) => entry.scope !== scope);
         let passed: ReadonlySet<number>;
@@ -826,7 +826,7 @@ export class Authorization extends access.Authorization {
         // decide the rows of the scopes below in their chains
         const scope = this.access.scope;
         const others = rows
-            .map((row) => schema.string().parse(row["scope"]))
+            .map((row) => ObjectType.scopeOf(row))
             .filter((other) => other !== scope);
         const below =
             permissions.size === 0 || others.length === 0

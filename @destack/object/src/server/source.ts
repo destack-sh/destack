@@ -559,7 +559,7 @@ export class ObjectSource {
         if (row === undefined) {
             return undefined;
         }
-        const scope = schema.string().parse(row["scope"]);
+        const scope = ObjectType.scopeOf(row);
         const subject = {
             packageId: kind.definition.packageId,
             type: kind.name,

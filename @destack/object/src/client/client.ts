@@ -1950,11 +1950,6 @@ export class ObjectClient<
         }
     }
 
-    /** Match the row a call names by its identifier or its key in a scope. */
-    static #identified(object: ObjectType, scope: string, value: string): Condition {
-        return { ...object.keyCondition, scope, [object.identify(value)]: value };
-    }
-
     /** Widen a durable query to every scope of its type the replica last read. */
     async #read(query: sync.Query): Promise<sync.Query> {
         // run a query of no durable type, whose replica reads no chain
@@ -2338,7 +2333,7 @@ export class ObjectClient<
             Method.loads(method) && requested !== undefined
                 ? await Snapshot.live(database)
                       .read(table)
-                      .findFirst({ where: ObjectClient.#identified(object, scope, requested) })
+                      .findFirst({ where: object.address(scope, requested) })
                 : undefined;
         if (Method.loads(method) && target === undefined) {
             throw CallError.http("NOT_FOUND", {

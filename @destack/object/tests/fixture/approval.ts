@@ -1,8 +1,8 @@
+import { TestAccess } from "@destack/access/test";
 import {
     Grant,
     type GrantPermission,
     principal,
-    Relationship,
     relation,
     union,
     universe,
@@ -214,7 +214,7 @@ export async function openApprovals(): Promise<TestApproval> {
         });
     };
     const assign = async (role: string, subject: Subject) => {
-        await Relationship.insert(served.database, {
+        await new TestAccess(served.database, served.environment).relate({
             object: scope,
             role,
             subject,

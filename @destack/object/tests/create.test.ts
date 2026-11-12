@@ -8,7 +8,7 @@ import { TestDatabase } from "@destack/db/test";
 import { Identifier, schema } from "@destack/schema";
 
 import { RequestId, ObjectReference, Scope } from "@destack/sync";
-import { type MethodInput, defineObject, field } from "../src/index.ts";
+import { type MethodInput, defineObject, field, recoverable } from "../src/index.ts";
 import { openSpace, space, spacePrincipal } from "./fixture/space.ts";
 import { testCallKey } from "@destack/object/test";
 import { testEvents, serversOf } from "../src/test/index.ts";
@@ -638,6 +638,96 @@ test("create an object under a natural key the creator chooses, read it by that 
         ["CONFLICT", "OBJECT_EXISTS", "'channel' with the same 'scope and slug' already exists"],
         created.id,
         ["NOT_FOUND", "REFERENCE_NOT_FOUND", "'channel' with key 'missing' not found"],
+    ]);
+});
+
+/** Desks keyed by name, which a closed desk keeps and a deleted one frees. */
+const desk = defineObject(
+    {
+        name: "desk",
+        plural: "desks",
+        title: t`${plural(argument("count"), { one: "Desk", other: "Desks" })}`,
+        scope: space,
+        key: "name",
+        fields: {
+            name: field.string(),
+            holder: field.reference(principal.user),
+            closedAt: field.time().optional(),
+        },
+        access: {
+            permissions: { read: relation("holder"), write: relation("holder") },
+        },
+        traits: [recoverable({ within: { days: 30 }, by: "write" })],
+    },
+    (method) => ({
+        create: method.create("write"),
+        get: method.get("read"),
+        update: method.update("write", { fields: ["closedAt"] }),
+    }),
+);
+
+test("keep a key on a closed object, free it on deletion, and refuse restoring the deleted holder", async () => {
+    // run in a world of its own
+    const world = testSimulation().environment("test");
+    const storage = await TestDatabase.create(
+        tablesOf({
+            packages: [objectPackage, { objects: { desk }, tables: [] }],
+            follows: [],
+            tables: [],
+        }).tables,
+        { environment: world, isMigrated: true },
+    );
+    onTestFinished(() => storage.close());
+    await openSpace(storage.database, world, spaceId);
+    const store = TestObjectStore.of({
+        chain: async () => undefined,
+        environment: world,
+        principal: spacePrincipal(spaceId),
+        servers: serversOf([desk]),
+        database: storage.database,
+        callKey: testCallKey,
+        events: await testEvents(storage.database, world),
+        origin: { package: desk.package },
+    });
+    const access = userContext(users.alice, spaceId, { environment: world }).access();
+    const request = () => RequestId.create(world);
+    const open = () =>
+        store
+            .mutate(access, {
+                id: request(),
+                calls: [desk.call("create", { spaceId, name: "front", holderId: users.alice })],
+            })
+            .then(([written]) => written);
+
+    // close a desk, which keeps its name
+    const first = await open();
+    await store.mutate(access, {
+        id: request(),
+        calls: [desk.call("update", { spaceId, id: "front", closedAt: 1 })],
+    });
+    const taken = await refusal(open());
+
+    // delete it, which frees its name for a new desk
+    await store.mutate(access, {
+        id: request(),
+        calls: [desk.call("delete", { spaceId, id: first.id })],
+    });
+    const second = await open();
+    const read = await store.query(access, desk.call("get", { spaceId, id: "front" }));
+    const restored = await refusal(
+        store.mutate(access, {
+            id: request(),
+            calls: [desk.call("restore", { spaceId, id: first.id })],
+        }),
+    );
+
+    // expect the name to address the live desk alone
+    const conflict = "'desk' with the same 'scope and name' already exists";
+    expect([taken, read.id === second.id, read.id === first.id, restored]).toEqual([
+        ["CONFLICT", "OBJECT_EXISTS", conflict],
+        true,
+        false,
+        ["CONFLICT", "OBJECT_EXISTS", conflict],
     ]);
 });
 

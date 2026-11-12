@@ -77,20 +77,21 @@ export async function finishTask(
 
 `defineObject(options, methods)` declares an object type, and `implement({ methods })` implements its own methods.
 
-| Option                    | What it is                                                    |
-| ------------------------- | ------------------------------------------------------------- |
-| `name`, `plural`, `title` | the type's names, and its title by count                      |
-| `container`               | `"scope"` or `"partition"` for a type that holds others       |
-| `scope`                   | the scope types the objects live in                           |
-| `fields`                  | the objects' fields                                           |
-| `access`                  | permissions, relations and elevation, as in `@destack/access` |
-| `traits`                  | the traits the type adopts                                    |
-| `constraints`, `indexes`  | checks, indexes, unique constraints and foreign keys          |
-| `aggregates`              | counts and sums kept on referenced objects                    |
-| `storage`                 | where the objects live, such as the event log                 |
-| `convert`                 | how each release converts stored rows, by version             |
-| `mapping`                 | another package's table the objects live in                   |
-| `predefined`              | the rows every database has                                   |
+| Option                    | What it is                                                     |
+| ------------------------- | -------------------------------------------------------------- |
+| `name`, `plural`, `title` | the type's names, and its title by count                       |
+| `container`               | `"scope"` or `"partition"` for a type that holds others        |
+| `scope`                   | the scope types the objects live in                            |
+| `fields`                  | the objects' fields                                            |
+| `key`                     | the field an object is addressed by, unique among live objects |
+| `access`                  | permissions, relations and elevation, as in `@destack/access`  |
+| `traits`                  | the traits the type adopts                                     |
+| `constraints`, `indexes`  | checks, indexes, unique constraints and foreign keys           |
+| `aggregates`              | counts and sums kept on referenced objects                     |
+| `storage`                 | where the objects live, such as the event log                  |
+| `convert`                 | how each release converts stored rows, by version              |
+| `mapping`                 | another package's table the objects live in                    |
+| `predefined`              | the rows every database has                                    |
 
 ### field
 
@@ -242,6 +243,58 @@ export const note = defineObject({
         recoverable({ within: { days: 30 }, by: "write" }),
     ],
 });
+```
+
+### Address a board by its name
+
+`key` lets calls address an object by a field instead of its identifier.
+The value is unique among the live objects of its scope, and deleting the object frees it.
+
+```ts
+import { argument, plural, t } from "@destack/locale";
+import { defineObject, definePackage, field, recoverable, shareable } from "@destack/object";
+import type { ClientOf } from "@destack/object/client";
+
+// declare projects, each a scope
+const project = defineObject({
+    name: "project",
+    plural: "projects",
+    title: t`${plural(argument("count"), { one: "Project", other: "Projects" })}`,
+    container: "scope",
+    fields: { name: field.string() },
+});
+
+// declare shareable boards named uniquely within their project, restorable for 30 days
+const board = defineObject(
+    {
+        name: "board",
+        plural: "boards",
+        title: t`${plural(argument("count"), { one: "Board", other: "Boards" })}`,
+        scope: project,
+        key: "name",
+        fields: { name: field.string() },
+        traits: [shareable({}), recoverable({ within: { days: 30 }, by: "write" })],
+    },
+    (method) => ({
+        get: method.get("read"),
+        create: method.create("write", { fields: ["name"] }),
+    }),
+);
+
+// declare the package
+const boards = definePackage({ objects: [project, board] });
+
+/** Get the roadmap board by its name, delete it, and create a new one under the same name. */
+export async function replaceRoadmap(
+    client: ClientOf<typeof boards>,
+    projectId: string,
+    requests: { readonly deleting: string; readonly creating: string },
+) {
+    const roadmap = await client.board.get({ projectId, id: "roadmap" });
+    await client.board.delete({ projectId, id: roadmap.id, requestId: requests.deleting });
+
+    return await client.board.create({ projectId, name: "roadmap", requestId: requests.creating });
+}
 ```
 
 ### Guard a field
@@ -405,6 +458,7 @@ Standard methods follow Google's API Improvement Proposals.
 
 | AIP                         | `@destack/object`                           | Difference                                         |
 | --------------------------- | ------------------------------------------- | -------------------------------------------------- |
+| AIP-122 resource names      | `key`                                       | A name is unique among live objects only.          |
 | AIP-131 to AIP-135          | `get`, `list`, `create`, `update`, `delete` | The same.                                          |
 | AIP-160 filters             | `where`                                     | Conditions as JSON, or a filter string in the CLI. |
 | AIP-155 request identifiers | `requestId`                                 | Required on every write.                           |

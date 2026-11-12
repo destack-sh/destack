@@ -2942,7 +2942,9 @@ export class ObjectStore {
         }
 
         // read the identifier of the object holding the key in the scope, refusing a key nobody holds
-        const row = await view.read(object.table).findFirst({ where: { scope, [column]: value } });
+        const row = await view
+            .read(object.table)
+            .findFirst({ where: object.address(scope, value) });
         if (row === undefined) {
             throw CallError.http("NOT_FOUND", { message: `${object.name} '${value}' not found` });
         }

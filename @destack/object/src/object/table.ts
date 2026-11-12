@@ -21,6 +21,7 @@ import type { TraitObject } from "../trait/trait.ts";
 import type { VersionBuilderMap } from "../trait/versioned.ts";
 import type { approvalColumns, controlledColumns } from "../trait/controlled.ts";
 import type { suspensionColumns } from "../trait/suspendable.ts";
+import { controlled } from "../trait/controlled.ts";
 import { ObjectConstraint } from "./constraint.ts";
 import { claimReservation } from "../claim/reservation.ts";
 import { type SnakeCase, Casing } from "./name.ts";
@@ -150,6 +151,17 @@ export type ObjectTable<
 
 /** An object type's table: derived from its traits, scope and fields. */
 export const ObjectTable = {
+    /** Decide whether a type's objects go to the trash first: recoverable or controlled. */
+    isTrashable(
+        definition: { readonly recoverable?: unknown },
+        traits: readonly TraitInstance[],
+    ): boolean {
+        return (
+            definition.recoverable !== undefined ||
+            traits.some((applied) => applied.trait === controlled)
+        );
+    },
+
     /** Derive an object's table from its traits, scope and fields. */
     derive(
         definition: ObjectDefinition,
@@ -192,13 +204,20 @@ export const ObjectTable = {
                     ...Object.entries(definition.constraints ?? {}).map(([constraint, declared]) =>
                         ObjectConstraint.build(constraint, declared, table()),
                     ),
-                    // address each object by its key once within its scope
+                    // make each key unique among the live objects of its scope
                     ...(definition.key === undefined
                         ? []
                         : [
                               ObjectConstraint.build(
                                   "unique_key",
-                                  { kind: "unique", on: ["scope", definition.key] },
+                                  {
+                                      kind: "index",
+                                      on: ["scope", definition.key],
+                                      unique: true,
+                                      ...(ObjectTable.isTrashable(definition, applied)
+                                          ? { where: { deletedAt: { isNull: true } } }
+                                          : {}),
+                                  },
                                   table(),
                               ),
                           ]),

@@ -921,18 +921,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         name: string,
         validator: Validator,
     ): ColumnBuilder<ColumnDefinition<schema.Output<Validator>, string>> {
-        return new ColumnBuilder<ColumnDefinition<schema.Output<Validator>, string>>({
-            name,
-            kind: "text",
-            types: { sqlite: "text", postgresql: "text" },
-            schema: validator,
-            json: validator,
-            nullable: true,
-            toJson: (value) => value,
-            fromJson: (value) => validator.parse(value),
-            encode: (value) => validator.parse(value),
-            decode: (value) => validator.parse(value),
-        });
+        return text(name).validate(validator);
     }
 }
 
