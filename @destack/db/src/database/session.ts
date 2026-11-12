@@ -40,8 +40,8 @@ export interface Session {
         text: string,
         parameters: readonly DriverValue[],
     ) => Promise<Record<string, unknown>[]>;
-    /** Run a statement for its effect. */
-    readonly run: (text: string, parameters: readonly DriverValue[]) => Promise<void>;
+    /** Run a statement for its effect, answering how many rows it changed. */
+    readonly run: (text: string, parameters: readonly DriverValue[]) => Promise<number>;
     /** Run a script of statements in one round trip. */
     readonly exec: (script: string) => Promise<void>;
     /** Commit work in a transaction, or in a savepoint within one, rolling back when it fails. */
@@ -97,9 +97,9 @@ export class SqliteSession implements Session {
         return rows.map(requireRecord);
     }
 
-    /** Run a statement for its effect. */
-    async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.client.run(text, parameters);
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(text: string, parameters: readonly DriverValue[]): Promise<number> {
+        return await this.client.run(text, parameters);
     }
 
     /** Run a script of statements in one round trip. */
@@ -185,11 +185,13 @@ export class PostgresSession implements Session {
         return [...rows].map(requireRecord);
     }
 
-    /** Run a statement for its effect. */
-    async run(text: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#statement((client) =>
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(text: string, parameters: readonly DriverValue[]): Promise<number> {
+        const result = await this.#statement((client) =>
             client.unsafe(text, parameters.map(postgresParameter), { prepare: false }).execute(),
         );
+
+        return result.count;
     }
 
     /** Run a script of statements as one simple query, one implicit transaction outside one. */

@@ -202,6 +202,7 @@ export class MutationQuery<
                     const read = await driver.write(
                         (session) => session.values(statement.text, statement.parameters),
                         statement,
+                        (written) => written.length,
                     );
                     rows.push(...read);
                 }

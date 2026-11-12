@@ -361,9 +361,15 @@ export class SharedQuery implements SqliteQueryClient {
         return answered;
     }
 
-    /** Run a statement for its effect. */
-    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#statement({ method: "run", sql, parameters: parameters.map(sharedValue) });
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<number> {
+        const changed = await this.#statement({
+            method: "run",
+            sql,
+            parameters: parameters.map(sharedValue),
+        });
+
+        return schema.number().parse(changed);
     }
 
     /** Run work in an owner's savepoint, at a depth. */

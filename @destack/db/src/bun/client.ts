@@ -62,9 +62,11 @@ export class BunQuery implements SqliteQueryClient {
         );
     }
 
-    /** Run a statement for its effect. */
-    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#schedule(async () => this.statements.take(sql).run(...parameters));
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<number> {
+        return await this.#schedule(
+            async () => this.statements.take(sql).run(...parameters).changes,
+        );
     }
 
     /** Run a script statement by statement, since Bun reports only a script's last failure. */

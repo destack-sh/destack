@@ -96,11 +96,12 @@ export class DurableObjectQuery implements SqliteQueryClient {
         return this.#schedule(async () => this.#read(this.#exec(sql, parameters), read));
     }
 
-    /** Run a statement for its effect. */
-    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
-        await this.#schedule(async () => {
-            this.#read(this.#exec(sql, parameters), (cursor) => cursor.toArray());
-        });
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<number> {
+        return await this.#schedule(
+            async () =>
+                this.#read(this.#exec(sql, parameters), (cursor) => cursor.toArray()).rowsWritten,
+        );
     }
 
     /** Run a script one statement at a time. */

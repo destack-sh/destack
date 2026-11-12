@@ -78,7 +78,7 @@ export class DurableObjectReader implements SqliteConnectionClient {
     }
 
     /** Refuse a statement run for its effect. */
-    run(): Promise<void> {
+    run(): Promise<number> {
         return Promise.reject(DurableObjectReader.#refusal());
     }
 

@@ -39,11 +39,14 @@ export class WasmQuery implements SqliteQueryClient {
         return this.#schedule(async () => this.database.selectObjects(sql, bindings(parameters)));
     }
 
-    /** Run a statement for its effect. */
-    async run(sql: string, parameters: readonly DriverValue[]): Promise<void> {
+    /** Run a statement for its effect, answering how many rows it changed. */
+    async run(sql: string, parameters: readonly DriverValue[]): Promise<number> {
         const bind = bindings(parameters);
-        await this.#schedule(async () => {
+
+        return await this.#schedule(async () => {
             this.database.exec({ sql, ...(bind === undefined ? {} : { bind }) });
+
+            return this.database.changes();
         });
     }
 

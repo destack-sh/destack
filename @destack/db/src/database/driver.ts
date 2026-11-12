@@ -135,6 +135,7 @@ export class DatabaseDriver {
     write<Value>(
         operation: (session: Session) => Promise<Value>,
         statement: DriverStatement,
+        changed: (value: Value) => number,
     ): Promise<Value> {
         // cascade the written tables, every table for unknown ones
         const { tables } = statement;
@@ -157,6 +158,8 @@ export class DatabaseDriver {
             written,
             UNSCRIPTED,
             statement,
+            () => undefined,
+            changed,
         );
     }
 
@@ -167,6 +170,7 @@ export class DatabaseDriver {
         scripted: ReadonlySet<string>,
         statement: DriverStatement,
         sequence: () => number | undefined = () => undefined,
+        changed: (value: Value) => number = () => 1,
     ): Promise<Value> {
         // record the tables in the enclosing transaction, marking a replica's write that derives rows first
         const transaction = this.transaction;
@@ -177,7 +181,7 @@ export class DatabaseDriver {
                 await mark();
             }
             const result = await this.run(operation, statement);
-            for (const table of tables) {
+            for (const table of changed(result) > 0 ? tables : []) {
                 transaction.written.add(table);
             }
             for (const table of scripted) {
@@ -190,8 +194,8 @@ export class DatabaseDriver {
         // commit
         const result = await this.run(operation, statement);
 
-        // announce a commit that wrote tables, with the last sequence it logged
-        if (tables.size > 0) {
+        // announce a commit that changed rows of tables, with the last sequence it logged
+        if (tables.size > 0 && changed(result) > 0) {
             this.state.commits.notify(tables, scripted, sequence());
         }
 
@@ -233,11 +237,11 @@ export class DatabaseDriver {
         }
 
         // run a write of its tables
-        await this.write(run, statement);
+        await this.write(run, statement, (count) => count);
     }
 
     /** Run a statement returning rows, as a read or as a write of the tables it references. */
-    #query<Value>(
+    #query<Value extends readonly unknown[]>(
         statement: DriverStatement,
         query: (session: Session) => Promise<Value>,
     ): Promise<Value> {
@@ -245,7 +249,11 @@ export class DatabaseDriver {
 
         return statement.isRead
             ? this.run(() => failing(statement, query(this.session), this.state), statement)
-            : this.write((session) => failing(statement, query(session), this.state), statement);
+            : this.write(
+                  (session) => failing(statement, query(session), this.state),
+                  statement,
+                  (rows) => rows.length,
+              );
     }
 
     /** Decide whether a read may be cached: a live read of versioned tables only. */

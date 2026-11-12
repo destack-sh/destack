@@ -18,8 +18,8 @@ export interface SqliteQueryClient {
     readonly values: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[][]>;
     /** Read every row by column name. */
     readonly all: (sql: string, parameters: readonly DriverValue[]) => Promise<unknown[]>;
-    /** Run a statement for its effect. */
-    readonly run: (sql: string, parameters: readonly DriverValue[]) => Promise<void>;
+    /** Run a statement for its effect, answering how many rows it changed. */
+    readonly run: (sql: string, parameters: readonly DriverValue[]) => Promise<number>;
     /** Run a script of statements. */
     readonly exec: (script: string) => Promise<void>;
     /** Run work in a nested transaction at a depth, undoing only its writes when it fails. */
