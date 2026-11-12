@@ -23,7 +23,7 @@ export const Seed = schema.union([Preset, HexColor]);
 export type Seed = schema.Infer<typeof Seed>;
 
 /** The light or dark appearance a color resolves in. */
-export type Scheme = "light" | "dark";
+export type ColorScheme = "light" | "dark";
 
 /** The way a tone search moves from its start. */
 export type Direction = "lighter" | "darker" | "either";

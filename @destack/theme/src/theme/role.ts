@@ -1,5 +1,5 @@
 import { schema } from "@destack/schema";
-import { apca, Color, HexColor, type Palette, type Scheme, Srgb } from "../palette/index.ts";
+import { apca, Color, HexColor, type Palette, type ColorScheme, Srgb } from "../palette/index.ts";
 
 /** An APCA lightness contrast Lc a role needs. */
 export interface Floor {
@@ -266,7 +266,7 @@ export class Resolution {
     /** The palettes the roles read. */
     readonly #palettes: Palettes;
     /** The appearance. */
-    readonly scheme: Scheme;
+    readonly scheme: ColorScheme;
     /** The contrast level from 0, the standard floors, to 1, the most. */
     readonly level: number;
     /** The colors resolved so far. */
@@ -275,7 +275,7 @@ export class Resolution {
     readonly #resolving = new Set<RoleName>();
 
     /** Hold the roles and palettes of one appearance and level. */
-    constructor(roles: Roles, palettes: Palettes, scheme: Scheme, level: number) {
+    constructor(roles: Roles, palettes: Palettes, scheme: ColorScheme, level: number) {
         // hold what every color resolves from
         this.#roles = roles;
         this.#palettes = palettes;

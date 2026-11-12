@@ -1,6 +1,6 @@
 import { PackageVersion, PackageError } from "@destack/package";
 import { present, schema } from "@destack/schema";
-import { apca, Palette, Seed, type Scheme, Srgb } from "../palette/index.ts";
+import { apca, Palette, Seed, type ColorScheme, Srgb } from "../palette/index.ts";
 import { ACCENT_PRESETS } from "../preset/index.ts";
 import { MOTION_VARIABLE, TOKENS, VARIABLE_PREFIX, type Variable } from "../token/index.ts";
 import { DENSITY_SCALES, Density, TEXT_SCALES, type Contrast, type Display } from "./display.ts";
@@ -56,7 +56,7 @@ const CHECKS = [
     ["light", 1],
     ["dark", 0],
     ["dark", 1],
-] as const satisfies readonly (readonly [Scheme, number])[];
+] as const satisfies readonly (readonly [ColorScheme, number])[];
 
 /** The custom property the stylesheet sets to 1 when the device asks for more contrast. */
 const CONTRAST_VARIABLE = `${VARIABLE_PREFIX}-contrast`;
@@ -211,7 +211,7 @@ export class Theme {
     }
 
     /** Resolve the roles of an appearance at a contrast level from 0, the standard, to 1. */
-    resolve(scheme: Scheme, level: number, accent?: Seed): Resolution {
+    resolve(scheme: ColorScheme, level: number, accent?: Seed): Resolution {
         // reuse the resolution of this accent, appearance and level
         const seed = accent ?? this.definition.accent ?? DEFAULT_ACCENT;
         const key = `${seed}:${scheme}:${level}`;
