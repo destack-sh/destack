@@ -1,7 +1,8 @@
-import type { Environment } from "@destack/environment";
+import { ChunkReader, type Environment } from "@destack/environment";
 import { asc, eq, gt, inArray } from "../sql/operator.ts";
 import { sql, type SQL } from "../sql/sql.ts";
 import { Column } from "../table/column.ts";
+import { DatabaseError } from "../error/error.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import { Condition } from "../query/condition.ts";
 import { textValues } from "../query/statement.ts";
@@ -10,7 +11,7 @@ import { defineTable } from "../table/table.ts";
 import { index } from "../table/constraint.ts";
 import { boolean, integer, text } from "../table/column.ts";
 import type { BlobEntry, BlobPlacement, BlobStorage, ContentStore } from "@destack/resource";
-import { canonicalize, Digest, type JsonValue, present, schema } from "@destack/schema";
+import { canonicalize, Digest, type JsonValue, nth, present, schema } from "@destack/schema";
 import { type Controller, Now } from "../control/control.ts";
 
 /** How long a store leases what it writes for a row to reference, by default: half an hour. */
@@ -161,13 +162,57 @@ export class BlobStore<Storage extends BlobStorage = BlobStorage> implements Con
 
     /** Read many blobs in order, each body read before the next blob's. */
     async *batch(digests: readonly Digest[]): AsyncIterable<BlobEntry> {
+        // place each blob in the given order
         const placements = new Map(
             (await this.placements(digests)).map((placement) => [placement.digest, placement]),
         );
-        for (const digest of digests) {
-            const { pack, offset, size } = present(placements.get(digest), `blob ${digest}`);
-            yield { digest, size, body: this.storage.slice(pack, offset, size) };
+        const ordered = digests.map((digest) => present(placements.get(digest), `blob ${digest}`));
+
+        // read each run of blobs lying back to back in a pack with one slice, cut into their bodies
+        for (const run of BlobStore.#runs(ordered)) {
+            const first = nth(run, 0);
+            const last = nth(run, run.length - 1);
+            const length = last.offset + last.size - first.offset;
+            await using reader = new ChunkReader(
+                this.storage.slice(first.pack, first.offset, length),
+                () =>
+                    DatabaseError.of(
+                        "CONTENT_UNAVAILABLE",
+                        `pack '${first.pack}' is unavailable: it ends before its blobs`,
+                    ),
+            );
+            for (const { digest, size } of run) {
+                // yield the body, then skip what its reader left
+                const body = reader.stream(size);
+                yield { digest, size, body };
+                const drained = body[Symbol.asyncIterator]();
+                while ((await drained.next()).done !== true) {
+                    // drain what the reader left
+                }
+            }
         }
+    }
+
+    /** Split placements into runs that lie back to back in one pack, in order. */
+    static #runs(placements: readonly BlobPlacement[]): BlobPlacement[][] {
+        // start a run at each blob that does not follow the previous one
+        const runs: BlobPlacement[][] = [];
+        let previous: BlobPlacement | undefined;
+        for (const placement of placements) {
+            // extend the run when the blob starts where the previous one ends
+            const isNext =
+                previous !== undefined &&
+                previous.pack === placement.pack &&
+                previous.offset + previous.size === placement.offset;
+            if (isNext) {
+                nth(runs, runs.length - 1).push(placement);
+            } else {
+                runs.push([placement]);
+            }
+            previous = placement;
+        }
+
+        return runs;
     }
 
     /** Store the blobs this store lacks among some digests, read from another store. */
