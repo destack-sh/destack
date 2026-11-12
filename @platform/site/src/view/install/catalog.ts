@@ -72,10 +72,10 @@ export async function readDownloads(network: Network): Promise<Download[]> {
     }
     const catalog = Catalog.parse(await response.json());
 
-    // offer the Linux archive and the native installers, each at a published address
+    // offer each listed target's Linux archive or native installer, skipping unlisted targets
     const downloads = Object.entries(catalog.downloads).flatMap(([target, distribution]) => {
         if (!isTarget(target)) {
-            throw new Error(`download platform '${target}' is not supported`);
+            return [];
         }
         const isLinux = target.endsWith("unknown-linux-gnu");
         const choice = isLinux ? distribution.archive : distribution.installers.dmg;

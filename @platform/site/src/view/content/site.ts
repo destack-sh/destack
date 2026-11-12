@@ -2,7 +2,7 @@ import type { SearchEntry } from "./search.ts";
 
 /** The one sentence that says what Destack is, shared by search and link previews. */
 export const tagline =
-    "Reconquer your software: the apps you use, the apps you make, and the agents you run, on one open stack, on your machines or ours.";
+    "Build real custom software, integrate every app and agent, and control your whole stack.";
 
 /** The site's origin, which absolute links and metadata start from. */
 export const origin = "https://destack.sh";
@@ -12,10 +12,6 @@ export const product = "https://destack.app/";
 
 /** The address that serves a coding agent the setup guide as Markdown. */
 export const setupGuide = "https://destack.me";
-
-// NOTE #Incomplete: open the install once Destack opens
-/** Whether the install is open; until then its fields show as coming soon. */
-export const isInstallOpen = false;
 
 /** The public installation command. */
 export const installCommand = `curl -fsSL ${origin}/install | sh`;

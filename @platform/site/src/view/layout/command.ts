@@ -18,7 +18,7 @@ import type { Shortcut } from "@destack/object";
 import { collectionAt } from "../../../content";
 import type { SearchEntry, SearchEntryKind } from "../content/search";
 import type { PageFormats } from "../content/source";
-import { agentPrompt, installCommand, isInstallOpen } from "../content/site";
+import { agentPrompt, installCommand } from "../content/site";
 import type { Download } from "../install/catalog";
 import { destinations, isExternal } from "./navigation";
 
@@ -130,32 +130,29 @@ export type HighlightSegment = {
 
 /** Build every command the current page offers, across the root and its submenus. */
 export function commandsFor(site: Site): readonly PaletteCommand[] {
-    // offer the copies and the download first, once the install opens
-    const commands: PaletteCommand[] = [];
-    if (isInstallOpen) {
-        commands.push(
-            actionCommand("copy-install", "Copy install command", installCommand, terminalWindow, {
-                kind: "copy",
-                text: installCommand,
-            }),
-            actionCommand("copy-prompt", "Copy agent prompt", agentPrompt, robot, {
-                kind: "copy",
-                text: agentPrompt,
-            }),
-            site.download === undefined
-                ? actionCommand("download", "Download Destack", "/docs/setup/", downloadSimple, {
-                      kind: "navigate",
-                      href: "/docs/setup/",
-                  })
-                : actionCommand(
-                      "download",
-                      `Download for ${site.download.label}`,
-                      site.download.version,
-                      downloadSimple,
-                      { kind: "navigate", href: site.download.url },
-                  ),
-        );
-    }
+    // offer the copies and the download first
+    const commands: PaletteCommand[] = [
+        actionCommand("copy-install", "Copy install command", installCommand, terminalWindow, {
+            kind: "copy",
+            text: installCommand,
+        }),
+        actionCommand("copy-prompt", "Copy agent prompt", agentPrompt, robot, {
+            kind: "copy",
+            text: agentPrompt,
+        }),
+        site.download === undefined
+            ? actionCommand("download", "Download Destack", "/docs/setup/", downloadSimple, {
+                  kind: "navigate",
+                  href: "/docs/setup/",
+              })
+            : actionCommand(
+                  "download",
+                  `Download for ${site.download.label}`,
+                  site.download.version,
+                  downloadSimple,
+                  { kind: "navigate", href: site.download.url },
+              ),
+    ];
 
     // switch the stack where the page has figures
     if (site.hasStack) {

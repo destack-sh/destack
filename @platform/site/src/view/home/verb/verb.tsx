@@ -33,6 +33,7 @@ import { sources } from "./source";
 import { type Lineup, lineupAt, type Tool, toolsOf } from "../tool/tool";
 import type { Option } from "../figure/picker";
 import { screen } from "../../layout/screen.stylex";
+import { tagline } from "../../content/site";
 
 /** The milliseconds the pointer rests on a holding before the browser turns to its page. */
 const settleIn = 80;
@@ -60,8 +61,7 @@ export const verb: Form = {
     sense: {
         definition: "to own your stack",
         highlight: ["own"],
-        sentence:
-            "Build real custom software, integrate every app and agent, and control your whole stack.",
+        sentence: tagline,
     },
 };
 

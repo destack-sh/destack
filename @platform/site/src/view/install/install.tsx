@@ -4,7 +4,7 @@ import { color, font, stroke } from "@destack/theme/tokens.stylex";
 import * as style from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
-import { installCommand, isInstallOpen } from "../content/site";
+import { installCommand } from "../content/site";
 import { lattice } from "../layout/lattice.stylex";
 import { press } from "../layout/press";
 import { type Download, type System, systems } from "./catalog";
@@ -33,7 +33,7 @@ function Key(properties: { isPrimary?: boolean; children: JSX.Element }) {
     );
 }
 
-/** Download the published build for this machine, or mark the field as coming when none fits. */
+/** Download the published build for this machine, or say why none fits. */
 function DownloadField(properties: { system: System | undefined; download: Download | undefined }) {
     // explain a missing build: none for this system yet, or none for phones and tablets
     const missing = () =>
@@ -43,11 +43,11 @@ function DownloadField(properties: { system: System | undefined; download: Downl
 
     return (
         <Show
-            when={isInstallOpen ? properties.download : undefined}
+            when={properties.download}
             fallback={
                 <span
                     aria-disabled="true"
-                    title={isInstallOpen ? missing() : "Coming soon"}
+                    title={missing()}
                     {...style.attrs(press.key, styles.field, styles.tiled, styles.unavailable)}
                 >
                     <Product />
@@ -89,20 +89,6 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
     // copy the text and show it as copied for a moment
     const copied = createCopy();
 
-    // show the field as coming soon until the install opens
-    if (!isInstallOpen) {
-        return (
-            <span
-                aria-disabled="true"
-                title="Coming soon"
-                {...style.attrs(press.key, styles.field, styles.unavailable)}
-            >
-                {properties.children}
-                <span {...style.attrs(styles.soon)}>Soon</span>
-            </span>
-        );
-    }
-
     return (
         <button
             type="button"
@@ -120,11 +106,11 @@ function CopyField(properties: { name: string; text: string; children: JSX.Eleme
 }
 
 /** Offer the agent prompt as one field that copies itself. */
-export function AgentField(properties: { prompt: string }) {
+function AgentField(properties: { prompt: string }) {
     return (
         <CopyField name="prompt" text={properties.prompt}>
             <span {...style.attrs(styles.text)}>
-                <span {...style.attrs(isInstallOpen && styles.prompt)}>&gt; </span>
+                <span {...style.attrs(styles.prompt)}>&gt; </span>
                 {properties.prompt}
             </span>
         </CopyField>
@@ -132,11 +118,11 @@ export function AgentField(properties: { prompt: string }) {
 }
 
 /** Offer the install command as one field that copies itself. */
-export function TerminalField() {
+function TerminalField() {
     return (
         <CopyField name="command" text={installCommand}>
             <code {...style.attrs(styles.text)}>
-                <span {...style.attrs(isInstallOpen && styles.prompt)}>$ </span>
+                <span {...style.attrs(styles.prompt)}>$ </span>
                 {installCommand}
             </code>
         </CopyField>
@@ -191,12 +177,12 @@ export function InstallWays(properties: { prompt: string }) {
 }
 
 /** Show the three ways to install stacked, for the menu every page opens from its top bar. */
-export function InstallList(properties: { prompt: string }) {
+export function InstallList(properties: { prompt: string; xstyle?: style.Styles }) {
     // detect this machine's system and its published build once for the download field
     const desktop = createDownloads();
 
     return (
-        <ul {...style.attrs(styles.list)}>
+        <ul {...style.attrs(styles.list, properties.xstyle)}>
             {waysOf(properties.prompt, desktop).map((way) => (
                 <li {...style.attrs(styles.item)}>
                     <span {...style.attrs(styles.title)}>{way.name()}</span>
