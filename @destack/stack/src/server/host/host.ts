@@ -145,7 +145,7 @@ export interface SpaceMachine {
     /** Send a request to another origin as it is. */
     readonly send: (request: Request) => Promise<Response>;
     /** The machine's builds, which installations' revisions read. */
-    readonly builds: Pick<SpaceBuildStore, "root">;
+    readonly builds: Pick<SpaceBuildStore, "root" | "cache">;
     /** The releases of the packages the machine links, by package. */
     readonly linked: ReadonlyMap<PackageId, PackageRelease>;
     /** The releases the machine ships, by package. */
@@ -1055,6 +1055,7 @@ export class SpaceHost {
                 locale,
                 timeZone,
             },
+            distribution: machine.builds.cache.store.layer,
             settings: await RolloutTarget.settings(this.database, reader, {
                 scope,
                 installation: id,

@@ -196,6 +196,7 @@ async function notesBuild(
     crypto: Crypto,
     sandbox: Sandbox = {},
     workloads: readonly string[] = ["main"],
+    requires: Readonly<Record<string, string>> = {},
 ): Promise<BuildReader> {
     // make the workload use every declared resource in both server outputs
     const used = {
@@ -245,7 +246,7 @@ async function notesBuild(
             description: entry.description,
         })),
         crypto,
-        { outputs: fixtureOutputs({ server: output("bun"), worker: output("workerd") }) },
+        { outputs: fixtureOutputs({ server: output("bun"), worker: output("workerd") }), requires },
     );
 
     return built;
@@ -1116,6 +1117,40 @@ test("observe Ready at a new generation of an unchanged revision", async () => {
                 observedGeneration: first.installation.generation + 1,
             },
         ],
+    });
+});
+
+test("deploy nothing of a build requiring a newer builtin than the machine links, and report why", async () => {
+    // link a builtin at 2026.9.0, and install notes requiring its 2026.10.0
+    const boxes = PackageVersion.parse({
+        id: "package-01996ab0-0000-7000-8000-0000000000e2",
+        name: "@example/boxes",
+        version: "2026.9.0",
+    });
+    const linked = await MemoryBuild.of(boxes, [], testHost().crypto, { role: "builtin" });
+    const fixture = await TestSpace.open({ linked: [linked] });
+    const { database } = fixture;
+    const requires = { [boxes.name]: "2026.10.0" };
+    const notes = await installNotes(
+        fixture,
+        ids.notes,
+        await notesBuild([main], fixture.environment.crypto, {}, ["main"], requires),
+    );
+    const { deployments } = await serveControllers(fixture);
+
+    // refuse deploying it
+    const message =
+        "cannot deploy '@example/notes@2026.9.0': it needs @example/boxes 2026.10.0 or newer, and this machine runs 2026.9.0";
+    const refused = await refusal(deployments.reconcile(notes.installationId));
+    const installed = await readInstalled(database, notes.installationId);
+    expect({
+        deployments: await database.select().from(object.deployment.table),
+        refused,
+        synced: installed.installation.conditions["Synced"],
+    }).toEqual({
+        deployments: [],
+        refused: ["PRECONDITION_FAILED", "RELEASE_BLOCKED", message],
+        synced: refusedCondition(installed, "RELEASE_BLOCKED", message),
     });
 });
 

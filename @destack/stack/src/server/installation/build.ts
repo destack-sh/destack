@@ -117,8 +117,8 @@ export class BuildCache {
     }
 
     /** Retain the locks a space runs and the builds they list, replacing its earlier set. */
-    async root(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
-        await this.store.root(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));
+    async retain(space: Identifier<"space">, locks: Iterable<Digest>): Promise<void> {
+        await this.store.retain(`${SPACE_ROOT_PREFIX}${space}`, new Set(locks));
     }
 
     /** Forget the builds of every space but those the machine still stores. */

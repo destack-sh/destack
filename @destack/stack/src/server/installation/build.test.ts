@@ -231,7 +231,7 @@ test("retain a space's builds through a collection until the machine prunes the 
     const manifest = await pulled.put(await MemoryBuild.of(LIBRARY, [], environment.crypto));
     const cache = new BuildCache(pulled, ["bun"], new Map());
     const space = schema.identifier("space").parse("space-01996ab0-0000-7000-8000-0000000000b5");
-    await cache.root(space, [manifest]);
+    await cache.retain(space, [manifest]);
 
     // end the pull's lease and collect, then prune the space and collect again
     await pulled.evict(0);

@@ -522,6 +522,7 @@ export class ApplicationInstallation {
         // refuse an unrunnable workload, an undeclared or unentitled capability or directory, or a database
         const refusal =
             this.#describeRefusal(built.lock, build, stranded, description) ??
+            (await this.#describeOutdated(built.lock)) ??
             (await this.#describeUnentitled(call, description)) ??
             (await this.#describeUninstalled(call, revision, description)) ??
             (await this.#describeDatabases(build));
@@ -678,6 +679,36 @@ export class ApplicationInstallation {
             },
             fields: { plan: null, approvedPlan: null },
         });
+    }
+
+    /** Describe a build of a lock requiring a newer release of a builtin than the machine links. */
+    async #describeOutdated(lock: Digest): Promise<Refusal | undefined> {
+        // index the version of each builtin the machine links by package name
+        const { builds, linked } = this.#options;
+        const builtins = new Map(
+            [...linked.values()].map((release) => [release.package.name, release.package.version]),
+        );
+
+        // refuse the first build requiring a release of a builtin newer than the linked one
+        for (const build of Lock.builds(await builds.lock(lock))) {
+            const manifest = await builds.get(build);
+            for (const [name, required] of Object.entries(manifest.requires)) {
+                const running = builtins.get(name);
+                const isVersion = Version.safeParse(required).success;
+                if (
+                    running !== undefined &&
+                    isVersion &&
+                    Version.compare(Version.release(running), Version.release(required)) < 0
+                ) {
+                    const { name: owner, version } = manifest.package;
+                    const message = `cannot deploy '${owner}@${version}': it needs ${name} ${Version.release(required)} or newer, and this machine runs ${running}`;
+
+                    return StackError.of("RELEASE_BLOCKED", message);
+                }
+            }
+        }
+
+        return undefined;
     }
 
     /** Describe why a build cannot deploy. */
