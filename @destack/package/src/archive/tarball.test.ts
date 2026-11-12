@@ -1,8 +1,7 @@
 import { testSimulation } from "@destack/test/world";
 import { join } from "node:path";
-import { type Environment, Pipe } from "@destack/environment";
+import type { Environment } from "@destack/environment";
 import { expect, test } from "@destack/test";
-import { testHost } from "@destack/test/host";
 import { Tarball, TarballEntry } from "./tarball.ts";
 
 /** Read a stream's bytes. */
@@ -10,16 +9,16 @@ async function read(stream: ReadableStream<Uint8Array>): Promise<Uint8Array<Arra
     return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-/** Extract a gzip tarball with the system tar into a directory. */
+/** Extract a tarball with the system tar into a directory. */
 async function extract(
     archive: Uint8Array,
     directory: string,
     environment: Environment<"files" | "process">,
 ): Promise<void> {
     const { files } = environment;
-    await files.writeFile(join(directory, "archive.tgz"), archive);
+    await files.writeFile(join(directory, "archive.tar"), archive);
     await files.mkdir(join(directory, "extracted"));
-    const child = environment.process.spawn(["tar", "-xzf", "archive.tgz", "-C", "extracted"], {
+    const child = environment.process.spawn(["tar", "-xf", "archive.tar", "-C", "extracted"], {
         workingDirectory: directory,
         stderr: "pipe",
     });
@@ -49,7 +48,6 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
                         yield TarballEntry.of(path, new TextEncoder().encode(text));
                     }
                 })(),
-                environment.compression,
             ),
         ),
         directory,
@@ -69,9 +67,6 @@ test("roundtrip files of short, prefixed and extended paths through a tarball th
 });
 
 test("read back every file a tarball holds in order, with long paths and multi-block contents, and refuse a corrupted header", async () => {
-    await using simulation = testSimulation();
-    const { compression } = simulation.environment("test");
-
     // archive a short path, a prefixed path, an extended path, an empty file and contents spanning blocks
     const files: { readonly path: string; readonly contents: Uint8Array<ArrayBuffer> }[] = [
         { path: "manifest.json", contents: new TextEncoder().encode("{}") },
@@ -87,54 +82,52 @@ test("read back every file a tarball holds in order, with long paths and multi-b
                     yield TarballEntry.of(file.path, file.contents);
                 }
             })(),
-            compression,
         ),
     );
 
-    // read the written back, then corrupt the first header's name and read again
+    // read the written back whole and in 7-byte chunks, crossing every header and body
     const restored: { readonly path: string; readonly contents: Uint8Array<ArrayBuffer> }[] = [];
-    for await (const entry of Tarball.read(new Blob([archived]).stream(), compression)) {
+    for await (const entry of Tarball.read(new Blob([archived]).stream())) {
         restored.push({ path: entry.path, contents: await TarballEntry.bytes(entry) });
     }
-    const decompressed = await read(
-        Pipe.through(new Blob([archived]).stream(), compression.decompress("gzip")),
-    );
-    decompressed[0] = "M".charCodeAt(0) + 1;
-    const corrupted = Pipe.through(new Blob([decompressed]).stream(), compression.compress("gzip"));
-    const refused = await Array.fromAsync(Tarball.read(corrupted, compression)).then(
+    const chunked: { readonly path: string; readonly contents: Uint8Array<ArrayBuffer> }[] = [];
+    for await (const entry of Tarball.read(sliced(archived, 7))) {
+        chunked.push({ path: entry.path, contents: await TarballEntry.bytes(entry) });
+    }
+
+    // corrupt the first header's name and read again
+    const corrupted = archived.slice();
+    corrupted[0] = "M".charCodeAt(0) + 1;
+    const refused = await Array.fromAsync(Tarball.read(new Blob([corrupted]).stream())).then(
         () => "read",
         (error: unknown) => (error instanceof Error ? error.message : String(error)),
     );
-    expect([restored, refused]).toEqual([files, "tarball is invalid: a header checksum fails"]);
+    expect([restored, chunked, refused]).toEqual([
+        files,
+        files,
+        "tarball is invalid: a header checksum fails",
+    ]);
 });
 
-test("write equal entries to identical tarball bytes with a fixed gzip header, a checked trailer and a pinned digest", async () => {
-    // stream the same entries twice in a world, and once through the host's compression streams
+test("write equal entries to identical tarball bytes with a pinned digest", async () => {
+    // stream the same entries twice
     await using simulation = testSimulation();
-    const { compression, crypto } = simulation.environment("test");
-    const first = await read(Tarball.stream(entries(), compression));
-    const second = await read(Tarball.stream(entries(), compression));
-    const hosted = await read(Tarball.stream(entries(), testHost().compression));
+    const { crypto } = simulation.environment("test");
+    const first = await read(Tarball.stream(entries()));
+    const second = await read(Tarball.stream(entries()));
 
-    // set no time and an unknown system, and inflate through the world's gzip, which checks the CRC and size
-    const inflated = await read(
-        Pipe.through(new Blob([first]).stream(), compression.decompress("gzip")),
-    );
+    // compare the bytes, their size and first path, and the digest
     const digest = new Uint8Array(await crypto.digest("SHA-256", first)).toHex();
     expect([
         second,
-        hosted,
-        [...first.subarray(0, 10)],
-        inflated.byteLength,
-        new TextDecoder().decode(inflated.subarray(0, 20)),
+        first.byteLength,
+        new TextDecoder().decode(first.subarray(0, 20)),
         digest,
     ]).toEqual([
         first,
-        first,
-        [0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff],
         512 * 6,
         "package/package.json",
-        "e80c2cacdc3ba483c0c5ec3978fc9c16c6827c5d79e83e8cc560974878e427db",
+        "3c4a84ed214243d8e535af2c5164b4f91302bbf5388e68ea147f71c97cd17d6e",
     ]);
 });
 
@@ -142,4 +135,20 @@ test("write equal entries to identical tarball bytes with a fixed gzip header, a
 async function* entries(): AsyncGenerator<TarballEntry> {
     yield TarballEntry.of("package/package.json", new TextEncoder().encode('{"name":"a"}'));
     yield TarballEntry.of("package/build/index.js", new TextEncoder().encode("export {};\n"));
+}
+
+/** Stream bytes in chunks of a size. */
+function sliced(bytes: Uint8Array<ArrayBuffer>, size: number): ReadableStream<Uint8Array> {
+    let offset = 0;
+
+    return new ReadableStream({
+        pull(controller) {
+            // send the next chunk, then close at the end
+            controller.enqueue(bytes.slice(offset, offset + size));
+            offset += size;
+            if (offset >= bytes.byteLength) {
+                controller.close();
+            }
+        },
+    });
 }

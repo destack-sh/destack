@@ -1,8 +1,11 @@
-import { type Compression, Pipe } from "@destack/environment";
+import { ChunkReader } from "@destack/environment";
 import { PackageError } from "../error/index.ts";
 
 /** The size of a tar block, with a header or a slice of a file. */
 const BLOCK_BYTES = 512;
+
+/** The bytes the archive's stream sends at once: 64 KiB, a typical socket buffer. */
+const CHUNK_BYTES = 64 * 1024;
 
 /** The longest file name that fits a ustar header's name field. */
 const NAME_BYTES = 100;
@@ -12,12 +15,6 @@ const PREFIX_BYTES = 155;
 
 /** The permissions of every archived file: readable by all, written by the owner. */
 const FILE_MODE = 0o644;
-
-/** The gzip member header: deflate, no flags, time or extra flags, unknown system (RFC 1952). */
-const GZIP_HEADER = new Uint8Array([0x1f, 0x8b, 8, 0, 0, 0, 0, 0, 0, 0xff]);
-
-/** The offset of the gzip header's flags, which announce optional fields (RFC 1952). */
-const FLAGS_OFFSET = 3;
 
 /** One regular file of a tarball: its path, its size, and its bytes streamed in order. */
 export interface TarballEntry {
@@ -56,23 +53,34 @@ export const TarballEntry = {
     },
 };
 
-/** A gzip-compressed ustar archive of regular files, equal entries always giving equal bytes. */
+/** A ustar archive of regular files, equal entries always giving equal bytes. */
 export const Tarball = {
-    /** Stream entries as one gzip member: each file's ustar blocks, then the two end blocks. */
-    stream(
-        entries: AsyncIterable<TarballEntry>,
-        compression: Compression,
-    ): ReadableStream<Uint8Array<ArrayBuffer>> {
-        // pull one chunk at a time, stopping the entries when the reader cancels
-        const chunks = compress(entries, compression);
+    /** Stream entries: each file's ustar blocks, then the two end blocks. */
+    stream(entries: AsyncIterable<TarballEntry>): ReadableStream<Uint8Array<ArrayBuffer>> {
+        // pull chunks of about a socket buffer each, stopping the entries when the reader cancels
+        const chunks = archive(entries);
 
         return new ReadableStream<Uint8Array<ArrayBuffer>>({
             async pull(controller) {
-                const next = await chunks.next();
+                // gather the archive's pieces up to a chunk
+                const pieces: Uint8Array<ArrayBuffer>[] = [];
+                let size = 0;
+                let next = await chunks.next();
+                while (next.done !== true) {
+                    pieces.push(next.value);
+                    size += next.value.byteLength;
+                    if (size >= CHUNK_BYTES) {
+                        break;
+                    }
+                    next = await chunks.next();
+                }
+
+                // send the gathered bytes, then close at the end
+                if (size > 0) {
+                    controller.enqueue(join(pieces, size));
+                }
                 if (next.done === true) {
                     controller.close();
-                } else {
-                    controller.enqueue(next.value);
                 }
             },
             async cancel() {
@@ -81,22 +89,17 @@ export const Tarball = {
         });
     },
 
-    /** Read a gzip-compressed ustar archive's regular files in order, refusing a malformed one. */
-    async *read(
-        stream: ReadableStream<Uint8Array>,
-        compression: Compression,
-    ): AsyncIterable<TarballEntry> {
-        // read whole blocks of the decompressed archive
-        const chunks = (async function* () {
-            for await (const chunk of stream) {
-                yield view(chunk);
-            }
-        })();
-        const read = readBlocks(Pipe.through(chunks, compression.decompress("gzip")));
+    /** Read a ustar archive's regular files in order, refusing a malformed one. */
+    async *read(stream: ReadableStream<Uint8Array>): AsyncIterable<TarballEntry> {
+        // read the archive's bytes through a cursor over its chunks
+        await using reader = new ChunkReader(stream, () =>
+            PackageError.of("FILE_INVALID", "tarball is invalid: it ends before its last entry"),
+        );
+
         let path: string | undefined;
         for (;;) {
             // end at the first zero block, and refuse a header whose checksum fails
-            const head = await take(read, 1);
+            const head = await reader.read(BLOCK_BYTES);
             if (head.every((byte) => byte === 0)) {
                 return;
             }
@@ -109,77 +112,27 @@ export const Tarball = {
 
             // take a PAX path for the next file, skipping other entries' bytes
             const size = readOctal(head, 124, 12);
+            const padded = Math.ceil(size / BLOCK_BYTES) * BLOCK_BYTES;
             const type = String.fromCharCode(head[156] ?? 0);
             const isFile = type === "0" || type === "\u0000";
             if (!isFile) {
-                const record = (await take(read, Math.ceil(size / BLOCK_BYTES))).slice(0, size);
+                const record = (await reader.read(padded)).subarray(0, size);
                 path = type === "x" ? (readPaxPath(record) ?? path) : path;
                 continue;
             }
 
-            // yield a regular file whose body streams its blocks, draining what its reader skips
-            const body = streamBody(read, size);
+            // yield a regular file whose body streams its bytes, draining what its reader skips
+            const body = reader.stream(size);
             yield { path: path ?? readName(head), size, body };
             path = undefined;
             const drained = body[Symbol.asyncIterator]();
             while ((await drained.next()).done !== true) {
                 // drain what the reader left
             }
+            await reader.read(padded - size);
         }
     },
 };
-
-/** Stream a file's bytes from its blocks, cut to its size. */
-async function* streamBody(
-    read: AsyncIterator<Uint8Array<ArrayBuffer>>,
-    size: number,
-): AsyncGenerator<Uint8Array<ArrayBuffer>> {
-    for (let remaining = size; remaining > 0; remaining -= BLOCK_BYTES) {
-        const block = await take(read, 1);
-        yield remaining < BLOCK_BYTES ? block.slice(0, remaining) : block;
-    }
-}
-
-/** Read a stream's bytes as an iterator of 512-byte blocks. */
-async function* readBlocks(
-    stream: AsyncIterable<Uint8Array>,
-): AsyncGenerator<Uint8Array<ArrayBuffer>> {
-    let pending = new Uint8Array(0);
-    for await (const chunk of stream) {
-        // join the chunk to the bytes left over, then hand out each whole block
-        const joined = new Uint8Array(pending.byteLength + chunk.byteLength);
-        joined.set(pending, 0);
-        joined.set(chunk, pending.byteLength);
-        let offset = 0;
-        for (; offset + BLOCK_BYTES <= joined.byteLength; offset += BLOCK_BYTES) {
-            yield joined.slice(offset, offset + BLOCK_BYTES);
-        }
-        pending = joined.slice(offset);
-    }
-    if (pending.byteLength > 0) {
-        throw PackageError.of("FILE_INVALID", "tarball is invalid: it ends inside a block");
-    }
-}
-
-/** Take some blocks from an iterator as one array, refusing an archive that ends early. */
-async function take(
-    read: AsyncIterator<Uint8Array<ArrayBuffer>>,
-    count: number,
-): Promise<Uint8Array<ArrayBuffer>> {
-    const taken = new Uint8Array(count * BLOCK_BYTES);
-    for (let index = 0; index < count; index++) {
-        const next = await read.next();
-        if (next.done === true) {
-            throw PackageError.of(
-                "FILE_INVALID",
-                "tarball is invalid: it ends before its last entry",
-            );
-        }
-        taken.set(next.value, index * BLOCK_BYTES);
-    }
-
-    return taken;
-}
 
 /** Read an octal field of a header, ending at its first NUL or space. */
 function readOctal(head: Uint8Array, offset: number, length: number): number {
@@ -219,26 +172,6 @@ function readPaxPath(records: Uint8Array): string | undefined {
     }
 
     return undefined;
-}
-
-/** Write the gzip member of the entries' tar blocks under the fixed header. */
-async function* compress(
-    entries: AsyncIterable<TarballEntry>,
-    compression: Compression,
-): AsyncGenerator<Uint8Array<ArrayBuffer>> {
-    // replace the runtime's header, which varies between runtimes, with the fixed one
-    yield GZIP_HEADER.slice();
-    const received: number[] = [];
-    for await (const chunk of Pipe.through(archive(entries), compression.compress("gzip"))) {
-        const skipped = Math.min(GZIP_HEADER.byteLength - received.length, chunk.byteLength);
-        received.push(...chunk.subarray(0, skipped));
-        if (received.length === GZIP_HEADER.byteLength && received[FLAGS_OFFSET] !== 0) {
-            throw new TypeError("the runtime's gzip header has optional fields");
-        }
-        if (skipped < chunk.byteLength) {
-            yield chunk.subarray(skipped);
-        }
-    }
 }
 
 /** View a chunk over its own buffer, copying only a chunk over a shared one. */
@@ -337,8 +270,7 @@ function header(
     block.set(prefix, 345);
 
     // sum the header with the checksum field read as spaces
-    block.fill(0x20, 148, 156);
-    const sum = block.reduce((total, byte) => total + byte, 0);
+    const sum = checksum(block);
     block.set(encoder.encode(`${sum.toString(8).padStart(6, "0")}\u0000 `), 148);
 
     return block;
@@ -367,4 +299,23 @@ function pad(contents: Uint8Array<ArrayBuffer>): Uint8Array<ArrayBuffer>[] {
 /** Write a number in zero-padded octal of a width, followed by a NUL. */
 function octal(value: number, width: number): string {
     return `${value.toString(8).padStart(width, "0")}\u0000`;
+}
+
+/** Join pieces into one array of their total size, keeping a lone piece as it is. */
+function join(pieces: readonly Uint8Array<ArrayBuffer>[], size: number): Uint8Array<ArrayBuffer> {
+    // keep one piece
+    const [first] = pieces;
+    if (pieces.length === 1 && first !== undefined) {
+        return first;
+    }
+
+    // copy the pieces in order
+    const joined = new Uint8Array(size);
+    let offset = 0;
+    for (const piece of pieces) {
+        joined.set(piece, offset);
+        offset += piece.byteLength;
+    }
+
+    return joined;
 }
