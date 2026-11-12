@@ -1,21 +1,26 @@
 # @platform/stack
 
-The platform Destack operates, as it declares it: its organization, its residencies, and the stacks its spaces follow.
+Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow.
+
+## Overview
+
+`@platform/stack` is the platform's declarations: the operating organization, the residencies, and the stacks every space follows.
+
+It declares:
+
+- `PLATFORM`: the organization operating the platform, with its publishers and reserved handles.
+- `RESIDENCIES`: the jurisdictions people choose for their data, each with its countries and cloud machine.
+- `RESIDENCY_STACK_EU` and `RESIDENCY_STACK_US`: each residency home's installations, such as the forge, vault and relay.
+- `HOME_STACK`: every account's home, with Home, its inbox and its connections.
+- `SPACE_STACK`: every other space, with social, message, inbox and observability.
+
+Read the residencies and the stack each home follows:
 
 ```ts
-import { HOME_STACK, PLATFORM, RESIDENCIES, RESIDENCY_STACK, SPACE_STACK } from "@platform/stack";
+import { RESIDENCIES } from "@platform/stack";
 
-// the organization operating the platform, and the residencies it serves
-PLATFORM.handle; // "destack"
-PLATFORM.reserved.includes("support"); // true
-RESIDENCIES.map((residency) => residency.code); // ["eu", "us"]
-
-// the public registry and the platform's billing, over the `platform` vault the operator writes once
-RESIDENCY_STACK.definition.installations; // { vault, forge, finance, message, notification, relay, observability }
-
-// every account's home: Home following its latest tag, the inbox, and connections with the vault of their credentials
-HOME_STACK.definition.installations; // { vault, connection, home, message, inbox, observability }
-
-// every other space
-SPACE_STACK.definition.installations; // { social, message, inbox, observability }
+// map each residency's code to its home's stack export
+export const stacks = Object.fromEntries(
+    RESIDENCIES.map((residency) => [residency.code, residency.stack]),
+);
 ```
