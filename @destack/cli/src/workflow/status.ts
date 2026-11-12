@@ -337,6 +337,8 @@ export class InstallationStatus {
                 return `${selection.reference.replace(/^refs\/(heads|tags)\//u, "")} of ${selection.repository}${selection.directory === "." ? "" : ` at ${selection.directory}`}`;
             case "checkout":
                 return `checkout ${selection.checkout}${selection.directory === "." ? "" : ` at ${selection.directory}`}`;
+            case "host":
+                return "the host's release";
         }
     }
 

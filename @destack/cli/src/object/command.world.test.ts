@@ -300,22 +300,22 @@ test("build a structured input from one flag per path, a union's variants each a
 
 Usage: destack installation create
 
-  -h, --help                                              Show help
-      --json                                              Print JSON
-      --package-id <id>                                   The package id
-      --name <string>                                     The name
-      --selection-kind <release|tag|repository|checkout>  The selection kind: release, tag, repository, checkout
-      --selection-version <string>                        The selection version
-      --selection-tag <string>                            The selection tag
-      --selection-repository <id>                         The selection repository
-      --selection-reference <string>                      The selection reference
-      --selection-directory <string>                      The selection directory
-      --selection-machine <id>                            The selection machine
-      --selection-checkout <id>                           The selection checkout
-      --export <string>                                   The export
-      --status <enabled|suspended>                        The status: enabled, suspended
-      --isolation <sandbox|host>                          The isolation: sandbox, host
-      --input <json>                                      The method's input as a JSON object, - for stdin, @path for a file
+  -h, --help                                                   Show help
+      --json                                                   Print JSON
+      --package-id <id>                                        The package id
+      --name <string>                                          The name
+      --selection-kind <release|tag|host|repository|checkout>  The selection kind: release, tag, host, repository, checkout
+      --selection-version <string>                             The selection version
+      --selection-tag <string>                                 The selection tag
+      --selection-repository <id>                              The selection repository
+      --selection-reference <string>                           The selection reference
+      --selection-directory <string>                           The selection directory
+      --selection-machine <id>                                 The selection machine
+      --selection-checkout <id>                                The selection checkout
+      --export <string>                                        The export
+      --status <enabled|suspended>                             The status: enabled, suspended
+      --isolation <sandbox|host>                               The isolation: sandbox, host
+      --input <json>                                           The method's input as a JSON object, - for stdin, @path for a file
 `,
         error: "",
     });
