@@ -1,21 +1,35 @@
 # @platform/stack
 
-The platform Destack operates, as it declares it: its organization, its residencies, and the stacks its spaces follow.
+Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow.
+
+## Overview
+
+The universe applies this package's declarations: the organization operating the platform, a home per residency, and the stacks every account's home and every other space follow.
+
+- **PLATFORM**: the organization operating the platform, with its publishers, trusted publishers and reserved handles.
+- **Residency**: a jurisdiction people choose for their data, with its countries, cloud machine and home stack; `RESIDENCIES`.
+- **Residency stack**: a residency home's installations: the vault, forge, finance, message, notification, relay and observability, with the plans the platform sells; `RESIDENCY_STACK_EU` and `RESIDENCY_STACK_US`.
+- **Home stack**: every account's home: Home, its inbox, connections and their credentials vault; `HOME_STACK`.
+- **Space stack**: every other space: social, message, inbox and observability; `SPACE_STACK`.
 
 ```ts
-import { HOME_STACK, PLATFORM, RESIDENCIES, RESIDENCY_STACK, SPACE_STACK } from "@platform/stack";
+import { HOME_STACK, PLATFORM, RESIDENCIES, SPACE_STACK } from "@platform/stack";
 
-// the organization operating the platform, and the residencies it serves
 PLATFORM.handle; // "destack"
-PLATFORM.reserved.includes("support"); // true
-RESIDENCIES.map((residency) => residency.code); // ["eu", "us"]
+const codes = RESIDENCIES.map((residency) => residency.code); // ["eu", "us"]
+const home = HOME_STACK.definition;
+const space = SPACE_STACK.definition;
+```
 
-// the public registry and the platform's billing, over the `platform` vault the operator writes once
-RESIDENCY_STACK.definition.installations; // { vault, forge, finance, message, notification, relay, observability }
+## Examples
 
-// every account's home: Home following its latest tag, the inbox, and connections with the vault of their credentials
-HOME_STACK.definition.installations; // { vault, connection, home, message, inbox, observability }
+### Read a residency
 
-// every other space
-SPACE_STACK.definition.installations; // { social, message, inbox, observability }
+A residency names the stack export its home follows, which the universe's declaration applies there.
+
+```ts
+import { RESIDENCIES } from "@platform/stack";
+
+const europe = RESIDENCIES.find((residency) => residency.code === "eu");
+europe?.stack; // "RESIDENCY_STACK_EU"
 ```

@@ -3,12 +3,12 @@
     "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
-    "description": "Destack operated platform stack",
+    "description": "Declare the platform Destack operates: its organization, its residencies, and the stacks its spaces follow.",
     "exports": {
         ".": "./src/index.ts"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json"
+        "typecheck": "destack-check readme && tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/account": "workspace:*",
