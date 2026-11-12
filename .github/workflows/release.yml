@@ -177,6 +177,8 @@ jobs:
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
                   if-no-files-found: error
+                  # carry the dotfiles the toolchain's manifest lists, such as a dependency's .babelrc
+                  include-hidden-files: true
 
     sign:
         name: Sign distribution (${{ matrix.target }})
@@ -242,6 +244,8 @@ jobs:
                   retention-days: 14
                   path: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}/toolchain
                   if-no-files-found: error
+                  # carry the dotfiles the toolchain's manifest lists, such as a dependency's .babelrc
+                  include-hidden-files: true
             - name: Remove Apple signing credentials
               if: always() && matrix.signer == 'apple'
               run: bun run src/main.ts signing credential remove
