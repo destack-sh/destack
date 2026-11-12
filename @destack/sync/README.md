@@ -1,129 +1,95 @@
 # @destack/sync
 
-`@destack/sync` copies rows from one database to another over the `@destack/db` log, the way PostgreSQL's logical replication does.
+Keep shapes of database rows current in subscribers and local copies.
+
+## Overview
+
+A feed reads a database's log once per commit and keeps every subscriber's queries current, and a replica copies a scope's rows into another database.
+
+- **Query**: the rows of one logged table in some scopes, with filters, includes and aggregates.
+- **Feed**: one database's log served to many subscribers; `watch` follows one query, and `subscribe` streams pages of changes.
+- **Publication**: a named set of rows other databases subscribe to; `definePublication`.
+- **Replica**: a copy of one scope's rows in another database; `follow` keeps it current, resuming where it stopped.
+- **Prediction**: a client's changes shown on top of its replica until the server applies them.
+- **Scope**: the space, account or universe a row lives in; `chain` reads the scopes around it.
 
 ```ts
-const board = definePublication({
-    name: "board",
-    parameters,
-    audience: "reader",
-    replica,
-});
-const query: Query = {
-    table: project,
-    scopes: [spaceId],
-    relations,
-    with: { tasks: { limit: 5 } },
+import { type DatabaseConnection, defineTable, text } from "@destack/db";
+import { Feed, type Query } from "@destack/sync";
+
+const task = defineTable(
+    "task",
+    { id: text("id").primaryKey(), scope: text("scope").notNull(), state: text("state") },
+    { log: {} },
+);
+
+async (database: DatabaseConnection, spaceId: string, signal: AbortSignal) => {
+    const feed = new Feed(database, [task]);
+    const open: Query = { table: task, scopes: [spaceId], where: { state: "open" } };
+    for await (const items of feed.watch("open", open, signal)) {
+        items.length; // 3
+    }
 };
-for await (const page of feed.subscribe({ board: query }, after, signal, { audience })) send(page);
-await replica.follow(local, source, signal, { subscription, synced }); // copy the rows into a local database
-await prediction.add(local, mutationId, origin, mutate); // show a client's change before the server has it
 ```
 
-## Publications
+## Examples
 
-`definePublication` declares a set of rows that other databases can subscribe to.
+### Count rows by group
 
-```ts
-const board = definePublication({
-    name: "board",
-    parameters: schema.object({ board: schema.string() }),
-    audience: "reader",
-    replica: ({ name, scope, parameters }) =>
-        new Replica({
-            name,
-            scope,
-            tables: [task],
-            where: new Map([[task, { boardId: parameters.board }]]),
-        }),
-});
-const subscription = board.subscription({
-    name: "board",
-    scope,
-    target: spaceId,
-    parameters: { board: boardId },
-});
-```
-
-## Queries
-
-A `Query` selects the rows of one table in some scopes.
+An aggregate query groups the rows and keeps each group's measures current.
 
 ```ts
-const open: Query = { table: task, scopes: [spaceId], where: { isDone: false } };
+import { defineTable, text } from "@destack/db";
+import type { Query } from "@destack/sync";
+
+const task = defineTable(
+    "task",
+    { id: text("id").primaryKey(), scope: text("scope").notNull(), state: text("state") },
+    { log: {} },
+);
 const counts: Query = {
-    ...open,
+    table: task,
+    scopes: ["space-1"],
     aggregate: { groupBy: ["state"], values: { tasks: { function: "count" } } },
 };
 ```
 
-## Feeds
+### Copy a scope's rows
 
-A `Feed` reads a database's log once per commit and serves all of its subscribers.
+A `Replica` keeps a copy of one scope's tables in a local database, and `isSynced` tells once the first copy is complete.
 
 ```ts
-const feed = new Feed(database, [project, task]);
-for await (const rows of feed.watch("board", board, signal)) {
-    render(rows);
-}
+import { type DatabaseConnection, defineTable, text } from "@destack/db";
+import { Replica } from "@destack/sync";
+
+const task = defineTable("task", { id: text("id").primaryKey() }, { log: {} });
+
+async (local: DatabaseConnection) => {
+    const board = new Replica({ name: "board", scope: "space-1", tables: [task] });
+    const isSynced = await Replica.isSynced(local, "board", "space-1");
+};
 ```
 
-## Positions
+### Stamp a request
 
-A stream sends its position on each heartbeat, or when a waiting subscriber asks for it with `confirm`, as Convex and ElectricSQL do.
-
-```ts
-const pages = feed.subscribe(queries, after, signal, { opened: (stream) => streams.add(stream) });
-stream.confirm(position); // send a position at or past this one
-await publisher.confirm(subscription, watermark); // the same, through a publisher
-```
-
-## Replicas
-
-A `Replica` keeps a copy of one scope's rows in another database, resuming with a fresh credential when its source refuses a lapsed one.
+`RequestId.create` stamps a UUIDv7, and `RequestId.derive` derives the same UUIDv8 on every repeat.
 
 ```ts
-const board = new Replica({ name: "board", scope: spaceId, tables: [project, task] });
-await board.follow(local, stream, signal, { subscription, audience, synced });
-await Replica.isSynced(local, "board", spaceId); // true once the first copy is complete
-await Replica.drop(local, board);
-```
+import { BunEnvironment } from "@destack/environment/bun";
+import { RequestId } from "@destack/sync";
 
-## Uplinks
-
-An `Uplink` sends a subscriber's changes and queries back to where the rows live.
-
-```ts
-const uplink = Uplink.of((signer) => client.store);
-await uplink.receive(mutation, signer); // the mutation's results
-await uplink.call(call, scope, signer); // the query's result
-```
-
-## Predictions
-
-A `Prediction` shows a client's changes on top of its replica until the server applies them, as Replicache does.
-
-```ts
-const prediction = new Prediction({ tables: [project, task], predict, reads, branches });
-const next = await prediction.pending(local, { limit: 100 }); // the changes the next push sends
-await prediction.checkout(local, branchId); // queue the next changes on a branch
-```
-
-## Scopes
-
-`Scope` reads the scopes around a scope, and blocks writes while a scope moves.
-
-```ts
-const links = await Scope.chain(snapshot, spaceId); // nearest first
-await Scope.fence(database, spaceId, targetMachine, Date.now()); // refuse writes during a move
-await Scope.cap(database, spaceId, Date.now()); // refuse writes except deletes
-```
-
-## Requests
-
-`RequestId.create` stamps a UUIDv7 from an environment, and `RequestId.derive` derives the same UUIDv8 on every repeat (RFC 9562).
-
-```ts
+const environment = BunEnvironment.system;
 const created = RequestId.create(environment);
-const requestId = await RequestId.derive(reading.measuredAt, `${source} ${eventId}`, crypto);
+const derived = await RequestId.derive(Date.UTC(2026, 10, 12), "reading-1", environment.crypto);
 ```
+
+## Comparison
+
+### ElectricSQL
+
+Shapes of rows streamed from the database's log follow ElectricSQL; four things differ.
+
+- One feed evaluates every subscriber's queries incrementally per commit, with includes and aggregates.
+- A subscriber sees only the rows its audience may read.
+- A client's writes show on top of its replica until the server applies them, as Replicache does.
+- A replica resumes after a lapsed credential with a fresh one, and keeps its position across restarts.
