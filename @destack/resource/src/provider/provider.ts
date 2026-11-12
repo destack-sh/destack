@@ -186,7 +186,7 @@ export interface Opener<
 
 /** Content-addressed storage of blobs in packs, laid out as the storage decides. */
 export interface BlobStorage {
-    /** Store bodies read in order in one pack, refusing unexpected bytes, and place them. */
+    /** Store bodies read in order in the packs `BlobPack.groups` makes, and place them. */
     readonly write: (bodies: readonly BlobBody[]) => Promise<readonly BlobPlacement[]>;
     /** Read a range of a pack's bytes. */
     readonly slice: (pack: string, offset: number, length: number) => AsyncIterable<Uint8Array>;

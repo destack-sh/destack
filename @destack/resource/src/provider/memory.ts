@@ -23,8 +23,18 @@ export class MemoryBlobStorage implements BlobStorage {
         return this.#packs.size;
     }
 
-    /** Store the bodies in one pack. */
+    /** Store the bodies in order, a pack per group. */
     async write(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
+        const placements: BlobPlacement[] = [];
+        for (const group of BlobPack.groups(bodies)) {
+            placements.push(...(await this.#writePack(group)));
+        }
+
+        return placements;
+    }
+
+    /** Store bodies in one pack. */
+    async #writePack(bodies: readonly BlobBody[]): Promise<readonly BlobPlacement[]> {
         // read, digest and verify each body's bytes
         const blobs: { readonly digest: Digest; readonly size: number }[] = [];
         const chunks: Uint8Array[] = [];
