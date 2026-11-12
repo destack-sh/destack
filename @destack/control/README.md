@@ -1,33 +1,62 @@
 # @destack/control
 
-`@destack/control` runs a universe: the object, account, setting and control packages over one store, each answering below its mount at the universe's origin.
+Run a universe: the account, object, setting and control packages over one store at one origin.
+
+## Overview
+
+A universe is where people sign in and own accounts and spaces; its control serves the universe's packages, each below its mount.
+
+- **Control**: one universe's running packages; `start` applies its definition, `fetch` answers a request and `idle` waits for its background work.
+- **UniverseDefinition**: the residencies people choose from and the platform organization operating the universe, with its homes, stacks and cloud machines.
+- **TestControl**: a universe in process over a test database, with people signed in as native clients do.
 
 ```ts
-await using control = await Control.start({
-    definition, // applied by one `apply` run per digest, again while the operator is uninvited; the packages answer once it completes
-    origin,
-    database,
-    keyring,
-    callKey,
-    mail,
-    events, // the bucket of the call events' segments
-    ipAddress,
-    environment, // the clock, and the network to other origins
-    report,
-    releases, // the registry of packages' releases, such as the forges'
-    policies, // the policies of packages it decides access for beside its own
-    lifetimes, // the access token lifetimes longer than a minute, by audience
-});
-await control.fetch(request); // a package below its path, such as the account's oauth mount
+import { Control, type ControlOptions } from "@destack/control";
+
+async (options: ControlOptions, request: Request) => {
+    await using control = await Control.start(options);
+    const response = await control.fetch(request);
+    await control.idle();
+};
 ```
 
-## Testing
+## Examples
 
-`TestControl` runs a universe in process over a test database, signing people up as native clients do, and `TestMachine` is a residency's cloud machine following its directory.
+### Declare a universe
+
+A universe declares its residencies, each with its relay and countries, and its platform.
 
 ```ts
+import type { UniverseDefinition } from "@destack/control";
+
+(platform: UniverseDefinition["platform"]): UniverseDefinition => ({
+    residencies: [
+        { code: "eu", name: "Europe", relay: "https://relay.eu.example.com", countries: ["AT"] },
+    ],
+    platform,
+});
+```
+
+### Test against a universe
+
+`TestControl` signs a person up with a mailed code and calls the account package as them.
+
+```ts
+import accountPackage from "@destack/account/package";
+import { TestControl } from "@destack/control/test";
+
 await using universe = await TestControl.open();
-const ada = await universe.signIn("ada@example.test"); // her user, personal account and home
-const machine = await universe.machine("eu"); // the residency's cloud machine
-await ada.client(accountPackage).group.list({ scope: ada.account });
+const ada = await universe.signIn("ada@example.test");
+const groups = await ada.client(accountPackage).group.list({ scope: ada.account });
+```
+
+### Run a residency's cloud machine in a test
+
+`machine` starts the cloud machine of a residency, which follows the universe's directory.
+
+```ts
+import { TestControl } from "@destack/control/test";
+
+await using universe = await TestControl.open();
+const machine = await universe.machine("eu");
 ```

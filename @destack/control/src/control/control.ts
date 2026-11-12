@@ -1,4 +1,10 @@
-import { Directory, UniverseOrigin } from "@destack/account/address";
+import {
+    DOMAINS,
+    Directory,
+    InstallationOrigin,
+    type UniverseLink,
+    UniverseOrigin,
+} from "@destack/account/address";
 import { type Alarm, type DatabaseConnection, defineDatabase, Snapshot } from "@destack/db";
 import type { BlobStorage } from "@destack/resource";
 import {
@@ -10,7 +16,7 @@ import type { MailTransport } from "@destack/mail/transport";
 import { IdentityKeystore, IdentityRegistry } from "@destack/account/identity";
 import { Session } from "@destack/account/client";
 import { Bookmark } from "@destack/object/client";
-import { claim, Residency } from "@destack/account/object";
+import { Account, claim, Residency } from "@destack/account/object";
 import accountPackage from "@destack/account/package";
 import { TokenLifetime } from "@destack/account/oauth";
 import {
@@ -335,11 +341,15 @@ export class Control implements AsyncDisposable {
         return control;
     }
 
-    /** Serve a request at the universe's origin: the issuer, else a package's path. */
+    /** Serve a request at the universe's origin: the issuer, a link, else a package's path. */
     fetch(request: Request): Promise<Response> {
-        // serve the issuer through the account package's oauth mount
-        if (UniverseOrigin.path(new URL(request.url).pathname) === "issuer") {
+        // serve the issuer through the account package's oauth mount, and open links
+        const { pathname } = new URL(request.url);
+        const link = UniverseOrigin.link(pathname);
+        if (UniverseOrigin.path(pathname) === "issuer") {
             return this.issuer.fetch(request);
+        } else if (link !== undefined) {
+            return this.#open(link);
         }
 
         // answer the package mounted at the path, nothing elsewhere
@@ -349,6 +359,27 @@ export class Control implements AsyncDisposable {
         return mounted === undefined || server === undefined
             ? Promise.resolve(new Response(null, { status: 404 }))
             : server.fetch(mounted.request);
+    }
+
+    /** Open a link: redirect an app to its installation's origin, or show a profile. */
+    async #open(link: UniverseLink): Promise<Response> {
+        // redirect an app by rewriting its path into its installation's hostname
+        if (link.kind === "app") {
+            const hostname = InstallationOrigin.format(link.installation, DOMAINS.space);
+
+            return new Response(null, { status: 303, headers: { location: `https://${hostname}/` } });
+        }
+
+        // show the public profile of the account the handle names
+        const found = await Account.byHandle(Snapshot.live(this.store.database), link.handle);
+        if (found === undefined) {
+            return new Response(null, { status: 404 });
+        }
+        const name = escapeHtml(found.name);
+        const handle = escapeHtml(found.handle);
+        const page = `<!doctype html><title>${name}</title><h1>${name}</h1><p>@${handle}</p>`;
+
+        return new Response(page, { headers: { "content-type": "text/html; charset=utf-8" } });
     }
 
     /** Wait until every package's controllers are idle, or until a deadline. */
@@ -362,4 +393,9 @@ export class Control implements AsyncDisposable {
             await server.close();
         }
     }
+}
+
+/** Escape text for HTML. */
+function escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/gu, (character) => `&#${character.charCodeAt(0)};`);
 }

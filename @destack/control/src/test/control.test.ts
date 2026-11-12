@@ -57,3 +57,26 @@ test("enroll a person's machine of their account, published at its name through 
         `https://${MachineAddress.format(name, DOMAINS.machine)}`,
     );
 });
+
+test("show a profile at its handle below the universe's origin, redirect an app link to its installation, and refuse an unknown handle", async () => {
+    // sign ada up, and read her account's name as she sees it
+    await using universe = await TestControl.open();
+    const ada = await universe.signIn("ada@example.test");
+    const { name } = await ada.client(accountPackage).account.get({ scope: ada.id, id: ada.account });
+    const open = async (path: string) => {
+        const response = await universe.control.fetch(new Request(`https://${DOMAINS.universe}${path}`));
+
+        return [response.status, response.headers.get("location"), await response.text()];
+    };
+
+    // open her profile, an app of her home, and a handle nobody holds
+    expect([
+        await open(`/@${ada.handle}`),
+        await open(`/@${ada.handle}/home/notes`),
+        await open("/@nobody"),
+    ]).toEqual([
+        [200, null, `<!doctype html><title>${name}</title><h1>${name}</h1><p>@${ada.handle}</p>`],
+        [303, `https://notes--home--${ada.handle}.${DOMAINS.space}/`, ""],
+        [404, null, ""],
+    ]);
+});
