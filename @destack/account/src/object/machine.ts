@@ -1,6 +1,6 @@
 import { none, permission, principal, relation, through, union } from "@destack/access";
 import { type Select, type Snapshot } from "@destack/db";
-import { type MethodContext, defineObject, field } from "@destack/object";
+import { type MethodContext, defineObject, field, recoverable } from "@destack/object";
 import { ServerRuntime } from "@destack/package/runtime";
 import { schema } from "@destack/schema";
 import { Scope } from "@destack/sync";
@@ -116,6 +116,7 @@ export const machine = defineObject(
         plural: "machines",
         title: t`${plural(argument("count"), { one: "Machine", other: "Machines" })}`,
         scope: [account, "universe"],
+        key: "name",
         attachments: [key.attach({ by: "rotate" })],
         fields: {
             /** The name within the account. */
@@ -156,17 +157,9 @@ export const machine = defineObject(
             update: field.json(MachineUpdate).optional(),
             /** When the machine last left its home, or enrolled, in UTC epoch milliseconds. */
             lastSeenAt: field.time().optional(),
-            /** The time the account withdrew the machine and its keys. */
-            revokedAt: field.time().optional(),
         },
         constraints: {
             scopeId: { kind: "unique", on: ["scope", "id"] },
-            scopeName: {
-                kind: "index",
-                on: ["scope", "name"],
-                unique: true,
-                where: { revokedAt: { isNull: true } },
-            },
             name: { kind: "check", condition: { name: Label.condition(MACHINE_NAME_LENGTH) } },
             kind: {
                 kind: "check",
@@ -225,6 +218,8 @@ export const machine = defineObject(
                     through("account", "replicate"),
                     through("account", "serve"),
                 ),
+                delete: relation("self"),
+                // let the machine revoke its own keys, as every key holder declares
                 revoke: relation("self"),
                 update: none(),
                 leave: none(),
@@ -234,6 +229,7 @@ export const machine = defineObject(
             },
             reserved: ["rotate", "serve", "relay", "replicate"],
         },
+        traits: [recoverable({ within: { days: 30 }, by: "delete" })],
     },
     (method) => ({
         list: method.list("list"),
@@ -251,7 +247,6 @@ export const machine = defineObject(
                 origin: schema.url(),
             }),
         }),
-        revoke: method.mutation({ title: t`Revoke`, permission: "revoke" }),
         /** Record the tunnel a relay accepted from a personal machine, at its derived name. */
         relay: method.mutation({ title: t`Relay`, permission: "relay", input: EndpointRelay }),
         enable: method.mutation({ title: t`Enable`, permission: "operate" }),
@@ -372,10 +367,8 @@ export const Machine = {
         accountId: string,
         preferred: string,
     ): Promise<string> {
-        // read the names of the account's standing machines
-        const rows = await context
-            .read(machine)
-            .findMany({ where: { scope: accountId, revokedAt: { isNull: true } } });
+        // read the names of the account's live machines
+        const rows = await context.read(machine).findMany({ where: { scope: accountId } });
         const taken = new Set(rows.map((row) => row.name));
 
         // number the name past the taken ones within a DNS label

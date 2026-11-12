@@ -205,7 +205,7 @@ export async function decideSchedule(
     const local = Machine.tenancy(serving);
     const asked = placed.tenancy ?? local;
     const allowed = Entitlement.decide(entitled, { tenancy: asked });
-    const isStanding = serving.status === "enabled" && serving.revokedAt === null;
+    const isStanding = serving.status === "enabled" && serving.deletedAt === null;
 
     // refuse a tenancy a person set that the account's plan does not unlock
     if (placed.tenancy !== null && allowed.status !== "true") {
@@ -235,7 +235,7 @@ async function tenancyMachine(
     const kind = asked === "dedicated" ? "cloud" : "personal";
     const owner = await reader.read(account.table).findFirst({ where: { id: row.scope } });
     const residencyId = present(owner, `account ${row.scope}`).residencyId;
-    const standing = { status: "enabled", revokedAt: { isNull: true } } as const;
+    const standing = { status: "enabled", deletedAt: { isNull: true } } as const;
     const candidates = await reader.read(machine.table).findMany({
         where:
             asked === "shared"
@@ -273,7 +273,7 @@ async function tenancyMachine(
     }
 }
 
-/** Decide whether a machine change can change a decision: added, removed or standing. */
+/** Decide whether a machine change can change a decision: added, deleted or standing. */
 function isMachineChanged(
     before: Select<typeof machine.table> | null,
     after: Select<typeof machine.table> | null,
@@ -282,7 +282,7 @@ function isMachineChanged(
         before === null ||
         after === null ||
         after.status !== before.status ||
-        after.revokedAt !== before.revokedAt
+        after.deletedAt !== before.deletedAt
     );
 }
 

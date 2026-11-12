@@ -163,7 +163,6 @@ async function machines(
             scope: Scope.universe.id,
             residencyId: context.target.id,
             status: "enabled",
-            revokedAt: { isNull: true },
         },
         orderBy: { id: "asc" },
     });

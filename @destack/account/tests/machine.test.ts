@@ -69,7 +69,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
         ).map((row) => row.id);
     const now = fixture.store.clock.now();
     const selected = [await active(now), await active(now + PAST_LIFETIME)];
-    await owner.client(accountPackage).machine.revoke({
+    await owner.client(accountPackage).machine.delete({
         scope: accountId,
         id: enrolled.machineId,
         requestId: RequestId.create(fixture.store.environment),
@@ -81,7 +81,7 @@ test("rotate a machine's key, revoking its other keys, and match the keys authen
     });
 });
 
-test("enroll machines proposing one name under its first free numbered variants, and under the name of a revoked one", async () => {
+test("enroll machines proposing one name under its first free numbered variants, and under the name of a deleted one, which then addresses the new machine", async () => {
     // enroll three machines proposing the same name in one account
     await using fixture = await TestAccountStore.open();
     const owner = await fixture.signIn(OWNER_EMAIL);
@@ -93,19 +93,25 @@ test("enroll machines proposing one name under its first free numbered variants,
         names.push(await nameOf(owner, accountId, await enroll(preferred)));
     }
 
-    // take the name of a revoked machine instead of a numbered variant
-    const revoked = await enroll("desktop");
-    await owner.client(accountPackage).machine.revoke({
+    // take the name of a deleted machine instead of a numbered variant
+    const deleted = await enroll("desktop");
+    await owner.client(accountPackage).machine.delete({
         scope: accountId,
-        id: revoked.machineId,
+        id: deleted.machineId,
         requestId: RequestId.create(fixture.store.environment),
     });
     const again = await enroll("desktop");
-    expect([...names, await nameOf(owner, accountId, again)]).toEqual([
+    const named = await owner
+        .client(accountPackage)
+        .machine.get({ scope: accountId, id: "desktop" });
+
+    // expect the name to address the new machine alone
+    expect([...names, await nameOf(owner, accountId, again), named.id]).toEqual([
         preferred,
         `${preferred}-2`,
         `${preferred}-3`,
         "desktop",
+        again.machineId,
     ]);
 });
 

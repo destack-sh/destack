@@ -272,8 +272,8 @@ test("enroll a machine as its account's owner, authenticate it across a key rota
         "permission 'rotate' is forbidden: the caller lacks it",
     ]);
 
-    // revoke the machine as the owner
-    await owner.client(accountPackage).machine.revoke({
+    // delete the machine as the owner
+    await owner.client(accountPackage).machine.delete({
         scope: accountId,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
@@ -370,8 +370,8 @@ test("refuse a machine's assertions by its first key once it rotates, and revoki
     ]);
 });
 
-test("refuse a cloud machine's grants while the operator disables it and once the operator revokes it", async () => {
-    // disable the cloud machine, grant once enabled again, then revoke it
+test("refuse a cloud machine's grants while the operator disables it and once the operator deletes it", async () => {
+    // disable the cloud machine, grant once enabled again, then delete it
     await using accounts = await TestAccountStore.open();
     const { operator, identity } = await enrollCloud(accounts);
     const target = () => ({
@@ -383,7 +383,7 @@ test("refuse a cloud machine's grants while the operator disables it and once th
     const disabled = await grant(accounts, identity);
     await operator.client(accountPackage).machine.enable(target());
     const enabled = await grant(accounts, identity);
-    await operator.client(accountPackage).machine.revoke(target());
+    await operator.client(accountPackage).machine.delete(target());
 
     // refuse every grant but the enabled one
     expect([disabled, enabled, await grant(accounts, identity)]).toEqual([
@@ -578,16 +578,16 @@ test("disable, drain and enable a machine, refusing its token grants while disab
     }
     expect(outcomes).toEqual(["done", NO_STANDING_KEY, "done", "done", "done", "done"]);
 
-    // refuse a stranger changing the status and any change once the machine is revoked
+    // refuse a stranger changing the status and any change once the machine is deleted
     const refused = await change(stranger, "disable");
-    await owner.client(accountPackage).machine.revoke({
+    await owner.client(accountPackage).machine.delete({
         scope: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),
     });
     expect([refused, await change(owner, "enable")]).toEqual([
         ["NOT_FOUND", "NOT_FOUND", `machine '${identity.machineId}' not found`],
-        ["PRECONDITION_FAILED", "CREDENTIAL_BLOCKED", "cannot use machine: it is revoked"],
+        ["PRECONDITION_FAILED", "OBJECT_BLOCKED", "cannot change machine: it is in the trash"],
     ]);
 });
 
@@ -701,7 +701,7 @@ test("authenticate a machine's token in a space it serves while its key stands, 
             },
         );
     const standing = present(await authenticate(), "the standing machine's authentication");
-    await owner.client(accountPackage).machine.revoke({
+    await owner.client(accountPackage).machine.delete({
         scope: ids.account,
         id: identity.machineId,
         requestId: RequestId.create(accounts.environment),

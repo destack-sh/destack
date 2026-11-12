@@ -288,7 +288,7 @@ test("read the residency home, its relay and the owners of names for another acc
     ]);
 });
 
-test("relate a cloud machine as a server of its residency when declared or enrolled, as a resident of the residency's accounts, and release it when revoked", async () => {
+test("relate a cloud machine as a server of its residency when declared or enrolled, as a resident of the residency's accounts, and release it when deleted", async () => {
     // store an eu and enroll a us cloud machine of the platform
     await using fixture = await TestAccountStore.open();
     const declared = await fixture.declareCloudMachine(fixture.platform, "eu");
@@ -310,9 +310,9 @@ test("relate a cloud machine as a server of its residency when declared or enrol
         await replicas(cloud, cloud.subject.id, cloud.subject.id),
     ];
 
-    // release both once the operator revokes them
+    // release both once the operator deletes them
     for (const identity of [declared, enrolled]) {
-        await operator.client(accountPackage).machine.revoke({
+        await operator.client(accountPackage).machine.delete({
             scope: fixture.platform,
             id: identity.machineId,
             requestId: RequestId.create(fixture.store.environment),

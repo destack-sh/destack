@@ -88,10 +88,10 @@ export const Placement = Object.assign(PlacementSchema, {
         row: Pick<Placement, "scope">,
         target: Identifier<"machine">,
     ): Promise<Identifier<"machine">> {
-        // read the target, allowing only an enabled or draining unrevoked machine
+        // read the target, allowing only an enabled or draining live machine
         const found = await reader.read(machine.table).findFirst({ where: { id: target } });
         const isStanding =
-            found !== undefined && found.revokedAt === null && found.status !== "disabled";
+            found !== undefined && found.deletedAt === null && found.status !== "disabled";
 
         // allow a machine of the account, or a shared machine of the account's residency
         const isAccountMachine = isStanding && found.scope === row.scope;

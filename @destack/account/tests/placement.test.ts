@@ -555,13 +555,13 @@ test("refuse a machine exchanging a token for itself, which it asks for with its
 });
 
 test("move a space only to a standing machine of its account, which serves it from the next epoch on", async () => {
-    // store a cloud machine of the account, one of another account, and a disabled and a revoked machine of the account
+    // store a cloud machine of the account, one of another account, and a disabled and a deleted machine of the account
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { owner, accountId, otherId, laptop, local, outsider } = opened;
     const cloud = fixture.as(await fixture.declareCloudMachine(accountId, "eu"));
     const rival = fixture.as(await fixture.declareCloudMachine(otherId, "eu"));
-    const [disabled, revoked] = [
+    const [disabled, deleted] = [
         await enroll(fixture, accountId, owner),
         await enroll(fixture, accountId, owner),
     ];
@@ -571,15 +571,15 @@ test("move a space only to a standing machine of its account, which serves it fr
         requestId: RequestId.create(fixture.environment),
     });
     await owner.client(accountPackage).machine.disable(status(disabled));
-    await owner.client(accountPackage).machine.revoke(status(revoked));
+    await owner.client(accountPackage).machine.delete(status(deleted));
 
-    // refuse moving it to the other account's machines, the disabled and the revoked one, then move it to the cloud machine
+    // refuse moving it to the other account's machines, the disabled and the deleted one, then move it to the cloud machine
     const target = { accountId, id: laptop };
     const refused = [
         await move(fixture, local, target, 1, outsider.subject.id),
         await move(fixture, local, target, 1, rival.subject.id),
         await move(fixture, local, target, 1, disabled.subject.id),
-        await move(fixture, local, target, 1, revoked.subject.id),
+        await move(fixture, local, target, 1, deleted.subject.id),
     ];
     await move(fixture, local, target, 1, cloud.subject.id);
 
@@ -594,7 +594,7 @@ test("move a space only to a standing machine of its account, which serves it fr
             unknownMachine(outsider),
             unknownMachine(rival),
             unknownMachine(disabled),
-            unknownMachine(revoked),
+            unknownMachine(deleted),
         ],
         "done",
         ["FORBIDDEN", "PERMISSION_DENIED", "permission 'place' is forbidden: the caller lacks it"],
@@ -686,26 +686,26 @@ test("publish a personal machine's tunnel only as its residency's relay, and rea
     ]);
 });
 
-test("withdraw a revoked machine's published tunnel", async () => {
-    // publish a machine's tunnel as its relay, then revoke the machine as the owner
+test("withdraw a deleted machine's published tunnel", async () => {
+    // publish a machine's tunnel as its relay, then delete the machine as the owner
     const opened = await openPlacement();
     await using fixture = opened.fixture;
     const { owner, accountId, peer } = opened;
-    const revoked = await enroll(fixture, accountId, owner);
+    const deleted = await enroll(fixture, accountId, owner);
     await relay(
         fixture,
         fixture.as(await fixture.relay("eu")),
-        { scope: accountId, machine: revoked.subject.id },
+        { scope: accountId, machine: deleted.subject.id },
         fixture.clock.now() + TUNNEL_MILLISECONDS,
     );
-    await owner.client(accountPackage).machine.revoke({
+    await owner.client(accountPackage).machine.delete({
         scope: accountId,
-        id: revoked.subject.id,
+        id: deleted.subject.id,
         requestId: RequestId.create(fixture.environment),
     });
 
     // find no endpoint of it
-    expect(await url(fixture, peer, accountId, revoked.subject.id)).toEqual(undefined);
+    expect(await url(fixture, peer, accountId, deleted.subject.id)).toEqual(undefined);
 });
 
 test("move and withdraw a space only as the machine serving it, at the epoch it serves it", async () => {
@@ -1122,7 +1122,7 @@ test("relate a move's target as the space's one receiver, keep it when asked aga
     const third = fixture.as(await fixture.enroll(accountId, owner));
     const target = { accountId, id: laptop };
     const related = () =>
-        Relationship.readOn(Snapshot.live(fixture.database), space.reference(accountId, laptop), {
+        Relationship.read(Snapshot.live(fixture.database), space.reference(accountId, laptop), {
             relation: "receiver",
         });
     const receivers = async () => (await related()).map((row) => row.subjectId);

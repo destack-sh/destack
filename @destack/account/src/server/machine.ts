@@ -3,7 +3,6 @@ import { present, schema } from "@destack/schema";
 import { Entitlement, entitlement } from "../object/entitlement.ts";
 import type { MethodContext, MethodContextOf, NextOf, ResultOf } from "@destack/object";
 import { Scope } from "@destack/sync";
-import { Revocation } from "../credential/revocation.ts";
 import { Proof, type PublicKey } from "@destack/identity";
 import type { Select } from "@destack/db";
 import { Endpoint, endpoint } from "../object/endpoint.ts";
@@ -22,7 +21,7 @@ export function implementMachine(): typeof machine {
         methods: {
             enroll,
             declare,
-            revoke,
+            delete: remove,
             relay,
             enable: (call) => transition(call, "enabled"),
             drain: (call) => transition(call, "draining"),
@@ -89,12 +88,11 @@ async function declare(
     return row;
 }
 
-/** Record the tunnel a relay accepted from a standing personal machine, at its derived name. */
+/** Record the tunnel a relay accepted from a personal machine, at its derived name. */
 async function relay(
     context: MethodContextOf<typeof machine, "relay">,
 ): Promise<ResultOf<typeof machine, "relay">> {
-    // require a standing personal machine, as a cloud one answers at its URL
-    Revocation.requireUnrevoked(context.target, "machine");
+    // require a personal machine, as a cloud one answers at its URL
     if (context.target.kind === "cloud") {
         throw AccountError.of(
             "MACHINE_CLOUD_DENIED",
@@ -123,16 +121,16 @@ async function relay(
     return context.target;
 }
 
-/** Withdraw a machine with its keys. */
-async function revoke(
-    context: MethodContextOf<typeof machine, "revoke">,
-): Promise<ResultOf<typeof machine, "revoke">> {
+/** Delete a machine, revoking its keys, its residency role and its endpoint. */
+async function remove(
+    context: MethodContextOf<typeof machine, "delete">,
+    next: NextOf<typeof machine, "delete">,
+): Promise<ResultOf<typeof machine, "delete">> {
     // end the machine's keys and its place among its residency's servers
-    Revocation.requireUnrevoked(context.target, "machine");
     await invokeKeys(context, context.target.id, "revoke");
     await leaveResidency(context, Machine.of(context.target));
 
-    // withdraw the machine with its endpoint
+    // delete the machine with its endpoint
     const published = await context
         .read(endpoint)
         .findFirst({ where: { parentId: context.target.id } });
@@ -140,17 +138,14 @@ async function revoke(
         await context.mutate(context.caller, [endpoint.call("delete", endpoint.target(published))]);
     }
 
-    return context.update({ revokedAt: context.now });
+    return next();
 }
 
-/** Move a standing machine to a status, suspending its keys while it is disabled. */
+/** Move a machine to a status, suspending its keys while it is disabled. */
 async function transition(
     context: MethodContextOf<typeof machine, "enable" | "drain" | "disable">,
     status: Machine["status"],
 ): Promise<ResultOf<typeof machine, "enable" | "drain" | "disable">> {
-    // refuse a withdrawn machine
-    Revocation.requireUnrevoked(context.target, "machine");
-
     // suspend the keys on disabling
     if (status === "disabled" && context.target.status !== "disabled") {
         await invokeKeys(context, context.target.id, "suspend");
@@ -163,12 +158,10 @@ async function transition(
     return context.update({ status });
 }
 
-/** Rename a standing machine. */
+/** Rename a machine. */
 async function rename(
     context: MethodContextOf<typeof machine, "rename">,
 ): Promise<ResultOf<typeof machine, "rename">> {
-    Revocation.requireUnrevoked(context.target, "machine");
-
     return context.update({ name: context.input.name });
 }
 

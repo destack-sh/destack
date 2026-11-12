@@ -67,10 +67,7 @@ async function holderOf(context: MethodContext, parent: ObjectReference) {
     else if (machine.is(parent)) {
         const id = schema.identifier("machine").parse(parent.id);
         const row = await context.read(machine).findFirst({ where: { id } });
-        const found = Revocation.requireUnrevoked(
-            requireFound(row?.scope === context.scope ? row : undefined, parent),
-            "machine",
-        );
+        const found = requireFound(row?.scope === context.scope ? row : undefined, parent);
 
         // report the contact, keeping the last report's contents
         const host =
