@@ -81,7 +81,7 @@ export class FixtureSource {
                 join(this.directory, "package.json"),
                 JSON.stringify({ ...declaration, version }),
             );
-            builds.push(await this.#build({ outputs, dependencies }));
+            builds.push(await this.#build({ outputs, dependencies, links: {} }));
         }
         this.#compiled = { outputs, dependencies };
 
@@ -105,6 +105,7 @@ export class FixtureSource {
         return await this.#build({
             outputs,
             dependencies,
+            links: {},
             versions: { [name]: prerelease },
         });
     }
