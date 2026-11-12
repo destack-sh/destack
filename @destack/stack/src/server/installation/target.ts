@@ -16,7 +16,7 @@ import {
     InstallationBindingSpec,
     type InstallationBindingState,
     InstallationKind,
-    type InstallationSelection,
+    InstallationSelection,
     ObjectDescription,
     type ObjectReconciliation,
     ObjectType,
@@ -88,6 +88,22 @@ interface SelectedBuild {
 
 /** The revision a rollout targets: selecting its build, evaluating its stack, recording it. */
 export const RolloutTarget = {
+    /** Read the release this machine provides of a package, which one following the host's runs. */
+    host(
+        packageId: PackageId,
+        options: Pick<RevisionOptions, "linked" | "shipped">,
+    ): PackageRelease {
+        const provided = options.linked.get(packageId) ?? options.shipped.get(packageId);
+        if (provided === undefined) {
+            throw StackError.of(
+                "TARGET_BLOCKED",
+                `cannot follow the host's release of '${packageId}': this machine provides none`,
+            );
+        }
+
+        return provided;
+    },
+
     /** Revise each installation: its selected or targeted build at its current bindings. */
     async revise(
         reconciliation: ObjectReconciliation,
@@ -115,11 +131,9 @@ export const RolloutTarget = {
             // take a release or tag selection's build once built, else the targeted revision's
             const revision = targeted.find((each) => each.id === row.revisionId);
             const current = built.find((each) => each.id === revision?.buildId);
-            const { kind } = row.installation.selection;
-            const selected =
-                kind === "release" || kind === "tag"
-                    ? await selectBuild(reconciliation, row, current, options)
-                    : undefined;
+            const selected = InstallationSelection.isRelease(row.installation.selection)
+                ? await selectBuild(reconciliation, row, current, options)
+                : undefined;
             const chosen =
                 selected ??
                 (revision === undefined || current === undefined
@@ -209,7 +223,7 @@ export const RolloutTarget = {
         spaceId: Identifier<"space">,
         packageId: PackageId,
         installationId: Identifier<"installation"> | undefined,
-        options: Pick<RevisionOptions, "forge" | "registry" | "linked"> & {
+        options: Pick<RevisionOptions, "forge" | "registry" | "linked" | "shipped"> & {
             readonly builds: Pick<SpaceBuildStore, "get" | "pull" | "pullRoot" | "root">;
         },
     ): Promise<BuildReader | undefined> {
@@ -246,6 +260,10 @@ export const RolloutTarget = {
         // read the release the machine links, which runs until a revision replaces it
         else if (linked !== undefined) {
             return options.builds.pullRoot(packageId, linked.lock);
+        }
+        // read the release the machine provides for one following the host's
+        else if (selection?.kind === "host") {
+            return options.builds.pullRoot(packageId, RolloutTarget.host(packageId, options).lock);
         }
         // resolve the release a planned installation selects as its rollout will
         else if (selection?.kind === "release" || selection?.kind === "tag") {
@@ -453,33 +471,21 @@ async function selectBuild(
     current: Build | undefined,
     options: RevisionOptions,
 ): Promise<SelectedBuild | undefined> {
-    // resolve a release or tag, taking the machine's release for a superseded host installation
+    // take the release the machine provides for one following the host's, else resolve a release or tag
     const { selection, packageId } = row.installation;
     const snapshot = Snapshot.live(reconciliation.database);
-    if (selection.kind === "release" || selection.kind === "tag") {
-        const running = options.linked.get(packageId) ?? options.shipped.get(packageId);
-        const replacement =
-            running === undefined
-                ? undefined
-                : { version: running.package.version, lock: running.lock };
-        const isCurrentSuperseded =
-            current !== undefined &&
-            Rollout.isSuperseded(row.installation, Build.lock(current), options.trusted);
+    if (selection.kind === "host" || selection.kind === "release" || selection.kind === "tag") {
         const resolved =
-            isCurrentSuperseded && replacement !== undefined
-                ? replacement
+            selection.kind === "host"
+                ? RolloutTarget.host(packageId, options)
                 : await selectedRelease(snapshot, row.installation, current, options);
         if (resolved === undefined) {
             return undefined;
         }
 
-        // move one whose resolved release this machine no longer runs too, as a system image updates its apps
-        const isSuperseded = Rollout.isSuperseded(row.installation, resolved.lock, options.trusted);
-        const selected = isSuperseded && replacement !== undefined ? replacement : resolved;
-
         // pull the release, then reuse its current build
         const { builds } = options;
-        const { lock } = selected;
+        const { lock } = resolved;
         const pulled = await builds.pull(packageId, lock);
         const source = current?.source;
         if (source?.kind === "release" && current !== undefined && Build.lock(current) === lock) {

@@ -147,8 +147,8 @@ test("relate a residency home's declared installation while it asks the universe
     const set = { universe: [user.permission("recipient")] };
     const at = residency.target({ scope: Scope.universe.id, id: lab });
     const unrelated = {
-        asking: await InstallationAccess.relate(snapshot, target, target, set),
-        silent: await InstallationAccess.relate(snapshot, target, target, {}),
+        asking: await InstallationAccess.relate(snapshot, target, target, set, "2026.9.0"),
+        silent: await InstallationAccess.relate(snapshot, target, target, {}, "2026.9.0"),
     };
 
     // relate it at the residency, then leave it while it asks, and unrelate it once it stops
@@ -167,8 +167,8 @@ test("relate a residency home's declared installation while it asks the universe
                 .values(Table.complete(accessRelationship, related)),
     );
     const settled = {
-        asking: await InstallationAccess.relate(snapshot, target, target, set),
-        silent: await InstallationAccess.relate(snapshot, target, target, {}),
+        asking: await InstallationAccess.relate(snapshot, target, target, set, "2026.9.0"),
+        silent: await InstallationAccess.relate(snapshot, target, target, {}, "2026.9.0"),
     };
 
     // relate it again once a deploy applies another revision
@@ -180,6 +180,7 @@ test("relate a residency home's declared installation while it asks the universe
         target,
         { ...target, appliedRevisionId: applied },
         set,
+        "2026.9.0",
     );
     const touch = residency.call("touch", {
         ...at,

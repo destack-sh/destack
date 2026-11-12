@@ -9,6 +9,7 @@ import {
     type ObjectReconciliation,
     ObjectType,
     ObjectTypePool,
+    InstallationSelection,
 } from "@destack/object";
 import { Stack, ObjectStore } from "@destack/object/server";
 import { StackError } from "../../error/index.ts";
@@ -42,9 +43,12 @@ export class StackInstallation {
         // target the release or tag of a stack following its space's, evaluating its export on each new build, leaving an owner's apply
         const spaceId = space.identifier(this.#target.scope);
         const following = await readServedStack(spaceId, reconciliation.database);
-        const kind = following?.stack.installation.selection.kind;
         const isFollowing = following?.stack.submittedById === null;
-        if (following !== undefined && isFollowing && (kind === "release" || kind === "tag")) {
+        if (
+            following !== undefined &&
+            isFollowing &&
+            InstallationSelection.isRelease(following.stack.installation.selection)
+        ) {
             await RolloutTarget.revise(reconciliation, [following.stack], this.#options);
         }
 
@@ -264,7 +268,7 @@ async function appliedDefinition(
 /** Where a stack revision applies. */
 export interface StackApplicationOptions extends Pick<
     RevisionOptions,
-    "builds" | "registry" | "forge" | "linked"
+    "builds" | "registry" | "forge" | "linked" | "shipped"
 > {
     /** The object store running the handlers' calls as its principal. */
     readonly store: Pick<
@@ -330,8 +334,7 @@ async function installedTypes(
     const following = managed.filter(
         (entry) =>
             entry.revisionId !== null ||
-            entry.installation.selection.kind === "release" ||
-            entry.installation.selection.kind === "tag",
+            InstallationSelection.isRelease(entry.installation.selection),
     );
 
     // read the object types each one's build declares

@@ -1,4 +1,5 @@
 import type { Environment } from "@destack/environment";
+import { InstallationDefinition } from "../../declare/index.ts";
 import { install, StackDefinition } from "../../declare/index.ts";
 import objectPackage from "@destack/object/package";
 import { BindingTarget, role } from "@destack/object";
@@ -376,16 +377,16 @@ test("leave a declared installation whose fields are unchanged as it is when its
     ]).toEqual(["Applied", before]);
 });
 
-test("move a stack's host installation pinned to a release the machine no longer runs to the release it links", async () => {
+test("run a stack's host installation at the release the machine links, as it follows the host's", async () => {
     // link a newer release of the fixture package, as a machine shipping it does
     const linked = await fixtureBuild(ids.package, "2026.10.0", testHost().crypto);
     const fixture = await TestSpace.open({ linked: [linked] });
     const { database } = fixture;
 
-    // apply a stack declaring the package on the host, pinned to an older release
+    // apply a stack declaring the package on the host, following the host's release
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        selection: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -434,13 +435,13 @@ test("move a stack's host installation pinned to a release the machine no longer
     });
 });
 
-test("hold a stack's host installation pinned to a release the machine neither ships nor links until its stack moves it", async () => {
-    // apply a stack declaring the package on the host at a release this machine does not run
+test("refuse a stack installing on the host at a release, and hold one following the host's release the machine does not provide", async () => {
+    // declare the package on the host at a release, which only the host's release may be
     const fixture = await TestSpace.open();
     const { database } = fixture;
     const notes = {
         packageId: ids.package,
-        selection: { kind: "release", version: "2026.9.0" },
+        selection: { kind: "host" },
         status: "enabled",
         name: "notes",
         bindings: {},
@@ -450,6 +451,12 @@ test("hold a stack's host installation pinned to a release the machine neither s
         isolation: "host",
         tags: {},
     };
+    const pinned = InstallationDefinition.safeParse({
+        ...notes,
+        selection: { kind: "release", version: "2026.9.0" },
+    });
+
+    // apply a stack following the host's release of a package this machine provides none of
     const store = await serve(fixture);
     await submit(fixture, store, await readStack(database), {
         selection: {
@@ -465,7 +472,7 @@ test("hold a stack's host installation pinned to a release the machine neither s
         },
     });
 
-    // read its readiness and its deployments, waiting with none
+    // read the stack's condition and the installation's deployments, holding it with none
     const [installed] = await database
         .select({ id: installation.table.id, conditions: installation.table.conditions })
         .from(installation.table)
@@ -475,7 +482,17 @@ test("hold a stack's host installation pinned to a release the machine neither s
         .select({ id: object.deployment.table.id })
         .from(object.deployment.table)
         .where(eq(object.deployment.table.installationId, found.id));
-    expect([found.conditions["Ready"]?.reason, deployments]).toEqual(["WaitingForStack", []]);
+    expect({
+        pinned: pinned.error?.issues.map((issue) => issue.message),
+        synced: (await readStack(database)).installation.conditions["Synced"]?.message,
+        deployments,
+    }).toEqual({
+        pinned: [
+            "a host installation follows the host's release, and only a host installation does",
+        ],
+        synced: `@destack/stack TARGET_BLOCKED: cannot follow the host's release of '${ids.package}': this machine provides none`,
+        deployments: [],
+    });
 });
 
 test("replace an installation's own binding once its stack binds the declaration as a bucket next to its roles, releasing its previously owned bucket", async () => {

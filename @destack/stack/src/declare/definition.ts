@@ -79,8 +79,12 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
             builds.set(entry.package.id, entry);
         }
         const entries = Object.fromEntries(releases.map((entry) => [entry.package.name, entry]));
-        const declaredInstallations = Object.entries(document.installations).map(
+        // read each installation's build in the stack's lock, but for one the host provides
+        const declaredInstallations = Object.entries(document.installations).flatMap(
             ([key, installed]) => {
+                if (installed.selection.kind === "host") {
+                    return [];
+                }
                 const built = builds.get(installed.packageId);
                 if (built === undefined) {
                     throw StackError.of(
@@ -89,7 +93,7 @@ export const StackDefinition = Object.assign(schema.jsonObject(), {
                     );
                 }
 
-                return { key, installed, manifest: built.manifest };
+                return [{ key, installed, manifest: built.manifest }];
             },
         );
 

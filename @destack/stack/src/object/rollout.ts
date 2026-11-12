@@ -4,7 +4,6 @@ import { ViewPath } from "@destack/view/declare";
 import {
     AccessContext,
     Caller,
-    Manager,
     none,
     PermissionReference,
     type GrantDeclaration,
@@ -453,13 +452,13 @@ export const Rollout = {
         return Rollout.waiting("WaitingForBuild", message);
     },
 
-    /** Report whether a stack's host installation selects a lock this machine does not run. */
+    /** Report whether one following the host's release runs a lock this machine does not. */
     isSuperseded(
-        installed: Pick<Installation, "isolation"> & Parameters<typeof Manager.isManaged>[0],
+        installed: Pick<Installation, "selection">,
         lock: Digest,
         trusted: ReadonlySet<Digest>,
     ): boolean {
-        return installed.isolation === "host" && Manager.isManaged(installed) && !trusted.has(lock);
+        return installed.selection.kind === "host" && !trusted.has(lock);
     },
 
     /** Read the rollouts of some installations joined with them. */

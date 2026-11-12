@@ -612,6 +612,7 @@ test("open the build each package's installation in a space follows, and none fo
             registry: fixture.registry,
             forge: null,
             linked: new Map(),
+            shipped: new Map(),
         }).then(
             (reader) => reader?.manifest.package.version,
             (error: unknown) => (error instanceof Error ? error.message : error),

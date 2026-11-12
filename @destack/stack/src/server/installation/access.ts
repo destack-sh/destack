@@ -127,12 +127,13 @@ export const InstallationAccess = {
         ];
     },
 
-    /** Build the calls relating a residency home's declared installation as a deploy left it. */
+    /** Build the calls relating a residency home's installation at its deployed release. */
     async relate(
         reader: Pick<Snapshot, "read">,
         previous: Pick<InstallationRollout, "appliedRevisionId">,
         target: InstallationRollout,
         set: PermissionSet,
+        version: string | undefined,
     ): Promise<Call[]> {
         // relate only the installations its stack manages, and only those of a residency's home
         if (!Manager.isManaged(target.installation)) {
@@ -170,23 +171,25 @@ export const InstallationAccess = {
             return [residency.call("revoke", { ...at, installation: installed, name })];
         }
         // refuse one following no release, which every installation a residency's home declares follows
-        else if (selection.kind !== "release") {
+        else if (selection.kind !== "release" && selection.kind !== "host") {
             throw StackError.of(
                 "RELEASE_BLOCKED",
                 `cannot grant residency: home installation '${name}' follows no release`,
             );
         }
+        // relate one once a release of it is deployed
+        else if (version === undefined) {
+            return [];
+        }
         // relate one following a release for what its universe-scoped requests ask, again after an upgrade
         else {
-            const release = selection.version;
-
             return [
                 residency.call("touch", {
                     ...at,
                     installation: installed,
                     name,
                     packageId,
-                    release,
+                    release: version,
                 }),
             ];
         }

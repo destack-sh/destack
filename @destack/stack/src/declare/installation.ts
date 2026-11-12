@@ -26,28 +26,33 @@ export const BuildReference = schema.discriminatedUnion("kind", [
 export type BuildReference = schema.Infer<typeof BuildReference>;
 
 /** An application installation as a stack declares it: its create input. */
-export const InstallationDefinition = schema.object({
-    /** The installed package. */
-    packageId: PackageId,
-    /** The release, repository reference or checkout the installation follows. */
-    selection: InstallationSelection,
-    /** Whether this installation should serve requests. */
-    status: schema.enum(["enabled", "suspended"]),
-    /** Space-local URL name, independent of the stable installation key. */
-    name: InstallationName,
-    /** The bindings of the package's declarations, by package ID and declaration name. */
-    bindings: InstallationBindings,
-    /** Workload compute settings checked against package and machine policy. */
-    compute: schema.record(DeclarationName, ComputeDefinition),
-    /** The package's optional capabilities the installation allows. */
-    capabilities: schema.array(DeclarationName),
-    /** The directories granted to the package's `files` capability, each with its access. */
-    directories: schema.array(DirectoryGrant),
-    /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
-    isolation: schema.enum(["sandbox", "host"]),
-    /** User-defined labels. */
-    tags: schema.record(schema.string().min(1), schema.string()),
-});
+export const InstallationDefinition = schema
+    .object({
+        /** The installed package. */
+        packageId: PackageId,
+        /** What the installation follows: a release, a reference, a checkout or the host's. */
+        selection: InstallationSelection,
+        /** Whether this installation should serve requests. */
+        status: schema.enum(["enabled", "suspended"]),
+        /** Space-local URL name, independent of the stable installation key. */
+        name: InstallationName,
+        /** The bindings of the package's declarations, by package ID and declaration name. */
+        bindings: InstallationBindings,
+        /** Workload compute settings checked against package and machine policy. */
+        compute: schema.record(DeclarationName, ComputeDefinition),
+        /** The package's optional capabilities the installation allows. */
+        capabilities: schema.array(DeclarationName),
+        /** The directories granted to the package's `files` capability, each with its access. */
+        directories: schema.array(DirectoryGrant),
+        /** How its server is isolated: a sandbox, or the machine's own process once trusted. */
+        isolation: schema.enum(["sandbox", "host"]),
+        /** User-defined labels. */
+        tags: schema.record(schema.string().min(1), schema.string()),
+    })
+    .refine(
+        (installed) => (installed.isolation === "host") === (installed.selection.kind === "host"),
+        "a host installation follows the host's release, and only a host installation does",
+    );
 /** A package installation declared in a configuration. */
 export type InstallationDefinition = schema.Infer<typeof InstallationDefinition>;
 
@@ -135,10 +140,14 @@ export function install<
         }
     }
 
-    // follow the selected release, else the handle's version
+    // follow the selected release, else the host's for a host installation, else the handle's version
     const selection =
         options.selection ??
-        (handle.version === undefined ? undefined : { kind: "release", version: handle.version });
+        (options.isolation === "host"
+            ? { kind: "host" }
+            : handle.version === undefined
+              ? undefined
+              : { kind: "release", version: handle.version });
     if (selection === undefined) {
         throw StackError.of(
             "DEFINITION_INVALID",

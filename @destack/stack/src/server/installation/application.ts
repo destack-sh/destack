@@ -27,6 +27,7 @@ import {
     type MethodContextOf,
     type ObjectReconciliation,
     PackageDescription,
+    InstallationSelection,
 } from "@destack/object";
 import {
     HOST_SANDBOX,
@@ -220,7 +221,15 @@ export class ApplicationInstallation {
         const set = Rollout.permissions((deployed ?? target).installation, description, "space");
 
         // relate it at the universe as its space, through the uplink, converging on each pass
-        const calls = await InstallationAccess.relate(snapshot, target, deployed ?? target, set);
+        const version =
+            build === undefined ? undefined : PackageManifest.package(build.manifest).version;
+        const calls = await InstallationAccess.relate(
+            snapshot,
+            target,
+            deployed ?? target,
+            set,
+            version,
+        );
         if (calls.length > 0) {
             const delegator = principal.space.reference(Scope.universe.id, target.scope);
             const lending = Caller.acting(delegator, reconciliation.caller.subject);
@@ -235,10 +244,12 @@ export class ApplicationInstallation {
 
     /** Report whether an input of the targeted revision changed. */
     async #isChanged(reconciliation: ObjectReconciliation): Promise<boolean> {
-        // revise a release or tag selection, which may pick another build, and an installation without a revision
+        // revise a release, tag or host selection, which may pick another build, and one without a revision
         const target = this.#target;
-        const { kind } = target.installation.selection;
-        if (kind === "release" || kind === "tag" || target.revisionId === null) {
+        if (
+            InstallationSelection.isRelease(target.installation.selection) ||
+            target.revisionId === null
+        ) {
             return true;
         }
 
