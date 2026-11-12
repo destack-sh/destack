@@ -1,21 +1,37 @@
 # @destack/template-stack
 
-Declare the base configuration of a space.
+Start a space's stack from a template: a files bucket, a credentials vault, the baseline installations and an automatic rollback.
 
-## Space
+## Overview
 
-`personal` declares a space holding the `files` bucket and the `credentials` vault, and an alert rule rolling an installation back to its previous revision when a new fatal issue opens.
+`@destack/template-stack` is the stack every new space starts from, to copy and grow.
+
+It exports:
+
+- `personal`: the space's stack: a bucket, a vault, the baseline installations, and a rollback on fatal issues.
+- `files`: the bucket of documents and media.
+- `credentials`: the vault of application secrets.
+- `account`: the stages the account's spaces share, `dev` and `production`.
+
+Apply the `personal` stack to the current space:
+
+```sh
+destack apply ./stack --export personal
+```
+
+## Examples
+
+### Roll back on fatal issues
+
+An alert rule calls `rollBack` on an installation whose new issue is fatal.
 
 ```ts
 import observabilityPackage from "@destack/observability/package";
 import { defineStack } from "@destack/stack";
-import vaultPackage from "@destack/vault/package";
-import { credentials, files } from "@destack/template-stack";
 
-export const personal = defineStack({
-    types: [vaultPackage, observabilityPackage],
-    buckets: { files: files.provision({ retention: { within: { days: 30 } } }) },
-    vaults: { credentials: credentials.provision({ retention: { within: { days: 30 } } }) },
+// notify the managers, then roll back the installation
+export const guarded = defineStack({
+    types: [observabilityPackage],
     alertRules: {
         rollback: {
             title: "Roll back installation on new fatal issues",
