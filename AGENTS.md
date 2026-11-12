@@ -551,7 +551,7 @@ Name tests by behavior:
 
 Test whole outputs, as hard as possible:
 - **CT20** Tests SHOULD be the strongest, most brutal form we can think of: PBT, DST, roundtrip tests, whatever is applicable.
-- **CT21** Tests SHOULD exercise the entire thing over a part, comparing complete output.
+- **CT21** Tests SHOULD exercise the entire thing over a part, asserting over complete output and behavior as much as is feasible.
 - **CT22** Tests SHOULD assert the entire expected output as some sort of snapshot or invasive assertion where possible.
 
 Assert exact outcomes:
@@ -562,6 +562,7 @@ Assert exact outcomes:
 Keep tests fast:
 - **CT40** "Regular" unit-style tests slower than a few milliseconds, tens at most, SHOULD be investigated for fundamental model issues (heavier integration- and scenario-style tests may take longer, but we SHOULD do the napkin math and figure out what which tests really need where).
 - **CT41** Test runs MUST use a tight timeout, such as building first without a timeout and then testing with one; slow tests are a hard failure.
+- **CT42** Avoid differential testing as a process (where a test must first fail without the change) unless really needed for actual regressions (e.g. because the behavior was especially tricky to reproduce).
 
 ### Formatting (CF)
 
