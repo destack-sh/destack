@@ -138,7 +138,7 @@ export function implementSecret(): typeof secret {
     });
 }
 
-/** Implement secret versions, each keeping its value sealed at rest by the space's database. */
+/** Implement secret versions, each keeping its value encrypted at rest by the space's database. */
 export function implementSecretVersion(): typeof secretVersion {
     return secretVersion.implement({
         methods: {

@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare vault resources and manage encrypted, versioned secrets.",
+    "description": "Keep secrets as encrypted versions and rotate them without redeploying.",
     "exports": {
         ".": "./src/index.ts",
         "./declare": "./src/declare/index.ts",
@@ -47,7 +47,7 @@
         }
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "devDependencies": {
