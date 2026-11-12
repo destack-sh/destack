@@ -1,91 +1,117 @@
 # @destack/message
 
-`@destack/message` sends messages to one recipient on one channel, email, push, webhook or a desktop, and delivers webhook endpoints.
+Send messages on a channel, email, push, webhook or a desktop.
+
+## Overview
+
+The message installation sends each message to one recipient on one channel, its content sealed to the installation's key until it sends.
+
+- **Message**: one message to one destination about one source object; `create` sends it, and a desktop client marks it delivered with `receive`.
+- **Destination**: an email address, a browser's push subscription, a webhook or a desktop client.
+- **MessageKey**: the installation's key that producers seal content to; `contentKey` reads its public half.
+- **Endpoint**: a URL receiving the scope's calls as signed webhook messages.
 
 ```ts
-const email = emailProvider(new SmtpTransport(client, { from: "Destack <notices@destack.app>" })); // from @destack/mail
-const push = pushProvider(() => Vapid.derive(keys, "https://destack.app", crypto), fetch);
-await StandardWebhook.sign(secret, { id, timestamp, body }); // from @destack/object
+import { MessageKey } from "@destack/message/client";
+import type messagePackage from "@destack/message/package";
+import { BunEnvironment } from "@destack/environment/bun";
+import type { ClientOf } from "@destack/object/client";
+import type { ObjectReference } from "@destack/sync";
+
+async (client: ClientOf<typeof messagePackage>, source: ObjectReference, requestId: string) => {
+    const scope = source.scope;
+    const { key } = await client.message.contentKey({ scope });
+    const content = {
+        channel: "email",
+        subject: "Your issue was resolved",
+        text: "Issue 42 is resolved.",
+    } as const;
+    const ciphertext = await MessageKey.of(key, BunEnvironment.system).seal(content, scope);
+    await client.message.create({
+        scope,
+        requestId,
+        to: { channel: "email", address: "dana@example.com" },
+        sourcePackageId: source.packageId,
+        sourceType: source.type,
+        sourceScope: source.scope,
+        sourceId: source.id,
+        ciphertext,
+    });
+};
 ```
 
-## Messages
+## Examples
 
-A `message` sends as it is created: sealed content through its channel's provider, or a desktop message shown at once, which its client marks delivered with `receive`.
+### Install message
+
+A space installs message with its outbound mail bound to a transport and its keys in a vault.
+
+```sh
+destack install @destack/message
+```
+
+### Receive a desktop message
+
+A desktop message shows at once on its signed-in client, which marks it delivered with `receive`.
 
 ```ts
-await client.message.create({
-    scope: spaceId,
-    requestId,
-    to: { channel: "email", address: "dana@example.com" },
-    ...ObjectReference.columns("source", issue.reference(spaceId, issueId)),
-    ciphertext: await MessageKey.of(messageKey, environment).seal(content, spaceId),
-});
-await client.message.create({
-    scope: spaceId,
-    requestId,
-    to: { channel: "desktop", client: laptop },
-    ...source,
-});
-await laptopClient.message.receive({ scope, id });
-const { key } = await client.message.serverKey({ scope: spaceId }); // the VAPID key browsers subscribe with
-const { key: messageKey } = await client.message.contentKey({ scope: spaceId }); // the key content is sealed to
+import type messagePackage from "@destack/message/package";
+import type { ClientOf } from "@destack/object/client";
+import type { Identifier } from "@destack/schema";
+
+async (
+    client: ClientOf<typeof messagePackage>,
+    scope: string,
+    id: Identifier<"message">,
+    requestId: string,
+) => {
+    await client.message.receive({ scope, id, requestId });
+};
 ```
 
-## Endpoints
+### Subscribe a webhook endpoint
 
-An `endpoint` receives the scope's calls as signed webhook messages, and the message installation consumes its vault secret.
+An endpoint receives the scope's calls as Standard Webhooks messages, signed with a vault secret the installation consumes.
 
 ```ts
-await client.endpoint.create({
-    scope,
-    requestId,
-    url,
-    events: ["member.create"],
-    format: "event",
-    authentication,
-    secret,
-});
+import type messagePackage from "@destack/message/package";
+import type { ClientOf } from "@destack/object/client";
+import type { ObjectReference } from "@destack/sync";
+
+async (
+    client: ClientOf<typeof messagePackage>,
+    scope: string,
+    secret: ObjectReference,
+    requestId: string,
+) => {
+    await client.endpoint.create({
+        scope,
+        requestId,
+        url: "https://hooks.example.com/destack",
+        events: ["member.create"],
+        format: "event",
+        authentication: { kind: "signature" },
+        secret,
+    });
+};
 ```
 
-## Server
+### Test sending
 
-`@destack/message/server` serves messages and webhook endpoints from the installation's context: its keys, its bound `outbound` mail and its network.
+`TestMessage` serves a space with message installed, its mail bound to a test transport and its webhook and push receivers in process.
 
 ```ts
-import server from "@destack/message/server";
+import { TestMessage } from "@destack/message/test";
 
-const extension = server.definition(context); // mail through the bound outboundMail, push signed with its VAPID key
+const kit = await TestMessage.open({ mails: ["sent"], hooks: [200] });
 ```
 
-## Providers
+## Comparison
 
-A `MessageProvider` sends the messages of one channel; a refusal carries a `RefusalReason`, a `MessageReason` or a `MailReason`, with the provider's own code apart.
+### Novu
 
-```ts
-Outcome.read(new Response(null, { status: 410 }), now);
-// { kind: "failed", refusal: { reason: "RECIPIENT_GONE", code: "410", message: "" } }
-Outcome.refuse({ reason: "PROVIDER_THROTTLED", message: "slow down" }, 30_000);
-// { kind: "deferred", after: 30000, refusal: { reason: "PROVIDER_THROTTLED", message: "slow down" } }
-await Outcome.post(fetch, request, clock); // a lost or timed-out post defers as PROVIDER_UNREACHABLE or PROVIDER_TIMEOUT
-```
+Channels, providers and per-recipient messages follow Novu; three things differ.
 
-## Tables
-
-`messageTables` lists the message package's tables.
-
-```ts
-import { messageTables } from "@destack/message/stack";
-
-const database = defineDatabase({ name: "main", tables: messageTables });
-```
-
-## Tests
-
-`TestMessage` serves a space with message installed in a simulation, its mail bound to a `TestMailTransport` and its webhook endpoint and push service served as `TestReceiver`s.
-
-```ts
-const throttled = MailError.of("PROVIDER_THROTTLED", "slow down", {
-    data: { awsCode: "Throttling" },
-});
-const kit = await TestMessage.open({ mails: [throttled, "sent"], hooks: [500] });
-```
+- Content is sealed to the installation's key by the producer, so only the sending installation reads it.
+- Each message refers to its source object, so access to the message follows access to the source.
+- A desktop client is a separate channel, delivered at once and marked delivered by the client.
