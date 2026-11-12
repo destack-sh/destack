@@ -10,7 +10,7 @@ import { testHost } from "@destack/test/host";
 import { testSimulation } from "../test/world.ts";
 import { LocalBuildStore } from "./local.ts";
 import { BuildObject, BuildStore } from "./store.ts";
-import { BuildLayer, LAYER_FORMAT } from "./layer.ts";
+import { BuildLayer, LAYER_FORMAT } from "@destack/package/manifest";
 import { hoisted } from "../dependency/test/store.ts";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 
@@ -467,7 +467,7 @@ test("collect an unrooted build and its tree on the first idle open a week after
         await using store = await LocalBuildStore.open(directory, environment);
         rooted = await store.put(await written("export const answer = 42;\n", environment.crypto));
         dropped = await store.put(await written("export const answer = 43;\n", environment.crypto));
-        await store.root("answer", new Set([rooted]));
+        await store.retain("answer", new Set([rooted]));
         await files.mkdir(join(store.trees, dropped, "node_modules"), { recursive: true });
         await files.mkdir(join(store.trees, rooted, "node_modules"), { recursive: true });
     }
@@ -516,7 +516,7 @@ test("collect an unrooted build's layered copy and the linked layers shipping it
         };
         rooted = await put("export const answer = 42;\n");
         dropped = await put("export const answer = 43;\n");
-        await store.root("answer", new Set([rooted.build]));
+        await store.retain("answer", new Set([rooted.build]));
     }
 
     // read which builds and layers the store keeps on an idle open

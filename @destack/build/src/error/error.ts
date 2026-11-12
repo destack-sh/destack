@@ -53,7 +53,6 @@ export const BuildError = defineErrorFamily({
         CHECKOUT_BROKEN: {},
         COMPILER_BROKEN: {},
         INVARIANT_BROKEN: {},
-        LAYER_FILE_BROKEN: {},
     },
     audience: "host",
 });

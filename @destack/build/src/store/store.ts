@@ -15,6 +15,7 @@ import {
 import { DependencyName, type DependencyRelease } from "@destack/package";
 import { PackageFile } from "@destack/package/file";
 import {
+    BuildLayer,
     BuildReader,
     type ImportMap,
     Lock,
@@ -37,7 +38,6 @@ import {
     buildReferrer,
     buildRoot,
 } from "./table.ts";
-import { BuildLayer } from "./layer.ts";
 
 /** The rows one statement binds: 500, far under SQLite's 32,766 parameters at two columns. */
 const BATCH_ROWS = 500;
@@ -51,7 +51,7 @@ export const USE_MILLISECONDS = 24 * 60 * 60_000;
 /** The prefix of the root a cache entry retains its blobs by, followed by its key. */
 const CACHE_ROOT_PREFIX = "cache:";
 
-/** What a closure follows: what a build runs, or every export of every build it imports. */
+/** What a closure follows from its root: what the root runs, or every export of the root. */
 export type ClosureEntries = "run" | "export";
 
 /** Read a build's manifest at a package's registry, absent where none is stored. */
@@ -205,7 +205,7 @@ export class BuildStore<
     /** The builds in flight to the store, by manifest digest, each stored once. */
     readonly #putting = new Map<Digest, Promise<Digest>>();
     /** The read-only builds the store reads in place. */
-    readonly #layer: BuildLayer;
+    readonly layer: BuildLayer;
     /** How long a stored build lasts before a root or a use retains it, in milliseconds. */
     readonly leaseMilliseconds: number;
 
@@ -214,7 +214,7 @@ export class BuildStore<
         // take the blobs, the environment, the layer and the lease
         this.blobs = options.blobs;
         this.environment = options.environment;
-        this.#layer = options.layer ?? BuildLayer.empty();
+        this.layer = options.layer ?? BuildLayer.empty();
         this.leaseMilliseconds = options.leaseMilliseconds ?? options.blobs.leaseMilliseconds;
     }
 
@@ -685,6 +685,11 @@ export class BuildStore<
         return (await this.contents(digest)).manifest;
     }
 
+    /** Open the root build of a stored lock. */
+    async root(lock: Digest): Promise<BuildReader> {
+        return await this.contents((await this.lock(lock)).root);
+    }
+
     /** Read a stored build's manifest, absent for a build the store does not record. */
     async find(digest: Digest): Promise<PackageManifest | undefined> {
         return (await this.#find(digest))?.manifest;
@@ -808,8 +813,8 @@ export class BuildStore<
         await this.blobs.lease([digest], expiresAt.getTime());
     }
 
-    /** Set the builds a root retains, such as a space's, leaving what it drops to a collection. */
-    async root(name: string, manifests: ReadonlySet<Digest>): Promise<void> {
+    /** Retain builds under a root's name, such as a space's, until it retains others. */
+    async retain(name: string, manifests: ReadonlySet<Digest>): Promise<void> {
         await this.database.transaction((transaction) =>
             BuildStore.#replaceRoot(transaction, name, manifests),
         );
@@ -817,7 +822,7 @@ export class BuildStore<
 
     /** Forget a root, leaving what only it retained to a collection. */
     async forget(name: string): Promise<void> {
-        await this.root(name, new Set());
+        await this.retain(name, new Set());
     }
 
     /** Read the builds each root retains, by root name, the cache entries' roots left out. */
@@ -951,12 +956,16 @@ export class BuildStore<
             const opened = visited.has(key) ? undefined : await once(next.manifest);
             visited.add(key);
             if (opened !== undefined) {
-                // follow every export of an opened build
+                // follow every export of the root
                 const output = present(
                     outputsOn(opened, runtime)[0],
                     `the ${runtime} output of ${next.manifest}`,
                 );
-                if (entries === "export" && !expanded.has(next.manifest)) {
+                if (
+                    entries === "export" &&
+                    next.manifest === lock.root &&
+                    !expanded.has(next.manifest)
+                ) {
                     expanded.add(next.manifest);
                     for (const subpath of Object.keys(output.exports)) {
                         pending.push({ ...next, subpath });
@@ -1069,12 +1078,12 @@ export class BuildStore<
 
     /** Find a layered build's or lock's directory, which runtimes run in place. */
     layered(digest: Digest): string | undefined {
-        return this.#layer.directory(digest);
+        return this.layer.directory(digest);
     }
 
     /** List the real directories the store's layer keeps files in, which its readers read. */
     layerDirectories(): Promise<readonly string[]> {
-        return this.#layer.directories();
+        return this.layer.directories();
     }
 
     /** Clone a layered file to a path from its layer, refusing one it lacks. */
@@ -1083,7 +1092,7 @@ export class BuildStore<
         destination: string,
         files: FileSystem,
     ): Promise<void> {
-        const layered = present(this.#layer.file(file.digest), `the layered file ${file.path}`);
+        const layered = present(this.layer.file(file.digest), `the layered file ${file.path}`);
         await files.copyFile(layered, destination);
     }
 
@@ -1135,7 +1144,7 @@ export class BuildStore<
         digest: Digest,
     ): Promise<{ readonly size: number; readonly isComplete: boolean } | undefined> {
         // take a layered manifest or lock, which the layer ships complete
-        const layered = this.#layer.head(digest);
+        const layered = this.layer.head(digest);
         if (layered !== undefined) {
             return { size: layered.size, isComplete: true };
         }
@@ -1154,7 +1163,7 @@ export class BuildStore<
         // take the layered blobs, then find the others in the packs
         const located = new Map<Digest, BlobLocation>();
         for (const digest of digests) {
-            const size = this.#layer.size(digest);
+            const size = this.layer.size(digest);
             if (size !== undefined) {
                 located.set(digest, { kind: "layered", size });
             }
@@ -1176,7 +1185,7 @@ export class BuildStore<
     ): AsyncIterable<Uint8Array> {
         // cut the range from a layered blob's bytes
         if (location.kind === "layered") {
-            const layered = present(this.#layer.stream(digest), `the layered blob ${digest}`);
+            const layered = present(this.layer.stream(digest), `the layered blob ${digest}`);
             const bytes = new Uint8Array(await new Response(layered).arrayBuffer());
             yield bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
         }
@@ -1378,9 +1387,7 @@ export class BuildStore<
     /** Find which builds the store records, its layer's among them. */
     async #recordedBuilds(digests: readonly Digest[]): Promise<Set<Digest>> {
         // take the layered builds, then read the others' rows a batch at a time
-        const recorded = new Set(
-            digests.filter((digest) => this.#layer.head(digest) !== undefined),
-        );
+        const recorded = new Set(digests.filter((digest) => this.layer.head(digest) !== undefined));
         const others = digests.filter((digest) => !recorded.has(digest));
         for (let start = 0; start < others.length; start += BATCH_ROWS) {
             const rows = await this.database

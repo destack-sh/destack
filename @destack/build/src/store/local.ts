@@ -14,7 +14,7 @@ import {
     LAYER_INDEX,
     LAYER_TREES,
     LayerIndex,
-} from "./layer.ts";
+} from "@destack/package/manifest";
 import { DependencyTree, STAGING_DIRECTORY } from "../dependency/tree.ts";
 import { Digest, found, JsonValue, present, schema, Uuid } from "@destack/schema";
 import { HOST_RUNTIME, type Runtime } from "@destack/package/runtime";
@@ -232,7 +232,7 @@ export class LocalBuildStore
 
     /** Root some builds by a directory, until the directory is gone. */
     async rootDirectory(directory: string, manifests: ReadonlySet<Digest>): Promise<void> {
-        await this.root(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
+        await this.retain(`${DIRECTORY_ROOT_PREFIX}${directory}`, manifests);
     }
 
     /** Create a directory to write a build in beside the blobs, which idle collection removes. */
