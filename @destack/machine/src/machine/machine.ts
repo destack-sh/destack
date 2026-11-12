@@ -904,15 +904,21 @@ export class Machine {
             await this.cache.prune(stored);
         }
 
-        // start each stored space and each space placed or moving here, reporting a failed start apart from the others
-        for (const space of new Set([...stored, ...rows.map((row) => row.spaceId)])) {
-            await this.space(space).catch((error: unknown) => this.report(error));
-        }
+        // start the stored, placed and moving spaces at once, reporting each failure
+        const spaces = new Set([...stored, ...rows.map((row) => row.spaceId)]);
+        await Promise.all(
+            [...spaces].map((space) => this.space(space).catch((error: unknown) => this.report(error))),
+        );
 
-        // restart a started space whose role here changed
-        for (const started of this.#started.values()) {
-            await (await started).restartIfRoleChanged();
-        }
+        // restart the started spaces whose role here changed, reporting each failure
+        const started = [...this.#started.values()];
+        await Promise.all(
+            started.map((starting) =>
+                starting
+                    .then((space) => space.restartIfRoleChanged())
+                    .catch((error: unknown) => this.report(error)),
+            ),
+        );
     }
 
     /** Pause serving: refuse requests and close every space. */

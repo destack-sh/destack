@@ -1,132 +1,81 @@
 # @destack/machine
 
-`@destack/machine` runs one machine on a host: its standing at the universe, the spaces placed on it and their requests, on a person's computer in `/computer`, its Bun runtime in `/bun`, and on Cloudflare in `/cloudflare`.
+Run a machine: serve the spaces placed on it with their modules (buckets, vaults, connections, messages, observability, audit), route their installations' calls and keep their builds.
+
+## Overview
+
+A machine enrolls with the universe and serves the spaces placed on it, on a person's computer, on a server or on Cloudflare.
+
+- **Machine**: one machine on a host; `enroll` registers it in an account, `space` starts a placed space, and `serve` and `serveName` answer requests.
+- **Space**: one placed space's installations over its `Volume` of database, events, blobs and sockets; `fetch` hands a request to its gateway.
+- **Gateway**: every call into and out of a space's installations: routes, origins, mounts, installation calls by deployment, and workloads' calls out with exchanged tokens.
+- **Computer**: the Destack process on a person's computer, answering on loopback; `MachineProcess` starts it or reuses the running one.
+- **Device**: this computer's device, with its people's sign-ins and a `Launcher` per person that opens their views.
+- **PartitionObject**: a Cloudflare Durable Object running one partition: a space's machine or an installation's partition.
 
 ```ts
-const machine = new Machine({ id, environment, identity, keyring, database, directory, spaces, cache, runtimes, servers, ... });
-const space = await machine.space(spaceId); // started once while the machine serves
-await machine.serve(request); // a request to a space this machine serves
+import type { Machine } from "@destack/machine";
+import type { Identifier } from "@destack/schema";
+
+async (machine: Machine, spaceId: Identifier<"space">, request: Request) => {
+    await machine.health.waitUp();
+    const space = await machine.space(spaceId);
+    const answer = await space.fetch(request);
+    const routed = await machine.serve(request);
+};
 ```
 
-## Machine
+## Examples
 
-`Machine` enrolls with the universe, reports what it runs, publishes where peers call it, and serves the spaces placed on it while its account enables it.
+### Start this computer's machine
+
+`MachineProcess.start` reuses a running machine, or starts one through launchd or systemd, or launches it.
 
 ```ts
-await machine.enroll(accounts, issuer, { accountId, name });
-await machine.health.waitUp(); // settled once the machine serves its spaces
-const stack = await machine.connect(stackPackage, spaceId); // a client at the machine serving the space
-const response = await machine.serveName(request); // an installation origin's or a route's request
+import { BunEnvironment } from "@destack/environment/bun";
+import { MachineProcess } from "@destack/machine/computer";
+
+async (entry: string) => {
+    const process = MachineProcess.current(BunEnvironment.system);
+    await process.start(entry);
+    const computer = await process.loopback.computer();
+};
 ```
 
-## Spaces
+### Open a view as a person
 
-`SpaceStorage` declares what every space stores from the machine's servers and opens one `Volume` per started space, and `Space` serves the space's installations over it.
+A person's `Launcher` addresses a view on its installation's origin, which signs the person in at the universe.
 
 ```ts
-interface SpaceStorage {
-    main; // the main database every space stores
-    kinds; // the event kinds every space records
-    ephemeral; // the object types kept in memory beside the sockets
-    list;
-    open; // (space) => Volume
-}
-interface Volume {
-    database;
-    events;
-    blobs;
-    sockets;
-    providers;
-    connectors;
-    buckets; // (credentials) => the space's buckets over S3, opened once
-    graphs; // (builds) => the graphs of the space's builds, opened once
-    measure;
-    close;
-}
-const response = await space.fetch(request, authentication); // handed to the space's gateway
+import { BunEnvironment } from "@destack/environment/bun";
+import { Device } from "@destack/machine/device";
+import type { Identifier } from "@destack/schema";
+
+async (loginId: Identifier<"login">) => {
+    const device = await Device.current(BunEnvironment.system);
+    const launcher = await device.launcher(loginId);
+    const address = { space: "home--acme", installation: "notes", view: "home", path: "/" };
+    const { url } = await device.launch(launcher, address);
+};
 ```
 
-## Gateway
+### Run a computer in a test world
 
-A space's `Gateway` takes every call into and out of its installations: routes, installation origins, package mounts, installation calls by the deployment whose `Destack-Version` matches, as Vercel's skew protection does, and workloads' calls out below its egress, exchanging tokens for their subjects (RFC 8693).
+`WorldDriver` runs a universe and a signed-in person's computer in one simulated world, and acts out a world's steps.
 
 ```ts
-await gateway.serve(request, authentication); // the space's routes, origins, mounts and installations
-await gateway.ingress(installationId, "/pages/list", request, caller);
-await gateway.egress(request); // a workload's call to an address below its egress
+import { WorldDriver } from "@destack/machine/test";
+
+const driver = await WorldDriver.start();
+await driver.act({ action: "run", milliseconds: 60_000 });
 ```
 
-## Computer
+## Comparison
 
-`Computer` is the Destack process on a person's computer: its machine, its `Device` with its people's sessions, its checkouts and the builds it runs, answering on loopback.
+### Kubernetes kubelet
 
-```ts
-const process = MachineProcess.current(environment);
-await process.start(entry); // reuse a running machine, else let launchd or systemd start it, else launch it
-const computer = await process.loopback.computer(); // the computer's record, as the running machine has it
-await Computer.run({ localObjects, servers }, environment); // the machine process itself
-```
+A machine reports what it runs and converges the spaces placed on it, as a kubelet does with its pods; three things differ.
 
-## Device
-
-`Device` is this computer's device, a root partition no universe knows, and a person's `Launcher` addresses views on their installations' origins, which sign the person in at the universe and ask there for any grant a view needs.
-
-```ts
-const device = await Device.current(environment);
-const login = await device.signIn(open);
-const launcher = await device.launcher(login.id);
-const address = { space: "home--acme", installation: "notes", view: "home", path: "/" };
-const { url } = await device.launch(launcher, address); // the page on its origin, recording an object's visit
-const launched = await launcher.launch(address); // a page under the person's grant, GRANT_REQUIRED with the described grant
-```
-
-## Clients
-
-A device opens a scope's objects as the person in a client in memory, closed with the stack.
-
-```ts
-const inbox = await device.open(launcher, home, { notification, activity, message }, stack);
-for await (const rows of inbox.query.notification
-    .findMany({ with: { activity: true } })
-    .watch(signal))
-    show(rows);
-const latest = RelationalQuery.latest(
-    { messages: inbox.query.message.findMany(), activities: inbox.query.activity.findMany() },
-    signal,
-);
-```
-
-## Checkouts
-
-A `CheckoutServer` registers working trees through `Git`, builds a checkout's packages in a space as a person, and previews them while a `PreviewController` watches their sources.
-
-```ts
-const tree = await new Git(host).open(directory, { kind: "existing" });
-const built = await checkouts.build(client, spaceId, {
-    kind: "checkout",
-    machine: machine.id,
-    checkout,
-    directory,
-});
-```
-
-## Cloudflare
-
-The Worker is ingress only, and a `PartitionObject` runs one partition: the machine's directory replica, a space's `Machine` over its `DurableObjectSpaceStorage`, or an installation's partition in a facet.
-
-```ts
-const cloud = await CloudMachine.read(bindings, WorkerdEnvironment.system); // keys, identity, directory replica
-const spaces = await DurableObjectSpaceStorage.open({ space, storage, files, s3, artifacts, partitions, graphs, ... });
-const space = await new Machine({ ...cloud, spaces, runtimes: [runtime], ... }).space(spaceId);
-await space.fetch(request);
-```
-
-## Metering
-
-Every machine reads its spaces' `Traffic` on the `compute.operation`, `compute.time` and `network.transfer` meters, the transfer in each direction, and a cloud machine's Tail Worker posts each space's CPU milliseconds from the `Attribution` its invocations publish.
-
-```ts
-Attribution.publish({ scope, installation }); // diagnostics channel destack.attribution
-traffic.countTrace(scope, { installation, cpuMilliseconds: 5 });
-Traffic.readings(traffic.take()); // compute.operation, compute.time, network.transfer {direction}
-```
+- A space runs its installations in one process over one database, never one container per package.
+- The gateway routes each call by the deployment whose `Destack-Version` matches, as Vercel's skew protection does.
+- The same machine runs on a person's computer, a server and Cloudflare, each placement chosen by the universe.
