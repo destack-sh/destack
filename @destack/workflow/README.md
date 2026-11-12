@@ -1,145 +1,118 @@
 # @destack/workflow
 
-`@destack/workflow` runs durable functions step by step as objects of the space they run in: each advance runs the function again, and each step answers what it recorded, as DBOS, Inngest and Restate memoise theirs.
+Run durable functions step by step as objects of the space they run in.
+
+## Overview
+
+A package declares its workflows, and each run is an object of the space it runs in: every advance runs the function again, and each step answers what it recorded.
+
+- **Workflow**: a durable function with its input, output, retries, timeout and limits; `defineWorkflow`, then `implement` and `start`.
+- **Run**: one start of a workflow, due, waiting, paused or ended; its actor pauses, resumes, cancels or resets it.
+- **Step**: one recorded part of a run: `call`, `query`, `run`, `sleep`, `waitFor`, `invoke` and `approve`, each made once however often the run advances.
+- **Trigger**: what starts runs on a schedule, an object's changes or webhook deliveries, one run per occurrence.
+- **Webhook**: a mount other services deliver to, each delivery verified with its bound secret before a trigger sees it; `defineWebhook`.
 
 ```ts
-const summarize = defineWorkflow({
+import { t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import type { Subject } from "@destack/sync";
+import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
+
+export const summarize = defineWorkflow({
     name: "summarize",
-    input: schema.object({ id: schema.string() }),
+    title: t`Summarize`,
+    input: schema.object({ text: schema.string() }),
     output: NO_OUTPUT,
 });
-const served = summarize.implement({
+export const served = summarize.implement({
     run: async (step, input) => {
-        const note = await step.query("read", note.call("get", { spaceId, id: input.id }));
+        const words = await step.run("count", schema.number(), async () => input.text.length);
         await step.sleep("pause", { minutes: 5 });
-        await step.call("write", summary.call("create", { spaceId, text: note.title }));
     },
 });
-await store.mutate(caller, {
-    id: RequestId.create(store.environment),
-    calls: [summarize.start({ id }, { key: id, actor: caller.subject })],
-});
+
+(actor: Subject) => summarize.start({ text: "Hello" }, { key: "note-1", actor });
 ```
 
-## Workflows and controllers
+## Examples
 
-A workflow runs a process that someone starts, and a controller keeps objects in the state their fields describe.
+### Limit and retry runs
 
-```ts
-defineWorkflow({ name: "publish", input, output: NO_OUTPUT }); // ask for approval, wait a day, then publish
-reminder.implement({ controller: { pending: { sentAt: { isNull: true } }, reconcile } }); // send when due
-// both change state only through the methods of the type that keeps it
-```
-
-## Steps
-
-A step answers its recorded output on replay, so a run makes each call once, however often it advances; anything nondeterministic between steps goes through `step.run`, as the lint and the replay refuse it elsewhere.
+A workflow declares its retries, timeout, expiry and limits, after Temporal's retry policy.
 
 ```ts
-await step.call("charge", invoice.call("pay", target)); // an object method call as the run's actor
-await step.call("publish", note.call("publish", target)); // waits on a change request when the grant asks approval
-await step.query("read", note.call("get", target)); // a read, answered the same on replay
-await step.run("count", schema.number(), async () => words(text)); // local code, recorded by its schema
-await step.sleepUntil("morning", nine);
-const approval = await step.waitFor("approval", note.call("list", { spaceId, where }), { timeout });
-const total = await step.invoke("child", count, { ids }); // a child run, answering its output
-await step.invoke("notify", notify, input, { onParentClose: "abandon" }); // runs on after its parent ends
-```
+import { t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import { defineWorkflow } from "@destack/workflow";
 
-## Runs
-
-A run is due, waits, is paused or has ended; its actor pauses, resumes, cancels or resets it, and the space's controllers advance it.
-
-```ts
-summarize.start(input, { key: id, mode: "replace", at: tomorrow, actor });
-summarize.run.call("reset", { ...target, step: "write" }); // run again from a step
-defineWorkflow({
+export const digest = defineWorkflow({
     name: "digest",
-    input,
-    output: schema.string(), // every workflow declares its output, NO_OUTPUT for none
-    scope: "universe", // runs live in the universe, a space by default
-    retries: { maximumAttempts: 3 }, // Temporal's RetryPolicy and its defaults
+    title: t`Digest`,
+    input: schema.object({ person: schema.string() }),
+    output: schema.object({ sent: schema.number() }),
+    retries: { maximumAttempts: 3 },
     timeout: { hours: 1 },
     expiring: { after: { days: 7 } },
     limits: {
         rate: { count: 10, every: { minutes: 1 } },
-        concurrency: { slots: 1, until: "end" }, // a run takes its slot from its start to its end
-        key: "caller",
+        concurrency: { slots: 1, until: "end" },
+        key: { input: "person" },
     },
 });
 ```
 
-## Tasks
+### Start runs on a schedule
 
-`Task` makes one call once, now or at a time, as the run's actor, as Cloud Tasks and Convex's `scheduler.runAt` do, through a task workflow of the package's own.
-
-```ts
-const task = defineWorkflow({ name: "task", input: TaskInput, output: TaskOutput });
-const served = task.implement({ run: (step, input) => new Task(step, input).run() });
-await context.mutate(context.self, [
-    task.start({ call: reminder.call("send", target) }, { at, actor }),
-]);
-```
-
-## Triggers
-
-A trigger starts runs on a schedule, an object's changes or signed webhook deliveries, one run per occurrence, change or delivery.
+A schedule trigger starts one run per occurrence, as a Kubernetes CronJob does.
 
 ```ts
-defineWorkflow({
+import { t } from "@destack/locale";
+import { schema } from "@destack/schema";
+import { defineWorkflow, NO_OUTPUT } from "@destack/workflow";
+
+export const remind = defineWorkflow({
     name: "remind",
-    input,
+    title: t`Remind`,
+    input: schema.object({ at: schema.number() }),
     output: NO_OUTPUT,
     triggers: [
         {
             name: "daily",
-            kind: "schedule", // a Kubernetes CronJob: cron, interval or once
+            kind: "schedule",
             schedule: {
-                timing: { timing: "cron", cron: "0 9 * * *", timezone },
+                timing: { timing: "cron", cron: "0 9 * * *", timezone: "Europe/Vienna" },
                 concurrency: "forbid",
-                deadline,
+                deadline: 60_000,
             },
             input: (occurrence) => ({ at: occurrence.at }),
         },
-        {
-            name: "published",
-            kind: "change",
-            change: { object: note, where: { status: "published" }, operations: ["create"] },
-            input: (change) => ({ id: change.after.id }),
-        },
-        {
-            name: "pushes",
-            kind: "webhook", // one run per verified delivery of a declared webhook
-            webhook: pushes,
-            input: (delivery) => ({ repository: delivery.parameters.repository }),
-        },
     ],
 });
-remind.trigger.call("pause", target); // a paused change trigger keeps its changes six days at least
-remind.trigger.call("reset", target); // start a stopped trigger over as a new one begins
 ```
 
-## Webhooks
+### Receive webhooks
 
-`defineWebhook` declares a mount other services deliver to, as Stripe's and GitHub's webhooks and Standard Webhooks do: it verifies each delivery with its bound secret's live versions before a trigger or the package sees it.
+`defineWebhook` declares a mount that verifies each delivery with a vault secret's live versions.
 
 ```ts
-const stripe = defineWebhook({ name: "stripe", signature: new StripeSignature(), secret: stripeSecret }); // a vault secret, rotated there
-const pushes = defineWebhook({
-    name: "pushes",
-    template: "/{repository}",
-    signature: new StandardSignature(),
-    secret,
-});
-definePackage({ mounts: [stripe, pushes] }); // <installation>/<package>/webhooks/stripe, …/webhooks/pushes/{repository}
-const fetch = stripe.serve(receive, context); // the mount's answer: verify, then receive(delivery, store)
+import type { ResourceHandle, Secret } from "@destack/resource";
+import { defineWebhook, StandardSignature } from "@destack/workflow";
+
+(secret: ResourceHandle<Secret>) =>
+    defineWebhook({
+        name: "pushes",
+        template: "/{repository}",
+        signature: new StandardSignature(),
+        secret,
+    });
 ```
 
-## Approvals
+## Comparison
 
-`step.approve` asks approvers to decide on an object, and a step's call that waits for approvals opens object's change request and waits until it applies.
+### DBOS
 
-```ts
-const decision = await step.approve("review", subject, { approvers: [bob, alice], count: 2 }); // principals, never groups
-await step.call("publish", publish); // refused for approvals: a change request asks the grant's delegator, then answers
-```
+Workflows replayed from recorded steps follow DBOS; three things differ.
+
+- A run is an object of its space, with its access, audit and sync, and it changes state only through object methods.
+- A step's call waits on a change request when the actor's grant asks for approval.
+- Triggers start runs on a schedule, an object's changes or a verified webhook delivery, all declared beside the workflow.
