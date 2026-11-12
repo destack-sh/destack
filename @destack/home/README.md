@@ -1,89 +1,47 @@
 # @destack/home
 
-Home is the first view the desktop opens, installed in the home space of every person's personal account.
+Start from Home: see your spaces and their apps, approve their plans, search commands and change your settings.
 
-## Home
+## Overview
 
-`home` lists the account's spaces by name, each with the views its installations mount, opening one through the page's open path.
+Home is installed in the home space of every person's personal account, and is the first view the desktop opens.
 
-```ts
-export const home = defineView({
-    name: "home",
-    categories: ["home"],
-    objects: [space],
-    component: () => import("./home.tsx"),
-});
-
-<Spaces /> // "Personal · Connected · home--florian", then its views: "Notes", "Tasks"
-```
-
-## Approvals
-
-Each space shows the plans its installations wait on, each asked of the space's managers by a change request, and a manager approves or rejects it.
+- **Home view**: the account's spaces, each with the views its installations mount and the plans waiting on its managers.
+- **Command palette**: the `command` view, which searches the person's windows, commands, views, spaces and recent objects and runs a command.
+- **Settings view**: the person's settings, such as `start`, the link a new window opens.
+- **Sign-in views**: the universe's `start`, `sign-in`, `sign-up`, `consent` and `apps` pages.
 
 ```ts
-const waiting = await readWaitingPlans(spaceId, origin, environment); // installations whose progress is "approval"
-waiting[0]; // { name: "notes", plan: { steps: [{ action: "grant", risk: "privileged", detail: "request read on space" }] }, digest, approval }
-await objects.approval.approve({ scope: spaceId, id: waiting[0].approval, requestId }); // or reject
-```
-
-## Settings
-
-`settings` shows and changes the person's settings.
-
-```ts
-export const settings = defineView({ name: "settings", objects: [setting], component });
-```
-
-## Start
-
-`start` is the link a new window opens, the person's own or this computer's, which the desktop reads from Home.
-
-```ts
+import { command, home, settings } from "@destack/home/view";
 import { start } from "@destack/home/setting";
 
-start.default; // null: Home's start view
-// destack setting start set destack://home--florian/home --scope device
+const views = [home, command, settings];
+start.definition.default; // null
 ```
 
-## Clients
+## Examples
 
-Home binds the shell's credential to this browser's client once it shows, as a person's page registers its browser at its origin.
+### Install Home
 
-```ts
-await new BrowserClient({ path: CLIENT_PATH, origin, environment }).bind(
-    BrowserClient.describe(navigator),
-);
+Every personal account's home space installs Home, and another space can install it too.
+
+```sh
+destack install @destack/home
 ```
 
-## Commands
+### Set the start link
 
-`command` is the command palette, Home's view the desktop opens over a window: `PaletteListing` reads each space's `SpaceCatalog` from one `ObjectStoreDescription` of its store, and the device's windows and recent objects at the device's home.
+`start` takes a `destack://` link, set for the person or for this computer alone.
 
-```ts
-const listing = await PaletteListing.read(
-    origin,
-    { user, home, device },
-    { keybindings, sources },
-    Clock.system,
-);
-const catalog = listing.catalog(entry); // the space's installations, commands, views and types
-catalog.command(entry); // the Command, bound to the type it calls
-await catalog.call(entry, input, id); // through the installation, at /.destack/home/<space>
+```sh
+destack setting start set destack://notes--personal--ada/home --scope device
 ```
 
-## Palette
+## Comparison
 
-`CommandPalette` searches the person's windows, commands, views, spaces and recent objects, picks a command's object and fills its input with `SchemaForm`.
+### Spotlight
 
-```tsx
-// offers the command, run once confirmed
-<CommandPalette
-    listing={listing}
-    focus={focus}
-    command={{ packageId, name: "complete" }}
-    onOpen={open}
-    onWindow={focus}
-    onClose={close}
-/>
-```
+The command palette follows Spotlight's search over apps, windows and recent items; two things differ.
+
+- Home lists what the person's spaces install, so a new app appears once a space installs it.
+- The palette runs the commands packages declare on their object types, filling each command's input as a form.

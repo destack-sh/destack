@@ -3,9 +3,9 @@
     "version": "2026.11.0",
     "license": "Apache-2.0",
     "type": "module",
-    "description": "The Destack start app.",
+    "description": "Start from Home: see your spaces and their apps, approve their plans, search commands and change your settings.",
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json"
+        "typecheck": "destack-check readme && tsc --project tsconfig.json"
     },
     "exports": {
         "./view": "./src/view/index.ts",
