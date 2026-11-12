@@ -332,7 +332,7 @@ const shareableTrait: TraitBehavior<SharingGate> = {
     methods: (options) => ShareableMethod.methods(options),
 };
 
-/** The shareable trait, callable to declare it on an object type. */
+/** Share objects through relationships and invitations. */
 export const shareable = callableTrait("shareable", shareableTrait);
 
 /** The procedures sharing derives. */

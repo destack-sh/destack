@@ -258,5 +258,5 @@ export const Presentable = {
     },
 };
 
-/** The presentable trait, callable to declare it on an object type. */
+/** Show objects with a title, an icon, a cover and an accent. */
 export const presentable = callableTrait("presentable", {}, true);

@@ -57,5 +57,5 @@ const versionedTrait: TraitBehavior<VersionsDefinition> & {
     },
 };
 
-/** The versioned trait, callable to declare it on an object type. */
+/** Keep immutable versions of a parent, numbered within it. */
 export const versioned = callableTrait("versioned", versionedTrait, true);

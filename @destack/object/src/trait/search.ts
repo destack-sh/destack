@@ -200,5 +200,5 @@ const searchTrait: TraitBehavior<ObjectSearch> = {
     validate: (options, object) => ObjectSearch.requireRoles(object, options),
 };
 
-/** The search trait, callable to declare it on an object type. */
+/** Find objects by text, and index the fields callers filter and sort by. */
 export const searchable = callableTrait("searchable", searchTrait);

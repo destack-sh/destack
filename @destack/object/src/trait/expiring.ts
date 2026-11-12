@@ -94,5 +94,5 @@ const expiringTrait: TraitBehavior<readonly ExpiryRule[]> & {
     },
 };
 
-/** The expiring trait, callable to declare it on an object type. */
+/** Remove objects once a rule's window passes. */
 export const expiring = callableTrait("expiring", expiringTrait);

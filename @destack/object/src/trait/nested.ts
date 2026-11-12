@@ -221,7 +221,7 @@ const nestedTrait: TraitBehavior<NestedDefinition> = {
     },
 };
 
-/** The nested trait, callable to declare it on an object type. */
+/** Nest objects under a parent, or under an object of their type in a tree. */
 export const nested = callableTrait("nested", nestedTrait);
 
 /** The procedure moves derive. */

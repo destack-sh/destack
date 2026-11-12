@@ -4,7 +4,7 @@
     "license": "Apache-2.0",
     "type": "module",
     "sideEffects": false,
-    "description": "Declare the objects of a package: identity, storage, permissions and declarations.",
+    "description": "Declare object types with access, methods and sync, and call them from anywhere.",
     "exports": {
         ".": "./src/index.ts",
         "./error": "./src/error/index.ts",
@@ -48,7 +48,7 @@
         "@types/bun": "1.4.4"
     },
     "scripts": {
-        "typecheck": "tsc --project tsconfig.json",
+        "typecheck": "tsc --project tsconfig.json && destack-check readme",
         "test": "bun --bun run vitest run --config vitest.config.ts --project 'unit:*'",
         "bench": "bun --bun run vitest run --config vitest.config.ts --project 'bench:*'"
     }

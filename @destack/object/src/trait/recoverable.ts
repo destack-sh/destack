@@ -164,7 +164,7 @@ const recoverableTrait: TraitBehavior<RecoverableDefinition> = {
     },
 };
 
-/** The recoverable trait, callable to declare it on an object type. */
+/** Delete objects to a trash, restorable within a window. */
 export const recoverable = callableTrait("recoverable", recoverableTrait);
 
 /** The procedures recoverable deletion derives besides deleting. */

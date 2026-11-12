@@ -136,5 +136,5 @@ const orderableTrait: TraitBehavior<Ordering> = {
     methods: () => ({}),
 };
 
-/** The orderable trait, callable to declare it on an object type. */
+/** Order objects among their siblings by position. */
 export const orderable = callableTrait("orderable", orderableTrait, true);

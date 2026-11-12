@@ -144,5 +144,5 @@ const trackedTrait: TraitBehavior<TrackedDefinition> & {
     },
 };
 
-/** The tracked trait, callable to declare it on an object type. */
+/** Record objects' history, grouped into activities. */
 export const tracked = callableTrait("tracked", trackedTrait);

@@ -110,5 +110,5 @@ const bindableTrait: TraitBehavior<true | TraitPermission> & {
     },
 };
 
-/** The bindable trait, callable to declare it on an object type. */
+/** Let installations and machines bind to and consume objects, such as secrets. */
 export const bindable = callableTrait("bindable", bindableTrait);

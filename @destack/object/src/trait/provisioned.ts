@@ -260,5 +260,5 @@ function resourceMethods() {
     };
 }
 
-/** The provisioned trait, callable to declare it on an object type. */
+/** Provision objects as a kind's resources through its providers. */
 export const provisioned = callableTrait("provisioned", {});

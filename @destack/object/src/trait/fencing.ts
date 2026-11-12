@@ -111,5 +111,5 @@ const fencingTrait: TraitBehavior<TraitPermission> & {
         ),
 };
 
-/** The fencing trait, callable to declare it on an object type. */
+/** Fence the scope objects live in while it moves between machines. */
 export const fencing = callableTrait("fencing", fencingTrait);

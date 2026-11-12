@@ -78,5 +78,5 @@ const controlledTrait: TraitBehavior<ControlledDefinition> & {
     },
 };
 
-/** The controlled trait, callable to declare it on an object type. */
+/** Reconcile records with a controller. */
 export const controlled = callableTrait("controlled", controlledTrait, true);

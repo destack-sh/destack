@@ -68,7 +68,7 @@ const suspendableTrait: TraitBehavior<TraitPermission> & {
     },
 };
 
-/** The suspendable trait, callable to declare it on an object type. */
+/** Let scope objects be suspended. */
 export const suspendable = callableTrait("suspendable", suspendableTrait);
 
 /** Build the column recording when a scope object was suspended. */
