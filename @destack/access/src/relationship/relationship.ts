@@ -13,7 +13,6 @@ import {
     sql,
     type Comparable,
     type Condition,
-    type DatabaseConnection,
     type Transaction,
     type OpenCondition,
     type Select,
@@ -147,16 +146,6 @@ export const Relationship = {
         };
     },
 
-    /** Insert a relationship as a row in the scope it lives in, read in the same transaction. */
-    async insert(database: DatabaseConnection, relationship: Relationship): Promise<void> {
-        await database.transaction(async (transaction) => {
-            const scope = await Relationship.scope(Snapshot.live(transaction), relationship);
-            await transaction
-                .insert(accessRelationship)
-                .values(Relationship.encode(relationship, scope));
-        });
-    },
-
     /** Write a relationship's object as its columns, which also match the rows on the object. */
     objectColumns(object: ObjectReference): ReferenceColumns<"object"> {
         return ObjectReference.columns("object", object);
@@ -203,8 +192,8 @@ export const Relationship = {
         );
     },
 
-    /** Read an object's relationships through a relation or role, of one subject, or both. */
-    async readOn(
+    /** Read an object's relationships that match a relation or role and a subject exactly. */
+    async read(
         reader: Pick<Snapshot, "read">,
         object: ObjectReference,
         match: {
@@ -228,7 +217,7 @@ export const Relationship = {
                     ? {}
                     : {
                           ...Relationship.subjectColumns(subject),
-                          subjectRelation: Relationship.nullable(subject.relation ?? null),
+                          subjectRelation: nullable(subject.relation ?? null),
                       }),
             },
         });
@@ -325,70 +314,15 @@ export const Relationship = {
     equal(row: EncodedRelationship): Condition<Select<typeof accessRelationship>> {
         return {
             ...Relationship.objectColumns(ObjectReference.at("object", row)),
-            relation: Relationship.nullable(row.relation),
-            roleId: Relationship.nullable(row.roleId),
+            relation: nullable(row.relation),
+            roleId: nullable(row.roleId),
             subjectPackageId: row.subjectPackageId,
             subjectType: row.subjectType,
             subjectScope: row.subjectScope,
             subjectId: row.subjectId,
-            subjectRelation: Relationship.nullable(row.subjectRelation),
-            linkSecret: Relationship.nullable(row.linkSecret),
+            subjectRelation: nullable(row.subjectRelation),
+            linkSecret: nullable(row.linkSecret),
         };
-    },
-
-    /** Read a selection's relationships as a transaction sees them. */
-    async readSelected(
-        transaction: Transaction,
-        selection: RelationshipSelection,
-        manager: Manager | null,
-    ): Promise<Select<typeof accessRelationship>[]> {
-        let covered: Condition<Select<typeof accessRelationship>>;
-        // select a subject's relationships through a relation
-        if ("objects" in selection) {
-            covered = Relationship.heldThrough(selection);
-        }
-        // select the relationships the declaration being applied manages now
-        else if (manager !== null) {
-            covered = Manager.condition(manager);
-        }
-        // refuse a caller applying no declaration
-        else {
-            throw AccessError.of(
-                "MANAGER_DENIED",
-                "relationship management is forbidden: only a declaration can manage relationships",
-            );
-        }
-
-        return transaction
-            .read(accessRelationship)
-            .findMany({ where: { scope: selection.scope, ...covered } });
-    },
-
-    /** Match the relationships a subject has through a relation on objects of some types. */
-    heldThrough(selection: {
-        readonly objects: readonly ObjectTypeReference[];
-        readonly relation: string;
-        readonly subject: Subject;
-    }): Condition<Select<typeof accessRelationship>> {
-        const columns = Relationship.subjectColumns(selection.subject);
-
-        return {
-            OR: selection.objects.map((object) => ({
-                objectPackageId: object.packageId,
-                objectType: object.type,
-            })),
-            relation: selection.relation,
-            subjectPackageId: columns.subjectPackageId,
-            subjectType: columns.subjectType,
-            subjectScope: columns.subjectScope,
-            subjectId: columns.subjectId,
-            subjectRelation: Relationship.nullable(columns.subjectRelation),
-        };
-    },
-
-    /** Match a value, or a missing one for null. */
-    nullable<Value extends Comparable>(value: Value | null): Value | { readonly isNull: true } {
-        return value === null ? { isNull: true } : value;
     },
 
     /** Read whether a relationship row uses a relation or role, refusing neither or both. */
@@ -530,11 +464,7 @@ export const Relationship = {
         await authorization.transaction.savepoint(async () => {
             // read the relationships the selection covers
             const related = (
-                await Relationship.readSelected(
-                    authorization.transaction,
-                    selection,
-                    authorization.manager,
-                )
+                await readSelected(authorization.transaction, selection, authorization.manager)
             ).map((row) => ({
                 row,
                 relationship: Relationship.decode(row),
@@ -654,7 +584,7 @@ async function requireReplaced(
         // count what stays of the same relation or role, and what the replacement adds
         const via = row.relation === null ? { role: OWNER_ROLE.id } : { relation: row.relation };
         const kept = (
-            await Relationship.readOn(authorization.transaction.view(), relationship.object, via)
+            await Relationship.read(authorization.transaction.view(), relationship.object, via)
         ).filter((same) => !removed.has(same.id));
         const key = ObjectReference.key(relationship.object);
         const replaced = added.filter(
@@ -686,7 +616,7 @@ async function requireRemaining(
     }
 
     // read the object's relationships of the same relation or role, which never expire
-    const same = await Relationship.readOn(
+    const same = await Relationship.read(
         authorization.transaction.view(),
         relationship.object,
         row.relation === null ? { role: OWNER_ROLE.id } : { relation: row.relation },
@@ -700,4 +630,61 @@ async function requireRemaining(
             `cannot remove '${name}' of ${relationship.object.type} '${relationship.object.id}': it is the last one`,
         );
     }
+}
+
+/** Read a selection's relationships as a transaction sees them. */
+async function readSelected(
+    transaction: Transaction,
+    selection: RelationshipSelection,
+    manager: Manager | null,
+): Promise<Select<typeof accessRelationship>[]> {
+    let covered: Condition<Select<typeof accessRelationship>>;
+    // select a subject's relationships through a relation
+    if ("objects" in selection) {
+        covered = heldThrough(selection);
+    }
+    // select the relationships the declaration being applied manages now
+    else if (manager !== null) {
+        covered = Manager.condition(manager);
+    }
+    // refuse a caller applying no declaration
+    else {
+        throw AccessError.of(
+            "MANAGER_DENIED",
+            "relationship management is forbidden: only a declaration can manage relationships",
+        );
+    }
+
+    return transaction
+        .read(accessRelationship)
+        .findMany({ where: { scope: selection.scope, ...covered } });
+}
+
+/** Match the relationships a subject has through a relation on objects of some types. */
+function heldThrough(selection: {
+    readonly objects: readonly ObjectTypeReference[];
+    readonly relation: string;
+    readonly subject: Subject;
+}): Condition<Select<typeof accessRelationship>> {
+    const columns = Relationship.subjectColumns(selection.subject);
+
+    return {
+        OR: selection.objects.map((object) => ({
+            objectPackageId: object.packageId,
+            objectType: object.type,
+        })),
+        relation: selection.relation,
+        subjectPackageId: columns.subjectPackageId,
+        subjectType: columns.subjectType,
+        subjectScope: columns.subjectScope,
+        subjectId: columns.subjectId,
+        subjectRelation: nullable(columns.subjectRelation),
+    };
+}
+
+/** Match a value, or a missing one for null. */
+function nullable<Value extends Comparable>(
+    value: Value | null,
+): Value | { readonly isNull: true } {
+    return value === null ? { isNull: true } : value;
 }

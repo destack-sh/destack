@@ -18,6 +18,7 @@ import {
     type RelationshipRequest,
     role,
     Role,
+    type RoleDeclaration,
 } from "../index.ts";
 import {
     account,
@@ -125,7 +126,7 @@ async function openRoleFixture() {
     let next = 0;
     const relate = async (relationship: RelationshipRequest) => {
         const id = `relationship-01996ab0-0000-7000-8000-0000000003${String(next++).padStart(2, "0")}`;
-        await Relationship.insert(database, {
+        await new TestAccess(database, fixture.environment).relate({
             ...relationship,
             id,
             createdAt: 1,
@@ -252,8 +253,8 @@ test("find a scope's role by name, and read an object's relationships through a 
 
     // read each selection of the note's relationships
     const snapshot = Snapshot.live(database);
-    const read = async (match: Parameters<typeof Relationship.readOn>[2]) =>
-        (await Relationship.readOn(snapshot, object, match)).map((row) => row.id).toSorted();
+    const read = async (match: Parameters<typeof Relationship.read>[2]) =>
+        (await Relationship.read(snapshot, object, match)).map((row) => row.id).toSorted();
     expect({
         all: await read({}),
         bound: await read({ role: reader }),
@@ -890,28 +891,29 @@ async function openSpaceWithOwner() {
     return { ...fixture, universe, home, place, owner };
 }
 
-test("upsert a role by name, replace its purpose and permissions, then upsert it identically without a write", async () => {
+test("declare a role by name, replace its purpose and permissions, then declare it identically without a write", async () => {
     const { database, place, owner } = await openSpaceWithOwner();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
+    const declare = (declaration: RoleDeclaration, now: number) =>
+        owner(now, async (authorization) =>
+            present(await Role.declare(place, declaration, authorization), "the declared role"),
+        );
 
-    // upsert the role, again under the same name with other permissions, and once more alike
-    const created = await owner(1000, (authorization) =>
-        Role.upsert(
-            place,
-            {
-                name: "editor",
-                description: "Read nodes",
-                permissions: [read],
-            },
-            authorization,
-        ),
+    // declare the role, again under the same name with other permissions, and once more alike
+    const subjects = [carol.subject];
+    const created = await declare(
+        { name: "editor", description: "Read nodes", permissions: [read], subjects },
+        1000,
     );
-    const changed = { name: "editor", description: "Update nodes", permissions: [update] };
-    await owner(2000, (authorization) => Role.upsert(place, changed, authorization));
-    const upserted = await owner(3000, (authorization) =>
-        Role.upsert(place, changed, authorization),
-    );
+    const changed = {
+        name: "editor",
+        description: "Update nodes",
+        permissions: [update],
+        subjects,
+    };
+    await declare(changed, 2000);
+    const upserted = await declare(changed, 3000);
 
     // expect one role at its second revision, last written at the change, granting only the changed permissions
     const reading = await Transaction.open(database);
@@ -986,7 +988,7 @@ test("grant a space's own role bound on the space inside it alone, never on the 
     });
 });
 
-test("upsert a declaration's role as its manager, refuse it to others until released, then let others change it and refuse the declaration", async () => {
+test("declare a role as its declaration's manager, refuse it to others until released, then let others change it and refuse the declaration", async () => {
     const { database, place, owner } = await openSpaceWithOwner();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const manager = Manager.schema.parse({
@@ -994,17 +996,22 @@ test("upsert a declaration's role as its manager, refuse it to others until rele
         packageId: "package-01996ab0-0000-7000-8000-000000000002",
         name: "roles/editor",
     });
-    const request = { name: "editor", description: "Read nodes", permissions: [read] };
+    const request = {
+        name: "editor",
+        description: "Read nodes",
+        permissions: [read],
+        subjects: [],
+    };
     const declaring = (description: string) =>
         refusal(
             owner(1000, (authorization) =>
-                Role.upsert(place, { ...request, description }, authorization.applying(manager)),
+                Role.declare(place, { ...request, description }, authorization.applying(manager)),
             ),
         );
     const direct = (description: string) =>
         refusal(
             owner(1000, (authorization) =>
-                Role.upsert(place, { ...request, description }, authorization),
+                Role.declare(place, { ...request, description }, authorization),
             ),
         );
 
@@ -1035,7 +1042,7 @@ test("upsert a declaration's role as its manager, refuse it to others until rele
     });
 });
 
-test("replace an inherent role's permissions with the declared ones, keeping the rows it grants already, and drop it once it grants none", async () => {
+test("replace a declared role's permissions with the declared ones, keeping the rows it grants already, and remove it once it grants none", async () => {
     const { database, place, owner } = await openSpaceWithOwner();
     const read = { packageId: node.definition.packageId, type: node.name, name: "read" };
     const update = { ...read, name: "update" };
@@ -1043,10 +1050,14 @@ test("replace an inherent role's permissions with the declared ones, keeping the
     const dave = principal.user.reference("universe", "dave");
     const declare = (permissions: (typeof read)[], now: number) =>
         owner(now, (authorization) =>
-            Role.applyInherent(
+            Role.declare(
                 place,
-                { name: "maintainer", description: "Maintain nodes", permissions },
-                dave,
+                {
+                    name: "maintainer",
+                    description: "Maintain nodes",
+                    permissions,
+                    subjects: [dave],
+                },
                 authorization,
             ),
         );
@@ -1091,7 +1102,7 @@ test("replace an inherent role's permissions with the declared ones, keeping the
         ],
         second: [{ id: added?.id, name: "delete" }, updateRow],
         distinct: 3,
-        // drop the role with its permissions and binding once it grants nothing
+        // remove the role with its permissions and binding once it grants nothing
         dropped: { roles: [], permissions: [], bindings: [] },
     });
 });
@@ -1099,13 +1110,9 @@ test("replace an inherent role's permissions with the declared ones, keeping the
 test("assign a role to one subject alone, revoking the previous subject and leaving an identical binding", async () => {
     const { database, place, owner } = await openSpaceWithOwner();
     const reader = await owner(1000, (authorization) =>
-        Role.upsert(
+        Role.create(
             place,
-            {
-                name: "reader",
-                description: "Read nodes",
-                permissions: [],
-            },
+            { name: "reader", description: "Read nodes", permissions: [] },
             authorization,
         ),
     );
@@ -1138,16 +1145,13 @@ test("assign a role to one subject alone, revoking the previous subject and leav
     expect([again, rows.map((row) => Relationship.decode(row))]).toEqual([[binding], [binding]]);
 });
 
-test("refuse upserting and assigning roles to a caller without the permissions", async () => {
+test("refuse declaring and assigning roles to a caller without the permissions", async () => {
     const { place, home, database, alice, owner, environment } = await openSpaceWithOwner();
+    const read = [space.permission("read")];
     const reader = await owner(1000, (authorization) =>
-        Role.upsert(
+        Role.create(
             place,
-            {
-                name: "reader",
-                description: "Read the space",
-                permissions: [space.permission("read")],
-            },
+            { name: "reader", description: "Read the space", permissions: read },
             authorization,
         ),
     );
@@ -1158,13 +1162,9 @@ test("refuse upserting and assigning roles to a caller without the permissions",
     expect(
         await refusal(
             outsider((authorization) =>
-                Role.upsert(
+                Role.declare(
                     place,
-                    {
-                        name: "sharer",
-                        description: "Share",
-                        permissions: [],
-                    },
+                    { name: "sharer", description: "Share", permissions: read, subjects: [] },
                     authorization,
                 ),
             ),
@@ -1177,13 +1177,9 @@ test("refuse upserting and assigning roles to a caller without the permissions",
     expect(
         await refusal(
             outsider((authorization) =>
-                Role.upsert(
+                Role.declare(
                     place,
-                    {
-                        name: "reader",
-                        description: "Read",
-                        permissions: [],
-                    },
+                    { name: "reader", description: "Read", permissions: read, subjects: [] },
                     authorization,
                 ),
             ),

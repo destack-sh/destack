@@ -1,4 +1,4 @@
-import { and, eq, Table, Transaction, type DatabaseConnection } from "@destack/db";
+import { and, eq, Snapshot, Table, Transaction, type DatabaseConnection } from "@destack/db";
 import { ObjectReference, Scope, type Subject } from "@destack/sync";
 import { Identifier, present } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -144,6 +144,16 @@ export class TestAccess {
         await transaction.commit();
 
         return id;
+    }
+
+    /** Write a relationship as a row in its scope, as declarations and replication do. */
+    async relate(relationship: Relationship): Promise<void> {
+        await this.database.transaction(async (transaction) => {
+            const scope = await Relationship.scope(Snapshot.live(transaction), relationship);
+            await transaction
+                .insert(accessRelationship)
+                .values(Relationship.encode(relationship, scope));
+        });
     }
 
     /** Relate a subject to an object in its scope, as a home access replica does. */

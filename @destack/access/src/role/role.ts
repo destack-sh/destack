@@ -1,6 +1,6 @@
 import * as policies from "../declare/principal.ts";
 import type { Authorization } from "../authorizer/authorization.ts";
-import { type ObjectReference, Subject } from "@destack/sync";
+import { ObjectReference, Subject } from "@destack/sync";
 import { type Select, type Transaction, Table } from "@destack/db";
 import { Identifier, type UuidEnvironment, schema } from "@destack/schema";
 import { AccessError } from "../error/index.ts";
@@ -72,6 +72,16 @@ export const RoleRequest = schema.object({
 });
 /** The name, purpose and permissions of a role to define or change. */
 export type RoleRequest = schema.Infer<typeof RoleRequest>;
+
+/** A declared role: its name, purpose and permissions, and exactly its subjects. */
+export const RoleDeclaration = RoleRequest.extend({
+    /** The subjects the role is bound to, each once. */
+    subjects: schema.array(Subject),
+    /** The object in the scope the role is bound on, the scope itself when absent. */
+    object: ObjectReference.exactOptional(),
+});
+/** A role a declaration applies, with exactly the subjects bound to it. */
+export type RoleDeclaration = schema.Infer<typeof RoleDeclaration>;
 
 /** A role: its schema and the reads of its rows, with writes going through `Authorization`. */
 export const Role = {
@@ -215,61 +225,6 @@ export const Role = {
             permissions: [...granted],
             revision: record.revision,
         };
-    },
-
-    /** Apply a creation-defined role: exact permissions bound to a subject, dropped for none. */
-    async applyInherent(
-        scope: ObjectReference,
-        request: RoleRequest,
-        subject: Subject,
-        authorization: Authorization,
-    ): Promise<void> {
-        // refuse a scope another database homes
-        const { transaction, environment } = authorization;
-        await authorization.authorizer.requireHome(transaction, scope, scope.id);
-
-        // drop the role and its bindings once its code owns nothing
-        const defined = await transaction.read(accessRole).findFirst({
-            where: { scope: scope.id, name: request.name },
-        });
-        if (request.permissions.length === 0) {
-            if (defined !== undefined) {
-                await Role.drop(defined, authorization);
-            }
-
-            return;
-        }
-
-        // define the role, or replace the permissions of the one defined
-        const now = authorization.context().now;
-        const role =
-            defined?.id ??
-            (await Role.define(transaction, scope.id, request, now, null, environment));
-        if (role === undefined) {
-            throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
-        }
-        if (defined !== undefined) {
-            await Role.replace(transaction, role, scope.id, request.permissions, environment);
-        }
-
-        // bind it to the subject
-        await Role.bind(scope, role, subject, authorization);
-    },
-
-    /** Drop a code-owned role with its bindings and permissions. */
-    async drop(record: Select<typeof accessRole>, authorization: Authorization): Promise<void> {
-        // remove its bindings
-        const { transaction, environment } = authorization;
-        const bindings = await transaction
-            .read(accessRelationship)
-            .findMany({ where: { roleId: record.id } });
-        for (const binding of bindings) {
-            await transaction.write({ table: accessRelationship, before: binding, after: null });
-        }
-
-        // remove its permissions and the role
-        await Role.replace(transaction, record.id, record.scope, [], environment);
-        await transaction.write({ table: accessRole, before: record, after: null });
     },
 
     /** Bind a role on a scope's object to a subject once, at the home of the scope keeping it. */
@@ -489,67 +444,34 @@ export const Role = {
         });
     },
 
-    /** Upsert a role by name in a scope with exactly the requested purpose and permissions. */
-    async upsert(
+    /** Declare a role with exactly its permissions and subjects, removed once it grants none. */
+    async declare(
         scope: ObjectReference,
-        request: RoleRequest,
+        declaration: RoleDeclaration,
         authorization: Authorization,
-    ): Promise<Role> {
+    ): Promise<Role | undefined> {
         return authorization.transaction.savepoint(async () => {
-            // read the role with the name, and define it when none exists
-            const now = authorization.context().now;
+            // read the role of the name
+            const { subjects, object = scope, ...request } = declaration;
             const existing = await authorization.transaction.read(accessRole).findFirst({
-                where: {
-                    scope: scope.id,
-                    name: request.name,
-                },
+                where: { scope: scope.id, name: request.name },
             });
-            if (existing === undefined) {
-                return Role.create(scope, request, authorization);
+
+            // remove a role that grants nothing, with its bindings
+            if (request.permissions.length === 0) {
+                if (existing !== undefined) {
+                    await Role.assign(object, existing.id, [], authorization);
+                    await Role.delete(scope, existing.id, existing.revision, authorization);
+                }
+
+                return undefined;
             }
 
-            // accept only a role under the same manager, and leave a matching role as it is
-            await authorization.authorizeRole(
-                scope,
-                policies.role.permission("update"),
-                request.permissions,
-                existing,
-            );
+            // upsert the role, then bind exactly its subjects
+            const role = await upsertRole(scope, request, existing, authorization);
+            await Role.assign(object, role.id, subjects, authorization);
 
-            // refuse a role of the name the declaration does not manage
-            const { manager } = authorization;
-            if (manager !== null && !Manager.manages(existing, manager)) {
-                throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
-            }
-            const granted = await Role.permissions(authorization.transaction, existing.id);
-            const isGranted = isSamePermissions(granted, request.permissions);
-            if (existing.description === request.description && isGranted) {
-                return Role.describe(existing, granted);
-            }
-
-            // describe it anew at its next revision, replacing differing permissions
-            const updated = {
-                ...existing,
-                description: request.description,
-                updatedAt: now,
-                revision: existing.revision + 1,
-            };
-            await authorization.transaction.write({
-                table: accessRole,
-                before: existing,
-                after: updated,
-            });
-            if (!isGranted) {
-                await Role.replace(
-                    authorization.transaction,
-                    existing.id,
-                    scope.id,
-                    request.permissions,
-                    authorization.environment,
-                );
-            }
-
-            return Role.describe(updated, request.permissions);
+            return role;
         });
     },
 
@@ -601,52 +523,59 @@ export const Role = {
             return assigned;
         });
     },
-
-    /** Upsert a scope's role by name with exactly some permissions, bound to one subject. */
-    async upsertBinding(
-        scope: ObjectReference,
-        binding: Omit<RoleRequest, "permissions"> & {
-            /** The permissions the role grants, none to drop the role and its binding. */
-            readonly permissions: RoleRequest["permissions"];
-            /** The one subject the role is bound to. */
-            readonly subject: Subject;
-            /** The object in the scope the role is bound on, the scope itself when absent. */
-            readonly object?: ObjectReference;
-        },
-        authorization: Authorization,
-    ): Promise<void> {
-        // drop the binding and the role when it grants nothing
-        const { subject, object, ...request } = binding;
-        if (request.permissions.length === 0) {
-            await Relationship.replace({ scope: scope.id }, [], authorization);
-            const existing = await authorization.transaction.read(accessRole).findFirst({
-                where: {
-                    scope: scope.id,
-                    name: request.name,
-                },
-            });
-            if (existing !== undefined) {
-                await Role.delete(scope, existing.id, existing.revision, authorization);
-            }
-
-            return;
-        }
-
-        // upsert the role with exactly the permissions, bound only to the subject
-        const role = await Role.upsert(scope, request, authorization);
-        await Relationship.replace(
-            { scope: scope.id },
-            [
-                {
-                    object: object ?? scope,
-                    role: role.id,
-                    subject,
-                },
-            ],
-            authorization,
-        );
-    },
 };
+
+/** Upsert a role by name with exactly a purpose and permissions, leaving a matching one. */
+async function upsertRole(
+    scope: ObjectReference,
+    request: RoleRequest,
+    existing: Select<typeof accessRole> | undefined,
+    authorization: Authorization,
+): Promise<Role> {
+    // define the role when none of the name exists
+    if (existing === undefined) {
+        return await Role.create(scope, request, authorization);
+    }
+
+    // require permission to change it, and the declaration managing it
+    await authorization.authorizeRole(
+        scope,
+        policies.role.permission("update"),
+        request.permissions,
+        existing,
+    );
+    const { manager } = authorization;
+    if (manager !== null && !Manager.manages(existing, manager)) {
+        throw AccessError.of("ROLE_NAME_EXISTS", "role name already exists");
+    }
+
+    // leave a matching role as it is
+    const granted = await Role.permissions(authorization.transaction, existing.id);
+    const isGranted = isSamePermissions(granted, request.permissions);
+    if (existing.description === request.description && isGranted) {
+        return Role.describe(existing, granted);
+    }
+
+    // describe it anew at its next revision, replacing differing permissions
+    const updated = {
+        ...existing,
+        description: request.description,
+        updatedAt: authorization.context().now,
+        revision: existing.revision + 1,
+    };
+    await authorization.transaction.write({ table: accessRole, before: existing, after: updated });
+    if (!isGranted) {
+        await Role.replace(
+            authorization.transaction,
+            existing.id,
+            scope.id,
+            request.permissions,
+            authorization.environment,
+        );
+    }
+
+    return Role.describe(updated, request.permissions);
+}
 
 /** Report whether a relationship binds a role to a subject without condition or expiry. */
 function isBinding(

@@ -299,7 +299,7 @@ test("keep an object's last relationship of a required relation through revoking
         await authorization.create(object, {
             relationships: [{ relation: "root", subject: fixture.alice.subject }],
         });
-        const [created] = await Relationship.readOn(authorization.transaction.view(), object, {
+        const [created] = await Relationship.read(authorization.transaction.view(), object, {
             relation: "root",
         });
 
