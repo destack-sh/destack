@@ -230,7 +230,7 @@ function payloadPlans(
 
     return [
         () =>
-            Plan.values({
+            Plan.of({
                 target: Address.join(target, "input"),
                 before: payload(previous.input),
                 after: payload(procedure.input),
@@ -239,7 +239,7 @@ function payloadPlans(
                 isConverted,
             }),
         () =>
-            Plan.values({
+            Plan.of({
                 target: Address.join(target, "output"),
                 before: payload(previous.output),
                 after: payload(procedure.output),

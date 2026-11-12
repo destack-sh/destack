@@ -19,7 +19,7 @@ import {
     type Condition,
     type ColumnValue,
     type SQL,
-    type Sealing,
+    type Encryption,
     type Select,
     type Table,
     textEnum,
@@ -374,8 +374,8 @@ interface FieldOptions<Configuration extends FieldConfiguration> {
     readonly isPersonal?: boolean;
     /** Whether a subject field accepts the subjects and sets other types contribute. */
     readonly isOpen?: boolean;
-    /** How a sensitive value is sealed at rest, randomly unless a lookup finds it by value. */
-    readonly sealing?: Sealing;
+    /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
+    readonly encryption?: Encryption;
     /** The permissions reading or writing the value requires. */
     readonly access?: FieldAccess;
 }
@@ -406,8 +406,8 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     readonly isPersonal: boolean;
     /** Whether a subject field accepts contributed subjects and sets. */
     readonly isOpen: boolean;
-    /** How a sensitive value is sealed at rest, randomly unless a lookup finds it by value. */
-    readonly sealing: Sealing;
+    /** How a sensitive value is encrypted at rest, randomly unless a lookup finds it by value. */
+    readonly encryption: Encryption;
     /** The permissions reading or writing the value requires. */
     readonly access: FieldAccess | undefined;
     /** Create the nullable column storing the field. */
@@ -425,7 +425,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         this.initial = definition.initial;
         this.isPersonal = definition.isPersonal ?? false;
         this.isOpen = definition.isOpen ?? false;
-        this.sealing = definition.sealing ?? "random";
+        this.encryption = definition.encryption ?? "randomized";
         this.access = definition.access;
         this.#build = definition.build;
 
@@ -494,7 +494,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
 
         // mark sensitive and personal values
         if (this.isSensitive) {
-            column = column.sensitive(this.sealing);
+            column = column.sensitive(this.encryption);
         } else if (this.isPersonal) {
             column = column.personal();
         }
@@ -524,11 +524,11 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
         return this.#with({ ...this.#flags, isDefault: true }, { initial: { value } });
     }
 
-    /** Seal the value at rest, out of logs, audit details, sync and fingerprints. */
+    /** Encrypt the value at rest, out of logs, audit details, sync and fingerprints. */
     sensitive(
-        sealing: Sealing = "random",
+        encryption: Encryption = "randomized",
     ): Field<Override<Configuration, { readonly sensitive: true }>> {
-        return this.#with({ ...this.#flags, isSensitive: true }, { sealing });
+        return this.#with({ ...this.#flags, isSensitive: true }, { encryption });
     }
 
     /** Mark the value as personal data, exported and erased with its subject. */
@@ -628,7 +628,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
                 ? [
                       {
                           builder: "sensitive",
-                          arguments: this.sealing === "random" ? [] : [this.sealing],
+                          arguments: this.encryption === "randomized" ? [] : [this.encryption],
                       },
                   ]
                 : []),
@@ -806,7 +806,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
             ...(this.initial === undefined ? {} : { initial: this.initial }),
             isPersonal: this.isPersonal,
             isOpen: this.isOpen,
-            sealing: this.sealing,
+            encryption: this.encryption,
             ...(this.access === undefined ? {} : { access: this.access }),
         };
     }
@@ -827,7 +827,7 @@ export class Field<Configuration extends FieldConfiguration = FieldConfiguration
     /** Derive a field with the given flags, its signature the types of those flags. */
     #with<const Flags extends FieldFlags>(
         flags: Flags,
-        change: Pick<FieldOptions<Configuration>, "initial" | "access" | "sealing"> = {},
+        change: Pick<FieldOptions<Configuration>, "initial" | "access" | "encryption"> = {},
     ): Field<FlagConfiguration<Configuration, Flags>> {
         return new Field<FlagConfiguration<Configuration, Flags>>({
             ...this.#options,
