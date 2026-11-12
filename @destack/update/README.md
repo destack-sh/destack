@@ -1,76 +1,81 @@
 # @destack/update
 
-`Updater` is a TUF client over `tuf-js` that checks, downloads, stages and activates a distribution's releases under an installation lock, each release a signed `Manifest` of files fetched by digest, `/publish` writes the signed TUF repository with a two-of-three root and online targets, snapshot and timestamp keys, and `Release.target` identifies targets by Rust's target triples.
+Update installed Destack distributions from a signed release feed.
+
+## Overview
+
+A distribution follows a TUF repository of releases, and its updater checks, downloads, stages and activates each release under an installation lock.
+
+- **Distribution**: this device's installed Destack: where it lives, the feed it follows and the release running; `stage` fetches a newer release.
+- **Updater**: a TUF client of one feed; `check`, `stage`, `staged` and `activate`.
+- **Release**: a version for one target, named by Rust's target triple; `Release.target` names the host's.
+- **Manifest**: a release's files by digest, which a checkout copies from what is installed already.
+- **SignedRepository**: the feed a publisher writes, its root signed by two of three keys.
 
 ```ts
-// tuf-js's Updater
-await using updater = await Updater.open({
-    directory,
-    repository,
-    root: trustedRoot,
-    target,
-    environment,
-});
-const update = await updater.check(); // refreshes root, timestamp, snapshot and targets metadata
-// verified against the targets' hashes
-const staged = await updater.stage(await update.download({ signal, onProgress }));
-await SignedRepository.create(directory, revision, root, keys, releases); // a TUF repository
+import type { Distribution } from "@destack/update";
+
+async (distribution: Distribution) => {
+    const updater = await distribution.open();
+    const update = await updater.check();
+    if (update !== undefined) {
+        const staged = await updater.stage(await update.download());
+        await updater.activate(staged);
+    }
+};
+```
+
+## Examples
+
+### Update from the terminal
+
+`destack self update` stages the newest release, activates it, restarts the machine and relaunches the desktop.
+
+```sh
+destack self update --stage
+destack self update
+```
+
+### Name a release's target
+
+`Release.target` names an operating system and architecture by Rust's target triple.
+
+```ts
+import { Release } from "@destack/update";
+
 Release.target("darwin", "arm64"); // "aarch64-apple-darwin"
-const manifest = await Manifest.read(directory, environment); // { files: [{ path, digest, size, mode }], links }
-await manifest.checkout(staging, { blobs, sources: [installed] }, environment); // copies what installed has
 ```
 
-## Distributions
+### Sign a feed's root
 
-`Distribution` is this device's installed distribution: where it lives, the feed it follows and the release running.
-
-```ts
-import { Distribution, Release } from "@destack/update";
-
-const distribution = new Distribution({
-    home: "/Users/ada/.destack",
-    repository: new URL("https://download.destack.sh/"),
-    root: Distribution.root(),
-    running: new Release("2026.10.1", "aarch64-apple-darwin"),
-    executable: process.execPath,
-    applications: "/Users/ada/Applications",
-    applicationIdentifier: "app.destack.desktop",
-    title: "Destack",
-});
-const staged = await distribution.stage(); // the newer release, verified and staged, or none
-```
-
-## Restart
-
-`staged` returns a release staged in an earlier session, and `activate` verifies it against fresh metadata and installs it after the caller stops the running processes.
+`TrustedRoot.create` builds a root over the online keys, which two of three root keys then sign.
 
 ```ts
-const staged = await updater.staged();
-if (staged !== undefined) {
-    await updater.activate(staged);
+import { BunEnvironment } from "@destack/environment/bun";
+import { SigningKey, TrustedRoot } from "@destack/update/publish";
+
+const environment = BunEnvironment.system;
+const generate = () => SigningKey.generate("ed25519", environment.crypto);
+const rootKeys = [await generate(), await generate(), await generate()];
+const [targets, snapshot, timestamp] = [await generate(), await generate(), await generate()];
+const root = TrustedRoot.create(
+    1,
+    rootKeys.map((key) => key.public),
+    { targets: targets.public, snapshot: snapshot.public, timestamp: timestamp.public },
+    "2027-11-12T00:00:00Z",
+    environment,
+);
+for (const key of rootKeys.slice(0, 2)) {
+    await key.sign(root);
 }
 ```
 
-## Publishing
+## Comparison
 
-`TrustedRoot.create` builds a root that two of three root keys sign, and `SignedRepository.renew` signs a fresh snapshot and timestamp.
+### The Update Framework
 
-```ts
-import { SignedRepository, SigningKey, TrustedRoot } from "@destack/update/publish";
+Roots, targets, snapshots, timestamps and their expiry follow TUF through `tuf-js`; three things differ.
 
-const root = TrustedRoot.create(1, [first.public, second.public, third.public], online, expires);
-root.sign((bytes) => first.sign(bytes));
-root.sign((bytes) => second.sign(bytes));
-await SignedRepository.renew(directory, revision, root, keys, targetBytes);
-LIFETIME_DAYS; // { targets: 365, snapshot: 14, timestamp: 14 }
-```
-
-## Objects
-
-`distribution` is the device's distribution as an object, which `serveDistributions` serves and `DistributionController` stages daily.
-
-```ts
-// { installed: "2026.10.1", staged: "2026.10.2", status: "staged", … }
-await client.distribution.stage({ deviceId, requestId, id });
-await client.distribution.activate({ deviceId, requestId, id });
-```
+- A release is a manifest of files by digest, so an update downloads only the files that changed.
+- A staged release is verified again against fresh metadata before it activates.
+- Updating runs under an installation lock, so two programs never install at once.
