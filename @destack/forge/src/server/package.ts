@@ -1,10 +1,11 @@
-import { schema } from "@destack/schema";
+import { present, schema } from "@destack/schema";
 import type { MethodContextOf, ResultOf } from "@destack/object";
 import type { ObjectReference } from "@destack/sync";
-import { packageObject, tag } from "@destack/registry/object";
+import { packageObject, release, tag } from "@destack/registry/object";
 import { Forge } from "./forge.ts";
+import { ReleaseMethod, type ReleaseOptions } from "./release.ts";
 
-/** The package methods' handlers: resolving a global name and pointing a tag. */
+/** The package methods' handlers: publishing, resolving a global name and pointing a tag. */
 const PackageMethod = {
     /** Find the package of a global name through the claims the forge follows on demand. */
     find(
@@ -26,6 +27,36 @@ const PackageMethod = {
                 context.caller,
                 packageObject.call("get", packageObject.target(context.prepared)),
             ),
+        );
+    },
+
+    /** Create the package the first time, then insert the checked lock's release as the package. */
+    async publish(
+        context: MethodContextOf<typeof packageObject, "publish">,
+    ): Promise<ResultOf<typeof packageObject, "publish">> {
+        // create the package
+        const { packageId: id, accountId, name, visibility } = context.input;
+        await context.mutate(context.caller, [
+            packageObject.call("create", {
+                id,
+                accountId,
+                name,
+                ...(visibility === undefined ? {} : { visibility }),
+            }),
+        ]);
+
+        // insert the release
+        await context.mutate(context.self, [
+            release.call("create", {
+                parentId: id,
+                ...context.prepared,
+                ...(context.input.tag === undefined ? {} : { tag: context.input.tag }),
+            }),
+        ]);
+
+        return present(
+            await context.read(packageObject).findFirst({ where: { id } }),
+            `the published package ${id}`,
         );
     },
 
@@ -54,9 +85,13 @@ const PackageMethod = {
 };
 
 /** Implement packages of the forge's space. */
-export function implementPackageObject(): typeof packageObject {
+export function implementPackageObject(options: ReleaseOptions): typeof packageObject {
     return packageObject.implement({
         methods: {
+            publish: {
+                prepare: (context) => ReleaseMethod.check(context, options),
+                handle: (context) => PackageMethod.publish(context),
+            },
             resolve: {
                 prepare: (context) => PackageMethod.find(context),
                 handle: (context) => PackageMethod.resolve(context),

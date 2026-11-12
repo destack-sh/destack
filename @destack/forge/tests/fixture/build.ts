@@ -15,12 +15,7 @@ export function fixtureBuild(
     return PackageBuild.read(join(inject("builds"), name, version), environment);
 }
 
-/** Read the global setup's build of the answer package's last version compiled without a commit. */
-export function uncommittedBuild(): Promise<PackageBuild> {
-    return PackageBuild.read(join(inject("builds"), "answer", "uncommitted"), environment);
-}
-
-/** Read the global setup's dev prerelease of the answer package, compiled without a commit. */
+/** Read the global setup's dev prerelease of the answer package. */
 export function prereleaseBuild(): Promise<PackageBuild> {
     return PackageBuild.read(join(inject("builds"), "answer", PRERELEASE_VERSION), environment);
 }

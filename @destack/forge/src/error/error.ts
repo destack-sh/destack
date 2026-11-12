@@ -10,12 +10,12 @@ export const ForgeError = defineErrorFamily({
         PACKAGE_NOT_FOUND: {},
         RELEASE_NOT_FOUND: {},
         TARGET_NOT_FOUND: {},
-        UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND: {},
+        UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND: {},
 
         // exists
         INSTALLATION_EXISTS: {},
         NPM_NAME_EXISTS: {},
-        VERSION_EXISTS: {},
+        RELEASE_EXISTS: {},
 
         // conflict
         BUILD_CONFLICT: {},
@@ -27,6 +27,7 @@ export const ForgeError = defineErrorFamily({
         MACHINE_REPOSITORY_INVALID: {},
         MANIFEST_INVALID: {},
         PUSH_INVALID: {},
+        RELEASE_INVALID: {},
         REPOSITORY_INVALID: {},
         STORAGE_INVALID: {},
 

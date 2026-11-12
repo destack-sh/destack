@@ -3,9 +3,9 @@ import type { BuildReader } from "@destack/package/manifest";
 import { fileURLToPath } from "node:url";
 import { CompilerPool, outputsOf, type PackageBuildOptions } from "@destack/build";
 import { readPackageJson } from "@destack/build/local";
-import type { DependencyResolution } from "@destack/package";
+import type { DependencyRelease } from "@destack/package";
 import { PackageManifest } from "@destack/package/manifest";
-import { Commit, Digest, schema, Version } from "@destack/schema";
+import { Digest, schema, Version } from "@destack/schema";
 import { testHost } from "@destack/test/host";
 
 /** The version the fixture sources declare. */
@@ -14,14 +14,11 @@ export const FIXTURE_VERSION = "2026.9.0";
 /** The versions of the answer package the setup builds, in release order. */
 export const ANSWER_VERSIONS = [FIXTURE_VERSION, "2026.9.1"];
 
-/** The dev prerelease of the answer package after its releases, built without a commit. */
-export const PRERELEASE_VERSION = "2026.9.2-dev.1";
+/** The dev prerelease of the answer package after its releases. */
+export const PRERELEASE_VERSION = "2026.9.2-dev.20260912100000.0123456789ab";
 
 /** The workspace's lockfile, which fixture copies link to beside them. */
 const WORKSPACE_LOCKFILE = fileURLToPath(new URL("../../../../bun.lock", import.meta.url));
-
-/** The commit every fixture release is built from. */
-export const COMMIT = "a".repeat(40);
 
 /** The fixture packages: real package sources under tests/fixture called `@example/<name>`. */
 export type FixturePackage = "answer" | "greeting";
@@ -84,26 +81,21 @@ export class FixtureSource {
                 join(this.directory, "package.json"),
                 JSON.stringify({ ...declaration, version }),
             );
-            builds.push(await this.#build({ outputs, dependencies, commit: Commit.parse(COMMIT) }));
+            builds.push(await this.#build({ outputs, dependencies }));
         }
         this.#compiled = { outputs, dependencies };
 
         return builds;
     }
 
-    /** Build a working tree without a commit: the last version, or a prerelease of the next. */
-    async uncommitted(prerelease?: Version): Promise<BuildReader> {
+    /** Build a prerelease of the next version. */
+    async prerelease(prerelease: Version): Promise<BuildReader> {
         if (this.#compiled === undefined) {
             throw new TypeError(`fixture '${this.name}' has not been built`);
         }
 
-        // build the last version again
-        const { outputs, dependencies } = this.#compiled;
-        if (prerelease === undefined) {
-            return await this.#build({ outputs, dependencies });
-        }
-
         // author the next version, and build its prerelease
+        const { outputs, dependencies } = this.#compiled;
         const path = join(this.directory, "package.json");
         const declaration = schema.jsonObject().parse(await readJson(path));
         const version = Version.next(Version.parse(declaration["version"]));
@@ -134,12 +126,12 @@ export async function readJson(path: string): Promise<unknown> {
 async function resolveReleases(
     releases: readonly BuildReader[],
     declaration: Readonly<Record<string, unknown>>,
-): Promise<Record<string, DependencyResolution>> {
+): Promise<Record<string, DependencyRelease>> {
     // find each declared dependency's release, and resolve it by its manifest's digest
     const declared = schema
         .record(schema.string(), schema.string())
         .parse(declaration["dependencies"] ?? {});
-    const resolved: Record<string, DependencyResolution> = {};
+    const resolved: Record<string, DependencyRelease> = {};
     for (const name of Object.keys(declared)) {
         const release = releases.find((each) => each.manifest.package.name === name);
         if (release === undefined) {

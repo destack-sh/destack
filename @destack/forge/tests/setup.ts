@@ -61,17 +61,15 @@ async function build(builds: string): Promise<void> {
         const greeting = await FixtureSource.open("greeting", sources, compilers);
         const greetings = await greeting.build([nth(answers, 0)], [FIXTURE_VERSION]);
 
-        // keep answer's last version and a dev prerelease, both compiled without a commit
-        const uncommitted = await answer.uncommitted();
-        const prerelease = await answer.uncommitted(PRERELEASE_VERSION);
+        // keep a dev prerelease of answer's next version
+        const prerelease = await answer.prerelease(PRERELEASE_VERSION);
 
-        // keep each build by package and version, the uncommitted one by its state
+        // keep each build by package and version
         const kept: readonly (readonly [FixturePackage, string, BuildReader])[] = [
             ...answers.map((built) => ["answer", built.manifest.package.version, built] as const),
             ...greetings.map(
                 (built) => ["greeting", built.manifest.package.version, built] as const,
             ),
-            ["answer", "uncommitted", uncommitted],
             ["answer", PRERELEASE_VERSION, prerelease],
         ];
         for (const [name, version, built] of kept) {

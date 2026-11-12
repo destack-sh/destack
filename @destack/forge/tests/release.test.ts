@@ -1,17 +1,17 @@
 import { auditedCalls } from "@destack/object/test";
 import type { TestPerson } from "@destack/account/test";
-import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
+import { ACCOUNT_ID, TEST_COMMIT, TestForge } from "../src/test/index.ts";
 import { expect, refusal, test } from "@destack/test";
-import { Commit, Digest, found, Identifier, present } from "@destack/schema";
+import { Digest, found, Identifier, present } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { PackageVersion, PackageId } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
-import { BuildStore } from "@destack/build/store";
+import { Lock, PackageManifest } from "@destack/package/manifest";
+import { TestBuildStore } from "@destack/build/test";
 import { MemoryBuild } from "@destack/package/test";
 import { Registry } from "@destack/registry/client";
 import { LATEST_TAG, packageObject } from "@destack/registry/object";
-import { fixtureBuild, prereleaseBuild, uncommittedBuild } from "./fixture/build.ts";
-import { COMMIT } from "./fixture/package.ts";
+import { fixtureBuild, prereleaseBuild } from "./fixture/build.ts";
+import { PRERELEASE_VERSION } from "./fixture/package.ts";
 import { Claim } from "@destack/object";
 import { Account, account } from "@destack/account/object";
 import { OPERATOR_EMAIL } from "@destack/account/test";
@@ -24,86 +24,95 @@ async function code(attempt: Promise<unknown>): Promise<string> {
     return refused === "done" ? "accepted" : refused[0];
 }
 
-test("publish pushed builds as releases, replaying retried requests, refusing versions taken before and stable builds of uncommitted changes, and publishing prereleases of them", async () => {
+test("publish pushed locks as releases, answering retried and repeated releases, refusing stable releases without a commit", async () => {
     // publish a package, tagging it latest
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const owner = forge.client(forge.owner);
 
-    // retry the publication, publish the version again, and publish the next one under a tag
-    const created = {
-        spaceId: forge.space,
+    // publish the next version under a tag
+    const uncommitted = {
         requestId: RequestId.create(forge.environment),
         parentId: answer.packageId,
-        manifest: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
+        name: "answer",
+        lock: await forge.push((await fixtureBuild("answer", "2026.9.1")).reader),
         tag: "next",
     };
-    const next = await owner.release.create(created);
+    const created = { ...uncommitted, commit: TEST_COMMIT };
+    const next = await forge.release(created);
     expect([
-        [answer.release.version, answer.release.commit, answer.release.manifest],
-        (await owner.release.create(created)).id,
-        await refusal(
-            owner.release.create({
+        [answer.release.version, answer.release.commit, answer.release.lock],
+        (await forge.release(created)).id,
+        (
+            await forge.release({
                 ...created,
                 requestId: RequestId.create(forge.environment),
-            }),
-        ),
+            })
+        ).id,
         (await owner.tag.list({ spaceId: forge.space })).items.map((entry) => [
             entry.name,
             entry.version,
         ]),
     ]).toEqual([
-        ["2026.9.0", COMMIT, answer.manifest],
+        ["2026.9.0", TEST_COMMIT, answer.lock],
         next.id,
-        ["CONFLICT", "VERSION_EXISTS", "package version already exists"],
+        next.id,
         [
             ["latest", "2026.9.0"],
             ["next", "2026.9.1"],
         ],
     ]);
 
-    // refuse a tag a range reads, a build nobody pushed, a build of uncommitted changes, another package's build, and a stranger
+    // refuse a tag a range reads
     const missing = Digest.parse("f".repeat(64));
-    const dirty = await forge.push((await uncommittedBuild()).reader);
-    const greeting = (await forge.publish((await fixtureBuild("greeting")).reader)).manifest;
-    const attempt = (changes: Partial<typeof created>, user = forge.owner) =>
+    const answerBuild = (await fixtureBuild("answer")).reader;
+    const greeting = await forge.publish((await fixtureBuild("greeting")).reader, "private", [
+        answerBuild,
+    ]);
+    const attempt = (input: typeof uncommitted, user = forge.owner) =>
         refusal(
-            forge.client(user).release.create({
-                ...created,
-                requestId: RequestId.create(forge.environment),
-                ...changes,
-            }),
+            forge.release(
+                {
+                    ...input,
+                    requestId: RequestId.create(forge.environment),
+                },
+                user,
+            ),
         );
     expect([
-        await attempt({ tag: "x" }),
-        await attempt({ manifest: missing }),
-        await attempt({ manifest: dirty }),
-        await attempt({ manifest: greeting }),
-        await attempt({}, forge.stranger()),
+        await attempt({ ...created, tag: "x" }),
+        await attempt({ ...created, lock: missing }),
+        await attempt(uncommitted),
+        await attempt({ ...created, lock: greeting.lock }),
+        await attempt(created, forge.stranger()),
     ]).toEqual([
         [
             "BAD_REQUEST",
             "TAG_INVALID",
             "distribution tag 'x' is invalid: it must not be a version range",
         ],
-        ["NOT_FOUND", "BUILD_NOT_FOUND", `build '${missing}' not found`],
+        ["NOT_FOUND", "BUILD_NOT_FOUND", `lock '${missing}' not found`],
         [
             "BAD_REQUEST",
             "BUILD_INVALID",
-            `build '${dirty}' is invalid: it compiled a working tree with uncommitted changes`,
+            `lock '${created.lock}' is invalid: a release of uncommitted changes must be a prerelease`,
         ],
         ["BAD_REQUEST", "BUILD_INVALID", "build is invalid: it belongs to another package"],
-        ["NOT_FOUND", "NOT_FOUND", `package '${created.parentId}' not found`],
+        [
+            "FORBIDDEN",
+            "PERMISSION_DENIED",
+            "permission 'publish' is forbidden: the caller lacks it",
+        ],
     ]);
 
-    // publish a dev prerelease of uncommitted changes, which records no commit
-    const prerelease = await owner.release.create({
-        ...created,
+    // publish a dev prerelease without a commit
+    const prerelease = await forge.release({
+        ...uncommitted,
         requestId: RequestId.create(forge.environment),
-        manifest: await forge.push((await prereleaseBuild()).reader),
+        lock: await forge.push((await prereleaseBuild()).reader),
         tag: "dev",
     });
-    expect([prerelease.version, prerelease.commit]).toEqual(["2026.9.2-dev.1", null]);
+    expect([prerelease.version, prerelease.commit]).toEqual([PRERELEASE_VERSION, null]);
 });
 
 test("resolve a published release by version and by the tag pointing at it, and open its build through the releases", async () => {
@@ -113,86 +122,92 @@ test("resolve a published release by version and by the tag pointing at it, and 
     const owner = forge.client(forge.owner);
     const releases = new Registry(async () => forge.registry(), forge.environment);
 
-    // name the same manifest by version and by tag, open its build, and refuse a tag pointing nowhere
+    // name the same lock by version and by tag
     const { packageId } = answer;
     const spaceId = forge.space;
     const reader = await releases.open(packageId, LATEST_TAG);
     expect([
-        (await owner.release.resolve({ spaceId, parentId: packageId, release: "2026.9.0" }))
-            .manifest,
+        (await owner.release.resolve({ spaceId, parentId: packageId, release: "2026.9.0" })).lock,
         await releases.find(packageId, LATEST_TAG),
         await reader.distributed(),
         await refusal(owner.release.resolve({ spaceId, parentId: packageId, release: "next" })),
     ]).toEqual([
-        answer.manifest,
-        answer.manifest,
+        answer.lock,
+        answer.lock,
         await answer.reader.distributed(),
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${packageId}' not found`],
     ]);
 });
 
-test("release a stored build under a tag once, point another tag at the release, and refuse another build at a released version", async () => {
-    // keep each build in a store of its own
+test("release a stored lock under a tag, answer the same release under another tag, and refuse another lock at its version", async () => {
+    // store two prerelease builds of answer at one version with other files
     const forge = await TestForge.open();
     const releases = new Registry(async () => forge.registry(), forge.environment);
     const { crypto } = forge.environment;
-    const committed = (await fixtureBuild("answer", "2026.9.1")).reader;
-    const uncommitted = (await uncommittedBuild()).reader;
-    const manifest = await BuildStore.digest(committed.manifest, crypto);
-    const other = await BuildStore.digest(uncommitted.manifest, crypto);
-    const { id, name } = PackageManifest.package(committed.manifest);
+    const { id, name } = PackageManifest.package((await fixtureBuild("answer")).reader.manifest);
+    const version = PackageVersion.parse({ id, name, version: PRERELEASE_VERSION });
+    await using store = await TestBuildStore.create(forge.environment);
+    const locked = async (notes: string) => {
+        const build = await MemoryBuild.of(version, [], crypto, {
+            files: new Map([["notes.txt", new TextEncoder().encode(notes)]]),
+        });
 
-    // release under next, point latest at the release, and refuse the uncommitted build at its version
-    const outcomes = [
-        await releases.release(stored(committed), manifest, ACCOUNT_ID, "next"),
-        await releases.release(stored(committed), manifest, ACCOUNT_ID, LATEST_TAG),
-        await refusal(releases.release(stored(uncommitted), other, ACCOUNT_ID, "next")),
-    ];
+        return await store.putLock(Lock.of(await store.put(build)));
+    };
+    const released = await locked("released");
+    const other = await locked("other");
 
-    // resolve the release by version and by each tag
+    // release under next
+    const first = await releases.release(store, [released], ACCOUNT_ID, "next");
+    const again = await releases.release(store, [released], ACCOUNT_ID, LATEST_TAG);
+    const refused = await refusal(releases.release(store, [other], ACCOUNT_ID, "next"));
+
+    // answer one release
     expect([
-        outcomes,
-        await releases.find(id, "2026.9.1"),
+        again,
+        refused,
+        await releases.find(id, PRERELEASE_VERSION),
         await releases.find(id, "next"),
         await releases.find(id, LATEST_TAG),
     ]).toEqual([
+        first,
         [
-            "released",
-            "pointed",
-            [
-                "CONFLICT",
-                "RELEASE_EXISTS",
-                `release '${name}@2026.9.1' already exists: another build published it`,
-            ],
+            "CONFLICT",
+            "RELEASE_EXISTS",
+            `release '${PRERELEASE_VERSION}' of '${id}' already exists: another lock published it`,
         ],
-        manifest,
-        manifest,
-        manifest,
+        released,
+        released,
+        released,
     ]);
 });
 
-test("publish a build after its account's unpublished dependency, each released once", async () => {
-    // keep greeting and the answer build it pins in one store
+test("publish a lock's builds of its account in dependency order, answering the same releases again", async () => {
+    // lock greeting with the answer build it requires in one store
     const forge = await TestForge.open();
     const releases = new Registry(async () => forge.registry(), forge.environment);
-    const { crypto } = forge.environment;
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
-    const store = await storedBuilds([answer, greeting], crypto);
-    const manifest = await BuildStore.digest(greeting.manifest, crypto);
+    await using store = await TestBuildStore.create(forge.environment);
+    const root = await store.put(greeting);
+    const lock = await store.putLock(
+        await Lock.hoisted(root, { "@example/answer": await store.put(answer) }, (digest) =>
+            store.get(digest),
+        ),
+    );
 
-    // publish greeting, which releases answer first, then again, which releases nothing
-    const first = await releases.publish(store, manifest, ACCOUNT_ID, LATEST_TAG);
-    const again = await releases.publish(store, manifest, ACCOUNT_ID, LATEST_TAG);
+    // publish greeting
+    const first = await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, TEST_COMMIT);
+    const again = await releases.publish(store, lock, ACCOUNT_ID, LATEST_TAG, TEST_COMMIT);
 
     expect([versionsOf(first), versionsOf(again)]).toEqual([
         ["@example/answer@2026.9.0", "@example/greeting@2026.9.0"],
-        [],
+        ["@example/answer@2026.9.0", "@example/greeting@2026.9.0"],
     ]);
 });
 
-test("refuse releasing a build that pins an unreleased build of a package the forge hosts", async () => {
-    // host answer's package without releasing it, and push greeting, which pins answer's build
+test("refuse releasing a lock pinning a package the forge hosts at a version it has not released", async () => {
+    // host answer's package without releasing it
     const forge = await TestForge.open();
     const answer = (await fixtureBuild("answer")).reader;
     const greeting = (await fixtureBuild("greeting")).reader;
@@ -205,22 +220,24 @@ test("refuse releasing a build that pins an unreleased build of a package the fo
         name: "answer",
     });
 
-    // refuse greeting's release while answer's build is unpublished
-    expect(await refusal(forge.publish(greeting))).toEqual([
+    // refuse greeting's release while answer has no release
+    expect(await refusal(forge.publish(greeting, "private", [answer]))).toEqual([
         "PRECONDITION_FAILED",
         "DEPENDENCY_BLOCKED",
         "cannot release with dependency '@example/answer@2026.9.0': it is not published",
     ]);
 });
 
-test("store a pushed build in the forge's store by digest as its release's manifest", async () => {
+test("store a pushed lock and its root build in the forge's store by digest", async () => {
     // push and release the build
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
-    const pushed = await (await forge.store()).contents(answer.manifest);
+    const store = await forge.store();
+    const pushed = await store.contents(answer.manifest);
 
-    // store the pushed build as the release's manifest
-    expect([pushed.manifest, await pushed.distributed()]).toEqual([
+    // store the lock of the build alone
+    expect([await store.lock(answer.lock), pushed.manifest, await pushed.distributed()]).toEqual([
+        Lock.of(answer.manifest),
         answer.reader.manifest,
         await answer.reader.distributed(),
     ]);
@@ -314,7 +331,7 @@ test("administer releases and distribution tags of a published package as its ac
             forge.client(forge.stranger()).release.get({ spaceId: forge.space, id: published.id }),
         ),
     ]).toEqual([
-        ["2026.9.0", COMMIT, null, null],
+        ["2026.9.0", TEST_COMMIT, null, null],
         published.id,
         ["next", "2026.9.0", 1],
         tag.id,
@@ -342,8 +359,7 @@ test("administer releases and distribution tags of a published package as its ac
         .filter((ended) => forgeTypes.some((prefix) => ended.method.startsWith(prefix)))
         .map((ended) => [ended.method, ended.execution.outcome.kind]);
     expect(audited).toEqual([
-        ["package.create", "success"],
-        ["release.create", "success"],
+        ["package.publish", "success"],
         ["tag.create", "success"],
         ["tag.update", "success"],
         ["tag.update", "failure"],
@@ -391,7 +407,7 @@ test("resolve a package by its global name and its release by version or tag, hi
     expect([
         [resolved.id, resolved.name],
         (await resolveRelease(LATEST_TAG)).version,
-        (await resolveRelease("2026.9.0")).manifest,
+        (await resolveRelease("2026.9.0")).lock,
         await refusal(resolveRelease("next")),
         await refusal(resolve(forge.stranger(), "@other/answer")),
         (await resolve(forge.owner, "@example/greeting")).name,
@@ -399,7 +415,7 @@ test("resolve a package by its global name and its release by version or tag, hi
     ]).toEqual([
         [answer.packageId, "answer"],
         "2026.9.0",
-        answer.manifest,
+        answer.lock,
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'next' of '${answer.packageId}' not found`],
         ["NOT_FOUND", "PACKAGE_NOT_FOUND", "package not found"],
         "greeting",
@@ -407,12 +423,12 @@ test("resolve a package by its global name and its release by version or tag, hi
     ]);
 });
 
-test("deprecate releases, and yank them from new installs while exact pins still resolve them", async () => {
+test("deprecate releases, and yank them from new installs while exact versions still resolve them", async () => {
     // publish two versions of a package, and a package depending on the first
     const forge = await TestForge.open();
     const answer = await forge.publish((await fixtureBuild("answer")).reader);
     const next = await forge.publish((await fixtureBuild("answer", "2026.9.1")).reader);
-    await forge.publish((await fixtureBuild("greeting")).reader);
+    await forge.publish((await fixtureBuild("greeting")).reader, "private", [answer.reader]);
     const owner = forge.client(forge.owner);
     const named = (entry: { readonly parentId: string }) =>
         entry.parentId === answer.packageId ? "answer" : "greeting";
@@ -474,24 +490,29 @@ test("deprecate releases, and yank them from new installs while exact pins still
         ["NOT_FOUND", "RELEASE_NOT_FOUND", `release 'latest' of '${answer.packageId}' not found`],
     ]);
 
-    // restore the first version, its tags left where they moved, and refuse taking a yanked version again
+    // restore the first version
     expect([
         await yank("answer@2026.9.0", false),
         (await resolve("2026.9.0")).version,
         await tags(),
         await refusal(
-            owner.release.create({
-                spaceId: forge.space,
+            forge.release({
                 requestId: RequestId.create(forge.environment),
                 parentId: answer.packageId,
-                manifest: next.manifest,
+                name: "answer",
+                lock: next.lock,
+                commit: TEST_COMMIT,
             }),
         ),
     ]).toEqual([
         false,
         "2026.9.0",
         ["greeting latest 2026.9.0"],
-        ["CONFLICT", "VERSION_EXISTS", "package version already exists"],
+        [
+            "CONFLICT",
+            "RELEASE_EXISTS",
+            `release '2026.9.1' of '${answer.packageId}' already exists: it is yanked`,
+        ],
     ]);
 });
 
@@ -597,27 +618,24 @@ test("publish a builtin under the platform's organization, which owns the forge'
             PackageVersion.parse({ id, name: `@${handle}/kernel`, version: "2026.9.0" }),
             [],
             crypto,
-            { role: "builtin", commit: Commit.parse(COMMIT) },
+            { role: "builtin" },
         );
         const packageId = PackageManifest.package(build.manifest).id;
-        await forge.client(person).package.create({
-            spaceId: forge.space,
-            accountId,
-            id: packageId,
-            requestId: RequestId.create(forge.environment),
-            name: "kernel",
-            visibility: "private",
-        });
-        const manifest = await forge.push(build, person);
+        const lock = await forge.push(build, person);
 
         // release it as the manager
         return refusal(
-            forge.client(person).release.create({
-                spaceId: forge.space,
-                requestId: RequestId.create(forge.environment),
-                parentId: packageId,
-                manifest,
-            }),
+            forge.release(
+                {
+                    requestId: RequestId.create(forge.environment),
+                    parentId: packageId,
+                    name: "kernel",
+                    accountId,
+                    lock,
+                    commit: TEST_COMMIT,
+                },
+                person,
+            ),
         );
     };
 
@@ -645,28 +663,7 @@ test("publish a builtin under the platform's organization, which owns the forge'
     });
 });
 
-/** Store a build as the registry reads one: its contents, and no units. */
-function stored(reader: BuildReader) {
-    return { contents: async () => reader, units: async () => [] };
-}
-
 /** List releases as their package names and versions. */
 function versionsOf(published: readonly { readonly package: PackageVersion }[]): string[] {
     return published.map((release) => `${release.package.name}@${release.package.version}`);
-}
-
-/** Store builds by their digests, with no npm units. */
-async function storedBuilds(
-    readers: readonly BuildReader[],
-    crypto: Parameters<typeof BuildStore.digest>[1],
-) {
-    const byDigest = new Map<Digest, BuildReader>();
-    for (const reader of readers) {
-        byDigest.set(await BuildStore.digest(reader.manifest, crypto), reader);
-    }
-
-    return {
-        contents: async (digest: Digest) => present(byDigest.get(digest), `the build ${digest}`),
-        units: async () => [],
-    };
 }

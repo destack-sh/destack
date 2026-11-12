@@ -1,19 +1,19 @@
 import objectPackage from "@destack/object/package";
 import type { TestPerson } from "@destack/account/test";
 import { expect, refusal, test } from "@destack/test";
-import { BuildStore, PackageClient } from "@destack/build/store";
+import { BuildObject, BuildStore, PackageClient } from "@destack/build/store";
 import { TestBuildStore } from "@destack/build/test";
-import { PackageManifest } from "@destack/package/manifest";
-import { Commit, Digest } from "@destack/schema";
+import { Lock, PackageManifest } from "@destack/package/manifest";
+import { Digest } from "@destack/schema";
 import { RequestId } from "@destack/sync";
 import { UNRELEASED_MILLISECONDS } from "../src/server/index.ts";
 import { account } from "@destack/account/object";
 import forgePackage from "../src/package.ts";
 import { ACCOUNT_ID, TestForge } from "../src/test/index.ts";
 import { fixtureBuild } from "./fixture/build.ts";
-import { COMMIT } from "./fixture/package.ts";
 import { MemoryBuild } from "@destack/package/test";
-import { PackageVersion } from "@destack/package";
+import { PackageName, PackageVersion } from "@destack/package";
+import { Tarball, TarballEntry } from "@destack/package/archive";
 import { testHost } from "@destack/test/host";
 
 /** The email a person without access to the account signs in with. */
@@ -38,17 +38,19 @@ test("serve a release's build by its digest to its package's readers only, yanke
     const published = await forge.publish((await fixtureBuild("answer")).reader);
     const { environment } = forge.home;
     await using copied = await TestBuildStore.create(environment);
-    const location = (digest: Digest) => ({
-        manifest: digest,
-        url: `${forge.origin}${forgePackage.mounts.builds.path}/${digest}/`,
-    });
-    await copied.copy(location(published.manifest), as(forge, forge.owner));
+    const root = { kind: "manifest", digest: published.manifest } as const;
+    const source = new PackageClient(
+        `${forge.origin}${forgePackage.mounts.builds.path}/${BuildObject.path(root)}/`,
+        forge.endpoint(forge.owner).fetch,
+        environment,
+    );
+    await copied.pull(source, root, "all");
 
     // refuse anonymous and other callers and an unknown build, and serve the build once yanked
     const stranger = await forge.signIn(STRANGER_EMAIL);
     const status = async (digest: Digest, person?: TestPerson) => {
         const response = await as(forge, person)(
-            new URL(`${location(digest).url}manifest.json`),
+            new URL(`${forge.origin}${forgePackage.mounts.builds.path}/${digest}/manifest.json`),
             {},
         );
         await response.body?.cancel();
@@ -77,7 +79,7 @@ test("serve a release's build by its digest to its package's readers only, yanke
     });
 });
 
-test("refuse uploads outside a package, and a manifest push from a caller who may not publish its package", async () => {
+test("refuse uploads outside an account, and a manifest push from a caller who may not publish in the account", async () => {
     // publish the package as its owner and push its next build's files as a stranger
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
@@ -86,16 +88,25 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
     const digest = await Digest.of(manifest, testHost().crypto);
     const stranger = await forge.signIn(STRANGER_EMAIL);
 
-    // refuse the owner's manifest outside its package, and the stranger's below it as a missing package
+    // refuse the owner's manifest outside an account
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
-    const put = (person: TestPerson, path: string) =>
-        as(forge, person)(new URL(`${builds}/${path}manifest.json`), {
-            method: "PUT",
-            body: manifest,
-            headers: { "content-type": "application/json" },
+    const { compression } = testHost();
+    const post = (person: TestPerson, path: string) =>
+        as(forge, person)(new URL(`${builds}/${path}manifests`), {
+            method: "POST",
+            body: Tarball.stream(
+                (async function* () {
+                    yield TarballEntry.of(digest, manifest);
+                })(),
+                compression,
+            ),
+            headers: { "content-type": "application/gzip" },
         });
-    const outside = await put(forge.owner, `${digest}/`);
-    const pushed = await put(stranger, `${PackageManifest.package(build.manifest).id}/${digest}/`);
+    const outside = await post(forge.owner, "");
+    const pushed = await post(
+        stranger,
+        `${PackageName.split(build.manifest.package.name).handle}/`,
+    );
     expect({
         outside: [outside.status, await outside.json()],
         pushed: [pushed.status, await pushed.json()],
@@ -107,8 +118,8 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
                 defined: true,
                 code: "NOT_FOUND",
                 status: 404,
-                message: "upload target package not found",
-                reason: "UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND",
+                message: "upload target account not found",
+                reason: "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
                 domain: "@destack/forge",
             },
         ],
@@ -118,8 +129,8 @@ test("refuse uploads outside a package, and a manifest push from a caller who ma
                 defined: true,
                 code: "NOT_FOUND",
                 status: 404,
-                message: "package not found",
-                reason: "PACKAGE_NOT_FOUND",
+                message: "upload target account not found",
+                reason: "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
                 domain: "@destack/forge",
             },
         ],
@@ -146,8 +157,10 @@ test("stage a machine's push without releasing it", async () => {
             fetch,
             forge.environment,
         );
-    const packageId = PackageManifest.package(build.manifest).id;
-    const staged = await refusal(builds(packageId).push(build.reader));
+    const handle = PackageName.split(build.manifest.package.name).handle;
+    await using pushed = await TestBuildStore.create(forge.environment);
+    const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
+    const staged = await refusal(builds(handle).push(pushed, [lock]));
 
     // store the staged build, and release nothing
     const released = await forge.client(forge.owner).release.list({ spaceId: forge.space });
@@ -172,11 +185,13 @@ test("authorize a manifest push from the forge's replica of the account, followi
         forge.environment.crypto,
     );
     const stranger = await forge.signIn(STRANGER_EMAIL);
+    await using pushed = await TestBuildStore.create(forge.environment);
+    const lock = await pushed.putLock(Lock.of(await pushed.put(build.reader)));
     const push = async () =>
         refusal(
             forge
-                .builds(PackageManifest.package(build.reader.manifest).id, stranger)
-                .push(build.reader),
+                .builds(PackageName.split(build.reader.manifest.package.name).handle, stranger)
+                .push(pushed, [lock]),
         );
 
     // refuse the stranger, make them a publisher at the account service and push once the replica follows
@@ -191,11 +206,19 @@ test("authorize a manifest push from the forge's replica of the account, followi
     await forge.simulation.idle();
 
     // refuse the stranger's push at its first request, asking for the missing files
-    const uploads = `${forgePackage.mounts.builds.path}/${PackageManifest.package(build.manifest).id}/files`;
+    const uploads = `${forgePackage.mounts.builds.path}/${PackageName.split(build.manifest.package.name).handle}`;
+    const answer = JSON.stringify({
+        defined: true,
+        code: "NOT_FOUND",
+        status: 404,
+        message: "upload target account not found",
+        reason: "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
+        domain: "@destack/forge",
+    });
     expect(refused).toEqual([
         "BAD_GATEWAY",
-        "PROBE_UNREACHABLE",
-        `could not probe '${uploads}/missing': HTTP 404`,
+        "UPLOAD_UNREACHABLE",
+        `could not call '${uploads}/has': HTTP 404 '${answer}'`,
     ]);
     expect({
         accepted: await push(),
@@ -210,7 +233,9 @@ test("collect a pushed but unreleased build a grace after its lease ends, leavin
     // publish one build and push the next without releasing it
     const forge = await TestForge.open();
     const published = await forge.publish((await fixtureBuild("answer")).reader, "public");
-    const unreleased = await forge.push((await fixtureBuild("answer", "2026.9.1")).reader);
+    const next = (await fixtureBuild("answer", "2026.9.1")).reader;
+    await forge.push(next);
+    const unreleased = await BuildStore.digest(next.manifest, forge.environment.crypto);
     const store = await forge.store();
     const stored = async () => ({
         released: await store.contains(published.manifest),
@@ -243,12 +268,13 @@ test("collect a pushed but unreleased build a grace after its lease ends, leavin
     expect(sizes).toEqual(files.map((file) => file.size));
 });
 
-test("retain a pushed build once a release lists it, past its lease", async () => {
+test("retain a pushed build once a release locks it, past its lease", async () => {
     // push a build, then release it as the owner signed in again
     const forge = await TestForge.open();
     await forge.publish((await fixtureBuild("answer")).reader);
     const build = await fixtureBuild("answer", "2026.9.1");
-    const manifest = await forge.push(build.reader);
+    await forge.push(build.reader);
+    const manifest = await BuildStore.digest(build.manifest, forge.environment.crypto);
     await forge.signOwnerIn();
     const released = await forge.publish(build.reader);
 
@@ -266,7 +292,7 @@ test("retain a pushed build once a release lists it, past its lease", async () =
 });
 
 test("serve a release's npm units and its Bun output by digest to its readers only, and retain them past their leases", async () => {
-    // keep a build whose Bun output imports an npm unit, beside the unit
+    // keep a build
     const forge = await TestForge.open();
     const { environment } = forge.home;
     const { crypto } = environment;
@@ -287,41 +313,35 @@ test("serve a release's npm units and its Bun output by digest to its readers on
         {
             role: "app",
             package: TINY,
-            outputs: { bun: { ...output, exports: {}, dependencies: {} } },
+            outputs: { bun: { ...output, exports: {}, peers: {} } },
         },
         crypto,
     );
     const unitManifest = await BuildStore.digest(unit.manifest, crypto);
-    const dependency = {
-        kind: "npm" as const,
-        package: { name: TINY.name, version: TINY.version },
-        registry: "https://registry.npmjs.org",
-        integrity: TINY.integrity,
-        manifest: unitManifest,
-    };
     const build = await MemoryBuild.of(CLOSURE, [], crypto, {
-        commit: Commit.parse(COMMIT),
         files: new Map([["bun/index.js", encoder.encode('export { tiny } from "tiny";\n')]]),
         outputs: {
             bun: {
                 ...output,
                 exports: { ".": { path: "bun/index.js", imports: ["tiny"] } },
-                dependencies: { tiny: dependency },
+                peers: {},
             },
         },
+        requires: { tiny: TINY.version },
     });
-    await using published = await TestBuildStore.create(environment);
-    await published.put(unit);
-    const buildManifest = await published.put(build);
+    const buildManifest = await BuildStore.digest(build.manifest, crypto);
 
-    // publish the build with its unit, then copy the unit and pull the build's Bun output as the owner
-    await forge.publish(build, "private", published);
+    // publish the build locked with its unit
+    const published = await forge.publish(build, "private", [unit]);
     await using copied = await TestBuildStore.create(environment);
     const builds = `${forge.origin}${forgePackage.mounts.builds.path}`;
-    const owner = as(forge, forge.owner);
-    const located = (manifest: Digest) => ({ manifest, url: `${builds}/${manifest}/` });
-    await copied.copy(located(unitManifest), owner);
-    await copied.pull(located(buildManifest), owner, "bun");
+    const root = { kind: "lock", digest: published.lock } as const;
+    const source = new PackageClient(
+        `${builds}/${BuildObject.path(root)}/`,
+        forge.endpoint(forge.owner).fetch,
+        environment,
+    );
+    await copied.pull(source, root, ["bun"]);
 
     // refuse the build to a stranger
     const stranger = await forge.signIn(STRANGER_EMAIL);
@@ -331,12 +351,12 @@ test("serve a release's npm units and its Bun output by digest to its readers on
     );
     await refused.body?.cancel();
 
-    // retain both past their leases, as the release lists them
+    // retain both past their leases
     const store = await forge.store();
     await forge.simulation.jump(forge.environment.clock.now() + UNRELEASED_MILLISECONDS + 1000);
     expect({
         copied: [
-            await copied.contains(unitManifest),
+            await copied.containsOutput(unitManifest, "bun"),
             await copied.containsOutput(buildManifest, "bun"),
         ],
         refused: refused.status,

@@ -11,6 +11,7 @@ import { CONNECTION } from "@destack/connection/test";
 import accountPackage from "@destack/account/package";
 import type { TestPerson } from "@destack/account/test";
 import { PackageClient, BuildStore } from "@destack/build/store";
+import { TestBuildStore } from "@destack/build/test";
 import { Forge } from "../server/forge.ts";
 import { Snapshot, type Select } from "@destack/db";
 import type { Environment } from "@destack/environment";
@@ -22,7 +23,7 @@ import objectPackage from "@destack/object/package";
 import type { TestObjectStore } from "@destack/object/test";
 import { testBuild } from "@destack/object/test";
 import { PackageVersion, PackageName, type PackageId } from "@destack/package";
-import { type BuildReader, PackageManifest } from "@destack/package/manifest";
+import { type BuildReader, Lock, PackageManifest } from "@destack/package/manifest";
 import { type Digest, Identifier, present, schema } from "@destack/schema";
 import { join } from "node:path";
 import settingPackage from "@destack/setting/package";
@@ -38,7 +39,8 @@ import { onTestFinished } from "@destack/test";
 import { testHost } from "@destack/test/host";
 import { LocalGitStorage, localGitProvider } from "@destack/git/local";
 import { issuer } from "../object/index.ts";
-import { packageObject, type Release } from "@destack/registry/object";
+import { TEST_COMMIT } from "./release.ts";
+import { LATEST_TAG, packageObject, type Release } from "@destack/registry/object";
 import forgePackage, { FORGE_INSTALLATION } from "../package.ts";
 import forgeServer from "../server.ts";
 import { claimFollow, standingFollow } from "../server/index.ts";
@@ -218,6 +220,8 @@ export interface Published {
     readonly packageId: PackageId;
     /** The digest of the release's build manifest. */
     readonly manifest: Digest;
+    /** The digest of the release's lock. */
+    readonly lock: Digest;
     /** The release as its creation returned it. */
     readonly release: Release;
 }
@@ -238,8 +242,6 @@ export class TestForge {
     readonly #templated: readonly Identifier<"account">[];
     /** The tenants the fixture took or created, which number their people and handles. */
     #tenants = 0;
-    /** The packages the fixture created, by identity. */
-    readonly #created = new Set<string>();
 
     /** Keep a served home and the forge it installs. */
     private constructor(fields: {
@@ -434,59 +436,100 @@ export class TestForge {
         return fetch(new Request(`${url}${path}`, init));
     }
 
-    /** Publish a build as the owner, its units and referrers from a store, creating its package. */
+    /** Publish a build as the owner with the builds it runs with, creating its package. */
     async publish(
         reader: BuildReader,
         visibility: Select<typeof packageObject.table>["visibility"] = "private",
-        store?: BuildStore,
+        builds: readonly BuildReader[] = [],
     ): Promise<Published> {
-        // create the package under the build's identity and name once
+        // push its lock
         const publisher = this.client(this.owner);
-        const packageId = PackageManifest.package(reader.manifest).id;
+        const { id: packageId, version } = PackageManifest.package(reader.manifest);
         const { local: name } = PackageName.split(reader.manifest.package.name);
-        if (!this.#created.has(packageId)) {
-            await publisher.package.create({
-                spaceId: this.space,
-                accountId: ACCOUNT_ID,
-                id: packageId,
-                requestId: RequestId.create(this.environment),
-                name,
-                visibility,
-            });
-            this.#created.add(packageId);
-        }
-
-        // push the build, after its npm units from a store, whose runtime builds the forge derives itself
-        const uploads = this.builds(packageId);
-        const manifest = await BuildStore.digest(reader.manifest, this.environment.crypto);
-        if (store === undefined) {
-            await uploads.push(reader);
-        } else {
-            for (const subject of [...(await store.units(manifest, packageId)), manifest]) {
-                await uploads.push(subject === manifest ? reader : await store.contents(subject));
-            }
-        }
-        const release = await publisher.release.create({
+        const lock = await this.push(reader, this.owner, builds);
+        await publisher.package.publish({
             spaceId: this.space,
             requestId: RequestId.create(this.environment),
+            packageId,
+            accountId: ACCOUNT_ID,
+            name,
+            visibility,
+            lock,
+            commit: TEST_COMMIT,
+        });
+        const release = await publisher.release.resolve({
+            spaceId: this.space,
             parentId: packageId,
-            manifest,
+            release: version,
+        });
+        const manifest = await BuildStore.digest(reader.manifest, this.environment.crypto);
+
+        return { reader, packageId, manifest, lock: release.lock, release };
+    }
+
+    /** Publish a pushed lock of a package as a person, answering the release its tag points at. */
+    async release(
+        input: {
+            readonly parentId: PackageId;
+            readonly name: string;
+            readonly accountId?: Identifier<"account">;
+            readonly lock: Digest;
+            readonly requestId?: string;
+            readonly commit?: string;
+            readonly tag?: string;
+        },
+        person: TestPerson = this.owner,
+    ): Promise<Release> {
+        // publish the lock
+        const client = this.client(person);
+        await client.package.publish({
+            spaceId: this.space,
+            requestId: input.requestId ?? RequestId.create(this.environment),
+            packageId: input.parentId,
+            accountId: input.accountId ?? ACCOUNT_ID,
+            name: input.name,
+            lock: input.lock,
+            ...(input.commit === undefined ? {} : { commit: input.commit }),
+            ...(input.tag === undefined ? {} : { tag: input.tag }),
         });
 
-        return { reader, packageId, manifest: release.manifest, release };
+        return await client.release.resolve({
+            spaceId: this.space,
+            parentId: input.parentId,
+            release: input.tag ?? LATEST_TAG,
+        });
     }
 
-    /** Push a build as a person, the owner by default, returning its manifest's digest. */
-    push(reader: BuildReader, person: TestPerson = this.owner): Promise<Digest> {
-        return this.builds(PackageManifest.package(reader.manifest).id, person).push(reader);
+    /** Push a build locked with the builds it runs with, answering the lock's digest. */
+    async push(
+        reader: BuildReader,
+        person: TestPerson = this.owner,
+        builds: readonly BuildReader[] = [],
+    ): Promise<Digest> {
+        // store the builds and lock them by package name
+        await using store = await TestBuildStore.create(this.environment);
+        const root = await store.put(reader);
+        const locked: Record<string, Digest> = {};
+        for (const build of builds) {
+            locked[build.manifest.package.name] = await store.put(build);
+        }
+        const lock = await store.putLock(
+            await Lock.hoisted(root, locked, (digest) => store.get(digest)),
+        );
+
+        // push the lock's objects below the account's handle
+        const uploads = this.builds(PackageName.split(reader.manifest.package.name).handle, person);
+        await uploads.push(store, [lock]);
+
+        return lock;
     }
 
-    /** Connect to the forge's uploads below a package as a person, the owner by default. */
-    builds(packageId: string, person: TestPerson = this.owner): PackageClient {
+    /** Connect to the forge's uploads below an account's handle as a person, the owner first. */
+    builds(handle: string, person: TestPerson = this.owner): PackageClient {
         const { url, fetch } = this.endpoint(person);
 
         return new PackageClient(
-            `${url}${forgePackage.mounts.builds.path}/${packageId}/`,
+            `${url}${forgePackage.mounts.builds.path}/${handle}/`,
             fetch,
             this.environment,
         );
@@ -716,6 +759,8 @@ export class TestForge {
             release,
         });
 
-        return (await this.store()).contents(resolved.manifest);
+        const store = await this.store();
+
+        return await store.contents((await store.lock(resolved.lock)).root);
     }
 }

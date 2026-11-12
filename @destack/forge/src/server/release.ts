@@ -1,10 +1,14 @@
 import { type BuildStore } from "@destack/build/store";
 import { PackageManifest } from "@destack/package/manifest";
-import type { PackageRelease } from "@destack/package";
+import { type DependencyRelease, type PackageId, PackageName } from "@destack/package";
 import { type MethodContextOf, type NextOf, type ResultOf } from "@destack/object";
 import { Vocabulary } from "@destack/resource";
 import { present, Version, schema } from "@destack/schema";
 import { RequestId } from "@destack/sync";
+import { Projection, Snapshot } from "@destack/db";
+import type { ObjectStore } from "@destack/object/server";
+import { SettingValue } from "@destack/setting/object";
+import { buildRetention } from "@destack/stack/setting";
 import { Forge } from "./forge.ts";
 import { ForgeError } from "../error/index.ts";
 import {
@@ -15,7 +19,6 @@ import {
     tag,
     TagName,
 } from "@destack/registry/object";
-import { unit } from "../object/index.ts";
 
 /** What releases check builds against: the store of pushed builds. */
 export interface ReleaseOptions {
@@ -25,29 +28,29 @@ export interface ReleaseOptions {
 
 /** The release methods' handlers: checking, publishing, resolving, deprecating and yanking. */
 export const ReleaseMethod = {
-    /** Check a pushed build of the package under its global name, before the transaction. */
+    /** Check a pushed lock of a package under its global name, before the publish's transaction. */
     async check(
-        context: MethodContextOf<typeof release, "create", Candidate | undefined>,
+        context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
         options: ReleaseOptions,
     ): Promise<Candidate> {
-        // refuse a tag a range reads, and lease the build while its request may still retry
+        // refuse a tag a range reads
         const store = options.store;
         TagName.require(context.input.tag ?? LATEST_TAG);
-        const { parentId, manifest } = context.input;
+        const { packageId: parentId, accountId, name: local, lock, commit } = context.input;
         const request = present(context.requestId, "the release's request");
         const until = new Date(RequestId.expiry(request, context.now));
-        await store.lease(manifest, until);
+        await store.lease(lock, until);
 
-        // require a pushed build, of a commit unless it is a prerelease
-        if (!(await store.contains(manifest))) {
-            throw ForgeError.of("BUILD_NOT_FOUND", `build '${manifest}' not found`);
+        // require a pushed lock
+        if (!(await store.contains(lock))) {
+            throw ForgeError.of("BUILD_NOT_FOUND", `lock '${lock}' not found`);
         }
-        const contents = await store.contents(manifest);
-        const { commit, package: built } = contents.manifest;
-        if (commit === undefined && !Version.isPrerelease(built.version)) {
+        const read = await store.lock(lock);
+        const contents = await store.contents(read.root);
+        if (commit === undefined && !Version.isPrerelease(contents.manifest.package.version)) {
             throw ForgeError.of(
                 "BUILD_INVALID",
-                `build '${manifest}' is invalid: it compiled a working tree with uncommitted changes`,
+                `lock '${lock}' is invalid: a release of uncommitted changes must be a prerelease`,
             );
         }
 
@@ -56,104 +59,190 @@ export const ReleaseMethod = {
         if (id !== parentId) {
             throw ForgeError.of("BUILD_INVALID", "build is invalid: it belongs to another package");
         }
-        const named = await Forge.package(
-            name,
-            context,
-            schema.identifier("space").parse(context.scope),
-        );
-        if (named.id !== parentId) {
+        const home = schema.identifier("space").parse(context.scope);
+        const named = await Forge.find(name, context, home);
+        if (named.accountId !== accountId || PackageName.split(name).local !== local) {
+            throw ForgeError.of(
+                "BUILD_INVALID",
+                `lock '${lock}' is invalid: its root is a build of '${name}', not of the published package`,
+            );
+        } else if (named.package !== undefined && named.package.id !== parentId) {
             throw ForgeError.of("NPM_NAME_EXISTS", "npm name already exists");
         }
 
         // refuse a builtin outside the platform's organization
         if (contents.manifest.role === "builtin") {
-            await Forge.requireBuiltin(
-                name,
-                context,
-                schema.identifier("space").parse(context.scope),
-            );
+            await Forge.requireBuiltin(name, context, home);
         }
 
-        // refuse a dependency on a package hosted here that pins an unreleased build
-        await ReleaseMethod.requirePublished(context, await contents.releases());
+        // refuse a locked package hosted here
+        const entries = await store.entriesOf(read);
+        await ReleaseMethod.requirePublished(context, id, entries);
 
-        // lease the npm units it depends on, which its readers read with it
-        const units = await store.units(manifest, parentId);
-        for (const each of units) {
-            await store.lease(each, until);
-        }
-
-        // read the build's declarations
+        // read the root's declarations
         return {
-            manifest,
+            lock,
             ...(commit === undefined ? {} : { commit }),
             version,
-            units,
             declarations: await contents.declarations(),
         };
     },
 
-    /** Insert a release of an unused version, record its dependencies, and point its tag at it. */
+    /** Insert a release of an unused version, or answer this lock's, and point its tag at it. */
     async publish(
         context: MethodContextOf<typeof release, "create">,
         next: NextOf<typeof release, "create">,
     ): Promise<ResultOf<typeof release, "create">> {
-        // require the next version before planning and advancing the vocabulary
-        const packed = context.prepared;
-        await ReleaseMethod.requireNextVersion(context, packed);
-        await ReleaseMethod.advance(context, packed);
+        // answer the release this lock published at its version
+        const { parentId, tag: pointed, ...packed } = context.input;
+        const published = await ReleaseMethod.published(context, packed);
+        const answered = published ?? (await ReleaseMethod.insert(context, next, packed));
 
-        // insert the release
-        const { manifest, commit, version } = packed;
-        const created = await next(
-            context.with({
-                input: {
-                    ...context.input,
-                    manifest,
-                    ...(commit === undefined ? {} : { commit }),
-                    version,
-                },
-            }),
-        );
-
-        // record its npm units, and point its tag at it, latest by default
+        // point its tag at it
         await context.mutate(context.caller, [
-            ...packed.units.map((digest) =>
-                unit.call("create", { parentId: created.id, manifest: digest }),
-            ),
             packageObject.call("point", {
-                id: context.input.parentId,
-                name: context.input.tag ?? LATEST_TAG,
+                id: parentId,
+                name: pointed ?? LATEST_TAG,
                 version: packed.version,
             }),
         ]);
 
-        return created;
+        return answered;
     },
 
-    /** Refuse a dependency on a package this forge hosts whose pinned build it has not released. */
-    async requirePublished(
-        context: MethodContextOf<typeof release, "create", Candidate | undefined>,
-        dependencies: readonly PackageRelease[],
-    ): Promise<void> {
-        for (const dependency of dependencies) {
-            // read the release of its pinned build among the packages hosted here
-            const { id } = dependency.package;
-            const [hosted] = await context
-                .read(packageObject)
-                .findMany({ where: { id }, limit: 1 });
-            const [released] = await context.read(release).findMany({
-                where: { parentId: id, manifest: dependency.manifest },
-                limit: 1,
-            });
+    /** Insert a release of a version after the newest, advancing the vocabulary. */
+    async insert(
+        context: MethodContextOf<typeof release, "create">,
+        next: NextOf<typeof release, "create">,
+        packed: Candidate,
+    ): Promise<ResultOf<typeof release, "create">> {
+        // require the next version before planning and advancing the vocabulary
+        await ReleaseMethod.requireNextVersion(context, packed);
+        await ReleaseMethod.advance(context, packed);
 
-            // refuse a hosted package's unreleased build, leaving packages other forges host
-            if (hosted !== undefined && released === undefined) {
-                throw ForgeError.of(
-                    "DEPENDENCY_BLOCKED",
-                    `cannot release with dependency '${dependency.package.name}@${dependency.package.version}': it is not published`,
-                );
-            }
+        // insert the release
+        return await next(context);
+    },
+
+    /** Read the release of the lock's version, refusing one of another lock or a yanked one. */
+    async published(
+        context: MethodContextOf<typeof release, "create">,
+        packed: Candidate,
+    ): Promise<ResultOf<typeof release, "create"> | undefined> {
+        // read the release of the version
+        const [taken] = await context.read(release).findMany({
+            where: { parentId: context.input.parentId, version: packed.version },
+            limit: 1,
+        });
+
+        // refuse another lock's release
+        if (taken !== undefined && taken.lock !== packed.lock) {
+            throw ForgeError.of(
+                "RELEASE_EXISTS",
+                `release '${packed.version}' of '${context.input.parentId}' already exists: another lock published it`,
+            );
+        } else if (taken !== undefined && taken.yankedAt !== null) {
+            throw ForgeError.of(
+                "RELEASE_EXISTS",
+                `release '${packed.version}' of '${context.input.parentId}' already exists: it is yanked`,
+            );
+        }
+
+        return taken;
+    },
+
+    /** Refuse a locked package this forge hosts whose locked version is not released. */
+    async requirePublished(
+        context: MethodContextOf<typeof packageObject, "publish", Candidate | undefined>,
+        root: PackageId,
+        entries: Readonly<Record<string, DependencyRelease>>,
+    ): Promise<void> {
+        // read the hosted dependencies and their releases in two reads
+        const dependencies = Object.values(entries).flatMap((entry) =>
+            entry.kind === "destack" && entry.package.id !== root ? [entry.package] : [],
+        );
+        const hosted = await context
+            .read(packageObject)
+            .findMany({ where: { id: { in: dependencies.map((each) => each.id) } } });
+        const released = await context.read(release).findMany({
+            where: { parentId: { in: hosted.map((each) => each.id) }, yankedAt: { isNull: true } },
+        });
+        const versions = new Set(released.map((each) => `${each.parentId}@${each.version}`));
+
+        // refuse a hosted dependency whose locked version is not released
+        const ids = new Set(hosted.map((each) => each.id));
+        const unreleased = dependencies.find(
+            (each) => ids.has(each.id) && !versions.has(`${each.id}@${each.version}`),
+        );
+        if (unreleased !== undefined) {
+            throw ForgeError.of(
+                "DEPENDENCY_BLOCKED",
+                `cannot release with dependency '${unreleased.name}@${unreleased.version}': it is not published`,
+            );
+        }
+    },
+
+    /** Delete a prerelease, refusing a stable release, which stays immutable and only yanks. */
+    async delete(
+        call: MethodContextOf<typeof release, "delete">,
+        next: NextOf<typeof release, "delete">,
+    ): Promise<ResultOf<typeof release, "delete">> {
+        if (!Version.isPrerelease(call.target.version)) {
+            throw ForgeError.of(
+                "RELEASE_INVALID",
+                `release '${call.target.version}' is invalid: a stable release cannot be deleted, only yanked`,
+            );
+        }
+
+        return await next(call);
+    },
+
+    /** Delete each package's prereleases past its build retention, keeping tagged ones. */
+    retention(store: ObjectStore): Projection {
+        return new Projection(store.database, {
+            name: "release-retention",
+            tables: [release.table, tag.table],
+            keys: async () => [store.scope],
+            all: async () => [store.scope],
+            project: async () => ReleaseMethod.retain(store),
+        });
+    },
+
+    /** Delete prereleases past the build retention, keeping the newest and the tagged ones. */
+    async retain(store: ObjectStore): Promise<void> {
+        // read how many prereleases of each package the space keeps
+        const { database, scope } = store;
+        const snapshot = Snapshot.live(database);
+        const kept = await SettingValue.resolve(snapshot, buildRetention, { scope });
+        const space = schema.identifier("space").parse(scope);
+        const releases = await snapshot.read(release.table).findMany({ where: { scope: space } });
+        const tagged = new Set(
+            (await snapshot.read(tag.table).findMany({ where: { scope: space } })).map(
+                (each) => `${each.parentId} ${each.version}`,
+            ),
+        );
+
+        // drop each package's untagged prereleases past the newest it keeps
+        const prereleases = releases
+            .filter((each) => Version.isPrerelease(each.version))
+            .toSorted((left, right) => right.createdAt - left.createdAt);
+        const dropped = [...Map.groupBy(prereleases, (each) => each.parentId).values()].flatMap(
+            (newestFirst) =>
+                newestFirst
+                    .slice(kept)
+                    .filter((each) => !tagged.has(`${each.parentId} ${each.version}`)),
+        );
+
+        // delete them
+        if (dropped.length > 0) {
+            await store.mutate(
+                store.as(release),
+                {
+                    id: RequestId.create(store.environment),
+                    calls: dropped.map((each) => release.call("delete", release.target(each))),
+                },
+                { component: "retention" },
+            );
         }
     },
 
@@ -232,20 +321,11 @@ export const ReleaseMethod = {
         return context.update({ yankedAt: yanked.yankedAt ?? context.now });
     },
 
-    /** Refuse a version the package took before, and an older one. */
+    /** Refuse a version older than the package's newest release. */
     async requireNextVersion(
         context: MethodContextOf<typeof release, "create">,
         packed: Candidate,
     ): Promise<void> {
-        // refuse a version the package took before, yanked or not
-        const [taken] = await context.read(release).findMany({
-            where: { parentId: context.input.parentId, version: packed.version },
-            limit: 1,
-        });
-        if (taken !== undefined) {
-            throw ForgeError.of("VERSION_EXISTS", "package version already exists");
-        }
-
         // require releases in version order, the newest release being the highest version, ties in creation order
         const [newest] = await context.read(release).findMany({
             where: { parentId: context.input.parentId },
@@ -291,16 +371,14 @@ export const ReleaseMethod = {
 };
 
 /** Implement releases. */
-export function implementRelease(options: ReleaseOptions): typeof release {
+export function implementRelease(): typeof release {
     return release.implement({
         methods: {
-            create: {
-                prepare: (context) => ReleaseMethod.check(context, options),
-                handle: (context, next) => ReleaseMethod.publish(context, next),
-            },
+            create: (context, next) => ReleaseMethod.publish(context, next),
             resolve: (call) => ReleaseMethod.resolve(call),
             deprecate: (call) => ReleaseMethod.deprecate(call),
             yank: (call) => ReleaseMethod.yank(call),
+            delete: (call, next) => ReleaseMethod.delete(call, next),
         },
     });
 }
