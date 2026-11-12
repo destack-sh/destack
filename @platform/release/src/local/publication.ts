@@ -128,17 +128,18 @@ export class Publication {
         open: ForgeOpen,
         released: (reader: BuildReader, digest: Digest) => Promise<void>,
     ): Promise<void> {
-        // order the builds once, each after the builds it pins, as a workspace publish does
+        // layer the builds once, each layer pinning only builds of earlier ones
         const { crypto } = build.store.environment;
         const readers = new Map<Digest, BuildReader>();
         for (const reader of build.readers) {
             readers.set(await BuildStore.digest(reader.manifest, crypto), reader);
         }
-        const ordered = await BuildStore.ordered(build.store, [...readers.keys()]);
+        const layers = await BuildStore.layers(build.store, [...readers.keys()]);
 
-        // release each build once into the forge of its account, opened once per handle
+        // release each layer's builds at once into the forge of their account, opened once per handle
         const forges = new Map<string, Promise<ReleaseForge>>();
-        for (const digest of ordered) {
+        const releaseOne = async (digest: Digest) => {
+            // read the build and its account's forge, then release it
             const reader = present(
                 readers.get(digest),
                 `build ${digest} is a dependency outside the platform build`,
@@ -150,6 +151,9 @@ export class Publication {
             if ((await registry.release(build.store, digest, accountId, tag)) === "released") {
                 await released(reader, digest);
             }
+        };
+        for (const layer of layers) {
+            await Promise.all(layer.map(releaseOne));
         }
     }
 
