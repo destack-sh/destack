@@ -3,7 +3,7 @@ import registryPackage from "@destack/registry/package";
 import { connectionShape, Runner } from "@destack/connection/server";
 import { BuildStore } from "@destack/build/store";
 import type { Environment } from "@destack/environment";
-import { type BlobStore, eq, inArray, or, Snapshot, Transaction } from "@destack/db";
+import { type BlobStore, inArray, Snapshot, TABLE, Transaction } from "@destack/db";
 import { Directory } from "@destack/account/address";
 import { Account, account, claimShape, spaceRecordShape } from "@destack/account/object";
 import {
@@ -14,18 +14,15 @@ import {
     type Fetch,
     PackageMount,
     CallError,
-    RequestBody,
 } from "@destack/object";
 import type { ObjectStore, ImplementationInput, RequestContext } from "@destack/object/server";
-import { PackageId, PackageName } from "@destack/package";
-import { PackageManifest } from "@destack/package/manifest";
+import { PackageName } from "@destack/package";
 import { type Digest, type Identifier, present, schema } from "@destack/schema";
 import { RequestId, type ObjectReference, Scope, type Subject } from "@destack/sync";
 import type { ServerContext, PackageContext } from "@destack/object/workload";
 import type { WebhookDelivery } from "@destack/workflow";
 import { GITHUB_API, GitHubApp, GitHubHosting } from "../github/index.ts";
 import { packageObject, reference, release, repository } from "@destack/registry/object";
-import { unit } from "../object/index.ts";
 import forgePackage from "../package.ts";
 import { github } from "../stack/setting.ts";
 import {
@@ -37,7 +34,7 @@ import {
 import type { GitStorage } from "@destack/git";
 import { ForgeError, type ForgeReason } from "../error/index.ts";
 import { implementPackageObject } from "./package.ts";
-import { implementRelease } from "./release.ts";
+import { implementRelease, ReleaseMethod } from "./release.ts";
 import { implementRepository } from "./repository.ts";
 import { implementTag } from "./tag.ts";
 import { implementIssuer } from "./issuer.ts";
@@ -120,10 +117,9 @@ export class Forge {
                 vault: options.vault,
             }),
             reference,
-            implementPackageObject(),
-            implementRelease({ store: this.store }),
+            implementPackageObject({ store: this.store }),
+            implementRelease(),
             implementTag(),
-            unit,
             implementIssuer(options.github),
         ];
     }
@@ -193,6 +189,8 @@ export class Forge {
         return {
             objects: this.handled,
             protocols: [registryPackage],
+            // delete the prereleases past the space's retention
+            cursors: [(store) => ReleaseMethod.retention(store)],
             follows: [this.#connectionFollow(), claimFollow],
             standing: [standingFollow],
             // answer builds, and the GitHub App's deliveries
@@ -238,6 +236,23 @@ export class Forge {
         reader: ClaimReader,
         home: Identifier<"space">,
     ): Promise<ObjectReference> {
+        const found = (await Forge.find(name, reader, home)).package;
+        if (found === undefined) {
+            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        }
+
+        return found;
+    }
+
+    /** Find the account of a name's handle, and the package claiming the name, absent for none. */
+    static async find(
+        name: string,
+        reader: ClaimReader,
+        home: Identifier<"space">,
+    ): Promise<{
+        readonly accountId: Identifier<"account">;
+        readonly package: ObjectReference | undefined;
+    }> {
         // resolve the account handle, refusing an unclaimed one
         const { handle, local } = PackageName.split(name);
         await Forge.#acquire(reader, Claim.key(account, "handle", [handle]));
@@ -250,12 +265,12 @@ export class Forge {
         const keyed = Claim.key(packageObject, "name", [accountId, local]);
         await Forge.#acquire(reader, keyed);
         const found = await Claim.owner(reader.read(claimTable), keyed);
-        if (found === undefined) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
-        }
+        const claimed =
+            found === undefined
+                ? undefined
+                : { ...packageObject.reference(home, found.objectId), id: found.objectId };
 
-        // refer to the package in the forge's home
-        return { ...packageObject.reference(home, found.objectId), id: found.objectId };
+        return { accountId, package: claimed };
     }
 
     /** Refuse a builtin outside the platform's organization, the one owning the forge's home. */
@@ -350,79 +365,81 @@ export class Forge {
         });
     }
 
-    /** Authorize an upload below a package: any enrolled machine's, else its publishers'. */
+    /** Authorize an upload below an account's handle: an enrolled machine's or a publisher's. */
     async #authorizeUpload(
         request: Request,
         scope: string | undefined,
         context: RequestContext,
         objects: ObjectStore,
     ): Promise<void> {
-        // require an identified caller uploading below a package
+        // require an identified caller uploading below an account
         if (Caller.isAnonymous(context.access())) {
             throw ForgeError.of(
                 "CREDENTIAL_UNAUTHENTICATED",
                 "authentication required: caller credential is missing",
             );
         }
-        const packageId = PackageId.safeParse(scope);
-        if (!packageId.success) {
+        if (scope === undefined) {
             throw ForgeError.of(
-                "UPLOAD_OUTSIDE_PACKAGE_NOT_FOUND",
-                "upload target package not found",
+                "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
+                "upload target account not found",
             );
         }
 
-        // stage an enrolled machine's upload, else require publish on the package
+        // stage an enrolled machine's upload
         const isMachine = principal.machine.is(context.access().subject);
-        if (!isMachine && !(await this.#isPublisher(packageId.data, context, objects))) {
-            throw ForgeError.of("PACKAGE_NOT_FOUND", "package not found");
+        if (!isMachine && !(await this.#isPublisher(scope, context, objects))) {
+            throw ForgeError.of(
+                "UPLOAD_OUTSIDE_ACCOUNT_NOT_FOUND",
+                "upload target account not found",
+            );
         }
-        await Forge.#requirePushedPackage(request, packageId.data);
     }
 
-    /** Decide whether the caller may publish a package, denying a missing package. */
+    /** Decide whether the caller may publish packages of a handle's account. */
     async #isPublisher(
-        packageId: PackageId,
+        handle: string,
         context: RequestContext,
         objects: ObjectStore,
     ): Promise<boolean> {
-        // find the package's account
-        const table = packageObject.table;
-        const [found] = await objects.database
-            .select({ scope: table.scope })
-            .from(table)
-            .where(eq(table.id, packageId))
-            .limit(1);
+        // find the account claiming the handle
+        const keyed = Claim.key(account, "handle", [handle]);
+        const snapshot = Snapshot.live(objects.database);
+        const reader: ClaimReader = {
+            acquire: (follow, at) => objects.acquire(follow, at),
+            read: (table) => snapshot.read(table),
+        };
+        await Forge.#acquire(reader, keyed);
+        const found = await Claim.owner(reader.read(claimTable), keyed);
         if (found === undefined) {
             return false;
         }
 
-        // check publish as the caller in the account
+        // check publish on a new package of the account
+        const scope = present(context.scope, "the upload's space");
         const authorization = await objects.authorize(
             Transaction.reading(objects.database),
-            found.scope,
-            context.access(found.scope),
+            scope,
+            context.access(scope),
         );
-        const decision = await authorization.check(
-            packageObject.permission("publish"),
-            packageObject.reference(found.scope, packageId),
-        );
+        const id = packageObject.generateId(objects.environment);
+        const row = packageObject.table[TABLE].defaults({ id, scope, accountId: found.objectId });
+        const decision = await authorization.checkRows(packageObject.permission("publish"), scope, [
+            row,
+        ]);
 
-        return decision.isAllowed;
+        return decision.permitted.has(0);
     }
 
-    /** Require the caller to read a package that releases a build or lists it as a unit. */
+    /** Require the caller to read a package with a release whose lock is the digest or lists it. */
     async #readable(digest: Digest, context: RequestContext, objects: ObjectStore): Promise<void> {
-        // find the packages of the releases of the build, and of those listing it as a unit
+        // find the packages of the releases of the lock
         const table = release.table;
-        const listing = objects.database
-            .select({ id: unit.table.parentId })
-            .from(unit.table)
-            .where(eq(unit.table.manifest, digest));
+        const locks = [digest, ...(await this.store.referencing(digest))];
         const rows = await objects.database
             .selectDistinct({ scope: table.scope, id: table.parentId })
             .from(table)
-            .where(or(eq(table.manifest, digest), inArray(table.id, listing)));
+            .where(inArray(table.lock, locks));
 
         // pass at the first package the caller reads, concealing every refusal
         for (const owner of rows) {
@@ -446,31 +463,5 @@ export class Forge {
             }
         }
         throw ForgeError.of("BUILD_NOT_FOUND", "build not found");
-    }
-
-    /** Require a pushed manifest to belong to the package it is uploaded below. */
-    static async #requirePushedPackage(request: Request, packageId: PackageId): Promise<void> {
-        // pass files, which any build of the package may list
-        if (request.method !== "PUT" || !request.url.endsWith("/manifest.json")) {
-            return;
-        }
-
-        // read a clone of the body within the limit, leaving the body to the store
-        const value = await RequestBody.json(request.clone(), "the pushed manifest");
-        const parsed = PackageManifest.safeParse(value);
-        if (!parsed.success) {
-            throw ForgeError.of(
-                "MANIFEST_INVALID",
-                "pushed manifest is invalid: it must parse as a package manifest",
-            );
-        }
-        // refuse a Destack manifest of another package, passing an npm unit's for the release that lists it
-        const pushed = parsed.data.package;
-        if ("id" in pushed && pushed.id !== packageId) {
-            throw ForgeError.of(
-                "MANIFEST_INVALID",
-                `pushed manifest is invalid: it belongs to '${pushed.name}', not this package`,
-            );
-        }
     }
 }
