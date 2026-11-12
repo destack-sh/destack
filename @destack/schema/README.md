@@ -1,54 +1,43 @@
 # @destack/schema
 
-`schema` is Zod 4 limited to what JSON Schema expresses, `toJsonSchema` is Zod's `z.toJSONSchema` and `fromJsonSchema` its exact inverse with patterns matched by RE2, the time types are Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` in JSON, and `schema.identifier` brands a prefixed UUIDv7 or name-based UUIDv8.
+Define Destack's portable values: validation schemas, identifiers, versions, time values, digests and canonical JSON.
+
+## Overview
+
+Every value Destack stores or sends has a schema that converts to JSON Schema and back, so packages, stacks and clients agree on it.
+
+- **schema**: Zod 4 limited to what JSON Schema expresses; `toJsonSchema` and `fromJsonSchema` convert both ways, and `compareJsonSchemas` tells a wider schema from a narrower one.
+- **Identifier**: a prefixed UUIDv7 such as `space-01995f12-…`, branded by its prefix; `create` from an environment's clock and randomness, `hash` from a namespace and a name.
+- **Version**: a calendar version such as `2026.11.0`, dev builds ordered before their release.
+- **Digest**: a lowercase hexadecimal SHA-256, of bytes or of RFC 8785 canonical JSON.
+- **Time values**: Temporal's `Instant`, `PlainDate`, `PlainTime` and `Duration` as JSON.
 
 ```ts
-// z.object
-const Note = schema.object({ title: schema.string().min(1), archived: schema.boolean() });
-type Note = schema.Infer<typeof Note>; // z.infer
-toJsonSchema(Note); // z.toJSONSchema, refusing transforms, refinements, dates and loose objects
-// the same Note, filling in defaults, refusing open objects and unknown keywords
-fromJsonSchema(toJsonSchema(Note));
-// Identifier<"space">
-schema.identifier("space").parse("space-01995f12-3456-7890-8abc-123456789abc");
-const date: PlainDate = { year: 2026, month: 10, day: 3 }; // Temporal.PlainDate in JSON
+import { fromJsonSchema, Identifier, schema, toJsonSchema, Version } from "@destack/schema";
+import { BunEnvironment } from "@destack/environment/bun";
+
+const Note = schema.object({
+    id: schema.identifier("note"),
+    title: schema.string().min(1).max(200),
+    isArchived: schema.boolean(),
+});
+type Note = schema.Infer<typeof Note>;
+
+const id = Identifier.create("note", BunEnvironment.system);
+const note: Note = Note.parse({ id, title: "Plans", isArchived: false });
+const same = fromJsonSchema(toJsonSchema(Note));
+Version.compare("2026.11.0-dev.3", "2026.11.0"); // -1
 ```
 
-## Identifiers
+## Examples
 
-`Identifier.create` creates a prefixed UUIDv7 from an environment's clock and randomness, so one seed creates the same identifiers.
+### Mark sensitive fields
 
-```ts
-Identifier.create("space", environment); // "space-01a16b35-0800-748f-…", the clock's millisecond first
-Uuid.v7(environment); // the bare UUIDv7: the millisecond, a 12-bit counter, then 62 random bits
-Uuid.v4(environment.random); // 122 random bits
-```
-
-## Named identifiers
-
-`Identifier.hash` hashes a namespace and a name into a prefixed UUIDv8 by SHA-256 (RFC 9562 B.2), the same everywhere.
+`schema.sensitive` marks a secret that logs and events leave out, or personal data that events store sealed under its person's key.
 
 ```ts
-await Identifier.hash("installation", spaceUuid, "stack", crypto); // "installation-…-8…", one per space and name
-await Uuid.v8("6ba7b810-9dad-11d1-80b4-00c04fd430c8", "www.example.com", crypto); // "5c146b14-3c52-8afd-938a-375d0df1fbf6"
-```
+import { schema } from "@destack/schema";
 
-## Comparisons
-
-`compareJsonSchemas` compares two JSON Schemas by the values each accepts: `"same"`, `"wider"`, `"narrower"` or `"incompatible"`.
-
-```ts
-// "wider"
-compareJsonSchemas(toJsonSchema(schema.enum(["a"])), toJsonSchema(schema.enum(["a", "b"])));
-// "narrower"
-compareJsonSchemas(toJsonSchema(schema.string()), toJsonSchema(schema.string().max(5)));
-```
-
-## Sensitivity
-
-`schema.sensitive` marks a secret that log entries, journals and events leave out, or with `"personal"` personal data that events store sealed under its person's key.
-
-```ts
 const Call = schema.object({
     address: schema.sensitive(schema.string(), "personal"),
     token: schema.sensitive(schema.string()),
@@ -56,44 +45,48 @@ const Call = schema.object({
 schema.redact(Call, { address: "ada@example.com", token: "secret" }); // {}
 ```
 
-## Versions
+### Compare schemas
 
-`Version` orders calendar versions with dev builds before their release.
+`compareJsonSchemas` answers `"same"`, `"wider"`, `"narrower"` or `"incompatible"` by the values each schema accepts.
 
 ```ts
-Version.compare("2026.10.0-dev.3", "2026.10.0"); // -1
-Version.next("2026.10.0"); // "2026.10.1"
+import { compareJsonSchemas, schema, toJsonSchema } from "@destack/schema";
+
+const before = toJsonSchema(schema.enum(["a"]));
+const after = toJsonSchema(schema.enum(["a", "b"]));
+compareJsonSchemas(before, after); // "wider"
 ```
 
-## Checked reads
+### Hash canonical JSON
 
-`present`, `found`, `nth` and `zip` throw on a missing value instead of returning `undefined`.
-
-```ts
-present(user.email, "email"); // the email, or TypeError "email is missing"
-found(notes, id); // the map's value, or RangeError
-nth(changes, -1); // the last change, as Array.prototype.at, or RangeError for an empty list
-zip(ids, rows); // [[id, row], ...], or RangeError for lists of different lengths
-```
-
-## Mapped records
-
-`mapValues` builds a record from an object's own keys, typed as the mapped type its caller states, and is the one place a record built from runtime keys gets its type.
+`Digest.json` hashes a value's RFC 8785 canonical JSON, so equal values hash the same everywhere.
 
 ```ts
-const columns = mapValues<Builders, TableColumnMap<Builders, Name>>(
-    builders,
-    (builder) => new Column(sqlName, builder.definition),
-);
-```
+import { canonicalize, Digest } from "@destack/schema";
+import { BunEnvironment } from "@destack/environment/bun";
 
-## Digests
-
-`canonicalize` writes RFC 8785's canonical JSON, keys sorted by UTF-16 code units, and `Digest.json` hashes that form with the environment's SHA-256.
-
-```ts
 canonicalize({ b: 1, a: [true] }); // '{"a":[true],"b":1}'
-await Digest.of("destack", environment.crypto); // lowercase hexadecimal SHA-256
-await Digest.json({ b: 1, a: [true] }, environment.crypto);
-Commit.parse("a".repeat(40)); // a Git commit's SHA-1 or SHA-256 object ID
+const digest = await Digest.json({ b: 1, a: [true] }, BunEnvironment.system.crypto);
 ```
+
+### Read a value that must be there
+
+`present`, `found` and `nth` throw on a missing value instead of returning `undefined`.
+
+```ts
+import { found, nth, present } from "@destack/schema";
+
+const email = present("ada@example.com" as string | undefined, "email");
+const title = found(new Map([["note-1", "Plans"]]), "note-1");
+const last = nth(["a", "b"], -1); // "b"
+```
+
+## Comparison
+
+### Zod
+
+Schemas follow Zod 4, which they wrap; three things differ.
+
+- A schema expresses only what JSON Schema does, so it converts to JSON Schema and back without loss.
+- Patterns are matched by RE2, so a schema from another package cannot backtrack for long.
+- Identifiers, versions, time values and digests are schemas too, shared by every package.
